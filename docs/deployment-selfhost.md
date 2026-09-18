@@ -126,10 +126,11 @@ after a release pull request promotes `dev` to `main`.
 | --- | --- | --- | --- |
 | `cg1618` | `db` | `postgres:17` | Every application's database. Data in the named volume `cg1618_pgdata`. Network aliases `db` and `postgres`. |
 | `cg1618` | `cloudflared` | `cloudflare/cloudflared:latest` | The outbound tunnel, and the only way in. Its ingress is generated from `apps.yml`. |
+| `cg1618` | `apex` | `nginx:alpine` | `cg1618.com` — a static list of the applications, generated from `apps.yml`. No application code, no database. |
 | `media` | `app` | `media-app:local`, built on the box from `dockerfile` | FastAPI and the built SPA, one process, `uvicorn` on port 8000. Network alias `media-app`. |
 
 Compose derives container names from the project, so they are `cg1618-db-1`,
-`cg1618-cloudflared-1` and `media-app-1`. Nothing hardcodes a container name —
+`cg1618-cloudflared-1`, `cg1618-apex-1` and `media-app-1`. Nothing hardcodes a container name —
 the project name is the one place a name is written.
 
 **The app has no `depends_on` any more**, because Compose cannot order services
