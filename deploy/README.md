@@ -182,13 +182,21 @@ the job or container fails on the next start — `load_backup_env` refuses by
 name, which is the loud case; a variable the application reads through
 `settings` may simply be `None`, which is the quiet one.
 
-## The three services
+## The services, across two projects
 
-| Service | What it is |
-| --- | --- |
-| `db` | `postgres:17`, data in the named volume `pgdata` |
-| `app` | built from the repository's `dockerfile`; FastAPI plus the built SPA |
-| `cloudflared` | the outbound tunnel, and the only way in |
+This repository runs **one** service. PostgreSQL and the tunnel are shared by
+every application on the box and belong to `cg1618-apps/platform`, checked out
+at `~/cg1618`.
+
+| Project | Service | What it is |
+| --- | --- | --- |
+| `cg1618` | `db` | `postgres:17`, data in the named volume `cg1618_pgdata`, reachable on the shared network as `db` |
+| `cg1618` | `cloudflared` | the outbound tunnel, and the only way in; its ingress is generated from `apps.yml` |
+| `media` | `app` | built from this repository's `dockerfile`; FastAPI plus the built SPA, joined to the shared network as `media-app` |
+
+`deploy.sh` and the backup scripts reach the database through the platform's
+compose file (`DB_COMPOSE`, defaulting to `~/cg1618/docker-compose.prod.yml`)
+while `up`, `ps` and `run app` still mean this project.
 
 **Nothing is published to the host.** No service has a `ports:` entry, so the
 database is not on the LAN and the app cannot be reached except through
@@ -229,14 +237,18 @@ ADMIN_PASSWORD=<generate; not the development one>
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
-TUNNEL_ID=<from `cloudflared tunnel create`>
-CLOUDFLARED_CREDENTIALS=/home/<user>/.cloudflared/<uuid>.json
-
 GOOGLE_SHEET_ID=<the App Database sheet; never the development one>
 GOOGLE_CREDENTIALS_JSON=<service account JSON, on one line>
 
 COMPOSE_PROJECT_NAME=media
 ```
+
+`TUNNEL_ID` and `CLOUDFLARED_CREDENTIALS` are **not** here any more. They
+configure the tunnel, which belongs to the platform, and they live in
+`~/cg1618/.env` — as does the PostgreSQL superuser password. An application's
+`.env` is handed to its container by `env_file:`, so anything left in this one
+is given to the web application; the tunnel's identity and the database
+superuser have no business there.
 
 **`COMPOSE_PROJECT_NAME` names the volume**, so it decides which database the
 stack sees. Compose otherwise derives it from the directory, and a checkout

@@ -17,6 +17,13 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 COMPOSE=(docker compose -f docker-compose.prod.yml)
+
+# PostgreSQL belongs to the platform's compose project (cg1618-apps/platform),
+# so every database call reaches it through THAT file rather than this one. Two
+# variables, not one: `up`, `ps` and `run app` still mean this repository's
+# project, and conflating them would deploy the shared stack from here.
+PLATFORM_DIR="${PLATFORM_DIR:-${HOME}/cg1618}"
+DB_COMPOSE=(docker compose -f "${PLATFORM_DIR}/docker-compose.prod.yml")
 BACKUP_DIR="${HOME}/backups"
 KEEP=5
 
@@ -90,7 +97,7 @@ stamp="$(date +%Y%m%d-%H%M%S)"
 dump="${BACKUP_DIR}/pre-deploy-${stamp}.dump"
 
 echo "==> Dumping to ${dump}"
-"${COMPOSE[@]}" exec -T db \
+"${DB_COMPOSE[@]}" exec -T db \
     pg_dump -U "${POSTGRES_USER}" -Fc -d "${POSTGRES_DB}" > "${dump}"
 
 # A truncated or empty dump is worse than none, because it looks like a
@@ -111,7 +118,7 @@ echo "    dump belongs to $(cat "${dump}.revision")"
 # later: a git sha is not a revision id and the two share no namespace, and
 # asking an image for its head answers what that image KNOWS rather than what
 # the schema WAS - which diverge exactly when a rollback is happening.
-"${COMPOSE[@]}" exec -T db \
+"${DB_COMPOSE[@]}" exec -T db \
     psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -tA \
     -c "SELECT version_num FROM alembic_version" \
     | tr -d '[:space:]' > "${dump}.alembic"

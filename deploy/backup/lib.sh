@@ -11,6 +11,12 @@
 REPO_DIR="${REPO_DIR:-${HOME}/anime_site}"
 # shellcheck disable=SC2034  # consumed by the scripts that source this file
 COMPOSE=(docker compose -f "${REPO_DIR}/docker-compose.prod.yml")
+PLATFORM_DIR="${PLATFORM_DIR:-${HOME}/cg1618}"
+# shellcheck disable=SC2034  # consumed by the scripts that source this file
+# PostgreSQL moved to the platform's compose project; the app service did
+# not. COMPOSE still means this application - sheets.sh execs `app` - and
+# DB_COMPOSE means the shared database.
+DB_COMPOSE=(docker compose -f "${PLATFORM_DIR}/docker-compose.prod.yml")
 LOCK_FILE="${HOME}/.cache/media-backup.lock"
 LOG_FILE=""
 

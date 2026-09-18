@@ -48,7 +48,7 @@ case "${INTO}" in
     production)
         DATABASE="${POSTGRES_DB}"
         PSQL_USER="${POSTGRES_USER}"
-        EXEC=("${COMPOSE[@]}" exec -T db)
+        EXEC=("${DB_COMPOSE[@]}" exec -T db)
 
         if [ "${CONFIRM}" -ne 1 ]; then
             echo "Refusing: --into production requires --confirm." >&2

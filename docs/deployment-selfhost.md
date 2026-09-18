@@ -1,6 +1,6 @@
 # Production: the self-hosted box
 
-Last verified: 2026-09-17 (the application is deployed and serving at
+Last verified: 2026-09-18 (the application is deployed and serving at
 `media.cg1618.com`)
 
 **What this is.** The application runs on an HP ProDesk 600 G4 Desktop Mini at
@@ -105,23 +105,38 @@ Windows licence stops mattering after that.
 
 ## How it runs
 
-One Compose project, `media`, defined by `docker-compose.prod.yml` at the
-repository root, from a git checkout at `~/anime_site` on the box.
+**Two Compose projects, not one.** The box's shared infrastructure — PostgreSQL
+and the Cloudflare Tunnel — belongs to `cg1618-apps/platform`, checked out at
+`~/cg1618`, and serves every application on the machine. This repository's
+project, `media`, runs one service: the application itself, from a git checkout
+at `~/anime_site`.
+
+They meet on a docker network called `cg1618`, which the platform's project
+creates and this one joins as `external`. PostgreSQL answers to the network
+alias **`db`** there, which is the hostname the application's connection string
+already used when both services lived in one project — so the split changed no
+application configuration at all.
 
 **That checkout tracks `main`.** `deploy.sh` pulls whatever branch is checked
 out rather than naming one, so this is what decides that production runs
 released code: work reaches `dev` by pull request and reaches the box only
 after a release pull request promotes `dev` to `main`.
 
-| Service | Image | What it is |
-| --- | --- | --- |
-| `db` | `postgres:17` | The database. Data in the named volume `media_pgdata`. |
-| `app` | `media-app:local`, built on the box from `dockerfile` | FastAPI and the built SPA, one process, `uvicorn` on port 8000. |
-| `cloudflared` | `cloudflare/cloudflared:latest` | The outbound tunnel, and the only way in. |
+| Project | Service | Image | What it is |
+| --- | --- | --- | --- |
+| `cg1618` | `db` | `postgres:17` | Every application's database. Data in the named volume `cg1618_pgdata`. Network aliases `db` and `postgres`. |
+| `cg1618` | `cloudflared` | `cloudflare/cloudflared:latest` | The outbound tunnel, and the only way in. Its ingress is generated from `apps.yml`. |
+| `media` | `app` | `media-app:local`, built on the box from `dockerfile` | FastAPI and the built SPA, one process, `uvicorn` on port 8000. Network alias `media-app`. |
 
-Compose derives container names from the project, so they are `media-db-1`,
-`media-app-1` and `media-cloudflared-1`. Nothing hardcodes a container name —
+Compose derives container names from the project, so they are `cg1618-db-1`,
+`cg1618-cloudflared-1` and `media-app-1`. Nothing hardcodes a container name —
 the project name is the one place a name is written.
+
+**The app has no `depends_on` any more**, because Compose cannot order services
+across projects. What replaces it is `restart: unless-stopped`: on a cold boot
+the container exits when `alembic upgrade head` cannot reach PostgreSQL, and
+docker restarts it until it can. Bringing the platform project up first avoids
+it; after a power cut it costs a few restarts in the log and nothing else.
 
 ### Nothing publishes a port
 
@@ -133,13 +148,16 @@ misconfigure. To reach PostgreSQL from a laptop, forward it over SSH:
 ssh -L 5433:localhost:5432 homelab    # then psql -h localhost -p 5433
 ```
 
-`tests/unit/test_prod_compose.py` fails if a `ports:` entry appears.
+`tests/unit/test_prod_compose.py` fails if a `ports:` entry appears in this
+repository's compose file. The platform's own suite does the same for `db` and
+`cloudflared`.
 
 ### A volume for the database, bind mounts for the images
 
-The database lives in a **named volume** (`media_pgdata`) because nothing
-outside PostgreSQL should be reading those files, and because a volume survives
-`docker compose down` while a container does not.
+The database lives in a **named volume** (`cg1618_pgdata`, owned by the
+platform project) because nothing outside PostgreSQL should be reading those
+files, and because a volume survives `docker compose down` while a container
+does not.
 
 `static/covers/` and `static/library/` are **bind mounts** into the checkout, so
 `rsync`, `tar` and any future backup see ordinary files on disk. That matters
