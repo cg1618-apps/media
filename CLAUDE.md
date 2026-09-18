@@ -440,7 +440,7 @@ one-line when it was described is exactly the one that grows.
   superseding it, so **a second branch is not needed**; one is needed only
   when the commit has already reached `dev` or `main`, where history is not
   rewritten.
-- `origin` is `https://github.com/cgentle1618/anime_site.git`.
+- `origin` is `https://github.com/cg1618-apps/media.git`.
 
 The older names in the history — `modify`, `manga`, `novel`, `extract` — are
 what this rule replaced and are not where new work goes.

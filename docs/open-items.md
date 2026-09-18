@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-09-17
+Last verified: 2026-09-18
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -15,6 +15,12 @@ state — which database is at which revision, where the dumps are — is
 [switching-environments.md](switching-environments.md).
 
 ## Deployment
+
+**Rollback cannot revert code to a previous release yet.** `rollback.sh`'s third
+tier checks out the git revision recorded beside a dump. The repository was
+seeded with a single commit, so for the first few releases there is no earlier
+revision to check out and only the database half of a rollback is available.
+This closes itself as releases accumulate; it needs no fix, only awareness.
 
 **A migration already sitting in the box's checkout is invisible to the
 approval gate.** `classify` decides the lane from the push range, and

@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-17
+Last verified: 2026-09-18
 
 ## What this is for
 
@@ -20,17 +20,27 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 
 | | **Company** | **Home** |
 |---|---|---|
-| Project path | `C:\Users\q601513\Documents\anime_site` | `C:\Users\cgent\Documents\anime_site` |
+| Project path | `C:\Users\q601513\Documents\anime_site` | `C:\Users\cgent\Documents\cg1618\media` |
 | OS | Windows 11 Pro (10.0.26200) | Windows 11 Home (10.0.26200) |
 | PostgreSQL | **docker-compose** (`postgres:17`, container `anime_site_postgres_db`, `5432:5432`, volume `postgres_anime_data`), identical on both machines. Start it with `docker-compose up -d`. | **docker-compose**, identical. Native PostgreSQL 17 and 18 are also installed here, with their services set to **Manual** start so they cannot claim 5432 ahead of the container. If the container will not bind the port, check that neither native service has been started by hand. |
 | Database | `anime_site_db` as `postgres` on `127.0.0.1:5432` | same — `anime_site_db` as `postgres` on `127.0.0.1:5432` |
 | Python | `venv/Scripts/python.exe` — **3.11.9** (the project targets 3.13; this machine runs 3.11) | `venv/Scripts/python.exe` — **3.13.6**, the version the project targets |
 | Node / npm | v24.18.0 / 11.16.0 | v24.14.1 / 11.11.0 |
 | Google Sheet | `GOOGLE_SHEET_ID=1d-rh8joD3xHhG58KdFyBDQ-g99xDfMnHNiBu7ECFemU` — the same sheet on both machines, and the only channel data travels through | same sheet |
-| Remote | `origin` → `https://github.com/cgentle1618/anime_site.git` | same |
+| Remote | `origin` → `https://github.com/cgentle1618/anime_site.git` — archived, and still what this machine's clone points at | `origin` → `https://github.com/cg1618-apps/media.git` |
 
 > Both columns are recorded from the machine itself. Keep it that way — record
 > from the machine rather than from memory, and bump the `Last verified` line.
+
+**The company machine has not been migrated.** It still holds a clone of the
+archived `cgentle1618/anime_site` at `C:\Users\q601513\Documents\anime_site`.
+Migrating it is a fresh clone of `cg1618-apps/media` into
+`C:\Users\q601513\Documents\cg1618\media`, the three per-machine files copied
+across (`.env`, `credentials.json`, `CLAUDE.local.md`), a rebuilt `venv`,
+`npm install`, and `npm run build` — the old directory renamed rather than
+deleted until the new one is proven. `.env` must keep
+`COMPOSE_PROJECT_NAME=anime_site`. Run **Backup** from whichever machine holds
+the newer data before touching the other.
 
 There is no shared server — local development is the only runtime on either
 machine. (A GCP deployment existed once and could be rebuilt; the record is
