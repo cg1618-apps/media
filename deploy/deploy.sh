@@ -23,7 +23,14 @@ COMPOSE=(docker compose -f docker-compose.prod.yml)
 # variables, not one: `up`, `ps` and `run app` still mean this repository's
 # project, and conflating them would deploy the shared stack from here.
 PLATFORM_DIR="${PLATFORM_DIR:-${HOME}/cg1618}"
-DB_COMPOSE=(docker compose -f "${PLATFORM_DIR}/docker-compose.prod.yml")
+# `env -u COMPOSE_PROJECT_NAME`, and it is load-bearing. This script sources
+# the app's .env with `set -a`, which EXPORTS COMPOSE_PROJECT_NAME=media -
+# and an exported variable beats the .env sitting beside the platform's own
+# compose file. Without this, compose looks for service `db` in project
+# `media` and says "service db is not running" while the database runs
+# perfectly well one container away. Clearing it lets the platform's .env
+# name its own project, which keeps that name in one place.
+DB_COMPOSE=(env -u COMPOSE_PROJECT_NAME docker compose -f "${PLATFORM_DIR}/docker-compose.prod.yml")
 BACKUP_DIR="${HOME}/backups"
 KEEP=5
 

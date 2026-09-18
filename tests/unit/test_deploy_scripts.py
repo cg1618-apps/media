@@ -261,3 +261,44 @@ def test_rollback_tells_the_owner_data_was_not_restored():
     # successful rollback in a way that implies the data came back with it.
     body = (DEPLOY / "rollback.sh").read_text(encoding="utf-8")
     assert "DATA was NOT restored" in body
+
+
+# --- the split: two compose projects on one box -----------------------------
+
+DB_COMPOSE_SCRIPTS = ["deploy.sh", "backup/lib.sh"]
+
+
+@pytest.mark.parametrize("name", DB_COMPOSE_SCRIPTS)
+def test_db_compose_clears_the_project_name(name):
+    """DB_COMPOSE must not inherit COMPOSE_PROJECT_NAME from the app's .env.
+
+    Both scripts source the application's .env with `set -a`, which EXPORTS
+    COMPOSE_PROJECT_NAME=media into the environment. PostgreSQL lives in the
+    platform's project, so a plain `docker compose -f
+    ~/cg1618/docker-compose.prod.yml exec db` then looks for service `db` in
+    project `media` and reports "service db is not running" - with the database
+    running perfectly well one container away.
+
+    Observed on the box during the split, where it refused the deploy at the
+    dump step. The environment beats a compose file's own .env, so clearing the
+    variable is what lets the platform's .env name its own project.
+    """
+    definition = next(
+        line for line in code(name).splitlines() if line.startswith("DB_COMPOSE=(")
+    )
+    assert "env -u COMPOSE_PROJECT_NAME" in definition, definition
+
+
+@pytest.mark.parametrize("name", DB_COMPOSE_SCRIPTS)
+def test_the_app_compose_keeps_the_project_name(name):
+    """COMPOSE must NOT clear it - `media` is exactly the project it means.
+
+    The mirror of the test above, and the reason it exists: the same fix
+    applied to the wrong variable would send `up`, `ps` and `run app` to a
+    project derived from the directory name, which is how a stack comes up on a
+    brand-new empty volume while the real data sits untouched in the old one.
+    """
+    definition = next(
+        line for line in code(name).splitlines() if line.startswith("COMPOSE=(")
+    )
+    assert "env -u COMPOSE_PROJECT_NAME" not in definition, definition
