@@ -1291,8 +1291,9 @@ infrastructure does not belong to any one of them.
   tracker's suite.
 - **`media` becomes a new repository, not a rename or a transfer.** Seeded with
   a single commit of the tracked tree; the 2,238 commits and 216 pull requests
-  of `cgentle1618/anime_site` do not travel, and that repository is archived
-  read-only so its discussions stay readable at their URLs. The cost is
+  of `cgentle1618/anime_site` do not travel, and that repository is kept rather
+  than deleted — archived read-only and private, so its 216 pull request
+  discussions survive at their URLs for the owner, and for nobody else. The cost is
   deliberate and has one consequence worth remembering: `rollback.sh` recovers
   by checking out the commit a dump belongs to, so until several releases have
   accumulated there is no earlier release to return to and only the database
@@ -1318,6 +1319,16 @@ infrastructure does not belong to any one of them.
   its commits unreachable rather than gone — GitHub serves an unreachable commit
   by sha until it collects it — so the seed's cleanliness is a property of
   `main` and `dev`, not a guarantee about the whole repository.
+- **The registry landed before anything that reads it.**
+  `cg1618-apps/platform` holds `apps.yml`, a JSON Schema for one entry's shape
+  and `bin/validate_apps.py` for the policy a schema cannot express —
+  uniqueness, which is relational and so invisible to a per-entry validator, and
+  the rule that `journal`, `health` and `money` are never `public`. Both run in
+  CI on `ubuntu-latest` and will run again inside `bin/deploy`. The generators
+  that consume the registry — the cloudflared ingress, the apex navigation —
+  were deliberately left out: both generate files that have not moved yet, so
+  building them now would produce output nothing reads and a drift check against
+  a file the box does not use. They arrive with the steps that move them.
 - **A pull request opened while Actions are disabled never acquires its check.**
   The required-check ruleset then blocks it permanently, because the event that
   would have started the check has passed. Closing and reopening the pull

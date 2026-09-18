@@ -32,42 +32,58 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 > Both columns are recorded from the machine itself. Keep it that way — record
 > from the machine rather than from memory, and bump the `Last verified` line.
 
-**The pre-migration tree is still on the home machine**, at
-`C:\Users\cgent\Documents\anime_site`, kept as a fallback rather than deleted.
-Nothing runs from it: its `origin` is the archived `cgentle1618/anime_site`, its
-`frontend_dist/` is stale the moment anything is built in the live tree, and the
-only irreplaceable things in it — `.env` and `credentials.json` — are copied
-into `cg1618\media`. It shares the same PostgreSQL and the same
-`COMPOSE_PROJECT_NAME`, so a command run there reaches the real development
-database; that is the reason to be deliberate about which directory a session is
-in, and the reason this note exists rather than a silent second copy.
+**The pre-migration tree is kept on each machine rather than deleted** — home's
+is `C:\Users\cgent\Documents\anime_site`, and the company machine's stays at
+`C:\Users\q601513\Documents\anime_site` when it migrates. Nothing runs from
+either: `origin` is the archived `cgentle1618/anime_site`, `frontend_dist/` goes
+stale the moment anything is built in the live tree, and the only irreplaceable
+things in it — `.env` and `credentials.json` — have been copied into
+`cg1618\media`.
+
+What makes it worth a note rather than a silent second copy: it shares the same
+PostgreSQL and the same `COMPOSE_PROJECT_NAME`, so a command run there reaches
+the **real** development database while its remote is a repository that can no
+longer be pushed to. Be deliberate about which directory a session is in. What
+it is good for is `static/covers/`, which is gitignored and did not travel.
 
 **The company machine has not been migrated**, and nothing can be pushed from
 it until it is: it holds a clone of `cgentle1618/anime_site`, which is archived
 and therefore read-only. Migrate it before the first edit, not after.
 
-Take the three per-machine files out first — `.env`, `credentials.json` and
-`CLAUDE.local.md` are the only irreplaceable things in
-`C:\Users\q601513\Documents\anime_site` — then delete that directory, clone
-`cg1618-apps/media` into `C:\Users\q601513\Documents\cg1618\media`, and copy the
-three back in. Then a rebuilt `venv` (`python -m venv`, `pip install -r
-requirements-dev.txt`), `npm install` and `npm run build`.
+It migrates the same way the home machine did — a clone alongside, not a
+replacement. Clone `cg1618-apps/media` into
+`C:\Users\q601513\Documents\cg1618\media`, copy `.env`, `credentials.json` and
+`CLAUDE.local.md` across from `C:\Users\q601513\Documents\anime_site`, build a
+`venv` (`python -m venv`, `pip install -r requirements-dev.txt`), then
+`npm install` and `npm run build`. The old directory stays where it is.
 
-Two things that are easy to lose in a clean clone:
+Two things that are easy to lose in a fresh clone:
 
 - **`.env` must keep `COMPOSE_PROJECT_NAME=anime_site`.** The new directory is
   named `media`, so without the pin compose mounts a new empty volume while the
   real database sits untouched in `anime_site_postgres_anime_data` — which looks
   exactly like data loss. Nothing else in `.env` changes; that machine keeps
   `STEAM_ENABLED=false`.
-- **`static/covers/` does not survive the deletion.** It is gitignored,
-  per-machine, and about 2,000 files — the copy on the home machine is 284MB.
-  Rebuild it on the new tree with `/system` → Calculate → **download missing
-  covers**, or copy the directory aside before deleting, which is faster and
-  costs nothing.
+- **`static/covers/` is not in the clone.** It is gitignored and per-machine —
+  about 2,000 files, 284MB on the home machine. Copy it from the old directory,
+  which is quick and is why keeping that directory is useful; failing that,
+  `/system` → Calculate → **download missing covers** rebuilds it from the
+  APIs.
 
 Run **Backup** from whichever machine holds the newer data before touching the
 other.
+
+**This repository is cloned inside the platform repository.**
+`C:\Users\cgent\Documents\cg1618` is itself a clone of `cg1618-apps/platform`,
+which holds `apps.yml` — the registry the box derives from — and, as the
+platform sequence proceeds, the shared PostgreSQL, the tunnel ingress and the
+deploy scripts. It ignores `/media/`, so the two histories never meet and a
+`git status` in either one shows only its own files.
+
+Which directory a session starts in is therefore a real choice: `cg1618\` for
+infrastructure and cross-app work, `cg1618\media\` for the tracker. A session in
+the tracker still loads the platform's `CLAUDE.md`, because Claude Code walks
+the filesystem upwards rather than stopping at a repository boundary.
 
 There is no shared server — local development is the only runtime on either
 machine. (A GCP deployment existed once and could be rebuilt; the record is
