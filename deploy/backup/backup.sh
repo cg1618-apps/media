@@ -37,7 +37,7 @@ git_rev="$(git -C "${REPO_DIR}" rev-parse HEAD)"
 # leaves include_schemas at its False default - and cannot propose a
 # drop_table for it.
 echo "==> Stamping"
-"${COMPOSE[@]}" exec -T db psql -v ON_ERROR_STOP=1 -q \
+"${DB_COMPOSE[@]}" exec -T db psql -v ON_ERROR_STOP=1 -q \
     -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -v git_rev="${git_rev}" <<'SQL'
 CREATE SCHEMA IF NOT EXISTS backup;
 CREATE TABLE IF NOT EXISTS backup.stamp (
@@ -66,7 +66,7 @@ SQL
 # --- Dump ------------------------------------------------------------------
 # No downtime: pg_dump takes an MVCC snapshot and never blocks writers.
 echo "==> Dumping"
-"${COMPOSE[@]}" exec -T db \
+"${DB_COMPOSE[@]}" exec -T db \
     pg_dump -U "${POSTGRES_USER}" -Fc -d "${POSTGRES_DB}" > "${dump}"
 
 # A truncated dump is worse than none, because it looks like an option right
