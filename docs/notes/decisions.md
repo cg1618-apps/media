@@ -1297,3 +1297,30 @@ infrastructure does not belong to any one of them.
   by checking out the commit a dump belongs to, so until several releases have
   accumulated there is no earlier release to return to and only the database
   half of a rollback is available.
+- **A seed commit carries file modes, and a Windows machine silently drops
+  them.** The tree was seeded from a checkout with `core.fileMode` false, so all
+  ten of the deploy and backup shell scripts entered the new repository as
+  `100644`. Nothing reports it: `git status` is clean, the blobs are identical,
+  and the only visible symptom would have been `Permission denied` from
+  `deploy.sh` and the backup timers *after* the production checkout was
+  repointed. Repairing it needs `git update-index --chmod=+x`, which is the one
+  method that works from the machine that caused it — changing the mode on disk
+  does nothing when git is told not to look at it. Whatever seeds a repository
+  this way should be checked with `git ls-tree` against the source, not
+  `git diff`, which reports contents.
+- **The two repositories share no history, so pushing a branch between them
+  does not fail — it grafts.** A branch pushed to `cg1618-apps/media` from a
+  checkout of the old repository arrived carrying its full ancestry as a second
+  root, at identical shas, while `main` and `dev` stayed the single seed commit.
+  Git has nothing to object to: there is no conflict, no non-fast-forward, no
+  warning. The branch was deleted and the rule is that every branch on the new
+  repository is cut from a fresh clone of it. Note that deleting a branch makes
+  its commits unreachable rather than gone — GitHub serves an unreachable commit
+  by sha until it collects it — so the seed's cleanliness is a property of
+  `main` and `dev`, not a guarantee about the whole repository.
+- **A pull request opened while Actions are disabled never acquires its check.**
+  The required-check ruleset then blocks it permanently, because the event that
+  would have started the check has passed. Closing and reopening the pull
+  request fires `pull_request: reopened`, which `ci.yml` accepts. This is the
+  ordering trap in enabling a repository's gates before its Actions: the gate
+  exists, and nothing can satisfy it.
