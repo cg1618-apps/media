@@ -16,7 +16,14 @@ PLATFORM_DIR="${PLATFORM_DIR:-${HOME}/cg1618}"
 # PostgreSQL moved to the platform's compose project; the app service did
 # not. COMPOSE still means this application - sheets.sh execs `app` - and
 # DB_COMPOSE means the shared database.
-DB_COMPOSE=(docker compose -f "${PLATFORM_DIR}/docker-compose.prod.yml")
+# `env -u COMPOSE_PROJECT_NAME`, and it is load-bearing. This script sources
+# the app's .env with `set -a`, which EXPORTS COMPOSE_PROJECT_NAME=media -
+# and an exported variable beats the .env sitting beside the platform's own
+# compose file. Without this, compose looks for service `db` in project
+# `media` and says "service db is not running" while the database runs
+# perfectly well one container away. Clearing it lets the platform's .env
+# name its own project, which keeps that name in one place.
+DB_COMPOSE=(env -u COMPOSE_PROJECT_NAME docker compose -f "${PLATFORM_DIR}/docker-compose.prod.yml")
 LOCK_FILE="${HOME}/.cache/media-backup.lock"
 LOG_FILE=""
 
