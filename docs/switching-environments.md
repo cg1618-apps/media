@@ -42,15 +42,32 @@ into `cg1618\media`. It shares the same PostgreSQL and the same
 database; that is the reason to be deliberate about which directory a session is
 in, and the reason this note exists rather than a silent second copy.
 
-**The company machine has not been migrated.** It still holds a clone of the
-archived `cgentle1618/anime_site` at `C:\Users\q601513\Documents\anime_site`.
-Migrating it is a fresh clone of `cg1618-apps/media` into
-`C:\Users\q601513\Documents\cg1618\media`, the three per-machine files copied
-across (`.env`, `credentials.json`, `CLAUDE.local.md`), a rebuilt `venv`,
-`npm install`, and `npm run build` — the old directory renamed rather than
-deleted until the new one is proven. `.env` must keep
-`COMPOSE_PROJECT_NAME=anime_site`. Run **Backup** from whichever machine holds
-the newer data before touching the other.
+**The company machine has not been migrated**, and nothing can be pushed from
+it until it is: it holds a clone of `cgentle1618/anime_site`, which is archived
+and therefore read-only. Migrate it before the first edit, not after.
+
+Take the three per-machine files out first — `.env`, `credentials.json` and
+`CLAUDE.local.md` are the only irreplaceable things in
+`C:\Users\q601513\Documents\anime_site` — then delete that directory, clone
+`cg1618-apps/media` into `C:\Users\q601513\Documents\cg1618\media`, and copy the
+three back in. Then a rebuilt `venv` (`python -m venv`, `pip install -r
+requirements-dev.txt`), `npm install` and `npm run build`.
+
+Two things that are easy to lose in a clean clone:
+
+- **`.env` must keep `COMPOSE_PROJECT_NAME=anime_site`.** The new directory is
+  named `media`, so without the pin compose mounts a new empty volume while the
+  real database sits untouched in `anime_site_postgres_anime_data` — which looks
+  exactly like data loss. Nothing else in `.env` changes; that machine keeps
+  `STEAM_ENABLED=false`.
+- **`static/covers/` does not survive the deletion.** It is gitignored,
+  per-machine, and about 2,000 files — the copy on the home machine is 284MB.
+  Rebuild it on the new tree with `/system` → Calculate → **download missing
+  covers**, or copy the directory aside before deleting, which is faster and
+  costs nothing.
+
+Run **Backup** from whichever machine holds the newer data before touching the
+other.
 
 There is no shared server — local development is the only runtime on either
 machine. (A GCP deployment existed once and could be rebuilt; the record is
