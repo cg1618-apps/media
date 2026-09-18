@@ -73,6 +73,18 @@ Two things that are easy to lose in a fresh clone:
 Run **Backup** from whichever machine holds the newer data before touching the
 other.
 
+**This repository is cloned inside the platform repository.**
+`C:\Users\cgent\Documents\cg1618` is itself a clone of `cg1618-apps/platform`,
+which holds `apps.yml` — the registry the box derives from — and, as the
+platform sequence proceeds, the shared PostgreSQL, the tunnel ingress and the
+deploy scripts. It ignores `/media/`, so the two histories never meet and a
+`git status` in either one shows only its own files.
+
+Which directory a session starts in is therefore a real choice: `cg1618\` for
+infrastructure and cross-app work, `cg1618\media\` for the tracker. A session in
+the tracker still loads the platform's `CLAUDE.md`, because Claude Code walks
+the filesystem upwards rather than stopping at a repository boundary.
+
 There is no shared server — local development is the only runtime on either
 machine. (A GCP deployment existed once and could be rebuilt; the record is
 [deployment-gcp.md](deployment-gcp.md).) Each machine has its **own local

@@ -1319,6 +1319,16 @@ infrastructure does not belong to any one of them.
   its commits unreachable rather than gone — GitHub serves an unreachable commit
   by sha until it collects it — so the seed's cleanliness is a property of
   `main` and `dev`, not a guarantee about the whole repository.
+- **The registry landed before anything that reads it.**
+  `cg1618-apps/platform` holds `apps.yml`, a JSON Schema for one entry's shape
+  and `bin/validate_apps.py` for the policy a schema cannot express —
+  uniqueness, which is relational and so invisible to a per-entry validator, and
+  the rule that `journal`, `health` and `money` are never `public`. Both run in
+  CI on `ubuntu-latest` and will run again inside `bin/deploy`. The generators
+  that consume the registry — the cloudflared ingress, the apex navigation —
+  were deliberately left out: both generate files that have not moved yet, so
+  building them now would produce output nothing reads and a drift check against
+  a file the box does not use. They arrive with the steps that move them.
 - **A pull request opened while Actions are disabled never acquires its check.**
   The required-check ruleset then blocks it permanently, because the event that
   would have started the check has passed. Closing and reopening the pull
