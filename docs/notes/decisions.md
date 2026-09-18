@@ -1319,6 +1319,17 @@ infrastructure does not belong to any one of them.
   its commits unreachable rather than gone — GitHub serves an unreachable commit
   by sha until it collects it — so the seed's cleanliness is a property of
   `main` and `dev`, not a guarantee about the whole repository.
+- **The stack split in two, and the app's configuration did not change.**
+  PostgreSQL and the tunnel moved to `cg1618-apps/platform`; this repository
+  runs one service. The database kept the network alias `db`, which is the
+  hostname the application already connected to, so the box's `.env` - the one
+  file there that cannot travel and cannot be reconstructed - was not edited
+  during the cutover. The data moved by dump and restore into `cg1618_pgdata`
+  rather than by reusing `media_pgdata` under a new project: Compose prefixes a
+  volume name with its project, and a volume named after one application
+  holding every application's data would be a lie that outlives whoever
+  shrugged at it. `depends_on` was traded for `restart: unless-stopped`, because
+  Compose cannot order services across projects.
 - **The registry landed before anything that reads it.**
   `cg1618-apps/platform` holds `apps.yml`, a JSON Schema for one entry's shape
   and `bin/validate_apps.py` for the policy a schema cannot express —

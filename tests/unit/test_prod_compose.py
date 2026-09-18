@@ -1,13 +1,21 @@
 """The production compose file's invariants.
 
 These are the properties that are easy to break by accident and expensive to
-notice: a published port exposes the database to the LAN, a missing restart
-policy means the box comes back from a power cut without the app, and a missing
-healthcheck condition makes the app crash-loop through alembic on a slow boot.
+notice: a published port exposes the app outside the tunnel, a missing restart
+policy means the box comes back from a power cut without the app, and a probe
+against "/" reports healthy with the database down.
 
 The file these assert against is never exercised by this suite - it runs on a
 machine CI cannot reach - so structure is the only thing that can be checked
 here. That makes it worth checking.
+
+**The ingress is no longer this repository's business.** PostgreSQL and the
+Cloudflare Tunnel belong to cg1618-apps/platform, and the tunnel's rules are
+generated there from apps.yml. The guard that used to live in this file - that
+journal, health and money are never routed without the Cloudflare Access
+decision - is now bin/validate_apps.py and tests/test_generate_ingress.py in
+that repository. What remains here is the end of the contract this repository
+owns: the network alias the generated ingress points at.
 """
 
 from pathlib import Path
@@ -17,7 +25,6 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ROOT / "docker-compose.prod.yml"
-INGRESS = ROOT / "deploy" / "cloudflared" / "config.yml"
 
 
 @pytest.fixture(scope="module")
@@ -29,39 +36,57 @@ def test_compose_file_exists():
     assert COMPOSE.is_file(), f"{COMPOSE} is missing"
 
 
-def test_the_three_services_are_present(compose):
-    assert set(compose["services"]) == {"db", "app", "cloudflared"}
+def test_the_app_is_the_only_service(compose):
+    # db and cloudflared are the platform's. An app repository that grows a
+    # database service again has stopped sharing the box's PostgreSQL, which is
+    # a decision to be made deliberately, not an edit to this file.
+    assert set(compose["services"]) == {"app"}
 
 
-@pytest.mark.parametrize("service", ["db", "app", "cloudflared"])
-def test_no_service_publishes_a_port(compose, service):
-    # The tunnel is the only ingress. A published port on db would put
-    # PostgreSQL on the LAN; on app it would bypass Cloudflare entirely.
-    assert "ports" not in compose["services"][service]
+def test_the_app_publishes_no_port(compose):
+    # The tunnel is the only ingress. A published port would bypass Cloudflare
+    # entirely and put the app on the LAN.
+    assert "ports" not in compose["services"]["app"]
 
 
-@pytest.mark.parametrize("service", ["db", "app", "cloudflared"])
-def test_every_service_restarts_unless_stopped(compose, service):
+def test_the_app_restarts_unless_stopped(compose):
+    # Load-bearing since depends_on went away with the database: this is the
+    # only thing that recovers the app when it starts before PostgreSQL does.
+    #
     # Not "always": a deliberate `docker compose stop` must survive a daemon
     # restart, or debugging on the box fights the restart policy.
-    assert compose["services"][service]["restart"] == "unless-stopped"
+    assert compose["services"]["app"]["restart"] == "unless-stopped"
 
 
-@pytest.mark.parametrize("service", ["db", "app", "cloudflared"])
-def test_no_service_hardcodes_a_container_name(compose, service):
-    # Compose derives names from COMPOSE_PROJECT_NAME (media-db-1, ...), which
+def test_the_app_does_not_hardcode_a_container_name(compose):
+    # Compose derives names from COMPOSE_PROJECT_NAME (media-app-1), which
     # makes the project name the one place a name is written. A hardcoded
     # container_name is a second place for a stale one to hide - and this
     # project has already renamed itself once, from "anime" to a media tracker.
-    assert "container_name" not in compose["services"][service]
+    assert "container_name" not in compose["services"]["app"]
 
 
-def test_db_has_a_readiness_healthcheck(compose):
-    assert "healthcheck" in compose["services"]["db"]
+def test_the_app_joins_the_shared_network_as_media_app(compose):
+    # This alias is the contract with the generated ingress in
+    # cg1618-apps/platform, which routes media.cg1618.com to
+    # http://media-app:8000. Change it here alone and the hostname 502s while
+    # both files still read as correct on their own.
+    app_networks = compose["services"]["app"]["networks"]
+    assert app_networks["cg1618"]["aliases"] == ["media-app"]
+    assert compose["services"]["app"]["environment"]["PORT"] == 8000
 
 
-def test_app_waits_for_a_healthy_db(compose):
-    assert compose["services"]["app"]["depends_on"]["db"]["condition"] == "service_healthy"
+def test_the_shared_network_is_external(compose):
+    # The platform's compose project creates it. Defining it here as well is
+    # how a second, empty network ends up carrying half the containers.
+    assert compose["networks"]["cg1618"]["external"] is True
+
+
+def test_the_app_declares_no_depends_on(compose):
+    # Not an oversight to be tidied back in: compose cannot order services
+    # across projects, and a depends_on naming a service this file does not
+    # define fails the whole `up` with "service not found".
+    assert "depends_on" not in compose["services"]["app"]
 
 
 def test_the_app_healthcheck_does_not_probe_the_catch_all_route(compose):
@@ -92,56 +117,21 @@ def test_app_carries_an_image_name_alongside_build(compose):
 
 
 def test_covers_and_library_are_bind_mounts(compose):
-    # Named volumes would hide these from rsync and from the backup that
-    # build-order step 7 adds. static/library/ is the only copy of every
-    # uploaded image in existence.
+    # Named volumes would hide these from rsync and from the nightly backup.
+    # static/library/ is the only copy of every uploaded image in existence.
     volumes = compose["services"]["app"]["volumes"]
     assert any(v.startswith("./static/covers:") for v in volumes)
     assert any(v.startswith("./static/library:") for v in volumes)
 
 
-def test_cloudflared_mounts_its_config_read_only(compose):
-    volumes = compose["services"]["cloudflared"]["volumes"]
-    assert any(v.endswith("/etc/cloudflared/config.yml:ro") for v in volumes)
-    assert any(v.endswith("/etc/cloudflared/credentials.json:ro") for v in volumes)
-
-
 def test_the_compose_file_sits_beside_the_env_it_interpolates():
     """Compose loads `.env` from the compose file's own directory.
 
-    Moving this file into a subdirectory makes every ${...} below interpolate
-    to an empty string, while `env_file:` keeps working - so the app still
-    starts, with a database password of "". That is the quiet version of this
-    failure, and it is why the file lives at the repository root.
+    Moving this file into a subdirectory makes every ${...} interpolate to an
+    empty string, while `env_file:` keeps working - so the app still starts,
+    with a database password of "". That is the quiet version of this failure,
+    and it is why the file lives at the repository root.
     """
     assert COMPOSE.parent == ROOT, (
         f"{COMPOSE.name} must sit beside .env at the repository root; found it in {COMPOSE.parent}"
     )
-
-
-def test_ingress_ends_with_a_catch_all():
-    # cloudflared refuses to start without a catch-all, and it must be last.
-    rules = yaml.safe_load(INGRESS.read_text(encoding="utf-8"))["ingress"]
-    assert "hostname" not in rules[-1]
-    assert rules[-1]["service"] == "http_status:404"
-
-
-def test_ingress_routes_the_media_tracker_to_the_app_service(compose):
-    rules = yaml.safe_load(INGRESS.read_text(encoding="utf-8"))["ingress"]
-    media = [r for r in rules if r.get("hostname") == "media.cg1618.com"]
-    assert len(media) == 1, "media.cg1618.com should be routed exactly once"
-    # Reaches the app over the compose network by service name, on the port
-    # entrypoint.sh binds from PORT.
-    assert media[0]["service"] == "http://app:8000"
-    assert compose["services"]["app"]["environment"]["PORT"] == 8000
-
-
-def test_ingress_does_not_route_the_sensitive_projects():
-    # journal, health and money hold a different class of data, and
-    # docs/deployment-selfhost.md requires the Cloudflare Access decision to be
-    # made BEFORE an ingress rule exists, not after. This fails the moment one
-    # is added without that conversation.
-    rules = yaml.safe_load(INGRESS.read_text(encoding="utf-8"))["ingress"]
-    hostnames = {r.get("hostname") for r in rules}
-    for sensitive in ("journal.cg1618.com", "health.cg1618.com", "money.cg1618.com"):
-        assert sensitive not in hostnames
