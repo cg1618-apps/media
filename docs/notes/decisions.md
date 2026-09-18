@@ -1319,6 +1319,24 @@ infrastructure does not belong to any one of them.
   its commits unreachable rather than gone — GitHub serves an unreachable commit
   by sha until it collects it — so the seed's cleanliness is a property of
   `main` and `dev`, not a guarantee about the whole repository.
+- **`set -a` on an application's `.env` exports `COMPOSE_PROJECT_NAME` into
+  every later compose call, including calls aimed at a different project.**
+  `deploy.sh` and `backup/lib.sh` source the app's `.env` to get
+  `POSTGRES_USER` and `POSTGRES_DB`, which also exports `media` as the project
+  name - and an exported variable beats the `.env` sitting beside the
+  platform's own compose file. Compose then looked for service `db` in project
+  `media` and reported "service db is not running", with PostgreSQL running one
+  container away. The fix is `env -u COMPOSE_PROJECT_NAME` on the platform-
+  facing invocation only, never on the one that means this project. This is the
+  familiar "which volume am I really on" hazard, and the split gave it a way to
+  cross repositories.
+- **A fix to `deploy.sh` cannot deploy itself when the bug is before the
+  `git pull`.** The dump runs first, so a broken dump step refuses the deploy
+  that carries its own repair, and the second failure looks like a second
+  defect. It is not: it is the old script still on disk. One manual `git pull`
+  on the box breaks the cycle, and the re-run then proves the pipeline for
+  real. Worth remembering before assuming a repeated failure means the fix was
+  wrong.
 - **The stack split in two, and the app's configuration did not change.**
   PostgreSQL and the tunnel moved to `cg1618-apps/platform`; this repository
   runs one service. The database kept the network alias `db`, which is the
