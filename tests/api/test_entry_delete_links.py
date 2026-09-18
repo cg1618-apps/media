@@ -1,0 +1,158 @@
+"""
+Deleting a media entry must take its credit and tag rows with it.
+
+media_credit / media_tag address their entry by media_id, a real foreign key
+to media.system_id with ON DELETE CASCADE. Deleting an entry drops its media
+row (the detail table's AFTER DELETE trigger), which takes the link rows with
+it. Without that cascade the rows would outlive the entry forever, and the
+orphans would then feed extract_system_options and the duplicate checks.
+These tests pin the cascade.
+"""
+
+from app import models
+from app.services.domain import credits as credits_service
+
+
+def _links(db_session, entry_id):
+    return (
+        db_session.query(models.MediaCredit).filter_by(media_id=entry_id).count()
+        + db_session.query(models.MediaTag).filter_by(media_id=entry_id).count()
+    )
+
+
+def test_deleting_an_anime_removes_its_links(admin_client, db_session):
+    a = models.Anime(anime_name_cn="測試")
+    db_session.add(a)
+    db_session.commit()
+    credits_service.replace_credits(db_session, "anime", a.system_id, "studio", ["MAPPA"])
+    credits_service.replace_tags(db_session, a.system_id, "genre_main", ["Action"])
+    db_session.commit()
+    assert _links(db_session, a.system_id) == 2
+
+    assert admin_client.delete(f"/api/anime/{a.system_id}").status_code == 200
+    assert _links(db_session, a.system_id) == 0
+
+
+def test_deleting_an_anime_movie_removes_its_links(admin_client, db_session):
+    m = models.AnimeMovies(anime_movie_name_cn="測試電影")
+    db_session.add(m)
+    db_session.commit()
+    credits_service.replace_credits(
+        db_session, "anime-movie", m.system_id, "director", ["新海誠"]
+    )
+    db_session.commit()
+    assert _links(db_session, m.system_id) == 1
+
+    assert admin_client.delete(f"/api/anime-movie/{m.system_id}").status_code == 200
+    assert _links(db_session, m.system_id) == 0
+
+
+def test_deleting_a_factory_type_entry_removes_its_links(admin_client, db_session):
+    """Comic goes through the shared router factory, which the other five use."""
+    c = models.Comic(comic_name_en="Saga")
+    db_session.add(c)
+    db_session.commit()
+    credits_service.replace_credits(
+        db_session, "comic", c.system_id, "author", ["Brian K. Vaughan"]
+    )
+    credits_service.replace_tags(
+        db_session, c.system_id, "comic_era", ["Modern Age"]
+    )
+    db_session.commit()
+    assert _links(db_session, c.system_id) == 2
+
+    assert admin_client.delete(f"/api/comic/{c.system_id}").status_code == 200
+    assert _links(db_session, c.system_id) == 0
+
+
+def test_another_entrys_links_are_left_alone(admin_client, db_session):
+    """The delete is scoped to one entry's media_id, not to the role."""
+    a = models.Anime(anime_name_cn="甲")
+    b = models.Anime(anime_name_cn="乙")
+    db_session.add_all([a, b])
+    db_session.commit()
+    for entry in (a, b):
+        credits_service.replace_credits(
+            db_session, "anime", entry.system_id, "studio", ["MAPPA"]
+        )
+    db_session.commit()
+
+    admin_client.delete(f"/api/anime/{a.system_id}")
+    assert _links(db_session, b.system_id) == 1
+
+
+# ---------------------------------------------------------------------------
+# The cascade, once the link tables address their entry by a real media FK
+# ---------------------------------------------------------------------------
+# The assertions above go through the router, which used to call an explicit
+# cleanup. These go straight at the database: deleting the media row must take
+# the link rows with it with no service code involved at all.
+
+def test_deleting_the_media_row_cascades_to_media_source(db_session):
+    from sqlalchemy import text
+
+    from app.services.domain import sources as sources_service
+
+    a = models.Anime(anime_name_cn="來源測試")
+    db_session.add(a)
+    db_session.commit()
+    sid = a.system_id
+    sources_service.replace_sources(
+        db_session, sid, [{"kind": "watch", "bucket": "other", "name": "X"}]
+    )
+    db_session.commit()
+    assert db_session.query(models.MediaSource).filter_by(media_id=sid).count() == 1
+
+    db_session.execute(text("DELETE FROM media WHERE system_id = :s"), {"s": sid})
+    db_session.commit()
+
+    assert db_session.query(models.MediaSource).filter_by(media_id=sid).count() == 0
+
+
+def test_deleting_the_entry_unattaches_its_quotes_but_keeps_them(db_session, admin_user):
+    """
+    quote.media_id is ON DELETE SET NULL, deliberately unlike every other link
+    table here. A quote carries its own content - text, translation, speaker,
+    episode - so deleting an entry must never destroy hand-written text. The
+    quote survives, unattached.
+    """
+    from sqlalchemy import text
+
+    a = models.Anime(anime_name_cn="有引言的作品")
+    db_session.add(a)
+    db_session.commit()
+    sid = a.system_id
+
+    q = models.Quote(entry_id=sid, text="活著就是要好好活著", speaker="某人", author_id=admin_user.id)
+    db_session.add(q)
+    db_session.commit()
+    quote_id = q.system_id
+
+    db_session.execute(text("DELETE FROM anime WHERE system_id = :s"), {"s": sid})
+    db_session.commit()
+
+    survivor = db_session.query(models.Quote).filter_by(system_id=quote_id).one()
+    assert survivor.media_id is None
+    assert survivor.text == "活著就是要好好活著"
+    assert survivor.speaker == "某人"
+
+
+def test_deleting_the_entry_cascades_to_its_content_labels(db_session):
+    from sqlalchemy import text
+
+    label = models.ContentLabel(key="nsfw-cascade", label="NSFW", sort_order=0)
+    a = models.Anime(anime_name_cn="有標籤的作品")
+    db_session.add_all([label, a])
+    db_session.commit()
+    sid = a.system_id
+    db_session.add(
+        models.MediaContentLabel(media_id=sid, label_id=label.system_id)
+    )
+    db_session.commit()
+
+    db_session.execute(text("DELETE FROM anime WHERE system_id = :s"), {"s": sid})
+    db_session.commit()
+
+    assert (
+        db_session.query(models.MediaContentLabel).filter_by(media_id=sid).count() == 0
+    )

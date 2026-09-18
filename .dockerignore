@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Environment & Secrets (CRITICAL SECURITY)
+.env
+credentials.json
+
+# Git
+.git/
+.gitignore
+
+# Not needed at runtime
+tests/
+docs/
+# Both are bind-mounted at runtime, so copying them into the image only makes
+# it bigger. static/library/ matters most: it grows with every upload, and
+# without this line every build would carry the whole library.
+static/covers/
+static/library/
+scripts/
+.github/
+.superpowers/
+*.md
+.pytest_cache/
+.ruff_cache/
+
+# Docker
+dockerfile
+Dockerfile
+docker-compose.yml
+
+# Node & Frontend
+**/node_modules
+npm-debug.log
+frontend_dist/
+
+# Exclude Claude's working directory
+.claude/
+CLAUDE.md

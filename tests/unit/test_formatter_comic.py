@@ -1,0 +1,105 @@
+"""parse_comic_from_sheet — sheet strings in, typed values out."""
+
+import uuid
+from datetime import datetime
+
+from app.utils.formatter import parse_comic_from_sheet
+
+
+class TestParseComicFromSheet:
+    def test_parses_names_and_ids(self):
+        fid = str(uuid.uuid4())
+        parsed = parse_comic_from_sheet(
+            {
+                "system_id": "",
+                "franchise_id": fid,
+                "comic_name_en": "Amazing Spider-Man",
+                "comic_name_cn": "蜘蛛人",
+            }
+        )
+        assert str(parsed["franchise_id"]) == fid
+        assert parsed["comic_name_en"] == "Amazing Spider-Man"
+        assert parsed["comic_name_cn"] == "蜘蛛人"
+
+    def test_franchise_id_may_be_a_raw_name(self):
+        # Pull resolves these through resolve_comic_parent_hierarchy.
+        parsed = parse_comic_from_sheet({"franchise_id": "Spider-Man"})
+        assert parsed["franchise_id"] == "Spider-Man"
+
+    def test_issue_total_parses_as_an_int(self):
+        parsed = parse_comic_from_sheet({"issue_total": "93"})
+        assert parsed["issue_total"] == 93
+
+    def test_the_personal_columns_are_not_parsed_at_all(self):
+        """Step 1 confined the pipelines: issue_fin and reading_status are the
+        reader's and travel in the User Media List tab. A parser that still
+        emitted them would setattr onto a model that no longer declares them -
+        silently, because pull upserts with setattr."""
+        parsed = parse_comic_from_sheet(
+            {"issue_fin": "74", "reading_status": "Completed"}
+        )
+        assert "issue_fin" not in parsed
+        assert "reading_status" not in parsed
+
+    def test_events_stay_a_comma_joined_string(self):
+        parsed = parse_comic_from_sheet({"events": "Hunted, Sinister War"})
+        assert parsed["events"] == "Hunted, Sinister War"
+
+    def test_booleans_parse(self):
+        parsed = parse_comic_from_sheet({"is_main_entry": "TRUE"})
+        assert parsed["is_main_entry"] is True
+
+    def test_to_reread_is_no_longer_emitted(self):
+        # to_reread was dropped from the Comic model - rereading tracking now
+        # lives in plan_next rows with kind="rewatch".
+        assert "to_reread" not in parse_comic_from_sheet({"to_reread": "FALSE"})
+
+    def test_round_trips_every_model_column(self):
+        # Guards against a column being added to the model but forgotten here.
+        # public_id only round-trips when the cell holds a usable integer -
+        # an empty string is not a public_id, so an all-blank raw can't probe
+        # this column: it would (correctly) omit the key and fail this guard
+        # for the wrong reason.
+        from app.models.comic import Comic
+
+        model_cols = {c.name for c in Comic.__table__.columns}
+        # media_type is the constant discriminator for the FK up to `media`.
+        # It never reaches the sheet (MEDIA_TYPE_ONLY in tabs.py drops it) and
+        # its server_default re-supplies it on restore, so there is nothing for
+        # the parser to round-trip.
+        model_cols.discard("media_type")
+        raw = {c: "" for c in model_cols}
+        raw["public_id"] = "47"
+        parsed = parse_comic_from_sheet(raw)
+        # Every column round-trips, created_at/updated_at included: Backup
+        # writes both to the Comic tab, so Pull has to restore them rather than
+        # letting the model default re-stamp "now" on every restored row.
+        assert model_cols <= set(parsed.keys())
+
+    def test_timestamps_are_restored_from_the_sheet(self):
+        # A restored row must keep its original created_at - the list endpoint
+        # sorts on it, so re-stamping would reshuffle the library.
+        parsed = parse_comic_from_sheet(
+            {"created_at": "2024-03-05 10:11:12", "updated_at": "2025-01-02 03:04:05"}
+        )
+        assert parsed["created_at"] == datetime(2024, 3, 5, 10, 11, 12)
+        assert parsed["updated_at"] == datetime(2025, 1, 2, 3, 4, 5)
+
+    def test_parses_the_comicvine_handle(self):
+        """
+        Pull rebuilds rows from the sheet wholesale, so a field the parser omits
+        is silently wiped on every restore.
+        """
+        parsed = parse_comic_from_sheet(
+            {
+                "comicvine_id": "2127",
+                "comicvine_link": "https://comicvine.gamespot.com/asm/4050-2127/",
+            }
+        )
+        assert parsed["comicvine_id"] == 2127
+        assert parsed["comicvine_link"] == "https://comicvine.gamespot.com/asm/4050-2127/"
+
+    def test_comicvine_handle_is_none_when_absent(self):
+        parsed = parse_comic_from_sheet({})
+        assert parsed["comicvine_id"] is None
+        assert parsed["comicvine_link"] is None

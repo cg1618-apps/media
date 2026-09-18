@@ -1,0 +1,361 @@
+"""
+Hiding an entry has to hide everything that names it.
+
+The library list is the obvious route and the least interesting one. A quote
+carries its own text, a meme its own caption, a plan-next row the entry's
+display name, and /api/credits and /api/note are public GETs keyed by
+(type, id) that confirm an entry exists even when they return little. Each of
+these is a separate way to read a hidden entry, so each gets a test.
+
+Assertions are on response.text: these payloads nest resolved display data
+under keys that differ per route (entry_display_name, owner_display_name,
+display_name), and a substring check does not care which.
+"""
+
+import uuid
+
+import pytest
+
+from app import models
+from app.services.rbac.permissions import PERM_SELF_LIST
+from app.services.rbac.seed import default_guest_permissions
+from tests.api.conftest import (  # noqa: F401
+    HIDDEN_NAME,
+    hidden_anime,
+    make_viewer,
+    nsfw_label,
+)
+
+QUOTE_TEXT = "Zvornik quote body that must not leak"
+MEME_TEXT = "Zvornik meme caption that must not leak"
+
+
+@pytest.fixture
+def hidden_quote(db_session, hidden_anime, admin_user):
+    q = models.Quote(
+        author_id=admin_user.id,
+        system_id=uuid.uuid4(),
+        media_type="anime",
+        entry_id=hidden_anime.system_id,
+        text=QUOTE_TEXT,
+    )
+    db_session.add(q)
+    db_session.flush()
+    return q
+
+
+@pytest.fixture
+def general_quote(db_session, admin_user):
+    """Not tied to any entry - must survive the filter."""
+    q = models.Quote(
+        author_id=admin_user.id,
+        system_id=uuid.uuid4(), text="A general quote tied to nothing"
+    )
+    db_session.add(q)
+    db_session.flush()
+    return q
+
+
+@pytest.fixture
+def hidden_meme(db_session, hidden_anime, admin_user):
+    m = models.Meme(
+        author_id=admin_user.id,
+        system_id=uuid.uuid4(),
+        media_id=hidden_anime.system_id,
+        text=MEME_TEXT,
+    )
+    db_session.add(m)
+    db_session.flush()
+    return m
+
+
+@pytest.fixture
+def hidden_plan(db_session, super_user, hidden_anime):
+    """A library-keeping account's own plan row on a hidden entry.
+
+    `super_user`, not `admin_user`: since 2026-09-12 an administrative account
+    holds no `self.*` grant, so it has no plan queue to leak and /api/plan-next
+    answers it 401. The `super` role is the account shape that keeps one.
+
+    A plan row belongs to a user from Step 3 on, so the row a viewer might leak
+    is one of their OWN - queued before the entry was labelled, or labelled for
+    their role but not for another's.
+    """
+    p = models.PlanNext(
+        system_id=uuid.uuid4(),
+        user_id=super_user.id,
+        kind="next",
+        media_type="anime",
+        media_id=hidden_anime.system_id,
+    )
+    db_session.add(p)
+    db_session.flush()
+    return p
+
+
+# ---------------------------------------------------------------------------
+# Quotes - the text is itself the leak
+# ---------------------------------------------------------------------------
+
+def test_a_quote_on_a_hidden_entry_is_not_listed(client, hidden_quote):
+    response = client.get("/api/quote/")
+    assert response.status_code == 200
+    assert QUOTE_TEXT not in response.text
+    assert HIDDEN_NAME not in response.text
+
+
+def test_a_quote_on_a_hidden_entry_is_not_grouped(client, hidden_quote):
+    response = client.get("/api/quote/grouped")
+    assert response.status_code == 200
+    assert QUOTE_TEXT not in response.text
+
+
+def test_a_quote_on_a_hidden_entry_is_not_found_by_id(client, hidden_quote):
+    response = client.get(f"/api/quote/{hidden_quote.system_id}")
+    assert response.status_code == 404
+    assert QUOTE_TEXT not in response.text
+
+
+def test_a_general_quote_survives(client, general_quote):
+    """A quote with no entry behind it is nobody's secret."""
+    assert general_quote.text in client.get("/api/quote/").text
+
+
+def test_admin_still_sees_the_quote(admin_client, hidden_quote):
+    assert QUOTE_TEXT in admin_client.get("/api/quote/").text
+
+
+# ---------------------------------------------------------------------------
+# Memes
+# ---------------------------------------------------------------------------
+
+def test_a_meme_on_a_hidden_entry_is_not_listed(client, hidden_meme):
+    response = client.get("/api/meme/")
+    assert response.status_code == 200
+    assert MEME_TEXT not in response.text
+
+
+def test_a_meme_on_a_hidden_entry_is_not_found_by_id(client, hidden_meme):
+    assert client.get(f"/api/meme/{hidden_meme.system_id}").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Public GETs keyed by (type, id) - existence is the leak
+# ---------------------------------------------------------------------------
+
+def test_credits_for_a_hidden_entry_are_not_found(client, hidden_anime):
+    response = client.get(f"/api/credits/anime/{hidden_anime.system_id}")
+    assert response.status_code == 404
+
+
+def test_credits_for_a_visible_entry_still_work(client, sample_anime):
+    assert client.get(f"/api/credits/anime/{sample_anime.system_id}").status_code == 200
+
+
+def test_notes_for_a_hidden_entry_are_not_found(client, hidden_anime):
+    response = client.get(
+        "/api/notes", params={"owner_type": "anime", "owner_id": str(hidden_anime.system_id)}
+    )
+    assert response.status_code == 404
+
+
+def test_notes_for_a_visible_entry_still_work(client, sample_anime):
+    response = client.get(
+        "/api/notes", params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)}
+    )
+    assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Plan Next
+# ---------------------------------------------------------------------------
+
+def test_an_anonymous_visitor_cannot_read_the_plan_queue_at_all(client, hidden_plan):
+    # Per-user from Step 3 on: a refusal, not a filtered page.
+    assert client.get("/api/plan-next/").status_code == 401
+
+
+def test_a_plan_row_for_a_hidden_entry_is_dropped(
+    client, db_session, hidden_anime, hidden_plan
+):
+    # A logged-in viewer whose MODE lacks the label: their OWN plan row on
+    # the hidden entry must not come back. (It was the role that lacked it
+    # until Phase B moved object scoping to the access mode.)
+    # self.list on top of the guest set: reading a plan queue requires being
+    # able to KEEP one, and the guest defaults do not include it. What this
+    # test narrows is the MODE, not the role.
+    make_viewer(
+        db_session,
+        client,
+        "untrusted",
+        default_guest_permissions() | {PERM_SELF_LIST},
+        label_keys=(),
+    )
+    viewer = db_session.query(models.User).filter_by(username="untrusted").one()
+    db_session.add(
+        models.PlanNext(
+            system_id=uuid.uuid4(),
+            user_id=viewer.id,
+            kind="next",
+            media_type="anime",
+            media_id=hidden_anime.system_id,
+        )
+    )
+    db_session.flush()
+
+    response = client.get("/api/plan-next/")
+    assert response.status_code == 200
+    assert HIDDEN_NAME not in response.text
+    assert str(hidden_anime.system_id) not in response.text
+
+
+def test_an_unnarrowed_viewer_still_sees_the_plan_row(super_client, hidden_plan):
+    """
+    The mirror of the test above, on the same fixture, so a green there proves
+    the MODE did the hiding rather than the row being absent or the caller
+    being refused outright. It was `admin_client` until 2026-09-12, when an
+    administrative account stopped holding a plan queue at all.
+    """
+    assert HIDDEN_NAME in super_client.get("/api/plan-next/").text
+
+
+# ---------------------------------------------------------------------------
+# Relations
+# ---------------------------------------------------------------------------
+
+def test_relations_for_a_hidden_anchor_are_not_found(client, hidden_anime):
+    response = client.get(
+        "/api/media-relation/for-entry",
+        params={"media_type": "anime", "entry_id": str(hidden_anime.system_id)},
+    )
+    assert response.status_code == 404
+
+
+def test_a_relation_edge_to_a_hidden_entry_is_dropped(
+    client, db_session, sample_anime, hidden_anime
+):
+    db_session.add(
+        models.MediaRelation(
+            system_id=uuid.uuid4(),
+            relation_type="sequel",
+            from_type="anime",
+            from_id=sample_anime.system_id,
+            to_type="anime",
+            to_id=hidden_anime.system_id,
+        )
+    )
+    db_session.flush()
+
+    response = client.get(
+        "/api/media-relation/for-entry",
+        params={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
+    )
+    assert response.status_code == 200
+    assert HIDDEN_NAME not in response.text
+    assert str(hidden_anime.system_id) not in response.text
+
+
+# ---------------------------------------------------------------------------
+# Memes, grouped
+# ---------------------------------------------------------------------------
+
+def test_a_meme_on_a_hidden_entry_is_not_grouped(client, hidden_meme):
+    response = client.get("/api/meme/grouped")
+    assert response.status_code == 200
+    assert MEME_TEXT not in response.text
+    assert HIDDEN_NAME not in response.text
+
+
+# ---------------------------------------------------------------------------
+# Watch orders - a step names the entry it points at
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def hidden_watch_step(db_session, sample_franchise, hidden_anime):
+    wo = models.WatchOrderList(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        list_name="Order under test",
+    )
+    db_session.add(wo)
+    db_session.flush()
+    item = models.WatchOrderItem(
+        system_id=uuid.uuid4(),
+        list_id=wo.system_id,
+        position=1,
+        media_type="anime",
+        entry_id=hidden_anime.system_id,
+    )
+    db_session.add(item)
+    db_session.flush()
+    return wo
+
+
+def test_a_watch_order_step_on_a_hidden_entry_is_dropped(
+    client, hidden_watch_step
+):
+    response = client.get(f"/api/watch-order/lists/{hidden_watch_step.system_id}")
+    assert response.status_code == 200
+    assert HIDDEN_NAME not in response.text
+
+
+def test_admin_still_sees_the_watch_order_step(admin_client, hidden_watch_step):
+    response = admin_client.get(
+        f"/api/watch-order/lists/{hidden_watch_step.system_id}"
+    )
+    assert HIDDEN_NAME in response.text
+
+
+def test_a_hidden_entry_is_not_an_addable_candidate(
+    client, sample_franchise, hidden_anime
+):
+    response = client.get(
+        "/api/watch-order/candidates",
+        params={"franchise_id": str(sample_franchise.system_id)},
+    )
+    assert response.status_code == 200
+    assert HIDDEN_NAME not in response.text
+
+
+# ---------------------------------------------------------------------------
+# Credit counts - a number is a smaller leak, but still one
+# ---------------------------------------------------------------------------
+
+def test_a_credit_on_a_hidden_entry_is_not_counted(
+    client, db_session, hidden_anime
+):
+    person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Director")
+    db_session.add(person)
+    db_session.flush()
+    db_session.add(
+        models.MediaCredit(
+            system_id=uuid.uuid4(),
+            media_id=hidden_anime.system_id,
+            role="director",
+            person_id=person.system_id,
+        )
+    )
+    db_session.flush()
+
+    body = client.get("/api/person/").json()
+    row = next(p for p in body if p["system_id"] == str(person.system_id))
+    assert row["credit_count"] == 0
+
+
+def test_admin_still_counts_the_credit(admin_client, db_session, hidden_anime):
+    person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Director 2")
+    db_session.add(person)
+    db_session.flush()
+    db_session.add(
+        models.MediaCredit(
+            system_id=uuid.uuid4(),
+            media_id=hidden_anime.system_id,
+            role="director",
+            person_id=person.system_id,
+        )
+    )
+    db_session.flush()
+
+    body = admin_client.get("/api/person/").json()
+    row = next(p for p in body if p["system_id"] == str(person.system_id))
+    assert row["credit_count"] == 1

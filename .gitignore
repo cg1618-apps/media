@@ -1,0 +1,34 @@
+venv/
+__pycache__/
+.env
+.env.backup
+credentials.json
+postgres_anime_data/
+one_time/
+static/covers/
+!/static/covers/.gitkeep
+static/library/*
+!/static/library/.gitkeep
+.vs/
+
+node_modules/
+static/css/main.css
+.npm/
+frontend_dist/
+
+# Claude Code configuration and auto-memory
+.claude/*
+!.claude/settings.json
+
+# Per-machine notes for Claude Code. Each machine writes its own (it names the
+# machine it is on); nothing about it should travel.
+CLAUDE.local.md
+.pytest_cache/
+.ruff_cache/
+
+# (Usually you want to keep this, but ignore if it's for personal use only)
+# CLAUDE.md
+# Local database dumps. Never committed: they hold every account row and
+# every personal note, and the channel for data between machines is Sheets.
+backups/
+.superpowers/

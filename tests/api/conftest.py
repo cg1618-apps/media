@@ -1,0 +1,1153 @@
+"""
+API test fixtures.
+
+Requires PostgreSQL to be running (docker-compose up -d).
+Uses the 'anime_site_test' database (set in tests/conftest.py).
+
+Setup: createdb -U postgres anime_site_test  (run once)
+"""
+
+import uuid
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+
+from app import models
+from app.database import SQLALCHEMY_DATABASE_URL, Base
+from app.dependencies import get_db
+from app.main import app
+from app.services.integrations import image_manager, sheets
+from app.services.rbac import cache as rbac_cache
+from app.services.rbac.modes import grant_all_modes_to_existing_accounts
+from app.services.rbac.permissions import PERM_MANAGE_CATALOG
+from app.services.rbac.seed import default_user_permissions, ensure_rbac_seed
+from app.services.rbac.seed_modes import (
+    MODE_UNRESTRICTED,
+    ensure_access_mode_seed,
+)
+from app.services.security import create_access_token, get_password_hash
+
+
+def role_id_for(db, name):
+    """
+    users.role is a read-only mapping over role.name since migration C, so a
+    fixture assigns role_id. The roles themselves are seeded once per session
+    in test_engine.
+    """
+    from app import models
+
+    role = db.query(models.Role).filter(models.Role.name == name).first()
+    assert role is not None, f"role {name!r} not seeded"
+    return role.system_id
+
+
+# ---------------------------------------------------------------------------
+# Database setup — one engine for the entire test session
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session")
+def test_engine():
+    # Safety guard: never run a destructive schema reset against a non-test DB.
+    db_name = SQLALCHEMY_DATABASE_URL.rsplit("/", 1)[-1].split("?")[0]
+    assert "test" in db_name, f"Refusing to reset non-test database: {db_name!r}"
+
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
+    # Start from a guaranteed-clean schema. create_all never ALTERs existing
+    # tables, so stale tables from an earlier run (columns since renamed/dropped
+    # by migrations) would otherwise linger and break tests. A full schema reset
+    # is the only reliable way to rebuild from the current models.
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+
+    Base.metadata.create_all(bind=engine)
+
+    # The roles migration A seeds. conftest never runs Alembic, so they are
+    # created here instead - once, committed, session-wide. Doing it here
+    # rather than per test keeps the lifespan's own idempotent seed to a
+    # SELECT, and stops it contending with an open test transaction.
+    seeding = sessionmaker(bind=engine)()
+    ensure_rbac_seed(seeding)
+    # The access modes, for the SAME reason and it is not optional: the
+    # lifespan seeds them too, and `with TestClient(app)` runs the lifespan on
+    # its own connection. If a test transaction has already inserted the four
+    # modes uncommitted, the lifespan's INSERT blocks on access_mode.key
+    # forever - the test waits on the client and the client waits on the test.
+    # Seeding here, committed and session-wide, keeps the lifespan's copy to a
+    # SELECT. Committed before any content_label row exists, so `unrestricted`
+    # starts with no labels; carry_label_in_wide_modes() tops it up.
+    ensure_access_mode_seed(seeding)
+    seeding.commit()
+    # And grant them to any account that already exists - the lifespan does
+    # this too, and doing it here first, committed, keeps its copy to a SELECT
+    # so it can never block on a test's open transaction.
+    grant_all_modes_to_existing_accounts(seeding)
+    seeding.commit()
+    seeding.close()
+
+    yield engine
+    Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_cover_downloads(monkeypatch):
+    """
+    Stop a test from reaching the network for a cover image.
+
+    image_manager writes to the developer's real static/covers, so a route that
+    fills from an external API - PUT /api/studio/{id} runs autofill_studio_from_mal
+    on every update - silently left one downloaded file per test run behind. They
+    were invisible while every image sat in one flat directory.
+
+    The raised error does NOT fail the test: every autofill wraps its work in
+    `except Exception` and logs, so this stops the download and the test carries
+    on. It is a backstop, not a detector - a test that means to exercise a fill
+    still stubs the fetcher or download_cover_image itself.
+    """
+
+    def _blocked(*args, **kwargs):
+        raise AssertionError(
+            "A test tried to download a cover image. Stub the fetcher or "
+            "download_cover_image instead of reaching the network."
+        )
+
+    monkeypatch.setattr(image_manager.requests, "get", _blocked)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_google_sheets(monkeypatch):
+    """
+    Stop a test from reaching the real Google Sheet.
+
+    The same idea as the cover-image guard above, with a worse failure mode.
+    Backup and Pull talk to a live spreadsheet using the developer's real
+    credentials, and the test database is EMPTY - so a test that reached the
+    backup path for real would write header-only tabs over the production
+    sheet and trim everything beneath. That is precisely how 16,774 rows were
+    erased on 2026-09-12; see tests/api/test_backup_never_blanks_a_tab.py for
+    the defect that made a header-only write destructive.
+
+    Unlike the cover guard this one IS a detector, not a backstop: nothing in
+    the pipelines swallows it, so a test that trips it goes red. Every test
+    that means to exercise Backup or Pull already stubs `bulk_overwrite_sheet`
+    or `get_all_raw_rows` and never reaches this accessor. Before this fixture
+    that was a per-test discipline, and the cost of one future test forgetting
+    was not a red test but a destroyed backup.
+
+    tests/api/test_no_real_sheets_in_tests.py proves the guard is armed -
+    without it, deleting this fixture would break nothing visible.
+    """
+
+    def _blocked(tab_name, *args, **kwargs):
+        raise AssertionError(
+            f"A test tried to reach the real Google Sheet (tab {tab_name!r}). "
+            "The test database is empty, so a real backup write would blank "
+            "the production sheet. Stub bulk_overwrite_sheet or "
+            "get_all_raw_rows instead."
+        )
+
+    monkeypatch.setattr(sheets, "get_google_sheet_tab", _blocked)
+
+
+@pytest.fixture(autouse=True)
+def _clear_permission_cache():
+    """
+    Drop all THREE process-global caches between tests.
+
+    They outlive a test's rolled-back transaction, so a stale entry leaks
+    grants between tests. bump() clears the role cache, the access-mode item
+    cache and the per-account denial cache together - if it ever stops doing
+    that, mode state leaks here and the failures are random and
+    order-dependent, which is the most expensive kind to debug.
+    """
+    rbac_cache.bump()
+    yield
+    rbac_cache.bump()
+
+
+@pytest.fixture(scope="function")
+def db_session(test_engine):
+    """
+    Yields a DB session wrapped in a transaction that rolls back after each test.
+    Ensures full test isolation without needing to rebuild tables.
+    """
+    connection = test_engine.connect()
+    transaction = connection.begin()
+    # create_savepoint: session.commit()/rollback() inside the app act on a
+    # SAVEPOINT, exactly as they act on a real transaction in production,
+    # while the outer transaction still discards everything at teardown.
+    # Without it a rollback in the code under test unwinds the whole outer
+    # transaction and every row the test set up disappears mid-request.
+    TestingSessionLocal = sessionmaker(
+        bind=connection, join_transaction_mode="create_savepoint"
+    )
+    session = TestingSessionLocal()
+
+    yield session
+
+    session.close()
+    if transaction.is_active:
+        transaction.rollback()
+    connection.close()
+
+
+# ---------------------------------------------------------------------------
+# FastAPI test clients
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="function")
+def client(db_session):
+    """Unauthenticated test client with test DB override."""
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def admin_user(db_session):
+    """
+    The account admin_client's requests act as.
+
+    Its own fixture because personal data now hangs off a user: a test that
+    seeds a user_media_list row has to hang it on the SAME user the request
+    will resolve to.
+
+    The name sorts before the "admin" the app's lifespan seeds
+    (app/main.py:108), and that is the whole point. `acting_user_id` resolves
+    a GUEST to the lowest-username admin, so without the prefix a fixture row
+    written here is invisible to every anonymous `client` read while being
+    visible to `admin_client` - and a Completed entry silently reads back as
+    "Might Watch" through one client and not the other. Production has exactly
+    one admin and no such split; sorting first is what reproduces that here.
+    `an_admin` in test_viewer_user_id.py uses the same trick for the same
+    reason.
+    """
+    user = models.User(
+        id=uuid.uuid4(),
+        username="aaa_testadmin",
+        hashed_password=get_password_hash("testpass"),
+        role_id=role_id_for(db_session, "admin"),
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture(scope="function")
+def admin_client(db_session, admin_user):
+    """Authenticated admin test client — sets valid JWT cookie."""
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    # Carries a mode, like a real account does after the Phase B migration.
+    # Without one, a signed-in caller resolves the EMPTY object set and every
+    # gated field vanishes from every response.
+    mode_id = seed_modes_and_grant(db_session, admin_user)
+    token = create_access_token(
+        {"sub": admin_user.username, "role": "admin", "mode": str(mode_id or "")}
+    )
+
+    with TestClient(app) as c:
+        c.cookies.set("access_token", f"Bearer {token}")
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def plain_user(db_session):
+    """A signed-in member on the `user` role: guest reads plus the two self.*."""
+    user = models.User(
+        id=uuid.uuid4(),
+        username="plainuser",
+        hashed_password=get_password_hash("testpass"),
+        role_id=role_id_for(db_session, "user"),
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture(scope="function")
+def user_client(db_session, plain_user):
+    """Authenticated non-admin test client - the `user` role, not `admin`."""
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    mode_id = seed_modes_and_grant(db_session, plain_user)
+    token = create_access_token(
+        {"sub": plain_user.username, "role": "user", "mode": str(mode_id or "")}
+    )
+
+    with TestClient(app) as c:
+        c.cookies.set("access_token", f"Bearer {token}")
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+# ---------------------------------------------------------------------------
+# Access modes
+# ---------------------------------------------------------------------------
+# The object axis. A signed-in caller with no `mode` claim resolves the EMPTY
+# object set - fail-closed, and correct in production - so every authenticated
+# fixture client has to carry a mode, exactly as a real account does after the
+# Phase B migration granted every existing account all four.
+
+
+def all_field_group_keys() -> set:
+    """Every field group, as a set. Imported lazily: field_groups sits in an
+    import cycle that only raises when it is loaded first."""
+    from app.services.rbac.field_groups import FIELD_GROUP_KEYS
+
+    return set(FIELD_GROUP_KEYS)
+
+
+def seed_modes_and_grant(db, user):
+    """Give THIS user all four seeded modes, defaulting to `unrestricted`.
+
+    What the migration does for every account that already existed, so a
+    fixture client behaves like a real one on the day Phase B lands.
+    Returns the default mode's id.
+
+    Deliberately NOT grant_all_modes_to_existing_accounts(), which walks every
+    user. That would insert rows for the COMMITTED admin account the lifespan
+    also grants, uncommitted - and the lifespan runs on its own connection
+    inside `with TestClient(app)`, so it would block on uq_user_access_mode
+    with the test waiting on the client and the client waiting on the test.
+    The session-scoped setup in test_engine grants that account once,
+    committed, so the lifespan's own copy stays a SELECT.
+    """
+    from app.services.rbac.modes import default_mode_id
+
+    held = (
+        db.query(models.UserAccessMode)
+        .filter(models.UserAccessMode.user_id == user.id)
+        .first()
+    )
+    if held is None:
+        for m in db.query(models.AccessMode).all():
+            db.add(
+                models.UserAccessMode(
+                    user_id=user.id,
+                    mode_id=m.system_id,
+                    is_default=(m.key == MODE_UNRESTRICTED),
+                )
+            )
+        db.flush()
+    rbac_cache.bump()
+    return default_mode_id(db, user)
+
+
+def grant_bespoke_mode(db, user, username, field_groups=None, label_keys=None):
+    """
+    A one-off mode carrying exactly `field_groups` and `label_keys`.
+
+    For tests that used to build a role holding every permission MINUS one
+    field group. That subtraction moved to this axis in Phase B: the role can
+    no longer express it, because permission resolution is a union and a union
+    can only add.
+
+    Defaults are "everything", so a test that does not care about the object
+    axis gets the unnarrowed answer and only the tests that narrow say so.
+    """
+    groups = all_field_group_keys() if field_groups is None else set(field_groups)
+    # Two key shapes on purpose. A mode built with an explicit label_keys is
+    # a DELIBERATE object scope and must survive a label created later;
+    # carry_label_in_wide_modes only tops up the "mode-" ones, which mean
+    # "everything, I do not care about this axis".
+    prefix = "mode" if label_keys is None else "modefixed"
+    mode = models.AccessMode(
+        system_id=uuid.uuid4(),
+        key=f"{prefix}-{username}",
+        label=username,
+        is_system=False,
+    )
+    db.add(mode)
+    db.flush()
+    for key in sorted(groups):
+        db.add(
+            models.AccessModeFieldGroup(mode_id=mode.system_id, field_group_key=key)
+        )
+    labels = db.query(models.ContentLabel).all()
+    for label in labels:
+        if label_keys is not None and label.key not in label_keys:
+            continue
+        db.add(models.AccessModeLabel(mode_id=mode.system_id, label_id=label.system_id))
+    db.add(
+        models.UserAccessMode(
+            user_id=user.id, mode_id=mode.system_id, is_default=True
+        )
+    )
+    db.flush()
+    rbac_cache.bump()
+    return mode
+
+
+def carry_label_in_wide_modes(db, label):
+    """Give a newly created label to the modes that are meant to carry ALL of
+    them, if those modes already exist.
+
+    A mode's labels are materialised rows, so a label created AFTER the seed
+    reaches no mode and hides its entries from everybody - fail-closed, and in
+    production the admin grants it on /access-modes. In tests that would make
+    fixture ORDER decide what a mode holds: request admin_client before
+    nsfw_label and `unrestricted` is seeded empty, so the admin stops seeing
+    labelled entries for no reason the test expresses.
+    """
+    wide = (
+        db.query(models.AccessMode)
+        .filter(models.AccessMode.key.in_((MODE_UNRESTRICTED, "borderline")))
+        .all()
+    )
+    for mode in wide:
+        exists = (
+            db.query(models.AccessModeLabel)
+            .filter(
+                models.AccessModeLabel.mode_id == mode.system_id,
+                models.AccessModeLabel.label_id == label.system_id,
+            )
+            .first()
+        )
+        if exists is None:
+            db.add(
+                models.AccessModeLabel(
+                    mode_id=mode.system_id, label_id=label.system_id
+                )
+            )
+    # Bespoke modes built by make_viewer default to "every label", and they
+    # are created before a test's own labels just as often.
+    for mode in db.query(models.AccessMode).filter(
+        models.AccessMode.key.like("mode-%")
+    ):
+        exists = (
+            db.query(models.AccessModeLabel)
+            .filter(
+                models.AccessModeLabel.mode_id == mode.system_id,
+                models.AccessModeLabel.label_id == label.system_id,
+            )
+            .first()
+        )
+        if exists is None:
+            db.add(
+                models.AccessModeLabel(
+                    mode_id=mode.system_id, label_id=label.system_id
+                )
+            )
+    db.flush()
+    rbac_cache.bump()
+    return label
+
+
+@pytest.fixture
+def access_modes(db_session):
+    """The four seeded modes. create_all does not run the lifespan."""
+    ensure_access_mode_seed(db_session)
+    rbac_cache.bump()
+
+
+@pytest.fixture
+def mode(db_session, access_modes):
+    def _get(key):
+        return (
+            db_session.query(models.AccessMode)
+            .filter(models.AccessMode.key == key)
+            .one()
+        )
+
+    return _get
+
+
+@pytest.fixture
+def grant_mode(db_session, mode):
+    """Give `user` a seeded mode, optionally minus some of its labels.
+
+    Denials name label KEYS rather than ids, because that is what a test can
+    read back.
+    """
+
+    def _grant(user, mode_key, denials=(), is_default=False):
+        row = models.UserAccessMode(
+            user_id=user.id, mode_id=mode(mode_key).system_id, is_default=is_default
+        )
+        db_session.add(row)
+        db_session.flush()
+        for key in denials:
+            label = (
+                db_session.query(models.ContentLabel)
+                .filter(models.ContentLabel.key == key)
+                .one()
+            )
+            db_session.add(
+                models.UserAccessModeDenial(
+                    user_access_mode_id=row.system_id, label_id=label.system_id
+                )
+            )
+        db_session.flush()
+        rbac_cache.bump()
+        return row
+
+    return _grant
+
+
+@pytest.fixture
+def mode_client(db_session, admin_user, grant_mode):
+    """A client sitting in one named mode.
+
+    The mode travels in the token claim exactly as it does in production, so
+    these tests exercise the real resolution path rather than a Viewer built
+    by hand.
+    """
+
+    def _client(mode_key, user=None, denials=()):
+        user = user or admin_user
+        grant = grant_mode(user, mode_key, denials=denials)
+
+        def override_get_db():
+            yield db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+        token = create_access_token(
+            {"sub": user.username, "role": user.role, "mode": str(grant.mode_id)}
+        )
+        c = TestClient(app)
+        # domain= matters here and nowhere else. This client RECEIVES
+        # Set-Cookie responses - the access-mode switch reissues the cookie -
+        # and TestClient's own cookies land under "testserver.local". A jar
+        # cookie set with no domain does not match, so the two ACCUMULATE and
+        # httpx raises CookieConflict on the next read. The other fixture
+        # clients never get a Set-Cookie back, which is why they can omit it.
+        c.cookies.set("access_token", f"Bearer {token}", domain="testserver.local")
+        return c
+
+    yield _client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def super_user(db_session):
+    """An account on the `super` role: both manage.* and no admin.authz.
+
+    Extracted here because Phase A built this inline in five separate files.
+    """
+    user = models.User(
+        id=uuid.uuid4(),
+        username="root role",
+        hashed_password=get_password_hash("testpass"),
+        role_id=role_id_for(db_session, "super"),
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture(scope="function")
+def super_client(db_session, super_user):
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    mode_id = seed_modes_and_grant(db_session, super_user)
+
+    token = create_access_token(
+        {"sub": super_user.username, "role": "super", "mode": str(mode_id or "")}
+    )
+    with TestClient(app) as c:
+        c.cookies.set("access_token", f"Bearer {token}")
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+HIDDEN_NAME = "Zvornik Hidden Sentinel"
+
+
+def make_viewer(
+    db_session, client, username, permissions, field_groups=None, label_keys=None
+):
+    """
+    Log `client` in as a new user holding exactly `permissions`.
+
+    `permissions` is the ROLE axis - what this account may DO. The two keyword
+    arguments are the OBJECT axis, which left the role axis in Phase B: they
+    build a bespoke mode carrying exactly those field groups and labels.
+    Both default to everything, so a test that only cares about capabilities
+    need not mention them, and a test that narrows says so explicitly.
+    """
+    role = models.Role(
+        system_id=uuid.uuid4(),
+        name=f"role-{username}",
+        label=username,
+        is_system=False,
+        is_root=False,
+    )
+    db_session.add(role)
+    db_session.flush()
+    for permission in permissions:
+        db_session.add(
+            models.RolePermission(role_id=role.system_id, permission=permission)
+        )
+    db_session.add(
+        models.User(
+            id=uuid.uuid4(),
+            username=username,
+            hashed_password=get_password_hash("x"),
+            role_id=role.system_id,
+        )
+    )
+    db_session.flush()
+    rbac_cache.bump()
+
+    user = (
+        db_session.query(models.User)
+        .filter(models.User.username == username)
+        .one()
+    )
+    mode = grant_bespoke_mode(
+        db_session, user, username, field_groups=field_groups, label_keys=label_keys
+    )
+
+    token = create_access_token(
+        {"sub": username, "role": role.name, "mode": str(mode.system_id)}
+    )
+    client.cookies.set("access_token", f"Bearer {token}")
+    return client
+
+
+@pytest.fixture
+def nsfw_label(db_session):
+    label = models.ContentLabel(
+        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
+    )
+    db_session.add(label)
+    db_session.flush()
+    return carry_label_in_wide_modes(db_session, label)
+
+
+@pytest.fixture
+def hidden_anime(db_session, sample_franchise, nsfw_label, list_row):
+    entry = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en=HIDDEN_NAME,
+        airing_type="TV",
+        airing_status="Finished Airing",
+    )
+    db_session.add(entry)
+    db_session.flush()
+    list_row(entry, status="Completed")
+    db_session.add(
+        models.MediaContentLabel(
+            system_id=uuid.uuid4(),
+            media_id=entry.system_id,
+            label_id=nsfw_label.system_id,
+        )
+    )
+    db_session.flush()
+    return entry
+
+
+@pytest.fixture
+def catalog_writer(db_session, client):
+    """
+    A catalogue editor who cannot see the labelled entry.
+
+    This account is the whole point of Phase C. Before Phase A it could not
+    exist: every catalogue writer was is_root, and entry_visible
+    short-circuits to True for those. Phase A made the capability axis
+    independent of the object axis, so `manage.catalog` now says nothing about
+    which entries you may reach.
+    """
+
+    def _make(username="catwriter", extra=frozenset(), label_keys=()):
+        # label_keys=() is the point of the fixture: a mode carrying NO
+        # labels. It used to be expressed by leaving label.nsfw off the role,
+        # which the role axis can no longer say - object scoping moved to the
+        # access mode in Phase B.
+        return make_viewer(
+            db_session,
+            client,
+            username,
+            default_user_permissions() | {PERM_MANAGE_CATALOG} | set(extra),
+            label_keys=label_keys,
+        )
+
+    return _make
+
+
+# ---------------------------------------------------------------------------
+# Sample data fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sample_collection(db_session):
+    c = models.Collection(
+        system_id=uuid.uuid4(),
+        collection_name_en="Test Collection",
+        collection_name_cn="測試合集",
+    )
+    db_session.add(c)
+    db_session.flush()
+    return c
+
+
+@pytest.fixture
+def sample_collected_franchise(db_session, sample_collection):
+    """A franchise that belongs to sample_collection."""
+    f = models.Franchise(
+        system_id=uuid.uuid4(),
+        franchise_type="Anime",
+        franchise_name_en="Collected Franchise",
+        collection_id=sample_collection.system_id,
+    )
+    db_session.add(f)
+    db_session.flush()
+    return f
+
+
+@pytest.fixture
+def sample_franchise(db_session):
+    f = models.Franchise(
+        system_id=uuid.uuid4(),
+        franchise_type="Anime",
+        franchise_name_en="Test Franchise",
+        franchise_name_cn="測試系列",
+    )
+    db_session.add(f)
+    db_session.flush()
+    return f
+
+
+@pytest.fixture
+def sample_series(db_session, sample_franchise):
+    s = models.Series(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        series_name_en="Test Series",
+    )
+    db_session.add(s)
+    db_session.flush()
+    return s
+
+
+@pytest.fixture
+def list_row(db_session, admin_user):
+    """Give an entry the acting user's `user_media_list` row.
+
+    Step 1 moved the personal fields off the detail tables, so a test that
+    needs an entry to be Completed (or rated, or part-watched) writes them
+    here instead of as constructor kwargs.
+
+    `admin_user`, because that is the account `admin_client` acts as, and a
+    personal read is answered from the caller's own list. It used to matter
+    for a second reason - the lifespan seeds an admin named "admin" that sorts
+    first and would have won `acting_user_id`'s fallback - and that fallback
+    was removed on 2026-09-10, so a guest now reads no list at all.
+
+    A status the type already defaults to needs no row at all - an entry with
+    no list row reads back as DEFAULT_STATUS.
+    """
+
+    def _make(entry, **fields):
+        row = models.UserMediaList(
+            system_id=uuid.uuid4(),
+            user_id=admin_user.id,
+            media_id=entry.system_id,
+            **fields,
+        )
+        db_session.add(row)
+        db_session.flush()
+        return row
+
+    return _make
+
+
+@pytest.fixture
+def sample_anime(db_session, admin_user, sample_franchise):
+    """
+    A finished anime, watched to the end.
+
+    The status and the episode count moved to user_media_list in step 1, so
+    they are written as the acting user's list row rather than as columns.
+    `admin_user` and not `acting_user_id(db, None)`: a request through
+    admin_client resolves to that account, and a row hung on any other user
+    would read back as the type's default.
+    """
+    a = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Test Anime",
+        airing_type="TV",
+        airing_status="Finished Airing",
+        ep_total=12,
+    )
+    db_session.add(a)
+    db_session.flush()
+    db_session.add(
+        models.UserMediaList(
+            system_id=uuid.uuid4(),
+            user_id=admin_user.id,
+            media_id=a.system_id,
+            status="Completed",
+            ep_fin=12,
+        )
+    )
+    db_session.flush()
+    return a
+
+
+@pytest.fixture
+def anime(sample_anime):
+    """Alias for sample_anime, matching the character/casting test briefs."""
+    return sample_anime
+
+
+@pytest.fixture
+def sample_manga(db_session, sample_franchise):
+    """
+    A manga, for tests that need a second media type in one query - a profile
+    and a community aggregate both span every type at once.
+
+    Deliberately without a user_media_list row: sample_anime hangs one on the
+    admin because the entry it describes is "watched to the end", while a test
+    that needs a list row here wants to choose whose it is.
+    """
+    m = models.Manga(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        manga_name_en="Test Manga",
+    )
+    db_session.add(m)
+    db_session.flush()
+    return m
+
+
+@pytest.fixture
+def manga(manga_entry):
+    """Alias for manga_entry, matching the character/casting test briefs."""
+    return manga_entry
+
+
+@pytest.fixture
+def person(db_session):
+    p = models.Person(system_id=uuid.uuid4(), name_en="Test Person")
+    db_session.add(p)
+    db_session.flush()
+    return p
+
+
+@pytest.fixture
+def character(db_session):
+    # photo_file is set to a real value (not None) so any test asserting the
+    # casting-router photo fallback actually exercises the fallback branch,
+    # rather than trivially matching None on both sides.
+    c = models.Character(
+        system_id=uuid.uuid4(), name_en="Ichika", photo_file="characters/ichika.jpg"
+    )
+    db_session.add(c)
+    db_session.flush()
+    return c
+
+
+@pytest.fixture
+def duplicate_character(db_session, anime):
+    """A second character row, cast on the same anime, standing in for a
+    duplicate the merge endpoint should fold into `character`."""
+    c = models.Character(system_id=uuid.uuid4(), name_en="Ichika (dup)")
+    db_session.add(c)
+    db_session.flush()
+    db_session.add(
+        models.CharacterCasting(
+            character_id=c.system_id,
+            media_type="anime",
+            entry_id=anime.system_id,
+        )
+    )
+    db_session.commit()
+    return c
+
+
+@pytest.fixture
+def character_with_castings(db_session, character, anime):
+    db_session.add(
+        models.CharacterCasting(
+            character_id=character.system_id,
+            media_type="anime",
+            entry_id=anime.system_id,
+        )
+    )
+    db_session.commit()
+    return character
+
+
+@pytest.fixture
+def seiyuu_with_one_casting(db_session, anime, character):
+    """
+    A Person holding PersonRole(role="seiyuu", scope="anime"), cast as
+    `character` on `anime`. A seiyuu's work lives in character_casting, not
+    media_credit, so this is the fixture the person-router bug-fix tests need
+    - person_with_credits (media_credit-backed) cannot exercise that path.
+    """
+    person = models.Person(system_id=uuid.uuid4(), name_en="Test Seiyuu")
+    db_session.add(person)
+    db_session.flush()
+    db_session.add(
+        models.PersonRole(person_id=person.system_id, role="seiyuu", scope="anime")
+    )
+    db_session.add(
+        models.CharacterCasting(
+            character_id=character.system_id,
+            media_type="anime",
+            entry_id=anime.system_id,
+            person_id=person.system_id,
+        )
+    )
+    db_session.commit()
+    return person
+
+
+@pytest.fixture
+def manga_entry(db_session, sample_franchise):
+    """One committed manga with no credits, for the credit-resolution tests."""
+    m = models.Manga(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        manga_name_en="Test Manga",
+    )
+    db_session.add(m)
+    db_session.flush()
+    return m
+
+
+@pytest.fixture
+def manga_with_credits(db_session, manga_entry):
+    """A manga with one author and one illustrator credit."""
+    from app.services.domain import credits as credits_service
+
+    credits_service.replace_credits(
+        db_session, "manga", manga_entry.system_id, "author", ["諫山創"]
+    )
+    credits_service.replace_credits(
+        db_session, "manga", manga_entry.system_id, "illustrator", ["小山宙哉"]
+    )
+    db_session.flush()
+    return manga_entry
+
+
+@pytest.fixture
+def manga_with_two_authors(db_session, manga_entry):
+    """Two author credits at position 0 and 1, to pin the stored order."""
+    from app.services.domain import credits as credits_service
+
+    credits_service.replace_credits(
+        db_session,
+        "manga",
+        manga_entry.system_id,
+        "author",
+        ["First Author", "Second Author"],
+    )
+    db_session.flush()
+    return manga_entry
+
+
+@pytest.fixture
+def three_manga_with_credits(db_session, sample_franchise):
+    """Three credited manga, for the N+1 query-count assertion."""
+    from app.services.domain import credits as credits_service
+
+    made = []
+    for index in range(3):
+        m = models.Manga(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            manga_name_en=f"Counted Manga {index}",
+        )
+        db_session.add(m)
+        db_session.flush()
+        credits_service.replace_credits(
+            db_session, "manga", m.system_id, "author", [f"Author {index}"]
+        )
+        made.append(m)
+    db_session.flush()
+    return made
+
+
+@pytest.fixture
+def anime_with_studio(db_session, sample_franchise):
+    """One anime carrying a studio credit and no person credits."""
+    from app.services.domain import credits as credits_service
+
+    a = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Studio Only",
+    )
+    db_session.add(a)
+    db_session.flush()
+    credits_service.replace_credits(
+        db_session, "anime", a.system_id, "studio", ["MAPPA"]
+    )
+    db_session.flush()
+    return a
+
+
+@pytest.fixture
+def sample_comic(db_session, sample_franchise, list_row):
+    c = models.Comic(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        comic_name_en="Test Comic",
+        issue_total=6,
+    )
+    db_session.add(c)
+    db_session.flush()
+    list_row(c, status="Completed", issue_fin=6)
+    return c
+
+
+# ---------------------------------------------------------------------------
+# public_id lookup (tests/api/test_public_id_lookup.py)
+# ---------------------------------------------------------------------------
+
+# base route -> (model, one name column to set so the row is identifiable).
+# Route prefixes match app/registry.py exactly - "movies" and "tv-shows" are
+# plural there, unlike most of the other singular routes.
+_MEDIA_MODEL_FOR_BASE = {
+    "/api/anime": (models.Anime, "anime_name_en"),
+    "/api/anime-movie": (models.AnimeMovies, "anime_movie_name_en"),
+    "/api/movies": (models.Movies, "movie_name_en"),
+    "/api/tv-shows": (models.TVShows, "tv_name_en"),
+    "/api/cartoon": (models.Cartoon, "cartoon_name_en"),
+    "/api/manga": (models.Manga, "manga_name_en"),
+    "/api/novel": (models.Novel, "novel_name_en"),
+    "/api/comic": (models.Comic, "comic_name_en"),
+    "/api/game": (models.Game, "game_name_en"),
+}
+
+
+@pytest.fixture
+def media_entry_for(db_session, client):
+    """media_entry_for(base) creates one entry of the type `base` serves and
+    returns its response dict (as the API would render it), so callers get a
+    real public_id/system_id pair without duplicating per-type model setup."""
+
+    def _make(base: str) -> dict:
+        model, name_field = _MEDIA_MODEL_FOR_BASE[base]
+        entry = model(system_id=uuid.uuid4())
+        setattr(entry, name_field, "Test Entry")
+        db_session.add(entry)
+        db_session.flush()
+        response = client.get(f"{base}/{entry.system_id}")
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    return _make
+
+
+# The non-media detail endpoints, as base path -> (model, name field). Series
+# and the watch-order list need an owner, so they are built by hand below
+# rather than described here.
+_ENTITY_MODEL_FOR_BASE = {
+    "/api/collection": (models.Collection, "collection_name_en"),
+    "/api/franchise": (models.Franchise, "franchise_name_en"),
+    "/api/studio": (models.Studio, "name_en"),
+    "/api/publisher": (models.Publisher, "name_en"),
+    "/api/person": (models.Person, "name_en"),
+    "/api/character": (models.Character, "name_en"),
+}
+
+WATCH_ORDER_LIST_BASE = "/api/watch-order/lists"
+
+
+@pytest.fixture
+def entity_for(db_session, client):
+    """entity_for(base) creates one row of the type `base` serves and returns
+    its response dict, so callers get a real public_id/system_id pair without
+    duplicating per-type model setup. The mirror of media_entry_for for the
+    eight hand-written entity routers."""
+
+    def _make(base: str) -> dict:
+        if base == "/api/series":
+            owner = models.Franchise(
+                system_id=uuid.uuid4(),
+                franchise_type="Anime",
+                franchise_name_en="Ref Owner Franchise",
+            )
+            db_session.add(owner)
+            db_session.flush()
+            row = models.Series(
+                system_id=uuid.uuid4(),
+                franchise_id=owner.system_id,
+                series_name_en="Ref Series",
+            )
+        elif base == WATCH_ORDER_LIST_BASE:
+            owner = models.Franchise(
+                system_id=uuid.uuid4(),
+                franchise_type="Anime",
+                franchise_name_en="Ref Owner Franchise",
+            )
+            db_session.add(owner)
+            db_session.flush()
+            # ck_watch_order_list_single_owner wants exactly one owner set.
+            row = models.WatchOrderList(
+                system_id=uuid.uuid4(),
+                list_name="Ref List",
+                franchise_id=owner.system_id,
+            )
+        else:
+            model, name_field = _ENTITY_MODEL_FOR_BASE[base]
+            row = model(system_id=uuid.uuid4())
+            setattr(row, name_field, "Ref Entity")
+            if model is models.Franchise:
+                row.franchise_type = "Anime"
+
+        db_session.add(row)
+        db_session.flush()
+        response = client.get(f"{base}/{row.system_id}")
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    return _make
+
+
+@pytest.fixture
+def labelled_hidden_anime(db_session, sample_franchise):
+    """An anime carrying a content label the default guest role cannot see -
+    the public_id-lookup analogue of test_visibility.hidden_anime."""
+    label = models.ContentLabel(
+        system_id=uuid.uuid4(), key="nsfw-public-id", label="NSFW", sort_order=0
+    )
+    db_session.add(label)
+    db_session.flush()
+    carry_label_in_wide_modes(db_session, label)
+    entry = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Zvornik Hidden Public Id Sentinel",
+        airing_type="TV",
+    )
+    db_session.add(entry)
+    db_session.flush()
+    db_session.add(
+        models.MediaContentLabel(
+            system_id=uuid.uuid4(),
+            media_id=entry.system_id,
+            label_id=label.system_id,
+        )
+    )
+    db_session.flush()
+    return {"public_id": entry.public_id, "system_id": str(entry.system_id)}

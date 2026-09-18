@@ -1,0 +1,89 @@
+name: Tests
+
+# Pull requests only. There is deliberately no `push: branches: [main]` trigger.
+#
+# It used to be here, and it was the backstop for a green check that had gone
+# stale: a pull request is tested against the base as it was when the check ran,
+# so merging a second pull request first meant the combination that actually
+# landed had been tested by nothing. The re-run on main caught that - after the
+# merge, and after the deploy, so it reported rather than prevented.
+#
+# The repository ruleset now sets `strict_required_status_checks_policy` on both
+# main and dev, which requires a branch to be up to date before it merges. The
+# check therefore always ran against the base as it is, the tree tested is the
+# tree that lands, and a second run on main would test a tree it had just
+# tested. Turning that off is what made removing this safe; putting it back
+# without the ruleset would leave main unverified.
+on:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: anime_site_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: anime_site_test
+      # The runner has no .env, so without these the app's startup check
+      # refuses to boot and every API test fails. They are throwaway values
+      # for a throwaway database - the check tests real secrets by building
+      # its own Settings, not by reading these.
+      APP_ENV: development
+      JWT_SECRET_KEY: ci-not-a-real-secret
+      ADMIN_PASSWORD: ci-not-a-real-password
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Same interpreter as the runtime image (dockerfile: python:3.13-slim).
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint backend
+        run: ruff check .
+
+      - name: Lint shell scripts
+        run: shellcheck deploy/*.sh deploy/backup/*.sh
+
+      - name: Backend tests
+        run: pytest -q -p no:cacheprovider
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Lint frontend
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Frontend tests
+        run: npm run test:run
+        working-directory: frontend
+
+      - name: Frontend build
+        run: npm run build
+        working-directory: frontend
