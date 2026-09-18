@@ -523,7 +523,7 @@ become code execution on this machine.
 
    ```bash
    cd ~/actions-runner
-   ./config.sh --url https://github.com/cgentle1618/anime_site --token <token>
+   ./config.sh --url https://github.com/cg1618-apps --token <token> \n     --name homelab --labels homelab
    sudo ./svc.sh install "$USER"   # run as you, not root: it needs your docker group and ~/anime_site
    sudo ./svc.sh start
    ```

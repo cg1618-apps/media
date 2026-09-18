@@ -754,7 +754,7 @@ The repository is public, so no deploy key is needed.
 
 ```bash
 ssh homelab
-git clone --branch main https://github.com/cgentle1618/anime_site.git ~/anime_site
+git clone --branch main https://github.com/cg1618-apps/media.git ~/anime_site
 cd ~/anime_site
 ```
 
