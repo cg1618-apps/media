@@ -1291,8 +1291,9 @@ infrastructure does not belong to any one of them.
   tracker's suite.
 - **`media` becomes a new repository, not a rename or a transfer.** Seeded with
   a single commit of the tracked tree; the 2,238 commits and 216 pull requests
-  of `cgentle1618/anime_site` do not travel, and that repository is archived
-  read-only so its discussions stay readable at their URLs. The cost is
+  of `cgentle1618/anime_site` do not travel, and that repository is kept rather
+  than deleted — archived read-only and private, so its 216 pull request
+  discussions survive at their URLs for the owner, and for nobody else. The cost is
   deliberate and has one consequence worth remembering: `rollback.sh` recovers
   by checking out the commit a dump belongs to, so until several releases have
   accumulated there is no earlier release to return to and only the database
