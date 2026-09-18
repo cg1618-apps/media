@@ -32,6 +32,16 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 > Both columns are recorded from the machine itself. Keep it that way — record
 > from the machine rather than from memory, and bump the `Last verified` line.
 
+**The pre-migration tree is still on the home machine**, at
+`C:\Users\cgent\Documents\anime_site`, kept as a fallback rather than deleted.
+Nothing runs from it: its `origin` is the archived `cgentle1618/anime_site`, its
+`frontend_dist/` is stale the moment anything is built in the live tree, and the
+only irreplaceable things in it — `.env` and `credentials.json` — are copied
+into `cg1618\media`. It shares the same PostgreSQL and the same
+`COMPOSE_PROJECT_NAME`, so a command run there reaches the real development
+database; that is the reason to be deliberate about which directory a session is
+in, and the reason this note exists rather than a silent second copy.
+
 **The company machine has not been migrated.** It still holds a clone of the
 archived `cgentle1618/anime_site` at `C:\Users\q601513\Documents\anime_site`.
 Migrating it is a fresh clone of `cg1618-apps/media` into
