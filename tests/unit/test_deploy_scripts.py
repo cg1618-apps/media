@@ -128,6 +128,22 @@ def test_added_answers_from_the_git_checkout_alone():
     assert "psql" not in body
 
 
+def test_added_ignores_a_deleted_revision_file():
+    """`added` means added, not \"changed\".
+
+    Plain `git diff --name-only` reports a deletion exactly like an
+    addition, so the release that REMOVED art's rollback-rehearsal
+    revision was classified as adding one and took the approval gate.
+
+    The gate is the mild half: rollback reads a non-empty answer as
+    \"this deploy changed the schema\" and attempts a downgrade, so a
+    release that only deletes an old revision file - squashing a chain -
+    would try to reverse toward a revision the new code may no longer
+    contain. M stays on purpose: editing an already-applied revision
+    should demand an approval."""
+    assert "--diff-filter=AM" in arm("added")
+
+
 def test_added_names_the_revision_directory():
     # A diff of the whole tree would report a frontend change as a migration
     # and gate every deploy on an approval.
