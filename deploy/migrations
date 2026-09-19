@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# The migration hook the platform's deploy pipeline calls.
+#
+#   ./deploy/migrations current              the revision the DATABASE is at
+#   ./deploy/migrations added <from> <to>    revision files a deploy would add
+#   ./deploy/migrations downgrade <target>   reverse to that revision
+#
+# This exists because a rollback cannot be generic: reading a version table,
+# deciding what a deploy adds, and reversing a migration are all specific to
+# the tool an app uses. The platform asks these three questions; the answers
+# are Alembic's here.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# POSTGRES_USER and POSTGRES_DB are expanded under `set -u`, so a hand run
+# outside the deploy pipeline dies on the first unset one. .env is where they
+# live on the box, so load it rather than requiring the caller to have
+# exported them.
+#
+# Guarded because the repository is checked out without a .env in CI, where
+# the test suite runs this script's usage path.
+if [ -f .env ]; then
+    set -a
+    # shellcheck disable=SC1091  # .env is per-machine and never committed.
+    . ./.env
+    set +a
+fi
+
+COMPOSE=(env -u COMPOSE_PROJECT_NAME docker compose -f "${PLATFORM_DIR:-${HOME}/cg1618}/docker-compose.prod.yml")
+
+case "${1:-}" in
+    current)
+        # From alembic_version and nowhere else. Asking the image answers what
+        # that image knows, which is exactly what changes during a rollback.
+        #
+        # Two queries rather than one because a database that has never been
+        # migrated has no alembic_version table at all, and a statement naming
+        # a table that does not exist fails to PARSE - so no coalesce or CASE
+        # can rescue it from inside a single query. `base` is Alembic's own
+        # name for the point before the first revision and a real downgrade
+        # target. media's database is long past that, but the hook is the same
+        # shape in every app for a reason.
+        ask() {
+            "${COMPOSE[@]}" exec -T db \
+                psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -tA -c "$1" \
+                | tr -d '[:space:]'
+        }
+        if [ "$(ask "SELECT to_regclass('public.alembic_version') IS NOT NULL")" != "t" ]; then
+            echo base
+        else
+            revision="$(ask 'SELECT version_num FROM alembic_version')"
+            echo "${revision:-base}"
+        fi
+        ;;
+    added)
+        from="${2:?added needs a from-revision}"
+        to="${3:?added needs a to-revision}"
+        git diff --name-only "${from}" "${to}" -- alembic/versions/
+        ;;
+    downgrade)
+        target="${2:?downgrade needs a target}"
+
+        # REFUSE first, reverse second. A revision whose author declared it
+        # irreversible must not be downgraded: reversing it does not restore
+        # what it removed, it invents something in the shape of it - and it
+        # would do so unattended, on the box, in the minute after a failed
+        # deploy. This app is the one with data worth protecting, and this
+        # refusal is the reason the hook contract has a downgrade arm at all
+        # rather than the platform running alembic itself.
+        #
+        # The marker is the literal line
+        # tests/api/test_migration_round_trip.py asserts the spelling of, and
+        # it is checked for EVERY revision between the current head and the
+        # target, not only the newest - a deploy can add more than one.
+        #
+        # The revisions are enumerated by Alembic rather than by globbing the
+        # directory or diffing git: only Alembic knows the chain's shape, and
+        # a file that is present but not on the path from head to target is
+        # not being reversed and must not veto the rollback.
+        marked="$(docker compose -f docker-compose.prod.yml \
+            run --rm --entrypoint python app - "${target}" <<'PY'
+import sys
+
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+
+target = sys.argv[1]
+script = ScriptDirectory.from_config(Config("alembic.ini"))
+
+for revision in script.iterate_revisions("heads", target):
+    with open(revision.path, encoding="utf-8") as handle:
+        for line in handle:
+            if line.rstrip("\n") == "irreversible = True":
+                print(revision.path)
+                break
+PY
+        )"
+
+        if [ -n "${marked}" ]; then
+            echo "These revisions declare irreversible = True:" >&2
+            echo "${marked}" >&2
+            echo "Reversing them would invent data rather than restore it." >&2
+            echo "Refusing to downgrade; nothing has been reversed." >&2
+            exit 1
+        fi
+
+        # Deliberately does NOT clear COMPOSE_PROJECT_NAME: this runs this
+        # app's own image, which belongs to this app's compose project. Unlike
+        # 'current', which must reach the shared PostgreSQL in the platform's
+        # project.
+        #
+        # From the NEW image: it is the only one holding the revision files
+        # being reversed. --entrypoint alembic is not optional - without it
+        # the image's entrypoint discards the command and re-runs the upgrade
+        # that just failed.
+        docker compose -f docker-compose.prod.yml \
+            run --rm --entrypoint alembic app downgrade "${target}"
+        ;;
+    *)
+        echo "usage: migrations current | added <from> <to> | downgrade <target>" >&2
+        exit 1
+        ;;
+esac
