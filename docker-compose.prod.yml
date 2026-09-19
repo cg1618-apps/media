@@ -2,8 +2,9 @@
 #
 #   docker compose -f docker-compose.prod.yml <command>
 #
-# or through deploy/deploy.sh, which takes a dump before it pulls. How this is
-# operated, what is in .env, and how to roll back are in deploy/README.md.
+# or through the platform's `~/cg1618/bin/deploy media`, which takes a dump
+# before it pulls. How this is operated, what is in .env, and how to roll back
+# are in deploy/README.md.
 #
 # This file holds ONE service. PostgreSQL and the Cloudflare Tunnel are shared
 # by every application on the box and belong to cg1618-apps/platform, whose

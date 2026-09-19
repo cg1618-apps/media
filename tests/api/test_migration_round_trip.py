@@ -9,9 +9,9 @@ is not a safety net.
 
 A revision that genuinely cannot be reversed - a data migration that deletes or
 rewrites rows, where reversing it would invent data rather than restore it -
-declares `irreversible = True` at module scope. `deploy/rollback.sh` reads the
-SAME marker and refuses to attempt a downgrade for that deploy, sending it
-straight to the freeze tier instead. One fact, declared once, by the person who
+declares `irreversible = True` at module scope. `deploy/migrations` reads the
+SAME marker and refuses to attempt a downgrade for that deploy, sending the
+platform rollback straight to its freeze tier instead. One fact, declared once, by the person who
 knows, consumed by both.
 
 The marker is for migrations that cannot be reversed in PRINCIPLE. A
@@ -36,9 +36,9 @@ from tests.api.test_migrations_build_the_schema import (  # noqa: F401
 ROOT = Path(__file__).resolve().parents[2]
 VERSIONS = ROOT / "alembic" / "versions"
 
-# The exact spelling deploy/rollback.sh greps for. A revision writing
+# The exact spelling deploy/migrations scans for. A revision writing
 # `IRREVERSIBLE = True` or `irreversible=True` would be honoured by neither this
-# test nor that script, so the deploy would attempt a downgrade its author had
+# test nor that hook, so the deploy would attempt a downgrade its author had
 # tried to forbid - a safety marker failing silently, which is the worst shape a
 # safety marker can take.
 MARKER = re.compile(r"^irreversible = True$", re.M)
@@ -106,7 +106,7 @@ def test_the_chain_survives_a_downgrade_and_a_second_upgrade(scratch_databases):
         "The head revision's downgrade() failed. Either fix it, or - only if the\n"
         "migration cannot be reversed in principle - declare\n"
         "`irreversible = True` at module scope in that revision, which also\n"
-        "tells deploy/rollback.sh not to attempt a downgrade for it.\n"
+        "tells deploy/migrations not to attempt a downgrade for it.\n"
         f"{down.stdout[-2000:]}\n{down.stderr[-2000:]}"
     )
 
@@ -132,5 +132,5 @@ def test_the_irreversible_marker_is_spelled_the_way_rollback_reads_it(path):
     near = NEAR_MISS.findall(body)
     assert not near, (
         f"{path.name}: the marker must be exactly `irreversible = True` at module "
-        f"scope - deploy/rollback.sh greps for that literal line. Found: {near}"
+        f"scope - deploy/migrations scans for that literal line. Found: {near}"
     )

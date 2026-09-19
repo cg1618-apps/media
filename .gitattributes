@@ -1,0 +1,10 @@
+# Shell scripts are LF everywhere, whatever core.autocrlf says locally.
+#
+# The box runs them, and a shebang ending "bash\r" fails there as "bad
+# interpreter" rather than as a line-ending problem. core.fileMode is false
+# on the development machines, so the executable bit needs the same care:
+# set it with `git update-index --chmod=+x` and check it with
+# `git ls-tree HEAD`, never `git ls-files`, which reads the index.
+*.sh text eol=lf
+deploy/migrations text eol=lf
+entrypoint.sh text eol=lf
