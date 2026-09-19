@@ -1,6 +1,6 @@
 # Production: the self-hosted box
 
-Last verified: 2026-09-18 (the application is deployed and serving at
+Last verified: 2026-09-19 (the application is deployed and serving at
 `media.cg1618.com`)
 
 **What this is.** The application runs on an HP ProDesk 600 G4 Desktop Mini at
@@ -117,9 +117,9 @@ alias **`db`** there, which is the hostname the application's connection string
 already used when both services lived in one project — so the split changed no
 application configuration at all.
 
-**That checkout tracks `main`.** `deploy.sh` pulls whatever branch is checked
-out rather than naming one, so this is what decides that production runs
-released code: work reaches `dev` by pull request and reaches the box only
+**That checkout tracks `main`.** The platform's `bin/deploy` pulls whatever
+branch is checked out rather than naming one, so this is what decides that
+production runs released code: work reaches `dev` by pull request and reaches the box only
 after a release pull request promotes `dev` to `main`.
 
 | Project | Service | Image | What it is |
@@ -405,10 +405,28 @@ outbound. That is the only shape available: no service here publishes a port,
 the only ingress is an outbound tunnel, and the box has no stable address — so
 GitHub cannot push, `ssh` or webhook in, and the box has to reach out.
 
-The workflow is a trigger and nothing else. Its deploy step is
-`cd ~/anime_site && ./deploy/deploy.sh --ci`; every piece of logic stays in
-shell, versioned and shellchecked, so the unattended path and the path a person
+**`deploy.yml` is a trigger and nothing else.** It declares the branch and the
+app name and calls the platform's reusable workflow:
+
+```yaml
+jobs:
+  deploy:
+    uses: cg1618-apps/platform/.github/workflows/deploy-app.yml@main
+    with:
+      app: media
+```
+
+Everything else — the classify job, the two lanes, the approval gate and the
+exit-2-only rollback — is the platform's and is the same for every application
+on the box. The deploy itself is `~/cg1618/bin/deploy media --ci`, still shell,
+still versioned and shellchecked, so the unattended path and the path a person
 walks at 2 a.m. are the same path.
+
+**What this repository still owns is `deploy/migrations`**, the hook that
+answers the three questions no generic script can: what revision the database
+is at, what a deploy would add, and how to reverse to a revision — refusing any
+that declares `irreversible = True`. The contract is
+`~/cg1618/docs/registry.md`.
 
 **It does not run from the runner's own workspace.** That is
 `~/actions-runner/_work/...`, and the stack only works from `~/anime_site` —
@@ -424,21 +442,23 @@ three-tier ladder that reverses schema but never restores data — both are
 [deploy/README.md](../deploy/README.md#when-an-automatic-deploy-fails).
 
 **Running it by hand is still supported and still correct**, and is what you do
-when the runner is down:
+when the runner is down. It runs from the platform checkout and names the app:
 
 ```bash
-cd ~/anime_site && ./deploy/deploy.sh
+cd ~/cg1618 && ./bin/deploy media
 ```
 
-Either way it dumps the database, records the git revision **and the Alembic
-revision** that dump belongs to, tags the outgoing image `media-app:previous`,
-pulls, rebuilds, restarts, and waits for `/api/health`.
+Either way it dumps the database to `~/backups/media/`, records the git
+revision **and the Alembic revision** that dump belongs to, tags the outgoing
+image `media-app:previous`, pulls, rebuilds, restarts, and waits for
+`/api/health`.
 
 **It does not reinstall the systemd units and does not write `.env`.** A change
 under `deploy/backup/units/` arrives in the checkout while the running timers
 keep the old definition, silently — re-run `sudo ./deploy/backup/install.sh`
 after one. A change needing a new environment variable needs it added by hand.
-Both are in [deploy/README.md](../deploy/README.md#what-a-deploy-covers).
+Both are in
+[deploy/README.md](../deploy/README.md#two-things-a-deploy-does-not-do).
 
 **The box builds its own image** rather than pulling one from a registry.
 Building in CI and pulling from GHCR is the conventional answer and stays

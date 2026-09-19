@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-09-18
+Last verified: 2026-09-19
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -16,15 +16,17 @@ state — which database is at which revision, where the dumps are — is
 
 ## Deployment
 
-**Rollback cannot revert code to a previous release yet.** `rollback.sh`'s third
-tier checks out the git revision recorded beside a dump. The repository was
+**Rollback cannot revert code to a previous release yet.** The platform
+`bin/rollback`'s third tier checks out the git revision recorded beside a dump.
+The repository was
 seeded with a single commit, so for the first few releases there is no earlier
 revision to check out and only the database half of a rollback is available.
 This closes itself as releases accumulate; it needs no fix, only awareness.
 
 **A migration already sitting in the box's checkout is invisible to the
-approval gate.** `classify` decides the lane from the push range, and
-`deploy.sh --ci` re-checks `git diff HEAD origin/main -- alembic/versions/`.
+approval gate.** The platform's `classify` job decides the lane by asking
+`deploy/migrations added <before> <after>`, and `bin/deploy --ci` re-checks by
+asking `deploy/migrations added HEAD origin/main`.
 Both ask whether a revision is *arriving*. Neither notices one that `main`
 already contains and the box has already pulled but never applied — there the
 diff is empty, so the deploy takes the unattended lane and `alembic upgrade
@@ -33,7 +35,7 @@ head` runs the migration with nobody asked.
 Reaching that state needs a rollback to have stopped before its `git checkout`,
 which is the freeze tier. A completed rollback moves `HEAD` back behind the
 revision, and then the box-side re-check does fire. Observed once, on the box,
-after `rollback.sh` froze at tier 3.
+after a rollback froze at tier 3.
 
 Closing it means asking a different question — comparing the revisions the
 database has applied against the revisions the incoming code declares, rather
@@ -41,9 +43,11 @@ than comparing two git refs. That is a better check than either of the two
 above and would replace both. Not done, because the shape that produces it is
 rare and already loud.
 
-**`rollback.sh`'s `alembic downgrade` has never run end to end in a real
-rollback.** Its parts are each proven — the gate holds, an added revision is
-detected, the `.alembic` sidecar resolves the right target, and the
+**`deploy/migrations downgrade` has never run end to end in a real rollback.**
+Its parts are each proven — the gate holds, an added revision is
+detected, the `.migration` sidecar resolves the right target, the refusal on
+`irreversible = True` is exercised against a scratch chain in
+`tests/unit/test_deploy_scripts.py`, and the
 `--entrypoint alembic` form works when run by hand — but no single rollback has
 executed all of them in sequence. Two rehearsals skipped the downgrade because
 the deploy added no revision relative to the box's checkout, and a third had

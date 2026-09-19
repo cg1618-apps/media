@@ -1,182 +1,239 @@
-"""Structural invariants of the deploy scripts.
+"""Structural invariants of what this repository still owns of its deploy.
 
-Same bind as tests/unit/test_prod_compose.py and tests/unit/test_backup_scripts.py,
-and the same answer: these run on a machine CI cannot reach, so structure is the
-only thing checkable here - which is exactly what makes it worth checking.
+Deploying, health-checking and rolling back are the platform's: they are
+`bin/deploy`, `bin/health` and `bin/rollback` in `cg1618-apps/platform`, they
+are the same code for every app on the box, and they are tested there.
 
-Each assertion below is a property that is cheap to break, invisible in review,
-and expensive at the moment it matters, which for these scripts is a failed
-deploy with nobody watching.
+What is left here is the part that cannot be generic, because it is Alembic's:
+`deploy/migrations`, the hook the platform calls to ask this app about its own
+schema. Three questions - what revision is the database at, what would this
+deploy add, and reverse to this one - and the third of them is the only part
+of the deploy pipeline that can destroy data.
+
+Same bind as tests/unit/test_prod_compose.py and tests/unit/test_backup_scripts.py:
+this runs on a machine CI cannot reach, so structure is mostly what is
+checkable - which is exactly what makes it worth checking. The exception is the
+irreversible refusal below, which is executed rather than asserted about,
+because a safety marker nobody has ever made fire is not a safety marker.
 """
 
+import re
+import subprocess
+import sys
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 DEPLOY = ROOT / "deploy"
+HOOK = DEPLOY / "migrations"
 
-SCRIPTS = ["deploy.sh", "health.sh", "rollback.sh"]
+# The literal line deploy/migrations looks for, and the one
+# tests/api/test_migration_round_trip.py pins the spelling of from the other
+# side of the same contract. One fact, declared once by the person who knows,
+# consumed by both.
+MARKER = "irreversible = True"
 
 
 def code(name: str) -> str:
     """The script with comment lines removed.
 
     These scripts carry long comments that quote the very strings the
-    assertions below look for - "media.cg1618.com" in the note explaining why
-    the probe does NOT use it, "alembic downgrade" in the note explaining what
-    it is not. Searching the raw text finds the prose and passes, or finds the
-    prose and fails, in both cases saying nothing about the code.
+    assertions below look for - the marker itself appears in the prose
+    explaining what the refusal is for, and "docker compose" appears in a note
+    explaining which arm must NOT clear the project name. Searching the raw
+    text finds the prose and passes, or finds the prose and fails, in both
+    cases saying nothing about the code.
 
-    Both halves happened while writing this file, which is the same failure this
-    project has now hit three times: a loose search matching a comment that
-    means the opposite of the match.
+    This project has hit that three times: a loose search matching a comment
+    that means the opposite of the match.
     """
     lines = (DEPLOY / name).read_text(encoding="utf-8").splitlines()
     return "\n".join(line for line in lines if not line.lstrip().startswith("#"))
 
 
-@pytest.mark.parametrize("name", SCRIPTS)
-def test_every_script_fails_fast(name):
-    # Without -e a failing step is skipped past and the script exits 0, which
-    # for rollback.sh means reporting a recovery that did not happen.
-    assert "set -euo pipefail" in (DEPLOY / name).read_text(encoding="utf-8"), name
+def arm(name: str) -> str:
+    """One `case` arm of the hook, comments stripped.
+
+    An assertion about what `added` does must not be satisfied by something
+    `downgrade` does forty lines further down. The arms are what the platform
+    calls separately, so they are what gets asserted about separately.
+    """
+    body = code("migrations")
+    start = body.index("    {})".format(name))
+    return body[start : body.index("        ;;", start)]
 
 
-def test_health_probes_the_endpoint_and_not_the_catch_all():
-    # "/" returns 200 with the database down, because the catch-all route serves
-    # the SPA for any path. A probe against it is the lying healthcheck this
-    # whole endpoint exists to replace, and the difference is one path segment.
-    body = (DEPLOY / "health.sh").read_text(encoding="utf-8")
-    assert "/api/health" in body
+# --- the hook's shape -------------------------------------------------------
 
 
-def test_health_probes_from_inside_the_container():
-    # Going out through the tunnel would make Cloudflare's availability part of
-    # the deploy's success condition, so a tunnel hiccup would roll back
-    # perfectly good code - and the tunnel is the one thing a deploy cannot fix.
-    body = code("health.sh")
-    assert "exec -T app" in body
-    assert "media.cg1618.com" not in body
+def test_the_hook_fails_fast():
+    # Without -e a failing step is skipped past and the script exits 0. On the
+    # downgrade arm that would report a reversal that did not happen.
+    assert "set -euo pipefail" in HOOK.read_text(encoding="utf-8")
 
 
-def test_ci_mode_refuses_a_checkout_that_is_not_on_main():
-    # deploy.sh pulls whatever branch is checked out rather than naming one, so
-    # the branch is the whole of the decision about what production runs. The
-    # box was cloned from dev once already, which is how it spent its early life
-    # running unreleased code.
-    body = (DEPLOY / "deploy.sh").read_text(encoding="utf-8")
-    assert "--abbrev-ref HEAD" in body
-    assert 'Refusing to deploy' in body
-
-
-def test_ci_mode_recovers_from_the_detached_head_a_rollback_leaves():
-    # rollback.sh checks out the revision the dump belongs to, leaving a
-    # detached HEAD at a commit main already contains. Refusing that outright
-    # means one rollback disables automatic deploys permanently and silently -
-    # observed on the box, where the deploy after a successful rollback died on
-    # "On 'HEAD', not main" and nothing said so until the drift check would have
-    # noticed hours later.
+def test_the_hook_is_executable_in_git():
+    # `migrations` carries no extension - the platform calls it by that exact
+    # path - so the .sh sweep in tests/unit/test_backup_scripts.py does not
+    # reach it and it is asserted here instead.
     #
-    # The recovery must be narrow: a detached HEAD that main CONTAINS, and
-    # nothing else. A feature branch or an unrelated commit still refuses.
-    body = code("deploy.sh")
-    assert "merge-base --is-ancestor HEAD origin/main" in body
-    assert "git checkout --quiet main" in body
-    # The ancestry test needs origin/main to be current, so the fetch has to
-    # come first. Checking against a stale remote ref would refuse a legitimate
-    # recovery, or accept a commit main no longer contains.
-    assert body.index("git fetch origin main") < body.index("merge-base --is-ancestor")
+    # `git ls-tree HEAD`, NOT `git ls-files -s`: the first reads the COMMIT,
+    # the second reads the index, and they diverge exactly when this bug is
+    # present. core.fileMode is off on both development machines, so a chmod
+    # there is invisible to git, and `git commit -- <paths>` re-reads those
+    # paths from the working tree and discards an index-only mode change.
+    #
+    # What a lost bit costs here is specific: apps.yml declares
+    # `migrations: true` for media, and the platform's bin/deploy refuses when
+    # the registry declares migrations and the commit being deployed carries
+    # no runnable hook. So the symptom is not a broken rollback - it is every
+    # deploy refusing.
+    out = subprocess.run(
+        ["git", "ls-tree", "HEAD", "deploy/migrations"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert out.startswith("100755 "), out or "deploy/migrations is not in HEAD"
 
 
-def test_ci_mode_rechecks_for_migrations_against_the_box_head():
-    # The workflow classifies from one push range; if the runner was offline
-    # across two merges that range misses the earlier one. Only the box's own
-    # HEAD is true about the box.
-    body = (DEPLOY / "deploy.sh").read_text(encoding="utf-8")
-    assert "alembic/versions" in body
-    assert "MIGRATION_APPROVED" in body
+def test_the_hook_answers_exactly_the_three_subcommands():
+    # The contract in the platform's docs/registry.md. A missing arm is a
+    # question the pipeline asks and gets no answer to.
+    body = code("migrations")
+    for name in ("current", "added", "downgrade"):
+        assert "    {})".format(name) in body, name
 
 
-def test_deploy_records_the_schema_revision_beside_the_dump():
-    # rollback.sh's downgrade target. A git sha is not an alembic revision id,
-    # so it has to be recorded from the database rather than derived afterwards.
-    body = (DEPLOY / "deploy.sh").read_text(encoding="utf-8")
+def test_an_unknown_subcommand_fails_rather_than_succeeding_silently():
+    # `*)` must exit non-zero. The platform reads a zero exit from `added` as
+    # "this deploy adds no migrations", so a hook that shrugged at a
+    # subcommand it did not recognise would send a schema change down the
+    # unattended lane.
+    assert "exit 1" in code("migrations").split("    *)")[1]
+
+
+# --- `added` runs where there is no database --------------------------------
+
+
+def test_added_answers_from_the_git_checkout_alone():
+    # `added` is asked on a GITHUB-HOSTED runner as well as on the box, by the
+    # platform's classify job, where there is no PostgreSQL, no compose project
+    # and no .env. A hook whose `added` shelled into compose would fail there
+    # on every push - and classify gates on a hook that fails, so every deploy
+    # of this app would need an approval, for good, in a green run.
+    body = arm("added")
+    assert "git diff --name-only" in body
+    assert "docker" not in body
+    assert "psql" not in body
+
+
+def test_added_names_the_revision_directory():
+    # A diff of the whole tree would report a frontend change as a migration
+    # and gate every deploy on an approval.
+    assert "alembic/versions/" in arm("added")
+
+
+# --- `current` asks the database, in the platform's compose project ---------
+
+
+def test_current_reads_the_version_table_and_not_the_image():
+    # Asking the running image answers what that image KNOWS, which is exactly
+    # what changes during a rollback. The recorded downgrade target has to be
+    # what the schema WAS.
+    body = arm("current")
     assert "alembic_version" in body
-    assert "${dump}.alembic" in body
+    assert "psql" in body
 
 
-def test_deploy_prunes_every_file_it_writes_beside_a_dump():
-    # The prune deletes old dumps to keep five. A sidecar left behind by the
-    # prune is a file naming a downgrade target for a dump that no longer
-    # exists - which reads as a usable rollback option and is not one.
-    body = (DEPLOY / "deploy.sh").read_text(encoding="utf-8")
-    prune = body[body.index("Pruning dumps") :]
-    for sidecar in (".revision", ".alembic"):
-        assert f'"${{old}}{sidecar}"' in prune, sidecar
+def test_current_answers_base_when_the_database_has_never_been_migrated():
+    # A database with no alembic_version table is every app's FIRST deploy,
+    # and a hook that errored there would refuse the very deploy that creates
+    # the schema. `base` is Alembic's own name for the point before the first
+    # revision and a real downgrade target.
+    #
+    # Two queries rather than one is the whole of why this is worth pinning: a
+    # statement naming a table that does not exist fails to PARSE, so no
+    # coalesce or CASE can rescue it from inside a single query.
+    body = arm("current")
+    assert "to_regclass" in body
+    assert "echo base" in body
 
 
-def test_deploy_exits_distinctly_when_unhealthy():
-    # The workflow must tell "the deploy ran and is unhealthy" - where the
-    # database may be migrated and rollback.sh must run - from "the script
-    # refused to start", where nothing was touched and rolling back would be
-    # wrong. One exit code for both would collapse them.
-    assert "exit 2" in (DEPLOY / "deploy.sh").read_text(encoding="utf-8")
+def _compose_definition() -> str:
+    return next(
+        line for line in code("migrations").splitlines() if line.startswith("COMPOSE=(")
+    )
 
 
-def test_rollback_never_restores_production_data():
-    # Tier 2 reverses SCHEMA, never content. A pg_restore here would discard
-    # every write since the pre-deploy dump, unattended, to recover from a
-    # failure that usually did not touch data at all. That trade is a human's.
-    assert "pg_restore" not in (DEPLOY / "rollback.sh").read_text(encoding="utf-8")
+def test_current_reaches_postgres_through_the_platform_checkout():
+    # PostgreSQL belongs to the platform's compose project, not this app's.
+    # PLATFORM_DIR is exported by bin/deploy, bin/rollback and the classify
+    # job; guessing a path instead is right until the checkout moves.
+    assert "PLATFORM_DIR" in _compose_definition()
 
 
-def test_rollback_refuses_to_downgrade_an_irreversible_revision():
-    # The marker is declared by the person who knows the migration cannot be
-    # reversed. Running downgrade() anyway would execute a body its author
-    # disclaimed. The literal spelling is pinned by
-    # tests/api/test_migration_round_trip.py, on the other side of the contract.
-    body = (DEPLOY / "rollback.sh").read_text(encoding="utf-8")
-    assert "^irreversible = True$" in body
+def test_the_shared_postgres_compose_clears_the_project_name():
+    """The hook sources this app's .env, which EXPORTS COMPOSE_PROJECT_NAME=media.
+
+    PostgreSQL lives in the platform's project, so a plain `docker compose -f
+    ~/cg1618/docker-compose.prod.yml exec db` then looks for service `db` in
+    project `media` and reports "service db is not running" - with the
+    database running perfectly well one container away. The environment beats
+    a compose file's own .env, so clearing the variable is what lets the
+    platform's .env name its own project.
+    """
+    definition = _compose_definition()
+    assert "env -u COMPOSE_PROJECT_NAME" in definition, definition
 
 
-def test_rollback_downgrades_from_the_new_image():
-    # media-app:previous does not contain the revision files being reversed, so
-    # swapping the image first crash-loops: entrypoint.sh's `alembic upgrade
-    # head` cannot locate a revision its own files do not hold. Verified against
-    # a scratch database - the error is "Can't locate revision identified by".
+def test_the_downgrade_arm_does_not_clear_the_project_name():
+    """The mirror, and the reason the test above is not the whole story.
+
+    Do not read `COMPOSE=` here as meaning what it means in
+    deploy/backup/lib.sh. There the cleared array is DB_COMPOSE and the kept
+    one is COMPOSE; here the single COMPOSE array IS the shared-PostgreSQL one,
+    and this app's own compose is written out inline in the downgrade arm. The
+    same fix applied to the wrong one would send `run app` to a project derived
+    from the directory name, which is how a stack comes up on a brand-new empty
+    volume while the real data sits untouched in the old one.
+    """
+    for line in arm("downgrade").splitlines():
+        if "docker compose" in line:
+            assert "env -u COMPOSE_PROJECT_NAME" not in line, line
+
+
+# --- `downgrade` ------------------------------------------------------------
+
+
+def test_downgrade_runs_alembic_from_the_new_image():
+    # media-app:previous does not contain the revision files being reversed,
+    # so swapping the image first crash-loops: entrypoint.sh's `alembic upgrade
+    # head` cannot locate a revision its own files do not hold.
+    #
+    # --entrypoint is the whole correctness of this line, and its absence was
+    # invisible. The image's ENTRYPOINT is entrypoint.sh, which hardcoded
+    # `alembic upgrade head`, so `run ... app alembic downgrade <target>`
+    # discarded the command and RE-RAN THE UPGRADE THAT HAD JUST FAILED, then
+    # froze with the site still on the broken container. Observed on the box.
+    #
     # Matched on the target rather than on "alembic downgrade": the correct
-    # command separates those two words with the service name
-    # (`--entrypoint alembic app downgrade`), so a predicate looking for them
-    # adjacent finds only the BROKEN form. It raised StopIteration against the
-    # fix, which is the same shape as the bug - a check that only recognises the
-    # thing it was meant to reject.
-    downgrade_line = next(
+    # command separates those two words with the service name, so a predicate
+    # looking for them adjacent finds only the BROKEN form.
+    line = next(
         line
-        for line in code("rollback.sh").splitlines()
+        for line in arm("downgrade").splitlines()
         if 'downgrade "${target}"' in line
     )
-    assert "run --rm --no-deps" in downgrade_line, downgrade_line
-
-    # --entrypoint is the whole correctness of this line, and its absence was
-    # invisible. The image's ENTRYPOINT is entrypoint.sh, which took no
-    # arguments and hardcoded `alembic upgrade head`, so
-    # `run ... app alembic downgrade <target>` discarded the command and RE-RAN
-    # THE UPGRADE THAT HAD JUST FAILED, then froze at tier 3 with the site still
-    # on the broken container. Observed on the box.
-    #
-    # This assertion previously read `"run --rm --no-deps app" in line` and
-    # passed against exactly that broken command: it pinned the flags and not
-    # the thing the flags were there to do.
-    assert "--entrypoint alembic" in downgrade_line, downgrade_line
-    assert "app downgrade" in downgrade_line, downgrade_line
+    assert "--entrypoint alembic" in line, line
+    assert "app downgrade" in line, line
 
 
 def test_the_entrypoint_does_not_discard_a_command():
     # The second guard against the same silence. A command passed to the
-    # container must run INSTEAD of the server rather than vanishing.
-    # rollback.sh passes --entrypoint explicitly and does not depend on this;
-    # both exist because the failure mode was that nothing said anything.
+    # container must run INSTEAD of the server rather than vanishing. The hook
+    # passes --entrypoint explicitly and does not depend on this; both exist
+    # because the failure mode was that nothing said anything.
     body = (ROOT / "entrypoint.sh").read_text(encoding="utf-8")
     assert 'if [ "$#" -gt 0 ]; then' in body
     assert 'exec "$@"' in body
@@ -184,35 +241,150 @@ def test_the_entrypoint_does_not_discard_a_command():
     assert body.index('exec "$@"') < body.index("alembic upgrade head")
 
 
-def test_rollback_takes_its_target_from_the_recorded_file():
-    # Not from the git sha, and not from asking an image for its head - the
-    # first is a different namespace, the second answers what the image KNOWS
-    # rather than what the schema WAS, and those diverge exactly when a rollback
-    # is happening.
-    body = (DEPLOY / "rollback.sh").read_text(encoding="utf-8")
-    assert 'target="$(cat "${dump}.alembic")"' in body
+# --- the refusal, executed rather than asserted about -----------------------
+#
+# This is the one part of the platform's hook contract that protects DATA
+# rather than availability, and the platform cannot test it: only this app
+# knows what its marker is. Reversing a revision whose author declared it
+# irreversible does not restore what it removed, it invents something in the
+# shape of it - unattended, on the box, in the minute after a failed deploy.
 
 
-def test_rollback_freezes_with_a_distinct_exit_code():
-    # "Rolled back, verify your data" and "frozen, you are needed" are reported
-    # to the owner very differently.
-    assert "exit 3" in (DEPLOY / "rollback.sh").read_text(encoding="utf-8")
+def _marker_scan() -> str:
+    """The Python the downgrade arm runs, lifted out of the hook itself.
+
+    Extracted rather than copied. A copy would keep passing while the hook it
+    is supposed to be about changed underneath it, which is the failure this
+    whole file exists to catch in other people's scripts.
+
+    On the box this runs inside the app image, because the image is what holds
+    Alembic and the revision files. Here it runs against a scratch Alembic
+    chain built below, so that a revision carrying the marker actually exists
+    for it to find.
+    """
+    match = re.search(r"<<'PY'\n(.*?)\nPY\n", HOOK.read_text(encoding="utf-8"), re.S)
+    assert match, "could not find the embedded marker scan in deploy/migrations"
+    return match.group(1)
 
 
+def _chain(tmp_path: Path, marked: bool) -> Path:
+    """A three-revision Alembic chain, with the newest optionally marked.
+
+    THIS FIXTURE IS LOAD-BEARING, NOT DECORATION. The scan answers by listing
+    the revisions between the head and the target that carry the marker, and
+    on a chain where none does it lists nothing - so a refusal test written
+    against this repository's real revisions, none of which is marked today,
+    would pass because there was nothing to refuse, and would keep passing
+    through the change that broke the scan. `marked=True` is what makes the
+    refusal possible; `marked=False` is the mirror asserted on the same
+    fixture, so that a green means the scan did the refusing rather than
+    something incidental.
+    """
+    versions = tmp_path / "alembic" / "versions"
+    versions.mkdir(parents=True)
+    (tmp_path / "alembic.ini").write_text(
+        "[alembic]\nscript_location = {}\n".format(versions.parent.as_posix()),
+        encoding="utf-8",
+    )
+
+    def revision(name, down, mark):
+        text = 'revision = "{}"\ndown_revision = {!r}\n'.format(name, down)
+        if mark:
+            text += MARKER + "\n"
+        text += "\n\ndef upgrade():\n    pass\n\n\ndef downgrade():\n    pass\n"
+        (versions / "{}.py".format(name)).write_text(text, encoding="utf-8")
+
+    revision("r1base", None, False)
+    revision("r2mid", "r1base", False)
+    revision("r3head", "r2mid", marked)
+    return tmp_path
+
+
+def _scan(chain: Path, target: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "-", target],
+        input=_marker_scan(),
+        cwd=chain,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_the_scan_finds_a_revision_that_declares_the_marker(tmp_path):
+    result = _scan(_chain(tmp_path, marked=True), "r2mid")
+    assert result.returncode == 0, result.stderr
+    # Non-empty output is what makes the hook refuse - see
+    # test_the_hook_refuses_before_it_reverses_anything for the other half.
+    assert "r3head.py" in result.stdout, result.stdout
+
+
+def test_the_scan_passes_an_unmarked_revision_through(tmp_path):
+    # The mirror, on the same fixture. Without it, a scan that printed a path
+    # for every revision would satisfy the test above and refuse every
+    # rollback this app will ever attempt.
+    result = _scan(_chain(tmp_path, marked=False), "r2mid")
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "", result.stdout
+
+
+def test_a_marked_revision_below_the_target_does_not_veto_the_rollback(tmp_path):
+    # Only the revisions being REVERSED matter. A marked revision the downgrade
+    # does not touch - here the target itself, which is staying - must not
+    # block a rollback that never reaches it.
+    result = _scan(_chain(tmp_path, marked=True), "r3head")
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "", result.stdout
+
+
+def test_the_scan_checks_every_revision_being_reversed_not_only_the_newest(tmp_path):
+    # A deploy can add more than one. Marking the middle revision and
+    # downgrading past both must still refuse.
+    chain = _chain(tmp_path, marked=False)
+    path = chain / "alembic" / "versions" / "r2mid.py"
+    path.write_text(path.read_text(encoding="utf-8") + MARKER + "\n", encoding="utf-8")
+
+    result = _scan(chain, "r1base")
+    assert "r2mid.py" in result.stdout, result.stdout
+
+
+def test_the_hook_refuses_before_it_reverses_anything():
+    # The scan above answers the question; this is the half that acts on the
+    # answer. A refusal printed after the downgrade ran would be a report, not
+    # a refusal.
+    body = arm("downgrade")
+    refusal = body.index('if [ -n "${marked}" ]; then')
+    assert body.index("exit 1", refusal) < body.index('downgrade "${target}"'), body
+    assert "Refusing to downgrade" in body
+
+
+def test_the_hook_spells_the_marker_the_way_the_revisions_do():
+    # The other side of this contract is
+    # tests/api/test_migration_round_trip.py, which fails a revision spelling
+    # it `IRREVERSIBLE = True` or `irreversible=True`. A hook looking for a
+    # different string would attempt a downgrade its author had forbidden - a
+    # safety marker failing silently, which is the worst shape a safety marker
+    # can take.
+    assert '== "{}"'.format(MARKER) in code("migrations")
+
+
+# --- drift ------------------------------------------------------------------
+#
 # drift.sh lives in deploy/backup/ because of what it IS - a scheduled job
 # sourcing lib.sh and taking the shared lock, like the other four - but it
-# belongs to the deploy pipeline, so its assertions live here with the rest of
-# it rather than among the backup jobs' own.
+# belongs to the deploy pipeline, so its assertions live here rather than
+# among the backup jobs' own. It stays this app's: it watches THIS
+# repository's checkout against THIS repository's main.
+
 DRIFT = ROOT / "deploy" / "backup" / "drift.sh"
 
 
 def test_drift_validates_its_ping_url_through_the_shared_check():
-    # hc_ping() returns 0 on an empty URL - right for an optional ping, wrong as
-    # a config check - so an unvalidated HC_DRIFT_URL would make this job report
-    # success forever while alerting nobody, which is the exact false belief of
-    # coverage it exists to prevent. load_backup_env is where that check lives,
-    # and it runs BEFORE start_job installs the reporting trap, which is the
-    # half a bespoke check in this file would get wrong.
+    # hc_ping() returns 0 on an empty URL - right for an optional ping, wrong
+    # as a config check - so an unvalidated HC_DRIFT_URL would make this job
+    # report success forever while alerting nobody, which is the exact false
+    # belief of coverage it exists to prevent. load_backup_env is where that
+    # check lives, and it runs BEFORE start_job installs the reporting trap,
+    # which is the half a bespoke check in this file would get wrong.
     assert "load_backup_env HC_DRIFT_URL" in DRIFT.read_text(encoding="utf-8")
 
 
@@ -224,21 +396,21 @@ def test_drift_compares_the_box_against_main():
 
 def test_drift_measures_age_from_the_commit_not_from_first_notice():
     # A box that was off for a week must report the true age on its first run
-    # back. Measuring from when this check first noticed would restart the clock
-    # at boot and hide exactly the outage the check exists to surface.
+    # back. Measuring from when this check first noticed would restart the
+    # clock at boot and hide exactly the outage the check exists to surface.
     assert "git log -1 --format=%ct" in DRIFT.read_text(encoding="utf-8")
 
 
 def test_drift_ages_the_oldest_undeployed_commit_not_the_newest():
     # The question is "how long has this box been missing something", not "how
-    # new is main". Ageing the newest commit resets the clock on every merge, so
-    # a box that has stopped deploying never alerts as long as somebody merges
-    # more often than the grace window - active development masking a dead
-    # runner, which is the exact failure this job exists to catch.
+    # new is main". Ageing the newest commit resets the clock on every merge,
+    # so a box that has stopped deploying never alerts as long as somebody
+    # merges more often than the grace window - active development masking a
+    # dead runner, which is the exact failure this job exists to catch.
     #
     # Measured on real history: with the box three commits behind, ageing the
-    # newest commit gave 0h and stayed silent; ageing the oldest missing commit
-    # gave 7h and alerted.
+    # newest commit gave 0h and stayed silent; ageing the oldest missing
+    # commit gave 7h and alerted.
     body = DRIFT.read_text(encoding="utf-8")
     assert "rev-list --reverse" in body, (
         "drift.sh must find the oldest commit the box is missing"
@@ -256,41 +428,30 @@ def test_drift_alerts_when_the_box_is_not_behind_but_still_differs():
     assert 'if [ -z "${oldest_missing}" ]; then' in DRIFT.read_text(encoding="utf-8")
 
 
-def test_rollback_tells_the_owner_data_was_not_restored():
-    # The single most dangerous thing this pipeline could do is report a
-    # successful rollback in a way that implies the data came back with it.
-    body = (DEPLOY / "rollback.sh").read_text(encoding="utf-8")
-    assert "DATA was NOT restored" in body
+# --- deploy/backup/lib.sh's two compose arrays ------------------------------
+#
+# The same hazard as the hook's, in the script the scheduled jobs source. Kept
+# here because the pair only means anything read together.
+
+LIB = "backup/lib.sh"
 
 
-# --- the split: two compose projects on one box -----------------------------
-
-DB_COMPOSE_SCRIPTS = ["deploy.sh", "backup/lib.sh"]
-
-
-@pytest.mark.parametrize("name", DB_COMPOSE_SCRIPTS)
-def test_db_compose_clears_the_project_name(name):
+def test_lib_db_compose_clears_the_project_name():
     """DB_COMPOSE must not inherit COMPOSE_PROJECT_NAME from the app's .env.
 
-    Both scripts source the application's .env with `set -a`, which EXPORTS
-    COMPOSE_PROJECT_NAME=media into the environment. PostgreSQL lives in the
-    platform's project, so a plain `docker compose -f
-    ~/cg1618/docker-compose.prod.yml exec db` then looks for service `db` in
-    project `media` and reports "service db is not running" - with the database
-    running perfectly well one container away.
-
-    Observed on the box during the split, where it refused the deploy at the
-    dump step. The environment beats a compose file's own .env, so clearing the
-    variable is what lets the platform's .env name its own project.
+    lib.sh sources the application's .env with `set -a`, which EXPORTS
+    COMPOSE_PROJECT_NAME=media into the environment - and the environment beats
+    a compose file's own .env, so the platform's project name would never
+    apply. Observed on the box during the split: "service db is not running",
+    with the database running perfectly well one container away.
     """
     definition = next(
-        line for line in code(name).splitlines() if line.startswith("DB_COMPOSE=(")
+        line for line in code(LIB).splitlines() if line.startswith("DB_COMPOSE=(")
     )
     assert "env -u COMPOSE_PROJECT_NAME" in definition, definition
 
 
-@pytest.mark.parametrize("name", DB_COMPOSE_SCRIPTS)
-def test_the_app_compose_keeps_the_project_name(name):
+def test_lib_app_compose_keeps_the_project_name():
     """COMPOSE must NOT clear it - `media` is exactly the project it means.
 
     The mirror of the test above, and the reason it exists: the same fix
@@ -299,6 +460,6 @@ def test_the_app_compose_keeps_the_project_name(name):
     brand-new empty volume while the real data sits untouched in the old one.
     """
     definition = next(
-        line for line in code(name).splitlines() if line.startswith("COMPOSE=(")
+        line for line in code(LIB).splitlines() if line.startswith("COMPOSE=(")
     )
     assert "env -u COMPOSE_PROJECT_NAME" not in definition, definition
