@@ -78,19 +78,42 @@ def test_env_example_is_still_tracked():
     assert result.returncode == 0, ".env.example must stay tracked"
 
 
-def test_ci_runs_shellcheck():
+def test_ci_runs_shellcheck_over_every_shell_file_under_deploy():
     # Asserts the outcome, not just the substring: the step must actually be
-    # one of the steps the job runs, with a run command that covers both
-    # deploy/*.sh and deploy/backup/*.sh - not a step that is commented out,
-    # misspelled, or sitting behind a condition that never fires.
+    # one of the steps the job runs - not one commented out, misspelled, or
+    # sitting behind a condition that never fires - and its patterns must
+    # EXPAND to cover every shell file under deploy/.
+    #
+    # Resolved rather than matched on the pattern text, because the pattern is
+    # the thing that rots. A `deploy/*.sh` glob covered everything here until
+    # deploying moved to the platform and `deploy/migrations` - named without
+    # an extension, because the platform calls it by that exact path - became
+    # the only script left at that level. A glob that quietly stops reaching a
+    # file lints nothing and says nothing.
     workflow = yaml.safe_load(CI.read_text(encoding="utf-8"))
     steps = workflow["jobs"]["test"]["steps"]
     run_commands = [step["run"] for step in steps if "run" in step]
     shellcheck_runs = [cmd for cmd in run_commands if "shellcheck" in cmd]
     assert shellcheck_runs, "CI should have a step that runs shellcheck"
-    assert any(
-        "deploy/*.sh" in cmd and "deploy/backup/*.sh" in cmd for cmd in shellcheck_runs
-    ), "the shellcheck step should cover both deploy/*.sh and deploy/backup/*.sh"
+
+    linted = set()
+    for cmd in shellcheck_runs:
+        for token in cmd.split():
+            if token == "shellcheck" or token.startswith("-"):
+                continue
+            linted.update(path.resolve() for path in ROOT.glob(token))
+
+    shell_files = set()
+    for path in (ROOT / "deploy").rglob("*"):
+        if not path.is_file():
+            continue
+        first = path.read_bytes()[:64].splitlines()[:1]
+        if first and first[0].startswith(b"#!") and b"sh" in first[0]:
+            shell_files.add(path.resolve())
+    assert shell_files, "expected to find shell files under deploy/"
+
+    missed = sorted(str(p.relative_to(ROOT)) for p in shell_files - linted)
+    assert not missed, f"shellcheck does not reach: {missed}"
 
 
 def test_lib_saves_and_restores_descriptors_around_the_tee_wait():
@@ -688,9 +711,8 @@ def test_every_executed_script_is_executable_in_git():
     # invisible to git and never reaches a commit - which is how all seven of
     # these shipped as 100644 and every timer would have failed on the box.
     #
-    # deploy.sh has already been fixed for this same reason once
-    # (cc3f2d52 "fix(deploy): make deploy.sh executable"), which is why it is
-    # asserted here too rather than left to be rediscovered a third time.
+    # It has already cost a deploy script once, which is why every executable
+    # under deploy/ is asserted rather than only these.
     # `git ls-tree HEAD`, NOT `git ls-files -s`: the first reads the COMMIT,
     # the second reads the index. They diverge exactly when this bug is
     # present - `git commit -- <paths>` re-reads those paths from the working
@@ -701,8 +723,11 @@ def test_every_executed_script_is_executable_in_git():
         # The whole of deploy/, not a list of paths. A complete path cannot be
         # forgotten and a maintained list can - and what is being guarded
         # produces no signal at all: a script committed 100644 does not fail, it
-        # simply cannot run, and only on the box. deploy/health.sh and
-        # deploy/rollback.sh joined this directory after that list was written.
+        # simply cannot run, and only on the box.
+        #
+        # It sweeps *.sh, so it does NOT reach deploy/migrations, which carries
+        # no extension because the platform calls it by that exact path.
+        # tests/unit/test_deploy_scripts.py asserts that one on its own.
         ["git", "ls-tree", "-r", "HEAD", "deploy/"],
         cwd=ROOT,
         capture_output=True,

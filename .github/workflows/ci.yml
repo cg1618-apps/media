@@ -61,7 +61,10 @@ jobs:
         run: ruff check .
 
       - name: Lint shell scripts
-        run: shellcheck deploy/*.sh deploy/backup/*.sh
+        # deploy/migrations is named without an extension because the platform
+        # calls it by that exact path, so a *.sh glob does not reach it and it
+        # has to be named. shellcheck reads its shebang.
+        run: shellcheck deploy/migrations deploy/backup/*.sh
 
       - name: Backend tests
         run: pytest -q -p no:cacheprovider

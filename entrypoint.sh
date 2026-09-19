@@ -5,13 +5,13 @@ set -e  # Exit immediately if a command fails
 # being silently discarded.
 #
 # Without this, `docker compose run app <anything>` ignored its arguments and
-# ran the migrate-then-serve path below. That is how deploy/rollback.sh's
+# ran the migrate-then-serve path below. That is how a rollback's
 # `run app alembic downgrade <target>` re-ran the upgrade it was trying to
-# reverse, on the box, during a rollback - the command vanished and the failure
-# looked like the migration failing twice.
+# reverse, on the box - the command vanished and the failure looked like the
+# migration failing twice.
 #
 # `docker compose up` passes no arguments, so the normal path is unchanged.
-# rollback.sh also passes --entrypoint explicitly and does not rely on this;
+# deploy/migrations also passes --entrypoint explicitly and does not rely on it;
 # both exist because the failure mode was silence, and one guard against
 # silence is not enough.
 if [ "$#" -gt 0 ]; then

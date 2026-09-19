@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-15
+Last verified: 2026-09-19
 
 ## What this is for
 
@@ -294,6 +294,17 @@ This is the same family as "when a loud refusal is being softened, put the
 regression test on the read, not on the write": in both, the assertion runs,
 ends green, and measures nothing.
 
+**The deploy hook's refusal is the same shape outside the database.**
+`deploy/migrations downgrade` must refuse any revision on the path declaring
+`irreversible = True`, and no revision in `alembic/versions/` declares it —
+so a refusal test written against the real chain would pass because there was
+nothing to refuse. `tests/unit/test_deploy_scripts.py` therefore builds a
+three-revision scratch Alembic chain in `tmp_path` and marks one of them; the
+mirror runs the same builder unmarked and asserts the scan passes it through.
+The marked revision is what makes the refusal possible, and the scan itself is
+extracted from `deploy/migrations` rather than copied, so a change to the hook
+cannot leave a green copy of its old behaviour behind.
+
 ## An exit code alone is not a pass
 
 `returncode != 0` asserts that *something* went wrong, not that the thing under
@@ -397,11 +408,12 @@ There is one job, `test`:
 8. `npm run build`
 
 **The workflow deploys nothing**, and there is no second job. A red run is
-therefore always a real test failure and never a failed release. That is still
-true now production exists: the box is deployed by a person running
-`./deploy/deploy.sh` on it, never by CI, which holds no credentials for it —
-see [deployment-selfhost.md](deployment-selfhost.md). CI's only relationship
-with production is that the pull request is the gate everything passes through
+therefore always a real test failure and never a failed release. Deploying is
+`deploy.yml`, a separate workflow that triggers on a push to `main` and calls
+the platform's pipeline on the box's own runner — `ci.yml` runs on
+`ubuntu-latest`, holds no credentials for production and never reaches it. See
+[deployment-selfhost.md](deployment-selfhost.md). CI's only relationship with
+production is that the pull request is the gate everything passes through
 first.
 
 ## Known gaps

@@ -70,7 +70,7 @@ echo "==> Dumping"
     pg_dump -U "${POSTGRES_USER}" -Fc -d "${POSTGRES_DB}" > "${dump}"
 
 # A truncated dump is worse than none, because it looks like an option right
-# up until it is needed. Same guard deploy.sh uses.
+# up until it is needed. Same guard the platform's bin/deploy uses.
 if [ ! -s "${dump}" ]; then
     echo "Dump is empty. Refusing to upload." >&2
     rm -f "${dump}"
@@ -88,8 +88,8 @@ if [ "$(date +%d)" = "01" ]; then
 fi
 
 # The local copy goes. A nightly dump on the same SSD as the database is the
-# reassurance this whole system exists to stop relying on, and deploy.sh
-# already keeps five pre-deploy dumps there for rollback.
+# reassurance this whole system exists to stop relying on, and the platform's
+# bin/deploy already keeps five pre-deploy dumps there for rollback.
 rm -f "${dump}"
 
 # --- static/library/ -------------------------------------------------------
