@@ -68,8 +68,9 @@ class OpenLibraryRateLimiter:
             sleep_time = self.time_window - (now - self.request_timestamps[0])
             if sleep_time > 0:
                 logger.warning(
-                    f"Open Library Rate Limiter: limit ({self.max_requests}) reached. "
-                    f"Pausing for {sleep_time:.2f} seconds."
+                    "Open Library Rate Limiter: limit (%s) reached. Pausing for %.2f seconds.",
+                    self.max_requests,
+                    sleep_time,
                 )
                 time.sleep(sleep_time)
 
@@ -97,17 +98,18 @@ def _request(path: str, context: str) -> Optional[Any]:
         response = requests.get(url, headers=headers, timeout=15)
 
         if response.status_code == 429:
-            logger.warning(f"Open Library rate limit (429) for {context}.")
+            logger.warning("Open Library rate limit (429) for %s.", context)
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code == 404:
-            logger.warning(f"Open Library has no record for {context}.")
+            logger.warning("Open Library has no record for %s.", context)
             return None
 
         if response.status_code >= 500:
             logger.warning(
-                f"Open Library server error ({response.status_code}) for {context} "
-                "— skipping retries."
+                "Open Library server error (%s) for %s — skipping retries.",
+                response.status_code,
+                context,
             )
             return None
 
@@ -115,9 +117,7 @@ def _request(path: str, context: str) -> Optional[Any]:
         return response.json()
 
     except requests.exceptions.RequestException as e:
-        logger.error(
-            f"Network/Timeout Error connecting to Open Library for {context}: {e}"
-        )
+        logger.error("Network/Timeout Error connecting to Open Library for %s: %s", context, e)
         raise
 
 

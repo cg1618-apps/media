@@ -48,7 +48,7 @@ def log_data_control(
         db.add(log_entry)
         db.commit()
     except Exception as e:
-        logger.error(f"Failed to save DataControlLog: {e}")
+        logger.error("Failed to save DataControlLog: %s", e)
         db.rollback()
 
 
@@ -367,7 +367,7 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
         )
 
         db.add(deleted_log)
-        logger.info(f"Staged deleted record log for {entry_type}: {name_cn}")
+        logger.info("Staged deleted record log for %s: %s", entry_type, name_cn)
 
     except Exception as e:
-        logger.error(f"Failed to stage deleted record log: {e}")
+        logger.error("Failed to stage deleted record log: %s", e)

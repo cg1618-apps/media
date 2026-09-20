@@ -128,7 +128,7 @@ def create_franchise(
 
         return new_franchise
     except Exception as e:
-        logger.error(f"CRITICAL ERROR creating franchise: {str(e)}", exc_info=True)
+        logger.error("CRITICAL ERROR creating franchise: %s", str(e), exc_info=True)
         db.rollback()
         raise HTTPException(
             status_code=500, detail=f"Database Insertion Error: {str(e)}"

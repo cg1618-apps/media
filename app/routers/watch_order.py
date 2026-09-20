@@ -686,7 +686,7 @@ def create_watch_order_list(
         db.refresh(new_list)
         return _with_count(db, new_list)
     except Exception as e:
-        logger.error(f"CRITICAL ERROR creating watch order: {str(e)}", exc_info=True)
+        logger.error("CRITICAL ERROR creating watch order: %s", str(e), exc_info=True)
         db.rollback()
         raise HTTPException(
             status_code=500, detail=f"Database Insertion Error: {str(e)}"
@@ -1152,7 +1152,7 @@ def duplicate_watch_order_list(
         db.refresh(new_list)
         return _with_count(db, new_list)
     except Exception as e:
-        logger.error(f"CRITICAL ERROR duplicating watch order: {str(e)}", exc_info=True)
+        logger.error("CRITICAL ERROR duplicating watch order: %s", str(e), exc_info=True)
         db.rollback()
         raise HTTPException(
             status_code=500, detail=f"Database Insertion Error: {str(e)}"

@@ -30,7 +30,6 @@ from app.services.security import (
     verify_password,
 )
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -53,7 +52,7 @@ def login_for_access_token(
 
     # 2. Verify existence and password match
     if not user or not verify_password(form_data.password, user.hashed_password):
-        logger.warning(f"Failed login attempt for username: {form_data.username}")
+        logger.warning("Failed login attempt for username: %s", form_data.username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -96,7 +95,7 @@ def login_for_access_token(
         secure=not settings.is_development,
     )
 
-    logger.info(f"Successful login for user: {user.username}")
+    logger.info("Successful login for user: %s", user.username)
     return {"message": "Successfully logged in", "role": user.role}
 
 

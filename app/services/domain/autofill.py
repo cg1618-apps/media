@@ -126,8 +126,11 @@ def autofill_from_anilist(entry, anilist_type: str, db: Session = None) -> None:
 
     except Exception as e:
         logger.error(
-            f"AniList Autofill failed for {type(entry).__name__} "
-            f"{entry.system_id} (MAL {mal_id}): {e}"
+            "AniList Autofill failed for %s %s (MAL %s): %s",
+            type(entry).__name__,
+            entry.system_id,
+            mal_id,
+            e,
         )
 
 
@@ -189,9 +192,7 @@ def autofill_anime_from_mal(
                 anime.cover_image_file = key
 
     except Exception as e:
-        logger.error(
-            f"MAL Autofill failed for Anime ID {anime.system_id} (MAL {mal_id}): {e}"
-        )
+        logger.error("MAL Autofill failed for Anime ID %s (MAL %s): %s", anime.system_id, mal_id, e)
 
 
 def autofill_anime_movie_from_mal(
@@ -235,7 +236,10 @@ def autofill_anime_movie_from_mal(
 
     except Exception as e:
         logger.error(
-            f"MAL Autofill failed for AnimeMovie ID {anime_movie.system_id} (MAL {mal_id}): {e}"
+            "MAL Autofill failed for AnimeMovie ID %s (MAL %s): %s",
+            anime_movie.system_id,
+            mal_id,
+            e,
         )
 
 
@@ -284,9 +288,7 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
                 manga.cover_image_file = key
 
     except Exception as e:
-        logger.error(
-            f"MAL Autofill failed for Manga ID {manga.system_id} (MAL {mal_id}): {e}"
-        )
+        logger.error("MAL Autofill failed for Manga ID %s (MAL %s): %s", manga.system_id, mal_id, e)
 
 
 def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) -> None:
@@ -334,9 +336,7 @@ def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) ->
                 novel.cover_image_file = key
 
     except Exception as e:
-        logger.error(
-            f"MAL Autofill failed for Novel ID {novel.system_id} (MAL {mal_id}): {e}"
-        )
+        logger.error("MAL Autofill failed for Novel ID %s (MAL %s): %s", novel.system_id, mal_id, e)
 
 
 def autofill_novel_from_openlibrary(novel: Novel, db: Session) -> None:
@@ -383,8 +383,10 @@ def autofill_novel_from_openlibrary(novel: Novel, db: Session) -> None:
 
     except Exception as e:
         logger.error(
-            f"Open Library Autofill failed for Novel ID {novel.system_id} "
-            f"(Work {work_id}): {e}"
+            "Open Library Autofill failed for Novel ID %s (Work %s): %s",
+            novel.system_id,
+            work_id,
+            e,
         )
 
 
@@ -443,7 +445,10 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
 
     except Exception as e:
         logger.error(
-            f"IMDb Autofill failed for Movie ID {movie.system_id} (IMDb {movie.imdb_id}): {e}"
+            "IMDb Autofill failed for Movie ID %s (IMDb %s): %s",
+            movie.system_id,
+            movie.imdb_id,
+            e,
         )
 
 
@@ -500,7 +505,10 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
 
     except Exception as e:
         logger.error(
-            f"IMDb Autofill failed for TV Show ID {tv_show.system_id} (IMDb {tv_show.imdb_id}): {e}"
+            "IMDb Autofill failed for TV Show ID %s (IMDb %s): %s",
+            tv_show.system_id,
+            tv_show.imdb_id,
+            e,
         )
 
 
@@ -588,7 +596,10 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
 
     except Exception as e:
         logger.error(
-            f"IMDb Autofill failed for Cartoon ID {cartoon.system_id} (IMDb {cartoon.imdb_id}): {e}"
+            "IMDb Autofill failed for Cartoon ID %s (IMDb %s): %s",
+            cartoon.system_id,
+            cartoon.imdb_id,
+            e,
         )
 
 
@@ -638,8 +649,10 @@ def autofill_comic_from_comicvine(comic: Comic, db: Session) -> None:
 
     except Exception as e:
         logger.error(
-            f"Comic Vine Autofill failed for Comic ID {comic.system_id} "
-            f"(Volume {comicvine_id}): {e}"
+            "Comic Vine Autofill failed for Comic ID %s (Volume %s): %s",
+            comic.system_id,
+            comicvine_id,
+            e,
         )
 
 
@@ -680,7 +693,10 @@ def autofill_studio_from_mal(studio: Studio) -> None:
 
     except Exception as e:
         logger.error(
-            f"MAL Autofill failed for Studio ID {studio.system_id} (MAL {mal_id}): {e}"
+            "MAL Autofill failed for Studio ID %s (MAL %s): %s",
+            studio.system_id,
+            mal_id,
+            e,
         )
 
 
@@ -798,7 +814,10 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
 
     except Exception as e:
         logger.error(
-            f"IGDB Autofill failed for Game ID {game.system_id} (IGDB {igdb_id}): {e}"
+            "IGDB Autofill failed for Game ID %s (IGDB %s): %s",
+            game.system_id,
+            igdb_id,
+            e,
         )
 
 
@@ -870,7 +889,8 @@ def autofill_game_from_steam(game: Game, db: Session) -> None:
         # else, and a null price here is never itself an error to flag.
         if s_data.get("is_free"):
             logger.debug(
-                f"Steam app {appid} is free; its null prices are expected, not missing data."
+                "Steam app %s is free; its null prices are expected, not missing data.",
+                appid,
             )
 
         # Guard one: an entry marked "played elsewhere" keeps its hand-typed
@@ -890,4 +910,4 @@ def autofill_game_from_steam(game: Game, db: Session) -> None:
             game.achievements_earned = earned
 
     except Exception as e:
-        logger.error(f"Steam autofill failed for app {appid}: {e}")
+        logger.error("Steam autofill failed for app %s: %s", appid, e)
