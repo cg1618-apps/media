@@ -10,24 +10,33 @@ change silently.
 
 from app.utils import note_sections as ns
 
-# Display order of the 攻略 group.
-GUIDES_ORDER = [
-    "beginner",
-    "controls",
-    "guide_notes",
-    "trivia",
-    "stats_and_points",
-    "builds_and_styles",
-    "team_composition",
-    "skills",
-    "collectibles",
-    "items",
-    "weapons_and_gear",
-    "characters_guide",
-    "enemies",
-    "endings",
-    "mods_and_tools",
-]
+# The 攻略 run, split across five cards. One card holding fifteen sections read
+# as a wall of collapsed headers rather than as a guide, and `group` is
+# display-only - so this was a registry edit with no migration and no data
+# change. Each card answers one question, which is what keeps a section from
+# being filed by elimination.
+GUIDE_CARDS = {
+    # How it plays and what is worth knowing: the way in, not the content.
+    "guides": ["beginner", "controls", "guide_notes", "trivia"],
+    # How to build, in the order the decisions are made.
+    "builds": [
+        "stats_and_points",
+        "skills",
+        "builds_and_styles",
+        "team_composition",
+    ],
+    # What to get. Three lists differing in what a row IS, not in what is
+    # known about it - which is why they share one spec.
+    "gear": ["weapons_and_gear", "items", "collectibles"],
+    # Who you meet.
+    "compendium": ["characters_guide", "enemies"],
+    # Things outside the game itself, rendered beside the site-wide Resources
+    # card rather than with the 攻略 run.
+    "tools": ["mods_and_tools", "guide_resources"],
+}
+
+# Every section this file covers, whichever card it ended up in.
+GUIDES_ORDER = [key for keys in GUIDE_CARDS.values() for key in keys]
 
 
 def _keys(section_key: str) -> list[str]:
@@ -38,8 +47,42 @@ def _field(section_key: str, field_key: str) -> ns.NoteField:
     return ns.field_by_key(ns.section_by_key(section_key), field_key)
 
 
-def test_the_group_reads_in_this_order():
-    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "guides"] == GUIDES_ORDER
+def test_each_card_holds_these_sections_in_this_order():
+    for group, keys in GUIDE_CARDS.items():
+        assert [s.key for s in ns.NOTE_SECTIONS if s.group == group] == keys, group
+
+
+def test_the_cards_read_in_this_order_on_the_page():
+    """
+    Card order is registry position - `splitBlocks` emits one card per group in
+    first-appearance order - so where a card lands is decided by where its
+    FIRST section sits, and nothing else. Worth pinning: moving one entry would
+    reorder a whole card silently.
+    """
+    order = [s.key for s in ns.NOTE_SECTIONS]
+    firsts = [(order.index(keys[0]), group) for group, keys in GUIDE_CARDS.items()]
+    assert [group for _, group in sorted(firsts)] == [
+        "guides",
+        "builds",
+        "gear",
+        "compendium",
+        # After the 劇情, 劇情列表 and 待辦 cards: what it holds is not part of
+        # the guide, so it sits beside the site-wide Resources card.
+        "tools",
+    ]
+    assert order.index("guide_resources") < order.index("resources")
+
+
+def test_no_guide_card_is_left_holding_one_section():
+    # A card of one is a section wearing a second header. Two is the floor.
+    for group, keys in GUIDE_CARDS.items():
+        assert len(keys) >= 2, group
+
+
+def test_endings_is_no_longer_a_guide_section():
+    # It is a story OUTCOME, so it moved to 劇情 Story - see
+    # test_story_list_sections.py, which owns its spec now.
+    assert ns.section_by_key("endings").group == "story"
 
 
 def test_every_guide_section_is_game_only_and_catalogue():
@@ -147,11 +190,6 @@ def test_enemies_carry_a_tier_a_region_and_a_closed_beaten_status():
     assert _field("enemies", "beaten").options == ("to beat", "beaten", "cheesed", "skip")
 
 
-def test_endings_carry_a_completion_status():
-    assert _keys("endings") == ["name", "completion", "description", "links"]
-    assert _field("endings", "completion").options == ("not yet", "reached", "skipped")
-
-
 def test_mods_keep_their_type_and_gain_a_developer_and_a_status():
     assert _keys("mods_and_tools") == [
         "type",
@@ -202,14 +240,17 @@ def test_no_structured_guide_section_still_declares_kinds_or_statuses():
 # --- guide_resources leaves the group -------------------------------------
 
 
-def test_guide_resources_is_standalone_and_sits_before_resources():
+def test_guide_resources_shares_a_card_with_mods_and_tools():
+    """
+    It stood alone while nothing else was like it. A mod is not a guide either
+    - the registry said so where `mods_and_tools` used to sit, among the
+    walkthrough content - and both are things outside the game, so pairing
+    them gives one a home and moves the other out of the guide.
+    """
     section = ns.section_by_key("guide_resources")
-    assert section.group is None
-    assert section.standalone is True
+    assert section.group == "tools"
+    assert section.standalone is False
     assert _keys("guide_resources") == ["name", "description", "links"]
-
-    order = [s.key for s in ns.NOTE_SECTIONS]
-    assert order.index("guide_resources") < order.index("resources")
 
 
 def test_guide_resources_and_resources_share_neither_key_nor_label():

@@ -276,9 +276,11 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | `highlight_episodes` | | | | x (kinds) | x (kinds) | x (label `神回`, locator "Chapter(s)") | | | | |
 | `highlight_passages` | | | | | | | x | | | |
 | `highlight_moments` (label `神場景 Highlights`, locator "Chapter / Boss") | | | | | | | | | x | |
-| 攻略 group — `beginner`, `trivia`, `stats_and_points` (`text_links`), `controls` (`structured`) | | | | | | | | | x | |
-| 攻略 group — `stats_and_points`, `builds_and_styles`, `team_composition`, `skills`, `collectibles`, `items`, `weapons_and_gear`, `characters_guide`, `enemies`, `endings`, `mods_and_tools` (`structured`) | | | | | | | | | x | |
-| `guide_resources` (`structured`, standalone) | | | | | | | | | x | |
+| 攻略 group — `beginner`, `guide_notes`, `trivia` (`text_links`), `controls` (`structured`) | | | | | | | | | x | |
+| 養成&流派 group — `stats_and_points`, `skills`, `builds_and_styles`, `team_composition` (`structured`) | | | | | | | | | x | |
+| 物品 group — `weapons_and_gear`, `items`, `collectibles` (`structured`) | | | | | | | | | x | |
+| 圖鑑 group — `characters_guide`, `enemies` (`structured`) | | | | | | | | | x | |
+| 資源&工具 group — `mods_and_tools`, `guide_resources` (`structured`) | | | | | | | | | x | |
 | 劇情 group — `main_plot`, `side_plot` (`episode_text`, locator optional) | | | | | | | | | x | |
 | 劇情列表 group — `story_list_main`, `story_list_side`, `story_list_character`, `story_list_event` (`structured`, nestable) | | | | | | | | | x | |
 | 劇情 group — `character_arcs`, `lore`, `mysteries`, `story_other` (`text_links`), `timeline` (`text`) | | | | | | | | | x | |
@@ -293,4 +295,4 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | `extended_episodes` (`加長`) | x | | | x | x | | | | | |
 | `adaptation` | x (desc required) | x (desc required) | | x | x | | x (desc required) | | | both |
 
-Movie and comic get only the shared sections. Game carries 33 of its own - `highlight_moments`, `guide_resources` and `remark_list` plus the 攻略 (15), 劇情 (7), 劇情列表 (4) and 待辦 (4) groups - beside the shared ones. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, a card of its own immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).
+Movie and comic get only the shared sections. Game carries 33 of its own - `highlight_moments` and `remark_list` plus the 攻略 (4), 養成&流派 (4), 物品 (3), 圖鑑 (2), 資源&工具 (2), 劇情 (8), 劇情列表 (4) and 待辦 (4) groups - beside the shared ones. The guide used to be one card of fifteen sections; five cards, each answering one question, is what it reads as now. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, in the 資源&工具 card immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).

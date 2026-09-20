@@ -128,11 +128,6 @@ def test_the_quotes_memes_group_holds_both_external_sections():
 
 def test_resources_and_questions_are_the_standalone_sections():
     assert [s.key for s in ns.NOTE_SECTIONS if s.standalone] == [
-        # Left the 攻略 group when the thirteen sections above it became the
-        # guide itself: a list of other people's walkthroughs is where the
-        # guide came from, not part of it. It sits immediately before the
-        # site-wide `resources` card it mirrors.
-        "guide_resources",
         "resources",
         "questions",
     ]

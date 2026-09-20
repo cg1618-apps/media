@@ -1560,3 +1560,38 @@ infrastructure does not belong to any one of them.
   item is three paragraphs reads as badly as a paragraph made of bullets. Only
   備註 is a singleton, and only 備註 is hidden by `hideSections` — the dedicated
   remark editors write that one row and nothing else.
+- **攻略 became five cards, and the split cost nothing but registry entries.**
+  It held fifteen sections, which read as a wall of collapsed headers rather
+  than as a guide. The cards are 攻略 (the way in: beginner, controls, guide
+  notes, trivia), 養成&流派 (how to build), 物品 (what to get), 圖鑑 (who you
+  meet) and 資源&工具 (what sits outside the game). Each answers one question,
+  which is the test a new section has to pass — a section filed by elimination
+  is a sign the categories are wrong, not that the section is awkward.
+
+  `group` is display-only, so this was a registry edit: no migration, no data
+  change, and `StructuredSection.jsx` was not touched. Cards collapse when
+  empty, so a game with no mods shows one collapsed line rather than five.
+
+  The alternative was sub-headings inside one 攻略 card, which needs a
+  `subgroup` concept in the registry and a third level of card chrome —
+  against `ui.jsx`'s own finding that nesting a card two deep reads as a
+  subsection rather than as a group. Five sibling cards is the pattern 評論,
+  解析, 劇情, 劇情列表 and 音樂 already use.
+
+  A test keeps every card at two sections or more: a card of one is a section
+  wearing a second header, which is the state 解析 was in for games before
+  `groups_by_owner` moved it.
+- **模組&工具 and 攻略資源 share a card, away from the guide.** `mods_and_tools`
+  sat among the walkthrough sections with a comment on it saying a mod is not
+  a guide, and `guide_resources` stood alone because nothing else was like it.
+  Both are things *outside* the game, so pairing them gives one a home and
+  moves the other out of content it was never part of. The card renders beside
+  the site-wide Resources card it mirrors, and the two keep distinct keys AND
+  distinct labels — two cards reading "Resources" on one page would be
+  unreadable.
+- **結局 Endings belongs to 劇情 Story.** It was filed under 攻略 because that
+  is where it was asked for, and it stayed there through the reshape; when the
+  guide was split it became obvious that it only ever sat with 圖鑑 by
+  elimination. An ending is what the story *does*, so it reads above 世界觀&設定
+  Lore, beside 未解之謎 Mysteries — and 圖鑑 is left cleanly about the cast and
+  the bestiary. Its spec did not change, only its group, so no row moved.

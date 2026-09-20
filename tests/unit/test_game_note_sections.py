@@ -19,6 +19,9 @@ STORY_KEYS = [
     "main_plot",
     "side_plot",
     "character_arcs",
+    # An ending is a story OUTCOME rather than a guide topic. It sat in 攻略
+    # while it had nowhere better; above 世界觀&設定 is where it reads.
+    "endings",
     "lore",
     "timeline",
     "mysteries",
@@ -38,18 +41,25 @@ def test_the_groups_exist_in_order():
     assert keys == [
         "reviews",
         "analysis_group",
+        # 攻略 was one card of fifteen sections. Five now, each answering one
+        # question; the order here mirrors the order they render in.
         "guides",
+        "builds",
+        "gear",
+        "compendium",
         "story",
         # 劇情 is the story as prose; 劇情列表 is the same story as a
         # structure. Adjacent on purpose, and separate on purpose.
         "story_list",
         "todo",
         "music",
+        # Renders near the end, beside the site-wide Resources card.
+        "tools",
         "quotes_memes",
     ]
 
 
-def test_the_story_group_holds_seven_sections_in_order():
+def test_the_story_group_holds_eight_sections_in_order():
     assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story"] == STORY_KEYS
 
 
