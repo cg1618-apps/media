@@ -39,8 +39,9 @@ Last verified: 2026-09-08
 **What this is for.** How the app got from a push on `main` to a running
 Cloud Run revision, and what was different about the code when it ran there.
 Read it as the historical reference behind `dockerfile` and `entrypoint.sh`
-(both kept — Postgres runs from `docker-compose.yml` locally and self-hosting
-will reuse the image), and as the starting point for any future rebuild.
+(both kept — the image is reused by self-hosting), and as the starting point
+for any future rebuild. Local Postgres has since moved to the platform's
+`docker-compose.dev-db.yml`.
 Local setup is in `setup-local.md`.
 
 ## What was removed on 2026-09-08
@@ -64,7 +65,9 @@ Exactly this, so a future rebuild knows what has to exist again:
 | `.github/workflows/deploy.yml` | **Renamed** to `.github/workflows/ci.yml`, `name:` changed to `Tests`, the GCP `env:` block and the whole `build-and-deploy` job deleted. The `test` job is byte-identical. |
 | `.env.example` | `INSTANCE_CONNECTION_NAME`, `GCP_BUCKET_NAME` and `K_SERVICE` removed; the Google section retitled "Google Sheets (backup / restore)"; the `DATABASE_URL` comment now says it is honoured verbatim. |
 
-Kept and unchanged: `dockerfile`, `entrypoint.sh`, `docker-compose.yml`.
+Kept and unchanged at the time: `dockerfile`, `entrypoint.sh`,
+`docker-compose.yml`. That last one has since been **deleted** — the
+development database belongs to the platform now.
 
 ## Topology (as it was)
 

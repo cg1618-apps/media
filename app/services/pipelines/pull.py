@@ -594,7 +594,7 @@ def execute_pull_specific(
             "skipped_tabs": [message],
         }
 
-    logger.info(f"Starting Pull Pipeline for '{tab_name}'...")
+    logger.info("Starting Pull Pipeline for '%s'...", tab_name)
 
     try:
         raw_matrix = get_all_raw_rows(tab_name)
@@ -602,7 +602,7 @@ def execute_pull_specific(
         # A tab we could not read is not a tab with nothing in it. Reporting
         # this as "no data / Success" is how a Google outage used to slip
         # through a full Pull with the tab silently skipped.
-        logger.error(f"Pull aborted for '{tab_name}': {e}")
+        logger.error("Pull aborted for '%s': %s", tab_name, e)
         if log_action:
             log_data_control(
                 db,
@@ -619,7 +619,7 @@ def execute_pull_specific(
         }
 
     if not raw_matrix or len(raw_matrix) < 2:
-        logger.info(f"No data found in '{tab_name}' to pull.")
+        logger.info("No data found in '%s' to pull.", tab_name)
         if log_action:
             log_data_control(db, "Pull", f"Pull {tab_name}", action_type, "Success")
         return {"status": "success", "processed": 0, "rows_added": 0, "rows_updated": 0}
@@ -975,9 +975,7 @@ def execute_pull_specific(
                 if fran:
                     clean_header_dict["franchise_id"] = fran.system_id
                 else:
-                    logger.warning(
-                        f"Could not resolve franchise FK for: {fname}. Skipping row."
-                    )
+                    logger.warning("Could not resolve franchise FK for: %s. Skipping row.", fname)
                     continue
 
         if "collection_id" in clean_header_dict and isinstance(
@@ -1001,8 +999,8 @@ def execute_pull_specific(
                 )
                 if not resolved:
                     logger.warning(
-                        f"Could not resolve collection FK for: {cname}. "
-                        "Leaving franchise uncollected."
+                        "Could not resolve collection FK for: %s. Leaving franchise uncollected.",
+                        cname,
                     )
             # Deliberately does NOT skip the row: Collection is an optional tier,
             # so an unknown name must not drop an otherwise valid franchise.
@@ -1027,9 +1025,7 @@ def execute_pull_specific(
                 if series:
                     clean_header_dict["series_id"] = series.system_id
                 else:
-                    logger.warning(
-                        f"Could not resolve series FK for: {sname}. Skipping row."
-                    )
+                    logger.warning("Could not resolve series FK for: %s. Skipping row.", sname)
                     continue
 
         # Media Source carries the option it targets as (category, value),
@@ -1514,15 +1510,18 @@ def execute_pull_specific(
                     )
                 except AmbiguousNameError as e:
                     credit_conflicts.append(f"{tab_name} [{role_key}]: {e}")
-                    logger.warning(f"Ambiguous {role_key} on '{tab_name}' row: {e}")
+                    logger.warning("Ambiguous %s on '%s' row: %s", role_key, tab_name, e)
                 else:
                     for name in minted:
                         created_entities.append(
                             f"{tab_name} [{role_key}]: created {name!r}"
                         )
                         logger.warning(
-                            f"Pull created a new {CREDIT_ROLES[role_key].target} "
-                            f"for '{tab_name}' [{role_key}]: {name!r}"
+                            "Pull created a new %s for '%s' [%s]: %r",
+                            CREDIT_ROLES[role_key].target,
+                            tab_name,
+                            role_key,
+                            name,
                         )
             for field_key, raw_value in pending_tags:
                 try:
@@ -1532,7 +1531,7 @@ def execute_pull_specific(
                     )
                 except AmbiguousNameError as e:
                     credit_conflicts.append(f"{tab_name} [{field_key}]: {e}")
-                    logger.warning(f"Ambiguous {field_key} on '{tab_name}' row: {e}")
+                    logger.warning("Ambiguous %s on '%s' row: %s", field_key, tab_name, e)
 
         processed += 1
 
@@ -1544,7 +1543,7 @@ def execute_pull_specific(
         db.commit()
     except Exception as e:
         db.rollback()
-        logger.error(f"Error committing batch for {tab_name}: {e}")
+        logger.error("Error committing batch for %s: %s", tab_name, e)
         if log_action:
             log_data_control(
                 db,
@@ -1586,9 +1585,7 @@ def execute_pull_specific(
     resync_public_id_sequence(db, Model)
     db.commit()
 
-    logger.info(
-        f"Successfully pulled and upserted {processed} records from '{tab_name}'."
-    )
+    logger.info("Successfully pulled and upserted %s records from '%s'.", processed, tab_name)
     if log_action:
         log_data_control(
             db,
@@ -1663,7 +1660,7 @@ def execute_pull_all(
                 # a twenty-tab restore to a blip. Any other error is about the
                 # data or the DB and stops the run where it stands.
                 if res.get("reason") == "sheet_unavailable":
-                    logger.error(f"Tab '{tab}' could not be read: {res.get('message')}")
+                    logger.error("Tab '%s' could not be read: %s", tab, res.get('message'))
                     unread_tabs[tab] = res.get("message")
                     continue
 
@@ -1678,7 +1675,7 @@ def execute_pull_all(
             skipped_tabs.extend(res.get("skipped_tabs", []))
 
     except Exception as e:
-        logger.error(f"Full Pull Pipeline crashed: {e}")
+        logger.error("Full Pull Pipeline crashed: %s", e)
         log_data_control(
             db, "Pull", "Pull All", action_type, "Failed", error_message=str(e)
         )

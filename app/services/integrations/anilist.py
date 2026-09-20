@@ -91,7 +91,8 @@ class AniListRateLimiter:
             ]
             sleep_time = self.WINDOW_SECONDS - (now - blocking)
             logger.info(
-                f"AniList Rate Limiter: limit reached. Pausing for {sleep_time:.2f} seconds."
+                "AniList Rate Limiter: limit reached. Pausing for %.2f seconds.",
+                sleep_time,
             )
             time.sleep(max(sleep_time, 0.1))
 
@@ -129,18 +130,18 @@ def fetch_anilist_batch(mal_ids: List[int], media_type: str) -> Dict[int, Dict[s
             timeout=20,
         )
     except requests.exceptions.RequestException as e:
-        logger.error(f"Network/Timeout Error connecting to AniList: {e}")
+        logger.error("Network/Timeout Error connecting to AniList: %s", e)
         return {}
 
     anilist_rate_limiter.observe(response.headers)
 
     if response.status_code == 429:
         retry_after = response.headers.get("Retry-After")
-        logger.warning(f"AniList Rate Limit (429); Retry-After={retry_after}. Batch skipped.")
+        logger.warning("AniList Rate Limit (429); Retry-After=%s. Batch skipped.", retry_after)
         return {}
 
     if response.status_code != 200:
-        logger.warning(f"AniList returned {response.status_code}. Batch skipped.")
+        logger.warning("AniList returned %s. Batch skipped.", response.status_code)
         return {}
 
     try:
@@ -152,7 +153,7 @@ def fetch_anilist_batch(mal_ids: List[int], media_type: str) -> Dict[int, Dict[s
     # A 200 can still carry an errors array with a null data - that is a
     # failure wearing a success status code, not an empty result.
     if payload.get("errors"):
-        logger.warning(f"AniList GraphQL errors: {payload['errors']}. Batch skipped.")
+        logger.warning("AniList GraphQL errors: %s. Batch skipped.", payload['errors'])
         return {}
 
     media = ((payload.get("data") or {}).get("Page") or {}).get("media") or []

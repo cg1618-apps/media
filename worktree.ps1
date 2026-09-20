@@ -48,7 +48,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
-$dbContainer = 'anime_site_postgres_db'
+$dbContainer = 'cg1618-dev-db'
 
 $slug = $Topic -replace '-', '_'
 $branch = "$Type/$Topic"

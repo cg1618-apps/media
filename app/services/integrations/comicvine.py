@@ -68,8 +68,9 @@ class ComicVineRateLimiter:
             sleep_time = self.time_window - (now - self.request_timestamps[0])
             if sleep_time > 0:
                 logger.warning(
-                    f"Comic Vine Rate Limiter: Hourly limit ({self.max_requests}) reached. "
-                    f"Pausing for {sleep_time:.2f} seconds."
+                    "Comic Vine Rate Limiter: Hourly limit (%s) reached. Pausing for %.2f seconds.",
+                    self.max_requests,
+                    sleep_time,
                 )
                 time.sleep(sleep_time)
 
@@ -110,16 +111,18 @@ def _request(path: str, params: Dict[str, Any], context: str) -> Optional[Dict[s
 
         if response.status_code == 420:
             # Comic Vine's non-standard "rate limit exceeded" code.
-            logger.warning(f"Comic Vine rate limit (420) for {context}.")
+            logger.warning("Comic Vine rate limit (420) for %s.", context)
             raise RateLimitExceeded("420 Rate Limit Exceeded")
 
         if response.status_code == 429:
-            logger.warning(f"Comic Vine rate limit (429) for {context}.")
+            logger.warning("Comic Vine rate limit (429) for %s.", context)
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code >= 500:
             logger.warning(
-                f"Comic Vine server error ({response.status_code}) for {context} — skipping retries."
+                "Comic Vine server error (%s) for %s — skipping retries.",
+                response.status_code,
+                context,
             )
             return None
 
@@ -131,15 +134,17 @@ def _request(path: str, params: Dict[str, Any], context: str) -> Optional[Dict[s
         # status_code 1 is OK; anything else is a failure.
         if payload.get("status_code") != 1:
             logger.warning(
-                f"Comic Vine error for {context}: "
-                f"{payload.get('error')} (status_code {payload.get('status_code')})"
+                "Comic Vine error for %s: %s (status_code %s)",
+                context,
+                payload.get('error'),
+                payload.get('status_code'),
             )
             return None
 
         return payload
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Network/Timeout Error connecting to Comic Vine for {context}: {e}")
+        logger.error("Network/Timeout Error connecting to Comic Vine for %s: %s", context, e)
         raise
 
 

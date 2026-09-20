@@ -59,8 +59,10 @@ def _price(block: Optional[Dict[str, Any]], key: str, cc: str) -> Optional[Decim
     currency = block.get("currency")
     if currency != EXPECTED_CURRENCY.get(cc):
         logger.warning(
-            f"Steam answered {cc} in {currency}, expected "
-            f"{EXPECTED_CURRENCY.get(cc)}; dropping that region's prices."
+            "Steam answered %s in %s, expected %s; dropping that region's prices.",
+            cc,
+            currency,
+            EXPECTED_CURRENCY.get(cc),
         )
         return None
 

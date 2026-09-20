@@ -27,7 +27,7 @@ cd frontend && npm install && npm run build && cd ..
 
 # 2. Database and config
 docker-compose up -d                               # postgres:17; creates anime_site_db
-docker exec anime_site_postgres_db createdb -U postgres anime_site_test
+docker exec cg1618-dev-db createdb -U postgres anime_site_test
 cp .env.example .env                               # fill in keys, see docs/setup-local.md
 alembic upgrade head
 
