@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-09-13
+Last verified: 2026-09-20
 
 ## What this is for
 
@@ -485,6 +485,16 @@ limiter, not the guard itself; the guard is the `budget` hook
 (`steam_store_rate_limiter.has_capacity`), which stops a run cleanly and
 reports the remainder once the window is spent — the same bargain Comic Vine
 makes with its hourly quota.
+
+### The SteamDB link is derived, not fetched
+
+A game's SteamDB page is `https://steamdb.info/app/<steam_appid>/` — the same
+appid the store URL carries — so nothing is requested to produce it.
+`derive_steamdb_source` writes it as a `media_source` reference row and runs
+**before** the fetch below, so a storefront that is down or out of budget does
+not cost the entry its link. It is fill-only: a hand-entered SteamDB row is
+left alone. See
+[business-rules.md](business-rules.md#steamdb-derived-from-the-appid).
 
 ### Mapping — `map_steam_to_game_data`
 

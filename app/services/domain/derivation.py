@@ -28,7 +28,7 @@ from app.utils.comicvine_utils import extract_comicvine_id
 from app.utils.constants import AnimeAiringType
 from app.utils.igdb_utils import extract_igdb_id
 from app.utils.openlibrary_utils import extract_openlibrary_id
-from app.utils.steam_utils import extract_steam_appid
+from app.utils.steam_utils import extract_steam_appid, steamdb_link_for
 from app.utils.utils import (
     PART_PATTERN,
     SEASON_PATTERN,
@@ -133,6 +133,39 @@ def apply_extract_steam_appid(entry) -> bool:
         entry.steam_appid = steam_appid
         return True
     return False
+
+
+def derive_steamdb_source(game, db: Session) -> bool:
+    """
+    The game's SteamDB reference row, derived from steam_appid.
+
+    SteamDB is a display-only link, so it is a media_source reference row
+    rather than a column - the same rule GAME_REFERENCE_SOURCES states. It is
+    derived rather than fetched: the appid already in hand is the whole of a
+    SteamDB URL, which is why this sits here and not in
+    autofill_game_from_steam, whose row would otherwise depend on a storefront
+    request succeeding.
+
+    Fill-only, through upsert_main_source: an existing SteamDB row is left
+    alone, url and all, so a hand-entered one wins. Returns True when a row
+    was added. Does not commit.
+    """
+    # Imported here rather than at module scope: sources imports credits,
+    # which must not pull this module back in - the same reason autofill
+    # defers its own import of it.
+    from app.services.domain.sources import upsert_main_source
+    from app.utils.source_fields import STEAMDB_VALUE
+
+    if not game.steam_appid:
+        return False
+
+    return upsert_main_source(
+        db,
+        game.system_id,
+        "reference",
+        STEAMDB_VALUE,
+        steamdb_link_for(game.steam_appid),
+    )
 
 
 def apply_extract_game_ids(entry) -> bool:
