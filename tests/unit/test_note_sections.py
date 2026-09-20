@@ -43,12 +43,21 @@ def test_only_declared_sections_have_kinds():
     with_kinds = [s.key for s in ns.NOTE_SECTIONS if s.kinds]
     assert with_kinds == [
         "highlights",
-        "mods_and_tools",
         "op",
         "ed",
         "ost",
         "op_ed_changes",
     ]
+    # `mods_and_tools` held Mod / Tool here until it became structured. A
+    # structured section's dropdowns are fields of its spec, and
+    # validate_note_payload consults only the spec - so a section declaring
+    # both would have two sources of truth for one column.
+    assert ns.section_by_key("mods_and_tools").kinds == ()
+    assert [
+        f.options
+        for f in ns.section_by_key("mods_and_tools").fields
+        if f.column == "kind"
+    ] == [("Mod", "Tool")]
 
 
 MUSIC_SECTIONS = ("op", "ed", "ost")
@@ -119,6 +128,11 @@ def test_the_quotes_memes_group_holds_both_external_sections():
 
 def test_resources_and_questions_are_the_standalone_sections():
     assert [s.key for s in ns.NOTE_SECTIONS if s.standalone] == [
+        # Left the 攻略 group when the thirteen sections above it became the
+        # guide itself: a list of other people's walkthroughs is where the
+        # guide came from, not part of it. It sits immediately before the
+        # site-wide `resources` card it mirrors.
+        "guide_resources",
         "resources",
         "questions",
     ]
@@ -473,6 +487,8 @@ CATALOG_KEYS = {
     "beginner",
     "controls",
     "trivia",
+    "guide_notes",
+    "team_composition",
     "side_quests",
     "builds_and_styles",
     "stats_and_points",
@@ -531,7 +547,7 @@ def test_the_personal_sections_are_exactly_these_eleven():
     assert ns.PERSONAL_SECTIONS == PERSONAL_KEYS
 
 
-def test_the_catalog_sections_are_exactly_these_forty():
+def test_the_catalog_sections_are_exactly_these_forty_two():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_CATALOG} == (
         CATALOG_KEYS
     )
@@ -540,7 +556,7 @@ def test_the_catalog_sections_are_exactly_these_forty():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 51
+    assert len(stored) == 53
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 

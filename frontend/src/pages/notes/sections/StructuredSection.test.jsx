@@ -256,3 +256,28 @@ it("shows a quick-edit value as a read-only tag for a guest", () => {
   expect(screen.queryByLabelText("Tries")).toBeNull();
   expect(screen.getByText(/Tries\s*47/)).toBeInTheDocument();
 });
+
+it("heads a row with its title column, not with the first filled text field", () => {
+  // `enemies` asks for the region before the name, because that is the order
+  // the form reads best in. The heading must not follow that order.
+  render(
+    <StructuredSection
+      section={ENEMIES}
+      notes={[
+        {
+          system_id: "n1",
+          title: "Malenia",
+          fields: { region: "Haligtree" },
+        },
+      ]}
+      isAdmin
+      onCreate={() => {}}
+      onUpdate={() => {}}
+      onDelete={() => {}}
+    />,
+  );
+
+  // The heading is the name; the region is a tag beside it.
+  expect(screen.getByText("Malenia").className).toContain("font-medium");
+  expect(screen.getByText("Haligtree").className).not.toContain("font-medium");
+});

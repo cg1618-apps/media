@@ -257,13 +257,10 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   chrome. `NameEntriesSection` renders the `name_entries` shape — a titled
   list whose items are each `{type: "text" | "link", value, label}` stored in
   the note's own `entries` column, never in `links` — and offers a kind
-  dropdown built from `section.kinds` when the registry declares any. Its
-  owners are the eleven game-only sections of the 攻略 group that each hold one
-  named thing — `side_quests`, `builds_and_styles`, `skills`, `collectibles`,
-  `items`, `weapons_and_gear`, `characters_guide`, `enemies`, `endings`,
-  `mods_and_tools` (kinds Mod / Tool, the only one of the eleven with a
-  dropdown) and `guide_resources`. `guide_resources` is deliberately **not**
-  keyed `resources`, which already exists site-wide.
+  dropdown built from `section.kinds` when the registry declares any. Its one
+  owner is `side_quests`, which keeps the shape until it moves into the 劇情列表
+  Story List group; the other ten 攻略 sections it used to serve are
+  `structured` now.
   `StructuredSection` renders the `structured` shape, and is the one
   component here that does not know its own fields: it builds both the form
   and the read view from `section.fields`, the spec the backend registry
@@ -271,8 +268,9 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   and one naming none inside `fields`, which `fromNote` and `toPayload` are
   the only places to know. It also owns the two affordances the other shapes
   lack — up/down buttons calling `PATCH /api/notes/reorder`, and an inline
-  `quick_edit` input that saves on blur without opening the row. Its owner
-  today is `controls`; the rest of the 攻略 group follows.
+  `quick_edit` input that saves on blur without opening the row. Its owners
+  are thirteen of the sixteen 攻略 sections plus the standalone
+  `guide_resources` card; `docs/systems/notes.md` lists each one's spec.
   `NotesTemplate`'s `SHAPES` map covers all nine stored shapes.
 
 ## The access-mode admin pages (`pages/admin/`)

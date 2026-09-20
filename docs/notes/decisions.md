@@ -1405,3 +1405,72 @@ infrastructure does not belong to any one of them.
   hierarchical, not left uncovered until its section arrives. CASCADE rather
   than SET NULL: promoting every child to a root on a delete reads as a flat
   pile rather than as a loss, which is much harder to notice.
+- **The 攻略 group's field sets went into the registry, not into components.**
+  Thirteen of the sixteen guide sections are `structured`, and the shape's
+  payoff shows here: the whole reshape is registry entries plus one data
+  migration, and `StructuredSection.jsx` was not touched except to fix which
+  field heads a row. Mapping every section's fields onto columns FIRST is what
+  kept it cheap — `skills`, `endings`, `controls` and `guide_resources` need
+  no `fields` blob at all, and across the whole group only `variant`, `alias`,
+  `region`, `developer`, the four stat values and the nested lists do.
+
+  Four decisions inside it are worth keeping:
+
+  **Open vocabularies declare no options.** A `type`, a `group` and a `tier`
+  are the game's words, not ours — "boss" and "small boss" in one game, three
+  other words in the next — so those fields are selects with an empty
+  `options` tuple, which renders as free text and validates as free text. The
+  three closed vocabularies (`beaten`, `completion`, the mod `status`) are
+  facts about my run rather than about the game, so they read the same
+  everywhere and are worth pinning. `cheesed` is deliberately not folded into
+  `beaten`: it answers "do I still owe this one a fair fight?".
+
+  **A structured section's validation replaces the per-shape rules rather
+  than extending them**, so `kinds` and `statuses` must be empty on one.
+  `mods_and_tools` carried `kinds=("Mod", "Tool")` and now declares the same
+  two as its `type` field's options on the same column — two sources of truth
+  for one column, with only one of them consulted, is the kind of thing that
+  reads as working. A test asserts the emptiness.
+
+  **Two fields were kept that the request did not ask for.** A build and a
+  team each get an optional name: every existing `builds_and_styles` row has
+  one, and a list of builds with nothing to call them cannot be read.
+  `mods_and_tools` keeps its Mod/Tool type for the same reason — dropping it
+  would discard what every existing row is tagged with.
+
+  **`side_quests` did not move with the rest.** It is asked to become a 劇情列表
+  Story List subsection, and that group lands a branch later; retiring it now
+  would mean deleting its rows or parking them where nothing reads them. It
+  stays `name_entries` — and so keeps that shape's validation honest — until
+  its destination exists.
+- **The guide reshape's migration is `irreversible = True`.** The old
+  `name_entries` array held a row's text and its links INTERLEAVED in one
+  order; the reshape flattens that into a body plus a link list, so reversing
+  it would invent an order rather than restore one. `deploy/migrations
+  downgrade` refuses to reverse past it and freezes with the dump path, which
+  is the honest outcome — the alternative is a rollback that quietly rewrites
+  notes at 3am.
+
+  Its one interesting case is a section whose new spec has **no** links field
+  (`characters_guide`, `enemies`, `mods_and_tools`, `stats_and_points`).
+  Leaving a URL in a column no field claims would make the row fail validation
+  the next time anybody edited it, on a field they had not touched — so those
+  URLs are written into the description instead, keeping their labels. Nothing
+  is dropped silently even where the field is gone.
+- **The `irreversible = True` near-miss check had never seen a real marker,
+  and failed on the first one.** It was a single regex —
+  `irreversible\s*=\s*(?!True$)` — meant to flag a misspelled marker. No
+  shipped revision had ever declared the marker, so the check was vacuously
+  green from the day it was written, and when the guide reshape finally
+  declared one it flagged the *correct* spelling: `\s*` backtracks to empty,
+  the negative lookahead then reads " True" rather than "True", and succeeds.
+
+  Two things came out of it. The check is now a line comparison rather than a
+  lookahead, which cannot backtrack; and it has a positive half asserting that
+  a revision written the intended way satisfies `deploy/migrations`' own
+  `line.rstrip("\n") == "irreversible = True"` comparison — with an assertion
+  that at least one revision declares it, so the negative half cannot go
+  vacuous again. This is the "asserting that a gate REFUSES is not safe on an
+  empty set" rule with a safety marker as the gate: the worst shape a safety
+  marker can take is one that fails silently, and a test that has never seen
+  the thing it guards is not guarding it yet.
