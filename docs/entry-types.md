@@ -276,7 +276,7 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | `highlight_episodes` | | | | x (kinds) | x (kinds) | x (label `神回`, locator "Chapter(s)") | | | | |
 | `highlight_passages` | | | | | | | x | | | |
 | `highlight_moments` (label `神場景 Highlights`, locator "Chapter / Boss") | | | | | | | | | x | |
-| 攻略 group — `beginner`, `controls`, `trivia`, `stats_and_points` (`text_links`) | | | | | | | | | x | |
+| 攻略 group — `beginner`, `trivia`, `stats_and_points` (`text_links`), `controls` (`structured`) | | | | | | | | | x | |
 | 攻略 group — `side_quests`, `builds_and_styles`, `skills`, `collectibles`, `items`, `weapons_and_gear`, `characters_guide`, `enemies`, `endings`, `guide_resources` (`name_entries`) | | | | | | | | | x | |
 | 攻略 group — `mods_and_tools` (`name_entries`, kinds `Mod`/`Tool`) | | | | | | | | | x | |
 | 劇情 group — `main_plot`, `side_plot` (`episode_text`, locator optional) | | | | | | | | | x | |

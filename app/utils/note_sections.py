@@ -53,6 +53,20 @@ SHAPE_EPISODE_NAME_LINKS = (
 # type is a property of the song, the status is a property of my work on it -
 # which is why `note` carries a `status` column alongside `kind`.
 SHAPE_MUSIC_TRACK = "music_track"  # title, kind, status, links, content
+# The registry-driven shape. Unlike the eight above, `structured` does not name
+# a fixed set of columns: the SECTION declares an ordered `fields` spec, each
+# field saying what it is called, how it is edited, and where it is stored -
+# either one of `note`'s existing content columns or a key inside the `fields`
+# JSONB blob. One component renders every structured section and one validator
+# checks every one of them, so a section that grows a field stays a registry
+# edit rather than a migration plus a new component.
+#
+# It exists because the game guide sections need field sets no fixed shape can
+# express - a variant, an alias, a region, four stat values, and lists nested
+# inside a row (a build's armour, a team's members). Those nested lists cannot
+# be columns at any price, so a JSONB blob was arriving regardless; `fields`
+# makes the scalars beside them registry-declared too.
+SHAPE_STRUCTURED = "structured"
 # Backed by its own table (quote, meme), never by a `note` row.
 SHAPE_EXTERNAL = "external"
 
@@ -66,6 +80,7 @@ STORED_SHAPES = frozenset(
         SHAPE_NAME_ENTRIES,
         SHAPE_EPISODE_NAME_LINKS,
         SHAPE_MUSIC_TRACK,
+        SHAPE_STRUCTURED,
     }
 )
 
@@ -86,6 +101,58 @@ ALL_OWNERS = tuple(OWNER_TYPE_KEYS)
 # Sections every owner shares, spelled out per section below rather than
 # composed, so one section's applicability is readable in one place.
 _SERIES_AND_UP = ("series", "franchise")
+
+
+# --- Structured fields ----------------------------------------------------
+# How one field of a `structured` section is edited.
+FIELD_TEXT = "text"  # one line
+FIELD_TEXTAREA = "textarea"  # a body
+FIELD_SELECT = "select"  # a dropdown over `options`
+FIELD_LINKS = "links"  # the repeatable URL editor
+FIELD_LIST = "list"  # a repeatable row of `item_fields`
+
+# The `note` columns a structured field may claim. Anything else a section
+# declares is stored under its own key in the `fields` JSONB blob.
+#
+# The list is deliberately the columns that already MEAN these things: a name
+# is a title, a description is content, and the two dropdown columns stay the
+# two dropdowns. A structured section that put its name in `fields` would hide
+# it from the Google Sheets tab and from every existing reader of `title`, for
+# no gain - the column is already there and already empty.
+FIELD_COLUMNS = frozenset({"locator", "kind", "status", "title", "content", "links"})
+
+
+@dataclass(frozen=True)
+class NoteField:
+    """
+    One field of a `structured` section.
+
+    `column` is the whole point of the shape. A field naming one of
+    FIELD_COLUMNS reads and writes that column, so `skills` - type, name,
+    description, links - needs no JSONB at all; a field naming none is stored
+    at `fields[key]`. Both kinds are declared the same way and rendered by the
+    same component, so which side of the line a field falls on is a storage
+    decision rather than a UI one.
+    """
+
+    key: str
+    label: str
+    type: str = FIELD_TEXT
+    # One of FIELD_COLUMNS, or None to store under `fields[key]`.
+    column: str | None = None
+    # Allowed values for FIELD_SELECT. A `kind`- or `status`-backed field with
+    # no options is free text, which is why those two columns are no longer
+    # validated against `kinds` / `statuses` for a structured section.
+    options: tuple[str, ...] = ()
+    required: bool = False
+    # For FIELD_LIST: the shape of one row of the nested list. Nested lists are
+    # always stored in `fields` - a column cannot hold one.
+    item_fields: tuple["NoteField", ...] = ()
+    # Render an inline stepper beside the value, editable without opening the
+    # row for edit. Used by the stat sections' "my value", which is the one
+    # field of a guide that changes while playing rather than while writing.
+    quick_edit: bool = False
+    placeholder: str | None = None
 
 
 @dataclass(frozen=True)
@@ -186,6 +253,19 @@ class NoteSection:
     singleton: bool = False
     # Owner types where `content` may not be empty.
     desc_required: tuple[str, ...] = ()
+    # --- `structured` sections only -------------------------------------
+    # The ordered field spec this section's rows are made of. Empty for every
+    # other shape; a test asserts the two go together in both directions.
+    fields: tuple[NoteField, ...] = ()
+    # Groups of field keys where at least one must be filled. The Story List
+    # sections use it for "an entry needs an order number or a name, and may
+    # have both". Distinct from `NoteField.required`, which is about one field
+    # on its own.
+    require_any: tuple[tuple[str, ...], ...] = ()
+    # Rows may nest: a row carries `parent_id` pointing at another row of the
+    # same section, to any depth. Flat sections refuse a parent outright, so a
+    # section does not grow a tree by accident.
+    hierarchical: bool = False
 
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
@@ -388,12 +468,31 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="guides",
     ),
     NoteSection(
+        # The first structured section, and the smallest: a control is the
+        # button or stick a line of advice is ABOUT, so it reads as a name
+        # rather than as the first words of the description. Optional, because
+        # plenty of control notes are about the scheme as a whole.
         key="controls",
-        shape=SHAPE_TEXT_LINKS,
+        shape=SHAPE_STRUCTURED,
         label="操作 Controls",
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="guides",
+        fields=(
+            NoteField(
+                key="control",
+                label="Control",
+                column="title",
+                placeholder="e.g. L2 + O",
+            ),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
     ),
     NoteSection(
         key="trivia",
@@ -796,3 +895,26 @@ def group_by_key(key: str) -> NoteGroup | None:
 def locator_for(section: NoteSection, owner_type: str) -> str | None:
     """This section's locator label for this owner, else the default."""
     return section.locator_placeholders.get(owner_type, section.locator_placeholder)
+
+
+def fields_for(section: NoteSection) -> tuple[NoteField, ...]:
+    """This section's field spec, empty for every non-structured shape."""
+    return section.fields
+
+
+def field_by_key(section: NoteSection, key: str) -> NoteField | None:
+    """One field of a structured section, or None if it declares no such field."""
+    for f in section.fields:
+        if f.key == key:
+            return f
+    return None
+
+
+def column_field_map(section: NoteSection) -> dict[str, NoteField]:
+    """The section's column-backed fields, keyed by the column they claim."""
+    return {f.column: f for f in section.fields if f.column}
+
+
+def json_fields(section: NoteSection) -> tuple[NoteField, ...]:
+    """The section's fields stored inside the `fields` JSONB blob."""
+    return tuple(f for f in section.fields if not f.column)

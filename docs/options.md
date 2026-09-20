@@ -244,7 +244,7 @@ media types only.
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
-| `controls` | text_links | 操作 Controls | game | guides | |
+| `controls` | structured | 操作 Controls | game | guides | Fields: control (`title`), description (`content`), links |
 | `trivia` | text_links | 小知識 Trivia | game | guides | |
 | `side_quests` | name_entries | 支線任務列表 Side Quests | game | guides | |
 | `builds_and_styles` | name_entries | 配裝&流派 Builds & Styles | game | guides | |

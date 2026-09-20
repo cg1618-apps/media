@@ -30,5 +30,19 @@ export const createNote = (payload) =>
 export const updateNote = (id, payload) =>
   fetchJson(`${BASE}/${id}`, { method: "PATCH", ...jsonBody(payload) });
 
+// Renumbers sort_index for one section of one owner. The endpoint takes the
+// ids it should renumber and nothing else, so a hierarchical section reorders
+// one set of siblings at a time by sending just that set.
+export const reorderNotes = (ownerType, ownerId, section, orderedIds) =>
+  fetchJson(`${BASE}/reorder`, {
+    method: "PATCH",
+    ...jsonBody({
+      owner_type: ownerType,
+      owner_id: ownerId,
+      section,
+      ordered_ids: orderedIds,
+    }),
+  });
+
 export const deleteNote = (id) =>
   fetchNoContent(`${BASE}/${id}`, { method: "DELETE" });

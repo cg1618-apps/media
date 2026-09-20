@@ -669,8 +669,10 @@ ch 6" and an empty `kinds`, where TV and cartoon read the defaults plus the
 then `sort_index` within it, which is exactly the page's render order.
 
 `/reorder` is declared **before** `/{note_id}`: FastAPI matches in declaration
-order, so the dynamic route would otherwise swallow `reorder` as a note id. It
-has no frontend caller yet — it is intentional surface awaiting a reorder UI.
+order, so the dynamic route would otherwise swallow `reorder` as a note id.
+The `structured` shape's up/down buttons are its caller: they send the ids of
+one set of siblings in their new order, which is why the endpoint renumbers
+what it is given rather than the whole section.
 
 ---
 

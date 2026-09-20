@@ -16,6 +16,7 @@ def test_every_section_has_a_known_shape():
         ns.SHAPE_NAME_ENTRIES,
         ns.SHAPE_EPISODE_NAME_LINKS,
         ns.SHAPE_MUSIC_TRACK,
+        ns.SHAPE_STRUCTURED,
         ns.SHAPE_EXTERNAL,
     }
     for sec in ns.NOTE_SECTIONS:

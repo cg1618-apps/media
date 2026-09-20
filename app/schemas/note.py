@@ -8,14 +8,20 @@ from pydantic import BaseModel, ConfigDict
 
 from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import (
+    FIELD_LINKS,
+    FIELD_LIST,
+    FIELD_SELECT,
     SHAPE_EPISODE_NAME_LINKS,
     SHAPE_EPISODE_TEXT,
     SHAPE_MUSIC_TRACK,
     SHAPE_NAME_ENTRIES,
     SHAPE_NAME_LINKS,
+    SHAPE_STRUCTURED,
     SHAPE_TEXT_OR_LINK,
     STORED_SHAPES,
+    NoteField,
     NoteSection,
+    field_by_key,
     group_by_key,
     kinds_for,
     label_for,
@@ -39,6 +45,14 @@ class NoteBase(BaseModel):
     # {"type": "text"|"link", "value": str, "label": str|None}. Kept apart from
     # `links`, which is a plain list of URL strings.
     entries: Optional[List[dict]] = None
+    # The structured shape's non-column fields, keyed by NoteField.key. Checked
+    # against the section's spec by validate_note_payload - an unknown key is
+    # refused rather than stored, so the blob cannot drift from the registry.
+    fields: Optional[dict] = None
+    # The row this one nests under, for `hierarchical` sections. The router
+    # owns the rules a schema cannot check: that the parent exists, shares this
+    # row's owner and section, and is not the row itself.
+    parent_id: Optional[UUID] = None
     sort_index: Optional[float] = None
 
 
@@ -61,6 +75,27 @@ class NoteResponse(NoteBase):
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class NoteFieldOut(BaseModel):
+    """One field of a structured section, as the frontend needs it.
+
+    `column` is deliberately included. The page does not choose where a field
+    is stored - the registry does - but it has to send the value back under
+    the right key, and a field naming a column goes at the top level of the
+    payload while one naming none goes inside `fields`.
+    """
+
+    key: str
+    label: str
+    type: str
+    column: Optional[str] = None
+    options: List[str] = []
+    required: bool = False
+    quick_edit: bool = False
+    placeholder: Optional[str] = None
+    # Populated for `list` fields alone: the shape of one nested row.
+    item_fields: List["NoteFieldOut"] = []
 
 
 class NoteSectionOut(BaseModel):
@@ -88,6 +123,12 @@ class NoteSectionOut(BaseModel):
     locator_required: bool = False
     singleton: bool = False
     desc_required: bool = False
+    # Empty for every shape but `structured`, which is entirely described by it.
+    fields: List[NoteFieldOut] = []
+    # Field-key groups where the row must fill at least one.
+    require_any: List[List[str]] = []
+    # Rows may carry a parent_id and render as a tree.
+    hierarchical: bool = False
 
 
 class NoteReorder(BaseModel):
@@ -97,6 +138,21 @@ class NoteReorder(BaseModel):
     owner_id: UUID
     section: str
     ordered_ids: List[UUID]
+
+
+def field_out(field: NoteField) -> NoteFieldOut:
+    """Resolve one field spec, recursing into a list field's row shape."""
+    return NoteFieldOut(
+        key=field.key,
+        label=field.label,
+        type=field.type,
+        column=field.column,
+        options=list(field.options),
+        required=field.required,
+        quick_edit=field.quick_edit,
+        placeholder=field.placeholder,
+        item_fields=[field_out(f) for f in field.item_fields],
+    )
 
 
 def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
@@ -118,12 +174,137 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         locator_required=section.locator_required,
         singleton=section.singleton,
         desc_required=owner_type in section.desc_required,
+        fields=[field_out(f) for f in section.fields],
+        require_any=[list(group) for group in section.require_any],
+        hierarchical=section.hierarchical,
     )
 
 
 def sections_out(owner_type: str) -> List[NoteSectionOut]:
     """The whole registry for one owner type, in display order."""
     return [section_out(s, owner_type) for s in sections_for(owner_type)]
+
+
+def _field_value(field: NoteField, payload: NoteBase):
+    """This field's submitted value, from its column or from `fields`."""
+    if field.column:
+        return getattr(payload, field.column, None)
+    return (payload.fields or {}).get(field.key)
+
+
+def _is_blank(value) -> bool:
+    """Whether a submitted field value counts as unfilled."""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (list, dict)):
+        return not value
+    return False
+
+
+def _check_scalar(field: NoteField, value, where: str) -> None:
+    """One text, textarea or select value."""
+    if not isinstance(value, str):
+        raise ValueError(f"{where} must be text.")
+    # Options are optional even on a select: a `kind`-backed field with none
+    # declared is the free-text type/group/tier the guide sections want.
+    if field.type == FIELD_SELECT and field.options and value.strip():
+        if value not in field.options:
+            raise ValueError(
+                f"'{value}' is not a valid {field.label.lower()}; "
+                f"expected one of {', '.join(field.options)}."
+            )
+
+
+def _check_field(field: NoteField, value, where: str) -> None:
+    """One submitted value against one field of the spec."""
+    if _is_blank(value):
+        if field.required:
+            raise ValueError(f"{where} is required.")
+        return
+
+    if field.type == FIELD_LINKS:
+        if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+            raise ValueError(f"{where} must be a list of URLs.")
+        return
+
+    if field.type == FIELD_LIST:
+        if not isinstance(value, list):
+            raise ValueError(f"{where} must be a list.")
+        allowed = {f.key for f in field.item_fields}
+        for i, row in enumerate(value, start=1):
+            if not isinstance(row, dict):
+                raise ValueError(f"{where} row {i} must be an object.")
+            unknown = set(row) - allowed
+            if unknown:
+                raise ValueError(
+                    f"{where} row {i} has no field "
+                    f"'{sorted(unknown)[0]}'."
+                )
+            for item in field.item_fields:
+                _check_field(item, row.get(item.key), f"{where} row {i}: {item.label}")
+            # A row where every cell is blank is a stray Add click, not data.
+            if all(_is_blank(row.get(f.key)) for f in field.item_fields):
+                raise ValueError(f"{where} row {i} is empty.")
+        return
+
+    _check_scalar(field, value, where)
+
+
+def _validate_structured(section: NoteSection, payload: NoteBase) -> None:
+    """
+    Check one structured row against its section's field spec.
+
+    Structured sections own their whole validation, which is why this runs
+    instead of the kind/status/emptiness rules the other shapes share: a
+    `kind`-backed field with no options is free text here, and what counts as
+    an empty row is "no field filled" rather than a per-shape rule.
+    """
+    spec = section.fields
+    if not spec:
+        raise ValueError(
+            f"Section '{section.key}' is structured but declares no fields."
+        )
+
+    unknown = set(payload.fields or {}) - {f.key for f in spec if not f.column}
+    if unknown:
+        raise ValueError(
+            f"Section '{section.key}' has no field '{sorted(unknown)[0]}'."
+        )
+
+    # A column no field claims must stay empty. Without this a payload could
+    # park a value in `entries` or `locator` on a section that never shows it,
+    # and the row would read back with content no editor can reach.
+    claimed = {f.column for f in spec if f.column}
+    for column in ("locator", "kind", "status", "title", "content", "links", "entries"):
+        if column not in claimed and not _is_blank(getattr(payload, column, None)):
+            raise ValueError(
+                f"Section '{section.key}' takes no '{column}'."
+            )
+
+    for field in spec:
+        _check_field(field, _field_value(field, payload), field.label)
+
+    for group in section.require_any:
+        if all(
+            _is_blank(_field_value(field_by_key(section, key), payload))
+            for key in group
+            if field_by_key(section, key)
+        ):
+            labels = [
+                field_by_key(section, key).label
+                for key in group
+                if field_by_key(section, key)
+            ]
+            raise ValueError(
+                f"Section '{section.key}' needs at least one of: "
+                f"{', '.join(labels)}."
+            )
+
+    if all(_is_blank(_field_value(f, payload)) for f in spec):
+        raise ValueError(f"Section '{section.key}' note is empty.")
+
 
 
 def validate_note_payload(payload: NoteBase) -> None:
@@ -150,6 +331,23 @@ def validate_note_payload(payload: NoteBase) -> None:
         raise ValueError(
             f"Section '{section.key}' does not apply to owner type '{owner_type}'."
         )
+
+    # A flat section refuses a parent outright, so a section does not grow a
+    # tree because one payload carried a stray id. Whether the parent EXISTS
+    # and belongs to this owner and section needs a query, so the router owns
+    # that half.
+    if payload.parent_id is not None and not section.hierarchical:
+        raise ValueError(f"Section '{section.key}' rows do not nest.")
+
+    # A structured section owns its whole validation - the kind, status and
+    # emptiness rules below are per-shape, and this shape's rules live in its
+    # registry spec instead.
+    if section.shape == SHAPE_STRUCTURED:
+        _validate_structured(section, payload)
+        return
+
+    if payload.fields is not None:
+        raise ValueError(f"Section '{section.key}' takes no structured fields.")
 
     if payload.kind:
         allowed = kinds_for(section, owner_type)
