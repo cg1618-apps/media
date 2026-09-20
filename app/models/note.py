@@ -97,6 +97,20 @@ class Note(Base):
 
     # --- Which section this item belongs to ---
     section = Column(String, nullable=True, index=True)
+    # The row this one nests under, for the sections whose registry entry sets
+    # `hierarchical`. Self-referential and unbounded in depth - a Story List
+    # entry may have children which have children - with CASCADE so deleting a
+    # parent takes its whole subtree rather than orphaning it at the root.
+    #
+    # Nothing constrains a child to its parent's section at the database
+    # level: a CHECK cannot read another row. The router refuses a parent from
+    # a different owner or section, which is where that rule lives.
+    parent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("note.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
 
     # --- Content, per the section's shape ---
     # Where in the work this item points: an episode, a chapter, a scene, a
@@ -123,6 +137,19 @@ class Note(Base):
     # Distinct from `links`, which is a plain list of URL strings for seven
     # other sections - one column meaning two things is how subtle bugs start.
     entries = Column(JSONB, nullable=True)
+    # The `structured` shape's registry-declared fields, as a flat object keyed
+    # by NoteField.key, plus any nested list a field of type `list` holds.
+    #
+    # Only the fields the section's spec does NOT map onto a column live here:
+    # a structured section's name goes in `title` and its description in
+    # `content`, so this blob carries the leftovers - a variant, an alias, four
+    # stat values - and the nested lists, which no column could hold. That
+    # split is the reason the guide sections cost one column rather than a
+    # dozen sparse ones on a table eleven other owner types share.
+    #
+    # Validated against the section's spec in app/schemas/note.py, never
+    # blindly: an unknown key is a 422, not a silently stored one.
+    fields = Column(JSONB, nullable=True)
 
     # --- Ordering within (owner, section) ---
     sort_index = Column(Float, nullable=True)

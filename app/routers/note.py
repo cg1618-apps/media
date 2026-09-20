@@ -222,6 +222,64 @@ def _authorize_edit(viewer: Viewer, db_note: models.Note) -> None:
         )
 
 
+def _validate_parent(
+    db: Session,
+    payload: schemas.NoteBase,
+    exclude_id: Optional[str] = None,
+) -> None:
+    """
+    A nested row's parent must exist, and must be a sibling in every sense.
+
+    Here rather than in the schema layer because every part of it needs a
+    query. The schema has already refused a parent on a flat section, so this
+    only runs where nesting is allowed.
+
+    Cycles are checked by walking up from the parent: the tree is unbounded in
+    depth, so "not your own parent" is not enough - A under B under A is the
+    same corruption two rows further out, and it would make the page recurse
+    forever.
+    """
+    if payload.parent_id is None:
+        return
+    if exclude_id and str(payload.parent_id) == str(exclude_id):
+        raise HTTPException(status_code=422, detail="A note cannot be its own parent.")
+
+    parent = (
+        db.query(models.Note)
+        .filter(models.Note.system_id == payload.parent_id)
+        .first()
+    )
+    # 422, not 404: the missing thing is a value in the payload, not the
+    # resource this request addresses.
+    if parent is None:
+        raise HTTPException(status_code=422, detail="Parent note not found.")
+    if parent.section != payload.section:
+        raise HTTPException(
+            status_code=422, detail="A note may only nest under its own section."
+        )
+    if parent.owner_id != payload.owner_id:
+        raise HTTPException(
+            status_code=422, detail="A note may only nest under its own owner."
+        )
+
+    if exclude_id:
+        seen = {str(exclude_id)}
+        walker = parent
+        while walker is not None:
+            if str(walker.system_id) in seen:
+                raise HTTPException(
+                    status_code=422, detail="That parent would make a loop."
+                )
+            seen.add(str(walker.system_id))
+            if walker.parent_id is None:
+                break
+            walker = (
+                db.query(models.Note)
+                .filter(models.Note.system_id == walker.parent_id)
+                .first()
+            )
+
+
 def _next_sort_index(db: Session, payload: schemas.NoteBase) -> float:
     """Append to the end of its section."""
     last = (
@@ -353,6 +411,7 @@ def create_note(
     _validate_or_422(payload)
     _require_visible_owner(db, viewer, payload.owner_id)
     _reject_second_singleton(db, payload, author_id=viewer.user_id)
+    _validate_parent(db, payload)
 
     data = payload.model_dump(exclude_unset=True)
     if data.get("sort_index") is None:
@@ -454,6 +513,7 @@ def update_note(
     _reject_second_singleton(
         db, merged, exclude_id=note_id, author_id=db_note.author_id
     )
+    _validate_parent(db, merged, exclude_id=note_id)
 
     # owner_type / owner_id are read-only properties now, so a PATCH that
     # names them is translated into the four columns - clearing the other three

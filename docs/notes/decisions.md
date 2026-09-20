@@ -1364,3 +1364,44 @@ infrastructure does not belong to any one of them.
   request fires `pull_request: reopened`, which `ci.yml` accepts. This is the
   ordering trap in enabling a repository's gates before its Actions: the gate
   exists, and nothing can satisfy it.
+- **The `structured` note shape: one JSONB column, not a dozen sparse ones.**
+  The game guide sections need a dozen different field sets — a variant, an
+  alias, a region, a tier, four stat values, and lists nested inside one row (a
+  build's armour pieces, a team's members). Three options were live. A column
+  per field was rejected because `note` is shared by all twelve owner types and
+  its column list *is* the Google Sheets Note tab: a dozen mostly-blank columns
+  would ride on every owner's rows to serve `game` alone, and each later field
+  would be another migration — against the registry's own promise that a
+  section is an entry and a shape is at most one column. A component and a
+  validator per section was rejected as a dozen near-identical files. What
+  landed is a registry-declared field spec plus one JSONB column.
+
+  The thing that makes it cheap is that **most fields already have a column**.
+  Mapping all thirteen guide sections first showed that a name is `title`, a
+  description is `content`, links are `links`, and the closed dropdowns are
+  `kind` and `status` — so several sections (`controls`, `skills`, `endings`)
+  need no blob at all, and `fields` carries only the leftovers. Had that
+  mapping not been done first, the obvious design was "everything in the blob",
+  which would have hidden every name and description from the sheet, from
+  search and from every existing reader of those columns.
+
+  The nested lists settle the remaining argument: no column can hold one, so a
+  JSONB column was arriving whichever way the scalars went. The cost is real
+  and worth stating — the leftover scalars have no database-level type and no
+  column to filter on — but the values worth filtering (a beaten status, a
+  completion status) land in the real `status` column.
+
+  Two consequences to keep in mind. A `select` with **no** options is free
+  text, which is how the open vocabularies (type, group, tier) use the same
+  columns a closed dropdown would; and a structured section's validation
+  *replaces* the per-shape rules rather than extending them, so `kind` and
+  `status` are checked against the spec and not against `kinds` / `statuses`.
+- **`note.parent_id` shipped one branch before anything nests.** The Story List
+  group is the only hierarchical section and lands later, but the column, its
+  cascade and the router's parent rules came with the shape machinery so the
+  table is altered once rather than twice on a chain of branches — two Alembic
+  revisions on one table across consecutive branches is the collision the
+  migration rules exist to avoid. It is covered by tests that patch `controls`
+  hierarchical, not left uncovered until its section arrives. CASCADE rather
+  than SET NULL: promoting every child to a root on a delete reads as a flat
+  pile rather than as a loss, which is much harder to notice.

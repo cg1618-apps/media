@@ -1431,6 +1431,10 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # app/services/pipelines/pull.py applies.
         "author_id": _uuid_or_none(raw.get("author_id")),
         "section": parse_from_sheet(raw.get("section"), str),
+        # The tree link for the hierarchical sections. A plain UUID column, so
+        # it needs no JSON handling - but it does need to be here, or Pull
+        # flattens every nested Story List entry to a root.
+        "parent_id": _uuid_or_none(raw.get("parent_id")),
         # `episode` is the column's pre-rename header. Sheets backed up before
         # the rename must still Pull, or every anchor in them is lost, so the
         # old name is accepted where the current one is absent.
@@ -1446,6 +1450,11 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # here, Backup would still write the column and Pull would drop it -
         # every guides / builds_and_mods item lost on the round trip.
         "entries": json.loads(raw["entries"]) if raw.get("entries") else None,
+        # The structured shape's non-column fields, parsed exactly like the two
+        # JSONB columns above it and for the same reason: absent here, Backup
+        # writes the column and Pull drops it, losing every variant, alias,
+        # stat value and nested build list on the round trip.
+        "fields": json.loads(raw["fields"]) if raw.get("fields") else None,
         "sort_index": parse_from_sheet(raw.get("sort_index"), float),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),

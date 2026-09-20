@@ -12,6 +12,7 @@ import TextOrLinkSection from "./sections/TextOrLinkSection";
 import EpisodeTextSection from "./sections/EpisodeTextSection";
 import NameLinksSection from "./sections/NameLinksSection";
 import NameEntriesSection from "./sections/NameEntriesSection";
+import StructuredSection from "./sections/StructuredSection";
 import EpisodeNameLinksSection from "./sections/EpisodeNameLinksSection";
 import MusicTrackSection from "./sections/MusicTrackSection";
 import QuoteSection from "./sections/QuoteSection";
@@ -27,6 +28,7 @@ const SHAPES = {
   name_entries: NameEntriesSection,
   episode_name_links: EpisodeNameLinksSection,
   music_track: MusicTrackSection,
+  structured: StructuredSection,
 };
 
 // The first of two deliberate, scoped exceptions to "the frontend never names
@@ -218,6 +220,18 @@ export default function NotesTemplate({
       onDelete: async (id) => {
         try {
           await api.deleteNote(id);
+          await reloadNotes();
+        } catch (e) {
+          setError(String(e.message || e));
+        }
+      },
+      // Takes the ids of ONE set of siblings in their new order. A flat
+      // section sends every row; a hierarchical one sends the children of one
+      // parent, which is why the endpoint renumbers what it is given rather
+      // than the whole section.
+      onReorder: async (section, orderedIds) => {
+        try {
+          await api.reorderNotes(ownerType, ownerId, section, orderedIds);
           await reloadNotes();
         } catch (e) {
           setError(String(e.message || e));
