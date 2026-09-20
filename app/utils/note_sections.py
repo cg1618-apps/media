@@ -145,6 +145,16 @@ class NoteField:
     # validated against `kinds` / `statuses` for a structured section.
     options: tuple[str, ...] = ()
     required: bool = False
+    # What a NEW row starts this field on. The row-level twin of
+    # NoteSection.default_kind, which the structured shape does not use - a
+    # structured section's dropdowns are fields, so their defaults are too.
+    #
+    # A defaulted field is EXCLUDED from the "is this row empty?" check, for
+    # the reason music_track spells out about `default_kind`: a value that is
+    # always set cannot be the thing that makes a row worth storing. Without
+    # that, an untouched draft with a prefilled status would save as a row
+    # saying nothing.
+    default: str | None = None
     # For FIELD_LIST: the shape of one row of the nested list. Nested lists are
     # always stored in `fields` - a column cannot hold one.
     item_fields: tuple["NoteField", ...] = ()
@@ -317,6 +327,18 @@ MUSIC_STATUSES = ("Need", "Pending", "Done")
 # fight?".
 ENEMY_STATUSES = ("to beat", "beaten", "cheesed", "skip")
 
+# How far collecting one kind of thing has got. Ordered as a progression with
+# the opt-out last, like ENEMY_STATUSES above: "enough" is the state a
+# completionist run leaves behind and a normal run stops at, and it is worth
+# distinguishing from "fully" precisely because most things never reach
+# "fully".
+COLLECT_STATUSES = (
+    "not collected",
+    "enough collected",
+    "fully collected",
+    "skip",
+)
+
 # Whether an ending has been seen. "Skipped" is a decision, not an absence,
 # which is why it is a value rather than leaving the field blank.
 ENDING_STATUSES = ("not yet", "reached", "skipped")
@@ -329,16 +351,24 @@ MOD_STATUSES = ("常駐", "to use", "to play", "played", "won't")
 MOD_KINDS = ("Mod", "Tool")
 
 
-def _named_thing_fields(variant: bool = False) -> tuple["NoteField", ...]:
+def _named_thing_fields(
+    variant: bool = False, collected: bool = False
+) -> tuple["NoteField", ...]:
     """
     The shape four guide sections share: a typed, named thing with a body and
     its sources.
 
     Skills, collectibles, items and weapons differ only in whether a row can
-    carry a variant ("+3", "Ashes of War", "NG+ only"), so they share a spec
-    rather than repeating one four times. The `type` field is a free-text
-    select on `kind`: every one of these vocabularies is the game's rather
-    than ours, so a closed list would be wrong by the second game.
+    carry a variant ("+3", "Ashes of War", "NG+ only") and whether collecting
+    it is something you track, so they share a spec rather than repeating one
+    four times. The three 物品 sections take both; 技能 Skills takes neither -
+    a skill is learned rather than collected, and a collect status on it would
+    be a field nobody could answer.
+
+    The `type` field is a free-text select on `kind`: every one of these
+    vocabularies is the game's rather than ours, so a closed list would be
+    wrong by the second game. `collected` is the opposite - it is a fact about
+    my run, so it reads the same everywhere and is closed.
     """
     return (
         NoteField(key="type", label="Type", type=FIELD_SELECT, column="kind"),
@@ -351,6 +381,20 @@ def _named_thing_fields(variant: bool = False) -> tuple["NoteField", ...]:
             column="content",
         ),
         NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        *(
+            (
+                NoteField(
+                    key="collected",
+                    label="Collected",
+                    type=FIELD_SELECT,
+                    column="status",
+                    options=COLLECT_STATUSES,
+                    default="not collected",
+                ),
+            )
+            if collected
+            else ()
+        ),
     )
 
 
@@ -451,12 +495,13 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # three paragraphs reads as badly as a paragraph made of bullets.
         #
         # Personal, like 備註, and non-singleton, which is the whole point.
-        # Game-only for now, because that is where the need came from; the
-        # owners tuple is the only thing that would have to change.
+        # Every owner, like 備註: the need came from games, but nothing about
+        # a short note is game-shaped, and the two sections are read as a pair
+        # wherever 備註 appears.
         key="remark_list",
         shape=SHAPE_TEXT_LINKS,
         label="備註列表 Remark List",
-        owners=("game",),
+        owners=ALL_OWNERS,
         scope=SCOPE_PERSONAL,
     ),
     NoteSection(
@@ -854,7 +899,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="gear",
-        fields=_named_thing_fields(variant=True),
+        fields=_named_thing_fields(variant=True, collected=True),
     ),
     NoteSection(
         key="items",
@@ -863,7 +908,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="gear",
-        fields=_named_thing_fields(variant=True),
+        fields=_named_thing_fields(variant=True, collected=True),
     ),
     NoteSection(
         key="collectibles",
@@ -872,7 +917,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="gear",
-        fields=_named_thing_fields(variant=True),
+        fields=_named_thing_fields(variant=True, collected=True),
     ),
     # --- 圖鑑 Compendium --------------------------------------------------
     # Who you meet. 結局 Endings was here while it had nowhere better; it is a
@@ -934,6 +979,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 type=FIELD_SELECT,
                 column="status",
                 options=ENEMY_STATUSES,
+                # Every enemy worth a row is one I have not beaten yet when I
+                # write it down, so that is where a new row starts.
+                default="to beat",
             ),
         ),
     ),

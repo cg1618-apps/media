@@ -100,11 +100,19 @@ def test_the_remark_and_the_remark_list_are_both_kept():
     # reads as badly as a paragraph made of bullets.
     game = {s.key for s in sections_out("game")}
     assert {"remark", "remark_list"} <= game
+    assert ns.section_by_key("remark").singleton
+    assert not ns.section_by_key("remark_list").singleton
 
 
-def test_the_remark_list_is_game_only_for_now():
-    for owner in ("anime", "novel", "series", "collection"):
-        assert "remark_list" not in {s.key for s in sections_out(owner)}, owner
+def test_the_remark_list_reaches_every_owner_that_has_a_remark():
+    # The need came from games, but nothing about a short note is game-shaped,
+    # and the two are read as a pair wherever 備註 appears - so they share an
+    # owners tuple as well as a scope.
+    remark = ns.section_by_key("remark")
+    assert ns.section_by_key("remark_list").owners == remark.owners
+    for owner in ("anime", "novel", "series", "collection", "game"):
+        keys = {s.key for s in sections_out(owner)}
+        assert {"remark", "remark_list"} <= keys, owner
 
 
 def test_the_remark_list_can_carry_a_link():

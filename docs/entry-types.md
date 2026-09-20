@@ -267,7 +267,7 @@ All entry finders except anime skip rows whose `franchise_id` is null. Report ke
 
 ### Notes sections (`app/utils/note_sections.py`)
 
-Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchise`, `collection`): `remark`, `advantages`, `disadvantages`, `double_edged`, `public_reviews`, `personal_reviews`, `analysis`, `resources`, `questions`, `memes`. `quotes` is `ENTRY_OWNERS` (the nine media types only). The type-specific sections:
+Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchise`, `collection`): `remark`, `remark_list`, `advantages`, `disadvantages`, `double_edged`, `public_reviews`, `personal_reviews`, `analysis`, `resources`, `questions`, `memes`. `quotes` is `ENTRY_OWNERS` (the nine media types only). The type-specific sections:
 
 | Section key | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | series / franchise |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -285,7 +285,6 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | 劇情列表 group — `story_list_main`, `story_list_side`, `story_list_character`, `story_list_event` (`structured`, nestable) | | | | | | | | | x | |
 | 劇情 group — `character_arcs`, `lore`, `mysteries`, `story_other` (`text_links`), `timeline` (`text`) | | | | | | | | | x | |
 | 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`, personal scope) | | | | | | | | | x | |
-| `remark_list` (`text_links`, personal scope) | | | | | | | | | x | |
 | `cinematography` (`分鏡/演出/巧思`) | x | x | | x | x | x | | | | series |
 | `craft` (`巧思`) | | | | | | | x | | | |
 | `foreshadowing` | x | x | | x | x | x | x | | | both |
@@ -295,4 +294,4 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | `extended_episodes` (`加長`) | x | | | x | x | | | | | |
 | `adaptation` | x (desc required) | x (desc required) | | x | x | | x (desc required) | | | both |
 
-Movie and comic get only the shared sections. Game carries 33 of its own - `highlight_moments` and `remark_list` plus the 攻略 (4), 養成&流派 (4), 物品 (3), 圖鑑 (2), 資源&工具 (2), 劇情 (8), 劇情列表 (4) and 待辦 (4) groups - beside the shared ones. The guide used to be one card of fifteen sections; five cards, each answering one question, is what it reads as now. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, in the 資源&工具 card immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).
+Movie and comic get only the shared sections. Game carries 32 of its own - `highlight_moments` plus the 攻略 (4), 養成&流派 (4), 物品 (3), 圖鑑 (2), 資源&工具 (2), 劇情 (8), 劇情列表 (4) and 待辦 (4) groups - beside the shared ones. The guide used to be one card of fifteen sections; five cards, each answering one question, is what it reads as now. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, in the 資源&工具 card immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).

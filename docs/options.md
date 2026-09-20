@@ -239,7 +239,7 @@ media types only.
 | Key | Shape | Label | Owners | Group | Kinds / statuses |
 |---|---|---|---|---|---|
 | `remark` | text | 備註 Remark | All | | singleton |
-| `remark_list` | text_links | 備註列表 Remark List | game | | Personal scope, many rows - 備註 is the singleton block |
+| `remark_list` | text_links | 備註列表 Remark List | All | | Personal scope, many rows - 備註 is the singleton block |
 | `advantages` | text | 優點 Advantages | All | reviews | |
 | `disadvantages` | text | 缺點 Disadvantages | All | reviews | |
 | `double_edged` | text | 優缺點 | All | reviews | |
@@ -263,11 +263,11 @@ media types only.
 | `skills` | structured | 技能 Skills | game | builds | type, name, description, links |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game | builds | name, five nested lists, description, links |
 | `team_composition` | structured | 隊伍組成 Team Composition | game | builds | name, members list (name, 定位, build, notes), description, links |
-| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game | gear | type, name, variant, description, links |
-| `items` | structured | 道具 Items | game | gear | type, name, variant, description, links |
-| `collectibles` | structured | 收集物 Collectibles | game | gear | type, name, variant, description, links |
+| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game | gear | type, name, variant, description, links, collect status (default `not collected`) |
+| `items` | structured | 道具 Items | game | gear | type, name, variant, description, links, collect status (default `not collected`) |
+| `collectibles` | structured | 收集物 Collectibles | game | gear | type, name, variant, description, links, collect status (default `not collected`) |
 | `characters_guide` | structured | 角色 Characters | game | compendium | group, name, alias, description |
-| `enemies` | structured | 敵人 Enemies | game | compendium | tier, region, name, alias, description, beaten status |
+| `enemies` | structured | 敵人 Enemies | game | compendium | tier, region, name, alias, description, beaten status (default `to beat`) |
 | `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
 | `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), description, links |
 | `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |

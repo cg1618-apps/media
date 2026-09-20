@@ -1595,3 +1595,37 @@ infrastructure does not belong to any one of them.
   elimination. An ending is what the story *does*, so it reads above 世界觀&設定
   Lore, beside 未解之謎 Mysteries — and 圖鑑 is left cleanly about the cast and
   the bestiary. Its spec did not change, only its group, so no row moved.
+- **A field can declare a default, and a defaulted field never counts as
+  filling a row.** `NoteField.default` is the row-level twin of
+  `NoteSection.default_kind`, which the structured shape does not use — a
+  structured section's dropdowns are fields, so their defaults are too. Three
+  收集物/道具/武器 sections start on `not collected` and 敵人 starts on `to beat`,
+  because that is the true state of anything worth writing down at the moment
+  you write it.
+
+  The trap came with it, and `music_track` had already found it: a value that
+  is *always* set makes every row non-empty, so an untouched draft would save
+  itself as a row saying nothing. The emptiness check therefore counts only
+  the fields with no default. That is a rule about which fields count, not
+  about whether a value was touched — choosing "skip" and filling in nothing
+  else is refused too, because it is still a row with nothing to call it.
+
+  Two guards fell out of writing it down: a default must be one of its field's
+  options (otherwise the form prefills a value the validator refuses, and the
+  row cannot be saved without changing a field nobody touched), and no section
+  may default *every* field it has (one that did could never be saved at all).
+  Both are tests rather than runtime checks — they are statements about the
+  registry, not about a payload.
+- **Existing rows were NOT backfilled with a collect status.** NULL means
+  nobody has said, and "not collected" is a claim about my run that the old
+  rows cannot support — the field did not exist when they were written. This
+  is the same distinction `Game.all_endings` and its two siblings already
+  make: "Inapplicable" is a claim about the game, where NULL is only a claim
+  about the row. A new row starts on "not collected"; an old one stays silent
+  until somebody answers.
+- **備註列表 reaches every owner, like 備註.** It shipped game-only because that
+  is where the need came from, which was the wrong reason for a scope: nothing
+  about a short note is game-shaped, and the two sections are read as a pair
+  wherever 備註 appears. They share an `owners` tuple now, and a test asserts
+  that rather than listing the owners twice — so widening or narrowing one
+  moves the other with it.
