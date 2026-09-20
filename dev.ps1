@@ -2,7 +2,7 @@
 # Local dev launcher: Postgres (docker) + uvicorn (--reload) + vite frontend.
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
-$dbContainer = 'anime_site_postgres_db'
+$dbContainer = 'cg1618-dev-db'
 
 # --- Guard: a leftover backend on :8000 makes the new uvicorn die with WinError 10048,
 # --- which surfaces only as vite "ECONNREFUSED 127.0.0.1:8000" proxy errors.
@@ -40,9 +40,27 @@ if ($nativeSvc -or $nativeProc) {
     throw 'A native PostgreSQL server would shadow the container - aborting.'
 }
 
-Write-Host '==> Starting PostgreSQL (docker-compose up -d)' -ForegroundColor Cyan
-docker-compose --project-directory $root up -d
-if ($LASTEXITCODE -ne 0) { throw 'docker-compose failed - is Docker Desktop running?' }
+# --- The development database belongs to the PLATFORM, not to any app. One
+# --- server holds one database per app, and it lives in the platform's own
+# --- compose project so that `docker compose down` in an app's tree cannot
+# --- remove the server every other app is using. It used to be
+# --- anime_site_postgres_db inside media's project, which is exactly how that
+# --- happened. See the platform's docs/registry.md.
+$platformDir = Split-Path $root -Parent
+$dbCompose = Join-Path $platformDir 'docker-compose.dev-db.yml'
+if (-not (Test-Path $dbCompose)) {
+    throw "Not found: $dbCompose. This checkout is expected to sit inside the platform checkout as cg1618\<app>. If it does not, start the database yourself with the platform's .\dev-db.cmd and re-run this."
+}
+
+Write-Host "==> Starting PostgreSQL ($dbContainer)" -ForegroundColor Cyan
+# --- `up -d`, not `docker start`: it CREATES the container when it is absent,
+# --- which is the state on a fresh machine and after the platform's
+# --- dev-db.cmd -Down. `docker start` fails there with "no such container",
+# --- which reads as a broken script rather than an absent container.
+docker compose -f $dbCompose up -d | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not start $dbContainer - is Docker Desktop running, and are POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB set in the platform's .env?"
+}
 
 # --- Wait for Postgres to accept connections. app/main.py touches the DB at import
 # --- time (create_all) and uvicorn only binds :8000 after that, so starting the

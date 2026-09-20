@@ -22,7 +22,7 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 |---|---|---|
 | Project path | `C:\Users\q601513\Documents\anime_site` | `C:\Users\cgent\Documents\cg1618\media` |
 | OS | Windows 11 Pro (10.0.26200) | Windows 11 Home (10.0.26200) |
-| PostgreSQL | **docker-compose** (`postgres:17`, container `anime_site_postgres_db`, `5432:5432`, volume `postgres_anime_data`), identical on both machines. Start it with `docker-compose up -d`. | **docker-compose**, identical. Native PostgreSQL 17 and 18 are also installed here, with their services set to **Manual** start so they cannot claim 5432 ahead of the container. If the container will not bind the port, check that neither native service has been started by hand. |
+| PostgreSQL | **home:** the platform's `docker-compose.dev-db.yml` (`postgres:17`, container `cg1618-dev-db`, `127.0.0.1:5432`, volume `cg1618_dev_pgdata`). Start it with the platform's `.\dev-db.cmd`, or let any app's `dev.ps1` do it. **company:** still pre-migration — media's own `docker-compose.yml`, container `anime_site_postgres_db`, volume `postgres_anime_data`, started with `docker-compose up -d`. The two are no longer identical, and will be once company is migrated. | **docker-compose**, identical. Native PostgreSQL 17 and 18 are also installed here, with their services set to **Manual** start so they cannot claim 5432 ahead of the container. If the container will not bind the port, check that neither native service has been started by hand. |
 | Database | `anime_site_db` as `postgres` on `127.0.0.1:5432` | same — `anime_site_db` as `postgres` on `127.0.0.1:5432` |
 | Python | `venv/Scripts/python.exe` — **3.11.9** (the project targets 3.13; this machine runs 3.11) | `venv/Scripts/python.exe` — **3.13.6**, the version the project targets |
 | Node / npm | v24.18.0 / 11.16.0 | v24.14.1 / 11.11.0 |
@@ -59,10 +59,15 @@ replacement. Clone `cg1618-apps/media` into
 
 Two things that are easy to lose in a fresh clone:
 
-- **`.env` must keep `COMPOSE_PROJECT_NAME=anime_site`.** The new directory is
-  named `media`, so without the pin compose mounts a new empty volume while the
-  real database sits untouched in `anime_site_postgres_anime_data` — which looks
-  exactly like data loss. Nothing else in `.env` changes; that machine keeps
+- **`.env` keeps `COMPOSE_PROJECT_NAME=anime_site`**, but no longer for the
+  reason it used to. It was pinned because this app owned the development
+  database: the new directory is named `media`, so without the pin compose
+  mounted a new empty volume while the real data sat untouched — which looked
+  exactly like data loss. **That cannot happen any more**: the development
+  database is the platform's `docker-compose.dev-db.yml`, which pins its own
+  project and volume names, and this app has no `docker-compose.yml` at all.
+  What the variable still does is name this app's production compose project on
+  the box. Nothing else in `.env` changes; that machine keeps
   `STEAM_ENABLED=false`.
 - **`static/covers/` is not in the clone.** It is gitignored and per-machine —
   about 2,000 files, 284MB on the home machine. Copy it from the old directory,
@@ -105,7 +110,7 @@ below.
 Read it from the machine rather than from memory:
 
 ```bash
-docker exec anime_site_postgres_db psql -U postgres -d anime_site_db \
+docker exec cg1618-dev-db psql -U postgres -d anime_site_db \
   -tAc "SELECT version_num FROM alembic_version"
 ```
 
@@ -196,6 +201,12 @@ tab; Pull All overwrites every table. So:
 
 > ### One-time on the company machine: the Postgres 15 -> 17 volume
 >
+> The company machine still has the pre-migration layout, so this is written
+> in its terms: media's own `docker-compose.yml` and the
+> `anime_site_postgres_anime_data` volume. On a migrated machine both are gone
+> — the platform's `docker-compose.dev-db.yml` and `cg1618_dev_pgdata` replace
+> them — and this step is done there instead.
+>
 > `docker-compose.yml` pins `postgres:17`. **A `postgres:17` container refuses
 > to start on a `postgres_anime_data` volume holding an older data directory**
 > — the log says *"database files are incompatible with server"* and the
@@ -248,7 +259,7 @@ tab; Pull All overwrites every table. So:
    > upgrade as normal:
    >
    > ```bash
-   > docker exec anime_site_postgres_db psql -U postgres -d anime_site_db    >   -c "UPDATE alembic_version SET version_num = '4832c83905a3'"
+   > docker exec cg1618-dev-db psql -U postgres -d anime_site_db    >   -c "UPDATE alembic_version SET version_num = '4832c83905a3'"
    > alembic upgrade head
    > ```
    >
@@ -257,7 +268,7 @@ tab; Pull All overwrites every table. So:
    > `access_mode.key` uniqueness onto a unique index. **It changes no rows** —
    > verified on the home machine by comparing every table's count before and
    > after — but take a dump first anyway: `docker exec
-   > anime_site_postgres_db pg_dump -U postgres --no-owner anime_site_db >
+   > cg1618-dev-db pg_dump -U postgres --no-owner anime_site_db >
    > backups/pre-baseline.sql`. `backups/` is gitignored.
 5. **Pull All** from `/system` if the data changed on the other machine, then
    run **Calculate All** if derivations matter for what you are about to do.

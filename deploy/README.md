@@ -28,8 +28,9 @@ directory.** Compose takes its project directory from the compose file's own
 location and loads `.env` from there, so the same file under `deploy/` would
 look for `deploy/.env` and interpolate every `${...}` to an empty string —
 while `env_file:` kept working, so the app would still start, with a blank
-database password. It does not collide with `docker-compose.yml`, which is the
-development file: Compose only picks that name up by default, never this one.
+database password. Nothing auto-loads it: Compose only picks up
+`docker-compose.yml` by default, and this app no longer has one — the
+development database is the platform's `docker-compose.dev-db.yml`.
 
 ## A deploy happens by itself
 
