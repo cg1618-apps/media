@@ -168,14 +168,14 @@ Use the project venv's interpreter, not the system Python.
 
 ```bash
 # One-time: create the test database inside the postgres:17 container
-docker exec anime_site_postgres_db createdb -U postgres anime_site_test
+docker exec cg1618-dev-db createdb -U postgres anime_site_test
 
 # Working alongside another session? Give yourself your own database and
 # select it with POSTGRES_DB - tests/conftest.py uses os.environ.setdefault,
 # so the variable wins. Two suites sharing one database produce spurious
 # "relation role does not exist" and unique-constraint failures that look
 # exactly like real breakage.
-docker exec anime_site_postgres_db createdb -U postgres anime_site_test_mine
+docker exec cg1618-dev-db createdb -U postgres anime_site_test_mine
 
 # Backend, all tiers
 venv/Scripts/python -m pytest

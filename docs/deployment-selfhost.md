@@ -187,9 +187,9 @@ nothing, and interpolated every `${...}` to an empty string — while `env_file:
 kept working, so the application was configured correctly and only the database
 came up wrong. A test pins the location.
 
-It does not collide with `docker-compose.yml`, which is the development file
-running a bare PostgreSQL: Compose only auto-loads that name, so production is
-always explicit behind `-f`.
+Nothing auto-loads it: Compose only picks up `docker-compose.yml` by default,
+this app no longer has one, and production is always explicit behind `-f`. The
+development database moved to the platform's `docker-compose.dev-db.yml`.
 
 ### Migrations run on every start
 

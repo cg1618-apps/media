@@ -56,15 +56,22 @@ The app connects to `localhost:5432` with `POSTGRES_USER` / `POSTGRES_PASSWORD`
 machines, pinned to the same version the CI runner and the planned self-hosted
 deployment use. A native install is no longer part of the setup.
 
-`docker-compose.yml` defines one service, `db`, from the `postgres:17` image,
-container name `anime_site_postgres_db`, published on `5432:5432`, data in the
-`postgres_anime_data` volume. It reads `POSTGRES_USER/PASSWORD/DB` from `.env`
-and creates only that one database on first start, so you still have to create
+**The development database is not this repository's.** It is the platform's
+`docker-compose.dev-db.yml` — one service `db` from the `postgres:17` image,
+container `cg1618-dev-db`, published on `127.0.0.1:5432`, data in the
+`cg1618_dev_pgdata` volume — started with the platform's `.\dev-db.cmd`, and
+`dev.ps1` brings that project up for you.
+
+It used to be this app's `docker-compose.yml`, which meant a `docker compose
+down` here removed the database `food`, `travel` and `art` were also using.
+
+It reads `POSTGRES_USER/PASSWORD/DB` from the platform's `.env` and creates only
+the one maintenance database on first start, so you still have to create
 the test database inside the container:
 
 ```powershell
 docker-compose up -d
-docker exec anime_site_postgres_db createdb -U postgres anime_site_test
+docker exec cg1618-dev-db createdb -U postgres anime_site_test
 ```
 
 `anime_site_db` is the dev database Alembic manages. `anime_site_test` is

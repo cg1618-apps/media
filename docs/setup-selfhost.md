@@ -822,7 +822,7 @@ If Compose reports variables "not set", the `.env` is not where it looks:
 **On the dev machine**, dump the source database:
 
 ```bash
-docker exec anime_site_postgres_db pg_dump -U postgres -Fc -d anime_site_db > seed.dump
+docker exec cg1618-dev-db pg_dump -U postgres -Fc -d anime_site_db > seed.dump
 ```
 
 Copy it and the cover images across. `rsync` is better than `scp` for the
