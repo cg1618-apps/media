@@ -21,9 +21,14 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.registry import MEDIA_REGISTRY
+from app.services.domain.content_labels import attach_franchise_content_labels
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.plan_next import planned_entry_ids
-from app.services.rbac.enforcement import apply_entry_visibility, filter_visible_pairs
+from app.services.rbac.enforcement import (
+    apply_entry_visibility,
+    apply_franchise_visibility,
+    filter_visible_pairs,
+)
 from app.services.rbac.field_gate import gate
 from app.services.rbac.resolver import viewer_user_id
 from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS
@@ -232,6 +237,11 @@ def _run(
     query = db.query(spec.model)
     if spec.owner_type is not None:
         query = apply_entry_visibility(query, spec.model, spec.owner_type, db, viewer)
+    elif spec.model is models.Franchise:
+        # A grouping tier holds no media_type permission, so it is not an
+        # `owner_type` - but a franchise can carry content labels of its own,
+        # and one that does must not surface in a search either.
+        query = apply_franchise_visibility(query, db, viewer)
     sort_column = getattr(spec.model, spec.sort_field)
     if spec.sort_fallbacks:
         sort_column = func.coalesce(
@@ -305,6 +315,10 @@ def _decorate(db: Session, viewer, spec: SearchableType, entries: list):
         _attach_credit_counts(db, viewer, spec, entries)
         return entries
     if spec.owner_type is None:
+        if spec.model is models.Franchise:
+            # FranchiseResponse carries content_labels, and an unattached []
+            # would read as "no labels" rather than "not loaded".
+            attach_franchise_content_labels(db, entries)
         return entries
     user_id = viewer_user_id(viewer)
     for field, kind in PLAN_FLAG_FIELDS.get(spec.owner_type, ()):

@@ -18,7 +18,11 @@ from app.models.cartoon import Cartoon
 from app.models.character import Character, CharacterCasting
 from app.models.collection import Collection
 from app.models.comic import Comic
-from app.models.content_label import ContentLabel, MediaContentLabel
+from app.models.content_label import (
+    ContentLabel,
+    FranchiseContentLabel,
+    MediaContentLabel,
+)
 from app.models.franchise import Franchise, Series
 from app.models.game import Game
 from app.models.game_copy import GameCopy
@@ -111,6 +115,7 @@ __all__ = [
     "SystemConfigs",
     "Seasonal",
     "ContentLabel",
+    "FranchiseContentLabel",
     "MediaContentLabel",
     "AccessMode",
     "AccessModeLabel",

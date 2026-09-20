@@ -37,7 +37,10 @@ import { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
 import { attachUploadedImage } from "../../components/forms/ImagePicker";
 import { endpoints } from "../../api/endpoints";
 import ContentLabelPicker, {
+  FRANCHISE_SCOPE_NOTE,
+  LABELLABLE_TABS,
   saveEntryLabels,
+  saveFranchiseLabels,
 } from "../../components/forms/ContentLabelPicker";
 import { fetchJson, jsonBody } from "../../api/client";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
@@ -931,6 +934,17 @@ export default function Add() {
           created.franchise_name_en ||
           "New Franchise",
       );
+      try {
+        await saveFranchiseLabels(created.system_id, contentLabels);
+      } catch {
+        // The franchise saved; only its visibility did not. Say so rather
+        // than letting the admin believe a franchise is restricted when it
+        // and everything under it is not.
+        showToast(
+          "error",
+          "Franchise saved, but its content labels failed to save.",
+        );
+      }
       setFf(freshForm("franchise"));
       setContentLabels([]);
       setAllFranchises((prev) => [...prev, created]);
@@ -3085,12 +3099,19 @@ export default function Add() {
           <CharacterAddTab characterForm={characterForm} ucf={ucf} />
         )}
 
-        {/* Content labels - one control for every media tab. */}
-        {["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"].includes(activeTab) && (
+        {/* Content labels - one control for every media tab, and for the
+            franchise tab, whose labels cascade to the entries under it.
+            "game" belongs here: submitGame writes labels like every other
+            type, and leaving the tab out of this list meant a game could
+            never be labelled on the way in. */}
+        {LABELLABLE_TABS.includes(activeTab) && (
           <div className="mt-6">
             <ContentLabelPicker
               value={contentLabels}
               onChange={setContentLabels}
+              scopeNote={
+                activeTab === "franchise" ? FRANCHISE_SCOPE_NOTE : undefined
+              }
             />
           </div>
         )}

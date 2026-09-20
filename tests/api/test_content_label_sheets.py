@@ -39,6 +39,13 @@ MEDIA_LABEL_HEADERS = [
     "position",
     "created_at",
 ]
+FRANCHISE_LABEL_HEADERS = [
+    "system_id",
+    "franchise_id",
+    "label_id",
+    "position",
+    "created_at",
+]
 
 
 @pytest.fixture
@@ -54,9 +61,10 @@ def sheets(monkeypatch):
 # --- Registry --------------------------------------------------------------
 
 
-def test_both_tables_have_a_tab():
+def test_every_table_has_a_tab():
     assert "Content Label" in TAB_NAMES
     assert "Media Content Label" in TAB_NAMES
+    assert "Franchise Content Label" in TAB_NAMES
 
 
 def test_the_link_tab_restores_after_its_label_and_after_the_entries():
@@ -65,6 +73,17 @@ def test_the_link_tab_restores_after_its_label_and_after_the_entries():
     assert TAB_NAMES.index("Content Label") < TAB_NAMES.index("Media Content Label")
     assert TAB_NAMES.index("Anime") < TAB_NAMES.index("Media Content Label")
     assert TAB_NAMES.index("Comic") < TAB_NAMES.index("Media Content Label")
+
+
+def test_the_franchise_link_tab_restores_after_its_label_and_its_franchise():
+    # franchise_content_label.franchise_id is a real FK, so the Franchise tab
+    # has to have landed first; label_id is translated through Content Label.
+    assert TAB_NAMES.index("Content Label") < TAB_NAMES.index(
+        "Franchise Content Label"
+    )
+    assert TAB_NAMES.index("Franchise") < TAB_NAMES.index(
+        "Franchise Content Label"
+    )
 
 
 # --- Content Label ---------------------------------------------------------
@@ -262,3 +281,118 @@ def test_a_labelling_whose_label_is_unknown_is_skipped_not_fatal(db_session, she
     rows = db_session.query(models.MediaContentLabel).all()
     assert len(rows) == 1
     assert rows[0].label_id == local_label.system_id
+
+
+# --- Franchise Content Label -----------------------------------------------
+
+
+def test_a_franchise_labelling_translates_the_foreign_label_uuid(
+    db_session, sheets
+):
+    """
+    Same hazard as the media tab, one tier up. The sheet spells label_id the
+    way the OTHER database mints it; stored untranslated it is a dangling FK,
+    the violation at commit rolls the whole tab back, and every franchise-level
+    restriction is lost - which for this table means every entry under those
+    franchises becomes visible too.
+    """
+    local_label = models.ContentLabel(
+        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
+    )
+    franchise = models.Franchise(
+        system_id=uuid.uuid4(), franchise_name_cn="測試系列"
+    )
+    db_session.add_all([local_label, franchise])
+    db_session.flush()
+
+    foreign_label_uuid = str(uuid.uuid4())
+    sheets(
+        {
+            "Content Label": [
+                LABEL_HEADERS,
+                [foreign_label_uuid, "nsfw", "NSFW", "", "0", "", ""],
+            ],
+            "Franchise Content Label": [
+                FRANCHISE_LABEL_HEADERS,
+                [
+                    str(uuid.uuid4()),
+                    str(franchise.system_id),
+                    foreign_label_uuid,
+                    "0",
+                    "",
+                ],
+            ],
+        }
+    )
+
+    result = pull.execute_pull_specific(
+        db_session,
+        "Franchise Content Label",
+        log_action=False,
+        may_restore_authz=True,
+    )
+
+    assert result["status"] == "success"
+    rows = db_session.query(models.FranchiseContentLabel).all()
+    assert len(rows) == 1
+    assert rows[0].label_id == local_label.system_id
+    assert rows[0].franchise_id == franchise.system_id
+
+
+def test_the_same_franchise_labelling_under_a_foreign_row_uuid_updates(
+    db_session, sheets
+):
+    """
+    uq_franchise_content_label_row is (franchise_id, label_id). A sheet row
+    carrying an unknown system_id for a labelling this database already holds
+    must update it, not insert a duplicate that collides.
+    """
+    local_label = models.ContentLabel(
+        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
+    )
+    franchise = models.Franchise(
+        system_id=uuid.uuid4(), franchise_name_cn="測試系列二"
+    )
+    db_session.add_all([local_label, franchise])
+    db_session.flush()
+    existing = models.FranchiseContentLabel(
+        system_id=uuid.uuid4(),
+        franchise_id=franchise.system_id,
+        label_id=local_label.system_id,
+        position=0,
+    )
+    db_session.add(existing)
+    db_session.flush()
+    existing_id = existing.system_id
+
+    sheets(
+        {
+            "Content Label": [
+                LABEL_HEADERS,
+                [str(local_label.system_id), "nsfw", "NSFW", "", "0", "", ""],
+            ],
+            "Franchise Content Label": [
+                FRANCHISE_LABEL_HEADERS,
+                [
+                    str(uuid.uuid4()),
+                    str(franchise.system_id),
+                    str(local_label.system_id),
+                    "2",
+                    "",
+                ],
+            ],
+        }
+    )
+
+    result = pull.execute_pull_specific(
+        db_session,
+        "Franchise Content Label",
+        log_action=False,
+        may_restore_authz=True,
+    )
+
+    assert result["status"] == "success"
+    rows = db_session.query(models.FranchiseContentLabel).all()
+    assert len(rows) == 1
+    assert rows[0].system_id == existing_id
+    assert rows[0].position == 2

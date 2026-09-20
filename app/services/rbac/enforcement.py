@@ -6,8 +6,15 @@ wire one and forget the other:
 
   media type  the viewer holds media_type.<key>, or the whole type disappears
               - the ROLE axis, so is_root still reaches it through has()
-  labels      the entry carries no label the viewer's ACTIVE MODE lacks
-              - the OBJECT axis, which is_root cannot reach at all
+  labels      neither the entry NOR ITS FRANCHISE carries a label the viewer's
+              ACTIVE MODE lacks - the OBJECT axis, which is_root cannot reach
+              at all
+
+The franchise half is a read-time cascade, not stored: an entry carries no
+copy of its franchise's labels, so moving it between franchises changes what
+hides it at once, and un-labelling a franchise reveals everything it covered.
+Every gate below therefore asks the SAME question in two places, which is why
+_hidden_by_label() exists rather than each one spelling the anti-join out.
 
 require_visible_media is the write-side front door to the same two gates: it
 resolves an entry id to its own media type before asking, because a
@@ -54,17 +61,84 @@ def hidden_label_ids(db: Session, viewer: Viewer) -> list[UUID]:
     ]
 
 
-def _label_anti_join(model, hidden: list[UUID]):
+def _hidden_by_label(entry_id_column, hidden: list[UUID]):
     """
-    No media_type test: media_content_label.media_id is a media.system_id,
-    which is unique across all nine media tables, so matching the entry's own
-    system_id already pins the type.
+    The condition "this entry id carries a hidden label, directly or through
+    its franchise", for any expression naming a media.system_id.
+
+    No media_type test on the direct half: media_content_label.media_id is a
+    media.system_id, which is unique across all nine media tables, so matching
+    the entry's own system_id already pins the type.
+
+    The franchise half goes through the `media` supertable because
+    media.franchise_id is the only place an entry's franchise is recorded -
+    the nine detail tables do not carry one. So this correlates on the entry
+    id whatever table the caller is selecting from, which is what lets one
+    helper serve the detail tables, the supertable and the pair filter alike.
     """
-    return ~sa.exists().where(
+    direct = sa.exists().where(
         sa.and_(
-            models.MediaContentLabel.media_id == model.system_id,
+            models.MediaContentLabel.media_id == entry_id_column,
             models.MediaContentLabel.label_id.in_(hidden),
         )
+    )
+    through_franchise = sa.exists().where(
+        sa.and_(
+            models.Media.system_id == entry_id_column,
+            models.Media.franchise_id
+            == models.FranchiseContentLabel.franchise_id,
+            models.FranchiseContentLabel.label_id.in_(hidden),
+        )
+    )
+    return sa.or_(direct, through_franchise)
+
+
+def _franchise_hidden(franchise_id_column, hidden: list[UUID]):
+    """The condition "this franchise carries a hidden label"."""
+    return sa.exists().where(
+        sa.and_(
+            models.FranchiseContentLabel.franchise_id == franchise_id_column,
+            models.FranchiseContentLabel.label_id.in_(hidden),
+        )
+    )
+
+
+def apply_franchise_visibility(query: Query, db: Session, viewer):
+    """
+    Narrow a `models.Franchise` query to the franchises `viewer` may see.
+
+    There is no media-type half here: a franchise has no type of its own, and
+    one may hold entries of several. The label gate is the whole of it.
+    """
+    if viewer is None:
+        return query
+    hidden = hidden_label_ids(db, viewer)
+    if not hidden:
+        return query
+    return query.filter(
+        ~_franchise_hidden(models.Franchise.system_id, hidden)
+    )
+
+
+def franchise_visible(db: Session, viewer, franchise_id) -> bool:
+    """
+    Whether one franchise may be seen. Callers 404 rather than 403 on False,
+    in the words they already use for missing - a hidden franchise must be
+    indistinguishable from one that was never there.
+    """
+    if viewer is None or franchise_id is None:
+        return True
+    hidden = hidden_label_ids(db, viewer)
+    if not hidden:
+        return True
+    return (
+        db.query(models.FranchiseContentLabel.system_id)
+        .filter(
+            models.FranchiseContentLabel.franchise_id == franchise_id,
+            models.FranchiseContentLabel.label_id.in_(hidden),
+        )
+        .first()
+        is None
     )
 
 
@@ -82,7 +156,7 @@ def apply_entry_visibility(
     hidden = hidden_label_ids(db, viewer)
     if not hidden:
         return query
-    return query.filter(_label_anti_join(model, hidden))
+    return query.filter(~_hidden_by_label(model.system_id, hidden))
 
 
 def apply_media_visibility(query: Query, db: Session, viewer: Optional[Viewer]):
@@ -113,14 +187,7 @@ def apply_media_visibility(query: Query, db: Session, viewer: Optional[Viewer]):
     hidden = hidden_label_ids(db, viewer)
     if not hidden:
         return query
-    return query.filter(
-        ~sa.exists().where(
-            sa.and_(
-                models.MediaContentLabel.media_id == models.Media.system_id,
-                models.MediaContentLabel.label_id.in_(hidden),
-            )
-        )
-    )
+    return query.filter(~_hidden_by_label(models.Media.system_id, hidden))
 
 
 def entry_visible(
@@ -139,10 +206,10 @@ def entry_visible(
     if not hidden:
         return True
     return (
-        db.query(models.MediaContentLabel.system_id)
+        db.query(models.Media.system_id)
         .filter(
-            models.MediaContentLabel.media_id == entry_id,
-            models.MediaContentLabel.label_id.in_(hidden),
+            models.Media.system_id == entry_id,
+            _hidden_by_label(models.Media.system_id, hidden),
         )
         .first()
         is None
@@ -233,12 +300,14 @@ def filter_visible_pairs(
         return allowed
 
     # One id column, not a tuple: media_id is unique across the nine media
-    # tables, so a pair is hidden exactly when its id carries a hidden label.
+    # tables, so a pair is hidden exactly when its id carries a hidden label -
+    # its own, or its franchise's.
+    candidate_ids = [entry_id for _, entry_id in allowed]
     hidden_ids = {
-        media_id
-        for (media_id,) in db.query(models.MediaContentLabel.media_id).filter(
-            models.MediaContentLabel.label_id.in_(hidden),
-            models.MediaContentLabel.media_id.in_([eid for _, eid in allowed]),
+        system_id
+        for (system_id,) in db.query(models.Media.system_id).filter(
+            models.Media.system_id.in_(candidate_ids),
+            _hidden_by_label(models.Media.system_id, hidden),
         )
     }
     return {pair for pair in allowed if pair[1] not in hidden_ids}

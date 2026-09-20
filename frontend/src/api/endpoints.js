@@ -100,6 +100,8 @@ export const endpoints = {
     remove: (id) => `/api/content-labels/${id}`,
     forEntry: (mediaType, entryId) =>
       `/api/content-labels/entry/${mediaType}/${entryId}`,
+    forFranchise: (franchiseId) =>
+      `/api/content-labels/franchise/${franchiseId}`,
   },
 
   seasonal: {

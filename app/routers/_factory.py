@@ -25,6 +25,7 @@ from app.services.domain import (
     pop_remark,
     upsert_remark,
 )
+from app.services.domain.content_labels import attach_content_labels
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.game_copies import attach_own_copies
 from app.services.domain.plan_next import (
@@ -141,6 +142,11 @@ def make_media_router(spec) -> APIRouter:
         attach_plan_flag(db, spec.owner_type, entry, user_id=viewer_user_id(viewer))
         attach_link_fields(db, spec.owner_type, entry)
         attach_sources(db, spec.owner_type, entry, viewer)
+        # What restricts this entry, shown rather than enforced - the
+        # enforcing is done in SQL before we get here, by
+        # services.rbac.enforcement, so anything attached now is already
+        # something this session may see.
+        attach_content_labels(db, entry)
         # A game copy is a purchase record, so the relationship holds every
         # account's rows and the response must not. No-op for every other type.
         attach_own_copies(db, spec.owner_type, entry, user_id)
@@ -249,6 +255,8 @@ def make_media_router(spec) -> APIRouter:
                 setattr(entry, field, entry.system_id in planned)
         attach_link_fields(db, spec.owner_type, entries)
         attach_sources(db, spec.owner_type, entries, viewer)
+        # One query for the page, as above.
+        attach_content_labels(db, entries)
         # One IN query for the whole page, not one per entry.
         attach_list_fields(db, spec.owner_type, entries, user_id)
         attach_unit_ratings(db, spec.owner_type, entries, user_id)

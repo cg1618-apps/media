@@ -35,6 +35,7 @@ import { useMediaList } from "../../hooks/useMediaList";
 import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
+import ContentLabelChips from "../../components/info/ContentLabelChips";
 
 const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -489,6 +490,11 @@ export default function Novel() {
                 {titleSub}
               </h2>
             )}
+            {/* What restricts this entry, if anything. Its franchise's
+                own labels are shown on the franchise, where they can be
+                changed. */}
+            <ContentLabelChips labels={novel.content_labels} className="mb-6" />
+
 
             {/* Franchise / Series lineage */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm mb-8 pt-3 border-t border-border">

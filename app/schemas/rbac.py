@@ -330,7 +330,29 @@ class ContentLabelResponse(ContentLabelBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ContentLabelRef(BaseModel):
+    """
+    One label as it is SHOWN on a detail page, rather than administered.
+
+    Carries no sort_order and no system_id: the page renders a chip from the
+    display name and needs the key only to look the label up. Kept separate
+    from ContentLabelResponse so that widening the admin payload does not
+    widen what every public entry response carries.
+    """
+
+    key: str
+    label: str
+    description: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class EntryLabels(BaseModel):
-    """The whole set for one entry, replaced at once - as credits.py does."""
+    """
+    The whole set for one owner, replaced at once - as credits.py does.
+
+    Serves a media entry and a franchise alike: both PUT the same body, and
+    the two write paths differ only in which join table they rewrite.
+    """
 
     label_keys: List[str]

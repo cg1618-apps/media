@@ -58,6 +58,12 @@ from app.services.domain.completion import (
     mark_tv_catalog,
     mark_tv_list,
 )
+from app.services.domain.content_labels import (
+    attach_content_labels,
+    attach_franchise_content_labels,
+    label_keys_for_entry,
+    label_keys_for_franchise,
+)
 from app.services.domain.derivation import (
     apply_calculate_seasonal_from_month,
     apply_extract_comicvine_id,
@@ -230,7 +236,11 @@ __all__ = [
     "apply_list_completion_timestamp",
     "find_all_remarks",
     "REMARK_SECTION",
+    "attach_content_labels",
+    "attach_franchise_content_labels",
     "attach_remark",
+    "label_keys_for_entry",
+    "label_keys_for_franchise",
     "pop_remark",
     "upsert_remark",
     "find_duplicate_franchises",

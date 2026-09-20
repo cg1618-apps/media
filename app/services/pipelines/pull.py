@@ -185,6 +185,13 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "media_id",
         "label_id",
     ),  # uq_media_content_label_row
+    # Same shape again, one tier up: franchise ids are the same in every
+    # database and label_id has already been translated to a local uuid by the
+    # parent translation below.
+    "Franchise Content Label": (
+        "franchise_id",
+        "label_id",
+    ),  # uq_franchise_content_label_row
     # Its system_id is minted per database and the sheet carries a natural key
     # instead; resolve_user_media_list_key turns that into these two ids before
     # the match runs.
@@ -209,6 +216,7 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
     "Person Role": ("person_id", "Person"),
     "Publisher Scope": ("publisher_id", "Publisher"),
     "Media Content Label": ("label_id", "Content Label"),
+    "Franchise Content Label": ("label_id", "Content Label"),
 }
 
 # Tabs whose PRIMARY KEY is itself minted per database and must be ignored as

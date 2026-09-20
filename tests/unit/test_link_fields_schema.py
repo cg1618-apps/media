@@ -43,10 +43,16 @@ CREATE_SCHEMAS = {
 # credit_roles/tag_fields entry of their own - so the drift test below must
 # not expect them from `legacy_link_fields`. `studio_refs` and `credit_refs`
 # repeat credits the sheet columns already carry, as linkable objects rather
-# than joined strings; `sources` is unrelated to credits/tags entirely - it is
-# attached by services.domain.sources.attach_sources, see SourceFields in
-# app/schemas/link_fields.py.
-NON_SHEET_FIELDS = {"studio_refs", "publisher_refs", "credit_refs", "sources"}
+# than joined strings; `sources` and `content_labels` are unrelated to
+# credits/tags entirely - both are attached at read time from another table,
+# see AttachedFields in app/schemas/link_fields.py.
+NON_SHEET_FIELDS = {
+    "studio_refs",
+    "publisher_refs",
+    "credit_refs",
+    "sources",
+    "content_labels",
+}
 
 
 @pytest.mark.parametrize("media_type", sorted(LINK_FIELD_MIXINS))
