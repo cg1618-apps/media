@@ -297,5 +297,9 @@ fetching, Tailwind v4 with semantic colour tokens, `@xyflow/react` for the
 relation graph). Pages call `/api/...` with native `fetch` through
 `src/api/endpoints.js`; auth state comes from the `me` endpoint
 (`contexts/AuthContext`). Vite proxies `/api` and `/static` to :8000 in dev
-and builds to `frontend_dist/` for uvicorn. Page and component detail:
+and builds to `frontend_dist/` for uvicorn. Files in `frontend/public/`
+(the site favicons) are copied unchanged to the root of `frontend_dist/`
+by Vite's default `publicDir`, so the SPA catch-all above serves them as
+real files rather than falling through to `index.html`. Page and component
+detail:
 `frontend/pages.md`, `frontend/components.md`, `frontend/admin-pages.md`.
