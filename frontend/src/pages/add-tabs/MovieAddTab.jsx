@@ -33,6 +33,7 @@ export default function MovieAddTab({
   setMovieFillOpen,
   movieFillRef,
   movieFillResults,
+  movieFillLoading,
   applyMovieAutofill,
   allFranchises,
   seriesItemsForMovie,
@@ -52,7 +53,8 @@ export default function MovieAddTab({
               setMovieFillOpen(true);
             }}
             onFocus={() => setMovieFillOpen(true)}
-            placeholder="Auto-fill from existing entry — type a name to search..."
+            disabled={movieFillLoading}
+          placeholder="Auto-fill from existing entry — type a name to search..."
             className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
             autoComplete="off"
           />
@@ -69,6 +71,12 @@ export default function MovieAddTab({
             </button>
           )}
         </div>
+        {movieFillOpen && movieFillLoading && (
+          <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg px-4 py-2.5 text-sm text-text-faint flex items-center gap-2">
+            <i className="fas fa-spinner fa-spin"></i>
+            Loading entries to search from…
+          </div>
+        )}
         {movieFillOpen && movieFillResults.length > 0 && (
           <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto">
             {movieFillResults.map((m) => {

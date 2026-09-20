@@ -15,10 +15,10 @@ elsewhere.
 
 | Location | Files | Test functions | Needs |
 |---|---|---|---|
-| `tests/unit/` | 94 | 1043 | Python only, no database, no network |
-| `tests/api/` | 126 | 1301 | PostgreSQL database `anime_site_test` |
+| `tests/unit/` | 118 | 1360 | Python only, no database, no network |
+| `tests/api/` | 215 | 1975 | PostgreSQL database `anime_site_test` |
 | `tests/services/` | 0 (only `__init__.py`) | 0 | placeholder, never populated |
-| `frontend/src/**/*.test.{js,jsx}` | 103 | 852 `it`/`test` blocks | Node + jsdom |
+| `frontend/src/**/*.test.{js,jsx}` | 132 | 1089 `it`/`test` blocks | Node + jsdom |
 
 Counts were taken with `grep -E '^\s*(async )?def test_'` on the Python files
 and `grep -E '^\s*(it|test)\('` on the frontend files, so parametrised cases
@@ -363,6 +363,27 @@ Two things generalise from it:
   `git show --stat` confirmed the mode changes were not in it. When a check and
   its delivery mechanism can fail independently, a green check is evidence about
   the check only.
+
+## A green count test still needs to count the right things
+
+`tests/api/test_credit_counts_are_batched.py` guards an N+1 by asserting the
+number of queries a list endpoint issues does not grow with the number of rows.
+Two things make that kind of test worth writing carefully.
+
+- **Assert the count, not just the numbers.** An N+1 returns exactly the right
+  `credit_count` for every row; it is only slow. A test that checks the values
+  passes just as happily with the regression back in place, which is why the
+  file asserts both and says so.
+- **Do not count the harness.** The suite runs each test in a nested
+  transaction, and its `SAVEPOINT` / `RELEASE` statements go through the same
+  `before_cursor_execute` hook the counter listens on. Worse, the harness emits
+  one *more* of them once the test has committed between two measurements — so
+  the first version of this test failed 9 against 8 on its own scaffolding
+  while the endpoint's real query count was flat. The counter filters
+  transaction-control statements out.
+
+Prove such a test bites before trusting it: stash the fix, run it, and check
+it fails by a margin that grows (here 24 against 12 rather than 9 against 8).
 
 ## The theme token guard
 

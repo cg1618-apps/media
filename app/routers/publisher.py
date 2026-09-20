@@ -16,11 +16,11 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.domain.credits import find_publisher
+from app.services.domain.credits import credit_counts, find_publisher
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
@@ -34,21 +34,20 @@ router = APIRouter(prefix="/api/publisher", tags=["Publisher Management"])
 
 
 def _to_response(
-    db: Session, publisher: models.Publisher, viewer=None
+    db: Session,
+    publisher: models.Publisher,
+    viewer=None,
+    credit_count: Optional[int] = None,
 ) -> schemas.PublisherResponse:
-    credit_rows = (
-        db.query(models.Media.media_type, models.MediaCredit.media_id)
-        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
-        .filter(models.MediaCredit.publisher_id == publisher.system_id)
-        .all()
-    )
     # Count only credits on entries the viewer may see. A number is a smaller
     # leak than a title, but "published 3 things, you can see 2" is still one.
-    credit_count = len(
-        filter_visible_pairs(
-            db, viewer, [(mt, eid) for mt, eid in credit_rows if mt and eid]
-        )
-    )
+    #
+    # `credit_count` is passed in by the list route, which resolves the whole
+    # page in one pass; a single-entity route leaves it None and pays for one.
+    if credit_count is None:
+        credit_count = credit_counts(
+            db, viewer, [publisher.system_id], models.MediaCredit.publisher_id
+        ).get(publisher.system_id, 0)
     return schemas.PublisherResponse(
         system_id=publisher.system_id,
         public_id=publisher.public_id,
@@ -91,14 +90,28 @@ def get_all_publishers(
     everything, including publishers holding no scope at all - the admin list
     page must be able to see a publisher in order to give it one.
     """
-    query = db.query(models.Publisher)
+    # scopes is read by _to_response for every row, so it is preloaded rather
+    # than lazy-loaded per publisher - the same N+1 credit_counts exists to
+    # remove, one relationship over.
+    query = db.query(models.Publisher).options(
+        selectinload(models.Publisher.scopes)
+    )
     if scope:
         query = query.join(models.PublisherScope).filter(
             models.PublisherScope.scope == scope
         )
     publishers = query.all()
     publishers.sort(key=lambda p: p.display_name.casefold())
-    return [_to_response(db, publisher, viewer) for publisher in publishers]
+    counts = credit_counts(
+        db,
+        viewer,
+        [publisher.system_id for publisher in publishers],
+        models.MediaCredit.publisher_id,
+    )
+    return [
+        _to_response(db, publisher, viewer, counts.get(publisher.system_id, 0))
+        for publisher in publishers
+    ]
 
 
 @router.get(
