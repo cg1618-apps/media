@@ -42,8 +42,9 @@ class TMDbRateLimiter:
             sleep_time = self.time_window - (now - self.request_timestamps[0])
             if sleep_time > 0:
                 logger.info(
-                    f"TMDB Rate Limiter: Maximum requests ({self.max_requests}) reached. "
-                    f"Pausing for {sleep_time:.2f} seconds."
+                    "TMDB Rate Limiter: Maximum requests (%s) reached. Pausing for %.2f seconds.",
+                    self.max_requests,
+                    sleep_time,
                 )
                 time.sleep(sleep_time)
 
@@ -77,17 +78,15 @@ def _find_tmdb_id(imdb_tt_id: str, api_key: str) -> Optional[Tuple[int, str]]:
     response = requests.get(url, params=params, timeout=15)
 
     if response.status_code == 429:
-        logger.warning(f"TMDB Rate Limit (429) on Find for {imdb_tt_id}.")
+        logger.warning("TMDB Rate Limit (429) on Find for %s.", imdb_tt_id)
         raise RateLimitExceeded("429 Too Many Requests")
 
     if response.status_code == 404:
-        logger.warning(f"TMDB Find: No results for IMDb ID {imdb_tt_id}.")
+        logger.warning("TMDB Find: No results for IMDb ID %s.", imdb_tt_id)
         return None
 
     if response.status_code >= 500:
-        logger.warning(
-            f"TMDB server error ({response.status_code}) on Find for {imdb_tt_id}."
-        )
+        logger.warning("TMDB server error (%s) on Find for %s.", response.status_code, imdb_tt_id)
         return None
 
     response.raise_for_status()
@@ -101,7 +100,7 @@ def _find_tmdb_id(imdb_tt_id: str, api_key: str) -> Optional[Tuple[int, str]]:
     if tv_results:
         return tv_results[0]["id"], "tv"
 
-    logger.warning(f"TMDB Find: No movie or TV results for IMDb ID {imdb_tt_id}.")
+    logger.warning("TMDB Find: No movie or TV results for IMDb ID %s.", imdb_tt_id)
     return None
 
 
@@ -116,16 +115,18 @@ def _fetch_movie_details(tmdb_id: int, api_key: str) -> Optional[Dict[str, Any]]
     response = requests.get(url, params=params, timeout=15)
 
     if response.status_code == 429:
-        logger.warning(f"TMDB Rate Limit (429) on movie details for TMDB ID {tmdb_id}.")
+        logger.warning("TMDB Rate Limit (429) on movie details for TMDB ID %s.", tmdb_id)
         raise RateLimitExceeded("429 Too Many Requests")
 
     if response.status_code == 404:
-        logger.warning(f"TMDB: Movie {tmdb_id} not found.")
+        logger.warning("TMDB: Movie %s not found.", tmdb_id)
         return None
 
     if response.status_code >= 500:
         logger.warning(
-            f"TMDB server error ({response.status_code}) on movie details for {tmdb_id}."
+            "TMDB server error (%s) on movie details for %s.",
+            response.status_code,
+            tmdb_id,
         )
         return None
 
@@ -144,16 +145,18 @@ def _fetch_tv_details(tmdb_id: int, api_key: str) -> Optional[Dict[str, Any]]:
     response = requests.get(url, params=params, timeout=15)
 
     if response.status_code == 429:
-        logger.warning(f"TMDB Rate Limit (429) on TV details for TMDB ID {tmdb_id}.")
+        logger.warning("TMDB Rate Limit (429) on TV details for TMDB ID %s.", tmdb_id)
         raise RateLimitExceeded("429 Too Many Requests")
 
     if response.status_code == 404:
-        logger.warning(f"TMDB: TV show {tmdb_id} not found.")
+        logger.warning("TMDB: TV show %s not found.", tmdb_id)
         return None
 
     if response.status_code >= 500:
         logger.warning(
-            f"TMDB server error ({response.status_code}) on TV details for {tmdb_id}."
+            "TMDB server error (%s) on TV details for %s.",
+            response.status_code,
+            tmdb_id,
         )
         return None
 
@@ -189,17 +192,22 @@ def fetch_tmdb_tv_season_data(
 
     if response.status_code == 429:
         logger.warning(
-            f"TMDB Rate Limit (429) on season details for TMDB ID {tmdb_id} S{season_number}."
+            "TMDB Rate Limit (429) on season details for TMDB ID %s S%s.",
+            tmdb_id,
+            season_number,
         )
         raise RateLimitExceeded("429 Too Many Requests")
 
     if response.status_code == 404:
-        logger.warning(f"TMDB: Season {season_number} not found for TV show {tmdb_id}.")
+        logger.warning("TMDB: Season %s not found for TV show %s.", season_number, tmdb_id)
         return None
 
     if response.status_code >= 500:
         logger.warning(
-            f"TMDB server error ({response.status_code}) on season details for {tmdb_id} S{season_number}."
+            "TMDB server error (%s) on season details for %s S%s.",
+            response.status_code,
+            tmdb_id,
+            season_number,
         )
         return None
 

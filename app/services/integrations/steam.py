@@ -87,7 +87,7 @@ class SteamStoreRateLimiter:
             if sleep_time <= 0:
                 break
 
-            logger.info(f"Steam Rate Limiter: pausing for {sleep_time:.2f} seconds.")
+            logger.info("Steam Rate Limiter: pausing for %.2f seconds.", sleep_time)
             time.sleep(sleep_time)
 
         self.request_timestamps.append(time.time())
@@ -145,16 +145,18 @@ def _store_request(path: str, params: Dict[str, Any], context: str) -> Optional[
         response = requests.get(f"{STORE_BASE_URL}/{path}", params=params, timeout=15)
 
         if response.status_code == 404:
-            logger.warning(f"Steam has no such resource (404) for {context}.")
+            logger.warning("Steam has no such resource (404) for %s.", context)
             return None
 
         if response.status_code == 429:
-            logger.warning(f"Steam rate limit (429) for {context}.")
+            logger.warning("Steam rate limit (429) for %s.", context)
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code >= 500:
             logger.warning(
-                f"Steam server error ({response.status_code}) for {context} — skipping retries."
+                "Steam server error (%s) for %s — skipping retries.",
+                response.status_code,
+                context,
             )
             return None
 
@@ -163,7 +165,7 @@ def _store_request(path: str, params: Dict[str, Any], context: str) -> Optional[
         return response.json()
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Network/Timeout Error connecting to Steam for {context}: {e}")
+        logger.error("Network/Timeout Error connecting to Steam for %s: %s", context, e)
         raise
 
 
@@ -199,8 +201,9 @@ def _web_request(path: str, params: Dict[str, Any], context: str) -> Optional[An
 
         if response.status_code in (401, 403):
             logger.warning(
-                f"Steam refused the Web API request for {context} "
-                f"({response.status_code}) — check the key and that the profile is public."
+                "Steam refused the Web API request for %s (%s) — check the key and that the profile is public.",
+                context,
+                response.status_code,
             )
             return None
 
@@ -212,13 +215,13 @@ def _web_request(path: str, params: Dict[str, Any], context: str) -> Optional[An
             # beginning 7656119, the number in a /profiles/ URL - not the
             # vanity name from a /id/ URL and not a display name.
             logger.warning(
-                f"Steam rejected the Web API request for {context} (400). "
-                f"STEAM_ID is probably not a 64-bit steamid."
+                "Steam rejected the Web API request for %s (400). STEAM_ID is probably not a 64-bit steamid.",
+                context,
             )
             return None
 
         if response.status_code >= 500:
-            logger.warning(f"Steam Web API server error for {context}.")
+            logger.warning("Steam Web API server error for %s.", context)
             return None
 
         response.raise_for_status()
@@ -226,7 +229,7 @@ def _web_request(path: str, params: Dict[str, Any], context: str) -> Optional[An
         return response.json()
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Network/Timeout Error connecting to the Steam Web API: {e}")
+        logger.error("Network/Timeout Error connecting to the Steam Web API: %s", e)
         raise
 
 
@@ -257,7 +260,7 @@ def fetch_steam_appdetails(appid: int, cc: str = "us") -> Optional[Dict[str, Any
 
     entry = payload.get(str(appid)) or {}
     if not entry.get("success"):
-        logger.info(f"Steam has no storefront record for app {appid} in {cc}.")
+        logger.info("Steam has no storefront record for app %s in %s.", appid, cc)
         return None
 
     return entry.get("data")

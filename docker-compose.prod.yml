@@ -55,6 +55,21 @@ services:
         # with both files looking correct on their own.
         aliases:
           - media-app
+    logging:
+      # The daemon's default json-file driver keeps every line for ever, so a
+      # long-running container's log is a disk leak that only shows up as a
+      # full disk. 10 MB x 5 files is ~50 MB per container, which is far more
+      # than the collector needs - it tails these files and keeps its own
+      # copy, so what is left here is only the window a `docker logs` reaches
+      # when the collector itself is the thing that is down.
+      #
+      # The platform sets the same values as the daemon default, so this block
+      # is explicit rather than load-bearing. It is here because a service
+      # that states its own limits cannot silently inherit somebody else's.
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     healthcheck:
       # /api/health, never "/". The catch-all route serves the SPA for any path,
       # so a probe against "/" returns 200 with the database down - which is why
