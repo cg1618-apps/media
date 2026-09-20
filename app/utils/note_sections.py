@@ -228,6 +228,20 @@ class NoteSection:
     labels: dict[str, str] = field(default_factory=dict)
     # The group whose card this section renders inside. None renders flat.
     group: str | None = None
+    # Per-owner group overrides; `group` is the fallback. The same shape as
+    # `labels` and `kinds_by_owner` above, and for the same reason: a section
+    # that means something slightly different to one owner belongs in a
+    # different place for that owner, and splitting it into two sections would
+    # split its rows too.
+    #
+    # 解析 Analysis is the one case. For a film or a series it sits beside
+    # 分鏡/演出, 伏筆 and 對稱 in its own card, because those four are one
+    # subject. A game has none of those three, so that card would hold exactly
+    # one section - and an analysis of a game is read with the opinions rather
+    # than apart from them, so for `game` it goes in 評論 Reviews. Where it
+    # lands within that card is still registry order, and `analysis` is
+    # declared after the review sections, so it reads last.
+    groups_by_owner: dict[str, str] = field(default_factory=dict)
     # Render this section as its own top-level card instead of inside the Notes
     # card. Every shape component already draws its own SectionCard, so a
     # standalone section needs no wrapper - it is simply lifted out. This is for
@@ -420,6 +434,22 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         singleton=True,
     ),
     NoteSection(
+        # 備註 above is ONE block of prose, and stays one: a long remark wants
+        # to be written as a paragraph, not as bullets. This is the other half
+        # - the short things, one per row, that a single block turns into a
+        # wall. They are deliberately NOT merged: a list whose first item is
+        # three paragraphs reads as badly as a paragraph made of bullets.
+        #
+        # Personal, like 備註, and non-singleton, which is the whole point.
+        # Game-only for now, because that is where the need came from; the
+        # owners tuple is the only thing that would have to change.
+        key="remark_list",
+        shape=SHAPE_TEXT_LINKS,
+        label="備註列表 Remark List",
+        owners=("game",),
+        scope=SCOPE_PERSONAL,
+    ),
+    NoteSection(
         key="advantages",
         shape=SHAPE_TEXT,
         label="優點 Advantages",
@@ -522,6 +552,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=ALL_OWNERS,
         scope=SCOPE_CATALOG,
         group="analysis_group",
+        # For a game, the last subsection of 評論 Reviews rather than a card
+        # of its own - see `groups_by_owner`. It is the only section of
+        # `analysis_group` a game has, so that card disappears for games
+        # rather than being left holding one thing.
+        groups_by_owner={"game": "reviews"},
     ),
     NoteSection(
         key="cinematography",
@@ -1266,6 +1301,11 @@ def label_for(section: NoteSection, owner_type: str) -> str:
 def kinds_for(section: NoteSection, owner_type: str) -> tuple[str, ...]:
     """This section's allowed kinds for this owner, falling back to the default."""
     return section.kinds_by_owner.get(owner_type, section.kinds)
+
+
+def group_for(section: NoteSection, owner_type: str) -> str | None:
+    """This section's group for this owner, falling back to the default."""
+    return section.groups_by_owner.get(owner_type, section.group)
 
 
 def group_by_key(key: str) -> NoteGroup | None:

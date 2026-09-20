@@ -1513,3 +1513,50 @@ infrastructure does not belong to any one of them.
   cascades — but the alternative to showing it is dropping it, which hides a
   row with nothing on screen to say so. A stray root is a failure somebody can
   see and fix.
+- **進度 Progress and 待辦 Todo are one card now, and the notes page had to be
+  split to allow it.** How far into a game I am and what I still mean to do
+  are the same question asked twice; they were two cards a page apart, so the
+  backlog was read after every other note rather than beside the playtime it
+  belongs to.
+
+  The obvious implementation — a second `NotesTemplate` with an "only this
+  group" prop — was rejected: it would fetch `/api/notes/sections` and
+  `/api/notes` twice for one page, with two loading states and two error
+  banners. So the fetching, the mutations and the per-section rendering moved
+  into `NotesProvider` (`NotesContext.jsx`), leaving `NotesBlocks` and
+  `NotesGroup` as layout over shared data. `NotesTemplate` is now a provider
+  wrapped around blocks, so the ten remaining `*Notes.jsx` wrappers did not
+  change at all and the refactor landed behaviour-neutral — every existing
+  notes test passed untouched, which is the only reason to trust that claim.
+
+  `hideGroups` and `NotesGroup` are complementary by construction and a test
+  asserts the group appears exactly **once** when a page uses both. The failure
+  they replace is quiet: rendering the group in two places, or in neither.
+
+  Game is now the one media type with no `*Notes.jsx` wrapper, because it is
+  the one composing the pieces itself.
+- **A section's group can vary per owner; exactly one section does it.**
+  `groups_by_owner` mirrors `labels` and `kinds_by_owner`, and
+  `group_for(section, owner_type)` resolves it before `/api/notes/sections`
+  serves it, so the frontend never learns that overrides exist.
+
+  解析 Analysis is the case. For a film or a series it belongs beside 分鏡/演出,
+  伏筆 and 對稱 — those four are one subject. A game has none of the other
+  three, so that card would stand there holding exactly one section, and an
+  analysis of a game is read *with* the opinions rather than apart from them.
+  The alternative, a second game-only section, would have split the rows as
+  well as the card, and `analysis` is `ALL_OWNERS` precisely because it is one
+  thing.
+
+  A test asserts it stays the only one. An override puts the same rows in a
+  different card, so a reader scanning `NOTE_SECTIONS` for `group=` would be
+  wrong about where a section lands without noticing why — the same shape of
+  trap as the per-owner label overrides, and worth keeping rare for the same
+  reason.
+- **備註 and 備註列表 are both kept.** 備註 is one block of prose and a
+  singleton; a long remark wants to be written as a paragraph. 備註列表 is the
+  short things, one per row, that a single block turns into a wall. Merging
+  them was considered and rejected rather than postponed: a list whose first
+  item is three paragraphs reads as badly as a paragraph made of bullets. Only
+  備註 is a singleton, and only 備註 is hidden by `hideSections` — the dedicated
+  remark editors write that one row and nothing else.

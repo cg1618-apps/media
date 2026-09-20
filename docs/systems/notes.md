@@ -99,6 +99,22 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 
 **`guides` names a group and no section**, so unlike `analysis_group` it needs no suffix. **`todo` is not called `progress`**: the game detail page already renders a `<Slip title="Progress">` (playtime and achievements) beside the notes, and two cards with one name is unreadable.
 
+**A section's group can differ per owner.** `groups_by_owner` overrides
+`group` for named owner types, the same way `labels` and `kinds_by_owner`
+override their defaults, and `group_for(section, owner_type)` resolves it —
+`/api/notes/sections` serves the resolved value, so the page never learns that
+an override exists. **`analysis` is the only section using it**, and a test
+keeps it that way: an override puts the same rows in a different card, so a
+reader of `NOTE_SECTIONS` who sees `group=` and misses the override would be
+wrong about where a section lands.
+
+For a film or a series, 解析 Analysis sits beside 分鏡/演出, 伏筆 and 對稱 in
+its own card, because those four are one subject. A game has none of the other
+three, so that card would hold exactly one section — and an analysis of a game
+is read *with* the opinions rather than apart from them. So for `game` it is
+the last subsection of 評論 Reviews, and `analysis_group` is not rendered for
+games at all.
+
 **Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情 → 待辦 → 音樂 → 名言/梗 → Resources → Questions.
 
 ### 劇情列表 Story List, and nesting
@@ -151,6 +167,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | Key | Label | Shape | Group / standalone | Owners | Kinds (`kind`) | Statuses | Locator placeholder | Locator req. | Singleton | Content req. |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `remark` | 備註 Remark | text | flat | All | — | — | — | no | **yes** | no |
+| `remark_list` | 備註列表 Remark List | text_links | flat | game | — | — | — | no | no | no |
 | `advantages` | 優點 Advantages | text | reviews | All | — | — | — | no | no | no |
 | `disadvantages` | 缺點 Disadvantages | text | reviews | All | — | — | — | no | no | no |
 | `double_edged` | 優缺點 | text | reviews | All | — | — | — | no | no | no |
@@ -161,7 +178,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `highlight_episodes` | 神回/神片段 (manga: 神回) | episode_text | flat | tv-show, cartoon, manga | tv-show & cartoon: 神回, 神片段, 神篇章; manga: none | — | "Episode(s), e.g. ep 3" (manga: "Chapter(s), e.g. ch 6") | **yes** | no | no |
 | `highlight_passages` | 神片段 | text | flat | novel | — | — | — | no | no | no |
 | `highlight_moments` | 神場景 Highlights | episode_text | flat | game | — | — | "Chapter / Boss, e.g. Ch 3" | **yes** | no | no |
-| `analysis` | 解析 Analysis | text_links | analysis_group | All | — | — | — | no | no | no |
+| `analysis` | 解析 Analysis | text_links | analysis_group (**reviews** for game) | All | — | — | — | no | no | no |
 | `cinematography` | 分鏡/演出/巧思 | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, series | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
 | `foreshadowing` | Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
@@ -262,8 +279,8 @@ Every section declares a **`scope`**, and the field has **no default** — a sec
 
 | Scope | Sections | Meaning |
 | --- | --- | --- |
-| `catalog` | 40 | One shared set of rows, read by everyone unfiltered |
-| `personal` | 11 — `remark`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions`, and the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe` | One set per user; a viewer sees their own rows and nobody else's |
+| `catalog` | 45 | One shared set of rows, read by everyone unfiltered |
+| `personal` | 12 — `remark`, `remark_list`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions`, and the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe` | One set per user; a viewer sees their own rows and nobody else's |
 | `None` | `quotes`, `memes` | The two `external` sections, backed by their own tables. Quotes and memes are **universal** — shared, unfiltered, no per-user copies — so scope does not apply |
 
 The distinction lives in the registry rather than in the schema, so reclassifying a section is a registry edit plus a data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves `scope` on every entry (`NoteSectionOut.scope`); the frontend does not act on it yet.
@@ -347,7 +364,40 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 
 ### NotesTemplate
 
-`frontend/src/pages/notes/NotesTemplate.jsx` is the notes page for every owner type. It takes `ownerType`, `ownerId`, `isAdmin`, `hideSections`. Eleven thin wrappers under `frontend/src/pages/detail/*Notes.jsx` (e.g. `AnimeNotes.jsx`, `ComicNotes.jsx`, `FranchiseNotes.jsx`) fix the owner type and forward the rest.
+### 備註 and 備註列表
+
+Two sections, deliberately not one. 備註 is **one block of prose** and a
+singleton: a long remark wants to be written as a paragraph. 備註列表 is the
+other half — the short things, one per row, that a single block turns into a
+wall. A list whose first item is three paragraphs reads as badly as a
+paragraph made of bullets, which is why merging them was rejected rather than
+postponed. 備註列表 is `text_links`, personal-scope like 備註, and game-only
+for now; widening it is a change to one `owners` tuple.
+
+Only 備註 is a singleton, and only 備註 is hidden by `hideSections` — the
+dedicated remark editors on the Add form, the Modify tabs and the detail pages
+write that one row and nothing else.
+
+The notes page is three pieces:
+
+| Piece | File | What it is |
+| --- | --- | --- |
+| `NotesProvider` / `useNotes` | `NotesContext.jsx` | The data. Fetches the registry and the rows, owns the mutations (`onCreate` / `onUpdate` / `onDelete` / `onReorder`), dispatches a section on its shape (`renderSection`) and counts a card's rows (`blockCount`). |
+| `NotesBlocks` | `NotesTemplate.jsx` | The layout: which sections go in which card. Takes `hideSections` and `hideGroups`. |
+| `NotesGroup` | `NotesTemplate.jsx` | **One** group's sections with no card of their own, for a screen that puts a group somewhere else. |
+
+`NotesTemplate` is a provider wrapped around `NotesBlocks`, which is what the
+**ten** thin wrappers under `frontend/src/pages/detail/*Notes.jsx` (e.g.
+`AnimeNotes.jsx`, `ComicNotes.jsx`, `FranchiseNotes.jsx`) render — they fix the
+owner type and forward the rest, unchanged by the split.
+
+**The game detail page composes the three itself** and has no wrapper: it puts
+待辦 Todo inside its Progress slip with `NotesGroup`, and renders everything
+else with `NotesBlocks hideGroups={["todo"]}`. One provider wraps both, because
+two `NotesTemplate`s would be two fetches of the same two endpoints, two
+loading states and two error banners on one page. `hideGroups` and `NotesGroup`
+are complementary by construction, and a test asserts the group appears exactly
+once when both are used.
 
 | Behaviour | How |
 | --- | --- |

@@ -249,6 +249,15 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `ConnectPopup`, `EdgeInspector`, `NodePanel`, `RelationForm`,
   `RelationTypeFilter`.
 - **`components/charts`** — `BarChart` (div-based, vertical).
+- **`pages/notes`** — `NotesContext.jsx` holds the data (`NotesProvider`,
+  `useNotes`): it fetches the registry and the rows, owns the mutations, and
+  dispatches a section on its shape. `NotesTemplate.jsx` holds the layout —
+  `NotesBlocks` (every card, minus `hideSections` / `hideGroups`), `NotesGroup`
+  (one group's sections with no card, for a screen placing it elsewhere) and
+  the default export that wraps a provider around blocks. The split exists for
+  the game detail page, which renders 待辦 Todo in its Progress slip and the
+  rest at the bottom: two `NotesTemplate`s would be two fetches of the same two
+  endpoints on one page.
 - **`pages/notes/sections`** — one component per note shape (`TextSection`,
   `TextLinksSection`, `EpisodeTextSection`, `NameLinksSection`,
   `EpisodeNameLinksSection`, `MusicTrackSection`, `QuoteSection`,
