@@ -231,6 +231,7 @@ media types only.
 | Key | Shape | Label | Owners | Group | Kinds / statuses |
 |---|---|---|---|---|---|
 | `remark` | text | 備註 Remark | All | | singleton |
+| `remark_list` | text_links | 備註列表 Remark List | game | | Personal scope, many rows - 備註 is the singleton block |
 | `advantages` | text | 優點 Advantages | All | reviews | |
 | `disadvantages` | text | 缺點 Disadvantages | All | reviews | |
 | `double_edged` | text | 優缺點 | All | reviews | |
@@ -241,7 +242,7 @@ media types only.
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
 | `highlight_passages` | text | 神片段 | novel | | |
 | `highlight_moments` | episode_text | 神場景 Highlights | game | | locator required, placeholder "Chapter / Boss" |
-| `analysis` | text_links | 解析 Analysis | All | analysis_group | |
+| `analysis` | text_links | 解析 Analysis | All | analysis_group; **reviews** for game | Last in the 評論 card for a game - see `groups_by_owner` |
 | `cinematography` | text_links | 分鏡/演出/巧思 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
 | `craft` | text_links | 巧思 | novel | analysis_group | |
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |

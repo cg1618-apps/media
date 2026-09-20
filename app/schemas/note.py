@@ -23,6 +23,7 @@ from app.utils.note_sections import (
     NoteSection,
     field_by_key,
     group_by_key,
+    group_for,
     kinds_for,
     label_for,
     locator_for,
@@ -157,7 +158,7 @@ def field_out(field: NoteField) -> NoteFieldOut:
 
 def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
     """Resolve a registry entry for one owner type."""
-    group = group_by_key(section.group or "")
+    group = group_by_key(group_for(section, owner_type) or "")
     return NoteSectionOut(
         key=section.key,
         shape=section.shape,

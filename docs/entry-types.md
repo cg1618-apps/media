@@ -283,6 +283,7 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | 劇情列表 group — `story_list_main`, `story_list_side`, `story_list_character`, `story_list_event` (`structured`, nestable) | | | | | | | | | x | |
 | 劇情 group — `character_arcs`, `lore`, `mysteries`, `story_other` (`text_links`), `timeline` (`text`) | | | | | | | | | x | |
 | 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`, personal scope) | | | | | | | | | x | |
+| `remark_list` (`text_links`, personal scope) | | | | | | | | | x | |
 | `cinematography` (`分鏡/演出/巧思`) | x | x | | x | x | x | | | | series |
 | `craft` (`巧思`) | | | | | | | x | | | |
 | `foreshadowing` | x | x | | x | x | x | x | | | both |
@@ -292,4 +293,4 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | `extended_episodes` (`加長`) | x | | | x | x | | | | | |
 | `adaptation` | x (desc required) | x (desc required) | | x | x | | x (desc required) | | | both |
 
-Movie and comic get only the shared sections. Game carries 32 of its own - `highlight_moments` and `guide_resources` plus the 攻略 (15), 劇情 (7), 劇情列表 (4) and 待辦 (4) groups - beside the shared ones. Its guide bookmarks are **`guide_resources`, a card of its own immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).
+Movie and comic get only the shared sections. Game carries 33 of its own - `highlight_moments`, `guide_resources` and `remark_list` plus the 攻略 (15), 劇情 (7), 劇情列表 (4) and 待辦 (4) groups - beside the shared ones. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, a card of its own immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).

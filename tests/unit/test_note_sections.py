@@ -450,6 +450,9 @@ def test_insert_songs_tracks_status_but_not_type():
 # have no scope to declare.
 PERSONAL_KEYS = {
     "remark",
+    # The other half of 備註: the short things, one per row, that a single
+    # block of prose turns into a wall. Personal for the same reason 備註 is.
+    "remark_list",
     "advantages",
     "disadvantages",
     "double_edged",
@@ -543,7 +546,7 @@ def test_external_sections_carry_no_scope():
         assert sec.scope is None
 
 
-def test_the_personal_sections_are_exactly_these_eleven():
+def test_the_personal_sections_are_exactly_these_twelve():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
         PERSONAL_KEYS
     )
@@ -559,7 +562,7 @@ def test_the_catalog_sections_are_exactly_these_forty_five():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 56
+    assert len(stored) == 57
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
@@ -568,6 +571,7 @@ def test_sections_by_scope_returns_registry_order():
     keys = [s.key for s in ns.sections_by_scope(ns.SCOPE_PERSONAL)]
     assert keys == [
         "remark",
+        "remark_list",
         "advantages",
         "disadvantages",
         "double_edged",
