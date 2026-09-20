@@ -38,6 +38,17 @@ def steam_link_for(appid: int) -> str:
     return f"https://store.steampowered.com/app/{appid}/"
 
 
+def steamdb_link_for(appid: int) -> str:
+    """
+    SteamDB's page for the same app.
+
+    SteamDB addresses an app by exactly the appid the store URL carries, so
+    the store link is the whole of the input - nothing is fetched and the two
+    URLs cannot disagree.
+    """
+    return f"https://steamdb.info/app/{appid}/"
+
+
 # Steam returns every price as an integer with two implied decimals, whatever
 # the currency - yen included, despite having no minor unit in the real world.
 # Verified against the live storefront on 2026-09-06 with app 1245620:

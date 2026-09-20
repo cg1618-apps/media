@@ -44,6 +44,7 @@ from app.services.domain.derivation import (
     derive_season_1_anime,
     derive_season_1_cartoon,
     derive_season_1_tv_show,
+    derive_steamdb_source,
 )
 from app.services.integrations.anilist import ANIME, MANGA
 
@@ -156,8 +157,13 @@ def apply_single_replace_game(db: Session, game: Game, bulk: bool = False) -> No
     fill-only throughout - so re-fetching it would rewrite exactly what Fill
     already wrote. `bulk` is accepted for signature parity with the other
     media types.
+
+    The SteamDB row is derived before the fetch, not after it: it needs only
+    the appid, so a storefront that is down or rate-limited must not cost the
+    entry its link.
     """
     apply_extract_steam_appid(game)
+    derive_steamdb_source(game, db)
     autofill_game_from_steam(game, db)
 
 
