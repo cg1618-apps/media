@@ -67,6 +67,21 @@ The sheet holds exactly one version of the data, so these are about the company
 machine being behind. Arrival procedure is
 [switching-environments.md](switching-environments.md).
 
+**The backup sheet predates the notes rework, so a Pull from it would undo
+part of it.** `note` gained `parent_id` and `fields`, and eleven sections moved
+onto the `structured` shape, so the tab is two columns short and its note rows
+are in the old shape. Pull matches columns by header name and writes what it
+finds: it would restore `entries` values on sections that are `structured` now
+— refused by validation the next time anybody edits one — and `side_quests`
+rows under a section key the registry no longer has, which nothing renders.
+
+Neither failure is loud. The rows restore, the page loads, and it shows up one
+edit later.
+
+Closed by running **Backup** from the machine holding the newer data, which
+rewrites every tab in the current shape. Until then, the company machine's
+arrival procedure ends in the step that would do the damage.
+
 **The company machine still files rows under `admin`.** The home database moved
 every row to `cg1618` under `o1a1ownerflag`; the company database has neither
 the migration nor the move. Arriving there, the order matters: `git pull`, then
