@@ -589,7 +589,8 @@ Top to bottom:
    link to `/person/{person_id}` — a remark textarea (blur-saves; rendered only when
    a remark already exists, with the Notes `remark` section hidden so the
    singleton row never has two editors), then `{Type}Notes` →
-   `pages/notes/NotesTemplate.jsx`.
+   `pages/notes/NotesTemplate.jsx` — except Game, which composes
+   `NotesProvider` / `NotesGroup` / `NotesBlocks` itself (see **Notes** below).
 
 **Tracker**: `MyTrackerCard` (`components/tracker/MyTrackerCard.jsx`:
 progress stepper with cumulative counts, status select, rating select,
@@ -627,17 +628,23 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 
 **Notes.** Each `pages/detail/*Notes.jsx` is a one-liner around
 `NotesTemplate` with `ownerType` = `anime | anime-movie | cartoon | collection
-| comic | franchise | game | manga | movie | novel | series | tv-show`. The template
-fetches `/api/notes/sections?owner_type=` and `/api/notes?owner_type=&owner_id=`
-(cancellable), renders a "Notes" card for ungrouped sections plus one card per
+| comic | franchise | manga | movie | novel | series | tv-show`. `NotesProvider`
+(`pages/notes/NotesContext.jsx`) fetches `/api/notes/sections?owner_type=` and
+`/api/notes?owner_type=&owner_id=` (cancellable) and owns the mutations;
+`NotesBlocks` renders a "Notes" card for ungrouped sections plus one card per
 registry group, and hands `quotes`/`memes` sections to `QuoteSection` /
-`MemeSection`. `SHAPES` maps all eight stored shapes to components,
-`name_entries` → `NameEntriesSection` among them, so a new registry section
-needs no frontend change as long as it reuses an existing shape — the 26
-game-only sections of the 攻略, 劇情 and 待辦 groups all did. Group cards render
-in registry first-appearance order, so a group's position is decided by where
-its first section sits in `NOTE_SECTIONS`. `hideSections` is the only place the
-frontend names a section key; see systems/notes.md.
+`MemeSection`. `SHAPES` maps all nine stored shapes to components,
+`structured` → `StructuredSection` among them, so a new registry section needs
+no frontend change as long as it reuses an existing shape — every one of the
+game-only sections did. Group cards render in registry first-appearance order,
+so a group's position is decided by where its first section sits in
+`NOTE_SECTIONS`.
+
+**Game has no `*Notes.jsx` wrapper**: it composes the three pieces itself, so
+that 待辦 Todo renders inside its Progress slip (`NotesGroup groupKey="todo"`)
+while everything else renders at the bottom (`NotesBlocks hideGroups={["todo"]}`),
+from one provider and one fetch. `hideSections` and `hideGroups` are the only
+places the frontend names a registry key; see systems/notes.md.
 
 ### WatchOrderPage — `/watch-order/:system_id`
 

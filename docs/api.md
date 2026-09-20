@@ -669,8 +669,13 @@ ch 6" and an empty `kinds`, where TV and cartoon read the defaults plus the
 then `sort_index` within it, which is exactly the page's render order.
 
 `/reorder` is declared **before** `/{note_id}`: FastAPI matches in declaration
-order, so the dynamic route would otherwise swallow `reorder` as a note id. It
-has no frontend caller yet — it is intentional surface awaiting a reorder UI.
+order, so the dynamic route would otherwise swallow `reorder` as a note id.
+The `structured` shape's up/down buttons are its caller. `ordered_ids` must
+name exactly that section's notes, which is what keeps a partial list from
+quietly renumbering half a section — so a hierarchical section, whose move
+only swaps two siblings, sends its whole tree flattened depth-first with the
+swap applied. That also leaves `sort_index` ascending in the order the page
+draws.
 
 ---
 

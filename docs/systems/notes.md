@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-09-12
+Last verified: 2026-09-20
 
 ## What this is for
 
@@ -17,6 +17,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `collection_id` / `franchise_id` / `series_id` | UUID, indexed | FK to the matching tier table, ON DELETE CASCADE. Set when the owner is a grouping tier. |
 | `author_id` | UUID, indexed, **NOT NULL** | FK `users.id` ON DELETE CASCADE. Who wrote the row — always set, whatever the section's scope, because a catalogue note has an author too and that is the only provenance the catalogue has. Never read from the payload (`NoteBase` has no such field): the router stamps whoever is asking. |
 | `section` | String, indexed | Key of an entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`). |
+| `parent_id` | UUID, indexed | FK `note.system_id` ON DELETE CASCADE. The row this one nests under, for a section whose registry entry sets `hierarchical`. Unbounded depth. CASCADE rather than SET NULL: promoting every child to a root on a delete reads as a flat pile rather than as a loss, which is harder to notice. Nothing at the database level keeps a child in its parent's section — a CHECK cannot read another row — so `_validate_parent` in `app/routers/note.py` owns that, along with refusing a cycle at any depth. |
 | `locator` | String | "Where in the work": episode, chapter, scene, timestamp, or source. One free-text column; the section supplies the label and whether it is required. Renamed from `episode` by migration `alembic/versions/l1o2c3a4t5o6_note_episode_to_locator.py`. |
 | `kind` | String | First dropdown, only where the section declares `kinds` (highlight type, OP/ED change type, music cut). |
 | `status` | String | Second dropdown, only for music sections: Need / Pending / Done. Kept separate from `kind` because one row needs both (which cut it is vs. how far my tracking has got). |
@@ -24,6 +25,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `content` | Text | The body. |
 | `links` | JSONB | A list of URL strings — always a list, even for shapes that allow one link, so multi-link support needs no migration. |
 | `entries` | JSONB | The `name_entries` shape's ordered items: each `{"type": "text"｜"link", "value": str, "label": str｜null}`, in array order. Deliberately **not** folded into `links`, which stays a plain list of URL strings for the seven sections that use it — one column meaning two things is how subtle bugs start. Added by `alembic/versions/g1a2m3e4s5_add_games.py`. |
+| `fields` | JSONB | The `structured` shape's registry-declared fields, as a flat object keyed by `NoteField.key`, plus any nested list a `list` field holds. Only the fields the section's spec does **not** map onto a column live here — a structured section's name goes in `title` and its description in `content` — so this carries the leftovers (a variant, an alias, four stat values) and the nested lists, which no column could hold. Validated against the spec: an unknown key is a 422, never a silently stored one. Added by `alembic/versions/n1f2ields3p4_note_structured_fields.py`. |
 | `sort_index` | Float | Ordering within one `(owner, section)`. New rows append at `max + 1.0`. |
 | `created_at` / `updated_at` | DateTime | Taipei time via `app/database.get_taipei_now`. Nullable — a Pull from a blank sheet cell leaves them None, so `NoteResponse` tolerates that. |
 
@@ -50,10 +52,45 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `text_or_link` | `content` **xor** `links[0]` | Either what someone said or where they said it, never both. |
 | `episode_text` | `locator`, `content`, `kind` where declared | Anchored to an episode/chapter. |
 | `name_links` | `title`, `links` | A named resource. |
-| `name_entries` | `title`, `entries` | A named list whose items are each a line of text **or** a labelled link, in one ordered array. `name_links` can only hold URLs and `text_links` has no title, so neither could say "here is my Malenia plan: two notes and a video". |
+| `name_entries` | `title`, `entries` | A named list whose items are each a line of text **or** a labelled link, in one ordered array. **Currently owned by no section** — see the component table below. |
 | `episode_name_links` | `locator`, `title`, `content`, `links`, `status` | The widest shape — used only by `insert_songs`. |
 | `music_track` | `title`, `kind`, `status`, `links`, `content` | One theme song; the only shape with two dropdowns. |
+| `structured` | *(whatever its `fields` spec names)* + `fields` | The registry-driven shape. The SECTION declares an ordered field spec instead of the shape naming fixed columns, so a section that grows a field is a registry edit rather than a new component and a migration. See [Structured sections](#structured-sections). |
 | `external` | *(none — its own table)* | `quotes` → `quote` table, `memes` → `meme` table. Never a `note` row; `validate_note_payload` rejects writes to it. |
+
+### Structured sections
+
+`structured` is the one shape that does not name its own columns. The section declares an ordered **field spec** — `NoteSection.fields`, a tuple of `NoteField` — and one component (`frontend/src/pages/notes/sections/StructuredSection.jsx`) and one validator (`_validate_structured`, `app/schemas/note.py`) serve every section that uses it. The game guide sections need a dozen different field sets; a component and a validator apiece would be a dozen near-identical files.
+
+**Where a value is stored is the spec's business.** A field naming a `column` reads and writes that column at the top level of the payload; a field naming none lives at `fields[key]`.
+
+| `NoteField` | Meaning |
+| --- | --- |
+| `key` | Its key in the `fields` blob, and its identity in `require_any`. Unique within the section. |
+| `label` | What the form and the read view call it. |
+| `type` | `text`, `textarea`, `select`, `links` or `list`. |
+| `column` | One of `locator`, `kind`, `status`, `title`, `content`, `links`, or `None` to store in `fields`. No two fields of one section may claim the same column. |
+| `options` | The values a `select` accepts. **A select with no options is free text** — the guide sections' type, group and tier are open vocabularies stored in the columns a closed dropdown would use. |
+| `required` | This field alone may not be blank. |
+| `default` | What a **new** row starts this field on — the row-level twin of `NoteSection.default_kind`, which the structured shape does not use. Only ever on a `select` with options, and the value has to be one of them; tests assert both. A defaulted field is **excluded from the emptiness check** (see below). |
+| `item_fields` | For `list` only: the shape of one nested row. A `list` field is never column-backed — no column can hold a list of rows. |
+| `quick_edit` | Render an inline editor in the read view, saving on blur without opening the row. For a value that changes while playing rather than while writing. |
+| `placeholder` | Overrides the label in the input. |
+
+Two rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright.
+
+**Why one JSONB column and not a column per field.** Most of what the structured sections need already has a column — a name is `title`, a description is `content`, a dropdown is `kind` or `status` — so `fields` carries only the leftovers and the nested lists. A column per field would put a dozen mostly-blank columns on a table all twelve owner types share, and those columns are also the Google Sheets Note tab; the nested lists would need JSONB regardless. The cost, stated plainly: the leftover scalars have no database-level type and no column to filter on. The values worth filtering (a beaten status, a completion status) land in the real `status` column, which is why that cost stays theoretical.
+
+**A defaulted field cannot be what makes a row worth storing.** The
+`music_track` shape says the same about `default_kind`: a value that is always
+set would make every row non-empty, so an untouched draft with a prefilled
+collect status would save itself as a row saying nothing. The emptiness check
+therefore counts only the fields with no `default` — and that is about which
+fields count, not about whether the value was touched, so choosing "skip" and
+filling in nothing else is refused too. A test asserts no section defaults
+*every* field it has, since one that did could never be saved at all.
+
+**Validation** (`_validate_structured`) replaces the per-shape rules rather than adding to them: a structured section's `kind` and `status` are checked against its spec, not against `kinds` / `statuses`. In order — every blob key is declared; every column no field claims is empty (otherwise a value would be stored where no editor can reach it); each field matches its type and its options; each `required` field is filled; each `require_any` group has one; and the row as a whole says something.
 
 ### Groups
 
@@ -63,15 +100,94 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | --- | --- | --- |
 | `reviews` | 評論 Reviews and Comments | `fa-comments` |
 | `analysis_group` | 解析 Analysis and Cinematography | `fa-clapperboard` (keyed `analysis_group` because a section already owns `analysis`) |
-| `guides` | 攻略 Guides | `fa-map` — game-only, 15 sections |
-| `story` | 劇情 Story | `fa-book-open` — game-only, 7 sections |
+| `guides` | 攻略 Guides | `fa-map` — game-only: beginner, controls, guide notes, trivia. The way in, not the content |
+| `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game-only: stats, skills, builds, team composition |
+| `gear` | 物品 Items & Gear | `fa-sack-xmark` — game-only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
+| `compendium` | 圖鑑 Compendium | `fa-dragon` — game-only: characters, enemies |
+| `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game-only: mods and tools, guide resources. Renders beside the site-wide Resources card, not with the 攻略 run |
+| `story` | 劇情 Story | `fa-book-open` — game-only, 8 sections |
+| `story_list` | 劇情列表 Story List | `fa-list-ol` — game-only, 4 **hierarchical** strands |
 | `todo` | 待辦 Todo | `fa-list-check` — game-only, 4 personal-scope buckets |
 | `music` | 音樂 Music | `fa-music` |
 | `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` |
 
 **`guides` names a group and no section**, so unlike `analysis_group` it needs no suffix. **`todo` is not called `progress`**: the game detail page already renders a `<Slip title="Progress">` (playtime and achievements) beside the notes, and two cards with one name is unreadable.
 
+**攻略 is five cards, not one.** It held fifteen sections, which read as a
+wall of collapsed headers rather than as a guide. Each card now answers one
+question — the way in (`guides`), how to build (`builds`), what to get
+(`gear`), who you meet (`compendium`), and what sits outside the game
+(`tools`) — so a section is filed by what it answers rather than by
+elimination. `group` is display-only, so the split was a registry edit: no
+migration, no data change, no frontend change, and each card collapses on its
+own when empty. A test keeps every card at two sections or more; a card of one
+is a section wearing a second header.
+
+**結局 Endings is in 劇情 Story, not 攻略.** It sat among the guide sections
+while it had nowhere better, and an ending is what the story *does* rather
+than a guide topic — so it reads above 世界觀&設定 Lore, and 圖鑑 is cleanly
+about the cast and the bestiary.
+
+**A section's group can differ per owner.** `groups_by_owner` overrides
+`group` for named owner types, the same way `labels` and `kinds_by_owner`
+override their defaults, and `group_for(section, owner_type)` resolves it —
+`/api/notes/sections` serves the resolved value, so the page never learns that
+an override exists. **`analysis` is the only section using it**, and a test
+keeps it that way: an override puts the same rows in a different card, so a
+reader of `NOTE_SECTIONS` who sees `group=` and misses the override would be
+wrong about where a section lands.
+
+For a film or a series, 解析 Analysis sits beside 分鏡/演出, 伏筆 and 對稱 in
+its own card, because those four are one subject. A game has none of the other
+three, so that card would hold exactly one section — and an analysis of a game
+is read *with* the opinions rather than apart from them. So for `game` it is
+the last subsection of 評論 Reviews, and `analysis_group` is not rendered for
+games at all.
+
 **Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情 → 待辦 → 音樂 → 名言/梗 → Resources → Questions.
+
+### 劇情列表 Story List, and nesting
+
+劇情 above is the story written as **prose**; 劇情列表 is the same story as a
+**structure** — a numbered, nestable list of the things it is made of, so
+"chapter 3, scene 2" is two rows and a parent link rather than a sentence. The
+two are deliberately not merged: a plot note and an outline entry are read at
+different times, and neither reads well as the other.
+
+Four strands (`story_list_main`, `_side`, `_character`, `_event`) rather than
+one section with a `kind`, for the same reason the 待辦 buckets are four:
+`sort_index` orders rows within one `(owner, section)` pair, so a kind-tagged
+single section could not order entries *within* a strand. They are built from
+`STORY_LIST_STRANDS` by `_story_list_sections()` because they differ only in
+key and label — four copies of one spec is four places for them to drift.
+
+**These are the only `hierarchical` sections.** An entry nests under another to
+any depth via `note.parent_id`; two or three levels is the expected shape, and
+nothing enforces a limit because the limit would be arbitrary and the router
+already refuses a cycle. The rules a schema cannot check live in
+`_validate_parent` (`app/routers/note.py`): the parent must exist, share this
+row's **owner** and **section**, not be the row itself, and not close a loop at
+any depth. A flat section refuses a `parent_id` outright, so a section does not
+grow a tree because one payload carried a stray id.
+
+**`require_any = (("order", "name"),)`** is what makes an entry an entry: an
+order number *or* a name, and it may have both. "3.2" with no name is a
+placeholder somebody will fill in; "The Lake" with no number is an entry whose
+position is its parent's business; a description with neither is a body with
+nothing to call it. The order number is **free text** on the `locator` column,
+because an entry is numbered "3", "3.2", "II", "v1.4" or "Act I" depending on
+the work.
+
+**How the page reorders one.** `PATCH /api/notes/reorder` takes ids naming
+*exactly* that section's notes and answers 400 otherwise, which is what keeps a
+partial list from quietly renumbering half a section. A move only swaps two
+siblings, so the page flattens its whole tree depth-first with that swap
+applied and sends all of it — which also leaves `sort_index` ascending in the
+order the page draws.
+
+A row whose `parent_id` names something not in the fetched list renders as a
+**root**. That should not happen — the router refuses a foreign parent and a
+delete cascades — but dropping such a row would hide it with nothing to say so.
 
 ### Section registry
 
@@ -80,6 +196,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | Key | Label | Shape | Group / standalone | Owners | Kinds (`kind`) | Statuses | Locator placeholder | Locator req. | Singleton | Content req. |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `remark` | 備註 Remark | text | flat | All | — | — | — | no | **yes** | no |
+| `remark_list` | 備註列表 Remark List | text_links | flat | All | — | — | — | no | no | no |
 | `advantages` | 優點 Advantages | text | reviews | All | — | — | — | no | no | no |
 | `disadvantages` | 缺點 Disadvantages | text | reviews | All | — | — | — | no | no | no |
 | `double_edged` | 優缺點 | text | reviews | All | — | — | — | no | no | no |
@@ -90,33 +207,36 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `highlight_episodes` | 神回/神片段 (manga: 神回) | episode_text | flat | tv-show, cartoon, manga | tv-show & cartoon: 神回, 神片段, 神篇章; manga: none | — | "Episode(s), e.g. ep 3" (manga: "Chapter(s), e.g. ch 6") | **yes** | no | no |
 | `highlight_passages` | 神片段 | text | flat | novel | — | — | — | no | no | no |
 | `highlight_moments` | 神場景 Highlights | episode_text | flat | game | — | — | "Chapter / Boss, e.g. Ch 3" | **yes** | no | no |
-| `analysis` | 解析 Analysis | text_links | analysis_group | All | — | — | — | no | no | no |
+| `analysis` | 解析 Analysis | text_links | analysis_group (**reviews** for game) | All | — | — | — | no | no | no |
 | `cinematography` | 分鏡/演出/巧思 | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, series | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
 | `foreshadowing` | Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
-| `controls` | 操作 Controls | text_links | guides | game | — | — | — | no | no | no |
+| `controls` | 操作 Controls | **structured** | guides | game | — | — | — | no | no | no |
+| `guide_notes` | 攻略筆記 Guide Notes | text_links | guides | game | — | — | — | no | no | no |
 | `trivia` | 小知識 Trivia | text_links | guides | game | — | — | — | no | no | no |
-| `side_quests` | 支線任務列表 Side Quests | name_entries | guides | game | — | — | — | no | no | no |
-| `builds_and_styles` | 配裝&流派 Builds & Styles | name_entries | guides | game | — | — | — | no | no | no |
-| `stats_and_points` | 屬性&配點 Stats & Points | text_links | guides | game | — | — | — | no | no | no |
-| `skills` | 技能 Skills | name_entries | guides | game | — | — | — | no | no | no |
-| `collectibles` | 收集物 Collectibles | name_entries | guides | game | — | — | — | no | no | no |
-| `items` | 道具 Items | name_entries | guides | game | — | — | — | no | no | no |
-| `weapons_and_gear` | 武器&裝備 Weapons & Gear | name_entries | guides | game | — | — | — | no | no | no |
-| `characters_guide` | 角色 Characters | name_entries | guides | game | — | — | — | no | no | no |
-| `enemies` | 敵人 Enemies | name_entries | guides | game | — | — | — | no | no | no |
-| `endings` | 結局 Endings | name_entries | guides | game | — | — | — | no | no | no |
-| `mods_and_tools` | 模組&工具 Mods & Tools | name_entries | guides | game | Mod, Tool | — | — | no | no | no |
-| `guide_resources` | 攻略資源 Guide Resources | name_entries | guides | game | — | — | — | no | no | no |
-| `main_plot` | 主線劇情 Main Plot | episode_text | story | game | — | — | "Chapter / Part, e.g. Ch 3" | no | no | no |
-| `side_plot` | 支線劇情 Side Stories | episode_text | story | game | — | — | "Chapter / Part, e.g. Ch 3" | no | no | no |
+| `stats_and_points` | 屬性&配點 Stats & Points | **structured** | builds | game | — | — | — | no | no | no |
+| `skills` | 技能 Skills | **structured** | builds | game | — | — | — | no | no | no |
+| `builds_and_styles` | 配裝&流派 Builds & Styles | **structured** | builds | game | — | — | — | no | no | no |
+| `team_composition` | 隊伍組成 Team Composition | **structured** | builds | game | — | — | — | no | no | no |
+| `weapons_and_gear` | 武器&裝備 Weapons & Gear | **structured** | gear | game | — | — | — | no | no | no |
+| `items` | 道具 Items | **structured** | gear | game | — | — | — | no | no | no |
+| `collectibles` | 收集物 Collectibles | **structured** | gear | game | — | — | — | no | no | no |
+| `characters_guide` | 角色 Characters | **structured** | compendium | game | — | — | — | no | no | no |
+| `enemies` | 敵人 Enemies | **structured** | compendium | game | — | — | — | no | no | no |
+| `main_plot` | 主線劇情 Main Plot | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
+| `side_plot` | 支線劇情 Side Stories | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
 | `character_arcs` | 角色劇情 Character Arcs | text_links | story | game | — | — | — | no | no | no |
+| `endings` | 結局 Endings | **structured** | story | game | — | — | — | no | no | no |
 | `lore` | 世界觀&設定 Lore | text_links | story | game | — | — | — | no | no | no |
-| `timeline` | 時間線 Timeline | text | story | game | — | — | — | no | no | no |
+| `timeline` | 時間線 Timeline | text_links | story | game | — | — | — | no | no | no |
 | `mysteries` | 未解之謎 Mysteries | text_links | story | game | — | — | — | no | no | no |
 | `story_other` | 其他 Other | text_links | story | game | — | — | — | no | no | no |
+| `story_list_main` | 主線 Main | **structured** | story_list | game | — | — | — | no | no | no |
+| `story_list_side` | 支線 Side | **structured** | story_list | game | — | — | — | no | no | no |
+| `story_list_character` | 角色 Character | **structured** | story_list | game | — | — | — | no | no | no |
+| `story_list_event` | 事件 Event | **structured** | story_list | game | — | — | — | no | no | no |
 | `todo_now` | 現在進行 Doing now | text_links | todo | game | — | — | — | no | no | no |
 | `todo_next` | 接下來 To do next | text_links | todo | game | — | — | — | no | no | no |
 | `todo_later` | 未來 To do in the future | text_links | todo | game | — | — | — | no | no | no |
@@ -128,12 +248,61 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `op_ed_changes` | OP/ED 變動 | episode_text | music | anime, tv-show, cartoon | 變化OP, 變化ED, 無OP, 無ED, 特殊OP, 特殊ED | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `extended_episodes` | 加長 | episode_text | flat | anime, tv-show, cartoon | — | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, novel, series, franchise | — | — | — | no | no | anime, anime-movie, novel |
+| `mods_and_tools` | 模組&工具 Mods & Tools | **structured** | tools | game | — | — | — | no | no | no |
+| `guide_resources` | 攻略資源 Guide Resources | **structured** | tools | game | — | — | — | no | no | no |
 | `resources` | Resources | name_links | **standalone** | All | — | — | — | no | no | no |
 | `questions` | Questions | episode_text | **standalone** | All | — | — | "Source, e.g. ep 3" | no | no | **All** |
 | `quotes` | 名言 Quotes | external | quotes_memes | Entries only | — | — | — | — | — | — |
 | `memes` | 梗/迷因 Memes | external | quotes_memes | All | — | — | — | — | — | — |
 
 Per-owner overrides (`labels`, `kinds_by_owner`, `locator_placeholders`, `desc_required`) are resolved for one owner by `section_out()` in `app/schemas/note.py` before they reach the frontend, so the page only ever sees a flat `NoteSectionOut`.
+
+### The 攻略 Guides field specs
+
+Most of the 攻略 sections are `structured`, so their columns are declared
+per section rather than by their shape. They are listed together here because
+they share one spec vocabulary, whichever of the five cards each renders in. `→ col` names the `note`
+column a field claims; a field with no arrow lives in `fields`.
+
+| Section | Fields |
+| --- | --- |
+| `controls` | control → `title`, description → `content`, links → `links` |
+| `stats_and_points` | name → `title`, min_value, rec_value, softmax_value, **my_value** *(quick-edit)*, description → `content` |
+| `builds_and_styles` | name → `title`, **stats** *(list: name, min_value, rec_value)*, **armor** *(list: body_part, name, special)*, **weapons** *(list: range_type, type, name, special)*, **items** *(list: type, name, amount)*, **skills** *(list: type, name)*, description → `content`, links → `links` |
+| `team_composition` | name → `title`, **members** *(list: name, role 定位, build, description)*, description → `content`, links → `links` |
+| `skills` | type → `kind`, name → `title`, description → `content`, links → `links` |
+| `collectibles` / `items` / `weapons_and_gear` | type → `kind`, name → `title`, variant, description → `content`, links → `links`, collected → `status` *(default `not collected`)* |
+| `characters_guide` | group → `kind`, name → `title`, alias, description → `content` |
+| `enemies` | tier → `kind`, region, name → `title`, alias, description → `content`, beaten → `status` *(default `to beat`)* |
+| `endings` | name → `title`, completion → `status`, description → `content`, links → `links` |
+| `mods_and_tools` | type → `kind`, name → `title`, developer, description → `content`, status → `status` |
+| `guide_resources` | name → `title`, description → `content`, links → `links` |
+| `main_plot` / `side_plot` | chapter → `locator` *(placeholder "Chapter / Part, e.g. Ch 3")*, description → `content`, links → `links` |
+| the four `story_list_*` strands | order → `locator`, name → `title`, description → `content`, links → `links`; `hierarchical`, `require_any = (("order", "name"),)` |
+
+Only four fields in the whole group need `fields` at all — `variant`, `alias`,
+`region`, `developer` — plus the stat values and the nested lists. Everything
+else already had a column, which is what made one JSONB column enough.
+
+**Open vocabularies declare no options and render as free text**: a `type`, a
+`group` and a `tier` are the *game's* vocabulary, and a closed list would be
+wrong by the second game. The three closed ones are facts about my run rather
+than about the game, so they read the same everywhere:
+
+| Vocabulary | Values |
+| --- | --- |
+| `COLLECT_STATUSES` (the three 物品 sections' `collected`) | not collected, enough collected, fully collected, skip — a progression with the opt-out last, like the row below. "Enough" is worth distinguishing from "fully" precisely because most things never reach "fully" |
+| `ENEMY_STATUSES` (`enemies.beaten`) | to beat, beaten, cheesed, skip — "cheesed" is deliberately not folded into "beaten": it answers "do I still owe this one a fair fight?" |
+| `ENDING_STATUSES` (`endings.completion`) | not yet, reached, skipped — "skipped" is a decision, not an absence, so it is a value rather than a blank |
+| `MOD_STATUSES` (`mods_and_tools.status`) | 常駐, to use, to play, played, won't — 常駐 is the always-on set |
+| `MOD_KINDS` (`mods_and_tools.type`) | Mod, Tool — carried over from the section's old `kinds` dropdown, which every existing row is tagged with |
+
+`skills`, `collectibles`, `items` and `weapons_and_gear` share one spec built
+by `_named_thing_fields(variant=…, collected=…)`: they differ in those two
+flags and nothing else. 技能 Skills takes neither — a skill is learned rather
+than collected, so a collect status on it would be a field nobody could
+answer.
+
 
 Registry helpers (`app/utils/note_sections.py`): `section_by_key`, `sections_for(owner_type)`, `label_for`, `kinds_for`, `locator_for`, `group_by_key`, `sections_by_scope`, plus the two derived key sets `PERSONAL_SECTIONS` and `CATALOG_SECTIONS`.
 
@@ -143,8 +312,8 @@ Every section declares a **`scope`**, and the field has **no default** — a sec
 
 | Scope | Sections | Meaning |
 | --- | --- | --- |
-| `catalog` | 40 | One shared set of rows, read by everyone unfiltered |
-| `personal` | 11 — `remark`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions`, and the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe` | One set per user; a viewer sees their own rows and nobody else's |
+| `catalog` | 45 | One shared set of rows, read by everyone unfiltered |
+| `personal` | 12 — `remark`, `remark_list`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions`, and the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe` | One set per user; a viewer sees their own rows and nobody else's |
 | `None` | `quotes`, `memes` | The two `external` sections, backed by their own tables. Quotes and memes are **universal** — shared, unfiltered, no per-user copies — so scope does not apply |
 
 The distinction lives in the registry rather than in the schema, so reclassifying a section is a registry edit plus a data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves `scope` on every entry (`NoteSectionOut.scope`); the frontend does not act on it yet.
@@ -194,6 +363,8 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 | 8 | `locator_required` ⇒ stripped `locator` non-empty | Section '…' requires a locator. |
 | 9 | Emptiness, by shape: `name_links` needs content or title or links; `name_entries` needs a title or at least one entry ("Section '…' needs a name or an entry." — a named bookmark with neither a name nor a single entry is nothing); `text_or_link` needs content or a non-blank link, forbids both ("takes text or a link, not both"), and allows at most one link ("takes one link per note"); `episode_text` needs content or locator; `episode_name_links` needs any of content/locator/title/status/links; `music_track` allows at most one link and needs any of content/title/status/links (kind alone never counts, since it defaults to `normal`); every other shape needs content or links | Section '…' note is empty. |
 
+A `structured` section takes none of this path: check 4 is followed by the nesting rule (a flat section refuses a `parent_id`) and then by `_validate_structured`, which returns. Checks 5 to 9 are per-shape, and a structured section's equivalents live in its spec — see [Structured sections](#structured-sections). A non-structured section given a `fields` payload is refused outright ("Section '…' takes no structured fields.").
+
 Singleton uniqueness is **not** here — it needs a query, so `_reject_second_singleton` in `app/routers/note.py` does it (422 "This owner already has a 'remark' note.").
 
 ### Viewer visibility
@@ -226,12 +397,47 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 
 ### NotesTemplate
 
-`frontend/src/pages/notes/NotesTemplate.jsx` is the notes page for every owner type. It takes `ownerType`, `ownerId`, `isAdmin`, `hideSections`. Eleven thin wrappers under `frontend/src/pages/detail/*Notes.jsx` (e.g. `AnimeNotes.jsx`, `ComicNotes.jsx`, `FranchiseNotes.jsx`) fix the owner type and forward the rest.
+### 備註 and 備註列表
+
+Two sections, deliberately not one. 備註 is **one block of prose** and a
+singleton: a long remark wants to be written as a paragraph. 備註列表 is the
+other half — the short things, one per row, that a single block turns into a
+wall. A list whose first item is three paragraphs reads as badly as a
+paragraph made of bullets, which is why merging them was rejected rather than
+postponed. 備註列表 is `text_links` and personal-scope like 備註, and reaches
+**every owner** like 備註 does: the need came from games, but nothing about a
+short note is game-shaped, and the two are read as a pair wherever 備註
+appears. A test asserts they share an `owners` tuple, not just a scope.
+
+Only 備註 is a singleton, and only 備註 is hidden by `hideSections` — the
+dedicated remark editors on the Add form, the Modify tabs and the detail pages
+write that one row and nothing else.
+
+The notes page is three pieces:
+
+| Piece | File | What it is |
+| --- | --- | --- |
+| `NotesProvider` / `useNotes` | `NotesContext.jsx` | The data. Fetches the registry and the rows, owns the mutations (`onCreate` / `onUpdate` / `onDelete` / `onReorder`), dispatches a section on its shape (`renderSection`) and counts a card's rows (`blockCount`). |
+| `NotesBlocks` | `NotesTemplate.jsx` | The layout: which sections go in which card. Takes `hideSections` and `hideGroups`. |
+| `NotesGroup` | `NotesTemplate.jsx` | **One** group's sections with no card of their own, for a screen that puts a group somewhere else. |
+
+`NotesTemplate` is a provider wrapped around `NotesBlocks`, which is what the
+**ten** thin wrappers under `frontend/src/pages/detail/*Notes.jsx` (e.g.
+`AnimeNotes.jsx`, `ComicNotes.jsx`, `FranchiseNotes.jsx`) render — they fix the
+owner type and forward the rest, unchanged by the split.
+
+**The game detail page composes the three itself** and has no wrapper: it puts
+待辦 Todo inside its Progress slip with `NotesGroup`, and renders everything
+else with `NotesBlocks hideGroups={["todo"]}`. One provider wraps both, because
+two `NotesTemplate`s would be two fetches of the same two endpoints, two
+loading states and two error banners on one page. `hideGroups` and `NotesGroup`
+are complementary by construction, and a test asserts the group appears exactly
+once when both are used.
 
 | Behaviour | How |
 | --- | --- |
 | Loads registry + rows in parallel (`fetchSections`, `fetchNotes`), then refetches only rows after a mutation; the registry is static for the session. | `useEffect` / `reloadNotes`. |
-| Dispatches on `section.shape` via the `SHAPES` map — all 8 stored shapes have a component, `name_entries` → `NameEntriesSection` among them. `external` shapes dispatch on **section key** via `EXTERNAL_SHAPES` (`quotes` → `QuoteSection`, `memes` → `MemeSection`) — the first of two scoped exceptions to "the frontend never names sections". An external key with no component renders null. | `renderSection`. |
+| Dispatches on `section.shape` via the `SHAPES` map — all 9 stored shapes have a component, `structured` → `StructuredSection` among them. `external` shapes dispatch on **section key** via `EXTERNAL_SHAPES` (`quotes` → `QuoteSection`, `memes` → `MemeSection`) — the first of two scoped exceptions to "the frontend never names sections". An external key with no component renders null. | `renderSection`. |
 | `splitBlocks()` splits the registry into `flat` (ungrouped, non-standalone), `groups` (one card per group key, registry order), `standalone`. | `splitBlocks`. |
 | The **Notes card** holds the flat sections and **renders only when ≥1 flat section is visible** (`flat.length > 0`). A comic with `remark` hidden has no flat section, so no empty headed card. | JSX near the bottom. |
 | Each group renders as its own `GroupCard` *beside* Notes (Music is a peer of Notes, not inside it). Standalone sections (`resources`, `questions`) render lifted out with no wrapper — every shape component already draws its own `SectionCard`. | Same. |
@@ -248,7 +454,8 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | `TextOrLinkSection.jsx` (+ `textOrLink.js`) | text_or_link | content xor one link |
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
 | `NameLinksSection.jsx` | name_links | title, links |
-| *(none yet)* | name_entries | title, `entries` — no component exists; the backend accepts and stores the rows, the notes page does not draw them |
+| `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, reorderable in the form). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
+| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns the up/down reorder buttons (`PATCH /api/notes/reorder`), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move that flattens the whole tree depth-first. |
 | `EpisodeNameLinksSection.jsx` | episode_name_links | locator, title, content, links, status |
 | `MusicTrackSection.jsx` | music_track | title, kind (starts on `default_kind`), status, link, content |
 | `QuoteSection.jsx` / `MemeSection.jsx` | external | adapt the long-lived quote/meme components; report counts |
@@ -270,9 +477,9 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 
 | Aspect | Detail |
 | --- | --- |
-| Columns | `note` column declaration order: `system_id, owner_type, owner_id, section, locator, kind, status, title, content, links, entries, sort_index, created_at, updated_at` (`format_model_for_sheet`, `app/utils/formatter.py`). `links` and `entries` are serialised as JSON text. |
+| Columns | `note` column declaration order: `system_id, media_id, collection_id, franchise_id, series_id, author_id, section, parent_id, locator, kind, status, title, content, links, entries, fields, sort_index, created_at, updated_at` (`format_model_for_sheet`, `app/utils/formatter.py`). `links`, `entries` and `fields` are serialised as JSON text. `owner_type` / `owner_id` are **not** columns — they are read-only properties, which is what keeps them out of the sheet row. |
 | Restore order | Near the end of `SHEET_TABS`: after every owner tab, Quote and Meme, before Seasonal — owners must exist first. |
-| Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **`entries` is parsed exactly like `links` beside it** — without that key Backup would still write the column (the formatter walks real columns) and Pull would drop it, losing every item of every `name_entries` row on a round trip. |
+| Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **`entries` and `fields` are each parsed exactly like `links` beside them, and `parent_id` like the owner columns** — without those keys Backup would still write the columns (the formatter walks real columns) and Pull would drop them, losing every item of every `name_entries` row, every structured field, and the nesting of every hierarchical row on a round trip. |
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
 | Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the owner's existing remark row and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
 | Round-trip | Because owner tables no longer have a `remark` column (and `format_model_for_sheet` walks real columns, so the column_property is not exported), **remark round-trips only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |

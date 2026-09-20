@@ -249,21 +249,43 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `ConnectPopup`, `EdgeInspector`, `NodePanel`, `RelationForm`,
   `RelationTypeFilter`.
 - **`components/charts`** — `BarChart` (div-based, vertical).
+- **`pages/notes`** — `NotesContext.jsx` holds the data (`NotesProvider`,
+  `useNotes`): it fetches the registry and the rows, owns the mutations, and
+  dispatches a section on its shape. `NotesTemplate.jsx` holds the layout —
+  `NotesBlocks` (every card, minus `hideSections` / `hideGroups`), `NotesGroup`
+  (one group's sections with no card, for a screen placing it elsewhere) and
+  the default export that wraps a provider around blocks. The split exists for
+  the game detail page, which renders 待辦 Todo in its Progress slip and the
+  rest at the bottom: two `NotesTemplate`s would be two fetches of the same two
+  endpoints on one page.
 - **`pages/notes/sections`** — one component per note shape (`TextSection`,
   `TextLinksSection`, `EpisodeTextSection`, `NameLinksSection`,
   `EpisodeNameLinksSection`, `MusicTrackSection`, `QuoteSection`,
-  `MemeSection`, `TextOrLinkSection`, `NameEntriesSection`) plus `ui.jsx`
+  `MemeSection`, `TextOrLinkSection`, `NameEntriesSection`,
+  `StructuredSection`) plus `ui.jsx`
   chrome. `NameEntriesSection` renders the `name_entries` shape — a titled
   list whose items are each `{type: "text" | "link", value, label}` stored in
   the note's own `entries` column, never in `links` — and offers a kind
-  dropdown built from `section.kinds` when the registry declares any. Its
-  owners are the eleven game-only sections of the 攻略 group that each hold one
-  named thing — `side_quests`, `builds_and_styles`, `skills`, `collectibles`,
-  `items`, `weapons_and_gear`, `characters_guide`, `enemies`, `endings`,
-  `mods_and_tools` (kinds Mod / Tool, the only one of the eleven with a
-  dropdown) and `guide_resources`. `guide_resources` is deliberately **not**
-  keyed `resources`, which already exists site-wide.
-  `NotesTemplate`'s `SHAPES` map covers all eight stored shapes.
+  dropdown built from `section.kinds` when the registry declares any. **No
+  section uses it today** — `side_quests` was the last and moved into 劇情列表
+  Story List — but the component stays, because rows written before that are
+  still in the database and a later section may want the shape.
+  `StructuredSection` renders the `structured` shape, and is the one
+  component here that does not know its own fields: it builds both the form
+  and the read view from `section.fields`, the spec the backend registry
+  serves. A field naming a `column` is sent at the top level of the payload
+  and one naming none inside `fields`, which `fromNote` and `toPayload` are
+  the only places to know. It also owns the two affordances the other shapes
+  lack — up/down buttons calling `PATCH /api/notes/reorder`, and an inline
+  `quick_edit` input that saves on blur without opening the row. For a
+  `hierarchical` section it also draws the tree: an Add button per row opening
+  a draft that carries that row's id as `parent_id`, children indented behind
+  a rule, and a move that flattens the whole tree depth-first (the reorder
+  endpoint takes ids naming exactly the section, so a sibling-only payload is
+  refused). Its owners are thirteen 攻略 sections, both 劇情 plot sections, the
+  four 劇情列表 strands and the standalone `guide_resources` card;
+  `docs/systems/notes.md` lists each one's spec.
+  `NotesTemplate`'s `SHAPES` map covers all nine stored shapes.
 
 ## The access-mode admin pages (`pages/admin/`)
 

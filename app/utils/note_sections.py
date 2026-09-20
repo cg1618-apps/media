@@ -53,6 +53,20 @@ SHAPE_EPISODE_NAME_LINKS = (
 # type is a property of the song, the status is a property of my work on it -
 # which is why `note` carries a `status` column alongside `kind`.
 SHAPE_MUSIC_TRACK = "music_track"  # title, kind, status, links, content
+# The registry-driven shape. Unlike the eight above, `structured` does not name
+# a fixed set of columns: the SECTION declares an ordered `fields` spec, each
+# field saying what it is called, how it is edited, and where it is stored -
+# either one of `note`'s existing content columns or a key inside the `fields`
+# JSONB blob. One component renders every structured section and one validator
+# checks every one of them, so a section that grows a field stays a registry
+# edit rather than a migration plus a new component.
+#
+# It exists because the game guide sections need field sets no fixed shape can
+# express - a variant, an alias, a region, four stat values, and lists nested
+# inside a row (a build's armour, a team's members). Those nested lists cannot
+# be columns at any price, so a JSONB blob was arriving regardless; `fields`
+# makes the scalars beside them registry-declared too.
+SHAPE_STRUCTURED = "structured"
 # Backed by its own table (quote, meme), never by a `note` row.
 SHAPE_EXTERNAL = "external"
 
@@ -66,6 +80,7 @@ STORED_SHAPES = frozenset(
         SHAPE_NAME_ENTRIES,
         SHAPE_EPISODE_NAME_LINKS,
         SHAPE_MUSIC_TRACK,
+        SHAPE_STRUCTURED,
     }
 )
 
@@ -86,6 +101,68 @@ ALL_OWNERS = tuple(OWNER_TYPE_KEYS)
 # Sections every owner shares, spelled out per section below rather than
 # composed, so one section's applicability is readable in one place.
 _SERIES_AND_UP = ("series", "franchise")
+
+
+# --- Structured fields ----------------------------------------------------
+# How one field of a `structured` section is edited.
+FIELD_TEXT = "text"  # one line
+FIELD_TEXTAREA = "textarea"  # a body
+FIELD_SELECT = "select"  # a dropdown over `options`
+FIELD_LINKS = "links"  # the repeatable URL editor
+FIELD_LIST = "list"  # a repeatable row of `item_fields`
+
+# The `note` columns a structured field may claim. Anything else a section
+# declares is stored under its own key in the `fields` JSONB blob.
+#
+# The list is deliberately the columns that already MEAN these things: a name
+# is a title, a description is content, and the two dropdown columns stay the
+# two dropdowns. A structured section that put its name in `fields` would hide
+# it from the Google Sheets tab and from every existing reader of `title`, for
+# no gain - the column is already there and already empty.
+FIELD_COLUMNS = frozenset({"locator", "kind", "status", "title", "content", "links"})
+
+
+@dataclass(frozen=True)
+class NoteField:
+    """
+    One field of a `structured` section.
+
+    `column` is the whole point of the shape. A field naming one of
+    FIELD_COLUMNS reads and writes that column, so `skills` - type, name,
+    description, links - needs no JSONB at all; a field naming none is stored
+    at `fields[key]`. Both kinds are declared the same way and rendered by the
+    same component, so which side of the line a field falls on is a storage
+    decision rather than a UI one.
+    """
+
+    key: str
+    label: str
+    type: str = FIELD_TEXT
+    # One of FIELD_COLUMNS, or None to store under `fields[key]`.
+    column: str | None = None
+    # Allowed values for FIELD_SELECT. A `kind`- or `status`-backed field with
+    # no options is free text, which is why those two columns are no longer
+    # validated against `kinds` / `statuses` for a structured section.
+    options: tuple[str, ...] = ()
+    required: bool = False
+    # What a NEW row starts this field on. The row-level twin of
+    # NoteSection.default_kind, which the structured shape does not use - a
+    # structured section's dropdowns are fields, so their defaults are too.
+    #
+    # A defaulted field is EXCLUDED from the "is this row empty?" check, for
+    # the reason music_track spells out about `default_kind`: a value that is
+    # always set cannot be the thing that makes a row worth storing. Without
+    # that, an untouched draft with a prefilled status would save as a row
+    # saying nothing.
+    default: str | None = None
+    # For FIELD_LIST: the shape of one row of the nested list. Nested lists are
+    # always stored in `fields` - a column cannot hold one.
+    item_fields: tuple["NoteField", ...] = ()
+    # Render an inline stepper beside the value, editable without opening the
+    # row for edit. Used by the stat sections' "my value", which is the one
+    # field of a guide that changes while playing rather than while writing.
+    quick_edit: bool = False
+    placeholder: str | None = None
 
 
 @dataclass(frozen=True)
@@ -119,15 +196,32 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # to avoid making a reader work that out. Here the collision was removed
     # instead, which is why this key does not need the same suffix.
     NoteGroup(key="guides", label="攻略 Guides", icon="fa-map"),
+    NoteGroup(key="builds", label="養成&流派 Builds & Growth", icon="fa-chart-simple"),
+    # NOT keyed `items`: a SECTION owns that key. Group keys and section keys
+    # are separate dicts so the two could coexist, but a reader scanning for
+    # "items" should not have to work out which namespace a bare key means -
+    # the same reason `analysis_group` is not `analysis`.
+    NoteGroup(key="gear", label="物品 Items & Gear", icon="fa-sack-xmark"),
+    NoteGroup(key="compendium", label="圖鑑 Compendium", icon="fa-dragon"),
     # 劇情 is what HAPPENS; `analysis_group` above is what it MEANS. Keeping
     # them apart is why `story_other` exists - a stray observation lands there
     # rather than drifting into Analysis.
     NoteGroup(key="story", label="劇情 Story", icon="fa-book-open"),
+    # 劇情 above is what happens, written as prose. This is the same story as
+    # a STRUCTURE: a numbered, nestable list of the things it is made of, so
+    # "chapter 3, scene 2" is two rows and a parent link rather than a
+    # sentence. The two are deliberately not merged - a plot note and an
+    # outline entry are read at different times and neither reads well as the
+    # other.
+    NoteGroup(key="story_list", label="劇情列表 Story List", icon="fa-list-ol"),
     # NOT "進度 Progress": Game.jsx already renders a <Slip title="Progress">
     # (playtime and achievements) on the same page, and two cards with one name
     # is the `resources` / `builds_and_mods` collision again.
     NoteGroup(key="todo", label="待辦 Todo", icon="fa-list-check"),
     NoteGroup(key="music", label="音樂 Music", icon="fa-music"),
+    # Renders near the end, beside the site-wide Resources card rather than
+    # with the 攻略 run, because what it holds is not part of the guide.
+    NoteGroup(key="tools", label="資源&工具 Tools & Resources", icon="fa-screwdriver-wrench"),
     NoteGroup(key="quotes_memes", label="名言/梗 Quotes and Memes", icon="fa-quote-right"),
 )
 
@@ -154,6 +248,20 @@ class NoteSection:
     labels: dict[str, str] = field(default_factory=dict)
     # The group whose card this section renders inside. None renders flat.
     group: str | None = None
+    # Per-owner group overrides; `group` is the fallback. The same shape as
+    # `labels` and `kinds_by_owner` above, and for the same reason: a section
+    # that means something slightly different to one owner belongs in a
+    # different place for that owner, and splitting it into two sections would
+    # split its rows too.
+    #
+    # 解析 Analysis is the one case. For a film or a series it sits beside
+    # 分鏡/演出, 伏筆 and 對稱 in its own card, because those four are one
+    # subject. A game has none of those three, so that card would hold exactly
+    # one section - and an analysis of a game is read with the opinions rather
+    # than apart from them, so for `game` it goes in 評論 Reviews. Where it
+    # lands within that card is still registry order, and `analysis` is
+    # declared after the review sections, so it reads last.
+    groups_by_owner: dict[str, str] = field(default_factory=dict)
     # Render this section as its own top-level card instead of inside the Notes
     # card. Every shape component already draws its own SectionCard, so a
     # standalone section needs no wrapper - it is simply lifted out. This is for
@@ -186,6 +294,19 @@ class NoteSection:
     singleton: bool = False
     # Owner types where `content` may not be empty.
     desc_required: tuple[str, ...] = ()
+    # --- `structured` sections only -------------------------------------
+    # The ordered field spec this section's rows are made of. Empty for every
+    # other shape; a test asserts the two go together in both directions.
+    fields: tuple[NoteField, ...] = ()
+    # Groups of field keys where at least one must be filled. The Story List
+    # sections use it for "an entry needs an order number or a name, and may
+    # have both". Distinct from `NoteField.required`, which is about one field
+    # on its own.
+    require_any: tuple[tuple[str, ...], ...] = ()
+    # Rows may nest: a row carries `parent_id` pointing at another row of the
+    # same section, to any depth. Flat sections refuse a parent outright, so a
+    # section does not grow a tree by accident.
+    hierarchical: bool = False
 
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
@@ -199,10 +320,162 @@ MUSIC_TYPES = ("normal", "different version", "all inclusive version")
 # offers it, insert_songs included - it is the one thing they all track.
 MUSIC_STATUSES = ("Need", "Pending", "Done")
 
+# How far a boss or an enemy has got. Closed, unlike the tier beside it: a
+# tier is the game's vocabulary and differs per game, where this is a fact
+# about my run and reads the same everywhere. "Cheesed" is deliberately not
+# folded into "beaten" - it is the answer to "do I still owe this one a fair
+# fight?".
+ENEMY_STATUSES = ("to beat", "beaten", "cheesed", "skip")
+
+# How far collecting one kind of thing has got. Ordered as a progression with
+# the opt-out last, like ENEMY_STATUSES above: "enough" is the state a
+# completionist run leaves behind and a normal run stops at, and it is worth
+# distinguishing from "fully" precisely because most things never reach
+# "fully".
+COLLECT_STATUSES = (
+    "not collected",
+    "enough collected",
+    "fully collected",
+    "skip",
+)
+
+# Whether an ending has been seen. "Skipped" is a decision, not an absence,
+# which is why it is a value rather than leaving the field blank.
+ENDING_STATUSES = ("not yet", "reached", "skipped")
+
+# Whether a mod is installed and what it is for. 常駐 is the always-on set -
+# the mods that go on every install before anything else.
+MOD_STATUSES = ("常駐", "to use", "to play", "played", "won't")
+
+# What a 模組&工具 row is. Carried over from the section's old `kinds`.
+MOD_KINDS = ("Mod", "Tool")
+
+
+def _named_thing_fields(
+    variant: bool = False, collected: bool = False
+) -> tuple["NoteField", ...]:
+    """
+    The shape four guide sections share: a typed, named thing with a body and
+    its sources.
+
+    Skills, collectibles, items and weapons differ only in whether a row can
+    carry a variant ("+3", "Ashes of War", "NG+ only") and whether collecting
+    it is something you track, so they share a spec rather than repeating one
+    four times. The three 物品 sections take both; 技能 Skills takes neither -
+    a skill is learned rather than collected, and a collect status on it would
+    be a field nobody could answer.
+
+    The `type` field is a free-text select on `kind`: every one of these
+    vocabularies is the game's rather than ours, so a closed list would be
+    wrong by the second game. `collected` is the opposite - it is a fact about
+    my run, so it reads the same everywhere and is closed.
+    """
+    return (
+        NoteField(key="type", label="Type", type=FIELD_SELECT, column="kind"),
+        NoteField(key="name", label="Name", column="title"),
+        *((NoteField(key="variant", label="Variant"),) if variant else ()),
+        NoteField(
+            key="description",
+            label="Description",
+            type=FIELD_TEXTAREA,
+            column="content",
+        ),
+        NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        *(
+            (
+                NoteField(
+                    key="collected",
+                    label="Collected",
+                    type=FIELD_SELECT,
+                    column="status",
+                    options=COLLECT_STATUSES,
+                    default="not collected",
+                ),
+            )
+            if collected
+            else ()
+        ),
+    )
+
+
 # A standout episode, a standout moment inside one, and a standout arc across
 # several. Shared by the two episode-shaped highlight sections so they cannot
 # drift apart.
 HIGHLIGHT_KINDS = ("神回", "神片段", "神篇章")
+
+def _plot_fields() -> tuple["NoteField", ...]:
+    """
+    主線劇情 and 支線劇情: a chapter, what happens in it, and where that came
+    from.
+
+    The chapter keeps the `locator` column it held as an episode_text
+    section, so no row had to move when links were added.
+    """
+    return (
+        NoteField(
+            key="chapter",
+            label="Chapter",
+            column="locator",
+            placeholder="Chapter / Part, e.g. Ch 3",
+        ),
+        NoteField(
+            key="description",
+            label="Description",
+            type=FIELD_TEXTAREA,
+            column="content",
+        ),
+        NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+    )
+
+
+# The four strands a story is listed along. Kept as data rather than four
+# spelled-out entries because they differ ONLY in key and label: four copies
+# of one eight-line spec is four places for them to drift apart.
+STORY_LIST_STRANDS = (
+    ("story_list_main", "主線 Main"),
+    ("story_list_side", "支線 Side"),
+    ("story_list_character", "角色 Character"),
+    ("story_list_event", "事件 Event"),
+)
+
+
+def _story_list_sections() -> tuple["NoteSection", ...]:
+    """One nestable, ordered list per strand of the story."""
+    return tuple(
+        NoteSection(
+            key=key,
+            shape=SHAPE_STRUCTURED,
+            label=label,
+            owners=("game",),
+            scope=SCOPE_CATALOG,
+            group="story_list",
+            hierarchical=True,
+            require_any=(("order", "name"),),
+            fields=(
+                # Free text, not a number: an entry is numbered "3", "3.2",
+                # "II", "v1.4" or "Act I" depending on the work, and a
+                # numeric column would refuse four of those five.
+                NoteField(
+                    key="order",
+                    label="No.",
+                    column="locator",
+                    placeholder="e.g. 3.2",
+                ),
+                NoteField(key="name", label="Name", column="title"),
+                NoteField(
+                    key="description",
+                    label="Description",
+                    type=FIELD_TEXTAREA,
+                    column="content",
+                ),
+                NoteField(
+                    key="links", label="Links", type=FIELD_LINKS, column="links"
+                ),
+            ),
+        )
+        for key, label in STORY_LIST_STRANDS
+    )
+
 
 # Order here is display order.
 NOTE_SECTIONS: tuple[NoteSection, ...] = (
@@ -213,6 +486,23 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=ALL_OWNERS,
         scope=SCOPE_PERSONAL,
         singleton=True,
+    ),
+    NoteSection(
+        # 備註 above is ONE block of prose, and stays one: a long remark wants
+        # to be written as a paragraph, not as bullets. This is the other half
+        # - the short things, one per row, that a single block turns into a
+        # wall. They are deliberately NOT merged: a list whose first item is
+        # three paragraphs reads as badly as a paragraph made of bullets.
+        #
+        # Personal, like 備註, and non-singleton, which is the whole point.
+        # Every owner, like 備註: the need came from games, but nothing about
+        # a short note is game-shaped, and the two sections are read as a pair
+        # wherever 備註 appears.
+        key="remark_list",
+        shape=SHAPE_TEXT_LINKS,
+        label="備註列表 Remark List",
+        owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
     ),
     NoteSection(
         key="advantages",
@@ -317,6 +607,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=ALL_OWNERS,
         scope=SCOPE_CATALOG,
         group="analysis_group",
+        # For a game, the last subsection of 評論 Reviews rather than a card
+        # of its own - see `groups_by_owner`. It is the only section of
+        # `analysis_group` a game has, so that card disappears for games
+        # rather than being left holding one thing.
+        groups_by_owner={"game": "reviews"},
     ),
     NoteSection(
         key="cinematography",
@@ -379,6 +674,15 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # (a quest, a build, a boss, an ending); `text_links` where it is advice
     # with sources and no name. Neither shape renders a locator, so "which
     # area" is written as an entry line.
+    # --- 攻略 Guides ------------------------------------------------------
+    # How it plays and what is worth knowing, which is what somebody opening a
+    # guide for the first time wants. The four cards below it are the guide's
+    # CONTENT, split by the question each answers; this one is the way in.
+    #
+    # 攻略 was one card holding fifteen sections, which read as a wall of
+    # collapsed headers rather than as a guide. `group` is display-only, so
+    # splitting it was a registry edit: no migration, no data change, and each
+    # card collapses on its own when empty.
     NoteSection(
         key="beginner",
         shape=SHAPE_TEXT_LINKS,
@@ -388,9 +692,42 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="guides",
     ),
     NoteSection(
+        # The first structured section, and the smallest: a control is the
+        # button or stick a line of advice is ABOUT, so it reads as a name
+        # rather than as the first words of the description. Optional, because
+        # plenty of control notes are about the scheme as a whole.
         key="controls",
-        shape=SHAPE_TEXT_LINKS,
+        shape=SHAPE_STRUCTURED,
         label="操作 Controls",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+        fields=(
+            NoteField(
+                key="control",
+                label="Control",
+                column="title",
+                placeholder="e.g. L2 + O",
+            ),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
+    ),
+    NoteSection(
+        # The overflow of the 攻略 group: a guide remark that belongs to no
+        # list in particular. 新手 Beginner above it is advice for somebody
+        # STARTING; this is everything else, and having it keeps a stray note
+        # out of whichever list happens to be open.
+        #
+        # Order carries no meaning, so its rows are appended and left alone.
+        key="guide_notes",
+        shape=SHAPE_TEXT_LINKS,
+        label="攻略筆記 Guide Notes",
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="guides",
@@ -403,137 +740,278 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="guides",
     ),
+    # --- 養成&流派 Builds & Growth ----------------------------------------
+    # How to build: where the points go, what they unlock, what that adds up
+    # to, and who else is in the party. In that order, because that is the
+    # order the decisions are actually made in.
     NoteSection(
-        key="side_quests",
-        shape=SHAPE_NAME_ENTRIES,
-        label="支線任務列表 Side Quests",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="guides",
-    ),
-    NoteSection(
-        key="builds_and_styles",
-        shape=SHAPE_NAME_ENTRIES,
-        label="配裝&流派 Builds & Styles",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="guides",
-    ),
-    NoteSection(
+        # One row is one stat: what it is called, the three public thresholds
+        # for it, and where mine currently sits. `my_value` is the only field
+        # of any guide section that changes while PLAYING rather than while
+        # writing, which is why it alone is quick-editable.
         key="stats_and_points",
-        shape=SHAPE_TEXT_LINKS,
+        shape=SHAPE_STRUCTURED,
         label="屬性&配點 Stats & Points",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="builds",
+        fields=(
+            NoteField(key="name", label="Stat", column="title"),
+            # Free text rather than numbers: a threshold is written "40",
+            # "40/60" or "soft cap" depending on the game, and a numeric
+            # column would refuse the last two.
+            NoteField(key="min_value", label="Min"),
+            NoteField(key="rec_value", label="Rec"),
+            NoteField(key="softmax_value", label="Soft cap"),
+            NoteField(key="my_value", label="Mine", quick_edit=True),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+        ),
     ),
     NoteSection(
         key="skills",
-        shape=SHAPE_NAME_ENTRIES,
+        shape=SHAPE_STRUCTURED,
         label="技能 Skills",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="builds",
+        fields=_named_thing_fields(),
     ),
     NoteSection(
-        key="collectibles",
-        shape=SHAPE_NAME_ENTRIES,
-        label="收集物 Collectibles",
+        # One row is one whole build, and the five lists inside it are what
+        # make it one: a build is its stats AND its armour AND its weapons,
+        # not five rows that happen to share a name. Those lists are the
+        # reason the `fields` blob exists - no column can hold a list of rows.
+        key="builds_and_styles",
+        shape=SHAPE_STRUCTURED,
+        label="配裝&流派 Builds & Styles",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="builds",
+        fields=(
+            # Not in the request, and kept anyway: every existing row has one,
+            # and a list of builds with nothing to call them cannot be read.
+            NoteField(key="name", label="Build", column="title"),
+            NoteField(
+                key="stats",
+                label="Stats",
+                type=FIELD_LIST,
+                item_fields=(
+                    NoteField(key="name", label="Stat"),
+                    NoteField(key="min_value", label="Min"),
+                    NoteField(key="rec_value", label="Rec"),
+                ),
+            ),
+            NoteField(
+                key="armor",
+                label="Armor",
+                type=FIELD_LIST,
+                item_fields=(
+                    NoteField(key="body_part", label="Slot"),
+                    NoteField(key="name", label="Name"),
+                    NoteField(key="special", label="Special"),
+                ),
+            ),
+            NoteField(
+                key="weapons",
+                label="Weapons",
+                type=FIELD_LIST,
+                item_fields=(
+                    NoteField(key="range_type", label="Range"),
+                    NoteField(key="type", label="Type"),
+                    NoteField(key="name", label="Name"),
+                    NoteField(key="special", label="Special"),
+                ),
+            ),
+            NoteField(
+                key="items",
+                label="Items",
+                type=FIELD_LIST,
+                item_fields=(
+                    NoteField(key="type", label="Type"),
+                    NoteField(key="name", label="Name"),
+                    NoteField(key="amount", label="Amount"),
+                ),
+            ),
+            NoteField(
+                key="skills",
+                label="Skills",
+                type=FIELD_LIST,
+                item_fields=(
+                    NoteField(key="type", label="Type"),
+                    NoteField(key="name", label="Name"),
+                ),
+            ),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
     ),
     NoteSection(
-        key="items",
-        shape=SHAPE_NAME_ENTRIES,
-        label="道具 Items",
+        # A party rather than a loadout: who is in it, what each one is FOR
+        # (定位), and which build each runs. The build is free text and not a
+        # pointer at a `builds_and_styles` row - a composition is often
+        # written before those rows exist, and a reference that can dangle
+        # buys nothing here.
+        key="team_composition",
+        shape=SHAPE_STRUCTURED,
+        label="隊伍組成 Team Composition",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="builds",
+        fields=(
+            NoteField(key="name", label="Team", column="title"),
+            NoteField(
+                key="members",
+                label="Members",
+                type=FIELD_LIST,
+                item_fields=(
+                    NoteField(key="name", label="Name"),
+                    NoteField(key="role", label="定位"),
+                    NoteField(key="build", label="Build"),
+                    NoteField(key="description", label="Notes"),
+                ),
+            ),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
     ),
+    # --- 物品 Items & Gear ------------------------------------------------
+    # What to get. Three lists that differ in what a row IS rather than in
+    # what is known about it, which is why they share one spec and one card.
     NoteSection(
         key="weapons_and_gear",
-        shape=SHAPE_NAME_ENTRIES,
+        shape=SHAPE_STRUCTURED,
         label="武器&裝備 Weapons & Gear",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="gear",
+        fields=_named_thing_fields(variant=True, collected=True),
     ),
+    NoteSection(
+        key="items",
+        shape=SHAPE_STRUCTURED,
+        label="道具 Items",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="gear",
+        fields=_named_thing_fields(variant=True, collected=True),
+    ),
+    NoteSection(
+        key="collectibles",
+        shape=SHAPE_STRUCTURED,
+        label="收集物 Collectibles",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="gear",
+        fields=_named_thing_fields(variant=True, collected=True),
+    ),
+    # --- 圖鑑 Compendium --------------------------------------------------
+    # Who you meet. 結局 Endings was here while it had nowhere better; it is a
+    # story OUTCOME rather than a guide topic, so it sits in 劇情 Story now,
+    # above 世界觀&設定 - which leaves this card cleanly about the cast and
+    # the bestiary.
     NoteSection(
         # NOT `characters`: a `character` table and a /character/:id page
         # already exist, and a bare `characters` note section would read as
         # related to them.
+        #
+        # No links, deliberately: a character note is about who they are, and
+        # the walkthrough that covers them belongs in 攻略資源 Guide Resources.
         key="characters_guide",
-        shape=SHAPE_NAME_ENTRIES,
+        shape=SHAPE_STRUCTURED,
         label="角色 Characters",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="compendium",
+        fields=(
+            # `group` is what a character belongs TO - a faction, a party, a
+            # house. Free text, so it declares no options.
+            NoteField(key="group", label="Group", type=FIELD_SELECT, column="kind"),
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(key="alias", label="Alias"),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+        ),
     ),
     NoteSection(
         key="enemies",
-        shape=SHAPE_NAME_ENTRIES,
+        shape=SHAPE_STRUCTURED,
         label="敵人 Enemies",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
-    ),
-    NoteSection(
-        key="endings",
-        shape=SHAPE_NAME_ENTRIES,
-        label="結局 Endings",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="guides",
-    ),
-    NoteSection(
-        # Where `builds_and_mods`'s Mod and Tool rows went. A mod is not a
-        # guide, so it is not folded into one of the sections above; Mod and
-        # Tool stay one section with a kind because they are the same shape.
-        key="mods_and_tools",
-        shape=SHAPE_NAME_ENTRIES,
-        label="模組&工具 Mods & Tools",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="guides",
-        kinds=("Mod", "Tool"),
-    ),
-    NoteSection(
-        # The old `guides` section: a pointer to somebody else's walkthrough,
-        # which is all it ever held now that the fourteen above cover the
-        # content itself.
-        key="guide_resources",
-        shape=SHAPE_NAME_ENTRIES,
-        label="攻略資源 Guide Resources",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="guides",
+        group="compendium",
+        fields=(
+            # Free text: "boss", "small boss", "elite", "trash" are one game's
+            # vocabulary and the next game's is a different one.
+            NoteField(key="tier", label="Tier", type=FIELD_SELECT, column="kind"),
+            NoteField(key="region", label="Region"),
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(key="alias", label="Alias"),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            # Closed, unlike tier and group: this is a fact about my run, not
+            # about the game, so the four values are the same everywhere.
+            NoteField(
+                key="beaten",
+                label="Status",
+                type=FIELD_SELECT,
+                column="status",
+                options=ENEMY_STATUSES,
+                # Every enemy worth a row is one I have not beaten yet when I
+                # write it down, so that is where a new row starts.
+                default="to beat",
+            ),
+        ),
     ),
     # --- 劇情 Story -------------------------------------------------------
     # What happens, as opposed to what it means - 解析 Analysis, two cards up,
     # holds the second. This card is a wall of spoilers and the site has no
     # spoiler gate; the collapsible card is all today's UI offers.
     NoteSection(
+        # Structured rather than episode_text so a beat can carry the video or
+        # the write-up it came from. The chapter stays the `locator` column it
+        # always was, and is still optional - unlike episode_comments and
+        # highlight_moments, a beat remembered without its chapter number is
+        # still a beat, whereas a per-chapter comment about nothing in
+        # particular is not a per-chapter comment.
         key="main_plot",
-        shape=SHAPE_EPISODE_TEXT,
+        shape=SHAPE_STRUCTURED,
         label="主線劇情 Main Plot",
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="story",
-        # Deliberately NOT locator_required, unlike episode_comments and
-        # highlight_moments: a beat remembered without its chapter number is
-        # still a beat, whereas a per-chapter comment about nothing in
-        # particular is not a per-chapter comment.
-        locator_placeholder="Chapter / Part, e.g. Ch 3",
+        fields=_plot_fields(),
     ),
     NoteSection(
         key="side_plot",
-        shape=SHAPE_EPISODE_TEXT,
+        shape=SHAPE_STRUCTURED,
         label="支線劇情 Side Stories",
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="story",
-        locator_placeholder="Chapter / Part, e.g. Ch 3",
+        fields=_plot_fields(),
     ),
     NoteSection(
         key="character_arcs",
@@ -544,6 +1022,34 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="story",
     ),
     NoteSection(
+        # Entry order carries no meaning here - endings are a set, not a
+        # sequence - but the rows still reorder, because "the one I am going
+        # for first" is a reason to move one up that the data cannot express.
+        key="endings",
+        shape=SHAPE_STRUCTURED,
+        label="結局 Endings",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+        fields=(
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(
+                key="completion",
+                label="Status",
+                type=FIELD_SELECT,
+                column="status",
+                options=ENDING_STATUSES,
+            ),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
+    ),
+    NoteSection(
         key="lore",
         shape=SHAPE_TEXT_LINKS,
         label="世界觀&設定 Lore",
@@ -552,10 +1058,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="story",
     ),
     NoteSection(
-        # Plain text: one ordered list of dated events. Every row wanting a
-        # link would mean this should have been text_links.
+        # One ordered list of dated events. It was plain `text` on the
+        # reasoning that a row wanting a link would mean it should have been
+        # text_links - which is exactly what happened, so it is.
         key="timeline",
-        shape=SHAPE_TEXT,
+        shape=SHAPE_TEXT_LINKS,
         label="時間線 Timeline",
         owners=("game",),
         scope=SCOPE_CATALOG,
@@ -578,6 +1085,24 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="story",
     ),
+    # --- 劇情列表 Story List ----------------------------------------------
+    # Four sections rather than one with a kind, for the reason the 待辦
+    # buckets below are four: `sort_index` orders rows within one
+    # (owner, section) pair, so a kind-tagged single section could not order
+    # entries within a strand.
+    #
+    # These are the first `hierarchical` sections. An entry nests under
+    # another to any depth - a chapter holding scenes holding beats - which is
+    # what `note.parent_id` was added for. Two or three levels is the expected
+    # shape; nothing enforces a limit, because the limit would be arbitrary
+    # and the router already refuses a cycle.
+    #
+    # `require_any` is the rule that makes an entry an entry: it needs an
+    # order number OR a name. "3.2" with no name is a placeholder somebody
+    # will fill in; "The Lake" with no number is an entry whose position is
+    # its parent's business. Neither is worth refusing, and a row with
+    # neither is nothing.
+    *_story_list_sections(),
     # --- 待辦 Todo --------------------------------------------------------
     # Four sections rather than one section with a kind, because ordering is
     # PER SECTION: sort_index orders rows within one (owner, section) pair and
@@ -706,6 +1231,85 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         desc_required=("anime", "anime-movie", "novel"),
     ),
+    # --- 資源&工具 Tools & Resources ---------------------------------------
+    # Things outside the game itself: somebody else's walkthrough, and the
+    # mods and tools you run alongside it. A mod was never a guide - the
+    # registry said so where `mods_and_tools` used to sit - and
+    # `guide_resources` had no card of its own to be in, so pairing them gives
+    # both a home.
+    #
+    # Immediately before the site-wide `resources` card it mirrors. Still
+    # distinct in key AND label: two cards reading "Resources" on one page
+    # would be unreadable.
+    NoteSection(
+        # Where `builds_and_mods`'s Mod and Tool rows went. A mod is not a
+        # guide, so it is not folded into one of the sections above; Mod and
+        # Tool stay one field on one section because they are the same shape.
+        key="mods_and_tools",
+        shape=SHAPE_STRUCTURED,
+        label="模組&工具 Mods & Tools",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="tools",
+        fields=(
+            # Carried over from the section's old `kinds` dropdown, which
+            # every existing row is tagged with. Dropping it would throw that
+            # away, and "is this a mod or a tool" is still the first thing
+            # somebody scanning the list wants to know.
+            NoteField(
+                key="type",
+                label="Type",
+                type=FIELD_SELECT,
+                column="kind",
+                options=MOD_KINDS,
+            ),
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(key="developer", label="Developer"),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(
+                key="status",
+                label="Status",
+                type=FIELD_SELECT,
+                column="status",
+                options=MOD_STATUSES,
+            ),
+        ),
+    ),
+    NoteSection(
+        # A pointer to somebody else's walkthrough. It sat inside the 攻略
+        # group while that group WAS the guide; now that the thirteen
+        # sections above hold the guide's content, a list of other people's
+        # guides is a different kind of thing - it is where the guide came
+        # from, not part of it.
+        #
+        # So it stands on its own, immediately before the site-wide
+        # `resources` card it mirrors. Deliberately NOT keyed or labelled
+        # `resources`: two cards reading "Resources" on one page would be
+        # unreadable, which is why the keys and the labels both differ.
+        #
+        # Order carries no meaning, so its rows are appended and left alone.
+        key="guide_resources",
+        shape=SHAPE_STRUCTURED,
+        label="攻略資源 Guide Resources",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="tools",
+        fields=(
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
+    ),
     NoteSection(
         key="resources",
         shape=SHAPE_NAME_LINKS,
@@ -788,6 +1392,11 @@ def kinds_for(section: NoteSection, owner_type: str) -> tuple[str, ...]:
     return section.kinds_by_owner.get(owner_type, section.kinds)
 
 
+def group_for(section: NoteSection, owner_type: str) -> str | None:
+    """This section's group for this owner, falling back to the default."""
+    return section.groups_by_owner.get(owner_type, section.group)
+
+
 def group_by_key(key: str) -> NoteGroup | None:
     """The group with this key, or None if it is not a known group."""
     return _GROUPS_BY_KEY.get(key)
@@ -796,3 +1405,26 @@ def group_by_key(key: str) -> NoteGroup | None:
 def locator_for(section: NoteSection, owner_type: str) -> str | None:
     """This section's locator label for this owner, else the default."""
     return section.locator_placeholders.get(owner_type, section.locator_placeholder)
+
+
+def fields_for(section: NoteSection) -> tuple[NoteField, ...]:
+    """This section's field spec, empty for every non-structured shape."""
+    return section.fields
+
+
+def field_by_key(section: NoteSection, key: str) -> NoteField | None:
+    """One field of a structured section, or None if it declares no such field."""
+    for f in section.fields:
+        if f.key == key:
+            return f
+    return None
+
+
+def column_field_map(section: NoteSection) -> dict[str, NoteField]:
+    """The section's column-backed fields, keyed by the column they claim."""
+    return {f.column: f for f in section.fields if f.column}
+
+
+def json_fields(section: NoteSection) -> tuple[NoteField, ...]:
+    """The section's fields stored inside the `fields` JSONB blob."""
+    return tuple(f for f in section.fields if not f.column)

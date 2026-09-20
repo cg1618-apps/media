@@ -30,5 +30,20 @@ export const createNote = (payload) =>
 export const updateNote = (id, payload) =>
   fetchJson(`${BASE}/${id}`, { method: "PATCH", ...jsonBody(payload) });
 
+// Renumbers sort_index for one section of one owner. `orderedIds` must name
+// exactly that section's notes - the endpoint answers 400 otherwise, which is
+// what keeps a partial list from quietly renumbering half a section. A
+// hierarchical section therefore sends its whole tree, flattened depth-first.
+export const reorderNotes = (ownerType, ownerId, section, orderedIds) =>
+  fetchJson(`${BASE}/reorder`, {
+    method: "PATCH",
+    ...jsonBody({
+      owner_type: ownerType,
+      owner_id: ownerId,
+      section,
+      ordered_ids: orderedIds,
+    }),
+  });
+
 export const deleteNote = (id) =>
   fetchNoContent(`${BASE}/${id}`, { method: "DELETE" });

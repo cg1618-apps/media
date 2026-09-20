@@ -222,3 +222,34 @@ export function LinksEditor({ links, onChange }) {
 export const EmptyHint = () => (
   <p className="text-xs text-text-faint">No entries.</p>
 );
+
+// The up/down pair that reorders a list, whether that list is the rows of a
+// section (persisted through PATCH /api/notes/reorder) or the rows nested
+// inside one structured row (held in form state until Save). Both read the
+// same, so both use this.
+export function MoveButtons({ onUp, onDown, atTop, atBottom, label = "entry" }) {
+  const cls =
+    "text-text-faint/60 hover:text-text-faint disabled:opacity-20 leading-none px-0.5";
+  return (
+    <div className="flex flex-col shrink-0 pt-1.5">
+      <button
+        type="button"
+        disabled={atTop}
+        onClick={onUp}
+        aria-label={`Move ${label} up`}
+        className={cls}
+      >
+        <i className="fas fa-chevron-up text-[9px]" />
+      </button>
+      <button
+        type="button"
+        disabled={atBottom}
+        onClick={onDown}
+        aria-label={`Move ${label} down`}
+        className={cls}
+      >
+        <i className="fas fa-chevron-down text-[9px]" />
+      </button>
+    </div>
+  );
+}

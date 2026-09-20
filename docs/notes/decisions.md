@@ -1364,3 +1364,268 @@ infrastructure does not belong to any one of them.
   request fires `pull_request: reopened`, which `ci.yml` accepts. This is the
   ordering trap in enabling a repository's gates before its Actions: the gate
   exists, and nothing can satisfy it.
+- **The `structured` note shape: one JSONB column, not a dozen sparse ones.**
+  The game guide sections need a dozen different field sets — a variant, an
+  alias, a region, a tier, four stat values, and lists nested inside one row (a
+  build's armour pieces, a team's members). Three options were live. A column
+  per field was rejected because `note` is shared by all twelve owner types and
+  its column list *is* the Google Sheets Note tab: a dozen mostly-blank columns
+  would ride on every owner's rows to serve `game` alone, and each later field
+  would be another migration — against the registry's own promise that a
+  section is an entry and a shape is at most one column. A component and a
+  validator per section was rejected as a dozen near-identical files. What
+  landed is a registry-declared field spec plus one JSONB column.
+
+  The thing that makes it cheap is that **most fields already have a column**.
+  Mapping all thirteen guide sections first showed that a name is `title`, a
+  description is `content`, links are `links`, and the closed dropdowns are
+  `kind` and `status` — so several sections (`controls`, `skills`, `endings`)
+  need no blob at all, and `fields` carries only the leftovers. Had that
+  mapping not been done first, the obvious design was "everything in the blob",
+  which would have hidden every name and description from the sheet, from
+  search and from every existing reader of those columns.
+
+  The nested lists settle the remaining argument: no column can hold one, so a
+  JSONB column was arriving whichever way the scalars went. The cost is real
+  and worth stating — the leftover scalars have no database-level type and no
+  column to filter on — but the values worth filtering (a beaten status, a
+  completion status) land in the real `status` column.
+
+  Two consequences to keep in mind. A `select` with **no** options is free
+  text, which is how the open vocabularies (type, group, tier) use the same
+  columns a closed dropdown would; and a structured section's validation
+  *replaces* the per-shape rules rather than extending them, so `kind` and
+  `status` are checked against the spec and not against `kinds` / `statuses`.
+- **`note.parent_id` shipped one branch before anything nests.** The Story List
+  group is the only hierarchical section and lands later, but the column, its
+  cascade and the router's parent rules came with the shape machinery so the
+  table is altered once rather than twice on a chain of branches — two Alembic
+  revisions on one table across consecutive branches is the collision the
+  migration rules exist to avoid. It is covered by tests that patch `controls`
+  hierarchical, not left uncovered until its section arrives. CASCADE rather
+  than SET NULL: promoting every child to a root on a delete reads as a flat
+  pile rather than as a loss, which is much harder to notice.
+- **The 攻略 group's field sets went into the registry, not into components.**
+  Thirteen of the sixteen guide sections are `structured`, and the shape's
+  payoff shows here: the whole reshape is registry entries plus one data
+  migration, and `StructuredSection.jsx` was not touched except to fix which
+  field heads a row. Mapping every section's fields onto columns FIRST is what
+  kept it cheap — `skills`, `endings`, `controls` and `guide_resources` need
+  no `fields` blob at all, and across the whole group only `variant`, `alias`,
+  `region`, `developer`, the four stat values and the nested lists do.
+
+  Four decisions inside it are worth keeping:
+
+  **Open vocabularies declare no options.** A `type`, a `group` and a `tier`
+  are the game's words, not ours — "boss" and "small boss" in one game, three
+  other words in the next — so those fields are selects with an empty
+  `options` tuple, which renders as free text and validates as free text. The
+  three closed vocabularies (`beaten`, `completion`, the mod `status`) are
+  facts about my run rather than about the game, so they read the same
+  everywhere and are worth pinning. `cheesed` is deliberately not folded into
+  `beaten`: it answers "do I still owe this one a fair fight?".
+
+  **A structured section's validation replaces the per-shape rules rather
+  than extending them**, so `kinds` and `statuses` must be empty on one.
+  `mods_and_tools` carried `kinds=("Mod", "Tool")` and now declares the same
+  two as its `type` field's options on the same column — two sources of truth
+  for one column, with only one of them consulted, is the kind of thing that
+  reads as working. A test asserts the emptiness.
+
+  **Two fields were kept that the request did not ask for.** A build and a
+  team each get an optional name: every existing `builds_and_styles` row has
+  one, and a list of builds with nothing to call them cannot be read.
+  `mods_and_tools` keeps its Mod/Tool type for the same reason — dropping it
+  would discard what every existing row is tagged with.
+
+  **`side_quests` did not move with the rest.** It is asked to become a 劇情列表
+  Story List subsection, and that group lands a branch later; retiring it now
+  would mean deleting its rows or parking them where nothing reads them. It
+  stays `name_entries` — and so keeps that shape's validation honest — until
+  its destination exists.
+- **The guide reshape's migration is `irreversible = True`.** The old
+  `name_entries` array held a row's text and its links INTERLEAVED in one
+  order; the reshape flattens that into a body plus a link list, so reversing
+  it would invent an order rather than restore one. `deploy/migrations
+  downgrade` refuses to reverse past it and freezes with the dump path, which
+  is the honest outcome — the alternative is a rollback that quietly rewrites
+  notes at 3am.
+
+  Its one interesting case is a section whose new spec has **no** links field
+  (`characters_guide`, `enemies`, `mods_and_tools`, `stats_and_points`).
+  Leaving a URL in a column no field claims would make the row fail validation
+  the next time anybody edited it, on a field they had not touched — so those
+  URLs are written into the description instead, keeping their labels. Nothing
+  is dropped silently even where the field is gone.
+- **The `irreversible = True` near-miss check had never seen a real marker,
+  and failed on the first one.** It was a single regex —
+  `irreversible\s*=\s*(?!True$)` — meant to flag a misspelled marker. No
+  shipped revision had ever declared the marker, so the check was vacuously
+  green from the day it was written, and when the guide reshape finally
+  declared one it flagged the *correct* spelling: `\s*` backtracks to empty,
+  the negative lookahead then reads " True" rather than "True", and succeeds.
+
+  Two things came out of it. The check is now a line comparison rather than a
+  lookahead, which cannot backtrack; and it has a positive half asserting that
+  a revision written the intended way satisfies `deploy/migrations`' own
+  `line.rstrip("\n") == "irreversible = True"` comparison — with an assertion
+  that at least one revision declares it, so the negative half cannot go
+  vacuous again. This is the "asserting that a gate REFUSES is not safe on an
+  empty set" rule with a safety marker as the gate: the worst shape a safety
+  marker can take is one that fails silently, and a test that has never seen
+  the thing it guards is not guarding it yet.
+- **劇情 and 劇情列表 are two cards, not one.** 劇情 is the story written as
+  prose — what happens, in sentences. 劇情列表 is the same story as a
+  structure: a numbered, nestable list of the things it is made of, so
+  "chapter 3, scene 2" is two rows and a parent link rather than a sentence.
+  Merging them was considered and rejected because the two are read at
+  different times and neither reads well as the other; the cost is that a
+  reader has to know which card a thing belongs in, and 劇情's `story_other`
+  already exists for exactly that kind of doubt.
+
+  Four strands rather than one section with a `kind`, for the reason the 待辦
+  buckets are four: `sort_index` orders rows within one `(owner, section)`
+  pair, so a kind-tagged single section could not order entries *within* a
+  strand. They are built from a tuple of (key, label) pairs because they
+  differ in nothing else, and four copies of one eight-line spec is four
+  places for them to drift apart.
+- **An order number is free text, and either it or a name is required.** An
+  entry is numbered "3", "3.2", "II", "v1.4" or "Act I" depending on the work,
+  so a numeric column would refuse four of those five. `require_any` is what
+  makes an entry an entry: "3.2" with no name is a placeholder somebody will
+  fill in, "The Lake" with no number is an entry whose position is its
+  parent's business, and a description with neither is a body with nothing to
+  call it. That last case is the one the migration had to handle — a side
+  quest with no title would have read fine and then 422'd the first time
+  anybody edited it, on a field they had not touched, so its first line
+  becomes its name.
+- **The reorder endpoint's "names exactly the notes in this section" rule was
+  left alone, and the page works with it.** A hierarchical move swaps two
+  siblings, so sending just that sibling group would be the smaller payload —
+  and is refused with a 400. Relaxing the endpoint was the obvious fix and the
+  wrong one: the rule is what keeps a partial list from quietly renumbering
+  half a section and leaving the rest wherever it was. The page flattens its
+  whole tree depth-first with the swap applied instead, which is also the
+  better data: `sort_index` ends up ascending in the order the page actually
+  draws, so a reader of the raw rows sees the tree's order too.
+- **A row whose parent is missing renders as a root.** It should not happen —
+  the router refuses a parent from another owner or section, and a delete
+  cascades — but the alternative to showing it is dropping it, which hides a
+  row with nothing on screen to say so. A stray root is a failure somebody can
+  see and fix.
+- **進度 Progress and 待辦 Todo are one card now, and the notes page had to be
+  split to allow it.** How far into a game I am and what I still mean to do
+  are the same question asked twice; they were two cards a page apart, so the
+  backlog was read after every other note rather than beside the playtime it
+  belongs to.
+
+  The obvious implementation — a second `NotesTemplate` with an "only this
+  group" prop — was rejected: it would fetch `/api/notes/sections` and
+  `/api/notes` twice for one page, with two loading states and two error
+  banners. So the fetching, the mutations and the per-section rendering moved
+  into `NotesProvider` (`NotesContext.jsx`), leaving `NotesBlocks` and
+  `NotesGroup` as layout over shared data. `NotesTemplate` is now a provider
+  wrapped around blocks, so the ten remaining `*Notes.jsx` wrappers did not
+  change at all and the refactor landed behaviour-neutral — every existing
+  notes test passed untouched, which is the only reason to trust that claim.
+
+  `hideGroups` and `NotesGroup` are complementary by construction and a test
+  asserts the group appears exactly **once** when a page uses both. The failure
+  they replace is quiet: rendering the group in two places, or in neither.
+
+  Game is now the one media type with no `*Notes.jsx` wrapper, because it is
+  the one composing the pieces itself.
+- **A section's group can vary per owner; exactly one section does it.**
+  `groups_by_owner` mirrors `labels` and `kinds_by_owner`, and
+  `group_for(section, owner_type)` resolves it before `/api/notes/sections`
+  serves it, so the frontend never learns that overrides exist.
+
+  解析 Analysis is the case. For a film or a series it belongs beside 分鏡/演出,
+  伏筆 and 對稱 — those four are one subject. A game has none of the other
+  three, so that card would stand there holding exactly one section, and an
+  analysis of a game is read *with* the opinions rather than apart from them.
+  The alternative, a second game-only section, would have split the rows as
+  well as the card, and `analysis` is `ALL_OWNERS` precisely because it is one
+  thing.
+
+  A test asserts it stays the only one. An override puts the same rows in a
+  different card, so a reader scanning `NOTE_SECTIONS` for `group=` would be
+  wrong about where a section lands without noticing why — the same shape of
+  trap as the per-owner label overrides, and worth keeping rare for the same
+  reason.
+- **備註 and 備註列表 are both kept.** 備註 is one block of prose and a
+  singleton; a long remark wants to be written as a paragraph. 備註列表 is the
+  short things, one per row, that a single block turns into a wall. Merging
+  them was considered and rejected rather than postponed: a list whose first
+  item is three paragraphs reads as badly as a paragraph made of bullets. Only
+  備註 is a singleton, and only 備註 is hidden by `hideSections` — the dedicated
+  remark editors write that one row and nothing else.
+- **攻略 became five cards, and the split cost nothing but registry entries.**
+  It held fifteen sections, which read as a wall of collapsed headers rather
+  than as a guide. The cards are 攻略 (the way in: beginner, controls, guide
+  notes, trivia), 養成&流派 (how to build), 物品 (what to get), 圖鑑 (who you
+  meet) and 資源&工具 (what sits outside the game). Each answers one question,
+  which is the test a new section has to pass — a section filed by elimination
+  is a sign the categories are wrong, not that the section is awkward.
+
+  `group` is display-only, so this was a registry edit: no migration, no data
+  change, and `StructuredSection.jsx` was not touched. Cards collapse when
+  empty, so a game with no mods shows one collapsed line rather than five.
+
+  The alternative was sub-headings inside one 攻略 card, which needs a
+  `subgroup` concept in the registry and a third level of card chrome —
+  against `ui.jsx`'s own finding that nesting a card two deep reads as a
+  subsection rather than as a group. Five sibling cards is the pattern 評論,
+  解析, 劇情, 劇情列表 and 音樂 already use.
+
+  A test keeps every card at two sections or more: a card of one is a section
+  wearing a second header, which is the state 解析 was in for games before
+  `groups_by_owner` moved it.
+- **模組&工具 and 攻略資源 share a card, away from the guide.** `mods_and_tools`
+  sat among the walkthrough sections with a comment on it saying a mod is not
+  a guide, and `guide_resources` stood alone because nothing else was like it.
+  Both are things *outside* the game, so pairing them gives one a home and
+  moves the other out of content it was never part of. The card renders beside
+  the site-wide Resources card it mirrors, and the two keep distinct keys AND
+  distinct labels — two cards reading "Resources" on one page would be
+  unreadable.
+- **結局 Endings belongs to 劇情 Story.** It was filed under 攻略 because that
+  is where it was asked for, and it stayed there through the reshape; when the
+  guide was split it became obvious that it only ever sat with 圖鑑 by
+  elimination. An ending is what the story *does*, so it reads above 世界觀&設定
+  Lore, beside 未解之謎 Mysteries — and 圖鑑 is left cleanly about the cast and
+  the bestiary. Its spec did not change, only its group, so no row moved.
+- **A field can declare a default, and a defaulted field never counts as
+  filling a row.** `NoteField.default` is the row-level twin of
+  `NoteSection.default_kind`, which the structured shape does not use — a
+  structured section's dropdowns are fields, so their defaults are too. Three
+  收集物/道具/武器 sections start on `not collected` and 敵人 starts on `to beat`,
+  because that is the true state of anything worth writing down at the moment
+  you write it.
+
+  The trap came with it, and `music_track` had already found it: a value that
+  is *always* set makes every row non-empty, so an untouched draft would save
+  itself as a row saying nothing. The emptiness check therefore counts only
+  the fields with no default. That is a rule about which fields count, not
+  about whether a value was touched — choosing "skip" and filling in nothing
+  else is refused too, because it is still a row with nothing to call it.
+
+  Two guards fell out of writing it down: a default must be one of its field's
+  options (otherwise the form prefills a value the validator refuses, and the
+  row cannot be saved without changing a field nobody touched), and no section
+  may default *every* field it has (one that did could never be saved at all).
+  Both are tests rather than runtime checks — they are statements about the
+  registry, not about a payload.
+- **Existing rows were NOT backfilled with a collect status.** NULL means
+  nobody has said, and "not collected" is a claim about my run that the old
+  rows cannot support — the field did not exist when they were written. This
+  is the same distinction `Game.all_endings` and its two siblings already
+  make: "Inapplicable" is a claim about the game, where NULL is only a claim
+  about the row. A new row starts on "not collected"; an old one stays silent
+  until somebody answers.
+- **備註列表 reaches every owner, like 備註.** It shipped game-only because that
+  is where the need came from, which was the wrong reason for a scope: nothing
+  about a short note is game-shaped, and the two sections are read as a pair
+  wherever 備註 appears. They share an `owners` tuple now, and a test asserts
+  that rather than listing the owners twice — so widening or narrowing one
+  moves the other with it.

@@ -16,6 +16,7 @@ def test_every_section_has_a_known_shape():
         ns.SHAPE_NAME_ENTRIES,
         ns.SHAPE_EPISODE_NAME_LINKS,
         ns.SHAPE_MUSIC_TRACK,
+        ns.SHAPE_STRUCTURED,
         ns.SHAPE_EXTERNAL,
     }
     for sec in ns.NOTE_SECTIONS:
@@ -42,12 +43,21 @@ def test_only_declared_sections_have_kinds():
     with_kinds = [s.key for s in ns.NOTE_SECTIONS if s.kinds]
     assert with_kinds == [
         "highlights",
-        "mods_and_tools",
         "op",
         "ed",
         "ost",
         "op_ed_changes",
     ]
+    # `mods_and_tools` held Mod / Tool here until it became structured. A
+    # structured section's dropdowns are fields of its spec, and
+    # validate_note_payload consults only the spec - so a section declaring
+    # both would have two sources of truth for one column.
+    assert ns.section_by_key("mods_and_tools").kinds == ()
+    assert [
+        f.options
+        for f in ns.section_by_key("mods_and_tools").fields
+        if f.column == "kind"
+    ] == [("Mod", "Tool")]
 
 
 MUSIC_SECTIONS = ("op", "ed", "ost")
@@ -197,6 +207,7 @@ def test_anime_sections_in_registry_order():
     keys = [s.key for s in ns.sections_for("anime")]
     assert keys == [
         "remark",
+        "remark_list",
         "advantages",
         "disadvantages",
         "double_edged",
@@ -228,6 +239,7 @@ def test_collection_gets_the_narrow_set():
     # `questions` sits after `resources` in NOTE_SECTIONS.
     assert keys == [
         "remark",
+        "remark_list",
         "advantages",
         "disadvantages",
         "double_edged",
@@ -435,6 +447,9 @@ def test_insert_songs_tracks_status_but_not_type():
 # have no scope to declare.
 PERSONAL_KEYS = {
     "remark",
+    # The other half of 備註: the short things, one per row, that a single
+    # block of prose turns into a wall. Personal for the same reason 備註 is.
+    "remark_list",
     "advantages",
     "disadvantages",
     "double_edged",
@@ -472,7 +487,12 @@ CATALOG_KEYS = {
     "beginner",
     "controls",
     "trivia",
-    "side_quests",
+    "guide_notes",
+    "team_composition",
+    "story_list_main",
+    "story_list_side",
+    "story_list_character",
+    "story_list_event",
     "builds_and_styles",
     "stats_and_points",
     "skills",
@@ -523,14 +543,14 @@ def test_external_sections_carry_no_scope():
         assert sec.scope is None
 
 
-def test_the_personal_sections_are_exactly_these_eleven():
+def test_the_personal_sections_are_exactly_these_twelve():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
         PERSONAL_KEYS
     )
     assert ns.PERSONAL_SECTIONS == PERSONAL_KEYS
 
 
-def test_the_catalog_sections_are_exactly_these_forty():
+def test_the_catalog_sections_are_exactly_these_forty_five():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_CATALOG} == (
         CATALOG_KEYS
     )
@@ -539,7 +559,7 @@ def test_the_catalog_sections_are_exactly_these_forty():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 51
+    assert len(stored) == 57
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
@@ -548,6 +568,7 @@ def test_sections_by_scope_returns_registry_order():
     keys = [s.key for s in ns.sections_by_scope(ns.SCOPE_PERSONAL)]
     assert keys == [
         "remark",
+        "remark_list",
         "advantages",
         "disadvantages",
         "double_edged",
