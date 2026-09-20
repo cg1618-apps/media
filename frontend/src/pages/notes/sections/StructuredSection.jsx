@@ -242,13 +242,19 @@ function StructuredForm({ section, val, setVal }) {
 const readValue = (field, note) =>
   field.column ? note[field.column] : (note.fields || {})[field.key];
 
-// The value that names the row: the first filled non-textarea, non-list
-// scalar. Rendered as the row's heading so a list of enemies reads as names
-// rather than as a wall of tags.
+// The value that names the row, rendered as its heading so a list of enemies
+// reads as names rather than as a wall of tags.
+//
+// The `title` column is what a name is stored in by convention, so it wins
+// outright - `enemies` declares region BEFORE name (the form asks in that
+// order), and taking the first filled text field would head every row with
+// its region.
 function rowHeading(section, note) {
-  const field = section.fields.find(
-    (f) => f.type === "text" && !isBlank(readValue(f, note)),
-  );
+  const field =
+    section.fields.find(
+      (f) => f.column === "title" && !isBlank(readValue(f, note)),
+    ) ||
+    section.fields.find((f) => f.type === "text" && !isBlank(readValue(f, note)));
   return field ? { field, value: readValue(field, note) } : null;
 }
 

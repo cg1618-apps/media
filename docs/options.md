@@ -205,7 +205,8 @@ The registry of what a `note` row may be. Full behaviour is in
 [systems/notes.md](systems/notes.md); this lists only the vocabularies.
 
 **Shapes**: `text`, `text_links`, `text_or_link`, `episode_text`,
-`name_links`, `name_entries`, `episode_name_links`, `music_track` (the eight
+`name_links`, `name_entries`, `episode_name_links`, `music_track`,
+`structured` (the nine
 `STORED_SHAPES`) plus `external` (quotes and memes, which live in their own
 tables). `name_entries` is the newest: a title plus one ordered `entries`
 array whose items are each a line of text or a labelled link. `name_links`
@@ -245,19 +246,20 @@ media types only.
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
 | `controls` | structured | 操作 Controls | game | guides | Fields: control (`title`), description (`content`), links |
+| `guide_notes` | text_links | 攻略筆記 Guide Notes | game | guides | |
 | `trivia` | text_links | 小知識 Trivia | game | guides | |
-| `side_quests` | name_entries | 支線任務列表 Side Quests | game | guides | |
-| `builds_and_styles` | name_entries | 配裝&流派 Builds & Styles | game | guides | |
-| `stats_and_points` | text_links | 屬性&配點 Stats & Points | game | guides | |
-| `skills` | name_entries | 技能 Skills | game | guides | |
-| `collectibles` | name_entries | 收集物 Collectibles | game | guides | |
-| `items` | name_entries | 道具 Items | game | guides | |
-| `weapons_and_gear` | name_entries | 武器&裝備 Weapons & Gear | game | guides | |
-| `characters_guide` | name_entries | 角色 Characters | game | guides | |
-| `enemies` | name_entries | 敵人 Enemies | game | guides | |
-| `endings` | name_entries | 結局 Endings | game | guides | |
-| `mods_and_tools` | name_entries | 模組&工具 Mods & Tools | game | guides | kinds `Mod`, `Tool` |
-| `guide_resources` | name_entries | 攻略資源 Guide Resources | game | guides | |
+| `side_quests` | name_entries | 支線任務列表 Side Quests | game | guides | Moves to 劇情列表 Story List |
+| `stats_and_points` | structured | 屬性&配點 Stats & Points | game | guides | name, min/rec/soft-cap, my value (quick-edit), description |
+| `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game | guides | name, five nested lists, description, links |
+| `team_composition` | structured | 隊伍組成 Team Composition | game | guides | name, members list (name, 定位, build, notes), description, links |
+| `skills` | structured | 技能 Skills | game | guides | type, name, description, links |
+| `collectibles` | structured | 收集物 Collectibles | game | guides | type, name, variant, description, links |
+| `items` | structured | 道具 Items | game | guides | type, name, variant, description, links |
+| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game | guides | type, name, variant, description, links |
+| `characters_guide` | structured | 角色 Characters | game | guides | group, name, alias, description |
+| `enemies` | structured | 敵人 Enemies | game | guides | tier, region, name, alias, description, beaten status |
+| `endings` | structured | 結局 Endings | game | guides | name, completion status, description, links |
+| `mods_and_tools` | structured | 模組&工具 Mods & Tools | game | guides | type `Mod`/`Tool`, name, developer, description, status |
 | `main_plot` | episode_text | 主線劇情 Main Plot | game | story | locator optional, placeholder "Chapter / Part" |
 | `side_plot` | episode_text | 支線劇情 Side Stories | game | story | locator optional, placeholder "Chapter / Part" |
 | `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
@@ -276,6 +278,7 @@ media types only.
 | `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS` |
 | `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
+| `guide_resources` | structured | 攻略資源 Guide Resources | game | **standalone** | name, description, links |
 | `resources` | name_links | Resources | All | standalone | |
 | `questions` | episode_text | Questions | All | standalone | description required everywhere |
 | `quotes` | external | 名言 Quotes | Entries | quotes_memes | |
@@ -292,12 +295,12 @@ Kind vocabularies:
 
 **`guide_resources` is not `resources`, and neither replaces the other.** The
 site-wide `resources` section (`name_links`, all owners, standalone) holds
-plain bookmarks and games inherit it; `guide_resources` (`name_entries`,
+plain bookmarks and games inherit it; `guide_resources` (`structured`,
 game-only, inside the 攻略 group) holds a pointer to somebody else's
 walkthrough with notes attached. Two keys and two labels, because a second
 card also called "Resources" would be unreadable.
 
-**The 攻略 group is fifteen sections rather than one with a `kind`**, because
+**The 攻略 group is sixteen sections rather than one with a `kind`**, because
 each is a list kept separately: which build to run is not the same question as
 where the collectibles are.
 

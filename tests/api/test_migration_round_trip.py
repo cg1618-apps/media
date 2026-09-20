@@ -42,7 +42,21 @@ VERSIONS = ROOT / "alembic" / "versions"
 # tried to forbid - a safety marker failing silently, which is the worst shape a
 # safety marker can take.
 MARKER = re.compile(r"^irreversible = True$", re.M)
-NEAR_MISS = re.compile(r"^\s*(?:IRREVERSIBLE\s*=|irreversible\s*=\s*(?!True$))", re.M)
+
+# Anything that ASSIGNS something called irreversible, however spelled and
+# however indented. A line that is exactly MARKER_LINE is excluded by the
+# caller rather than by this pattern.
+#
+# It was one regex with a negative lookahead - `irreversible\s*=\s*(?!True$)`
+# - until the first revision actually declared the marker, at which point it
+# flagged the correct spelling: `\s*` backtracks to empty, the lookahead then
+# sees " True" instead of "True", and the negative lookahead succeeds. The
+# check had never seen a true marker before (no shipped revision declared
+# one), so it had been vacuously green since it was written - a refusal test
+# with an empty set, which is why the positive case below is now asserted
+# alongside it.
+ASSIGNS_IRREVERSIBLE = re.compile(r"(?i)^\s*irreversible\s*=")
+MARKER_LINE = "irreversible = True"
 
 
 def _alembic(args: list[str], database: str) -> subprocess.CompletedProcess:
@@ -129,8 +143,41 @@ def test_the_chain_survives_a_downgrade_and_a_second_upgrade(scratch_databases):
 @pytest.mark.parametrize("path", _revision_files(), ids=lambda p: p.name)
 def test_the_irreversible_marker_is_spelled_the_way_rollback_reads_it(path):
     body = path.read_text(encoding="utf-8")
-    near = NEAR_MISS.findall(body)
+    near = [
+        line
+        for line in body.splitlines()
+        if ASSIGNS_IRREVERSIBLE.match(line) and line != MARKER_LINE
+    ]
     assert not near, (
         f"{path.name}: the marker must be exactly `irreversible = True` at module "
         f"scope - deploy/migrations scans for that literal line. Found: {near}"
     )
+
+
+def test_a_revision_declaring_the_marker_is_read_the_way_the_hook_reads_it():
+    """
+    The positive half, and the one this check spent its life without.
+
+    deploy/migrations compares `line.rstrip("\n") == "irreversible = True"`.
+    Nothing asserted that a revision written the intended way satisfies that
+    comparison, so the near-miss check above was vacuous until a revision
+    finally declared the marker - and then it FAILED on the correct spelling.
+    A refusal that has never seen the thing it refuses is not a refusal yet.
+    """
+    declaring = [
+        path
+        for path in _revision_files()
+        if any(
+            ASSIGNS_IRREVERSIBLE.match(line) for line in path.read_text(
+                encoding="utf-8"
+            ).splitlines()
+        )
+    ]
+    assert declaring, (
+        "no revision declares `irreversible = True`, so the near-miss check "
+        "above is vacuous - delete this test only when that is deliberate"
+    )
+    for path in declaring:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        # Exactly the hook's own comparison, on exactly its own literal.
+        assert any(line.rstrip("\n") == MARKER_LINE for line in lines), path.name

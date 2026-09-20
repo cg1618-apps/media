@@ -1,27 +1,17 @@
-"""The game note sections and the name_entries shape."""
+"""
+The game 劇情 and 待辦 sections, and the name_entries shape.
+
+The 攻略 Guides group moved onto the `structured` shape, and its order, field
+specs, owners and scope live in test_guide_sections_structured.py. What stays
+here is everything that did not move, plus `side_quests` - the one guide
+section still shaped `name_entries`, and so the one that keeps that shape's
+validation honest until it moves into 劇情列表 Story List.
+"""
 
 import pytest
 
 from app.schemas.note import NoteCreate, validate_note_payload
 from app.utils import note_sections as ns
-
-GUIDE_KEYS = [
-    "beginner",
-    "controls",
-    "trivia",
-    "side_quests",
-    "builds_and_styles",
-    "stats_and_points",
-    "skills",
-    "collectibles",
-    "items",
-    "weapons_and_gear",
-    "characters_guide",
-    "enemies",
-    "endings",
-    "mods_and_tools",
-    "guide_resources",
-]
 
 STORY_KEYS = [
     "main_plot",
@@ -54,10 +44,6 @@ def test_the_three_new_groups_exist_in_order():
     ]
 
 
-def test_the_guides_group_holds_fifteen_sections_in_order():
-    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "guides"] == GUIDE_KEYS
-
-
 def test_the_story_group_holds_seven_sections_in_order():
     assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story"] == STORY_KEYS
 
@@ -67,16 +53,16 @@ def test_the_todo_group_holds_four_buckets_in_order():
 
 
 def test_the_new_sections_are_game_only():
-    for key in GUIDE_KEYS + STORY_KEYS + TODO_KEYS:
+    for key in STORY_KEYS + TODO_KEYS:
         assert ns.section_by_key(key).owners == ("game",), key
 
 
-def test_guides_and_story_are_catalogue_and_todo_is_personal():
+def test_story_is_catalogue_and_todo_is_personal():
     """
     A todo list is one person's. A catalogue-scope todo would be admin-written
     and read by every viewer, which is not what a todo list is.
     """
-    for key in GUIDE_KEYS + STORY_KEYS:
+    for key in STORY_KEYS:
         assert ns.section_by_key(key).scope == ns.SCOPE_CATALOG, key
     for key in TODO_KEYS:
         assert ns.section_by_key(key).scope == ns.SCOPE_PERSONAL, key
@@ -98,14 +84,11 @@ def test_the_guides_group_key_is_free_because_the_section_was_retired():
     assert ns.section_by_key("guides") is None
 
 
-def test_mods_and_tools_is_the_only_new_section_with_kinds():
+def test_no_story_or_todo_section_has_a_dropdown():
     with_kinds = [
-        s.key
-        for s in ns.NOTE_SECTIONS
-        if s.kinds and s.key in GUIDE_KEYS + STORY_KEYS + TODO_KEYS
+        s.key for s in ns.NOTE_SECTIONS if s.kinds and s.key in STORY_KEYS + TODO_KEYS
     ]
-    assert with_kinds == ["mods_and_tools"]
-    assert ns.section_by_key("mods_and_tools").kinds == ("Mod", "Tool")
+    assert with_kinds == []
 
 
 def test_the_plot_sections_anchor_to_a_chapter_without_requiring_one():
@@ -125,7 +108,7 @@ def test_no_new_section_carries_a_locator_except_the_two_plot_ones():
     anchored = [
         s.key
         for s in ns.NOTE_SECTIONS
-        if s.locator_placeholder and s.key in GUIDE_KEYS + STORY_KEYS + TODO_KEYS
+        if s.locator_placeholder and s.key in STORY_KEYS + TODO_KEYS
     ]
     assert anchored == ["main_plot", "side_plot"]
 
@@ -167,8 +150,8 @@ def test_a_name_entries_note_accepts_mixed_text_and_link_entries():
     note = NoteCreate(
         owner_type="game",
         owner_id=None,
-        section="enemies",
-        title="Malenia",
+        section="side_quests",
+        title="Ranni's questline",
         entries=[
             {"type": "text", "value": "Learn the waterfowl dodge"},
             {"type": "link", "value": "https://example.com", "label": "Phase 2"},
@@ -184,42 +167,29 @@ def test_an_entry_alone_is_enough_without_a_title():
         NoteCreate(
             owner_type="game",
             owner_id=None,
-            section="builds_and_styles",
+            section="side_quests",
             entries=[{"type": "link", "value": "https://example.com"}],
         )
     )
 
 
-def test_builds_and_styles_takes_no_kind():
+def test_a_structured_guide_section_rejects_the_retired_build_kind():
     """
-    The migration clears kind='Build' for exactly this reason: a surviving kind
-    fails validation check 5 on the next edit of a migrated row.
+    `Build` was `builds_and_mods`'s kind, and the migration that split that
+    section cleared it. It is still refused, but by the FIELD SPEC now rather
+    than by the section's `kinds`: `mods_and_tools` declares a `type` field on
+    the `kind` column with two options, and `Build` is not one of them.
     """
-    with pytest.raises(ValueError, match="takes no kind"):
-        validate_note_payload(
-            NoteCreate(
-                owner_type="game",
-                owner_id=None,
-                section="builds_and_styles",
-                title="Bleed build",
-                kind="Build",
-            )
-        )
-
-
-def test_mods_and_tools_rejects_the_retired_build_kind():
-    with pytest.raises(ValueError, match="not a valid kind"):
+    with pytest.raises(ValueError, match="not a valid type"):
         validate_note_payload(
             NoteCreate(
                 owner_type="game",
                 owner_id=None,
                 section="mods_and_tools",
-                title="Seamless co-op",
+                title="SKSE",
                 kind="Build",
             )
         )
-
-
 def test_a_todo_item_may_carry_the_link_that_prompted_it():
     validate_note_payload(
         NoteCreate(
@@ -234,5 +204,5 @@ def test_a_todo_item_may_carry_the_link_that_prompted_it():
 
 def test_the_new_sections_do_not_apply_to_anime():
     keys = {s.key for s in ns.sections_for("anime")}
-    for key in GUIDE_KEYS + STORY_KEYS + TODO_KEYS:
+    for key in STORY_KEYS + TODO_KEYS:
         assert key not in keys, key
