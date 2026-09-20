@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-13
+Last verified: 2026-09-20
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -126,6 +126,29 @@ Steam link is never paired with an IGDB appid for a different edition) —
 `apply_extract_steam_appid` only comes into play when a `steam_link` was
 hand-typed ahead of any IGDB Fill. See
 [external-apis.md](external-apis.md#steam).
+
+### SteamDB, derived from the appid
+
+`derive_steamdb_source(game, db)` gives a game with a `steam_appid` its
+SteamDB link, as `https://steamdb.info/app/<appid>/`
+(`steamdb_link_for`). SteamDB addresses an app by exactly the appid the store
+URL carries, so the derivation needs no request of its own — which is why it
+runs before `autofill_game_from_steam` rather than inside it, and a
+rate-limited or unreachable storefront never costs the entry its link.
+
+The link is **not a column**. A link a pipeline fetches on is a column
+(`igdb_link`, `steam_link`); a link that is only ever displayed is a
+`media_source` `reference` / `main` row drawn from the Reference Source
+vocabulary, and SteamDB is one of those (see
+[entry-types.md](entry-types.md)). The write goes through
+`upsert_main_source`, so it obeys Fill's rule: an existing SteamDB row is left
+alone, url and all, and a hand-entered one wins.
+
+It runs in both game pipelines — `_fill_game` (last, so an appid IGDB supplied
+in that same pass is already in hand) and `apply_single_replace_game`, which
+is also the write hook behind every game create and update. A game entered
+before this existed picks its row up on the next save or the next Replace
+Game.
 
 ### Season / Part from the title
 

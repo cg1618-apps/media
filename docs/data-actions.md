@@ -433,8 +433,10 @@ data-control route builder, which generates `/api/data-control/fill/game` and
 `/replace/game/...` from the registry. Until IGDB landed (its own plan, right
 after) `fill_eligible` returned `False` for every row, so a Fill run reported
 "No entries need filling" rather than erroring. **That stub is gone**: Fill
-Game now calls `autofill_game_from_igdb` then `autofill_game_from_steam`, and
-games are in Fill All. **Game also gained a bulk Replace**, its first
+Game now calls `autofill_game_from_igdb`, then `autofill_game_from_steam`,
+then `derive_steamdb_source` — the last of which fetches nothing, and comes
+last so an appid IGDB supplied in the same pass is already in hand. Games are
+in Fill All. **Game also gained a bulk Replace**, its first
 (`replace_select = _linked(Game, Game.steam_appid, Game.steam_link)`,
 `in_replace_all=True`): it runs the Steam half only, since nothing in an IGDB
 record drifts — the same reasoning that makes Studio `fill_only` stays true
@@ -477,7 +479,7 @@ tighter than IGDB's. See [external-apis.md](external-apis.md#igdb) and
 4. `replace_after` steps: same as the type's `fill_after` for anime (`derive_ep_previous_all_anime`, `run_sync_anime`), anime-movie, tv-show, cartoon, manga, novel; none for movie.
 5. Log `Replace` / `Replace {label}` / `Success`, `rows_updated` = replaced count.
 
-`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — Steam only; re-fetches `autofill_game_from_steam`, never `autofill_game_from_igdb`.
+`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — Steam only; re-fetches `autofill_game_from_steam`, never `autofill_game_from_igdb`. It first re-derives `steam_appid` and the SteamDB `media_source` row (`derive_steamdb_source`), neither of which costs a request — so the link lands even on a run where the storefront is out of budget.
 
 **Replace All** (`execute_replace_all` → `run_all("Replace", REPLACE_ALL, ...)`) covers the eight types with `in_replace_all=True` — game included now that it has a bulk Replace — (comic and studio excluded), then Backup (`Auto`), one master row `Replace` / `Replace All`, same error handling as Fill All.
 

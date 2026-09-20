@@ -81,6 +81,7 @@ from app.services.domain.derivation import (
     derive_season_1_anime,
     derive_season_1_cartoon,
     derive_season_1_tv_show,
+    derive_steamdb_source,
 )
 from app.services.domain.display_name import compute_display_name
 from app.services.domain.duplicates import (
@@ -279,6 +280,7 @@ __all__ = [
     "derive_ep_previous_anime",
     "derive_season_1_anime",
     "derive_season_1_tv_show",
+    "derive_steamdb_source",
     "derive_season_1_cartoon",
     "autofill_anime_from_mal",
     "autofill_anime_movie_from_mal",
