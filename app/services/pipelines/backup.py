@@ -21,7 +21,7 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
     Retrieves the entire PostgreSQL database and permanently overwrites
     the target tabs in Google Sheets dynamically based on the DB schema.
     """
-    logger.info(f"Starting Google Sheets Backup Pipeline ({action_type})...")
+    logger.info("Starting Google Sheets Backup Pipeline (%s)...", action_type)
 
     try:
         # One block per tab, driven by the registry Pull restores from, so the
@@ -58,7 +58,7 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         log_data_control(db, "Backup", "Backup", action_type, "Success")
         return {"status": "success", "message": "All tabs backed up to Google Sheets"}
     except Exception as e:
-        logger.error(f"Backup failed: {e}")
+        logger.error("Backup failed: %s", e)
         log_data_control(
             db, "Backup", "Backup", action_type, "Failed", error_message=str(e)
         )

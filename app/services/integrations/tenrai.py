@@ -62,9 +62,7 @@ class TenraiRateLimiter:
             if sleep_time <= 0:
                 break
 
-            logger.info(
-                f"Tenrai Rate Limiter: limit reached. Pausing for {sleep_time:.2f} seconds."
-            )
+            logger.info("Tenrai Rate Limiter: limit reached. Pausing for %.2f seconds.", sleep_time)
             time.sleep(sleep_time)
 
         self.request_timestamps.append(time.time())
@@ -109,16 +107,18 @@ def fetch_tenrai_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
         response = requests.get(url, headers=headers, timeout=15)
 
         if response.status_code == 429:
-            logger.warning(f"Tenrai Rate Limit (429) for MAL ID {mal_id}.")
+            logger.warning("Tenrai Rate Limit (429) for MAL ID %s.", mal_id)
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code == 404:
-            logger.warning(f"Anime not found (404) on Tenrai for MAL ID {mal_id}")
+            logger.warning("Anime not found (404) on Tenrai for MAL ID %s", mal_id)
             return None
 
         if response.status_code >= 500:
             logger.warning(
-                f"Tenrai server error ({response.status_code}) for MAL ID {mal_id} — skipping retries."
+                "Tenrai server error (%s) for MAL ID %s — skipping retries.",
+                response.status_code,
+                mal_id,
             )
             return None
 
@@ -127,9 +127,7 @@ def fetch_tenrai_anime_data(mal_id: int) -> Optional[Dict[str, Any]]:
         return response.json().get("data", {})
 
     except requests.exceptions.RequestException as e:
-        logger.error(
-            f"Network/Timeout Error connecting to Tenrai for MAL ID {mal_id}: {e}"
-        )
+        logger.error("Network/Timeout Error connecting to Tenrai for MAL ID %s: %s", mal_id, e)
         # Raise to trigger tenacity's reactive Exponential Backoff
         raise
 
@@ -163,16 +161,18 @@ def fetch_tenrai_manga_novel_data(mal_id: int) -> Optional[Dict[str, Any]]:
         response = requests.get(url, headers=headers, timeout=15)
 
         if response.status_code == 429:
-            logger.warning(f"Tenrai Rate Limit (429) for Manga MAL ID {mal_id}.")
+            logger.warning("Tenrai Rate Limit (429) for Manga MAL ID %s.", mal_id)
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code == 404:
-            logger.warning(f"Manga not found (404) on Tenrai for MAL ID {mal_id}")
+            logger.warning("Manga not found (404) on Tenrai for MAL ID %s", mal_id)
             return None
 
         if response.status_code >= 500:
             logger.warning(
-                f"Tenrai server error ({response.status_code}) for Manga MAL ID {mal_id} — skipping retries."
+                "Tenrai server error (%s) for Manga MAL ID %s — skipping retries.",
+                response.status_code,
+                mal_id,
             )
             return None
 
@@ -182,7 +182,9 @@ def fetch_tenrai_manga_novel_data(mal_id: int) -> Optional[Dict[str, Any]]:
 
     except requests.exceptions.RequestException as e:
         logger.error(
-            f"Network/Timeout Error connecting to Tenrai for Manga MAL ID {mal_id}: {e}"
+            "Network/Timeout Error connecting to Tenrai for Manga MAL ID %s: %s",
+            mal_id,
+            e,
         )
         raise
 
@@ -220,16 +222,18 @@ def fetch_tenrai_producer_data(mal_id: int) -> Optional[Dict[str, Any]]:
         response = requests.get(url, headers=headers, timeout=15)
 
         if response.status_code == 429:
-            logger.warning(f"Tenrai Rate Limit (429) for Producer MAL ID {mal_id}.")
+            logger.warning("Tenrai Rate Limit (429) for Producer MAL ID %s.", mal_id)
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code == 404:
-            logger.warning(f"Producer not found (404) on Tenrai for MAL ID {mal_id}")
+            logger.warning("Producer not found (404) on Tenrai for MAL ID %s", mal_id)
             return None
 
         if response.status_code >= 500:
             logger.warning(
-                f"Tenrai server error ({response.status_code}) for Producer MAL ID {mal_id} — skipping retries."
+                "Tenrai server error (%s) for Producer MAL ID %s — skipping retries.",
+                response.status_code,
+                mal_id,
             )
             return None
 
@@ -239,6 +243,8 @@ def fetch_tenrai_producer_data(mal_id: int) -> Optional[Dict[str, Any]]:
 
     except requests.exceptions.RequestException as e:
         logger.error(
-            f"Network/Timeout Error connecting to Tenrai for Producer MAL ID {mal_id}: {e}"
+            "Network/Timeout Error connecting to Tenrai for Producer MAL ID %s: %s",
+            mal_id,
+            e,
         )
         raise

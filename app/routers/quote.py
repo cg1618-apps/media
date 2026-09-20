@@ -314,7 +314,7 @@ def create_quote(
         db.refresh(db_quote)
         return db_quote
     except Exception as e:
-        logger.error(f"Error creating quote: {e}", exc_info=True)
+        logger.error("Error creating quote: %s", e, exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to create quote.")
 
@@ -341,7 +341,7 @@ def update_quote(
         db.refresh(db_quote)
         return db_quote
     except Exception as e:
-        logger.error(f"Error updating quote {quote_id}: {e}", exc_info=True)
+        logger.error("Error updating quote %s: %s", quote_id, e, exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to update quote.")
 
@@ -366,7 +366,7 @@ def patch_quote(
         db.refresh(db_quote)
         return db_quote
     except Exception as e:
-        logger.error(f"Error patching quote {quote_id}: {e}", exc_info=True)
+        logger.error("Error patching quote %s: %s", quote_id, e, exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to patch quote.")
 

@@ -104,7 +104,7 @@ class IGDBRateLimiter:
             if sleep_time <= 0:
                 break
 
-            logger.info(f"IGDB Rate Limiter: pausing for {sleep_time:.2f} seconds.")
+            logger.info("IGDB Rate Limiter: pausing for %.2f seconds.", sleep_time)
             time.sleep(sleep_time)
 
         self.request_timestamps.append(time.time())
@@ -151,8 +151,8 @@ def _get_token() -> Optional[str]:
         )
         if response.status_code >= 400:
             logger.error(
-                f"Twitch refused the IGDB client credentials "
-                f"({response.status_code}); IGDB calls will be skipped."
+                "Twitch refused the IGDB client credentials (%s); IGDB calls will be skipped.",
+                response.status_code,
             )
             return None
 
@@ -167,7 +167,7 @@ def _get_token() -> Optional[str]:
         return token
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Network/Timeout Error obtaining an IGDB token from Twitch: {e}")
+        logger.error("Network/Timeout Error obtaining an IGDB token from Twitch: %s", e)
         return None
 
 
@@ -195,20 +195,22 @@ def _request(endpoint: str, body: str, context: str) -> Optional[Any]:
         if response.status_code == 401:
             # The cached token was rejected; drop it so the next call refetches.
             _TOKEN_CACHE.clear()
-            logger.error(f"IGDB rejected the bearer token (401) for {context}.")
+            logger.error("IGDB rejected the bearer token (401) for %s.", context)
             return None
 
         if response.status_code == 404:
-            logger.warning(f"IGDB has no such resource (404) for {context}.")
+            logger.warning("IGDB has no such resource (404) for %s.", context)
             return None
 
         if response.status_code == 429:
-            logger.warning(f"IGDB rate limit (429) for {context}.")
+            logger.warning("IGDB rate limit (429) for %s.", context)
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code >= 500:
             logger.warning(
-                f"IGDB server error ({response.status_code}) for {context} — skipping retries."
+                "IGDB server error (%s) for %s — skipping retries.",
+                response.status_code,
+                context,
             )
             return None
 
@@ -217,7 +219,7 @@ def _request(endpoint: str, body: str, context: str) -> Optional[Any]:
         return response.json()
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Network/Timeout Error connecting to IGDB for {context}: {e}")
+        logger.error("Network/Timeout Error connecting to IGDB for %s: %s", context, e)
         raise
 
 

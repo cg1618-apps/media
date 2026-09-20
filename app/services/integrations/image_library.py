@@ -149,7 +149,7 @@ def store(normalized: NormalizedImage) -> tuple[str, str]:
         with open(path, "wb") as handle:
             handle.write(payload)
 
-    logger.info(f"Stored library image: {storage_key}")
+    logger.info("Stored library image: %s", storage_key)
     return storage_key, thumb_key
 
 
@@ -195,4 +195,4 @@ def delete_file(storage_key: str, thumb_key: str) -> None:
                 os.remove(path)
         except Exception as exc:
             # Non-critical: the row is already gone or going. Log and continue.
-            logger.error(f"Failed to delete library image {key}: {exc}")
+            logger.error("Failed to delete library image %s: %s", key, exc)
