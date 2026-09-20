@@ -8,6 +8,8 @@ section still shaped `name_entries`, and so the one that keeps that shape's
 validation honest until it moves into 劇情列表 Story List.
 """
 
+import dataclasses
+
 import pytest
 
 from app.schemas.note import NoteCreate, validate_note_payload
@@ -31,13 +33,16 @@ def test_name_entries_is_a_stored_shape():
     assert ns.SHAPE_NAME_ENTRIES in ns.STORED_SHAPES
 
 
-def test_the_three_new_groups_exist_in_order():
+def test_the_groups_exist_in_order():
     keys = [g.key for g in ns.NOTE_GROUPS]
     assert keys == [
         "reviews",
         "analysis_group",
         "guides",
         "story",
+        # 劇情 is the story as prose; 劇情列表 is the same story as a
+        # structure. Adjacent on purpose, and separate on purpose.
+        "story_list",
         "todo",
         "music",
         "quotes_memes",
@@ -96,21 +101,32 @@ def test_the_plot_sections_anchor_to_a_chapter_without_requiring_one():
     The opposite of episode_comments and highlight_moments, which require a
     locator. A plot beat remembered without its chapter number is still a plot
     beat; a per-chapter comment about nothing in particular is not.
+
+    The chapter is a FIELD now rather than the section's locator - the two
+    sections became `structured` when they gained links - so the placeholder
+    moved onto the field with it. The column did not change, so neither did
+    any row.
     """
     for key in ("main_plot", "side_plot"):
         section = ns.section_by_key(key)
-        assert section.shape == ns.SHAPE_EPISODE_TEXT
-        assert section.locator_placeholder == "Chapter / Part, e.g. Ch 3"
-        assert section.locator_required is False
+        assert section.locator_required is False, key
+        chapter = ns.field_by_key(section, "chapter")
+        assert chapter.column == "locator", key
+        assert chapter.placeholder == "Chapter / Part, e.g. Ch 3", key
 
 
-def test_no_new_section_carries_a_locator_except_the_two_plot_ones():
+def test_no_story_or_todo_section_carries_a_section_level_locator():
+    """
+    `main_plot` and `side_plot` were the only two, and their chapter is a
+    field now - a structured section's placeholders come from its spec, so a
+    section-level one would be read by nothing.
+    """
     anchored = [
         s.key
         for s in ns.NOTE_SECTIONS
         if s.locator_placeholder and s.key in STORY_KEYS + TODO_KEYS
     ]
-    assert anchored == ["main_plot", "side_plot"]
+    assert anchored == []
 
 
 def test_highlight_moments_still_belongs_to_game_and_stays_flat():
@@ -135,26 +151,51 @@ def test_part_reviews_reuse_episode_comments_with_a_game_label():
     assert section.locator_placeholders["game"] == "Chapter / Part, e.g. Ch 3"
 
 
-def test_a_name_entries_note_needs_a_title_or_an_entry():
+@pytest.fixture
+def name_entries_section(monkeypatch):
+    """
+    A `name_entries` section, registered under a real key for the duration of
+    one test.
+
+    `side_quests` was the shape's last owner and moved into 劇情列表 Story List.
+    The shape, its `entries` column, its component and its Google Sheets
+    parsing all remain - rows written before that change are still in the
+    database and still have to Pull - so its validation still has to work, and
+    would otherwise be covered by nothing at all. A section patched in is the
+    honest way to keep testing a live branch with no live caller; deleting
+    these tests would have left the branch green by absence.
+    """
+    section = dataclasses.replace(
+        ns.section_by_key("trivia"),
+        shape=ns.SHAPE_NAME_ENTRIES,
+        fields=(),
+    )
+    monkeypatch.setitem(ns._BY_KEY, "trivia", section)
+    return section
+
+
+def test_a_name_entries_note_needs_a_title_or_an_entry(name_entries_section):
     """
     validate_note_payload raises ValueError, which the router turns into a 422 -
     it is not a pydantic validator, so constructing the model cannot fail here.
     """
     with pytest.raises(ValueError, match="needs a name or an entry"):
         validate_note_payload(
-            NoteCreate(owner_type="game", owner_id=None, section="side_quests")
+            NoteCreate(owner_type="game", owner_id=None, section="trivia")
         )
 
 
-def test_a_name_entries_note_accepts_mixed_text_and_link_entries():
+def test_a_name_entries_note_accepts_mixed_text_and_link_entries(
+    name_entries_section,
+):
     note = NoteCreate(
         owner_type="game",
         owner_id=None,
-        section="side_quests",
+        section="trivia",
         title="Ranni's questline",
         entries=[
-            {"type": "text", "value": "Learn the waterfowl dodge"},
-            {"type": "link", "value": "https://example.com", "label": "Phase 2"},
+            {"type": "text", "value": "Do not kill Blaidd"},
+            {"type": "link", "value": "https://example.com", "label": "Steps"},
         ],
     )
     validate_note_payload(note)
@@ -162,12 +203,12 @@ def test_a_name_entries_note_accepts_mixed_text_and_link_entries():
     assert note.entries[0]["type"] == "text"
 
 
-def test_an_entry_alone_is_enough_without_a_title():
+def test_an_entry_alone_is_enough_without_a_title(name_entries_section):
     validate_note_payload(
         NoteCreate(
             owner_type="game",
             owner_id=None,
-            section="side_quests",
+            section="trivia",
             entries=[{"type": "link", "value": "https://example.com"}],
         )
     )

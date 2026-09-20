@@ -52,7 +52,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `text_or_link` | `content` **xor** `links[0]` | Either what someone said or where they said it, never both. |
 | `episode_text` | `locator`, `content`, `kind` where declared | Anchored to an episode/chapter. |
 | `name_links` | `title`, `links` | A named resource. |
-| `name_entries` | `title`, `entries` | A named list whose items are each a line of text **or** a labelled link, in one ordered array. `name_links` can only hold URLs and `text_links` has no title, so neither could say "here is my Malenia plan: two notes and a video". |
+| `name_entries` | `title`, `entries` | A named list whose items are each a line of text **or** a labelled link, in one ordered array. **Currently owned by no section** — see the component table below. |
 | `episode_name_links` | `locator`, `title`, `content`, `links`, `status` | The widest shape — used only by `insert_songs`. |
 | `music_track` | `title`, `kind`, `status`, `links`, `content` | One theme song; the only shape with two dropdowns. |
 | `structured` | *(whatever its `fields` spec names)* + `fields` | The registry-driven shape. The SECTION declares an ordered field spec instead of the shape naming fixed columns, so a section that grows a field is a registry edit rather than a new component and a migration. See [Structured sections](#structured-sections). |
@@ -92,6 +92,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `analysis_group` | 解析 Analysis and Cinematography | `fa-clapperboard` (keyed `analysis_group` because a section already owns `analysis`) |
 | `guides` | 攻略 Guides | `fa-map` — game-only, 15 sections |
 | `story` | 劇情 Story | `fa-book-open` — game-only, 7 sections |
+| `story_list` | 劇情列表 Story List | `fa-list-ol` — game-only, 4 **hierarchical** strands |
 | `todo` | 待辦 Todo | `fa-list-check` — game-only, 4 personal-scope buckets |
 | `music` | 音樂 Music | `fa-music` |
 | `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` |
@@ -99,6 +100,49 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 **`guides` names a group and no section**, so unlike `analysis_group` it needs no suffix. **`todo` is not called `progress`**: the game detail page already renders a `<Slip title="Progress">` (playtime and achievements) beside the notes, and two cards with one name is unreadable.
 
 **Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情 → 待辦 → 音樂 → 名言/梗 → Resources → Questions.
+
+### 劇情列表 Story List, and nesting
+
+劇情 above is the story written as **prose**; 劇情列表 is the same story as a
+**structure** — a numbered, nestable list of the things it is made of, so
+"chapter 3, scene 2" is two rows and a parent link rather than a sentence. The
+two are deliberately not merged: a plot note and an outline entry are read at
+different times, and neither reads well as the other.
+
+Four strands (`story_list_main`, `_side`, `_character`, `_event`) rather than
+one section with a `kind`, for the same reason the 待辦 buckets are four:
+`sort_index` orders rows within one `(owner, section)` pair, so a kind-tagged
+single section could not order entries *within* a strand. They are built from
+`STORY_LIST_STRANDS` by `_story_list_sections()` because they differ only in
+key and label — four copies of one spec is four places for them to drift.
+
+**These are the only `hierarchical` sections.** An entry nests under another to
+any depth via `note.parent_id`; two or three levels is the expected shape, and
+nothing enforces a limit because the limit would be arbitrary and the router
+already refuses a cycle. The rules a schema cannot check live in
+`_validate_parent` (`app/routers/note.py`): the parent must exist, share this
+row's **owner** and **section**, not be the row itself, and not close a loop at
+any depth. A flat section refuses a `parent_id` outright, so a section does not
+grow a tree because one payload carried a stray id.
+
+**`require_any = (("order", "name"),)`** is what makes an entry an entry: an
+order number *or* a name, and it may have both. "3.2" with no name is a
+placeholder somebody will fill in; "The Lake" with no number is an entry whose
+position is its parent's business; a description with neither is a body with
+nothing to call it. The order number is **free text** on the `locator` column,
+because an entry is numbered "3", "3.2", "II", "v1.4" or "Act I" depending on
+the work.
+
+**How the page reorders one.** `PATCH /api/notes/reorder` takes ids naming
+*exactly* that section's notes and answers 400 otherwise, which is what keeps a
+partial list from quietly renumbering half a section. A move only swaps two
+siblings, so the page flattens its whole tree depth-first with that swap
+applied and sends all of it — which also leaves `sort_index` ascending in the
+order the page draws.
+
+A row whose `parent_id` names something not in the fetched list renders as a
+**root**. That should not happen — the router refuses a foreign parent and a
+delete cascades — but dropping such a row would hide it with nothing to say so.
 
 ### Section registry
 
@@ -126,7 +170,6 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `controls` | 操作 Controls | **structured** | guides | game | — | — | — | no | no | no |
 | `guide_notes` | 攻略筆記 Guide Notes | text_links | guides | game | — | — | — | no | no | no |
 | `trivia` | 小知識 Trivia | text_links | guides | game | — | — | — | no | no | no |
-| `side_quests` | 支線任務列表 Side Quests | name_entries | guides | game | — | — | — | no | no | no |
 | `stats_and_points` | 屬性&配點 Stats & Points | **structured** | guides | game | — | — | — | no | no | no |
 | `builds_and_styles` | 配裝&流派 Builds & Styles | **structured** | guides | game | — | — | — | no | no | no |
 | `team_composition` | 隊伍組成 Team Composition | **structured** | guides | game | — | — | — | no | no | no |
@@ -138,13 +181,17 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `enemies` | 敵人 Enemies | **structured** | guides | game | — | — | — | no | no | no |
 | `endings` | 結局 Endings | **structured** | guides | game | — | — | — | no | no | no |
 | `mods_and_tools` | 模組&工具 Mods & Tools | **structured** | guides | game | — | — | — | no | no | no |
-| `main_plot` | 主線劇情 Main Plot | episode_text | story | game | — | — | "Chapter / Part, e.g. Ch 3" | no | no | no |
-| `side_plot` | 支線劇情 Side Stories | episode_text | story | game | — | — | "Chapter / Part, e.g. Ch 3" | no | no | no |
+| `main_plot` | 主線劇情 Main Plot | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
+| `side_plot` | 支線劇情 Side Stories | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
 | `character_arcs` | 角色劇情 Character Arcs | text_links | story | game | — | — | — | no | no | no |
 | `lore` | 世界觀&設定 Lore | text_links | story | game | — | — | — | no | no | no |
-| `timeline` | 時間線 Timeline | text | story | game | — | — | — | no | no | no |
+| `timeline` | 時間線 Timeline | text_links | story | game | — | — | — | no | no | no |
 | `mysteries` | 未解之謎 Mysteries | text_links | story | game | — | — | — | no | no | no |
 | `story_other` | 其他 Other | text_links | story | game | — | — | — | no | no | no |
+| `story_list_main` | 主線 Main | **structured** | story_list | game | — | — | — | no | no | no |
+| `story_list_side` | 支線 Side | **structured** | story_list | game | — | — | — | no | no | no |
+| `story_list_character` | 角色 Character | **structured** | story_list | game | — | — | — | no | no | no |
+| `story_list_event` | 事件 Event | **structured** | story_list | game | — | — | — | no | no | no |
 | `todo_now` | 現在進行 Doing now | text_links | todo | game | — | — | — | no | no | no |
 | `todo_next` | 接下來 To do next | text_links | todo | game | — | — | — | no | no | no |
 | `todo_later` | 未來 To do in the future | text_links | todo | game | — | — | — | no | no | no |
@@ -183,6 +230,8 @@ column a field claims; a field with no arrow lives in `fields`.
 | `endings` | name → `title`, completion → `status`, description → `content`, links → `links` |
 | `mods_and_tools` | type → `kind`, name → `title`, developer, description → `content`, status → `status` |
 | `guide_resources` | name → `title`, description → `content`, links → `links` |
+| `main_plot` / `side_plot` | chapter → `locator` *(placeholder "Chapter / Part, e.g. Ch 3")*, description → `content`, links → `links` |
+| the four `story_list_*` strands | order → `locator`, name → `title`, description → `content`, links → `links`; `hierarchical`, `require_any = (("order", "name"),)` |
 
 Only four fields in the whole group need `fields` at all — `variant`, `alias`,
 `region`, `developer` — plus the stat values and the nested lists. Everything
@@ -204,10 +253,6 @@ than about the game, so they read the same everywhere:
 by `_named_thing_fields(variant=…)`: they differ only in whether a row can
 carry a variant.
 
-**`side_quests` has not moved yet.** It is still `name_entries`, and it leaves
-the group for the 劇情列表 Story List when that group exists to receive its
-rows — retiring it first would mean deleting rows or parking them where
-nothing reads them.
 
 Registry helpers (`app/utils/note_sections.py`): `section_by_key`, `sections_for(owner_type)`, `label_for`, `kinds_for`, `locator_for`, `group_by_key`, `sections_by_scope`, plus the two derived key sets `PERSONAL_SECTIONS` and `CATALOG_SECTIONS`.
 
@@ -324,8 +369,8 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | `TextOrLinkSection.jsx` (+ `textOrLink.js`) | text_or_link | content xor one link |
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
 | `NameLinksSection.jsx` | name_links | title, links |
-| `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, reorderable in the form). Its one owner is `side_quests`. |
-| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns the up/down reorder buttons (`PATCH /api/notes/reorder`) and the inline `quick_edit` input. |
+| `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, reorderable in the form). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
+| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns the up/down reorder buttons (`PATCH /api/notes/reorder`), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move that flattens the whole tree depth-first. |
 | `EpisodeNameLinksSection.jsx` | episode_name_links | locator, title, content, links, status |
 | `MusicTrackSection.jsx` | music_track | title, kind (starts on `default_kind`), status, link, content |
 | `QuoteSection.jsx` / `MemeSection.jsx` | external | adapt the long-lived quote/meme components; report counts |

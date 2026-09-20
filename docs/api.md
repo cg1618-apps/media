@@ -670,9 +670,12 @@ then `sort_index` within it, which is exactly the page's render order.
 
 `/reorder` is declared **before** `/{note_id}`: FastAPI matches in declaration
 order, so the dynamic route would otherwise swallow `reorder` as a note id.
-The `structured` shape's up/down buttons are its caller: they send the ids of
-one set of siblings in their new order, which is why the endpoint renumbers
-what it is given rather than the whole section.
+The `structured` shape's up/down buttons are its caller. `ordered_ids` must
+name exactly that section's notes, which is what keeps a partial list from
+quietly renumbering half a section — so a hierarchical section, whose move
+only swaps two siblings, sends its whole tree flattened depth-first with the
+swap applied. That also leaves `sort_index` ascending in the order the page
+draws.
 
 ---
 

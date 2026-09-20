@@ -10,14 +10,12 @@ change silently.
 
 from app.utils import note_sections as ns
 
-# Display order of the 攻略 group after the reshape. `side_quests` is still
-# here: it leaves when the 劇情列表 Story List group exists to receive it.
+# Display order of the 攻略 group.
 GUIDES_ORDER = [
     "beginner",
     "controls",
     "guide_notes",
     "trivia",
-    "side_quests",
     "stats_and_points",
     "builds_and_styles",
     "team_composition",

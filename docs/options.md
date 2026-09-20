@@ -208,7 +208,9 @@ The registry of what a `note` row may be. Full behaviour is in
 `name_links`, `name_entries`, `episode_name_links`, `music_track`,
 `structured` (the nine
 `STORED_SHAPES`) plus `external` (quotes and memes, which live in their own
-tables). `name_entries` is the newest: a title plus one ordered `entries`
+tables). `structured` is the newest: the section declares its own ordered
+field spec and one component renders it. `name_entries` is owned by no
+section today — a title plus one ordered `entries`
 array whose items are each a line of text or a labelled link. `name_links`
 can only hold URLs and `text_links` has no title, so neither could say
 "here is my Malenia plan: two notes and a video".
@@ -248,7 +250,6 @@ media types only.
 | `controls` | structured | 操作 Controls | game | guides | Fields: control (`title`), description (`content`), links |
 | `guide_notes` | text_links | 攻略筆記 Guide Notes | game | guides | |
 | `trivia` | text_links | 小知識 Trivia | game | guides | |
-| `side_quests` | name_entries | 支線任務列表 Side Quests | game | guides | Moves to 劇情列表 Story List |
 | `stats_and_points` | structured | 屬性&配點 Stats & Points | game | guides | name, min/rec/soft-cap, my value (quick-edit), description |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game | guides | name, five nested lists, description, links |
 | `team_composition` | structured | 隊伍組成 Team Composition | game | guides | name, members list (name, 定位, build, notes), description, links |
@@ -260,13 +261,17 @@ media types only.
 | `enemies` | structured | 敵人 Enemies | game | guides | tier, region, name, alias, description, beaten status |
 | `endings` | structured | 結局 Endings | game | guides | name, completion status, description, links |
 | `mods_and_tools` | structured | 模組&工具 Mods & Tools | game | guides | type `Mod`/`Tool`, name, developer, description, status |
-| `main_plot` | episode_text | 主線劇情 Main Plot | game | story | locator optional, placeholder "Chapter / Part" |
-| `side_plot` | episode_text | 支線劇情 Side Stories | game | story | locator optional, placeholder "Chapter / Part" |
+| `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
+| `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), description, links |
 | `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
 | `lore` | text_links | 世界觀&設定 Lore | game | story | |
-| `timeline` | text | 時間線 Timeline | game | story | |
+| `timeline` | text_links | 時間線 Timeline | game | story | |
 | `mysteries` | text_links | 未解之謎 Mysteries | game | story | |
 | `story_other` | text_links | 其他 Other | game | story | |
+| `story_list_main` | structured | 主線 Main | game | story_list | order, name, description, links; nestable |
+| `story_list_side` | structured | 支線 Side | game | story_list | order, name, description, links; nestable |
+| `story_list_character` | structured | 角色 Character | game | story_list | order, name, description, links; nestable |
+| `story_list_event` | structured | 事件 Event | game | story_list | order, name, description, links; nestable |
 | `todo_now` | text_links | 現在進行 Doing now | game | todo | personal scope |
 | `todo_next` | text_links | 接下來 To do next | game | todo | personal scope |
 | `todo_later` | text_links | 未來 To do in the future | game | todo | personal scope |

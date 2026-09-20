@@ -337,6 +337,13 @@ function QuickEdit({ field, note, isAdmin, onUpdate }) {
   );
 }
 
+// What to call a row in a control's accessible name. The heading where there
+// is one, so nine nested Add buttons do not all read "Add entry under entry".
+function rowLabel(section, note) {
+  return rowHeading(section, note)?.value || "entry";
+}
+
+
 function StructuredRow({ section, note, isAdmin, onUpdate }) {
   const heading = rowHeading(section, note);
   const headingKey = heading?.field.key;
@@ -402,6 +409,32 @@ function StructuredRow({ section, note, isAdmin, onUpdate }) {
   );
 }
 
+// --- The tree -------------------------------------------------------------
+
+// Rows arrive flat, each carrying the id of the row it sits under, so the
+// page builds the shape. A flat section takes the same path with every row a
+// root, which is why there is one renderer rather than two.
+//
+// A row whose parent_id names something not in this list is treated as a
+// root. That should not happen - the router refuses a parent from another
+// owner or section, and a delete cascades - but dropping such a row would
+// hide it with nothing to say so, and showing it at the top level is the
+// failure a reader can actually see and fix.
+function buildTree(notes, hierarchical) {
+  if (!hierarchical) return notes.map((note) => ({ note, children: [] }));
+
+  const nodes = new Map(
+    notes.map((note) => [note.system_id, { note, children: [] }]),
+  );
+  const roots = [];
+  for (const note of notes) {
+    const node = nodes.get(note.system_id);
+    const parent = note.parent_id ? nodes.get(note.parent_id) : null;
+    (parent ? parent.children : roots).push(node);
+  }
+  return roots;
+}
+
 // --- Section --------------------------------------------------------------
 
 export default function StructuredSection({
@@ -413,16 +446,26 @@ export default function StructuredSection({
   onDelete,
   onReorder,
 }) {
-  const [adding, setAdding] = useState(false);
+  // `null` means the draft is a root; an id means it is a child of that row.
+  // `false` means no draft is open, which is why this is not a boolean.
+  const [addingUnder, setAddingUnder] = useState(false);
   const [draft, setDraft] = useState(() => emptyDraft(section));
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState({});
 
+  const closeDraft = () => {
+    setDraft(emptyDraft(section));
+    setAddingUnder(false);
+  };
+
   const commit = () => {
     if (invalid(section, draft)) return;
-    onCreate({ section: section.key, ...toPayload(section, draft) });
-    setDraft(emptyDraft(section));
-    setAdding(false);
+    onCreate({
+      section: section.key,
+      ...toPayload(section, draft),
+      ...(addingUnder ? { parent_id: addingUnder } : {}),
+    });
+    closeDraft();
   };
 
   const saveEdit = () => {
@@ -431,26 +474,51 @@ export default function StructuredSection({
     setEditId(null);
   };
 
-  // Rows arrive already sorted by sort_index, so a move is a swap plus a
-  // renumber of the whole list - the endpoint takes ids in their new order.
-  const move = (i, delta) => {
+  const tree = buildTree(notes, section.hierarchical);
+
+  // A move swaps two SIBLINGS, and then the whole section is renumbered in
+  // tree order.
+  //
+  // Sending just the swapped pair's siblings would be the smaller payload and
+  // is refused: PATCH /api/notes/reorder takes ids naming exactly the section,
+  // so a partial list is a loud 400 rather than a quiet partial renumber. That
+  // is the right invariant to leave alone, and flattening depth-first is the
+  // better answer anyway - `sort_index` ends up ascending in the order the
+  // page actually draws, so a reader of the raw rows sees the tree's order too.
+  //
+  // `parent` is the node whose children are being reordered, or null for the
+  // roots. The swapped array is substituted by identity while flattening,
+  // which is safe because these arrays are stable for the render.
+  const move = (parent, i, delta) => {
+    const siblings = parent ? parent.children : tree;
     const j = i + delta;
-    if (j < 0 || j >= notes.length || !onReorder) return;
-    const ids = notes.map((n) => n.system_id);
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-    onReorder(section.key, ids);
+    if (j < 0 || j >= siblings.length || !onReorder) return;
+
+    const swapped = [...siblings];
+    [swapped[i], swapped[j]] = [swapped[j], swapped[i]];
+
+    const flatten = (nodes) =>
+      (nodes === siblings ? swapped : nodes).flatMap((node) => [
+        node.note.system_id,
+        ...flatten(node.children),
+      ]);
+    onReorder(section.key, flatten(tree));
   };
 
-  return (
-    <SectionCard
-      label={section.label}
-      count={notes.length}
-      isAdmin={isAdmin}
-      onAdd={() => setAdding(true)}
-    >
-      {notes.map((n, i) => (
-        <div key={n.system_id} className={rowCls}>
-          {editId === n.system_id ? (
+  const renderDraft = () => (
+    <div className={draftCls}>
+      <StructuredForm section={section} val={draft} setVal={setDraft} />
+      <SaveCancel onSave={commit} onCancel={closeDraft} />
+    </div>
+  );
+
+  const renderNodes = (siblings, depth, parent = null) =>
+    siblings.map((node, i) => {
+      const n = node.note;
+      const editing = editId === n.system_id;
+      return (
+        <div key={n.system_id} className={depth === 0 ? rowCls : "pt-2"}>
+          {editing ? (
             <div>
               <StructuredForm
                 section={section}
@@ -461,12 +529,12 @@ export default function StructuredSection({
             </div>
           ) : (
             <div className="flex gap-2 items-start">
-              {isAdmin && onReorder && notes.length > 1 && (
+              {isAdmin && onReorder && siblings.length > 1 && (
                 <MoveButtons
                   atTop={i === 0}
-                  atBottom={i === notes.length - 1}
-                  onUp={() => move(i, -1)}
-                  onDown={() => move(i, 1)}
+                  atBottom={i === siblings.length - 1}
+                  onUp={() => move(parent, i, -1)}
+                  onDown={() => move(parent, i, 1)}
                 />
               )}
               <StructuredRow
@@ -475,6 +543,20 @@ export default function StructuredSection({
                 isAdmin={isAdmin}
                 onUpdate={onUpdate}
               />
+              {isAdmin && section.hierarchical && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(emptyDraft(section));
+                    setAddingUnder(n.system_id);
+                  }}
+                  aria-label={`Add entry under ${rowLabel(section, n)}`}
+                  title="Add a nested entry"
+                  className="text-text-faint hover:text-brand text-xs px-1 shrink-0 mt-0.5"
+                >
+                  <i className="fas fa-plus"></i>
+                </button>
+              )}
               <ItemActions
                 isAdmin={isAdmin}
                 onEdit={() => {
@@ -485,21 +567,32 @@ export default function StructuredSection({
               />
             </div>
           )}
+          {/* Children and this row's draft both sit inside it, indented by a
+              rule rather than by padding alone - at three levels deep the
+              indent on its own stops reading as nesting. */}
+          {(node.children.length > 0 || addingUnder === n.system_id) && (
+            <div className="ml-3 pl-3 border-l border-border mt-2 space-y-2">
+              {renderNodes(node.children, depth + 1, node)}
+              {addingUnder === n.system_id && renderDraft()}
+            </div>
+          )}
         </div>
-      ))}
-      {adding && (
-        <div className={draftCls}>
-          <StructuredForm section={section} val={draft} setVal={setDraft} />
-          <SaveCancel
-            onSave={commit}
-            onCancel={() => {
-              setDraft(emptyDraft(section));
-              setAdding(false);
-            }}
-          />
-        </div>
-      )}
-      {!notes.length && !adding && <EmptyHint />}
+      );
+    });
+
+  return (
+    <SectionCard
+      label={section.label}
+      count={notes.length}
+      isAdmin={isAdmin}
+      onAdd={() => {
+        setDraft(emptyDraft(section));
+        setAddingUnder(null);
+      }}
+    >
+      {renderNodes(tree, 0)}
+      {addingUnder === null && renderDraft()}
+      {!notes.length && addingUnder === false && <EmptyHint />}
     </SectionCard>
   );
 }

@@ -225,10 +225,9 @@ export default function NotesTemplate({
           setError(String(e.message || e));
         }
       },
-      // Takes the ids of ONE set of siblings in their new order. A flat
-      // section sends every row; a hierarchical one sends the children of one
-      // parent, which is why the endpoint renumbers what it is given rather
-      // than the whole section.
+      // Takes every id of the section in its new order - the endpoint
+      // refuses anything else. A hierarchical section flattens its tree
+      // depth-first, so sort_index ascends in the order the page draws.
       onReorder: async (section, orderedIds) => {
         try {
           await api.reorderNotes(ownerType, ownerId, section, orderedIds);

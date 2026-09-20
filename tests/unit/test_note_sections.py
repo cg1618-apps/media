@@ -489,7 +489,10 @@ CATALOG_KEYS = {
     "trivia",
     "guide_notes",
     "team_composition",
-    "side_quests",
+    "story_list_main",
+    "story_list_side",
+    "story_list_character",
+    "story_list_event",
     "builds_and_styles",
     "stats_and_points",
     "skills",
@@ -547,7 +550,7 @@ def test_the_personal_sections_are_exactly_these_eleven():
     assert ns.PERSONAL_SECTIONS == PERSONAL_KEYS
 
 
-def test_the_catalog_sections_are_exactly_these_forty_two():
+def test_the_catalog_sections_are_exactly_these_forty_five():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_CATALOG} == (
         CATALOG_KEYS
     )
@@ -556,7 +559,7 @@ def test_the_catalog_sections_are_exactly_these_forty_two():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 53
+    assert len(stored) == 56
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
