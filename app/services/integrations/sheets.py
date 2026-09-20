@@ -105,17 +105,22 @@ def _execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) -
             if status == 429:
                 wait_time = 60 * (attempt + 1)
                 logger.warning(
-                    f"Google API Quota Exceeded (429). Attempt {attempt + 1}/{max_retries}. "
-                    f"Pausing for {wait_time}s..."
+                    "Google API Quota Exceeded (429). Attempt %s/%s. Pausing for %ss...",
+                    attempt + 1,
+                    max_retries,
+                    wait_time,
                 )
             elif status in TRANSIENT_STATUS_CODES:
                 wait_time = 2 ** (attempt + 1)
                 logger.warning(
-                    f"Google Sheets is temporarily unavailable ({status}). "
-                    f"Attempt {attempt + 1}/{max_retries}. Retrying in {wait_time}s..."
+                    "Google Sheets is temporarily unavailable (%s). Attempt %s/%s. Retrying in %ss...",
+                    status,
+                    attempt + 1,
+                    max_retries,
+                    wait_time,
                 )
             else:
-                logger.error(f"Google Sheets API Error: {e}")
+                logger.error("Google Sheets API Error: %s", e)
                 raise e
 
             # No point sleeping through the backoff of an attempt we will not make.
@@ -130,7 +135,7 @@ def _execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) -
             # the tab was created and written successfully.
             raise
         except Exception as e:
-            logger.error(f"Unexpected error during Sheets API call: {e}")
+            logger.error("Unexpected error during Sheets API call: %s", e)
             raise e
 
     logger.error("Max retries exceeded for Google Sheets API.")
@@ -168,7 +173,7 @@ def _get_google_spreadsheet() -> gspread.Spreadsheet:
                 "credentials.json", scopes=scopes
             )
     except Exception as e:
-        logger.error(f"Failed to load Google Service Account credentials: {e}")
+        logger.error("Failed to load Google Service Account credentials: %s", e)
         raise e
 
     client = gspread.authorize(credentials)
@@ -183,7 +188,7 @@ def _get_google_spreadsheet() -> gspread.Spreadsheet:
     try:
         return _execute_with_retry(client.open_by_key, sheet_id)
     except Exception as e:
-        logger.error(f"Failed to open spreadsheet with ID '{sheet_id}': {e}")
+        logger.error("Failed to open spreadsheet with ID '%s': %s", sheet_id, e)
         raise e
 
 
@@ -197,7 +202,7 @@ def get_google_sheet_tab(tab_name: str) -> gspread.Worksheet:
     try:
         return _execute_with_retry(spreadsheet.worksheet, tab_name)
     except WorksheetNotFound:
-        logger.info(f"Worksheet '{tab_name}' not found. Creating new tab.")
+        logger.info("Worksheet '%s' not found. Creating new tab.", tab_name)
         # Default to 1000 rows and 50 columns for a clean backup canvas
         return _execute_with_retry(
             spreadsheet.add_worksheet, title=tab_name, rows=1000, cols=50
@@ -225,7 +230,7 @@ def get_all_raw_rows(tab_name: str) -> List[List[str]]:
     except SheetsUnavailableError:
         raise
     except Exception as e:
-        logger.error(f"Failed to retrieve data from tab '{tab_name}': {e}")
+        logger.error("Failed to retrieve data from tab '%s': %s", tab_name, e)
         raise SheetsUnavailableError(
             f"Failed to retrieve data from tab '{tab_name}': {e}"
         ) from e
@@ -291,5 +296,5 @@ def bulk_overwrite_sheet(tab_name: str, data_matrix: List[List[Any]]) -> bool:
     if leftovers:
         _execute_with_retry(worksheet.batch_clear, leftovers)
 
-    logger.info(f"Successfully backed up {rows} rows to '{tab_name}'.")
+    logger.info("Successfully backed up %s rows to '%s'.", rows, tab_name)
     return True

@@ -377,11 +377,11 @@ def create_meme(
     except IntegrityError as e:
         # The UNIQUE/FK constraints are the real guarantee, so anything that
         # slips past the pre-check still fails cleanly rather than 500ing.
-        logger.warning(f"Meme integrity error: {e}")
+        logger.warning("Meme integrity error: %s", e)
         db.rollback()
         raise HTTPException(status_code=400, detail=_INTEGRITY_DETAIL)
     except Exception as e:
-        logger.error(f"Error creating meme: {e}", exc_info=True)
+        logger.error("Error creating meme: %s", e, exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to create meme.")
 
@@ -422,11 +422,11 @@ def update_meme(
     except HTTPException:
         raise
     except IntegrityError as e:
-        logger.warning(f"Meme integrity error: {e}")
+        logger.warning("Meme integrity error: %s", e)
         db.rollback()
         raise HTTPException(status_code=400, detail=_INTEGRITY_DETAIL)
     except Exception as e:
-        logger.error(f"Error updating meme {meme_id}: {e}", exc_info=True)
+        logger.error("Error updating meme %s: %s", meme_id, e, exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to update meme.")
 
@@ -469,11 +469,11 @@ def patch_meme(
     except HTTPException:
         raise
     except IntegrityError as e:
-        logger.warning(f"Meme integrity error: {e}")
+        logger.warning("Meme integrity error: %s", e)
         db.rollback()
         raise HTTPException(status_code=400, detail=_INTEGRITY_DETAIL)
     except Exception as e:
-        logger.error(f"Error patching meme {meme_id}: {e}", exc_info=True)
+        logger.error("Error patching meme %s: %s", meme_id, e, exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to patch meme.")
 

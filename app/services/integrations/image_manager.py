@@ -71,7 +71,7 @@ def list_all_cover_images(owner_type: Optional[str] = None) -> list[str]:
             )
         return sorted(keys)
     except Exception as e:
-        logger.error(f"Error listing cover images: {e}")
+        logger.error("Error listing cover images: %s", e)
         return []
 
 
@@ -81,7 +81,7 @@ def cover_image_exists(owner_type: str, system_id: str) -> bool:
     try:
         return os.path.exists(_local_path(key))
     except Exception as e:
-        logger.error(f"Error checking cover image for {key}: {e}")
+        logger.error("Error checking cover image for %s: %s", key, e)
         return False
 
 
@@ -117,15 +117,15 @@ def download_cover_image(
 
         with open(filepath, "wb") as f:
             f.write(response.content)
-        logger.info(f"Cover image saved: {key}")
+        logger.info("Cover image saved: %s", key)
 
         return key
 
     except requests.RequestException as e:
-        logger.error(f"Network error downloading image from {image_url}: {e}")
+        logger.error("Network error downloading image from %s: %s", image_url, e)
         return None
     except Exception as e:
-        logger.error(f"Unexpected error managing cover image for {key}: {e}")
+        logger.error("Unexpected error managing cover image for %s: %s", key, e)
         return None
 
 
@@ -143,8 +143,8 @@ def delete_cover_image(owner_type: str, system_id: str) -> None:
         filepath = _local_path(key)
         if os.path.exists(filepath):
             os.remove(filepath)
-            logger.info(f"Deleted cover image: {key}")
+            logger.info("Deleted cover image: %s", key)
 
     except Exception as e:
         # Non-critical: Log the error but allow the parent transaction to continue
-        logger.error(f"Maintenance Error: Failed to delete image {key}: {e}")
+        logger.error("Maintenance Error: Failed to delete image %s: %s", key, e)

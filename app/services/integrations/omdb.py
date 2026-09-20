@@ -42,8 +42,9 @@ class OMDbRateLimiter:
             sleep_time = self.time_window - (now - self.request_timestamps[0])
             if sleep_time > 0:
                 logger.warning(
-                    f"OMDb Rate Limiter: Daily limit ({self.max_requests}) reached. "
-                    f"Pausing for {sleep_time:.2f} seconds."
+                    "OMDb Rate Limiter: Daily limit (%s) reached. Pausing for %.2f seconds.",
+                    self.max_requests,
+                    sleep_time,
                 )
                 time.sleep(sleep_time)
 
@@ -93,12 +94,14 @@ def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
             return None
 
         if response.status_code == 429:
-            logger.warning(f"OMDb Rate Limit (429) for IMDb ID {imdb_id}.")
+            logger.warning("OMDb Rate Limit (429) for IMDb ID %s.", imdb_id)
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code >= 500:
             logger.warning(
-                f"OMDb server error ({response.status_code}) for IMDb ID {imdb_id} — skipping retries."
+                "OMDb server error (%s) for IMDb ID %s — skipping retries.",
+                response.status_code,
+                imdb_id,
             )
             return None
 
@@ -107,15 +110,11 @@ def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
         data = response.json()
 
         if data.get("Response") == "False":
-            logger.warning(
-                f"OMDb: Title not found for IMDb ID {imdb_id}: {data.get('Error')}"
-            )
+            logger.warning("OMDb: Title not found for IMDb ID %s: %s", imdb_id, data.get('Error'))
             return None
 
         return data
 
     except requests.exceptions.RequestException as e:
-        logger.error(
-            f"Network/Timeout Error connecting to OMDb for IMDb ID {imdb_id}: {e}"
-        )
+        logger.error("Network/Timeout Error connecting to OMDb for IMDb ID %s: %s", imdb_id, e)
         raise

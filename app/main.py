@@ -14,9 +14,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app import database, models
+from app import database, logging_config, models
 from app.config import settings
 from app.database import engine
+from app.request_context import RequestIdMiddleware
 from app.routers import (
     access_modes,
     account,
@@ -69,6 +70,11 @@ from app.services.rbac.modes import grant_all_modes_to_existing_accounts
 from app.services.rbac.seed import ADMIN_ROLE, ensure_rbac_seed
 from app.services.rbac.seed_modes import ensure_access_mode_seed
 from app.services.security import get_password_hash
+
+# Before anything in this module can log. `ensure_schema` below, and every
+# import that has already run, would otherwise emit through whatever handler
+# happened to exist - which is the failure this replaced.
+logging_config.configure()
 
 logger = logging.getLogger(__name__)
 
@@ -183,13 +189,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Outermost, so a request has an id before anything else can log about it -
+# including the exception handler below.
+app.add_middleware(RequestIdMiddleware)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(
-        f"Unhandled exception on {request.method} {request.url}: {exc}", exc_info=True
+        "Unhandled exception on %s %s: %s",
+        request.method,
+        request.url,
+        exc,
+        exc_info=True,
     )
     return JSONResponse(
         status_code=500,

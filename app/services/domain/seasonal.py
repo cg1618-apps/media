@@ -74,7 +74,7 @@ def create_missing_seasonal(db: Session) -> None:
 
     if new_seasonals_added > 0:
         db.commit()
-        logger.info(f"Auto-created {new_seasonals_added} new seasonal entries.")
+        logger.info("Auto-created %s new seasonal entries.", new_seasonals_added)
     else:
         logger.info("No new seasonal entries needed to be created.")
 
