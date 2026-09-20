@@ -103,6 +103,7 @@ export default function SourcesCard({
   comicvineLink,
   openLibraryLink,
   igdbLink,
+  steamLink,
   originalSource,
   exclusiveSource,
   serializationPlatform,
@@ -119,6 +120,7 @@ export default function SourcesCard({
 
   const hasAny =
     accessRows.length > 0 ||
+    Boolean(steamLink) ||
     referenceRows.length > 0 ||
     Boolean(malLink) ||
     Boolean(imdbLink) ||
@@ -146,7 +148,7 @@ export default function SourcesCard({
           ))}
         </div>
       )}
-      {accessRows.length > 0 && (
+      {(accessRows.length > 0 || steamLink) && (
         <section aria-label={accessHeading(mediaType)}>
           <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
             {accessHeading(mediaType)}
@@ -154,6 +156,15 @@ export default function SourcesCard({
           {accessRows.map((row) => (
             <SourceEntry key={row.system_id} row={row} />
           ))}
+          {/* A storefront, not a reference database - so it sits with the
+              access rows rather than beside IGDB. It is column-backed
+              (games.steam_link), so it follows the server-ordered rows
+              instead of being sorted among them. */}
+          {steamLink && (
+            <SourceLink href={steamLink} tag="Steam">
+              Steam store page
+            </SourceLink>
+          )}
         </section>
       )}
       {(referenceRows.length > 0 ||
