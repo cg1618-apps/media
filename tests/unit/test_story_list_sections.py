@@ -149,6 +149,35 @@ def test_a_plot_beat_still_needs_no_chapter():
     assert ns.section_by_key("main_plot").locator_required is False
 
 
+def test_endings_belong_to_the_story_above_the_lore():
+    """
+    結局 Endings sat in 攻略 Guides while it had nowhere better - it was filed
+    with the 圖鑑 sections by elimination rather than because it belonged
+    there. An ending is what the story DOES, so it reads beside 未解之謎 and
+    above 世界觀&設定.
+    """
+    section = ns.section_by_key("endings")
+    assert section.group == "story"
+
+    keys = [s.key for s in ns.NOTE_SECTIONS if s.group == "story"]
+    assert keys.index("endings") == keys.index("lore") - 1
+
+
+def test_endings_carry_a_completion_status():
+    section = ns.section_by_key("endings")
+    assert [f.key for f in section.fields] == [
+        "name",
+        "completion",
+        "description",
+        "links",
+    ]
+    assert ns.field_by_key(section, "completion").options == (
+        "not yet",
+        "reached",
+        "skipped",
+    )
+
+
 def test_the_timeline_carries_links():
     assert ns.section_by_key("timeline").shape == ns.SHAPE_TEXT_LINKS
 

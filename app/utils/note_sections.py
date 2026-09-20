@@ -186,6 +186,13 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # to avoid making a reader work that out. Here the collision was removed
     # instead, which is why this key does not need the same suffix.
     NoteGroup(key="guides", label="攻略 Guides", icon="fa-map"),
+    NoteGroup(key="builds", label="養成&流派 Builds & Growth", icon="fa-chart-simple"),
+    # NOT keyed `items`: a SECTION owns that key. Group keys and section keys
+    # are separate dicts so the two could coexist, but a reader scanning for
+    # "items" should not have to work out which namespace a bare key means -
+    # the same reason `analysis_group` is not `analysis`.
+    NoteGroup(key="gear", label="物品 Items & Gear", icon="fa-sack-xmark"),
+    NoteGroup(key="compendium", label="圖鑑 Compendium", icon="fa-dragon"),
     # 劇情 is what HAPPENS; `analysis_group` above is what it MEANS. Keeping
     # them apart is why `story_other` exists - a stray observation lands there
     # rather than drifting into Analysis.
@@ -202,6 +209,9 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # is the `resources` / `builds_and_mods` collision again.
     NoteGroup(key="todo", label="待辦 Todo", icon="fa-list-check"),
     NoteGroup(key="music", label="音樂 Music", icon="fa-music"),
+    # Renders near the end, beside the site-wide Resources card rather than
+    # with the 攻略 run, because what it holds is not part of the guide.
+    NoteGroup(key="tools", label="資源&工具 Tools & Resources", icon="fa-screwdriver-wrench"),
     NoteGroup(key="quotes_memes", label="名言/梗 Quotes and Memes", icon="fa-quote-right"),
 )
 
@@ -619,6 +629,15 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # (a quest, a build, a boss, an ending); `text_links` where it is advice
     # with sources and no name. Neither shape renders a locator, so "which
     # area" is written as an entry line.
+    # --- 攻略 Guides ------------------------------------------------------
+    # How it plays and what is worth knowing, which is what somebody opening a
+    # guide for the first time wants. The four cards below it are the guide's
+    # CONTENT, split by the question each answers; this one is the way in.
+    #
+    # 攻略 was one card holding fifteen sections, which read as a wall of
+    # collapsed headers rather than as a guide. `group` is display-only, so
+    # splitting it was a registry edit: no migration, no data change, and each
+    # card collapses on its own when empty.
     NoteSection(
         key="beginner",
         shape=SHAPE_TEXT_LINKS,
@@ -676,6 +695,10 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="guides",
     ),
+    # --- 養成&流派 Builds & Growth ----------------------------------------
+    # How to build: where the points go, what they unlock, what that adds up
+    # to, and who else is in the party. In that order, because that is the
+    # order the decisions are actually made in.
     NoteSection(
         # One row is one stat: what it is called, the three public thresholds
         # for it, and where mine currently sits. `my_value` is the only field
@@ -686,7 +709,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="屬性&配點 Stats & Points",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="builds",
         fields=(
             NoteField(key="name", label="Stat", column="title"),
             # Free text rather than numbers: a threshold is written "40",
@@ -705,6 +728,15 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         ),
     ),
     NoteSection(
+        key="skills",
+        shape=SHAPE_STRUCTURED,
+        label="技能 Skills",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="builds",
+        fields=_named_thing_fields(),
+    ),
+    NoteSection(
         # One row is one whole build, and the five lists inside it are what
         # make it one: a build is its stats AND its armour AND its weapons,
         # not five rows that happen to share a name. Those lists are the
@@ -714,7 +746,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="配裝&流派 Builds & Styles",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="builds",
         fields=(
             # Not in the request, and kept anyway: every existing row has one,
             # and a list of builds with nothing to call them cannot be read.
@@ -789,7 +821,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="隊伍組成 Team Composition",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="builds",
         fields=(
             NoteField(key="name", label="Team", column="title"),
             NoteField(
@@ -812,22 +844,16 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
         ),
     ),
+    # --- 物品 Items & Gear ------------------------------------------------
+    # What to get. Three lists that differ in what a row IS rather than in
+    # what is known about it, which is why they share one spec and one card.
     NoteSection(
-        key="skills",
+        key="weapons_and_gear",
         shape=SHAPE_STRUCTURED,
-        label="技能 Skills",
+        label="武器&裝備 Weapons & Gear",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
-        fields=_named_thing_fields(),
-    ),
-    NoteSection(
-        key="collectibles",
-        shape=SHAPE_STRUCTURED,
-        label="收集物 Collectibles",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="guides",
+        group="gear",
         fields=_named_thing_fields(variant=True),
     ),
     NoteSection(
@@ -836,18 +862,23 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="道具 Items",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="gear",
         fields=_named_thing_fields(variant=True),
     ),
     NoteSection(
-        key="weapons_and_gear",
+        key="collectibles",
         shape=SHAPE_STRUCTURED,
-        label="武器&裝備 Weapons & Gear",
+        label="收集物 Collectibles",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="gear",
         fields=_named_thing_fields(variant=True),
     ),
+    # --- 圖鑑 Compendium --------------------------------------------------
+    # Who you meet. 結局 Endings was here while it had nowhere better; it is a
+    # story OUTCOME rather than a guide topic, so it sits in 劇情 Story now,
+    # above 世界觀&設定 - which leaves this card cleanly about the cast and
+    # the bestiary.
     NoteSection(
         # NOT `characters`: a `character` table and a /character/:id page
         # already exist, and a bare `characters` note section would read as
@@ -860,7 +891,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="角色 Characters",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="compendium",
         fields=(
             # `group` is what a character belongs TO - a faction, a party, a
             # house. Free text, so it declares no options.
@@ -881,7 +912,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="敵人 Enemies",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="guides",
+        group="compendium",
         fields=(
             # Free text: "boss", "small boss", "elite", "trash" are one game's
             # vocabulary and the next game's is a different one.
@@ -903,73 +934,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 type=FIELD_SELECT,
                 column="status",
                 options=ENEMY_STATUSES,
-            ),
-        ),
-    ),
-    NoteSection(
-        # Entry order carries no meaning here - endings are a set, not a
-        # sequence - but the rows still reorder, because "the one I am going
-        # for first" is a reason to move one up that the data cannot express.
-        key="endings",
-        shape=SHAPE_STRUCTURED,
-        label="結局 Endings",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="guides",
-        fields=(
-            NoteField(key="name", label="Name", column="title"),
-            NoteField(
-                key="completion",
-                label="Status",
-                type=FIELD_SELECT,
-                column="status",
-                options=ENDING_STATUSES,
-            ),
-            NoteField(
-                key="description",
-                label="Description",
-                type=FIELD_TEXTAREA,
-                column="content",
-            ),
-            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
-        ),
-    ),
-    NoteSection(
-        # Where `builds_and_mods`'s Mod and Tool rows went. A mod is not a
-        # guide, so it is not folded into one of the sections above; Mod and
-        # Tool stay one field on one section because they are the same shape.
-        key="mods_and_tools",
-        shape=SHAPE_STRUCTURED,
-        label="模組&工具 Mods & Tools",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="guides",
-        fields=(
-            # Carried over from the section's old `kinds` dropdown, which
-            # every existing row is tagged with. Dropping it would throw that
-            # away, and "is this a mod or a tool" is still the first thing
-            # somebody scanning the list wants to know.
-            NoteField(
-                key="type",
-                label="Type",
-                type=FIELD_SELECT,
-                column="kind",
-                options=MOD_KINDS,
-            ),
-            NoteField(key="name", label="Name", column="title"),
-            NoteField(key="developer", label="Developer"),
-            NoteField(
-                key="description",
-                label="Description",
-                type=FIELD_TEXTAREA,
-                column="content",
-            ),
-            NoteField(
-                key="status",
-                label="Status",
-                type=FIELD_SELECT,
-                column="status",
-                options=MOD_STATUSES,
             ),
         ),
     ),
@@ -1008,6 +972,34 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="story",
+    ),
+    NoteSection(
+        # Entry order carries no meaning here - endings are a set, not a
+        # sequence - but the rows still reorder, because "the one I am going
+        # for first" is a reason to move one up that the data cannot express.
+        key="endings",
+        shape=SHAPE_STRUCTURED,
+        label="結局 Endings",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+        fields=(
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(
+                key="completion",
+                label="Status",
+                type=FIELD_SELECT,
+                column="status",
+                options=ENDING_STATUSES,
+            ),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
     ),
     NoteSection(
         key="lore",
@@ -1191,6 +1183,55 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         desc_required=("anime", "anime-movie", "novel"),
     ),
+    # --- 資源&工具 Tools & Resources ---------------------------------------
+    # Things outside the game itself: somebody else's walkthrough, and the
+    # mods and tools you run alongside it. A mod was never a guide - the
+    # registry said so where `mods_and_tools` used to sit - and
+    # `guide_resources` had no card of its own to be in, so pairing them gives
+    # both a home.
+    #
+    # Immediately before the site-wide `resources` card it mirrors. Still
+    # distinct in key AND label: two cards reading "Resources" on one page
+    # would be unreadable.
+    NoteSection(
+        # Where `builds_and_mods`'s Mod and Tool rows went. A mod is not a
+        # guide, so it is not folded into one of the sections above; Mod and
+        # Tool stay one field on one section because they are the same shape.
+        key="mods_and_tools",
+        shape=SHAPE_STRUCTURED,
+        label="模組&工具 Mods & Tools",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="tools",
+        fields=(
+            # Carried over from the section's old `kinds` dropdown, which
+            # every existing row is tagged with. Dropping it would throw that
+            # away, and "is this a mod or a tool" is still the first thing
+            # somebody scanning the list wants to know.
+            NoteField(
+                key="type",
+                label="Type",
+                type=FIELD_SELECT,
+                column="kind",
+                options=MOD_KINDS,
+            ),
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(key="developer", label="Developer"),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(
+                key="status",
+                label="Status",
+                type=FIELD_SELECT,
+                column="status",
+                options=MOD_STATUSES,
+            ),
+        ),
+    ),
     NoteSection(
         # A pointer to somebody else's walkthrough. It sat inside the 攻略
         # group while that group WAS the guide; now that the thirteen
@@ -1209,7 +1250,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="攻略資源 Guide Resources",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        standalone=True,
+        group="tools",
         fields=(
             NoteField(key="name", label="Name", column="title"),
             NoteField(
