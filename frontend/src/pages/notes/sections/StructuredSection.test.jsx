@@ -423,3 +423,80 @@ it("offers no nesting affordance on a flat section", () => {
   renderSection({ notes: [{ system_id: "a", title: "only" }] });
   expect(screen.queryByRole("button", { name: /add entry under/i })).toBeNull();
 });
+
+// --- Per-field defaults ----------------------------------------------------
+
+// Mirrors 收集物 Collectibles: a closed status the row starts on.
+const COLLECTIBLES = {
+  key: "collectibles",
+  shape: "structured",
+  label: "收集物 Collectibles",
+  require_any: [],
+  hierarchical: false,
+  fields: [
+    { key: "name", label: "Name", type: "text", column: "title", options: [] },
+    {
+      key: "description",
+      label: "Description",
+      type: "textarea",
+      column: "content",
+      options: [],
+    },
+    {
+      key: "collected",
+      label: "Collected",
+      type: "select",
+      column: "status",
+      options: ["not collected", "enough collected", "fully collected", "skip"],
+      default: "not collected",
+    },
+  ],
+};
+
+it("opens a new row on the field's default", async () => {
+  renderSection({ section: COLLECTIBLES });
+  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+  expect(screen.getByLabelText("Collected")).toHaveValue("not collected");
+});
+
+it("refuses to save a row carrying nothing but its default", async () => {
+  // The music_track rule, generalised: a value that is always set cannot be
+  // the thing that makes a row worth storing, or every untouched draft saves.
+  const onCreate = vi.fn();
+  renderSection({ section: COLLECTIBLES, onCreate });
+
+  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate).not.toHaveBeenCalled();
+
+  await userEvent.type(screen.getByLabelText("Name"), "Golden Seed");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate).toHaveBeenCalledWith(
+    expect.objectContaining({ title: "Golden Seed", status: "not collected" }),
+  );
+});
+
+it("refuses a row whose only filled field is a CHANGED default", async () => {
+  // Choosing "skip" and nothing else is still a row saying nothing - the rule
+  // is about which fields count, not about whether the value was touched.
+  const onCreate = vi.fn();
+  renderSection({ section: COLLECTIBLES, onCreate });
+
+  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+  await userEvent.selectOptions(screen.getByLabelText("Collected"), "skip");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate).not.toHaveBeenCalled();
+});
+
+it("leaves a saved row's own status alone when editing it", async () => {
+  const onUpdate = vi.fn();
+  renderSection({
+    section: COLLECTIBLES,
+    notes: [{ system_id: "n1", title: "Golden Seed", status: "fully collected" }],
+    onUpdate,
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+  // The default seeds a NEW row; an existing one reads back what it holds.
+  expect(screen.getByLabelText("Collected")).toHaveValue("fully collected");
+});

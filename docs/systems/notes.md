@@ -72,6 +72,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `column` | One of `locator`, `kind`, `status`, `title`, `content`, `links`, or `None` to store in `fields`. No two fields of one section may claim the same column. |
 | `options` | The values a `select` accepts. **A select with no options is free text** — the guide sections' type, group and tier are open vocabularies stored in the columns a closed dropdown would use. |
 | `required` | This field alone may not be blank. |
+| `default` | What a **new** row starts this field on — the row-level twin of `NoteSection.default_kind`, which the structured shape does not use. Only ever on a `select` with options, and the value has to be one of them; tests assert both. A defaulted field is **excluded from the emptiness check** (see below). |
 | `item_fields` | For `list` only: the shape of one nested row. A `list` field is never column-backed — no column can hold a list of rows. |
 | `quick_edit` | Render an inline editor in the read view, saving on blur without opening the row. For a value that changes while playing rather than while writing. |
 | `placeholder` | Overrides the label in the input. |
@@ -79,6 +80,15 @@ A shape names which columns a section uses. Declared as constants at the top of 
 Two rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright.
 
 **Why one JSONB column and not a column per field.** Most of what the structured sections need already has a column — a name is `title`, a description is `content`, a dropdown is `kind` or `status` — so `fields` carries only the leftovers and the nested lists. A column per field would put a dozen mostly-blank columns on a table all twelve owner types share, and those columns are also the Google Sheets Note tab; the nested lists would need JSONB regardless. The cost, stated plainly: the leftover scalars have no database-level type and no column to filter on. The values worth filtering (a beaten status, a completion status) land in the real `status` column, which is why that cost stays theoretical.
+
+**A defaulted field cannot be what makes a row worth storing.** The
+`music_track` shape says the same about `default_kind`: a value that is always
+set would make every row non-empty, so an untouched draft with a prefilled
+collect status would save itself as a row saying nothing. The emptiness check
+therefore counts only the fields with no `default` — and that is about which
+fields count, not about whether the value was touched, so choosing "skip" and
+filling in nothing else is refused too. A test asserts no section defaults
+*every* field it has, since one that did could never be saved at all.
 
 **Validation** (`_validate_structured`) replaces the per-shape rules rather than adding to them: a structured section's `kind` and `status` are checked against its spec, not against `kinds` / `statuses`. In order — every blob key is declared; every column no field claims is empty (otherwise a value would be stored where no editor can reach it); each field matches its type and its options; each `required` field is filled; each `require_any` group has one; and the row as a whole says something.
 
@@ -186,7 +196,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | Key | Label | Shape | Group / standalone | Owners | Kinds (`kind`) | Statuses | Locator placeholder | Locator req. | Singleton | Content req. |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `remark` | 備註 Remark | text | flat | All | — | — | — | no | **yes** | no |
-| `remark_list` | 備註列表 Remark List | text_links | flat | game | — | — | — | no | no | no |
+| `remark_list` | 備註列表 Remark List | text_links | flat | All | — | — | — | no | no | no |
 | `advantages` | 優點 Advantages | text | reviews | All | — | — | — | no | no | no |
 | `disadvantages` | 缺點 Disadvantages | text | reviews | All | — | — | — | no | no | no |
 | `double_edged` | 優缺點 | text | reviews | All | — | — | — | no | no | no |
@@ -261,9 +271,9 @@ column a field claims; a field with no arrow lives in `fields`.
 | `builds_and_styles` | name → `title`, **stats** *(list: name, min_value, rec_value)*, **armor** *(list: body_part, name, special)*, **weapons** *(list: range_type, type, name, special)*, **items** *(list: type, name, amount)*, **skills** *(list: type, name)*, description → `content`, links → `links` |
 | `team_composition` | name → `title`, **members** *(list: name, role 定位, build, description)*, description → `content`, links → `links` |
 | `skills` | type → `kind`, name → `title`, description → `content`, links → `links` |
-| `collectibles` / `items` / `weapons_and_gear` | type → `kind`, name → `title`, variant, description → `content`, links → `links` |
+| `collectibles` / `items` / `weapons_and_gear` | type → `kind`, name → `title`, variant, description → `content`, links → `links`, collected → `status` *(default `not collected`)* |
 | `characters_guide` | group → `kind`, name → `title`, alias, description → `content` |
-| `enemies` | tier → `kind`, region, name → `title`, alias, description → `content`, beaten → `status` |
+| `enemies` | tier → `kind`, region, name → `title`, alias, description → `content`, beaten → `status` *(default `to beat`)* |
 | `endings` | name → `title`, completion → `status`, description → `content`, links → `links` |
 | `mods_and_tools` | type → `kind`, name → `title`, developer, description → `content`, status → `status` |
 | `guide_resources` | name → `title`, description → `content`, links → `links` |
@@ -281,14 +291,17 @@ than about the game, so they read the same everywhere:
 
 | Vocabulary | Values |
 | --- | --- |
+| `COLLECT_STATUSES` (the three 物品 sections' `collected`) | not collected, enough collected, fully collected, skip — a progression with the opt-out last, like the row below. "Enough" is worth distinguishing from "fully" precisely because most things never reach "fully" |
 | `ENEMY_STATUSES` (`enemies.beaten`) | to beat, beaten, cheesed, skip — "cheesed" is deliberately not folded into "beaten": it answers "do I still owe this one a fair fight?" |
 | `ENDING_STATUSES` (`endings.completion`) | not yet, reached, skipped — "skipped" is a decision, not an absence, so it is a value rather than a blank |
 | `MOD_STATUSES` (`mods_and_tools.status`) | 常駐, to use, to play, played, won't — 常駐 is the always-on set |
 | `MOD_KINDS` (`mods_and_tools.type`) | Mod, Tool — carried over from the section's old `kinds` dropdown, which every existing row is tagged with |
 
 `skills`, `collectibles`, `items` and `weapons_and_gear` share one spec built
-by `_named_thing_fields(variant=…)`: they differ only in whether a row can
-carry a variant.
+by `_named_thing_fields(variant=…, collected=…)`: they differ in those two
+flags and nothing else. 技能 Skills takes neither — a skill is learned rather
+than collected, so a collect status on it would be a field nobody could
+answer.
 
 
 Registry helpers (`app/utils/note_sections.py`): `section_by_key`, `sections_for(owner_type)`, `label_for`, `kinds_for`, `locator_for`, `group_by_key`, `sections_by_scope`, plus the two derived key sets `PERSONAL_SECTIONS` and `CATALOG_SECTIONS`.
@@ -391,8 +404,10 @@ singleton: a long remark wants to be written as a paragraph. 備註列表 is the
 other half — the short things, one per row, that a single block turns into a
 wall. A list whose first item is three paragraphs reads as badly as a
 paragraph made of bullets, which is why merging them was rejected rather than
-postponed. 備註列表 is `text_links`, personal-scope like 備註, and game-only
-for now; widening it is a change to one `owners` tuple.
+postponed. 備註列表 is `text_links` and personal-scope like 備註, and reaches
+**every owner** like 備註 does: the need came from games, but nothing about a
+short note is game-shaped, and the two are read as a pair wherever 備註
+appears. A test asserts they share an `owners` tuple, not just a scope.
 
 Only 備註 is a singleton, and only 備註 is hidden by `hideSections` — the
 dedicated remark editors on the Add form, the Modify tabs and the detail pages

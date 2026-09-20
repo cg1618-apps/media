@@ -34,10 +34,12 @@ const isBlank = (v) =>
   (typeof v === "string" && !v.trim()) ||
   (Array.isArray(v) && !v.length);
 
-// A field's empty form value. Links and lists start as an array so the
-// editors below never have to special-case a first row.
+// A field's starting form value. Links and lists start as an array so the
+// editors below never have to special-case a first row; a scalar starts on
+// the registry's `default` where it declares one, which is how a new
+// collectible opens on "not collected" and a new enemy on "to beat".
 const emptyValue = (field) =>
-  field.type === "links" || field.type === "list" ? [] : "";
+  field.type === "links" || field.type === "list" ? [] : field.default || "";
 
 const emptyDraft = (section) =>
   Object.fromEntries(section.fields.map((f) => [f.key, emptyValue(f)]));
@@ -84,9 +86,13 @@ const toPayload = (section, val) => {
 
 // The row has to say something, and may have to say specific things. Mirrors
 // _validate_structured in app/schemas/note.py so Save is disabled rather than
-// returning a 422.
+// returning a 422 - including the rule that a DEFAULTED field cannot be what
+// makes a row worth storing, or an untouched draft would save itself on the
+// strength of a status nobody chose.
 const invalid = (section, val) => {
-  if (section.fields.every((f) => isBlank(val[f.key]))) return true;
+  const carrying = section.fields.filter((f) => !f.default);
+  if ((carrying.length ? carrying : section.fields).every((f) => isBlank(val[f.key])))
+    return true;
   if (section.fields.some((f) => f.required && isBlank(val[f.key]))) return true;
   return (section.require_any || []).some((group) =>
     group.every((key) => isBlank(val[key])),

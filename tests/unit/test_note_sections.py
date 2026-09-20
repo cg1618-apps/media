@@ -207,6 +207,7 @@ def test_anime_sections_in_registry_order():
     keys = [s.key for s in ns.sections_for("anime")]
     assert keys == [
         "remark",
+        "remark_list",
         "advantages",
         "disadvantages",
         "double_edged",
@@ -238,6 +239,7 @@ def test_collection_gets_the_narrow_set():
     # `questions` sits after `resources` in NOTE_SECTIONS.
     assert keys == [
         "remark",
+        "remark_list",
         "advantages",
         "disadvantages",
         "double_edged",

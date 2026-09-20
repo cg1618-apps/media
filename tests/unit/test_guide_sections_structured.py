@@ -169,9 +169,20 @@ def test_a_team_is_a_list_of_members():
 
 
 def test_the_four_named_thing_sections_share_one_spec():
+    """
+    They differ in two flags and nothing else: whether a row can carry a
+    variant, and whether collecting it is tracked. 技能 Skills takes neither.
+    """
     assert _keys("skills") == ["type", "name", "description", "links"]
     for key in ("collectibles", "items", "weapons_and_gear"):
-        assert _keys(key) == ["type", "name", "variant", "description", "links"], key
+        assert _keys(key) == [
+            "type",
+            "name",
+            "variant",
+            "description",
+            "links",
+            "collected",
+        ], key
 
 
 def test_characters_carry_a_group_and_an_alias_and_no_links():
@@ -274,3 +285,77 @@ def test_no_guide_section_carries_a_locator():
     # comment does, so none shows the locator input.
     for key in GUIDES_ORDER + ["guide_resources"]:
         assert ns.section_by_key(key).locator_placeholder is None, key
+
+
+# --- Collect status, and per-field defaults -------------------------------
+
+COLLECTED_SECTIONS = ("weapons_and_gear", "items", "collectibles")
+
+
+def test_the_three_gear_sections_track_collecting():
+    for key in COLLECTED_SECTIONS:
+        assert _keys(key) == [
+            "type",
+            "name",
+            "variant",
+            "description",
+            "links",
+            "collected",
+        ], key
+        field = _field(key, "collected")
+        assert field.column == "status", key
+        assert field.options == (
+            "not collected",
+            "enough collected",
+            "fully collected",
+            "skip",
+        ), key
+        assert field.default == "not collected", key
+
+
+def test_skills_track_no_collecting():
+    # A skill is learned rather than collected, so the field would be one
+    # nobody could answer. The shared spec takes it as a flag for exactly
+    # this reason.
+    assert "collected" not in _keys("skills")
+    assert ns.section_by_key("skills").fields[-1].key == "links"
+
+
+def test_an_enemy_starts_on_to_beat():
+    field = _field("enemies", "beaten")
+    assert field.default == "to beat"
+    assert field.default in field.options
+
+
+def test_every_declared_default_is_one_of_its_field_s_options():
+    # A default outside the options would be refused by the validator the
+    # moment somebody saved the draft it prefilled - a form that cannot be
+    # submitted without changing a field nobody touched.
+    for section in ns.NOTE_SECTIONS:
+        for field in section.fields:
+            if field.default is not None and field.options:
+                assert field.default in field.options, (section.key, field.key)
+
+
+def test_only_a_select_carries_a_default():
+    # A default on a free-text field is a placeholder wearing the wrong name:
+    # it would be SAVED rather than shown, and then excluded from the
+    # emptiness check on top of that.
+    for section in ns.NOTE_SECTIONS:
+        for field in section.fields:
+            if field.default is not None:
+                assert field.type == ns.FIELD_SELECT, (section.key, field.key)
+                assert field.options, (section.key, field.key)
+
+
+def test_no_section_defaults_every_field_it_has():
+    """
+    A defaulted field is excluded from the "is this row empty?" check, so a
+    section whose every field carried one could never be saved at all - the
+    validator falls back to counting all of them, which makes an untouched
+    draft saveable instead. Neither outcome is wanted; the assertion is that
+    the situation does not arise.
+    """
+    for section in ns.NOTE_SECTIONS:
+        if section.fields:
+            assert any(f.default is None for f in section.fields), section.key

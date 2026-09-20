@@ -93,6 +93,8 @@ class NoteFieldOut(BaseModel):
     column: Optional[str] = None
     options: List[str] = []
     required: bool = False
+    # What a new row starts this field on; the page seeds its draft with it.
+    default: Optional[str] = None
     quick_edit: bool = False
     placeholder: Optional[str] = None
     # Populated for `list` fields alone: the shape of one nested row.
@@ -150,6 +152,7 @@ def field_out(field: NoteField) -> NoteFieldOut:
         column=field.column,
         options=list(field.options),
         required=field.required,
+        default=field.default,
         quick_edit=field.quick_edit,
         placeholder=field.placeholder,
         item_fields=[field_out(f) for f in field.item_fields],
@@ -303,7 +306,16 @@ def _validate_structured(section: NoteSection, payload: NoteBase) -> None:
                 f"{', '.join(labels)}."
             )
 
-    if all(_is_blank(_field_value(f, payload)) for f in spec):
+    # A DEFAULTED field cannot be the thing that makes a row worth storing.
+    # The music_track shape says the same about `default_kind`: a value that
+    # is always set would make every row non-empty, so an untouched draft with
+    # a prefilled collect status would save as a row saying nothing. Only the
+    # fields somebody had to fill in themselves count here.
+    #
+    # `or spec` keeps a section whose every field is defaulted from being
+    # unsaveable outright; none is today, and a test asserts it.
+    carrying = [f for f in spec if f.default is None] or list(spec)
+    if all(_is_blank(_field_value(f, payload)) for f in carrying):
         raise ValueError(f"Section '{section.key}' note is empty.")
 
 
