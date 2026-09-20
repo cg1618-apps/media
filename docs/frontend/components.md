@@ -201,7 +201,10 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   "Where to Read", or **"Where to Play"** for a game — and renders the
   column-backed
   `malLink`/`imdbLink`/`comicvineLink`/`openLibraryLink`/`igdbLink` props
-  beside the reference rows and the tag-field props (`originalSource`,
+  beside the reference rows, `steamLink` (a storefront, not a reference
+  database) beside the **access** rows instead — the access section renders
+  for a `steamLink` alone, so a game whose only place to play is its Steam
+  page still gets one — and the tag-field props (`originalSource`,
   `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — one
   component composing from both the `media_source` table and the surviving
   columns/tag fields, per the guiding rule in
