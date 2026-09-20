@@ -55,6 +55,7 @@ import { SIZE_GROUPS, scopesFor } from "../../config/planNextGroups";
 import { effectiveBucket } from "../../utils/planNext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
+import ContentLabelChips from "../../components/info/ContentLabelChips";
 
 function GroupRail({ label, count }) {
   return (
@@ -1309,6 +1310,15 @@ export default function FranchisePage() {
                 <span className="text-text">{seriesList.length}</span>
               </div>
             </div>
+
+            {/* A franchise's labels hide the franchise AND every entry in
+                it, so they are said in their own row rather than mixed into
+                the curation chips below. */}
+            <ContentLabelChips
+              labels={franchise.content_labels}
+              note="Hides this franchise and every entry in it."
+              className="mt-4"
+            />
 
             {(franchise.franchise_expectation ||
               plannedTypes.size > 0 ||

@@ -305,6 +305,18 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_media_content_label_from_sheet,
         requires_authz=True,
     ),
+    # The same row for the grouping tier. After Content Label and after
+    # Franchise: it cites a label by uuid (translated in pull.py, the label's
+    # own uuid being database-local) and a franchise by a real FK, so the
+    # franchise must already be restored. Its absence fails OPEN exactly as
+    # Media Content Label's does - a Pull with no tab restores every franchise
+    # unlabelled, and therefore visible along with every entry under it.
+    SheetTab(
+        "Franchise Content Label",
+        models.FranchiseContentLabel,
+        f.parse_franchise_content_label_from_sheet,
+        requires_authz=True,
+    ),
     # user_id is dropped for `username` for the same reason the Plan Next tab
     # drops it. seasonal's primary key is the (user_id, seasonal) pair, so the
     # user is not decoration here - without it a Pull updates whichever user's

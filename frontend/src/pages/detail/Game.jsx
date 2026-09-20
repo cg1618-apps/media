@@ -36,6 +36,7 @@ import { useMediaList } from "../../hooks/useMediaList";
 import { MY_RATINGS, PLAYING_STATUSES } from "../../config/fieldOptions";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
+import ContentLabelChips from "../../components/info/ContentLabelChips";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -389,6 +390,11 @@ export default function Game() {
                 </h1>
               </div>
               {titleSub && <h2 className="text-lg text-text-muted font-normal mb-4">{titleSub}</h2>}
+
+              {/* What restricts this entry, if anything. Its franchise's own
+                  labels are shown on the franchise, where they can be
+                  changed. */}
+              <ContentLabelChips labels={game.content_labels} className="mb-6" />
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm pt-3 border-t border-border">
                 <div className="flex items-baseline gap-2">

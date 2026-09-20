@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-13
+Last verified: 2026-09-20
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1743,22 +1743,34 @@ No self-registration; accounts are created here only.
 | PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`. 409 if the new username is taken, or if the change would demote the last account that can still administer the site. |
 | DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, or the last administering account. |
 
-### `/api/content-labels` — admin
+### `/api/content-labels`
 
-Vocabulary CRUD, plus per-entry assignment:
+**Two gates, not one.** The vocabulary is `admin.authz`; assignment is
+`manage.catalog`. Minting or deleting a label changes who may see what across
+the installation; putting an existing one on something is a catalogue edit,
+submitted by the Add and Modify forms along with the rest of the entry. The
+split is what lets the `super` role — locked off `admin.authz` by construction
+— label an entry at all. `GET /` is readable with either, because it is both
+the admin page's table and the Add/Modify picker's checkbox list.
 
-| Method | Path | Body / notes |
-|---|---|---|
-| GET | `/api/content-labels/` | Every label as `ContentLabelResponse` (`system_id`, `key`, `label`, `description`, `sort_order`, `permission` = `label.<key>`). |
-| POST | `/api/content-labels/` | `ContentLabelCreate` (`key`, `label`, `description`, `sort_order`). 201. 409 if the key exists. Grants the new label to the `unrestricted` mode and to no other, so that tagging an entry with it does not hide that entry from every session in the installation. |
-| PATCH | `/api/content-labels/{id}` | `ContentLabelUpdate` — `label`, `description`, `sort_order`. `key` is not editable; the permission string is derived from it. |
-| DELETE | `/api/content-labels/{id}` | **204**. Cascades the entry assignments and the role grants for `label.<key>`. |
-| GET | `/api/content-labels/entry/{media_type}/{entry_id}` | The label keys this entry carries. |
-| PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing entry, 422 on an unknown label. |
+| Method | Path | Gate | Body / notes |
+|---|---|---|---|
+| GET | `/api/content-labels/` | either | Every label as `ContentLabelResponse` (`system_id`, `key`, `label`, `description`, `sort_order`). |
+| POST | `/api/content-labels/` | `admin.authz` | `ContentLabelCreate` (`key`, `label`, `description`, `sort_order`). 201. 409 if the key exists. Grants the new label to the `unrestricted` mode and to no other, so that tagging an entry with it does not hide that entry from every session in the installation. |
+| PATCH | `/api/content-labels/{id}` | `admin.authz` | `ContentLabelUpdate` — `label`, `description`, `sort_order`. `key` is not editable; it is half of a permission name that grants already hold. |
+| DELETE | `/api/content-labels/{id}` | `admin.authz` | **204**. Cascades every assignment, on entries and franchises alike. |
+| GET | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | The label keys this entry carries. |
+| PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing **or hidden** entry, 422 on an unknown label. |
+| GET | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | The label keys this franchise carries. |
+| PUT | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | Same body and same answers, one tier up. A franchise's labels hide the franchise **and every entry in it**. |
 
-A newly created label is granted to nobody, so applying it hides the entry from
-everyone except root roles until a role is given `label.<key>`. That is the
-safe direction.
+Both assignment surfaces bind to the read: a thing the caller's active mode
+cannot see answers 404, so a narrowed editor cannot clear the label that is
+hiding it.
+
+A newly created label reaches the `unrestricted` mode and no other, so applying
+it hides the thing from every session except one sitting in that mode until an
+admin grants it on `/access-modes`. That is the safe direction.
 
 ### What gating touches
 

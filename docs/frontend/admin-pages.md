@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-13
+Last verified: 2026-09-20
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -111,7 +111,8 @@ and select it. `ComboBox.onSelect` receives `(id, label)`.
 **Submit.** Validation (at least one name) → `POST` the entry
 (`api/endpoints.js resource(type).create()`) → `PUT /api/credits/<type>/<id>`
 with the credit/tag fields (`saveCredits`) → `PUT /api/content-labels/entry/…`
-if labels were picked → for **anime and anime movie only**, enrichment via
+if labels were picked (and `PUT /api/content-labels/franchise/…` on the
+Franchise tab, whose labels hide the franchise and every entry in it) → for **anime and anime movie only**, enrichment via
 `lib/enrich.js` (`POST /api/data-control/replace/<type>/<id>` then re-read the
 entry). The toast says "appended and enriched" only when enrichment
 succeeded; otherwise "Saved. Enrichment failed - run Replace later." Movie
@@ -320,7 +321,8 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
   counter), and the label picker clears the previous selection before
   fetching, so a slow or failed fetch can never save one entry's credits or
   labels onto another.
-- **Save.** `PUT` the entry → `saveCredits` → labels → for **anime, anime
+- **Save.** `PUT` the entry → `saveCredits` → labels (a franchise saves its
+  own set the same way, through `saveFranchiseLabels`) → for **anime, anime
   movie, cartoon and manga**, enrichment via `lib/enrich.js`; the page then
   shows the *enriched* row (not the pre-enrichment one) and warns if
   enrichment failed. Other types save without enrichment.
@@ -566,7 +568,9 @@ anyone remembering this file.
 - **Users** — create users with a role, change role, delete; the last
   administrator and your own account are protected.
 - **Content Labels** — the label vocabulary; deleting a label immediately
-  re-exposes every entry that carried only that label.
+  re-exposes every entry and franchise that carried only that label. This page
+  is `admin.authz`; **assigning** a label on Add/Modify is `manage.catalog`, so
+  a `super` account labels things here without reaching this screen.
 
 Rules and enforcement are in [../authorization.md](../authorization.md). These
 three pages have one-click deletes with no confirm dialog.

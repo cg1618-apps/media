@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-13
+Last verified: 2026-09-20
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -565,7 +565,10 @@ Top to bottom:
    "Related Entries" sorted by relation family; omitted on Comic), and an
    admin-only **System Info** card with the system id.
 4. **Right column**: header chips (status / type), h1 title (cn → en →
-   roman), h2 subtitle, franchise/series bar linking to the hubs,
+   roman), h2 subtitle, `ContentLabelChips` — the entry's OWN content labels,
+   rendered only when it has some, and never its franchise's, which are shown
+   on the franchise where they can be changed — franchise/series bar linking
+   to the hubs,
    `ScoreBlock` (MAL score/rank, AniList score, last updated) on Anime,
    AnimeMovie, Manga, Novel (Movie has an inline IMDb block; TV/Cartoon/Comic
    none), the tracker, `NamingCard`, `InfoCard "Information"`, `InfoCard

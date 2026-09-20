@@ -101,15 +101,18 @@ def target_visible(db: Session, viewer, scope: str, media_type: str, target_id: 
     """
     Whether this viewer may see the planned target.
 
-    Only entry scope can carry a content label - franchise and series are
-    groups, not labelled media - so group-scope targets are always visible
-    here and the row's own existence is the only gate.
+    Entry and FRANCHISE scope can both carry a content label. Series cannot -
+    there is no series join table - so a series-scope target is visible
+    whenever its row exists, and that is the only scope for which existence is
+    the whole gate.
     """
-    if scope != "entry":
-        return True
-    from app.services.rbac.enforcement import entry_visible
+    from app.services.rbac.enforcement import entry_visible, franchise_visible
 
-    return entry_visible(db, viewer, media_type, target_id)
+    if scope == "entry":
+        return entry_visible(db, viewer, media_type, target_id)
+    if scope == "franchise":
+        return franchise_visible(db, viewer, target_id)
+    return True
 
 
 def validate_plan_target(

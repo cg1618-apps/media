@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.rbac import ContentLabelRef
+
 
 class FranchiseBase(BaseModel):
     franchise_type: Optional[str] = None
@@ -38,6 +40,11 @@ class FranchiseUpdate(FranchiseBase):
 
 class FranchiseResponse(FranchiseBase):
     system_id: UUID
+    # Set by services.domain.content_labels.attach_franchise_content_labels.
+    # Read-only and absent from FranchiseBase deliberately: the only writer is
+    # PUT /api/content-labels/franchise/{franchise_id}, so naming one on a
+    # create or an update must still be rejected.
+    content_labels: list[ContentLabelRef] = []
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int

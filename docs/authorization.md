@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-13
+Last verified: 2026-09-20
 
 ## What this is for
 
@@ -25,9 +25,11 @@ helper exists that would let code ask the role axis an object question. That
 is what lets the owner's own admin account sit in a narrow mode and actually
 be narrowed.
 
-Entries are hidden with **content labels** (`nsfw`, `spoiler`, …) that never
-name a role: a *mode* carries `label`, and a session whose mode does not carry
-it never learns the entry exists. The seeds are deliberately permissive — the
+Entries and franchises are hidden with **content labels** (`nsfw`,
+`spoiler`, …) that never name a role: a *mode* carries `label`, and a session
+whose mode does not carry it never learns the thing exists. A label on a
+**franchise** hides that franchise and, by a read-time join through
+`media.franchise_id`, every entry in it. The seeds are deliberately permissive — the
 guest role holds every read permission and the `safe` mode carries what the
 guest role holds — so an admin narrows either axis by *removing* grants.
 
@@ -180,10 +182,11 @@ short-circuit deliberately does not cover.
 | write a personal note — a review or a remark | — | yes | yes | **never** |
 | write the catalogue — entries, groups, people, credits, options, relations, watch orders, quotes, memes, catalogue notes | **409 if granted** | grantable | **always** | implicit |
 | run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | **409 if granted** | **always** | implicit |
-| restore accounts, content labels and entry labels on a Pull | — | — | **no** — those three tabs are skipped | implicit |
+| restore accounts, content labels and label assignments on a Pull | — | — | **no** — those four tabs are skipped | implicit |
 | create roles and change what they hold | **409 if granted** | — | — | implicit |
 | create accounts, set a role, assign modes | **409 if granted** | — | — | implicit |
-| create content labels, and label an entry | **409 if granted** | — | — | implicit |
+| label an entry or a franchise | **409 if granted** | grantable | **always** | implicit |
+| create, rename or delete a content label | **409 if granted** | — | — | implicit |
 | create and edit access modes | **409 if granted** | — | — | implicit |
 
 - **`super` is the row to read down.** Everything catalogue-shaped is yes and
@@ -231,8 +234,9 @@ restated here, or the two copies drift.
 |---|---|---|
 | `role` | one named bundle of permissions | `name` unique (`guest`, `admin` read by name), `label`, `description`, `is_system` (cannot be deleted or renamed), `is_root` (holds every permission implicitly **except the `self` family** — see [The admin account holds no user data](#the-admin-account-holds-no-user-data)), `sort_order` |
 | `role_permission` | one grant | `role_id` FK → role (`CASCADE`), `permission` string; unique `(role_id, permission)` |
-| `content_label` | one admin-managed reason an entry may be restricted | `key` unique (becomes permission `label.<key>`), `label`, `description`, `sort_order` |
+| `content_label` | one admin-managed reason an entry or franchise may be restricted | `key` unique (becomes permission `label.<key>`), `label`, `description`, `sort_order` |
 | `media_content_label` | one label on one entry | `media_id` FK → `media.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(media_id, label_id)`. A label on a deleted entry is cleaned up by the database |
+| `franchise_content_label` | one label on one franchise | `franchise_id` FK → `franchise.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(franchise_id, label_id)`. A second table rather than a nullable owner pair on the one above: a pair could name both owners or neither, and nothing in the database would say which was meant |
 | `access_mode` | one named ceiling on what a session may reach | `key` unique, `label`, `description`, `sort_order` (UI only — modes are deliberately **not** ordered for enforcement), `is_system`. There is **no** column for the anonymous policy: a logged-out visitor resolves `safe` by key |
 | `access_mode_label` | one content label a mode CARRIES (i.e. does not hide) | `mode_id` → access_mode (`CASCADE`), `label_id` → content_label (`CASCADE`); unique `(mode_id, label_id)` |
 | `access_mode_field_group` | one field group a mode carries | `mode_id` (`CASCADE`), `field_group_key` — a plain string validated against `FIELD_GROUP_KEYS`, not an FK, because field groups are code and not rows; unique `(mode_id, field_group_key)` |
@@ -241,7 +245,8 @@ restated here, or the two copies drift.
 | `users.role_id` | the user's role | FK → role (`RESTRICT`), NOT NULL. `users.role` is not a column: it is a read-only `column_property` over `role.name` (bottom of `app/models/__init__.py`), because `auth.py` returns the name on login and mints it as a JWT claim |
 
 Models: `app/models/system.py` (`Role`, `RolePermission`, `User`),
-`app/models/content_label.py` (`ContentLabel`, `MediaContentLabel`),
+`app/models/content_label.py` (`ContentLabel`, `MediaContentLabel`,
+`FranchiseContentLabel`),
 `app/models/access_mode.py` (the five access-mode tables).
 
 **Why two typed link tables instead of one generic
@@ -254,10 +259,11 @@ Labels are deliberately **not** rows in `media_tag`: that table is keyed to
 `system_option` and written by the Fill/backfill pipelines, so a pipeline run
 could silently change who sees an entry.
 
-Both tables travel between machines on the `Content Label` and `Media Content
-Label` sheet tabs. They are the only tables whose absence from the sheet fails
-**open** — a Pull All would restore every entry unlabelled, i.e. visible — so
-treat a Backup as part of labelling work, not an afterthought. `role` and
+All three tables travel between machines on the `Content Label`, `Media
+Content Label` and `Franchise Content Label` sheet tabs. They are the only
+tables whose absence from the sheet fails **open** — a Pull All would restore
+every entry and franchise unlabelled, i.e. visible — so treat a Backup as part
+of labelling work, not an afterthought. `role` and
 `role_permission` have no tab: `ensure_rbac_seed` recreates guest and admin
 anywhere, but a role added or a grant removed by hand is per-machine. See
 [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy).
@@ -272,12 +278,12 @@ handed the catalogue, or vice versa:
 
 | Name | Meaning | Source of keys |
 |---|---|---|
-| `admin.authz` | may **change who may do what** — roles, accounts, content labels | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
-| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, catalogue notes | `MANAGE_PERMISSION_KEYS` in the same module |
+| `admin.authz` | may **change who may do what** — roles, accounts, and the content-label **vocabulary** (minting, renaming, deleting a label) | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, catalogue notes, and **which labels an entry or franchise carries** | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
 | `field_group.<key>` | may see the fields in one `FIELD_GROUPS` entry | `app/services/rbac/field_groups.py` |
-| `label.<key>` | may see entries carrying that content label | `content_label.key`, read at request time |
+| `label.<key>` | may see entries and franchises carrying that content label | `content_label.key`, read at request time |
 | `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes` | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 
 `manage.pipelines` is separate from `manage.catalog` because the two carry
@@ -595,16 +601,27 @@ grants until its own restart and would need a short TTL instead.
 
 Two gates, always applied together, reading **different axes**: the viewer's
 ROLE holds `media_type.<key>` or the whole type disappears; the viewer's
-active MODE carries every label the entry carries, or the entry disappears. Both run in SQL — filtering in Python after
-`limit/offset` would shrink pages and shift the next page's start.
+active MODE carries every label the entry carries **and every label its
+franchise carries**, or the entry disappears. Both run in SQL — filtering in
+Python after `limit/offset` would shrink pages and shift the next page's start.
+
+**The franchise half is a read-time cascade, not a stored copy.** No label row
+is written onto an entry when its franchise is labelled, so moving an entry
+between franchises changes what hides it at once, and clearing a franchise's
+labels reveals everything it covered. `_hidden_by_label(entry_id, hidden)` is
+the one place the two halves are spelled out, and every gate below calls it —
+a second spelling is how one of them would end up asking only half the
+question.
 
 | Helper | Use | Behaviour |
 |---|---|---|
 | `hidden_label_ids(db, viewer)` | building block | ids of labels the viewer's ACTIVE MODE does not carry; `[]` is the common case and every caller short-circuits on it. **No `is_root` short-circuit** — labels are an object question, and holding every capability does not answer one |
-| `apply_entry_visibility(query, model, media_type, db, viewer)` | list routes | `filter(false)` if the type is not held; otherwise `NOT EXISTS` anti-join on `media_content_label` |
-| `apply_media_visibility(query, db, viewer)` | anything spanning every type at once | The same two gates over the `media` supertable rather than one detail table: the media-type check becomes an `IN` over the types the viewer holds, and the label anti-join goes through `media_content_label.media_id`. The profile page needs this — it answers for all nine types in one query. The query must already select from or join `Media` |
+| `apply_entry_visibility(query, model, media_type, db, viewer)` | list routes | `filter(false)` if the type is not held; otherwise `NOT EXISTS` anti-join on `media_content_label` **and** on `franchise_content_label` reached through `media.franchise_id` |
+| `apply_franchise_visibility(query, db, viewer)` | franchise list, franchise search bucket | `NOT EXISTS` anti-join on `franchise_content_label`. No media-type half: a franchise has no type of its own and may hold entries of several |
+| `franchise_visible(db, viewer, franchise_id)` | franchise detail and its writes | bool; callers **404 with their normal not-found message** |
+| `apply_media_visibility(query, db, viewer)` | anything spanning every type at once | The same two gates over the `media` supertable rather than one detail table: the media-type check becomes an `IN` over the types the viewer holds, and the label anti-join goes through `media_content_label.media_id` and `media.franchise_id`. The profile page needs this — it answers for all nine types in one query. The query must already select from or join `Media` |
 | `entry_visible(db, viewer, media_type, entry_id)` | detail and per-entry sub-routes | bool; callers **404 with their normal not-found message** |
-| `filter_visible_pairs(db, viewer, pairs)` | cross-type batches | one query for many `(media_type, id)` pairs; tier pairs (franchise/series/collection) are always allowed since tiers carry no labels or type permission |
+| `filter_visible_pairs(db, viewer, pairs)` | cross-type batches | one query for many `(media_type, id)` pairs. A pair naming a grouping tier is allowed here: it has no media-type permission, and a franchise pair reaching this helper is one the caller already resolved. A franchise's own labels are asked by `franchise_visible` |
 | `drop_hidden_rows(db, viewer, rows, type_attr, id_attr)` | quotes, memes, plan-next | rows are **dropped**, not degraded to `missing=True` (the text itself is the leak; `missing` means "dangling reference, fix it"); rows with no reference are kept |
 
 `viewer=None` returns input untouched everywhere, and that half of the guard
@@ -637,7 +654,7 @@ sees one error shape.
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
 | account settings (`/api/account/settings`) | `routers/account.py` - the `list_is_public` toggle, writable only by its owner |
 | `data_control` / `system` GETs | behind `require_manage_pipelines` |
-| Pull's three authorization tabs (`Users`, `Content Label`, `Media Content Label`) | `routers/data_control.py` passes `may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ)` into `pull.py`. Without it each returns `status: "skipped"` and is named in `unresolved_refs`, so the rest of the restore still lands and the gap is visible. Stops a `manage.pipelines` holder promoting themselves by typing `admin` into the sheet's Users tab. **Backup is not gated** - it writes local -> sheet and cannot change this database |
+| Pull's four authorization tabs (`Users`, `Content Label`, `Media Content Label`, `Franchise Content Label`) | `routers/data_control.py` passes `may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ)` into `pull.py`. Without it each returns `status: "skipped"` and is named in `unresolved_refs`, so the rest of the restore still lands and the gap is visible. Stops a `manage.pipelines` holder promoting themselves by typing `admin` into the sheet's Users tab. **Backup is not gated** - it writes local -> sheet and cannot change this database |
 
 ### Write binding
 
@@ -686,13 +703,14 @@ silent bypass of the type axis alone. All three share
 resolves the type from the media row and raises the caller's own 404. The
 helper exists because the shortest form has to be the safe one.
 
+`content_labels.py`'s four assignment routes bind the same way, through
+`_resolve_entry` / `_resolve_franchise`: assignment is `manage.catalog`, which
+says nothing about which objects a session reaches, so a narrowed editor who
+knew the id could otherwise clear the very label hiding the thing from them.
+Both answer 404 in the words the router already uses for missing.
+
 **Accepted residuals, deliberately not closed here:**
 
-- `content_labels.py`'s `PUT /api/content-labels/entry/{media_type}/{entry_id}`
-  still writes labels with no visibility test. It is gated by `admin.authz`,
-  the permission that *defines* the label axis, and a holder of it can grant
-  itself any label anyway, so a visibility check would guard nothing a
-  permission check doesn't already cover.
 - `franchise.py` stores `cover_entry_id` unvalidated. The consequence of a
   mismatched or hidden id is a cover image, not a data leak.
 - `POST /api/data-control/replace/{key}/{entry_id}` (`data_control.py`, nine

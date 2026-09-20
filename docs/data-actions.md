@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-13
+Last verified: 2026-09-20
 
 ## What this is for
 
@@ -135,7 +135,8 @@ test.
 | 38 | `Note` | `Note` |  |
 | 39 | `Media Source` | `MediaSource` |  |
 | 40 | `Media Content Label` | `MediaContentLabel` |  |
-| 41 | `Seasonal` | `Seasonal` |  |
+| 41 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 42 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the nine entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -191,7 +192,9 @@ Note the tab for the `anime_movies` table is named `Anime Movie` (singular), whi
 `Media Source` sits after `Note` (both endpoints — the entry, and, when set,
 the option — must already exist), and `Media Content Label` after it (both
 *its* endpoints — the entry, and the label on the `Content Label` tab — must
-already exist too), the two of them before `Seasonal`.
+already exist too), then `Franchise Content Label`, whose `franchise_id` is a
+real FK and whose `label_id` is translated the same way — the three of them
+before `Seasonal`.
 
 The three tabs games added sit where their foreign keys put them.
 `System Option Alias` follows `System Option Usage`, because `option_id` is a
@@ -279,12 +282,14 @@ like its `system_option_scope` sibling. See
 sharper one: they are the only tables whose absence from the sheet fails
 **open**. A Pull All on a machine that had never been told which entries carry
 `nsfw` restored every one of them unlabelled — visible to every viewer — and
-nothing in the run reported a problem. Both tables mint their `system_id` per
-database (the labels are typed into the admin page on each machine), so both
-are derived-identity tabs: `Content Label` is identified by its unique `key`,
-`Media Content Label` by `(media_type, entry_id, label_id)`, and the `label_id`
-a sheet carries is translated through the `Content Label` tab before it is
-stored — the same treatment `System Option Scope` gets. A labelling whose label
+nothing in the run reported a problem. All three tables mint their `system_id`
+per database (the labels are typed into the admin page on each machine), so all
+three are derived-identity tabs: `Content Label` is identified by its unique `key`,
+`Media Content Label` by `(media_id, label_id)` and `Franchise Content Label`
+by `(franchise_id, label_id)`, and the `label_id` a sheet carries is translated
+through the `Content Label` tab before it is stored — the same treatment
+`System Option Scope` gets. `Franchise Content Label` fails open the widest:
+one missing row reveals a franchise **and every entry in it**. A labelling whose label
 cannot be resolved is skipped with a warning rather than failing the tab.
 
 Still outside the sheet, deliberately: `role` and `role_permission`

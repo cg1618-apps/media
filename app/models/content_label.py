@@ -98,3 +98,52 @@ class MediaContentLabel(Base):
     )
     position = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, default=get_taipei_now)
+
+
+class FranchiseContentLabel(Base):
+    """
+    One content label attached to one franchise.
+
+    A franchise is not a media entry, so this cannot live in
+    media_content_label: that table's `media_id` is a real foreign key up to
+    the `media` supertable, and a franchise has no row there. Two tables with
+    the same shape is the honest answer - the alternative, a nullable pair of
+    owner columns, would let a row name both or neither.
+
+    The label CASCADES DOWN. A franchise carrying a label the viewer's mode
+    lacks hides the franchise AND every entry whose media.franchise_id points
+    at it, so labelling a franchise is one edit rather than one per entry.
+    That is the whole reason the table exists, and it is why enforcement joins
+    through `media.franchise_id` rather than reading this table alone.
+    """
+
+    __tablename__ = "franchise_content_label"
+    __table_args__ = (
+        UniqueConstraint(
+            "franchise_id", "label_id", name="uq_franchise_content_label_row"
+        ),
+        Index("ix_franchise_content_label_franchise", "franchise_id"),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        # Declared as well as the Python default so a raw INSERT gets an id
+        # too, matching MediaContentLabel above.
+        server_default=text("gen_random_uuid()"),
+        index=True,
+    )
+    franchise_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("franchise.system_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    label_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("content_label.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime, default=get_taipei_now)

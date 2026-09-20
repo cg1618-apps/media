@@ -55,7 +55,10 @@ import {
 import { endpoints } from "../../api/endpoints";
 import { enrichEntry } from "../../lib/enrich";
 import ContentLabelPicker, {
+  FRANCHISE_SCOPE_NOTE,
+  LABELLABLE_TABS,
   saveEntryLabels,
+  saveFranchiseLabels,
 } from "../../components/forms/ContentLabelPicker";
 import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
 
@@ -1149,6 +1152,17 @@ export default function Modify() {
         prev.map((f) => (f.system_id === updated.system_id ? updated : f)),
       );
       setEditingItem(updated);
+      try {
+        await saveFranchiseLabels(updated.system_id, contentLabels);
+      } catch {
+        // The franchise saved; only its visibility did not. Say so rather
+        // than letting the admin believe a franchise - and everything under
+        // it - is restricted when it is not.
+        showToast(
+          "error",
+          "Franchise saved, but its content labels failed to save.",
+        );
+      }
       window.scrollTo(0, 0);
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
@@ -3740,14 +3754,27 @@ export default function Modify() {
             )}
           </div>
 
-            {/* Content labels - the picker reads the entry's current set. */}
-            {["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game"].includes(editingType) && editingItem?.system_id && (
+            {/* Content labels - the picker reads the current set for whatever
+                is being edited, an entry or a franchise. */}
+            {LABELLABLE_TABS.includes(editingType) && editingItem?.system_id && (
               <div className="mt-6">
                 <ContentLabelPicker
-                  mediaType={editingType}
-                  entryId={editingItem.system_id}
+                  owner={
+                    editingType === "franchise"
+                      ? { kind: "franchise", id: editingItem.system_id }
+                      : {
+                          kind: "entry",
+                          mediaType: editingType,
+                          id: editingItem.system_id,
+                        }
+                  }
                   value={contentLabels}
                   onChange={setContentLabels}
+                  scopeNote={
+                    editingType === "franchise"
+                      ? FRANCHISE_SCOPE_NOTE
+                      : undefined
+                  }
                 />
               </div>
             )}

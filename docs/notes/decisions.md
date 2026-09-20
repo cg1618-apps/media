@@ -653,12 +653,12 @@ The gates as they behave now are `authorization.md`; what follows is why.
   thing*; `404` means *this object is not yours to see*, and is the same message a
   genuinely absent row gets — **because a 403 confirms the row exists exactly as
   surely as a 200 does.**
-- **Three Sheets tabs need `admin.authz`.** Pull All restores `Users` (including
-  each account's role), `Content Label` and `Media Content Label`, and the sheet
-  is editable by anyone with Google access — so a `super` could type `admin` into
-  the Users tab and Pull themselves a promotion without ever holding
-  `admin.authz`. Those three tabs are skipped and reported; every other tab
-  restores normally. Rejected: requiring `admin.authz` for the whole pipeline,
+- **Four Sheets tabs need `admin.authz`.** Pull All restores `Users` (including
+  each account's role), `Content Label`, `Media Content Label` and `Franchise
+  Content Label`, and the sheet is editable by anyone with Google access — so a
+  `super` could type `admin` into the Users tab and Pull themselves a promotion
+  without ever holding `admin.authz`. Those four tabs are skipped and reported;
+  every other tab restores normally. Rejected: requiring `admin.authz` for the whole pipeline,
   which would stop a helper restoring the catalogue after a bad import. **Note the
   direction:** Backup (local → sheet) is not an escalation path and is
   unrestricted; only Pull writes authorization data into the live database.
@@ -1629,3 +1629,50 @@ infrastructure does not belong to any one of them.
   wherever 備註 appears. They share an `owners` tuple now, and a test asserts
   that rather than listing the owners twice — so widening or narrowing one
   moves the other with it.
+- **A franchise's content label CASCADES to its entries, and is joined at read
+  time rather than copied.** Labelling a franchise `nsfw` had to be one edit,
+  not one per entry plus a promise to remember the next one — that was the
+  whole point of asking for franchise labels. The alternative was writing a
+  `media_content_label` row onto every entry when the franchise is labelled,
+  which reads simpler and is wrong in three places: moving an entry out of the
+  franchise would leave the copy behind, adding an entry to a labelled
+  franchise would silently not inherit, and clearing the franchise's labels
+  could not tell an inherited row from one an admin set by hand. So
+  `enforcement._hidden_by_label` asks both questions on every read — the
+  entry's own `media_content_label` rows, and its franchise's through
+  `media.franchise_id` — and nothing is stored twice.
+
+  `franchise_content_label` is a second table rather than a nullable owner pair
+  on `media_content_label`, because that table's `media_id` is a real FK up to
+  the `media` supertable and a franchise has no row there. A pair of nullable
+  owner columns could name both owners or neither, and no constraint would say
+  which was meant.
+
+  **Series were left out deliberately.** A series under a labelled franchise
+  keeps its own page, which then lists nothing — the entries are hidden by the
+  cascade. That is a cosmetic leak of a series name, not of anything the label
+  exists to hide, and adding a third join table to close it would double the
+  write surface for it. Recorded in `docs/open-items.md` rather than fixed.
+- **Assigning a content label is `manage.catalog`; minting one is
+  `admin.authz`.** The whole `/api/content-labels` router was gated on
+  `admin.authz`, which `permissions.locked_permissions` locks OFF for `super`
+  by construction — so a `super` account saved an entry and then watched only
+  its labels 401, with the entry itself already written. The two obvious fixes
+  were both worse than the split: granting `super` `admin.authz` deletes the
+  only difference between it and root, and moving the whole router to
+  `manage.catalog` would let any catalogue editor mint and delete the labels
+  that decide who sees what.
+
+  The line is what each half *decides*. Minting, renaming or deleting a label
+  changes who may see what across the installation. Putting an existing label
+  on an entry or a franchise decides only which shelf that one thing sits on,
+  and it is submitted by the Add/Modify forms along with the rest of the entry
+  — it was never an authorization screen, it just lived on an authorization
+  router. `GET /` answers to either, because it is both the admin page's table
+  and the picker's checkbox list.
+
+  The split widened who may write those rows, so the assignment routes gained
+  the visibility gate the rest of the write surface already has: a thing the
+  caller's active mode cannot see answers 404. Without it a narrowed editor
+  who knew an id could have cleared the label that was hiding it — and these
+  routes replace the whole set, so one empty `PUT` would have done it.
