@@ -227,12 +227,15 @@ def f_string_log_calls(tree, source_name):
 def test_no_log_call_formats_its_own_message():
     """`logger.info("x %s", y)`, never `logger.info(f"x {y}")`.
 
-    Lazy formatting is the standard-library convention and costs nothing when
-    the level is off, but the reason it is asserted rather than left to taste
-    is the JSON formatter above: an f-string renders before logging sees it,
-    so the arguments are gone by the time anything could record them as
-    fields. This is what stops the call sites drifting back - there were 85
-    of them before this test existed.
+    The template stays constant, so one message groups however its arguments
+    vary; the interpolation is skipped when the level is off; and `record.args`
+    stays populated, so emitting a field per argument later is a change to one
+    formatter rather than a rewrite of every call site. What it is NOT is
+    cheaper to render - both formatters above call `record.getMessage()`,
+    which treats the two identically.
+
+    Asserted rather than left to taste because there were 85 call sites doing
+    it the other way before this test existed.
     """
     offenders = []
     for path in sorted(APP_DIR.rglob("*.py")):
