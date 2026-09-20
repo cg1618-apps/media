@@ -135,9 +135,23 @@ through `series.franchise_id`. Decide which before doing either.
 
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a
-label-hidden entry — `media_content_label` and `franchise_content_label` both
-have **0 rows** in the real database, with 2 labels defined and nothing
-labelled, so that case can be argued but not demonstrated there.
+label-hidden entry — that one is demonstrable: the home database carries three
+labels (`nsfw`, `erotica`, `hentai`) across 27 labelled entries, so the case can
+be tested against real rows rather than argued.
+
+`franchise_content_label` is the empty one — no franchise carries a label yet,
+so the franchise cascade has shipped without ever running against real data.
+
+**Count these before citing them.** This item asserted **0 rows** and 2 labels
+for a long time and was wrong on both, because each reader inherited the number
+instead of asking. One query settles it, and nothing here should state a row
+count that has not just been read:
+
+```bash
+docker exec cg1618-dev-db psql -U postgres -d anime_site_db -tAc   "SELECT cl.key, count(mcl.system_id) FROM content_label cl
+   LEFT JOIN media_content_label mcl ON mcl.label_id = cl.system_id
+   GROUP BY cl.key ORDER BY cl.key"
+```
 
 ## Backend
 
