@@ -168,9 +168,12 @@ GAME_VOCABULARY: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
 # (games.igdb_link, games.steam_link) and a link that is only ever displayed is
 # a media_source reference row - which is what these are.
 #
-# Games have no ACCESS sources at all: where a game can be played is the
-# `game_platform` tag above, and which copy was bought is game_copy. The
-# Sources card hides its access group for games (SourcesEditor.jsx).
+# Games have no ACCESS rows at all: where a game can be played is the
+# `game_platform` tag above, and which copy was bought is game_copy.
+# SourcesEditor hides the access *editor* for games (`showAccess={false}`),
+# since there are no access rows to add. The Sources card still renders a
+# "Where to Play" section on a game, from the games.steam_link column rather
+# than from a row.
 GAME_REFERENCE_SOURCES: tuple[str, ...] = (
     "SteamDB",
     "HowLongToBeat",

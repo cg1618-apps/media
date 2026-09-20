@@ -44,6 +44,38 @@ describe("SourcesCard", () => {
     expect(screen.getByRole("link", { name: /myanimelist/i })).toBeInTheDocument();
   });
 
+  // A game's Steam page is a storefront, not a reference database, so it
+  // belongs beside the access rows rather than with IGDB and MAL.
+  it("renders the Steam link under Where to Play", () => {
+    render(
+      <SourcesCard
+        sources={rows}
+        mediaType="game"
+        steamLink="https://store.steampowered.com/app/1/"
+      />,
+    );
+    const play = screen.getByRole("region", { name: /where to play/i });
+    expect(
+      within(play).getByRole("link", { name: /steam/i }),
+    ).toHaveAttribute("href", "https://store.steampowered.com/app/1/");
+  });
+
+  // The access section is gated on the rows, so a game whose only place to
+  // play is its Steam page used to lose the section - and the link with it.
+  it("shows Where to Play for a Steam link with no access rows", () => {
+    render(
+      <SourcesCard
+        sources={[]}
+        mediaType="game"
+        steamLink="https://store.steampowered.com/app/1/"
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: /steam/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/no sources recorded/i)).toBeNull();
+  });
+
   // `available` is NULL on every reference row and every free-form row by
   // design - only main access rows carry the tristate. A row with a URL is a
   // link regardless.

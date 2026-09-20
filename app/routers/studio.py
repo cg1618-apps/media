@@ -9,7 +9,7 @@ repointing every credit before deleting the loser so credit history survives.
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.services.domain.autofill import autofill_studio_from_mal
-from app.services.domain.credits import find_studio
+from app.services.domain.credits import credit_counts, find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
@@ -31,20 +31,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/studio", tags=["Studio Management"])
 
 
-def _to_response(db: Session, studio: models.Studio, viewer=None) -> schemas.StudioResponse:
-    credit_rows = (
-        db.query(models.Media.media_type, models.MediaCredit.media_id)
-        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
-        .filter(models.MediaCredit.studio_id == studio.system_id)
-        .all()
-    )
+def _to_response(
+    db: Session,
+    studio: models.Studio,
+    viewer=None,
+    credit_count: Optional[int] = None,
+) -> schemas.StudioResponse:
     # Count only credits on entries the viewer may see. A number is a smaller
     # leak than a title, but "worked on 3 things, you can see 2" is still one.
-    credit_count = len(
-        filter_visible_pairs(
-            db, viewer, [(mt, eid) for mt, eid in credit_rows if mt and eid]
-        )
-    )
+    #
+    # `credit_count` is passed in by the list route, which resolves the whole
+    # page in one pass; a single-entity route leaves it None and pays for one.
+    if credit_count is None:
+        credit_count = credit_counts(
+            db, viewer, [studio.system_id], models.MediaCredit.studio_id
+        ).get(studio.system_id, 0)
     return schemas.StudioResponse(
         system_id=studio.system_id,
         public_id=studio.public_id,
@@ -80,7 +81,16 @@ def get_all_studios(
     """Retrieves every studio, sorted by display name."""
     studios = db.query(models.Studio).all()
     studios.sort(key=lambda s: s.display_name.casefold())
-    return [_to_response(db, studio, viewer) for studio in studios]
+    counts = credit_counts(
+        db,
+        viewer,
+        [studio.system_id for studio in studios],
+        models.MediaCredit.studio_id,
+    )
+    return [
+        _to_response(db, studio, viewer, counts.get(studio.system_id, 0))
+        for studio in studios
+    ]
 
 
 @router.get(

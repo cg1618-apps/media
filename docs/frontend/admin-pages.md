@@ -89,16 +89,28 @@ starting values are configurable on `/defaults`. Only options, alias, quote
 and meme are excluded — those four have no factory in
 `config/formFactories.js`.
 
-**Data loaded on mount.** Every list the forms need for ComboBoxes and
-duplicate hints — franchises, series, collections, options and all nine
-media lists — each with `limit=2000`.
+**Data loaded on mount.** Collections, franchises and series (read by every
+tab's pickers and by `buildAutofillPatch`), the form defaults and the
+suggestion sources — all started together, in one wave.
+
+**The nine media lists are fetched per tab**, by `hooks/useEntryLists.js`: the
+visible tab's list goes out first, and another tab's list is fetched the first
+time that tab is opened and never again. Which lists a tab reads is
+`config/adminEntryLists.js`. All twelve still carry `limit=2000` — the API
+default of 500 would silently truncate the auto-fill search and the duplicate
+check.
+
+**The page paints once the sources are in**, not once every list is. While a
+tab's own list is still arriving its auto-fill box is disabled and says so,
+because an enabled box searching an empty list would report "no matches" for
+entries that do exist.
 
 **Form defaults.** A fresh form comes from `freshForm(type)`
 (`config/formFactories.js`) merged with the admin's saved defaults
 (`hooks/useFormDefaults.js`, `/api/form-defaults/<type>`).
 
 **Autofill search box (anime, anime movie, movie, TV show, cartoon, manga,
-novel, comic).** Typing filters the loaded list client-side; picking a row
+novel, comic).** Typing filters that tab's list client-side; picking a row
 copies its fields into the form (`lib/autofill.js`, driven by
 `config/formFields/fieldMeta.js`). Nothing is fetched from external APIs at
 this point. **Game is the exception** — its box searches IGDB instead, see the
@@ -312,9 +324,19 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
 **Fav 3x3** (`Fav3x3ModifyTab.jsx`: the per-type favourite grids stored in
 `franchise.type_slots`).
 
-- **Finding a row.** A search box over the loaded list, or a deep link
+- **Data loading** is `hooks/useEntryLists.js`, as on `/add`: collections,
+  franchises and series eagerly, the media lists per tab. The three
+  grouping-tier tabs are the ones that read more than their own — **franchise**
+  and **fav3x3** pull the eight non-game lists for their ribbons, **series**
+  the seven (a series never lists anime movies). `config/adminEntryLists.js`
+  holds the map; games appear in no tier ribbon.
+- **Finding a row.** A search box over that tab's list, or a deep link
   `/modify?id=<system_id>[&type=<type>]` used by the dashboard cards and
-  detail-page "Quick Edit" buttons. The deep-link effect runs once on mount.
+  detail-page "Quick Edit" buttons. The deep-link effect runs once on mount,
+  and is the one path that may fetch a list the visible tab does not: a link
+  naming its type costs that one list, and only if the id is not in it does it
+  fall back to searching anime, collection, franchise, series and anime movie
+  in that order.
 - **Opening a row** seeds the form (`<type>ToForm(...)`), then loads its
   credits/tags (`GET /api/credits/<type>/<id>`) and content labels. A late
   credits response for a row that is no longer open is ignored (request
@@ -376,9 +398,11 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
 
 ## /delete (`Delete.jsx`)
 
-Loads every list with `limit=2000` (the API default of 500 would silently
-truncate the search and the checks below). For a selected row it shows a
-confirmation modal with the consequences:
+Loads the five entity lists (options, studios, publishers, people,
+characters) on mount and the entry lists per tab, the same way `/add` does.
+Every list carries `limit=2000`; the API default of 500 would silently truncate
+the search and the checks below. For a selected row it shows a confirmation
+modal with the consequences:
 
 | Deleting | What is offered |
 |---|---|
@@ -392,7 +416,12 @@ copy rows it warns how many will be deleted with it. Its DLC and expansion rows
 are not cascaded — they survive with `base_game_id` set to `NULL`.
 
 Counts are computed across all nine media types (`entriesIn`,
-`standaloneEntriesIn`). Deletion order is children first, then the row, then
+`standaloneEntriesIn`), so **opening the confirmation waits for every media
+list to be in** — lazily loaded ones included — and `executeDirectDelete`
+waits again before cascading. A list that was never fetched reads as empty,
+which would understate the cascade and offer to delete a franchise that still
+holds entries. The modal says "Checking what else this would delete…" while
+that completes. Deletion order is children first, then the row, then
 any orphaned parents the admin ticked. Every delete goes through the type's
 `DELETE` endpoint, which also removes cover images, plan rows, credit links and
 writes a `deleted_record`.

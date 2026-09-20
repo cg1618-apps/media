@@ -62,11 +62,14 @@ SERIALIZATION_CATEGORY = "Serialization Platform"
 # baha_link. Every other platform is pure vocabulary.
 BAHAMUT_VALUE = "Bahamut"
 
-# Reference Source values the Fill pipeline writes rows for, from the two
-# links Tenrai returns.
+# Reference Source values a pipeline writes rows for: the two links Tenrai
+# returns, AniList's own page, and SteamDB - which is alone in being derived
+# from a column rather than fetched, since games.steam_appid is the whole of
+# a SteamDB URL.
 OFFICIAL_SITE_VALUE = "Official site"
 TWITTER_VALUE = "Twitter"
 ANILIST_VALUE = "AniList"
+STEAMDB_VALUE = "SteamDB"
 
 _CATEGORY_BY_KIND: dict[str, str] = {
     "access": PLATFORM_CATEGORY,

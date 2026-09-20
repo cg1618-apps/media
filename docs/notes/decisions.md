@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-17
+Last verified: 2026-09-20
 
 ## What this is for
 
@@ -1676,3 +1676,68 @@ infrastructure does not belong to any one of them.
   caller's active mode cannot see answers 404. Without it a narrowed editor
   who knew an id could have cleared the label that was hiding it — and these
   routes replace the whole set, so one empty `PUT` would have done it.
+
+### Admin page load: batched credit counts, per-tab entry lists (2026-09-20)
+
+The Add, Modify and Delete pages each opened by fetching about thirty-four
+requests in two serialized waves and holding a spinner over the page until the
+last one landed. Four changes, in descending order of what they were worth.
+
+- **`credit_count` is computed for a whole list in one pass.** `_to_response`
+  in the person, studio and publisher routers ran two queries plus a
+  `filter_visible_pairs` call *per row*. With 554 people that is over a
+  thousand round trips, and `/api/person/` took 3.91s to return 188KB. The
+  batch — `credits.credit_counts()` — resolves visibility once for every pair
+  on the page, because `filter_visible_pairs` was already a batch call; asking
+  it per row was the N+1 it exists to remove. Same response, 0.27s.
+
+  The counting is per entity but the *visibility* is not, and each entity's
+  pairs are kept as a set, so an entry that both credits and casts one person
+  still counts once. `tests/api/test_credit_counts_are_batched.py` asserts the
+  query count rather than only the numbers: an N+1 produces exactly the same
+  numbers, just slowly, so a correctness-only test would pass with the
+  regression back in place.
+
+  `person.roles` and `publisher.scopes` were a second N+1 one relationship
+  over — read by `_to_response` for every row, lazy-loaded per row. Both list
+  routes now `selectinload` them.
+
+- **The two fetch waves are one.** Form defaults and suggestion sources were
+  awaited *after* the twelve entry lists, and a FastAPI JSON response sends
+  its headers only once the body is built, so the second wave genuinely
+  started after the first had finished serializing. Nothing in either wave
+  reads the other, so the sequencing only ever cost a round trip.
+
+- **Entry lists are fetched per tab** (`hooks/useEntryLists.js`,
+  `config/adminEntryLists.js`). A page renders one tab at a time; eleven of
+  the twelve lists were for tabs nobody was looking at. The exceptions are
+  real and are in the map: collections, franchises and series are read by
+  every tab, and the franchise, series and fav3x3 editors render cross-type
+  ribbons.
+
+- **The page paints when the sources land**, not when every list does. The
+  auto-fill box is disabled with a "loading entries" row until its own list is
+  in — chosen over letting it return nothing, because on an Add page "no
+  matches" for an entry that does exist is the wrong answer to give someone
+  about to create a duplicate.
+
+Two things were deliberately NOT done.
+
+- **No `?fields=` projection on the list endpoints.** It would have cut the
+  payload further and let the `attach_*` passes be skipped, but `list_entries`
+  ends in `gate(viewer, ...)`, which masks fields per viewer. A projection
+  that let a caller name a field the gate would have stripped is a permission
+  leak wearing a performance costume, and it would have to compose correctly
+  on every list endpoint. Pointing the auto-fill typeahead at the existing
+  `search_query` parameter would remove most of the same cost without
+  touching the gate, and is the cheaper thing to do first if this is ever
+  worth revisiting.
+
+- **Delete does not lazy-load behind its confirmation.** `entriesIn` and
+  `standaloneEntriesIn` count across every media type to decide whether to
+  offer deleting a now-orphaned franchise or series, and `deleteChildren`
+  walks every list. An unfetched list reads as empty, which would understate
+  the cascade and offer to delete a franchise that still holds entries — so
+  opening the modal and executing the delete both wait for every list. That is
+  stricter than the old code, which trusted a load that had already failed
+  with nothing but a toast to show for it.

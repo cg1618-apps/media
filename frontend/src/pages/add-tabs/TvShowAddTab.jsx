@@ -33,6 +33,7 @@ export default function TvShowAddTab({
   setTvFillOpen,
   tvFillRef,
   tvFillResults,
+  tvFillLoading,
   applyTvShowAutofill,
   allFranchises,
   seriesItemsForTvShow,
@@ -52,7 +53,8 @@ export default function TvShowAddTab({
               setTvFillOpen(true);
             }}
             onFocus={() => setTvFillOpen(true)}
-            placeholder="Auto-fill from existing entry — type a name to search..."
+            disabled={tvFillLoading}
+          placeholder="Auto-fill from existing entry — type a name to search..."
             className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
             autoComplete="off"
           />
@@ -69,6 +71,12 @@ export default function TvShowAddTab({
             </button>
           )}
         </div>
+        {tvFillOpen && tvFillLoading && (
+          <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg px-4 py-2.5 text-sm text-text-faint flex items-center gap-2">
+            <i className="fas fa-spinner fa-spin"></i>
+            Loading entries to search from…
+          </div>
+        )}
         {tvFillOpen && tvFillResults.length > 0 && (
           <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto">
             {tvFillResults.map((t) => {

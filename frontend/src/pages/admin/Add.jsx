@@ -36,6 +36,8 @@ import { emptyQuote, toQuotePayload } from "../../components/forms/QuoteForm";
 import { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
 import { attachUploadedImage } from "../../components/forms/ImagePicker";
 import { endpoints } from "../../api/endpoints";
+import { useEntryLists, GROUP_LIST_TYPES } from "../../hooks/useEntryLists";
+import { ADD_TAB_LISTS, listsForTab } from "../../config/adminEntryLists";
 import ContentLabelPicker, {
   FRANCHISE_SCOPE_NOTE,
   LABELLABLE_TABS,
@@ -74,22 +76,41 @@ export default function Add() {
   const { showToast } = useToast();
   const replaceCasting = useReplaceCasting();
 
-  const [allAnime, setAllAnime] = useState([]);
-  const [allCollections, setAllCollections] = useState([]);
-  const [allFranchises, setAllFranchises] = useState([]);
-  const [allSeries, setAllSeries] = useState([]);
+  // Entry lists are fetched per tab, not all twelve up front - see
+  // hooks/useEntryLists.js. The aliases below keep every reader in this file
+  // reading the same names it always has.
+  const { lists, ensure, setList, isLoading } = useEntryLists();
+  const allAnime = lists.anime;
+  const allCollections = lists.collection;
+  const allFranchises = lists.franchise;
+  const allSeries = lists.series;
+  const allAnimeMovies = lists["anime-movie"];
+  const allMovies = lists.movie;
+  const allTvShows = lists["tv-show"];
+  const allCartoons = lists.cartoon;
+  const allMangas = lists.manga;
+  const allNovels = lists.novel;
+  const allComics = lists.comic;
+  const allGames = lists.game;
+  // Every submit handler appends its newly created row to the list it came
+  // from, so the picker offers it without a refetch.
+  const setAllAnime = (v) => setList("anime", v);
+  const setAllCollections = (v) => setList("collection", v);
+  const setAllFranchises = (v) => setList("franchise", v);
+  const setAllSeries = (v) => setList("series", v);
+  const setAllAnimeMovies = (v) => setList("anime-movie", v);
+  const setAllMovies = (v) => setList("movie", v);
+  const setAllTvShows = (v) => setList("tv-show", v);
+  const setAllCartoons = (v) => setList("cartoon", v);
+  const setAllMangas = (v) => setList("manga", v);
+  const setAllNovels = (v) => setList("novel", v);
+  const setAllComics = (v) => setList("comic", v);
+  const setAllGames = (v) => setList("game", v);
   const [sources, setSources] = useState({ options: [], studios: [], people: {} });
-  const [allAnimeMovies, setAllAnimeMovies] = useState([]);
-  const [allMovies, setAllMovies] = useState([]);
-  const [allTvShows, setAllTvShows] = useState([]);
-  const [allCartoons, setAllCartoons] = useState([]);
-  const [allMangas, setAllMangas] = useState([]);
-  const [allNovels, setAllNovels] = useState([]);
-  const [allComics, setAllComics] = useState([]);
-  const [allGames, setAllGames] = useState([]);
   // Admin-configured form defaults, keyed by media type. {} = use the built-ins.
   const [formDefaults, setFormDefaults] = useState({});
-  const [dataLoading, setDataLoading] = useState(true);
+  // for entry lists too is what made this page slow to first paint.
+  const [sourcesLoading, setSourcesLoading] = useState(true);
 
   // Content labels are the same eight keys for every media type, so they
   // live on the page rather than in each per-type form object.
@@ -305,108 +326,56 @@ export default function Add() {
     }
   }
 
+  // The active tab's own list goes out FIRST, before the twenty-odd source
+  // requests, so it wins the browser's connection limit and is almost always
+  // there by the time the page paints.
+  useEffect(() => {
+    ensure([...GROUP_LIST_TYPES, ...listsForTab(ADD_TAB_LISTS, activeTab)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Switching tabs fetches that tab's list if this is the first time it has
+  // been opened, and nothing at all afterwards.
+  useEffect(() => {
+    ensure(listsForTab(ADD_TAB_LISTS, activeTab));
+  }, [activeTab, ensure]);
+
   useEffect(() => {
     async function load() {
-      try {
-        const [
-          aRes,
-          colRes,
-          fRes,
-          sRes,
-          amRes,
-          mvRes,
-          tvRes,
-          cRes,
-          mgRes,
-          nvRes,
-          cmRes,
-          gmRes,
-        ] = await Promise.all([
-          fetch("/api/anime/?limit=2000", { credentials: "include" }),
-          fetch("/api/collection/?limit=2000", { credentials: "include" }),
-          fetch("/api/franchise/?limit=2000", { credentials: "include" }),
-          fetch("/api/series/?limit=2000", { credentials: "include" }),
-          fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
-          fetch("/api/movies/?limit=2000", { credentials: "include" }),
-          fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
-          fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
-          fetch("/api/manga/?limit=2000", { credentials: "include" }),
-          fetch("/api/novel/?limit=2000", { credentials: "include" }),
-          fetch("/api/comic/?limit=2000", { credentials: "include" }),
-          fetch("/api/game/?limit=2000", { credentials: "include" }),
-        ]);
-        // Guarded separately: a form-defaults failure must not break the page,
-        // it just means every form falls back to its built-in values.
-        const [fd, srcData] = await Promise.all([
-          fetchFormDefaults(),
-          fetchAllSources(),
-        ]);
-        const [
-          anime,
-          collections,
-          franchises,
-          series,
-          animeMovies,
-          movies,
-          tvShows,
-          cartoons,
-          mangas,
-          novels,
-          comics,
-          games,
-        ] = await Promise.all([
-          aRes.json(),
-          colRes.json(),
-          fRes.json(),
-          sRes.json(),
-          amRes.json(),
-          mvRes.json(),
-          tvRes.json(),
-          cRes.json(),
-          mgRes.json(),
-          nvRes.json(),
-          cmRes.json(),
-          gmRes.json(),
-        ]);
-        setAllAnime(anime);
-        setAllCollections(collections);
-        setAllFranchises(franchises);
-        setAllSeries(series);
-        setSources(srcData);
-        setAllAnimeMovies(animeMovies);
-        setAllMovies(movies);
-        setAllTvShows(tvShows);
-        setAllCartoons(cartoons);
-        setAllMangas(mangas);
-        setAllNovels(novels);
-        setAllComics(comics);
-        setAllGames(games);
-
-        // Seed every form from the configured defaults. Safe to do here rather
-        // than in the useState initializers: the page renders a spinner until
-        // dataLoading flips, so the first paint of the form already has these.
-        setFormDefaults(fd);
-        setAf(resolveDefaults("anime", fd));
-        setAmf(resolveDefaults("anime-movie", fd));
-        setMf(resolveDefaults("movie", fd));
-        setTvf(resolveDefaults("tv-show", fd));
-        setCf(resolveDefaults("cartoon", fd));
-        setMgf(resolveDefaults("manga", fd));
-        setNvf(resolveDefaults("novel", fd));
-        setCmf(resolveDefaults("comic", fd));
-        setGmf(resolveDefaults("game", fd));
-        setColf(resolveDefaults("collection", fd));
-        setFf(resolveDefaults("franchise", fd));
-        setSf(resolveDefaults("series", fd));
-        setStudioForm(resolveDefaults("studio", fd));
-        setPublisherForm(resolveDefaults("publisher", fd));
-        setPersonForm(resolveDefaults("person", fd));
-        setCharacterForm(resolveDefaults("character", fd));
-      } catch {
-        showToast("error", "Database load failed.");
-      } finally {
-        setDataLoading(false);
-      }
+      // Form defaults and suggestion sources start together with the entry
+      // lists above rather than after them: nothing here reads an entry list,
+      // so sequencing the two only ever cost a round trip.
+      const [fd, srcData] = await Promise.all([
+        fetchFormDefaults().catch(() => ({})),
+        fetchAllSources().catch(() => ({
+          options: [],
+          studios: [],
+          publishers: {},
+          people: {},
+        })),
+      ]);
+      setSources(srcData);
+      // Seed every form from the configured defaults. Safe to do here rather
+      // than in the useState initializers: the page renders a spinner until
+      // sourcesLoading flips, so the first paint of the form already has these.
+      setFormDefaults(fd);
+      setAf(resolveDefaults("anime", fd));
+      setAmf(resolveDefaults("anime-movie", fd));
+      setMf(resolveDefaults("movie", fd));
+      setTvf(resolveDefaults("tv-show", fd));
+      setCf(resolveDefaults("cartoon", fd));
+      setMgf(resolveDefaults("manga", fd));
+      setNvf(resolveDefaults("novel", fd));
+      setCmf(resolveDefaults("comic", fd));
+      setGmf(resolveDefaults("game", fd));
+      setColf(resolveDefaults("collection", fd));
+      setFf(resolveDefaults("franchise", fd));
+      setSf(resolveDefaults("series", fd));
+      setStudioForm(resolveDefaults("studio", fd));
+      setPublisherForm(resolveDefaults("publisher", fd));
+      setPersonForm(resolveDefaults("person", fd));
+      setCharacterForm(resolveDefaults("character", fd));
+      setSourcesLoading(false);
     }
     load();
   }, []);
@@ -2801,7 +2770,7 @@ export default function Add() {
     ]),
   ].sort();
 
-  if (dataLoading) {
+  if (sourcesLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
@@ -2857,6 +2826,7 @@ export default function Add() {
             fillQuery={fillQuery}
             setFillQuery={setFillQuery}
             fillOpen={fillOpen}
+            fillLoading={isLoading("anime")}
             setFillOpen={setFillOpen}
             fillRef={fillRef}
             fillResults={fillResults}
@@ -2877,6 +2847,7 @@ export default function Add() {
             amFillQuery={amFillQuery}
             setAmFillQuery={setAmFillQuery}
             amFillOpen={amFillOpen}
+            amFillLoading={isLoading("anime-movie")}
             setAmFillOpen={setAmFillOpen}
             amFillRef={amFillRef}
             amFillResults={amFillResults}
@@ -2896,6 +2867,7 @@ export default function Add() {
             movieFillQuery={movieFillQuery}
             setMovieFillQuery={setMovieFillQuery}
             movieFillOpen={movieFillOpen}
+            movieFillLoading={isLoading("movie")}
             setMovieFillOpen={setMovieFillOpen}
             movieFillRef={movieFillRef}
             movieFillResults={movieFillResults}
@@ -2915,6 +2887,7 @@ export default function Add() {
             tvFillQuery={tvFillQuery}
             setTvFillQuery={setTvFillQuery}
             tvFillOpen={tvFillOpen}
+            tvFillLoading={isLoading("tv-show")}
             setTvFillOpen={setTvFillOpen}
             tvFillRef={tvFillRef}
             tvFillResults={tvFillResults}
@@ -2934,6 +2907,7 @@ export default function Add() {
             cartoonFillQuery={cartoonFillQuery}
             setCartoonFillQuery={setCartoonFillQuery}
             cartoonFillOpen={cartoonFillOpen}
+            cartoonFillLoading={isLoading("cartoon")}
             setCartoonFillOpen={setCartoonFillOpen}
             cartoonFillRef={cartoonFillRef}
             cartoonFillResults={cartoonFillResults}
@@ -2953,6 +2927,7 @@ export default function Add() {
             mangaFillQuery={mangaFillQuery}
             setMangaFillQuery={setMangaFillQuery}
             mangaFillOpen={mangaFillOpen}
+            mangaFillLoading={isLoading("manga")}
             setMangaFillOpen={setMangaFillOpen}
             mangaFillRef={mangaFillRef}
             mangaFillResults={mangaFillResults}
@@ -2972,6 +2947,7 @@ export default function Add() {
             novelFillQuery={novelFillQuery}
             setNovelFillQuery={setNovelFillQuery}
             novelFillOpen={novelFillOpen}
+            novelFillLoading={isLoading("novel")}
             setNovelFillOpen={setNovelFillOpen}
             novelFillRef={novelFillRef}
             novelFillResults={novelFillResults}
@@ -2991,6 +2967,7 @@ export default function Add() {
             comicFillQuery={comicFillQuery}
             setComicFillQuery={setComicFillQuery}
             comicFillOpen={comicFillOpen}
+            comicFillLoading={isLoading("comic")}
             setComicFillOpen={setComicFillOpen}
             comicFillRef={comicFillRef}
             comicFillResults={comicFillResults}

@@ -66,6 +66,7 @@ from app.services.domain import (
     autofill_tv_show_from_imdb,
     cartoon_post_processing,
     derive_ep_previous_all_anime,
+    derive_steamdb_source,
     has_missing_values_anime,
     has_missing_values_anime_movie,
     has_missing_values_cartoon,
@@ -137,9 +138,14 @@ def _fill_novel(db, entry) -> None:
 
 def _fill_game(db, entry) -> None:
     """Both of game's sources, in order: IGDB supplies the appid that Steam
-    then keys off, so a brand-new entry is complete after one pass."""
+    then keys off, so a brand-new entry is complete after one pass.
+
+    The SteamDB row comes last for that reason - by then the appid may have
+    arrived from IGDB in this very pass - and is derived from it rather than
+    fetched."""
     autofill_game_from_igdb(entry, db)
     autofill_game_from_steam(entry, db)
+    derive_steamdb_source(entry, db)
 
 
 def _start_game_run(db) -> None:

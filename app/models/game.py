@@ -157,8 +157,11 @@ class Game(Base, NameFallbackMixin):
 
     igdb_id = Column(Integer, nullable=True)
     igdb_link = Column(String, nullable=True)
-    # Reserved for the deferred Steam sync so it needs no migration of its own.
-    # Nothing reads or writes these yet.
+    # Normally adopted as a pair from IGDB's external_games; steam_link can
+    # also be pasted in, and apply_extract_steam_appid reads the appid out of
+    # it. The appid is what the Steam autofill fetches on and what the SteamDB
+    # reference row is derived from - SteamDB is a media_source row, not a
+    # column, because nothing fetches on it.
     steam_appid = Column(Integer, nullable=True)
     steam_link = Column(String, nullable=True)
 

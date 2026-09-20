@@ -375,7 +375,12 @@ export default function Game() {
               </div>
             </div>
 
-            <SourcesCard sources={game.sources} mediaType="game" igdbLink={game.igdb_link} />
+            <SourcesCard
+              sources={game.sources}
+              mediaType="game"
+              igdbLink={game.igdb_link}
+              steamLink={game.steam_link}
+            />
           </div>
 
           {/* ========== RIGHT COLUMN ========== */}
