@@ -104,7 +104,7 @@ below.
 
 | | Revision | Notes |
 |---|---|---|
-| **Home** | `s3t4orylist5` — head, as of 2026-09-20 | Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row. Two of the revisions it now holds declare `irreversible = True`, so it cannot be downgraded past them — going back before the notes rework means restoring a dump |
+| **Home** | `f1r2anlabel3` — head, as of 2026-09-20 | Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row. Two of the revisions it now holds declare `irreversible = True`, so it cannot be downgraded past them — going back before the notes rework means restoring a dump |
 | **Company** | `m5b2memefks` — **behind** | Needs `git pull`, then `alembic upgrade head`, then Pull All, in that order. The order matters: see the company-machine entries in [open-items.md](open-items.md#the-two-machines-and-the-backup-sheet). **Its Pull All is now the dangerous step**: the sheet predates the notes rework, so a Pull from it restores note rows in their old shape — see below |
 
 Read it from the machine rather than from memory:

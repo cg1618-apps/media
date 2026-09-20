@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-13
+Last verified: 2026-09-20
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -211,7 +211,13 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
   `MultiSelect`, `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `OptionCategorySelect`,
-  `ContentLabelPicker`, `SourcesEditor` (the one shared editor for every Add
+  `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
+  it takes `owner={{kind, mediaType?, id}}` and reads and writes an entry's or
+  a **franchise's** label set through the one URL builder, so the two pages
+  cannot drift; `LABELLABLE_TABS` exported beside it is the one list of tabs
+  that carry labels, which is what closed the gap where `game` was missing
+  from Add's list while Add's submit wrote labels anyway),
+  `SourcesEditor` (the one shared editor for every Add
   and Modify tab's `sources` field, replacing eight copy-pasted
   `source_other` editors; produces `access` rows for `main`/`other`/
   `restricted` platform pickers and always-`{kind:"reference", bucket:"main"}`

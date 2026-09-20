@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-13
+Last verified: 2026-09-20
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -28,7 +28,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item
 - [Planning](#planning): plan_next
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
-- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode, user_access_mode_denial
+- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode, user_access_mode_denial
 - [Logs](#logs): data_control_logs, deleted_record
 - [The `media` supertable](#the-media-supertable)
 - [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys)
@@ -1668,9 +1668,9 @@ No timestamps. Relationship `role_ref` (joined load). Virtual `role`.
 
 ### `content_label`
 
-One admin-managed reason an entry might be restricted (e.g. `nsfw`). An entry
-carrying a label the viewer's active **access mode** does not carry disappears
-for that viewer. It is **not** a role permission: object scoping lives on the
+One admin-managed reason an entry or a franchise might be restricted (e.g.
+`nsfw`). Anything carrying a label the viewer's active **access mode** does not
+carry disappears for that viewer. It is **not** a role permission: object scoping lives on the
 mode axis, because a role cannot express "minus this label" — permission
 resolution is a union. Kept out of
 `system_option` because the Fill pipeline writes that table. Model:
@@ -1700,6 +1700,31 @@ One content label on one media entry. Deliberately **not** stored in
 
 Constraints: `uq_media_content_label_row` UNIQUE (`media_id`, `label_id`);
 index `ix_media_content_label_entry` (`media_id`).
+
+### `franchise_content_label`
+
+One content label on one franchise. The label **cascades down**: a franchise
+carrying a label the viewer's mode lacks hides the franchise and every entry
+whose `media.franchise_id` points at it. Nothing is copied onto those entries —
+the cascade is a read-time join in
+[`enforcement.py`](authorization.md#visibility-enforcement-enforcementpy) — so
+moving an entry out of the franchise reveals it at once.
+
+A second table rather than a nullable owner pair on `media_content_label`,
+whose `media_id` is a real FK up to the `media` supertable that a franchise has
+no row in. A pair of nullable owner columns could name both owners or neither,
+and no constraint in the database would say which was meant.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `franchise_id` | UUID | no | | FK `franchise.system_id` ON DELETE CASCADE |
+| `label_id` | UUID | no | | FK `content_label` ON DELETE CASCADE, indexed |
+| `position` | Integer | no | `0` (server default) | |
+| `created_at` | DateTime | yes | now | |
+
+Constraints: `uq_franchise_content_label_row` UNIQUE (`franchise_id`,
+`label_id`); index `ix_franchise_content_label_franchise` (`franchise_id`).
 
 ---
 
@@ -1958,6 +1983,7 @@ delete and no service call is involved. The rules differ on purpose:
 | `media_credit` | CASCADE | Same: the credit is about that entry |
 | `media_tag` | CASCADE | Same |
 | `media_content_label` | CASCADE | A label on a deleted entry means nothing |
+| `franchise_content_label` | CASCADE | A label on a deleted franchise means nothing |
 | `quote` | **SET NULL** | A quote carries its own text, translation, speaker and episode. Deleting an entry must never destroy hand-written content, so the quote survives, unattached. Not confused with a deliberately general quote - that is its own flag, `is_general` |
 | `watch_order_item` | CASCADE | A step is almost pure pointer: `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry |
 

@@ -28,13 +28,26 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.rbac import ContentLabelRef
 from app.schemas.sources import SourceRef
 
 
-class SourceFields(BaseModel):
-    """Attached by services.domain.sources.attach_sources at read time."""
+class AttachedFields(BaseModel):
+    """
+    What every media entry response carries that is read off another table
+    rather than off the entry's own row, and is not a credit or a tag.
+
+    `sources` is set by services.domain.sources.attach_sources and
+    `content_labels` by services.domain.content_labels.attach_content_labels.
+    Both default to empty, so a path that forgets the attachment serves an
+    entry with nothing on it rather than 500ing - which for content labels is
+    the right direction: the labels are a DISPLAY of what already restricted
+    this entry, and the restricting itself is done in SQL by
+    services.rbac.enforcement, not by this field.
+    """
 
     sources: list[SourceRef] = []
+    content_labels: list[ContentLabelRef] = []
 
 
 class StudioRef(BaseModel):
@@ -94,7 +107,7 @@ class PersonRef(BaseModel):
     label: str
 
 
-class AnimeLinkFields(SourceFields):
+class AnimeLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     studio: Optional[str] = None
     studio_refs: list[StudioRef] = []
@@ -113,7 +126,7 @@ class AnimeLinkFields(SourceFields):
     exclusive_source: Optional[str] = None
 
 
-class AnimeMovieLinkFields(SourceFields):
+class AnimeMovieLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     studio: Optional[str] = None
     studio_refs: list[StudioRef] = []
@@ -126,7 +139,7 @@ class AnimeMovieLinkFields(SourceFields):
     exclusive_source: Optional[str] = None
 
 
-class MovieLinkFields(SourceFields):
+class MovieLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     director: Optional[str] = None
     # Movie never had a legacy source_official column; the tag field is
@@ -134,19 +147,19 @@ class MovieLinkFields(SourceFields):
     original_source: Optional[str] = None
 
 
-class TvShowLinkFields(SourceFields):
+class TvShowLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     # Legacy sheet column stays "source_official" - sheet_column_for maps the
     # renamed field key back to it.
     source_official: Optional[str] = None
 
 
-class CartoonLinkFields(SourceFields):
+class CartoonLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     source_official: Optional[str] = None
 
 
-class MangaLinkFields(SourceFields):
+class MangaLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     author_plot: Optional[str] = None
     author_draw: Optional[str] = None
@@ -157,7 +170,7 @@ class MangaLinkFields(SourceFields):
     serialization_platform: Optional[str] = None
 
 
-class NovelLinkFields(SourceFields):
+class NovelLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     author: Optional[str] = None
     illustrator: Optional[str] = None
@@ -168,7 +181,7 @@ class NovelLinkFields(SourceFields):
     serialization_platform: Optional[str] = None
 
 
-class ComicLinkFields(SourceFields):
+class ComicLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     writer: Optional[str] = None
     artist: Optional[str] = None
@@ -183,7 +196,7 @@ class ComicLinkFields(SourceFields):
     events: Optional[str] = None
 
 
-class GameLinkFields(SourceFields):
+class GameLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     studio_refs: list[StudioRef] = []
     publisher_refs: list[PublisherRef] = []

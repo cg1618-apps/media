@@ -1,16 +1,17 @@
 """
 A pipeline may not rewrite authorization data.
 
-Pull restores the sheet into the live database, and three of its tabs carry
+Pull restores the sheet into the live database, and four of its tabs carry
 authorization: `Users` (including each account's role name), `Content Label`
-(which labels exist) and `Media Content Label` (which entries carry them). The
-sheet is an ordinary Google Sheet, editable by anyone with access to it - so
-without this gate a `super` account, holding `manage.pipelines` but not
-`admin.authz`, could type `admin` into the Users tab's role column, run Pull
-All, and be promoted. Escalation through the back door of a pipeline.
+(which labels exist), `Media Content Label` (which entries carry them) and
+`Franchise Content Label` (which franchises do, hiding every entry under them
+as well). The sheet is an ordinary Google Sheet, editable by anyone with access
+to it - so without this gate a `super` account, holding `manage.pipelines` but
+not `admin.authz`, could type `admin` into the Users tab's role column, run
+Pull All, and be promoted. Escalation through the back door of a pipeline.
 
-So those three tabs need `admin.authz`. A caller without it still runs Pull
-All and still restores the whole catalogue; the three are skipped and reported
+So those four tabs need `admin.authz`. A caller without it still runs Pull
+All and still restores the whole catalogue; the four are skipped and reported
 through `unresolved_refs`, the same channel an unknown username already uses.
 
 Backup is deliberately NOT gated: it writes local -> sheet and cannot change
@@ -47,12 +48,21 @@ def sheets(monkeypatch):
     return _install
 
 
-def test_exactly_three_tabs_are_authorization_bearing():
+def test_exactly_four_tabs_are_authorization_bearing():
     """
-    Named explicitly rather than derived: adding a fourth is a policy decision,
+    Named explicitly rather than derived: adding a fifth is a policy decision,
     and this test is where someone has to make it deliberately.
+
+    `Franchise Content Label` is the fourth, and the one that fails open
+    widest: restoring a franchise unlabelled reveals that franchise and every
+    entry in it.
     """
-    assert AUTHZ_TABS == {"Users", "Content Label", "Media Content Label"}
+    assert AUTHZ_TABS == {
+        "Users",
+        "Content Label",
+        "Media Content Label",
+        "Franchise Content Label",
+    }
     for name in AUTHZ_TABS:
         assert TAB_BY_NAME[name].requires_authz is True, name
 

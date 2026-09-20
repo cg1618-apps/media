@@ -125,11 +125,19 @@ existed; the other eight types are granted. This is a permissions decision
 rather than a bug to fix blind — grant it on `/roles` if guests should see
 games.
 
+**A series under a label-hidden franchise keeps its own page.** A franchise's
+content labels hide the franchise and every entry in it, but there is no
+`series_content_label` table and no cascade to the middle tier, so a series in
+a hidden franchise still resolves and renders — listing nothing, because its
+entries are gone. What leaks is a series name, not what the label exists to
+hide, and closing it means a third join table or a second read-time join up
+through `series.franchise_id`. Decide which before doing either.
+
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a
-label-hidden entry — `media_content_label` has **0 rows** in the real database,
-with 2 labels defined and nothing labelled, so that case can be argued but not
-demonstrated there.
+label-hidden entry — `media_content_label` and `franchise_content_label` both
+have **0 rows** in the real database, with 2 labels defined and nothing
+labelled, so that case can be argued but not demonstrated there.
 
 ## Backend
 

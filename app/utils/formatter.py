@@ -1314,6 +1314,26 @@ def parse_media_content_label_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_franchise_content_label_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Franchise Content Label sheet into typed
+    data ready for the Database.
+
+    Same shape as parse_media_content_label_from_sheet: label_id round-trips
+    as a plain UUID because the Content Label tab restores first and pull.py
+    translates the other database's label uuid into the local one before this
+    row is stored. franchise_id needs no such step - franchise ids are
+    identical in every database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "label_id": _uuid_or_none(raw.get("label_id")),
+        "position": parse_from_sheet(raw.get("position"), int),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
 def parse_system_config_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Configs sheet into typed data ready for the Database.

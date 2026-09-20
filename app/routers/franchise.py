@@ -17,6 +17,11 @@ from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import attach_remark, pop_remark, upsert_remark
+from app.services.domain.content_labels import attach_franchise_content_labels
+from app.services.rbac.enforcement import (
+    apply_franchise_visibility,
+    franchise_visible,
+)
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -49,7 +54,10 @@ def get_all_franchises(
     - If 'search_query' is provided, it intelligently searches across EN, CN, roman, JP, and Alt names.
     Used by the frontend to populate autocomplete search dropdowns.
     """
-    query = db.query(models.Franchise)
+    # Before any other filter: a franchise carrying a label this session's
+    # mode lacks must not appear in a list, a search or an autocomplete, the
+    # same way a labelled entry does not.
+    query = apply_franchise_visibility(db.query(models.Franchise), db, viewer)
 
     if collection_id:
         query = query.filter(models.Franchise.collection_id == collection_id)
@@ -66,7 +74,14 @@ def get_all_franchises(
             )
         )
 
-    return query.order_by(models.Franchise.franchise_name_en).limit(limit).offset(offset).all()
+    rows = (
+        query.order_by(models.Franchise.franchise_name_en)
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+    attach_franchise_content_labels(db, rows)
+    return rows
 
 
 @router.get(
@@ -83,7 +98,12 @@ def get_franchise_by_id(
     db_franchise = find_entity(db, models.Franchise, system_id)
     if not db_franchise:
         raise HTTPException(status_code=404, detail="Franchise not found.")
+    # Same message either way: a hidden franchise must be indistinguishable
+    # from one that was never there.
+    if not franchise_visible(db, viewer, db_franchise.system_id):
+        raise HTTPException(status_code=404, detail="Franchise not found.")
     attach_remark(db, "franchise", db_franchise, viewer.user_id)
+    attach_franchise_content_labels(db, db_franchise)
     return db_franchise
 
 
@@ -151,7 +171,7 @@ def update_franchise(
         .filter(models.Franchise.system_id == system_id)
         .first()
     )
-    if not db_franchise:
+    if not db_franchise or not franchise_visible(db, viewer, db_franchise.system_id):
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
     update_data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
@@ -187,7 +207,7 @@ def patch_franchise(
         .filter(models.Franchise.system_id == system_id)
         .first()
     )
-    if not db_franchise:
+    if not db_franchise or not franchise_visible(db, viewer, db_franchise.system_id):
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
     payload, remark, has_remark = pop_remark(payload)
@@ -211,6 +231,7 @@ def delete_franchise(
     system_id: str,
     db: Session = Depends(get_db),
     admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Permanently deletes a Franchise.
@@ -222,7 +243,7 @@ def delete_franchise(
         .filter(models.Franchise.system_id == system_id)
         .first()
     )
-    if not db_franchise:
+    if not db_franchise or not franchise_visible(db, viewer, db_franchise.system_id):
         raise HTTPException(status_code=404, detail="Franchise not found")
 
     # Stage the deleted record log before actually deleting

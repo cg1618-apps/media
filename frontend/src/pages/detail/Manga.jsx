@@ -34,6 +34,7 @@ import { READING_STATUSES } from "../../config/fieldOptions";
 import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
+import ContentLabelChips from "../../components/info/ContentLabelChips";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -620,6 +621,11 @@ export default function Manga() {
                 {titleSub}
               </h2>
             )}
+            {/* What restricts this entry, if anything. Its franchise's
+                own labels are shown on the franchise, where they can be
+                changed. */}
+            <ContentLabelChips labels={manga.content_labels} className="mb-6" />
+
 
             {/* Franchise / Series lineage */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm mb-8 pt-3 border-t border-border">
