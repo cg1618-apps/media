@@ -86,12 +86,18 @@ logger.info("Cover image saved: %s", key)
 logger.error("Pull failed for %s: %s", tab_name, e, exc_info=True)
 ```
 
-**`%s` arguments, never an f-string.** It is the standard-library convention
-and it costs nothing when the level is off, but the reason it is enforced here
-is the JSON formatter: an f-string renders before logging sees it, so the
-arguments are gone by the time anything could record them as fields.
-`tests/unit/test_logging_config.py::test_no_log_call_formats_its_own_message`
-walks `app/` and fails on the first one, so this cannot drift back.
+**`%s` arguments, never an f-string.** Two reasons that hold today: the
+template stays constant, so every occurrence of one message groups together
+however its arguments vary, and the interpolation is skipped entirely when the
+level is off. A third that is about tomorrow: `%s` leaves `record.args`
+populated, so the day a field per argument is wanted in the JSON line, that is
+a change to one formatter rather than a rewrite of every call site.
+
+An f-string is not more expensive to *read* — both formatters here call
+`record.getMessage()`, which renders `%s` and an f-string identically — so
+this is a rule about what the record still carries, not about what comes out
+of it today. `tests/unit/test_logging_config.py::test_no_log_call_formats_its_own_message`
+walks `app/` and fails on the first one, so it cannot drift back.
 
 Never log a credential, a token or a connection string — see the platform's
 `CLAUDE.md`. A username is fine and is logged on login; a password is not,
