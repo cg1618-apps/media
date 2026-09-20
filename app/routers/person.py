@@ -18,11 +18,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.domain.credits import find_person
+from app.services.domain.credits import credit_counts, find_person
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.credit_roles import PERSON_ROLES, credit_label, legal_scopes
@@ -36,31 +36,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/person", tags=["Person Management"])
 
 
-def _to_response(db: Session, person: models.Person, viewer=None) -> schemas.PersonResponse:
-    credit_rows = (
-        db.query(models.Media.media_type, models.MediaCredit.media_id)
-        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
-        .filter(models.MediaCredit.person_id == person.system_id)
-        .all()
-    )
-    casting_rows = (
-        db.query(models.CharacterCasting.media_type, models.CharacterCasting.entry_id)
-        .filter(models.CharacterCasting.person_id == person.system_id)
-        .all()
-    )
+def _to_response(
+    db: Session,
+    person: models.Person,
+    viewer=None,
+    credit_count: Optional[int] = None,
+) -> schemas.PersonResponse:
     # Count credits on entries the viewer may see, from BOTH stores: a seiyuu
     # has no media_credit rows at all (see credit_roles.CreditRole.credited_via)
-    # and would otherwise read "0 credits" despite fifty castings. Both lists
+    # and would otherwise read "0 credits" despite fifty castings. Both stores
     # go through ONE filter_visible_pairs call so the card's number and the
     # /entries list can never disagree about which pairs are visible.
-    credit_count = len(
-        filter_visible_pairs(
+    #
+    # `credit_count` is passed in by the list route, which resolves the whole
+    # page in one pass; a single-entity route leaves it None and pays for one.
+    if credit_count is None:
+        credit_count = credit_counts(
             db,
             viewer,
-            [(mt, eid) for mt, eid in credit_rows if mt and eid]
-            + [(mt, eid) for mt, eid in casting_rows if mt and eid],
-        )
-    )
+            [person.system_id],
+            models.MediaCredit.person_id,
+            include_castings=True,
+        ).get(person.system_id, 0)
     return schemas.PersonResponse(
         system_id=person.system_id,
         public_id=person.public_id,
@@ -103,7 +100,10 @@ def get_all_people(
     scope only narrowed the director role and was ignored otherwise, is gone
     with the unscoped rows it existed for.
     """
-    query = db.query(models.Person)
+    # roles is read by _to_response for every row, so it is preloaded rather
+    # than lazy-loaded per person - the same N+1 credit_counts exists to
+    # remove, one relationship over.
+    query = db.query(models.Person).options(selectinload(models.Person.roles))
     if role:
         query = query.join(models.PersonRole)
         query = query.filter(models.PersonRole.role == role)
@@ -113,7 +113,17 @@ def get_all_people(
     # Sorted in Python, not SQL: display_name is a property over four columns
     # with a per-row choice, so no single ORDER BY column can express it.
     people.sort(key=lambda p: p.display_name.casefold())
-    return [_to_response(db, person, viewer) for person in people]
+    counts = credit_counts(
+        db,
+        viewer,
+        [person.system_id for person in people],
+        models.MediaCredit.person_id,
+        include_castings=True,
+    )
+    return [
+        _to_response(db, person, viewer, counts.get(person.system_id, 0))
+        for person in people
+    ]
 
 
 @router.get(

@@ -12,7 +12,7 @@ way "the user removed one name" can be expressed.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, Sequence
 from uuid import UUID
 
 from sqlalchemy import text
@@ -1146,3 +1146,64 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
             entry.studio_refs = studio_refs_by_entry.get(entry.system_id, [])
         if wants_publisher_refs:
             entry.publisher_refs = publisher_refs_by_entry.get(entry.system_id, [])
+
+
+def credit_counts(
+    db: Session,
+    viewer,
+    entity_ids: Sequence[UUID],
+    fk_column,
+    include_castings: bool = False,
+) -> dict[UUID, int]:
+    """
+    How many visible entries each of `entity_ids` is credited on, in one pass.
+
+    `fk_column` is the media_credit column naming the entity - person_id,
+    studio_id or publisher_id. `include_castings` unions character_casting in
+    as well, which only people need: a seiyuu has no media_credit rows at all
+    (see credit_roles.CreditRole.credited_via) and would otherwise read zero.
+
+    Counting is per entity but VISIBILITY is resolved once for every pair in
+    the page, because filter_visible_pairs is already a batch call - asking it
+    per row is the N+1 this function exists to remove. Each entity's pairs are
+    a set, so an entry that both credits and casts one person counts once,
+    exactly as the per-row version counted it.
+    """
+    # Imported here rather than at module scope: enforcement imports this
+    # module for credit resolution, and a top-level import would close the
+    # cycle.
+    from app.services.rbac.enforcement import filter_visible_pairs
+
+    ids = list(entity_ids)
+    if not ids:
+        return {}
+
+    rows = (
+        db.query(fk_column, models.Media.media_type, models.MediaCredit.media_id)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
+        .filter(fk_column.in_(ids))
+        .all()
+    )
+    if include_castings:
+        rows = list(rows) + list(
+            db.query(
+                models.CharacterCasting.person_id,
+                models.CharacterCasting.media_type,
+                models.CharacterCasting.entry_id,
+            )
+            .filter(models.CharacterCasting.person_id.in_(ids))
+            .all()
+        )
+
+    by_entity: dict[UUID, set] = {entity_id: set() for entity_id in ids}
+    every_pair: set = set()
+    for entity_id, media_type, entry_id in rows:
+        if not media_type or not entry_id or entity_id not in by_entity:
+            continue
+        by_entity[entity_id].add((media_type, entry_id))
+        every_pair.add((media_type, entry_id))
+
+    visible = filter_visible_pairs(db, viewer, every_pair)
+    return {
+        entity_id: len(pairs & visible) for entity_id, pairs in by_entity.items()
+    }

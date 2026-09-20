@@ -1,6 +1,8 @@
 // Frontend: page component file for Delete.
 import { useState, useEffect, useRef, useCallback } from "react";
 import { endpoints } from "../../api/endpoints";
+import { useEntryLists, GROUP_LIST_TYPES } from "../../hooks/useEntryLists";
+import { ADD_TAB_LISTS, listsForTab } from "../../config/adminEntryLists";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { ADMIN_TABS } from "../../config/adminTabs";
@@ -186,26 +188,23 @@ function SearchBox({ placeholder, onSelect, items, renderItem, type }) {
 export default function Delete() {
   const { showToast } = useToast();
   const [tab, setTab] = useState("anime");
-  const [db, setDb] = useState({
-    anime: [],
-    "anime-movie": [],
-    movie: [],
-    "tv-show": [],
-    cartoon: [],
-    manga: [],
-    novel: [],
-    comic: [],
-    game: [],
-    collection: [],
-    franchise: [],
-    series: [],
+  // The twelve entry lists are fetched per tab - see hooks/useEntryLists.js.
+  // The five below are not entry lists: they are small, every tab's pickers
+  // read them, and the entity tabs delete out of them directly.
+  const { lists, ensure, ensureAll, reloadLoaded, isLoading } =
+    useEntryLists();
+  const [aux, setAux] = useState({
     options: [],
     studio: [],
     publisher: [],
     person: [],
     character: [],
   });
+  // One object so every existing `db.<type>` reader keeps working unchanged.
+  const db = { ...lists, ...aux };
   const [loading, setLoading] = useState(true);
+  // Set while the counts behind a delete confirmation are being completed.
+  const [preparing, setPreparing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   // Every media type that can hang off a franchise or series. Cascade and
@@ -282,76 +281,24 @@ export default function Delete() {
 
   const loadDb = useCallback(async () => {
     try {
-      const [
-        aRes,
-        colRes,
-        fRes,
-        sRes,
-        oRes,
-        amRes,
-        mRes,
-        tvRes,
-        ctRes,
-        mgRes,
-        nvRes,
-        cmRes,
-        gmRes,
-        stRes,
-        puRes,
-        peRes,
-        chRes,
-      ] =
-        await Promise.all([
-          fetch("/api/anime/?limit=2000", { credentials: "include" }),
-          fetch("/api/collection/?limit=2000", { credentials: "include" }),
-          fetch("/api/franchise/?limit=2000", { credentials: "include" }),
-          fetch("/api/series/?limit=2000", { credentials: "include" }),
-          fetch("/api/options/", { credentials: "include" }),
-          fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
-          fetch("/api/movies/?limit=2000", { credentials: "include" }),
-          fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
-          fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
-          fetch("/api/manga/?limit=2000", { credentials: "include" }),
-          fetch("/api/novel/?limit=2000", { credentials: "include" }),
-          fetch("/api/comic/?limit=2000", { credentials: "include" }),
-          fetch("/api/game/?limit=2000", { credentials: "include" }),
-          fetch(endpoints.studio.list(), { credentials: "include" }),
-          fetch(endpoints.publisher.list(), { credentials: "include" }),
-          fetch(endpoints.person.list(), { credentials: "include" }),
-          fetch(endpoints.character.list(), { credentials: "include" }),
-        ]);
-      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm, gm, st, pu, pe, ch] = await Promise.all([
-        aRes.json(),
-        colRes.json(),
-        fRes.json(),
-        sRes.json(),
-        oRes.json(),
-        amRes.json(),
-        mRes.json(),
-        tvRes.json(),
-        ctRes.json(),
-        mgRes.json(),
-        nvRes.json(),
-        cmRes.json(),
-        gmRes.json(),
-        stRes.json(),
-        puRes.json(),
-        peRes.json(),
-        chRes.json(),
+      // The entry lists and these five all start together; nothing here
+      // depends on anything else here, so there is no second wave.
+      const [o, st, pu, pe, ch] = await Promise.all([
+        fetch("/api/options/", { credentials: "include" }).then((r) => r.json()),
+        fetch(endpoints.studio.list(), { credentials: "include" }).then((r) =>
+          r.json(),
+        ),
+        fetch(endpoints.publisher.list(), { credentials: "include" }).then((r) =>
+          r.json(),
+        ),
+        fetch(endpoints.person.list(), { credentials: "include" }).then((r) =>
+          r.json(),
+        ),
+        fetch(endpoints.character.list(), { credentials: "include" }).then((r) =>
+          r.json(),
+        ),
       ]);
-      setDb({
-        anime: a,
-        "anime-movie": am,
-        movie: mv,
-        "tv-show": tv,
-        cartoon: ct,
-        manga: mg,
-        novel: nv,
-        comic: cm,
-        game: gm,
-        collection: col,
-        franchise: f,
-        series: s,
+      setAux({
         options: o,
         studio: st,
         publisher: pu,
@@ -363,11 +310,23 @@ export default function Delete() {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     loadDb();
   }, [loadDb]);
+
+  // The visible tab's list goes out first, alongside loadDb's five, so the
+  // browse view paints without waiting for eleven lists it will not show.
+  useEffect(() => {
+    ensure([...GROUP_LIST_TYPES, ...listsForTab(ADD_TAB_LISTS, tab)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    ensure(listsForTab(ADD_TAB_LISTS, tab));
+  }, [tab, ensure]);
 
   function getFranchiseTitle(id) {
     if (!id) return "Standalone";
@@ -380,17 +339,31 @@ export default function Delete() {
     return s ? getDisplayTitle(s, "series") : "Unknown";
   }
 
-  function initDelete(type, item) {
-    const t = { type, item };
+  // entriesIn() and standaloneEntriesIn() count across every media type, and
+  // the modal uses those counts to decide whether to offer deleting a
+  // now-orphaned franchise or series. An undercount would offer to delete a
+  // franchise that still holds entries, so the modal does not open until
+  // every list is in - lazily loaded ones included.
+  async function initDelete(type, item) {
+    setPreparing(true);
+    try {
+      await ensureAll();
+    } finally {
+      setPreparing(false);
+    }
     setCascadeChecked(false);
     setOrphanSeriesChecked(false);
     setOrphanFranchiseChecked(false);
-    setModal(t);
+    setModal({ type, item });
   }
 
   async function executeDirectDelete(type, item) {
     setDeleting(true);
     try {
+      // deleteChildren() walks db[key] for every media type. A list that was
+      // never fetched reads as empty, which would silently leave children
+      // behind with a dangling franchise_id rather than deleting them.
+      await ensureAll();
       if (type === "franchise") {
         await deleteChildren("franchise_id", item.system_id);
         for (const s of db.series.filter(
@@ -412,7 +385,7 @@ export default function Delete() {
       setSelectedFranchise(null);
       setSelectedSeries(null);
       showToast("success", "Deletion successful");
-      await loadDb();
+      await Promise.all([loadDb(), reloadLoaded()]);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -431,7 +404,7 @@ export default function Delete() {
       setSelectedStudio(null);
       setStudioConfirm(false);
       showToast("success", "Deletion successful");
-      await loadDb();
+      await Promise.all([loadDb(), reloadLoaded()]);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -452,7 +425,7 @@ export default function Delete() {
       setSelectedPublisher(null);
       setPublisherConfirm(false);
       showToast("success", "Deletion successful");
-      await loadDb();
+      await Promise.all([loadDb(), reloadLoaded()]);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -477,7 +450,7 @@ export default function Delete() {
       setSelectedPerson(null);
       setPersonConfirm(false);
       showToast("success", "Deletion successful");
-      await loadDb();
+      await Promise.all([loadDb(), reloadLoaded()]);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -504,7 +477,7 @@ export default function Delete() {
       setPersonMergeMode(false);
       setPersonMergeTarget(null);
       showToast("success", `Merged - ${data.credits_moved} credit(s) moved.`);
-      await loadDb();
+      await Promise.all([loadDb(), reloadLoaded()]);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -533,7 +506,7 @@ export default function Delete() {
       setSelectedCharacter(null);
       setCharacterConfirm(false);
       showToast("success", "Deletion successful");
-      await loadDb();
+      await Promise.all([loadDb(), reloadLoaded()]);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -563,7 +536,7 @@ export default function Delete() {
         "success",
         `Merged - ${data.castings_moved} casting(s) moved.`,
       );
-      await loadDb();
+      await Promise.all([loadDb(), reloadLoaded()]);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -590,7 +563,7 @@ export default function Delete() {
       setPublisherMergeMode(false);
       setPublisherMergeTarget(null);
       showToast("success", `Merged - ${data.credits_moved} credit(s) moved.`);
-      await loadDb();
+      await Promise.all([loadDb(), reloadLoaded()]);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -620,7 +593,7 @@ export default function Delete() {
         "success",
         `Merged - ${data.credits_moved} credit(s) moved.`,
       );
-      await loadDb();
+      await Promise.all([loadDb(), reloadLoaded()]);
     } catch (e) {
       showToast("error", e.message);
     } finally {
@@ -647,7 +620,7 @@ export default function Delete() {
         });
         if (!res.ok) throw new Error("Failed to delete alias");
         showToast("success", "Alias deleted");
-        await loadDb();
+        await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
         return;
       }
@@ -660,7 +633,7 @@ export default function Delete() {
         if (!res.ok) throw new Error("Failed to delete option");
         setSelectedOption(null);
         showToast("success", "Option deleted");
-        await loadDb();
+        await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
         return;
       }
@@ -679,7 +652,7 @@ export default function Delete() {
         }
         setSelectedAnimeMovie(null);
         showToast("success", "Deletion successful");
-        await loadDb();
+        await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
         return;
       }
@@ -698,7 +671,7 @@ export default function Delete() {
         }
         setSelectedMovie(null);
         showToast("success", "Deletion successful");
-        await loadDb();
+        await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
         return;
       }
@@ -717,7 +690,7 @@ export default function Delete() {
         }
         setSelectedTvShow(null);
         showToast("success", "Deletion successful");
-        await loadDb();
+        await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
         return;
       }
@@ -736,7 +709,7 @@ export default function Delete() {
         }
         setSelectedCartoon(null);
         showToast("success", "Deletion successful");
-        await loadDb();
+        await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
         return;
       }
@@ -761,7 +734,7 @@ export default function Delete() {
         }
         setSelectedManga(null);
         showToast("success", "Deletion successful");
-        await loadDb();
+        await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
         return;
       }
@@ -786,7 +759,7 @@ export default function Delete() {
         }
         setSelectedNovel(null);
         showToast("success", "Deletion successful");
-        await loadDb();
+        await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
         return;
       }
@@ -811,7 +784,7 @@ export default function Delete() {
         }
         setSelectedGame(null);
         showToast("success", "Deletion successful");
-        await loadDb();
+        await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
         return;
       }
@@ -836,7 +809,7 @@ export default function Delete() {
         }
         setSelectedComic(null);
         showToast("success", "Deletion successful");
-        await loadDb();
+        await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
         return;
       }
@@ -892,7 +865,7 @@ export default function Delete() {
       setSelectedFranchise(null);
       setSelectedSeries(null);
       showToast("success", "Deletion successful");
-      await loadDb();
+      await Promise.all([loadDb(), reloadLoaded()]);
       setModal(null);
     } catch (e) {
       showToast("error", e.message);
@@ -971,6 +944,23 @@ export default function Delete() {
           setPublisherMergeTarget(null);
         }}
       />
+
+      {/* This tab's list is still arriving: its search box would otherwise
+          report "no matches" for entries that do exist. */}
+      {isLoading(tab) && (
+        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-faint">
+          <i className="fas fa-spinner fa-spin"></i>
+          Loading entries…
+        </div>
+      )}
+
+      {/* Opening a delete confirmation first completes the cascade counts. */}
+      {preparing && (
+        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-faint">
+          <i className="fas fa-spinner fa-spin"></i>
+          Checking what else this would delete…
+        </div>
+      )}
 
       {/* QUOTE TAB — bypasses the per-type search/confirm pattern */}
       {tab === "quote" && <QuoteManageTab mode="delete" />}

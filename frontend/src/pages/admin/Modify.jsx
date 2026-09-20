@@ -53,6 +53,16 @@ import {
   resolveDefaults,
 } from "../../hooks/useFormDefaults";
 import { endpoints } from "../../api/endpoints";
+import {
+  useEntryLists,
+  GROUP_LIST_TYPES,
+  MEDIA_LIST_TYPES,
+} from "../../hooks/useEntryLists";
+import {
+  MODIFY_TAB_LISTS,
+  DEEP_LINK_FALLBACK_TYPES,
+  listsForTab,
+} from "../../config/adminEntryLists";
 import { enrichEntry } from "../../lib/enrich";
 import ContentLabelPicker, {
   FRANCHISE_SCOPE_NOTE,
@@ -217,20 +227,41 @@ export default function Modify() {
   const { showToast } = useToast();
   const [searchParams] = useSearchParams();
 
-  const [allAnime, setAllAnime] = useState([]);
-  const [allCollections, setAllCollections] = useState([]);
-  const [allFranchises, setAllFranchises] = useState([]);
-  const [allSeries, setAllSeries] = useState([]);
+  // Entry lists are fetched per tab, not all twelve up front - see
+  // hooks/useEntryLists.js. The aliases below keep every reader in this file
+  // reading the same names it always has.
+  const { lists, ensure, setList, isLoading } = useEntryLists();
+  const allAnime = lists.anime;
+  const allCollections = lists.collection;
+  const allFranchises = lists.franchise;
+  const allSeries = lists.series;
+  const allAnimeMovies = lists["anime-movie"];
+  const allMovies = lists.movie;
+  const allTvShows = lists["tv-show"];
+  const allCartoons = lists.cartoon;
+  const allMangas = lists.manga;
+  const allNovels = lists.novel;
+  const allComics = lists.comic;
+  const allGames = lists.game;
+  // Creating a franchise or series inline, or saving an entry, writes the new
+  // row back into the list it came from so the pickers see it without a
+  // refetch.
+  const setAllAnime = (v) => setList("anime", v);
+  const setAllCollections = (v) => setList("collection", v);
+  const setAllFranchises = (v) => setList("franchise", v);
+  const setAllSeries = (v) => setList("series", v);
+  const setAllAnimeMovies = (v) => setList("anime-movie", v);
+  const setAllMovies = (v) => setList("movie", v);
+  const setAllTvShows = (v) => setList("tv-show", v);
+  const setAllCartoons = (v) => setList("cartoon", v);
+  const setAllMangas = (v) => setList("manga", v);
+  const setAllNovels = (v) => setList("novel", v);
+  const setAllComics = (v) => setList("comic", v);
+  const setAllGames = (v) => setList("game", v);
   const [sources, setSources] = useState({ options: [], studios: [], people: {} });
-  const [allAnimeMovies, setAllAnimeMovies] = useState([]);
-  const [allMovies, setAllMovies] = useState([]);
-  const [allTvShows, setAllTvShows] = useState([]);
-  const [allCartoons, setAllCartoons] = useState([]);
-  const [allMangas, setAllMangas] = useState([]);
-  const [allNovels, setAllNovels] = useState([]);
-  const [allComics, setAllComics] = useState([]);
-  const [allGames, setAllGames] = useState([]);
-  const [dataLoading, setDataLoading] = useState(true);
+  // The page paints as soon as the pickers have their vocabularies. Waiting
+  // for entry lists too is what made this page slow to first paint.
+  const [sourcesLoading, setSourcesLoading] = useState(true);
 
   // Content labels are the same eight keys for every media type, so they
   // live on the page rather than in each per-type form object.
@@ -420,179 +451,88 @@ export default function Modify() {
     else if (castMediaType === "novel") setCnvf((p) => ({ ...p, cast: rows }));
   }, [castMediaType, editingItem, castData]);
 
+  // The active tab's own list goes out FIRST, before the twenty-odd source
+  // requests, so it wins the browser's connection limit and is almost always
+  // there by the time the page paints.
+  useEffect(() => {
+    ensure([...GROUP_LIST_TYPES, ...listsForTab(MODIFY_TAB_LISTS, activeTab)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Switching tabs fetches that tab's lists if this is the first time it has
+  // been opened, and nothing at all afterwards. The grouping-tier tabs pull
+  // the ribbon types with them; see config/adminEntryLists.js.
+  useEffect(() => {
+    ensure(listsForTab(MODIFY_TAB_LISTS, activeTab));
+  }, [activeTab, ensure]);
+
   useEffect(() => {
     async function load() {
-      try {
-        const [
-          aRes,
-          colRes,
-          fRes,
-          sRes,
-          amRes,
-          mvRes,
-          tvRes,
-          ctRes,
-          mgRes,
-          nvRes,
-          cmRes,
-          gmRes,
-        ] = await Promise.all([
-          fetch("/api/anime/?limit=2000", { credentials: "include" }),
-          fetch("/api/collection/?limit=2000", { credentials: "include" }),
-          fetch("/api/franchise/?limit=2000", { credentials: "include" }),
-          fetch("/api/series/?limit=2000", { credentials: "include" }),
-          fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
-          fetch("/api/movies/?limit=2000", { credentials: "include" }),
-          fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
-          fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
-          fetch("/api/manga/?limit=2000", { credentials: "include" }),
-          fetch("/api/novel/?limit=2000", { credentials: "include" }),
-          fetch("/api/comic/?limit=2000", { credentials: "include" }),
-          fetch("/api/game/?limit=2000", { credentials: "include" }),
-        ]);
-        // Guarded separately: on failure every form falls back to its built-ins.
-        const [fd, srcData] = await Promise.all([
-          fetchFormDefaults(),
-          fetchAllSources(),
-        ]);
-        formDefaultsRef.current = fd;
-        const [
-          anime,
-          collections,
-          franchises,
-          series,
-          animeMovies,
-          movies,
-          tvShows,
-          cartoons,
-          mangas,
-          novels,
-          comics,
-          games,
-        ] = await Promise.all([
-          aRes.json(),
-          colRes.json(),
-          fRes.json(),
-          sRes.json(),
-          amRes.json(),
-          mvRes.json(),
-          tvRes.json(),
-          ctRes.json(),
-          mgRes.json(),
-          nvRes.json(),
-          cmRes.json(),
-          gmRes.json(),
-        ]);
-        setAllAnime(anime);
-        setAllCollections(collections);
-        setAllFranchises(franchises);
-        setAllSeries(series);
-        setSources(srcData);
-        setAllAnimeMovies(animeMovies);
-        setAllMovies(movies);
-        setAllTvShows(tvShows);
-        setAllCartoons(cartoons);
-        setAllMangas(mangas);
-        setAllNovels(novels);
-        setAllComics(comics);
-        setAllGames(games);
-
-        const urlId = searchParams.get("id");
-        const urlType = searchParams.get("type");
-        if (urlId) {
-          if (urlType === "cartoon") {
-            const ct = cartoons.find((x) => x.system_id === urlId);
-            if (ct) {
-              openEditorWith(ct, "cartoon", franchises, series);
-              setActiveTab("cartoon");
-              return;
-            }
-          }
-          if (urlType === "manga") {
-            const mg = mangas.find((x) => x.system_id === urlId);
-            if (mg) {
-              openEditorWith(mg, "manga", franchises, series);
-              setActiveTab("manga");
-              return;
-            }
-          }
-          if (urlType === "novel") {
-            const nv = novels.find((x) => x.system_id === urlId);
-            if (nv) {
-              openEditorWith(nv, "novel", franchises, series);
-              setActiveTab("novel");
-              return;
-            }
-          }
-          if (urlType === "comic") {
-            const cm = comics.find((x) => x.system_id === urlId);
-            if (cm) {
-              openEditorWith(cm, "comic", franchises, series);
-              setActiveTab("comic");
-              return;
-            }
-          }
-          if (urlType === "game") {
-            const gm = games.find((x) => x.system_id === urlId);
-            if (gm) {
-              openEditorWith(gm, "game", franchises, series);
-              setActiveTab("game");
-              return;
-            }
-          }
-          if (urlType === "tv-show") {
-            const tv = tvShows.find((x) => x.system_id === urlId);
-            if (tv) {
-              openEditorWith(tv, "tv-show", franchises, series);
-              setActiveTab("tv-show");
-              return;
-            }
-          }
-          if (urlType === "movie") {
-            const mv = movies.find((x) => x.system_id === urlId);
-            if (mv) {
-              openEditorWith(mv, "movie", franchises, series);
-              setActiveTab("movie");
-              return;
-            }
-          }
-          const a = anime.find((x) => x.system_id === urlId);
-          if (a) {
-            openEditorWith(a, "anime", franchises, series);
-            return;
-          }
-          const col = collections.find((x) => x.system_id === urlId);
-          if (col) {
-            openEditorWith(col, "collection", franchises, series, collections);
-            setActiveTab("collection");
-            return;
-          }
-          const f = franchises.find((x) => x.system_id === urlId);
-          if (f) {
-            openEditorWith(f, "franchise", franchises, series, collections);
-            setActiveTab("franchise");
-            return;
-          }
-          const s = series.find((x) => x.system_id === urlId);
-          if (s) {
-            openEditorWith(s, "series", franchises, series);
-            setActiveTab("series");
-            return;
-          }
-          const m = animeMovies.find((x) => x.system_id === urlId);
-          if (m) {
-            openEditorWith(m, "anime-movie", franchises, series);
-            setActiveTab("anime-movie");
-            return;
-          }
-        }
-      } catch {
-        showToast("error", "Database load failed.");
-      } finally {
-        setDataLoading(false);
-      }
+      // Form defaults and suggestion sources start together with the entry
+      // lists above rather than after them: nothing here reads an entry list,
+      // so sequencing the two only ever cost a round trip.
+      const [fd, srcData] = await Promise.all([
+        fetchFormDefaults().catch(() => ({})),
+        fetchAllSources().catch(() => ({
+          options: [],
+          studios: [],
+          publishers: {},
+          people: {},
+        })),
+      ]);
+      setSources(srcData);
+      formDefaultsRef.current = fd;
+      setSourcesLoading(false);
     }
     load();
+  }, []);
+
+  // A deep link (?id=&type=) opens one entry's editor directly. It is the one
+  // path that may need a list the visible tab does not: the type is optional,
+  // and without it the id has to be looked for across the five lists the old
+  // fall-through chain searched. A link that DOES name its type costs one
+  // list, and only escalates to the others if the id is not in it.
+  useEffect(() => {
+    const urlId = searchParams.get("id");
+    if (!urlId) return undefined;
+    const urlType = searchParams.get("type");
+    let cancelled = false;
+
+    function openFrom(fetched, order) {
+      for (const type of order) {
+        const hit = (fetched[type] || []).find((x) => x.system_id === urlId);
+        if (!hit) continue;
+        openEditorWith(
+          hit,
+          type,
+          fetched.franchise,
+          fetched.series,
+          fetched.collection,
+        );
+        setActiveTab(type);
+        return true;
+      }
+      return false;
+    }
+
+    (async () => {
+      if (MEDIA_LIST_TYPES.includes(urlType)) {
+        const fetched = await ensure([urlType, ...GROUP_LIST_TYPES]);
+        if (cancelled) return;
+        if (openFrom(fetched, [urlType])) return;
+      }
+      const fetched = await ensure([
+        ...DEEP_LINK_FALLBACK_TYPES,
+        ...GROUP_LIST_TYPES,
+      ]);
+      if (cancelled) return;
+      openFrom(fetched, DEEP_LINK_FALLBACK_TYPES);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -3275,7 +3215,7 @@ export default function Modify() {
 
   const tabDefs = [...ADMIN_TABS, FAV3X3_TAB];
 
-  if (dataLoading)
+  if (sourcesLoading)
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
