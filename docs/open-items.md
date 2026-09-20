@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-09-19
+Last verified: 2026-09-20
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -67,6 +67,21 @@ The sheet holds exactly one version of the data, so these are about the company
 machine being behind. Arrival procedure is
 [switching-environments.md](switching-environments.md).
 
+**The backup sheet predates the notes rework, so a Pull from it would undo
+part of it.** `note` gained `parent_id` and `fields`, and eleven sections moved
+onto the `structured` shape, so the tab is two columns short and its note rows
+are in the old shape. Pull matches columns by header name and writes what it
+finds: it would restore `entries` values on sections that are `structured` now
+— refused by validation the next time anybody edits one — and `side_quests`
+rows under a section key the registry no longer has, which nothing renders.
+
+Neither failure is loud. The rows restore, the page loads, and it shows up one
+edit later.
+
+Closed by running **Backup** from the machine holding the newer data, which
+rewrites every tab in the current shape. Until then, the company machine's
+arrival procedure ends in the step that would do the damage.
+
 **The company machine still files rows under `admin`.** The home database moved
 every row to `cg1618` under `o1a1ownerflag`; the company database has neither
 the migration nor the move. Arriving there, the order matters: `git pull`, then
@@ -120,9 +135,25 @@ demonstrated there.
 
 | Item | Where |
 |---|---|
-| Startup dies when stdout is not UTF-8 — emoji prints, and the error handler itself throws, hiding the real cause | `app/main.py` 108/118/123/129 |
+| Shutdown dies when stdout is not UTF-8 — one `print()` of an emoji, with nothing catching it. The startup half of this is closed: the seeding handler logs with `%s` through `logging`, which never lets an emit failure propagate | `app/main.py`, the `print` after `yield` in `lifespan` |
 | `delete_studio` never calls `delete_cover_image`, so a studio logo leaks; publisher does it correctly | `app/routers/studio.py` |
+| `_STRIPPED` holds a stray backslash. `"\/"` is not an escape in Python, so the backslash survives and `clean_string` strips a character the JS `cleanString` it is kept "character-for-character in step with" does not. Warns today, and is a `SyntaxError` in a future Python | `app/services/domain/search.py:39` |
 | Entry tabs may still mint entities. `credits.resolve_*` is find-or-create for the Add form too, and whether entry tabs should refuse instead is a policy call | `app/services/domain/credits.py` |
+
+## Tooling
+
+**`ruff format` has never been enforced, and the backend has drifted from it.**
+`ruff.toml` opens with `Run: ruff check . && ruff format --check .`, but
+`.github/workflows/ci.yml` runs only the first. Running the second today
+rewrites **145 files** — about 1500 insertions and 2200 deletions, none of it
+behaviour.
+
+Fixing it is one mechanical commit, `ruff format .` plus the `--check` step in
+CI, and it needs both halves: without the CI step it silently drifts again, and
+the missing step is the actual defect. What makes it awkward is not the work
+but the timing — a whole-repo reformat conflicts with every open branch on
+every machine, including the company machine's unmigrated `anime_site` tree. So
+it lands when nothing else is in flight, and not before.
 
 ## Frontend
 

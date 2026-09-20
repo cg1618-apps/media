@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-18
+Last verified: 2026-09-20
 
 ## What this is for
 
@@ -99,8 +99,8 @@ below.
 
 | | Revision | Notes |
 |---|---|---|
-| **Home** | `s1e2asonalix` — head, as of 2026-09-16 | Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row |
-| **Company** | `m5b2memefks` — **behind** | Needs `git pull`, then `alembic upgrade head`, then Pull All, in that order. The order matters: see the company-machine entries in [open-items.md](open-items.md#the-two-machines-and-the-backup-sheet) |
+| **Home** | `s3t4orylist5` — head, as of 2026-09-20 | Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row. Two of the revisions it now holds declare `irreversible = True`, so it cannot be downgraded past them — going back before the notes rework means restoring a dump |
+| **Company** | `m5b2memefks` — **behind** | Needs `git pull`, then `alembic upgrade head`, then Pull All, in that order. The order matters: see the company-machine entries in [open-items.md](open-items.md#the-two-machines-and-the-backup-sheet). **Its Pull All is now the dangerous step**: the sheet predates the notes rework, so a Pull from it restores note rows in their old shape — see below |
 
 Read it from the machine rather than from memory:
 
@@ -149,6 +149,20 @@ its fixture runs `DROP SCHEMA public CASCADE`.
 | Roles and their grants | **nothing** | `ensure_rbac_seed` recreates guest, user and admin anywhere; a role added or a grant removed by hand is per-machine. Content *labels* do travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |
 
 ### The one hard rule
+
+**The Note tab changed shape in the notes rework, and Pull cannot tell.** The
+`note` table gained `parent_id` and `fields`, so the tab gained two columns;
+and eleven sections changed shape, so the rows themselves are written
+differently. Pull matches columns by header name and writes what it finds, so a
+Pull from a sheet backed up **before** that release would put note rows back in
+their old shape: `entries` values on sections that are `structured` now (which
+validation refuses the next time anybody edits the row), and `side_quests` rows
+under a section key the registry no longer has (which nothing renders).
+
+Neither is loud. The rows restore, the page loads, and the damage shows up one
+edit later. **Run a Backup from the machine holding the newer data before any
+Pull**, which rewrites every tab in the current shape and is the only thing
+that clears this.
 
 **Google Sheets holds exactly one version of the data.** Backup overwrites every
 tab; Pull All overwrites every table. So:
