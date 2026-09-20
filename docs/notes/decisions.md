@@ -1474,3 +1474,42 @@ infrastructure does not belong to any one of them.
   empty set" rule with a safety marker as the gate: the worst shape a safety
   marker can take is one that fails silently, and a test that has never seen
   the thing it guards is not guarding it yet.
+- **劇情 and 劇情列表 are two cards, not one.** 劇情 is the story written as
+  prose — what happens, in sentences. 劇情列表 is the same story as a
+  structure: a numbered, nestable list of the things it is made of, so
+  "chapter 3, scene 2" is two rows and a parent link rather than a sentence.
+  Merging them was considered and rejected because the two are read at
+  different times and neither reads well as the other; the cost is that a
+  reader has to know which card a thing belongs in, and 劇情's `story_other`
+  already exists for exactly that kind of doubt.
+
+  Four strands rather than one section with a `kind`, for the reason the 待辦
+  buckets are four: `sort_index` orders rows within one `(owner, section)`
+  pair, so a kind-tagged single section could not order entries *within* a
+  strand. They are built from a tuple of (key, label) pairs because they
+  differ in nothing else, and four copies of one eight-line spec is four
+  places for them to drift apart.
+- **An order number is free text, and either it or a name is required.** An
+  entry is numbered "3", "3.2", "II", "v1.4" or "Act I" depending on the work,
+  so a numeric column would refuse four of those five. `require_any` is what
+  makes an entry an entry: "3.2" with no name is a placeholder somebody will
+  fill in, "The Lake" with no number is an entry whose position is its
+  parent's business, and a description with neither is a body with nothing to
+  call it. That last case is the one the migration had to handle — a side
+  quest with no title would have read fine and then 422'd the first time
+  anybody edited it, on a field they had not touched, so its first line
+  becomes its name.
+- **The reorder endpoint's "names exactly the notes in this section" rule was
+  left alone, and the page works with it.** A hierarchical move swaps two
+  siblings, so sending just that sibling group would be the smaller payload —
+  and is refused with a 400. Relaxing the endpoint was the obvious fix and the
+  wrong one: the rule is what keeps a partial list from quietly renumbering
+  half a section and leaving the rest wherever it was. The page flattens its
+  whole tree depth-first with the swap applied instead, which is also the
+  better data: `sort_index` ends up ascending in the order the page actually
+  draws, so a reader of the raw rows sees the tree's order too.
+- **A row whose parent is missing renders as a root.** It should not happen —
+  the router refuses a parent from another owner or section, and a delete
+  cascades — but the alternative to showing it is dropping it, which hides a
+  row with nothing on screen to say so. A stray root is a failure somebody can
+  see and fix.

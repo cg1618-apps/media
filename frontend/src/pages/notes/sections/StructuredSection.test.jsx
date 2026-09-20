@@ -281,3 +281,145 @@ it("heads a row with its title column, not with the first filled text field", ()
   expect(screen.getByText("Malenia").className).toContain("font-medium");
   expect(screen.getByText("Haligtree").className).not.toContain("font-medium");
 });
+
+// --- Hierarchical sections -------------------------------------------------
+
+// Mirrors a 劇情列表 Story List strand: an order number or a name, nesting to
+// any depth.
+const STORY_LIST = {
+  key: "story_list_main",
+  shape: "structured",
+  label: "主線 Main",
+  require_any: [["order", "name"]],
+  hierarchical: true,
+  fields: [
+    { key: "order", label: "No.", type: "text", column: "locator", options: [] },
+    { key: "name", label: "Name", type: "text", column: "title", options: [] },
+    {
+      key: "description",
+      label: "Description",
+      type: "textarea",
+      column: "content",
+      options: [],
+    },
+    { key: "links", label: "Links", type: "links", column: "links", options: [] },
+  ],
+};
+
+// A chapter, a scene inside it, and a beat inside that: three levels, which
+// is the shape the group is actually for.
+const TREE = [
+  { system_id: "c1", locator: "1", title: "Limgrave", parent_id: null },
+  { system_id: "s1", locator: "1.1", title: "The Gate", parent_id: "c1" },
+  { system_id: "b1", locator: "1.1.1", title: "Tree Sentinel", parent_id: "s1" },
+  { system_id: "c2", locator: "2", title: "Liurnia", parent_id: null },
+];
+
+const renderTree = (props = {}) =>
+  render(
+    <StructuredSection
+      section={STORY_LIST}
+      notes={TREE}
+      isAdmin
+      onCreate={() => {}}
+      onUpdate={() => {}}
+      onDelete={() => {}}
+      onReorder={() => {}}
+      {...props}
+    />,
+  );
+
+it("nests rows under their parent to any depth", () => {
+  renderTree();
+
+  const gate = screen.getByText("The Gate").closest("div.pt-2");
+  // The grandchild renders INSIDE the child, not beside it.
+  expect(within(gate).getByText("Tree Sentinel")).toBeInTheDocument();
+  // ...and the second root does not.
+  expect(within(gate).queryByText("Liurnia")).toBeNull();
+});
+
+it("reorders within one set of siblings, sending only those ids", () => {
+  const onReorder = vi.fn();
+  renderTree({ onReorder });
+
+  // Only the two roots have a sibling to swap with; an only child gets no
+  // buttons at all. So there are two, one per root, and the last one is
+  // disabled rather than absent.
+  const moves = screen.getAllByRole("button", { name: /move entry down/i });
+  expect(moves).toHaveLength(2);
+  expect(moves[1]).toBeDisabled();
+
+  moves[0].click();
+  // The whole section, flattened depth-first with the swap applied - the
+  // endpoint refuses a payload that does not name every note of the section,
+  // and a depth-first order leaves sort_index ascending as the page draws.
+  expect(onReorder).toHaveBeenCalledWith("story_list_main", [
+    "c2",
+    "c1",
+    "s1",
+    "b1",
+  ]);
+});
+
+it("adds a child under the row whose button was pressed", async () => {
+  const onCreate = vi.fn();
+  renderTree({ onCreate });
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add entry under The Gate" }),
+  );
+  await userEvent.type(screen.getByLabelText("Name"), "Second beat");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  expect(onCreate).toHaveBeenCalledWith(
+    expect.objectContaining({
+      section: "story_list_main",
+      title: "Second beat",
+      parent_id: "s1",
+    }),
+  );
+});
+
+it("adds a root with no parent_id when the card's own Add is used", async () => {
+  const onCreate = vi.fn();
+  renderTree({ onCreate });
+
+  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+  await userEvent.type(screen.getByLabelText("No."), "3");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  const payload = onCreate.mock.calls[0][0];
+  expect(payload.locator).toBe("3");
+  expect(payload).not.toHaveProperty("parent_id");
+});
+
+it("saves an entry with only an order number, and refuses one with neither", async () => {
+  const onCreate = vi.fn();
+  renderTree({ onCreate, notes: [] });
+
+  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+  // A description alone is a body with nothing to call it: require_any bites.
+  await userEvent.type(screen.getByLabelText("Description"), "Something happens");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate).not.toHaveBeenCalled();
+
+  await userEvent.type(screen.getByLabelText("No."), "3.2");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate).toHaveBeenCalled();
+});
+
+it("shows an orphaned row at the top level rather than hiding it", () => {
+  // The router refuses a parent from another owner or section and a delete
+  // cascades, so this should not arise — but dropping the row would hide it
+  // with nothing to say so.
+  renderTree({
+    notes: [{ system_id: "x", title: "Stray", parent_id: "does-not-exist" }],
+  });
+  expect(screen.getByText("Stray")).toBeInTheDocument();
+});
+
+it("offers no nesting affordance on a flat section", () => {
+  renderSection({ notes: [{ system_id: "a", title: "only" }] });
+  expect(screen.queryByRole("button", { name: /add entry under/i })).toBeNull();
+});

@@ -257,10 +257,10 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   chrome. `NameEntriesSection` renders the `name_entries` shape — a titled
   list whose items are each `{type: "text" | "link", value, label}` stored in
   the note's own `entries` column, never in `links` — and offers a kind
-  dropdown built from `section.kinds` when the registry declares any. Its one
-  owner is `side_quests`, which keeps the shape until it moves into the 劇情列表
-  Story List group; the other ten 攻略 sections it used to serve are
-  `structured` now.
+  dropdown built from `section.kinds` when the registry declares any. **No
+  section uses it today** — `side_quests` was the last and moved into 劇情列表
+  Story List — but the component stays, because rows written before that are
+  still in the database and a later section may want the shape.
   `StructuredSection` renders the `structured` shape, and is the one
   component here that does not know its own fields: it builds both the form
   and the read view from `section.fields`, the spec the backend registry
@@ -268,9 +268,14 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   and one naming none inside `fields`, which `fromNote` and `toPayload` are
   the only places to know. It also owns the two affordances the other shapes
   lack — up/down buttons calling `PATCH /api/notes/reorder`, and an inline
-  `quick_edit` input that saves on blur without opening the row. Its owners
-  are thirteen of the sixteen 攻略 sections plus the standalone
-  `guide_resources` card; `docs/systems/notes.md` lists each one's spec.
+  `quick_edit` input that saves on blur without opening the row. For a
+  `hierarchical` section it also draws the tree: an Add button per row opening
+  a draft that carries that row's id as `parent_id`, children indented behind
+  a rule, and a move that flattens the whole tree depth-first (the reorder
+  endpoint takes ids naming exactly the section, so a sibling-only payload is
+  refused). Its owners are thirteen 攻略 sections, both 劇情 plot sections, the
+  four 劇情列表 strands and the standalone `guide_resources` card;
+  `docs/systems/notes.md` lists each one's spec.
   `NotesTemplate`'s `SHAPES` map covers all nine stored shapes.
 
 ## The access-mode admin pages (`pages/admin/`)

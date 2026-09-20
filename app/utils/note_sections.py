@@ -190,6 +190,13 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # them apart is why `story_other` exists - a stray observation lands there
     # rather than drifting into Analysis.
     NoteGroup(key="story", label="劇情 Story", icon="fa-book-open"),
+    # 劇情 above is what happens, written as prose. This is the same story as
+    # a STRUCTURE: a numbered, nestable list of the things it is made of, so
+    # "chapter 3, scene 2" is two rows and a parent link rather than a
+    # sentence. The two are deliberately not merged - a plot note and an
+    # outline entry are read at different times and neither reads well as the
+    # other.
+    NoteGroup(key="story_list", label="劇情列表 Story List", icon="fa-list-ol"),
     # NOT "進度 Progress": Game.jsx already renders a <Slip title="Progress">
     # (playtime and achievements) on the same page, and two cards with one name
     # is the `resources` / `builds_and_mods` collision again.
@@ -327,6 +334,80 @@ def _named_thing_fields(variant: bool = False) -> tuple["NoteField", ...]:
 # several. Shared by the two episode-shaped highlight sections so they cannot
 # drift apart.
 HIGHLIGHT_KINDS = ("神回", "神片段", "神篇章")
+
+def _plot_fields() -> tuple["NoteField", ...]:
+    """
+    主線劇情 and 支線劇情: a chapter, what happens in it, and where that came
+    from.
+
+    The chapter keeps the `locator` column it held as an episode_text
+    section, so no row had to move when links were added.
+    """
+    return (
+        NoteField(
+            key="chapter",
+            label="Chapter",
+            column="locator",
+            placeholder="Chapter / Part, e.g. Ch 3",
+        ),
+        NoteField(
+            key="description",
+            label="Description",
+            type=FIELD_TEXTAREA,
+            column="content",
+        ),
+        NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+    )
+
+
+# The four strands a story is listed along. Kept as data rather than four
+# spelled-out entries because they differ ONLY in key and label: four copies
+# of one eight-line spec is four places for them to drift apart.
+STORY_LIST_STRANDS = (
+    ("story_list_main", "主線 Main"),
+    ("story_list_side", "支線 Side"),
+    ("story_list_character", "角色 Character"),
+    ("story_list_event", "事件 Event"),
+)
+
+
+def _story_list_sections() -> tuple["NoteSection", ...]:
+    """One nestable, ordered list per strand of the story."""
+    return tuple(
+        NoteSection(
+            key=key,
+            shape=SHAPE_STRUCTURED,
+            label=label,
+            owners=("game",),
+            scope=SCOPE_CATALOG,
+            group="story_list",
+            hierarchical=True,
+            require_any=(("order", "name"),),
+            fields=(
+                # Free text, not a number: an entry is numbered "3", "3.2",
+                # "II", "v1.4" or "Act I" depending on the work, and a
+                # numeric column would refuse four of those five.
+                NoteField(
+                    key="order",
+                    label="No.",
+                    column="locator",
+                    placeholder="e.g. 3.2",
+                ),
+                NoteField(key="name", label="Name", column="title"),
+                NoteField(
+                    key="description",
+                    label="Description",
+                    type=FIELD_TEXTAREA,
+                    column="content",
+                ),
+                NoteField(
+                    key="links", label="Links", type=FIELD_LINKS, column="links"
+                ),
+            ),
+        )
+        for key, label in STORY_LIST_STRANDS
+    )
+
 
 # Order here is display order.
 NOTE_SECTIONS: tuple[NoteSection, ...] = (
@@ -556,19 +637,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="trivia",
         shape=SHAPE_TEXT_LINKS,
         label="小知識 Trivia",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="guides",
-    ),
-    NoteSection(
-        # Kept until the 劇情列表 Story List group exists to receive its rows.
-        # A side quest is a strand of the story rather than a guide topic, so
-        # it moves rather than being retired; removing it before its
-        # destination exists would mean deleting rows or parking them
-        # somewhere nothing reads.
-        key="side_quests",
-        shape=SHAPE_NAME_ENTRIES,
-        label="支線任務列表 Side Quests",
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="guides",
@@ -875,26 +943,28 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # holds the second. This card is a wall of spoilers and the site has no
     # spoiler gate; the collapsible card is all today's UI offers.
     NoteSection(
+        # Structured rather than episode_text so a beat can carry the video or
+        # the write-up it came from. The chapter stays the `locator` column it
+        # always was, and is still optional - unlike episode_comments and
+        # highlight_moments, a beat remembered without its chapter number is
+        # still a beat, whereas a per-chapter comment about nothing in
+        # particular is not a per-chapter comment.
         key="main_plot",
-        shape=SHAPE_EPISODE_TEXT,
+        shape=SHAPE_STRUCTURED,
         label="主線劇情 Main Plot",
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="story",
-        # Deliberately NOT locator_required, unlike episode_comments and
-        # highlight_moments: a beat remembered without its chapter number is
-        # still a beat, whereas a per-chapter comment about nothing in
-        # particular is not a per-chapter comment.
-        locator_placeholder="Chapter / Part, e.g. Ch 3",
+        fields=_plot_fields(),
     ),
     NoteSection(
         key="side_plot",
-        shape=SHAPE_EPISODE_TEXT,
+        shape=SHAPE_STRUCTURED,
         label="支線劇情 Side Stories",
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="story",
-        locator_placeholder="Chapter / Part, e.g. Ch 3",
+        fields=_plot_fields(),
     ),
     NoteSection(
         key="character_arcs",
@@ -913,10 +983,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="story",
     ),
     NoteSection(
-        # Plain text: one ordered list of dated events. Every row wanting a
-        # link would mean this should have been text_links.
+        # One ordered list of dated events. It was plain `text` on the
+        # reasoning that a row wanting a link would mean it should have been
+        # text_links - which is exactly what happened, so it is.
         key="timeline",
-        shape=SHAPE_TEXT,
+        shape=SHAPE_TEXT_LINKS,
         label="時間線 Timeline",
         owners=("game",),
         scope=SCOPE_CATALOG,
@@ -939,6 +1010,24 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="story",
     ),
+    # --- 劇情列表 Story List ----------------------------------------------
+    # Four sections rather than one with a kind, for the reason the 待辦
+    # buckets below are four: `sort_index` orders rows within one
+    # (owner, section) pair, so a kind-tagged single section could not order
+    # entries within a strand.
+    #
+    # These are the first `hierarchical` sections. An entry nests under
+    # another to any depth - a chapter holding scenes holding beats - which is
+    # what `note.parent_id` was added for. Two or three levels is the expected
+    # shape; nothing enforces a limit, because the limit would be arbitrary
+    # and the router already refuses a cycle.
+    #
+    # `require_any` is the rule that makes an entry an entry: it needs an
+    # order number OR a name. "3.2" with no name is a placeholder somebody
+    # will fill in; "The Lake" with no number is an entry whose position is
+    # its parent's business. Neither is worth refusing, and a row with
+    # neither is nothing.
+    *_story_list_sections(),
     # --- 待辦 Todo --------------------------------------------------------
     # Four sections rather than one section with a kind, because ordering is
     # PER SECTION: sort_index orders rows within one (owner, section) pair and
