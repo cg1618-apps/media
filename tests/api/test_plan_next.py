@@ -1,7 +1,7 @@
 """
 API integration tests for /api/plan-next.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 
 The client here is `super_client`, not `admin_client`: since 2026-09-12 an
 administrative account holds no `self.*` grant and every route in this prefix

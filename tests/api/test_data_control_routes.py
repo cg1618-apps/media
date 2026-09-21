@@ -2,7 +2,7 @@
 The data-control router is generated from the pipeline registry; every route
 the admin page calls must still exist, and unknown types must be 404s.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

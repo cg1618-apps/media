@@ -2,9 +2,9 @@
 API test fixtures.
 
 Requires PostgreSQL to be running (docker-compose up -d).
-Uses the 'anime_site_test' database (set in tests/conftest.py).
+Uses the 'media_test' database (set in tests/conftest.py).
 
-Setup: createdb -U postgres anime_site_test  (run once)
+Setup: createdb -U postgres media_test  (run once)
 """
 
 import uuid

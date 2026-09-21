@@ -4,7 +4,7 @@ columns. The old loop did `setattr` for any key `hasattr(entry, key)` - which
 includes `system_id`, `created_at`, relationship attributes and SQLAlchemy
 internals - so a typo'd or hostile key became a column write.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

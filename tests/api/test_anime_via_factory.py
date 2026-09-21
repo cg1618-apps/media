@@ -4,7 +4,7 @@ behaviours that kept them hand-written must survive: anime's airing_season
 filter and its synchronous ep_previous derivation on write, and anime movie
 having no series at all.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

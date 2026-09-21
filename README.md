@@ -26,8 +26,8 @@ pip install -r requirements-dev.txt
 cd frontend && npm install && npm run build && cd ..
 
 # 2. Database and config
-docker-compose up -d                               # postgres:17; creates anime_site_db
-docker exec cg1618-dev-db createdb -U postgres anime_site_test
+docker-compose up -d                               # postgres:17; creates media
+docker exec cg1618-dev-db createdb -U postgres media_test
 cp .env.example .env                               # fill in keys, see docs/setup-local.md
 alembic upgrade head
 
@@ -58,7 +58,7 @@ and deployment.
 app/            FastAPI application (routers, models, schemas, services, utils)
 alembic/        migrations (single head; runs on every container start)
 frontend/       React SPA (src/), built into frontend_dist/ for uvicorn to serve
-tests/          pytest: unit (no DB) and api (PostgreSQL anime_site_test)
+tests/          pytest: unit (no DB) and api (PostgreSQL media_test)
 docs/           documentation (start at docs/README.md)
 scripts/        one-off maintenance scripts
 ```

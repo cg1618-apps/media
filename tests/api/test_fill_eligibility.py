@@ -6,7 +6,7 @@ MOVIE_FIELDS_TO_FILL / COMIC_FIELDS_TO_FILL used to name `director`,
 moved to media_credit / media_tag. `getattr(entry, "director", None)` is then
 always None, so every movie and every comic was queued on every Fill run.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 from app import models

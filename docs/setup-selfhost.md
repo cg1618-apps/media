@@ -754,8 +754,8 @@ The repository is public, so no deploy key is needed.
 
 ```bash
 ssh homelab
-git clone --branch main https://github.com/cg1618-apps/media.git ~/anime_site
-cd ~/anime_site
+git clone --branch main https://github.com/cg1618-apps/media.git ~/media
+cd ~/media
 ```
 
 **`main`, not `dev`.** `main` is production and moves only by a release pull
@@ -822,7 +822,7 @@ If Compose reports variables "not set", the `.env` is not where it looks:
 **On the dev machine**, dump the source database:
 
 ```bash
-docker exec cg1618-dev-db pg_dump -U postgres -Fc -d anime_site_db > seed.dump
+docker exec cg1618-dev-db pg_dump -U postgres -Fc -d media > seed.dump
 ```
 
 Copy it and the cover images across. `rsync` is better than `scp` for the
@@ -830,24 +830,24 @@ covers — nearly two thousand small files — and a streamed `tar` works if the
 machine has no `rsync`:
 
 ```bash
-ssh homelab mkdir -p ~/backups ~/anime_site/static/covers ~/anime_site/static/library/thumbs
+ssh homelab mkdir -p ~/backups ~/media/static/covers ~/media/static/library/thumbs
 scp seed.dump homelab:~/backups/
-tar -C static -cf - covers | ssh homelab 'tar -C ~/anime_site/static -xf -'
+tar -C static -cf - covers | ssh homelab 'tar -C ~/media/static -xf -'
 ```
 
 **On the box**, restore:
 
 ```bash
-cd ~/anime_site
+cd ~/media
 docker compose -f docker-compose.prod.yml exec -T db \
-  pg_restore -U postgres -d anime_site_db --no-owner --clean --if-exists \
+  pg_restore -U postgres -d media --no-owner --clean --if-exists \
   < ~/backups/seed.dump
 ```
 
 Then verify, and **stop if the numbers do not match the source**:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec -T db psql -U postgres -d anime_site_db -tAc \
+docker compose -f docker-compose.prod.yml exec -T db psql -U postgres -d media -tAc \
   "select (select count(*) from media), (select count(*) from users), (select count(*) from user_media_list), (select version_num from alembic_version);"
 ```
 
@@ -935,7 +935,7 @@ Put the tunnel id and that path into `.env` as `TUNNEL_ID` and
 
 ```bash
 cloudflared tunnel route dns homelab media.cg1618.com
-cd ~/anime_site
+cd ~/media
 docker compose -f docker-compose.prod.yml up -d cloudflared
 docker compose -f docker-compose.prod.yml logs cloudflared | grep "Registered tunnel connection"
 ```
@@ -1024,7 +1024,7 @@ the bucket listing, and the nightly dump is verified by the weekly restore
 drill rather than by a HEAD.
 
 ```
-~/anime_site/.env.backup
+~/media/.env.backup
 ```
 
 ```

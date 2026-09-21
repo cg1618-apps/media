@@ -6,7 +6,7 @@ The relations graph and scope listing must not name a hidden entry.
 viewer at all, so the hidden entry's display name, search names and cover
 were readable from the canvas payload.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

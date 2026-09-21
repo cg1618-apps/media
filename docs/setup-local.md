@@ -71,10 +71,10 @@ the test database inside the container:
 
 ```powershell
 docker-compose up -d
-docker exec cg1618-dev-db createdb -U postgres anime_site_test
+docker exec cg1618-dev-db createdb -U postgres media_test
 ```
 
-`anime_site_db` is the dev database Alembic manages. `anime_site_test` is
+`media` is the dev database Alembic manages. `media_test` is
 wiped and rebuilt (`DROP SCHEMA public CASCADE`) at the start of every API test
 session, so never point it at real data.
 
@@ -112,7 +112,7 @@ list. Variable names are case-insensitive.
 | --- | --- | --- |
 | `POSTGRES_USER` | `postgres` | DB user |
 | `POSTGRES_PASSWORD` | `password` | DB password. Tests read it from here too (section 9). |
-| `POSTGRES_DB` | `anime_site_db` | Dev database name |
+| `POSTGRES_DB` | `media` | Dev database name |
 | `DATABASE_URL` | unset | Optional full connection URL override, used **verbatim** when set. Leave it commented out for local dev; see "Common problems". |
 | `APP_ENV` | **`production`** | `development` or `production`. Unset means production, deliberately — see `authentication.md`. **Set `APP_ENV=development` in your `.env`**, or the login cookie is issued `Secure` and your browser drops it over plain HTTP, so login silently stops working. |
 | `JWT_SECRET_KEY` | *(none — required)* | JWT signing secret. The app **refuses to start** while this is the value `.env.example` ships. |
@@ -126,7 +126,7 @@ list. Variable names are case-insensitive.
 | `IGDB_CLIENT_SECRET` | unset | IGDB (games): Twitch application client secret. Both must be set or IGDB calls are skipped. |
 | `GOOGLE_CREDENTIALS_JSON` | unset | Service-account JSON as one line (alternative to `credentials.json`) |
 | `GOOGLE_SHEET_ID` | unset | Spreadsheet used by Backup / Pull |
-| `COMPOSE_PROJECT_NAME` | `anime_site` | Pins the docker-compose project, and so the VOLUME name. Compose otherwise derives it from the directory, so a **worktree** mounts a brand-new EMPTY database on the same port while the real data sits untouched. Every checkout needs it, the primary one included: the home machine's tree is `cg1618\media`, so compose would derive `media` and mount an empty volume. The setting is the only thing naming the real one. An empty database is also what blanks the Backup sheet, so this is a data-loss guard, not a convenience |
+| `COMPOSE_PROJECT_NAME` | `media` | Pins the docker-compose project, and so the VOLUME name. Compose otherwise derives it from the directory, so a **worktree** mounts a brand-new EMPTY database on the same port while the real data sits untouched. Every checkout needs it, the primary one included. On the home machine the tree is `cg1618\media`, so the derived name and the pinned one now coincide and the setting reads as redundant there - it is not. A worktree is a directory with another name, and that is the case the pin exists for. An empty database is also what blanks the Backup sheet, so this is a data-loss guard, not a convenience |
 
 Minimum for a working local app: the three `POSTGRES_*` values. Everything
 else can stay empty; the Fill pipelines and Backup/Pull will just log errors
@@ -267,7 +267,7 @@ pass before a branch can be merged. Nothing is deployed — see
 ## 9. Tests
 
 ```powershell
-# backend: unit (no DB) + api (needs anime_site_test)
+# backend: unit (no DB) + api (needs media_test)
 venv\Scripts\python.exe -m pytest
 venv\Scripts\python.exe -m pytest tests/unit            # DB-free subset
 venv\Scripts\python.exe -m pytest tests/api -q
@@ -280,7 +280,7 @@ npm run test          # watch mode
 
 How the backend tests find the database: `tests/conftest.py` runs before any
 `app` module is imported and does `os.environ.setdefault(...)` for
-`POSTGRES_DB=anime_site_test`, `POSTGRES_USER=postgres`, a test
+`POSTGRES_DB=media_test`, `POSTGRES_USER=postgres`, a test
 `JWT_SECRET_KEY` and `ADMIN_PASSWORD`, and `APP_ENV=development`. It deliberately does **not** default
 `POSTGRES_PASSWORD`; pydantic-settings reads that from your `.env` (or from the
 CI job environment). If `.env` has a wrong password the API tests fail at
@@ -291,7 +291,7 @@ Details of the tiers and fixtures are in `testing.md`.
 
 ## 10. Quick verification checklist
 
-1. `venv\Scripts\python.exe -c "from app.config import settings; print(settings.sqlalchemy_database_url)"` prints a `localhost:5432/anime_site_db` URL.
+1. `venv\Scripts\python.exe -c "from app.config import settings; print(settings.sqlalchemy_database_url)"` prints a `localhost:5432/media` URL.
 2. `alembic upgrade head` finishes without error; `alembic current` shows a head revision.
 3. `uvicorn app.main:app --reload --reload-dir app` logs `Admin account verified` or `Admin user 'admin' created`.
 4. `http://127.0.0.1:8000/docs` lists the routers; `http://localhost:5173/` shows the site.

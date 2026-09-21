@@ -12,7 +12,7 @@ uuid is a hint, the natural key is the identity. `media_content_label.label_id`
 additionally cites the OTHER database's label uuid and must be translated
 through the `Content Label` tab before it is stored.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

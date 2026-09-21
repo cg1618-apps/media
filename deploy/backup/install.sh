@@ -6,14 +6,14 @@
 #
 # Before running, both of these must already exist (neither needs root):
 #   ~/.config/rclone/rclone.conf   the R2 remote, named r2, mode 600
-#   ~/anime_site/.env.backup       HC_*_URL and R2_BUCKET, mode 600
+#   ~/media/.env.backup       HC_*_URL and R2_BUCKET, mode 600
 
 set -euo pipefail
 
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo." >&2; exit 1; }
 
 REAL_USER="${SUDO_USER:?run via sudo, not as root directly}"
-REPO="/home/${REAL_USER}/anime_site"
+REPO="/home/${REAL_USER}/media"
 UNITS="${REPO}/deploy/backup/units"
 
 for f in "/home/${REAL_USER}/.config/rclone/rclone.conf" "${REPO}/.env.backup"; do

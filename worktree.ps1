@@ -22,7 +22,7 @@ A plain `git checkout` is the default.
 
 .EXAMPLE
 .\worktree.ps1 -Topic quote-cards
-Creates ..\anime_site_quote_cards on branch feat/quote-cards.
+Creates ..\media_quote_cards on branch feat/quote-cards.
 
 .EXAMPLE
 .\worktree.ps1 -Topic legacy-notes -Type fix -From main
@@ -52,8 +52,8 @@ $dbContainer = 'cg1618-dev-db'
 
 $slug = $Topic -replace '-', '_'
 $branch = "$Type/$Topic"
-$target = Join-Path (Split-Path $root -Parent) "anime_site_$slug"
-$workDb = "anime_site_$slug"
+$target = Join-Path (Split-Path $root -Parent) "media_$slug"
+$workDb = "media_$slug"
 
 function Step($text) { Write-Host "==> $text" -ForegroundColor Cyan }
 function Note($text) { Write-Host "    $text" -ForegroundColor DarkGray }
@@ -124,7 +124,7 @@ if (Test-Path $envPath) {
     $lines = @(Get-Content $envPath)
 
     $settings = @{
-        'COMPOSE_PROJECT_NAME' = 'anime_site'
+        'COMPOSE_PROJECT_NAME' = 'media'
         'POSTGRES_DB'          = $workDb
     }
     foreach ($key in $settings.Keys) {

@@ -3,7 +3,7 @@ API integration tests for /api/notes endpoints.
 
 Notes are per-item rows on any of the ten owner types, shaped by the section
 registry in app/utils/note_sections.py.
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid
