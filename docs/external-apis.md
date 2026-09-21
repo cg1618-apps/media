@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-09-20
+Last verified: 2026-09-21
 
 ## What this is for
 
@@ -490,10 +490,11 @@ makes with its hourly quota.
 
 A game's SteamDB page is `https://steamdb.info/app/<steam_appid>/` — the same
 appid the store URL carries — so nothing is requested to produce it.
-`derive_steamdb_source` writes it as a `media_source` reference row and runs
-**before** the fetch below, so a storefront that is down or out of budget does
-not cost the entry its link. It is fill-only: a hand-entered SteamDB row is
-left alone. See
+`derive_steamdb_source` writes it as a `media_source` reference row. In
+Replace it runs **before** the fetch below, so a storefront that is down or
+out of budget does not cost the entry its link; in Fill it runs as
+post-processing, over every entry rather than only the queued ones. It is
+fill-only: a hand-entered SteamDB row is left alone. See
 [business-rules.md](business-rules.md#steamdb-derived-from-the-appid).
 
 ### Mapping — `map_steam_to_game_data`

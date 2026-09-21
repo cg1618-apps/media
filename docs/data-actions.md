@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-20
+Last verified: 2026-09-21
 
 ## What this is for
 
@@ -433,9 +433,11 @@ data-control route builder, which generates `/api/data-control/fill/game` and
 `/replace/game/...` from the registry. Until IGDB landed (its own plan, right
 after) `fill_eligible` returned `False` for every row, so a Fill run reported
 "No entries need filling" rather than erroring. **That stub is gone**: Fill
-Game now calls `autofill_game_from_igdb`, then `autofill_game_from_steam`,
-then `derive_steamdb_source` — the last of which fetches nothing, and comes
-last so an appid IGDB supplied in the same pass is already in hand. Games are
+Game now calls `autofill_game_from_igdb`, then `autofill_game_from_steam`, and
+derives the SteamDB row in `post_process` (`game_post_processing`) rather than
+in `fill` — it fetches nothing, and post-processing runs over every entry in
+the run rather than only the queue, which is what lets it reach a game whose
+columns `fill_eligible` already considers complete. Games are
 in Fill All. **Game also gained a bulk Replace**, its first
 (`replace_select = _linked(Game, Game.steam_appid, Game.steam_link)`,
 `in_replace_all=True`): it runs the Steam half only, since nothing in an IGDB

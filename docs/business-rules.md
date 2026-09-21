@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-20
+Last verified: 2026-09-21
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -144,9 +144,16 @@ vocabulary, and SteamDB is one of those (see
 `upsert_main_source`, so it obeys Fill's rule: an existing SteamDB row is left
 alone, url and all, and a hand-entered one wins.
 
-It runs in both game pipelines — `_fill_game` (last, so an appid IGDB supplied
-in that same pass is already in hand) and `apply_single_replace_game`, which
-is also the write hook behind every game create and update. A game entered
+It runs in both game pipelines, and in Fill it runs as **post-processing**,
+not inside `_fill_game`. That distinction is the whole of its reach: `fill()`
+only ever sees entries that passed `fill_eligible`, which reads columns, and
+`has_missing_values_game_steam` is deliberately "Steam has written nothing at
+all" — so a game with a price, a Metacritic score or an achievement count is
+never queued again and a row derived inside `fill()` would never reach it.
+`game_post_processing` runs for every entry in the run, after the queue, so an
+appid IGDB supplied in that same pass is still in hand. Replace derives it in
+`apply_single_replace_game`, which is also the write hook behind every game
+create and update. A game entered
 before this existed picks its row up on the next save or the next Replace
 Game.
 
