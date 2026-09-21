@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-20
+Last verified: 2026-09-21
 
 ## What this is for
 
@@ -23,7 +23,7 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 | Project path | `C:\Users\q601513\Documents\anime_site` | `C:\Users\cgent\Documents\cg1618\media` |
 | OS | Windows 11 Pro (10.0.26200) | Windows 11 Home (10.0.26200) |
 | PostgreSQL | **home:** the platform's `docker-compose.dev-db.yml` (`postgres:17`, container `cg1618-dev-db`, `127.0.0.1:5432`, volume `cg1618_dev_pgdata`). Start it with the platform's `.\dev-db.cmd`, or let any app's `dev.ps1` do it. **company:** still pre-migration — media's own `docker-compose.yml`, container `anime_site_postgres_db`, volume `postgres_anime_data`, started with `docker-compose up -d`. The two are no longer identical, and will be once company is migrated. | **docker-compose**, identical. Native PostgreSQL 17 and 18 are also installed here, with their services set to **Manual** start so they cannot claim 5432 ahead of the container. If the container will not bind the port, check that neither native service has been started by hand. |
-| Database | `anime_site_db` as `postgres` on `127.0.0.1:5432` | same — `anime_site_db` as `postgres` on `127.0.0.1:5432` |
+| Database | still `anime_site_db` as `postgres` on `127.0.0.1:5432` — this machine has not been migrated, and owes the rename below when it is | `media` as `postgres` on `127.0.0.1:5432` |
 | Python | `venv/Scripts/python.exe` — **3.11.9** (the project targets 3.13; this machine runs 3.11) | `venv/Scripts/python.exe` — **3.13.6**, the version the project targets |
 | Node / npm | v24.18.0 / 11.16.0 | v24.14.1 / 11.11.0 |
 | Google Sheet | `GOOGLE_SHEET_ID=1d-rh8joD3xHhG58KdFyBDQ-g99xDfMnHNiBu7ECFemU` — the same sheet on both machines, and the only channel data travels through | same sheet |
@@ -59,7 +59,7 @@ replacement. Clone `cg1618-apps/media` into
 
 Two things that are easy to lose in a fresh clone:
 
-- **`.env` keeps `COMPOSE_PROJECT_NAME=anime_site`**, but no longer for the
+- **`.env` keeps `COMPOSE_PROJECT_NAME=media`**, but no longer for the
   reason it used to. It was pinned because this app owned the development
   database: the new directory is named `media`, so without the pin compose
   mounted a new empty volume while the real data sat untouched — which looked
@@ -110,7 +110,7 @@ below.
 Read it from the machine rather than from memory:
 
 ```bash
-docker exec cg1618-dev-db psql -U postgres -d anime_site_db \
+docker exec cg1618-dev-db psql -U postgres -d media \
   -tAc "SELECT version_num FROM alembic_version"
 ```
 
@@ -118,6 +118,39 @@ docker exec cg1618-dev-db psql -U postgres -d anime_site_db \
 every key set, `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` and `STEAM_API_KEY` /
 `STEAM_ID` included; a machine missing the Steam pair cannot run the Steam
 import.
+
+### The `anime_site` names, and the one-off each machine owes
+
+On 2026-09-21 the last `anime_site` names were renamed to `media`: production's
+checkout (`~/anime_site` → `~/media`) and live database (`anime_site_db` →
+`media`), and, in this repository, the development database, the test database
+(`anime_site_test` → `media_test`) and `COMPOSE_PROJECT_NAME`.
+
+**Production and home are done. Company is not**, because a database is
+machine state and does not travel with the branch that renames it. The
+procedure, per machine, with nothing connected to either database:
+
+```bash
+docker exec cg1618-dev-db psql -U postgres -d postgres -c "ALTER DATABASE anime_site_db RENAME TO media"
+docker exec cg1618-dev-db createdb -U postgres media_test
+# last, once every tree on the machine is on a branch that expects media_test
+docker exec cg1618-dev-db psql -U postgres -d postgres -c "DROP DATABASE anime_site_test"
+```
+
+and then the two values in that machine's `.env`, which is per-machine and
+gitignored: `POSTGRES_DB=media` and `COMPOSE_PROJECT_NAME=media`.
+
+**The test database is created before the old one is dropped, not renamed in
+place.** A rename takes the database out from under any other checkout on the
+machine mid-suite, and what that produces is `relation "..." does not exist` —
+which reads as real breakage rather than as somebody else's rename. Creating
+the new one first makes the two coexist for as long as it takes every tree to
+catch up.
+
+**Company owes all of it**, and owes it *after* its migration rather than
+before: it is still on the pre-migration tree with its own
+`anime_site_postgres_db` container, so there is no `cg1618-dev-db` on it to run
+the commands against yet.
 
 ### Recovery dumps
 
@@ -220,8 +253,8 @@ tab; Pull All overwrites every table. So:
 >
 > To avoid the sheet, dump first instead: with the image temporarily set back
 > to the older major version, run `pg_dump -U postgres -h 127.0.0.1
-> anime_site_db -f dump.sql`, then do steps 2-3 and `psql -U postgres -h
-> 127.0.0.1 -d anime_site_db -f dump.sql` in place of the Pull.
+> media -f dump.sql`, then do steps 2-3 and `psql -U postgres -h
+> 127.0.0.1 -d media -f dump.sql` in place of the Pull.
 
 
 1. `git fetch origin`, then `git checkout <branch>` — the branch you left work
@@ -259,7 +292,7 @@ tab; Pull All overwrites every table. So:
    > upgrade as normal:
    >
    > ```bash
-   > docker exec cg1618-dev-db psql -U postgres -d anime_site_db    >   -c "UPDATE alembic_version SET version_num = '4832c83905a3'"
+   > docker exec cg1618-dev-db psql -U postgres -d media    >   -c "UPDATE alembic_version SET version_num = '4832c83905a3'"
    > alembic upgrade head
    > ```
    >
@@ -268,7 +301,7 @@ tab; Pull All overwrites every table. So:
    > `access_mode.key` uniqueness onto a unique index. **It changes no rows** —
    > verified on the home machine by comparing every table's count before and
    > after — but take a dump first anyway: `docker exec
-   > cg1618-dev-db pg_dump -U postgres --no-owner anime_site_db >
+   > cg1618-dev-db pg_dump -U postgres --no-owner media >
    > backups/pre-baseline.sql`. `backups/` is gitignored.
 5. **Pull All** from `/system` if the data changed on the other machine, then
    run **Calculate All** if derivations matter for what you are about to do.

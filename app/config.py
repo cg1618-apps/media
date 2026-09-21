@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     # --- Database ---
     postgres_user: str = "postgres"
     postgres_password: str = "password"
-    postgres_db: str = "anime_site_db"
+    postgres_db: str = "media"
     database_url: Optional[str] = None  # Full connection string override
 
     # --- Auth / JWT ---

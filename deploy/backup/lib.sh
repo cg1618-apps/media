@@ -8,7 +8,7 @@
 # simultaneously after an outage, and the drill must not start before the
 # backup it verifies has finished.
 
-REPO_DIR="${REPO_DIR:-${HOME}/anime_site}"
+REPO_DIR="${REPO_DIR:-${HOME}/media}"
 # shellcheck disable=SC2034  # consumed by the scripts that source this file
 COMPOSE=(docker compose -f "${REPO_DIR}/docker-compose.prod.yml")
 PLATFORM_DIR="${PLATFORM_DIR:-${HOME}/cg1618}"

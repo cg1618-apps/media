@@ -1,7 +1,7 @@
 # Running this in production
 
 The box is `homelab`, an HP ProDesk 600 G4 Desktop Mini. This app's checkout
-lives at `~/anime_site`, and everything below runs from there unless it says
+lives at `~/media`, and everything below runs from there unless it says
 otherwise.
 
 ```bash
@@ -78,7 +78,7 @@ it only after a release pull request promotes `dev`. Merging to `dev` deploys
 nothing. The automatic path passes `--ci`, which additionally **refuses to run
 unless the checkout is on `main`** — the by-hand path trusts you to look.
 
-**Do not `git pull` or `git checkout` in `~/anime_site` first.** The revision a
+**Do not `git pull` or `git checkout` in `~/media` first.** The revision a
 rollback returns to is recorded beside the dump *after* it is taken. Moving
 `HEAD` beforehand records the version you are moving *to*, which is useless as
 a rollback target — and the mistake is invisible until the rollback needs it.
@@ -239,8 +239,8 @@ ssh -L 5433:localhost:5432 homelab   # then psql -h localhost -p 5433
 
 | Thing | Where | Why not in git |
 | --- | --- | --- |
-| `.env` | `~/anime_site/.env` | secrets; already gitignored |
-| `.env.backup` | `~/anime_site/.env.backup` | R2 write credentials and the Healthchecks ping URLs; kept out of `.env` so `env_file: .env` cannot hand them to the app |
+| `.env` | `~/media/.env` | secrets; already gitignored |
+| `.env.backup` | `~/media/.env.backup` | R2 write credentials and the Healthchecks ping URLs; kept out of `.env` so `env_file: .env` cannot hand them to the app |
 | rclone remote | `~/.config/rclone/rclone.conf` | R2 access keys |
 | Dumps | `~/backups/media/` | the last five pre-deploy dumps, with their `.revision` and `.migration` sidecars |
 
@@ -257,8 +257,8 @@ dev machine silently breaks the container.
 APP_ENV=production
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=<generate>
-POSTGRES_DB=anime_site_db
-DATABASE_URL=postgresql://postgres:<the same password>@db:5432/anime_site_db
+POSTGRES_DB=media
+DATABASE_URL=postgresql://postgres:<the same password>@db:5432/media
 PORT=8000
 
 JWT_SECRET_KEY=<generate; not the development one>
@@ -283,8 +283,8 @@ there.
 stack sees. Compose otherwise derives it from the directory, and a checkout
 moved or cloned under another name would come up on a brand-new empty volume
 while the real data sat in the old one — which looks exactly like data loss.
-It is `media` here, matching `media.cg1618.com`; the development machines pin
-`anime_site` for the same reason and must keep it.
+It is `media` here, matching `media.cg1618.com`, and the development
+machines pin the same value for the same reason.
 
 Plus the third-party API keys, which are account credentials rather than
 per-environment secrets and are reused from a dev machine: `TMDB_API_KEY`,
@@ -322,7 +322,7 @@ migration that caused the problem.
 1. **Revert the code** to the revision the dump belongs to:
 
    ```bash
-   cd ~/anime_site
+   cd ~/media
    git checkout "$(cat ~/backups/media/pre-deploy-<stamp>.dump.revision)"
    ```
 
@@ -330,7 +330,7 @@ migration that caused the problem.
 
    ```bash
    docker compose -f ~/cg1618/docker-compose.prod.yml exec -T db \
-     pg_restore -U postgres -d anime_site_db --clean --if-exists --no-owner \
+     pg_restore -U postgres -d media --clean --if-exists --no-owner \
      < ~/backups/media/pre-deploy-<stamp>.dump
    ```
 
@@ -399,7 +399,7 @@ To rehearse it again without touching production, see
    - `~/.config/rclone/rclone.conf` with the `[r2]` remote (see
      [docs/setup-selfhost.md](../docs/setup-selfhost.md)), plus `rclone`
      itself — this is what reaches the dumps at all.
-   - `~/anime_site/.env`, written by hand per [`.env`](#env) above.
+   - `~/media/.env`, written by hand per [`.env`](#env) above.
      `restore.sh` reads `POSTGRES_USER` and `POSTGRES_DB` from it, and the
      stack cannot start without it.
 
@@ -479,7 +479,7 @@ directory holding its own compose file and `.env`:
 ```bash
 mkdir -p ~/rehearsal/static/covers ~/rehearsal/static/library
 cd ~/rehearsal
-cp ~/anime_site/docker-compose.prod.yml ~/anime_site/.env .
+cp ~/media/docker-compose.prod.yml ~/media/.env .
 sed -i 's/^COMPOSE_PROJECT_NAME=.*/COMPOSE_PROJECT_NAME=rehearsal/' .env
 ```
 

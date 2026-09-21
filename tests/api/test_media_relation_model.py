@@ -2,7 +2,7 @@
 Database-level tests for the media_relation table.
 
 Lives under tests/api/ rather than tests/unit/ because it needs a real
-PostgreSQL session to exercise the constraints. Requires the anime_site_test
+PostgreSQL session to exercise the constraints. Requires the media_test
 DB — see tests/api/conftest.py.
 """
 

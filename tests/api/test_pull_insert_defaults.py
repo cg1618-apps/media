@@ -5,7 +5,7 @@ The INSERT sanitizer wrote "Haven't Started" (not a WatchStatus) and "" for
 airing_status / airing_type, and "" defeats every `airing_type in {...}` check
 downstream (seasonal counts, ep_previous, size groups).
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import pytest

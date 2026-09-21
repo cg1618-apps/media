@@ -6,7 +6,7 @@ JSONB blob according to the section's registry spec, and adds the parent rules
 the schema layer cannot check without a query. Both halves are exercised here
 against a real database.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import dataclasses

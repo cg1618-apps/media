@@ -2,7 +2,7 @@
 The remark field is stored as a note row, not a column, but every surface that
 wrote it before still writes it the same way.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

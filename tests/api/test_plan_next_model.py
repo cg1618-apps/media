@@ -1,7 +1,7 @@
 """
 Model-level tests for plan_next and the size-group columns.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

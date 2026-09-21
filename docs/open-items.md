@@ -148,7 +148,7 @@ instead of asking. One query settles it, and nothing here should state a row
 count that has not just been read:
 
 ```bash
-docker exec cg1618-dev-db psql -U postgres -d anime_site_db -tAc   "SELECT cl.key, count(mcl.system_id) FROM content_label cl
+docker exec cg1618-dev-db psql -U postgres -d media -tAc   "SELECT cl.key, count(mcl.system_id) FROM content_label cl
    LEFT JOIN media_content_label mcl ON mcl.label_id = cl.system_id
    GROUP BY cl.key ORDER BY cl.key"
 ```

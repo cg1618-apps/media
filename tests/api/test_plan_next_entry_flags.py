@@ -1,7 +1,7 @@
 """
 The entry-level watch_next / read_next flags are virtual fields over plan_next.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

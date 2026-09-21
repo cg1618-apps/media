@@ -5,7 +5,7 @@ Covers the behaviour the frontend used to implement by downloading every table
 and filtering in JS: punctuation-insensitive matching, scope narrowing,
 franchise expansion, and seasonal search.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

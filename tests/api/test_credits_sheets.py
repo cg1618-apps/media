@@ -10,7 +10,7 @@ legacy-named columns back onto each entry tab generically, via
 instead of an attribute. They land at the END of the row - fine, because Pull
 matches by header NAME, never by position.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

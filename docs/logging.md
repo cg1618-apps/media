@@ -113,7 +113,7 @@ the collector itself is the thing that is down.
 
 ```bash
 ssh homelab
-docker compose -f docker-compose.prod.yml logs -f --tail 100 app   # from ~/anime_site
+docker compose -f docker-compose.prod.yml logs -f --tail 100 app   # from ~/media
 ```
 
 ## Tests
