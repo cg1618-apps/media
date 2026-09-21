@@ -231,6 +231,99 @@ class TestWebApi:
         )
         assert steam.fetch_player_achievements(1245620) is None
 
+    def test_an_unowned_app_is_not_asked_about(self, monkeypatch):
+        """Steam answers 403 "Profile is not public" for an app the account
+        does not own, whatever the privacy settings say. The library is
+        already in hand, so the request is not worth making and the warning
+        it produces points at the wrong setting."""
+        monkeypatch.setattr(steam.settings, "steam_api_key", "key")
+        monkeypatch.setattr(steam.settings, "steam_id", "76561197960287930")
+        asked = []
+
+        def fake_get(url, **kwargs):
+            asked.append(url)
+            if "GetOwnedGames" in url:
+                return FakeResponse(
+                    200,
+                    {"response": {"games": [{"appid": 1245620, "playtime_forever": 180}]}},
+                )
+            raise AssertionError("an unowned app must not reach the Web API")
+
+        monkeypatch.setattr(steam.requests, "get", fake_get)
+        assert steam.fetch_player_achievements(368260) is None
+        assert len(asked) == 1, "only the library call may go out"
+
+    def test_an_owned_app_is_still_asked_about(self, monkeypatch):
+        """The mirror of the case above, with the same library: the skip has
+        to be about ownership and not about every app."""
+        monkeypatch.setattr(steam.settings, "steam_api_key", "key")
+        monkeypatch.setattr(steam.settings, "steam_id", "76561197960287930")
+
+        def fake_get(url, **kwargs):
+            if "GetOwnedGames" in url:
+                return FakeResponse(
+                    200,
+                    {"response": {"games": [{"appid": 1245620, "playtime_forever": 180}]}},
+                )
+            return FakeResponse(
+                200,
+                {"playerstats": {"success": True, "achievements": [{"achieved": 1}]}},
+            )
+
+        monkeypatch.setattr(steam.requests, "get", fake_get)
+        assert steam.fetch_player_achievements(1245620) == 1
+
+    def test_achievements_are_attempted_when_the_library_is_unreachable(
+        self, monkeypatch
+    ):
+        """An unknown library is not an empty one. When GetOwnedGames fails,
+        ownership cannot be ruled out and the call must still be made."""
+        monkeypatch.setattr(steam.settings, "steam_api_key", "key")
+        monkeypatch.setattr(steam.settings, "steam_id", "76561197960287930")
+
+        def fake_get(url, **kwargs):
+            if "GetOwnedGames" in url:
+                return FakeResponse(200, {"response": {}})  # private profile
+            return FakeResponse(
+                200,
+                {"playerstats": {"success": True, "achievements": [{"achieved": 1}]}},
+            )
+
+        monkeypatch.setattr(steam.requests, "get", fake_get)
+        assert steam.fetch_player_achievements(1245620) == 1
+
+    def test_a_403_names_ownership_as_well_as_privacy(self, monkeypatch, caplog):
+        """Reachable only when the library itself was unreachable, so the
+        warning cannot promise which of the two it is - but it must not send
+        an admin to a Privacy Settings page that is already correct."""
+        monkeypatch.setattr(steam.settings, "steam_api_key", "key")
+        monkeypatch.setattr(steam.settings, "steam_id", "76561197960287930")
+        monkeypatch.setattr(
+            steam.requests, "get", lambda url, **k: FakeResponse(403)
+        )
+
+        with caplog.at_level(logging.WARNING):
+            assert steam.fetch_player_achievements(368260) is None
+
+        assert any("own" in r.message for r in caplog.records), (
+            "a 403 on an achievements call is most often an unowned app"
+        )
+
+    def test_a_401_blames_the_key_alone(self, monkeypatch, caplog):
+        """401 is the key and nothing else; folding it in with 403 is what
+        made the privacy hint misleading in the first place."""
+        monkeypatch.setattr(steam.settings, "steam_api_key", "key")
+        monkeypatch.setattr(steam.settings, "steam_id", "76561197960287930")
+        monkeypatch.setattr(
+            steam.requests, "get", lambda url, **k: FakeResponse(401)
+        )
+
+        with caplog.at_level(logging.WARNING):
+            assert steam.fetch_owned_games() is None
+
+        assert any("STEAM_API_KEY" in r.message for r in caplog.records)
+        assert not any("public" in r.message for r in caplog.records)
+
     def test_unlocked_achievements_are_counted(self, monkeypatch):
         monkeypatch.setattr(steam.settings, "steam_api_key", "key")
         monkeypatch.setattr(steam.settings, "steam_id", "76561197960287930")
