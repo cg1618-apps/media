@@ -1,7 +1,7 @@
 """
 Parent-hierarchy resolution: one rule for every media type.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

@@ -6,4 +6,4 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=cgentle1618
-ExecStart=/home/cgentle1618/anime_site/deploy/backup/backup.sh
+ExecStart=/home/cgentle1618/media/deploy/backup/backup.sh

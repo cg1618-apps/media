@@ -8,7 +8,7 @@ database.py picks up the test DB name and security.py uses a test secret.
 import os
 
 # Override DB to a dedicated test database (must exist; PostgreSQL required for API tests)
-os.environ.setdefault("POSTGRES_DB", "anime_site_test")
+os.environ.setdefault("POSTGRES_DB", "media_test")
 os.environ.setdefault("POSTGRES_USER", "postgres")
 # POSTGRES_PASSWORD is deliberately NOT defaulted here: it comes from the
 # developer's .env (via pydantic-settings) or the CI job's environment.

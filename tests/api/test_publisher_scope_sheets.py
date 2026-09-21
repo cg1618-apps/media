@@ -14,7 +14,7 @@ did not survive was a scope with no credit behind it - `bilibili` and
 admin set through the Publisher Modify tab ahead of the first credit. The
 `Publisher Scope` tab, modelled on `Person Role`, is what carries them.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

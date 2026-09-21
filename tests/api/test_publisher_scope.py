@@ -1,7 +1,7 @@
 """
 publisher_scope: which media types a publisher is offered on.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import pytest

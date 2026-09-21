@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-20
+Last verified: 2026-09-21
 
 ## What this is for
 
@@ -16,7 +16,7 @@ elsewhere.
 | Location | Files | Test functions | Needs |
 |---|---|---|---|
 | `tests/unit/` | 118 | 1360 | Python only, no database, no network |
-| `tests/api/` | 215 | 1975 | PostgreSQL database `anime_site_test` |
+| `tests/api/` | 215 | 1975 | PostgreSQL database `media_test` |
 | `tests/services/` | 0 (only `__init__.py`) | 0 | placeholder, never populated |
 | `frontend/src/**/*.test.{js,jsx}` | 132 | 1089 `it`/`test` blocks | Node + jsdom |
 
@@ -35,7 +35,7 @@ Frontend tests are co-located with the source they cover
 | File | Role |
 |---|---|
 | `pytest.ini` | `testpaths = tests`, `test_*.py` / `Test*` / `test_*` discovery, `addopts = -v --tb=short`. There is no `pyproject.toml`. |
-| `tests/conftest.py` | Runs before any app import. Sets `POSTGRES_DB=anime_site_test`, `POSTGRES_USER=postgres`, a throwaway `JWT_SECRET_KEY`, `ADMIN_PASSWORD=testadmin123` via `os.environ.setdefault`. `POSTGRES_PASSWORD` is deliberately not defaulted: it comes from your `.env` (pydantic-settings) or the CI job env. |
+| `tests/conftest.py` | Runs before any app import. Sets `POSTGRES_DB=media_test`, `POSTGRES_USER=postgres`, a throwaway `JWT_SECRET_KEY`, `ADMIN_PASSWORD=testadmin123` via `os.environ.setdefault`. `POSTGRES_PASSWORD` is deliberately not defaulted: it comes from your `.env` (pydantic-settings) or the CI job env. |
 | `tests/api/conftest.py` | Engine, session, client and sample-row fixtures for the API tier (see below). |
 | `frontend/vitest.config.js` | `environment: "jsdom"`, `globals: true` (so `it`/`expect` need no import), `setupFiles: ["./src/test-setup.js"]`, React plugin. |
 | `frontend/src/test-setup.js` | One line: `import "@testing-library/jest-dom"` for DOM matchers. |
@@ -132,7 +132,7 @@ the two-stage cursor stepper.
 
 | Fixture | Scope | What you get |
 |---|---|---|
-| `test_engine` | session | Engine on `anime_site_test` with a fresh schema and seeded roles |
+| `test_engine` | session | Engine on `media_test` with a fresh schema and seeded roles |
 | `db_session` | function | SQLAlchemy session inside a rolled-back transaction (savepoint mode) |
 | `_clear_permission_cache` | function, autouse | RBAC cache bumped before and after the test |
 | `client` | function | Unauthenticated `TestClient` with `get_db` overridden to `db_session` |
@@ -168,14 +168,14 @@ Use the project venv's interpreter, not the system Python.
 
 ```bash
 # One-time: create the test database inside the postgres:17 container
-docker exec cg1618-dev-db createdb -U postgres anime_site_test
+docker exec cg1618-dev-db createdb -U postgres media_test
 
 # Working alongside another session? Give yourself your own database and
 # select it with POSTGRES_DB - tests/conftest.py uses os.environ.setdefault,
 # so the variable wins. Two suites sharing one database produce spurious
 # "relation role does not exist" and unique-constraint failures that look
 # exactly like real breakage.
-docker exec cg1618-dev-db createdb -U postgres anime_site_test_mine
+docker exec cg1618-dev-db createdb -U postgres media_test_mine
 
 # Backend, all tiers
 venv/Scripts/python -m pytest
@@ -415,7 +415,7 @@ fact.
 
 There is one job, `test`:
 
-1. Starts a `postgres:17` service with `POSTGRES_DB=anime_site_test` and
+1. Starts a `postgres:17` service with `POSTGRES_DB=media_test` and
    user/password `postgres`. Six variables reach the job env: those three,
    plus `APP_ENV=development` and throwaway values for `JWT_SECRET_KEY` and
    `ADMIN_PASSWORD` — the runner has no `.env`, and without them the startup

@@ -78,12 +78,12 @@ does.
 
 ## The other half: a worktree needs two databases, not one
 
-`worktree.ps1` names a fresh worktree's database `anime_site_<topic>` and
+`worktree.ps1` names a fresh worktree's database `media_<topic>` and
 creates only that one. `tests/api/conftest.py` refuses to run against any
 database whose name does not contain the string `test`, so the first `pytest`
 run in a new worktree dies in fixture setup with "Refusing to reset
 non-test database" — before touching any lock. This is by design, not a gap
 in the script: create the second database yourself,
-`createdb anime_site_test_<topic>`, before the first run. The failure is the
+`createdb media_test_<topic>`, before the first run. The failure is the
 good kind — loud, roughly 41 seconds to appear, and it dies in collection
 rather than reporting anything as passing.

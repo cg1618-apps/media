@@ -1,7 +1,7 @@
 """
 API integration tests for POST /{id}/complete endpoints.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

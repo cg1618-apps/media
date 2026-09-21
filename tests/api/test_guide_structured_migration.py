@@ -7,7 +7,7 @@ path and runs its OWN `reshape()` against the test session. Importing it
 rather than restating the SQL is the point: a test that restated it would pass
 while the shipped migration was wrong.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import importlib.util

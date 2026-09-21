@@ -8,7 +8,7 @@ or a remark cleared and re-typed after a backup, hands Pull a remark row with an
 unknown PK for an owner that already has one. Inserting it blindly raises
 IntegrityError at commit, which rolls back and fails the ENTIRE tab.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

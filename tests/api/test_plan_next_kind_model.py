@@ -4,7 +4,7 @@ The kind column on plan_next.
 Every row needs a user and a real owner row now (Step 3): the owner is a
 foreign key, so these tests plan actual franchises rather than loose uuids.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

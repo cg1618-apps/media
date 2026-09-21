@@ -11,7 +11,7 @@ covered (a duplicate surviving because the constraint was inert) is now
 prevented outright by the constraints below plus their find-or-create API
 paths, which the tests here do exercise.
 
-Requires PostgreSQL 15+ (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL 15+ (media_test DB). See tests/api/conftest.py.
 """
 
 import pytest

@@ -14,7 +14,7 @@ The parent tabs must therefore fall back to the natural key and keep the LOCAL
 uuid, and the tabs that point at them by raw uuid (`System Option Scope`,
 `Person Role`) must be remapped through the parent's own sheet tab.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

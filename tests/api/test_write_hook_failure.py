@@ -3,7 +3,7 @@ A failing external write hook must not turn a committed create/update into a
 500. The row is already persisted when the hook runs; a 500 made the SPA retry
 and create duplicates.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import pytest

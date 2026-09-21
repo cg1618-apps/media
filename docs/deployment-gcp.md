@@ -123,7 +123,7 @@ Triggers: every `pull_request`, and `push` to `main`.
 ### `test` job (runs on both triggers — still current)
 
 Ubuntu runner with a `postgres:15` service container
-(`postgres/postgres/anime_site_test`, health-checked with `pg_isready`). The
+(`postgres/postgres/media_test`, health-checked with `pg_isready`). The
 same three `POSTGRES_*` values are exported to the job environment, which is
 how `tests/conftest.py` picks up the password.
 

@@ -3,7 +3,7 @@ API integration tests for /api/series endpoints.
 
 Tests public reads and admin-protected writes, plus the franchise-style
 fields added alongside the Series hub page.
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid

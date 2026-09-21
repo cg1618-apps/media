@@ -5,7 +5,7 @@ The System Configs tab carries announcements and admin form defaults.
 locally must update that row rather than insert a duplicate - a blind INSERT
 raises IntegrityError at commit and rolls back the ENTIRE tab.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import pytest

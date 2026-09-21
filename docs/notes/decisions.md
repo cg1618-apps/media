@@ -939,8 +939,7 @@ shape is what it is.
   a checkout moved or cloned under another name would otherwise come up on a
   new empty volume while the real data sat in the old one. Container names are
   derived from it rather than hardcoded, so there is one place a name is
-  written. The dev machines pin `anime_site` for the same reason and must keep
-  it.
+  written. The dev machines pin the same value for the same reason.
 - **Every deploy dumps before it pulls, and rollback rebuilds.** A bad
   migration is the only deploy failure with nothing to recover from:
   `entrypoint.sh` runs `alembic upgrade head` on every start, and `downgrade`
@@ -1052,7 +1051,7 @@ this is why the shape is what it is.
   finished. `Requires=` was rejected: it would fail Sheets and the drill
   outright on any night the dump job fails, which are meant to be independent
   failure domains reporting to independent alerts.
-- **Backup secrets live in `~/anime_site/.env.backup`, not `.env`.**
+- **Backup secrets live in `~/media/.env.backup`, not `.env`.**
   `docker-compose.prod.yml` gives the `app` service `env_file: .env`, so
   anything placed there is injected into the running web application —
   including, for these variables, write credentials for the very bucket
@@ -1122,7 +1121,7 @@ A merge to `main` deploys itself. What runs is
   — instant and no polling, at the cost of a publicly reachable endpoint that
   runs deploys, whose safety rests on getting HMAC verification right.
 - **The workflow is a trigger; the logic is shell.** Its deploy step is
-  `./deploy/deploy.sh --ci` from `~/anime_site`. Rejected: expressing the steps
+  `./deploy/deploy.sh --ci` from `~/media`. Rejected: expressing the steps
   as workflow steps, which reads better in the GitHub UI and gives each step its
   own log — and makes the unattended path diverge from the path a person walks
   during an incident. That divergence is the shape of the rollback failure this
@@ -1741,3 +1740,32 @@ Two things were deliberately NOT done.
   opening the modal and executing the delete both wait for every list. That is
   stricter than the old code, which trusted a load that had already failed
   with nothing but a toast to show for it.
+
+### The `anime_site` names became `media` (2026-09-21)
+
+The checkout on the box, the live database, the development and test
+databases and `COMPOSE_PROJECT_NAME` all carried the name this application
+had before the platform existed. They are now `~/media`, `media`, `media`,
+`media_test` and `media`. Why it was left alone until now, and why it was
+worth doing in the end, is the platform's
+`docs/notes/decisions.md`, "The last two `anime_site` names in production" —
+the decision was the platform's, because the registry is where the name has
+to be spelled consistently.
+
+What belongs here is the part this repository owns, and it is the part that
+does not move when the directory does:
+
+- **`deploy/backup/units/*.service` hold the checkout path absolutely**, in
+  `ExecStart`, and the copies that actually run are the ones `install.sh` put
+  in `/etc/systemd/system`. Renaming the directory tells them nothing, and
+  neither does deploying — `install.sh` is a one-off run by hand under sudo.
+  Editing the units in this repository is therefore only half of it; the
+  installed copies have to be replaced in the same window.
+- **`deploy/backup/lib.sh` defaults `REPO_DIR` to the checkout path**, so a
+  unit that was somehow updated while `lib.sh` was not would still resolve
+  the old directory.
+
+Both failures are silent at rename time and surface at 04:00 the next
+morning, in a timer nobody is watching, as a backup that did not happen. The
+health check the deploy runs says nothing about either, because the
+application was never the thing that broke.

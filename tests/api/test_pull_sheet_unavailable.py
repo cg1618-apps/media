@@ -6,7 +6,7 @@ A 503 from Google used to be swallowed into `[]` by `get_all_raw_rows`, which
 "No data found", wrote a Success audit row, and `execute_pull_all` went on to
 report the whole run as a success with the tab silently skipped.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import pytest

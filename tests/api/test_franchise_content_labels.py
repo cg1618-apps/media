@@ -19,7 +19,7 @@ saved an entry and then watched only its labels fail. The refusal tests below
 therefore run against a vocabulary that is NOT empty - a 401 on an empty
 catalogue would prove nothing about the gate.
 
-Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 import uuid
