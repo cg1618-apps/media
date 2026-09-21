@@ -697,6 +697,151 @@ def test_install_defers_the_verify_timer():
     assert "DEFER=(media-covers.timer media-verify.timer)" in body
 
 
+def test_install_decides_first_install_from_the_box_not_from_an_assumption():
+    # The closing message used to be one unconditional heredoc, written when
+    # the header still said "Run this ONCE". Re-running install.sh is now the
+    # supported way to replace the installed units after the checkout moves -
+    # /etc/systemd/system holds copies, and neither a deploy nor a rename
+    # touches them - so every claim that block makes about state has to be
+    # read off the box rather than assumed.
+    #
+    # LastTriggerUSec is the right question to ask: the stamps in
+    # /var/lib/systemd/timers survive a reinstall, so a timer that has fired
+    # still says so afterwards.
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    assert "LastTriggerUSec" in body
+    assert "first_install" in body
+
+
+def test_install_does_not_tell_a_reinstall_to_run_the_jobs_by_hand():
+    # Those three exist to arm Healthchecks checks that stay grey until their
+    # first ping. On a reinstall they are armed already, and one of the three
+    # - sheets.sh - OVERWRITES EVERY TAB of the production sheet, which is the
+    # channel data crosses between machines on. Printing it as a required step
+    # to someone who has just re-run the installer is the worst instruction in
+    # the file.
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    assert "RUN THESE BY HAND NOW" in body, "the first-install advice is still needed"
+    hand = body.index("RUN THESE BY HAND NOW")
+    guard = body.index('if [ "${first_install}" -eq 1 ]')
+    assert guard < hand, (
+        "the by-hand list must sit inside the first-install branch rather "
+        "than running unconditionally"
+    )
+
+
+def test_install_reports_timer_state_from_systemd_not_from_defer():
+    # DEFER says what THIS RUN declined to enable. It says nothing about what
+    # was already enabled, and on a reinstall the answer is usually "both of
+    # them, weeks ago". The old text asserted the opposite four lines after
+    # the script's own list-unit-files output had printed `enabled` for each,
+    # so the file contradicted itself - and the half a reader believes is the
+    # one claiming a backup drill is not running when it is.
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    assert "systemctl is-enabled" in body
+
+
+def _run_install_tail(tmp_path, *, ever_triggered, deferred_enabled):
+    """Run install.sh's closing block against a stubbed systemctl.
+
+    The script as a whole needs root, apt and a real box. Its closing block
+    needs neither - it only reads systemd state - so the part that was wrong
+    is the part that can be executed. Extracted from the first_install
+    detection to EOF, whose anchor the structural test above pins.
+    """
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    tail = body[body.index("first_install=1") :]
+
+    units = tmp_path / "units"
+    units.mkdir()
+    for name in ("backup", "covers", "drift", "sheets", "verify"):
+        (units / ("media-" + name + ".timer")).write_text("", encoding="utf-8")
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    # The stub PRINTS its answer AND exits non-zero when disabled, because
+    # real systemctl does both. A stub that only exited non-zero would not
+    # have caught the `|| echo unknown` that appended to the real answer
+    # instead of replacing it.
+    trigger = "echo 'Mon 2026-09-21 04:00:00 CST'" if ever_triggered else "echo ''"
+    if deferred_enabled:
+        enabled_arm = "      *) echo enabled ;;"
+    else:
+        enabled_arm = (
+            "      media-covers.timer|media-verify.timer) echo disabled; exit 1 ;;\n"
+            "      *) echo enabled ;;"
+        )
+    stub = "\n".join(
+        [
+            "#!/usr/bin/env bash",
+            'case "$1" in',
+            "  show) " + trigger + " ;;",
+            "  is-enabled)",
+            '    case "$2" in',
+            enabled_arm,
+            "    esac ;;",
+            "esac",
+            "",
+        ]
+    )
+    (bin_dir / "systemctl").write_text(stub, encoding="utf-8")
+    (bin_dir / "systemctl").chmod(0o755)
+
+    script = tmp_path / "tail.sh"
+    script.write_text(
+        "\n".join(
+            [
+                "set -euo pipefail",
+                'UNITS="' + units.as_posix() + '"',
+                "DEFER=(media-covers.timer media-verify.timer)",
+                "ENABLED=(media-backup.timer media-drift.timer media-sheets.timer)",
+                tail,
+            ]
+        ),
+        encoding="utf-8",
+    )
+    env = dict(os.environ, PATH=bin_dir.as_posix() + os.pathsep + os.environ["PATH"])
+    return subprocess.run(
+        [BASH, str(script)], capture_output=True, text=True, env=env, timeout=60
+    )
+
+
+@pytest.mark.skipif(BASH is None, reason="requires bash")
+def test_a_first_install_still_gets_the_by_hand_list(tmp_path):
+    result = _run_install_tail(tmp_path, ever_triggered=False, deferred_enabled=False)
+    assert result.returncode == 0, result.stderr
+    assert "RUN THESE BY HAND NOW" in result.stdout
+    assert "Nothing is backed up yet" in result.stdout
+    # Both deferred timers are genuinely off here, so both notes belong.
+    assert "media-covers.timer is NOT enabled" in result.stdout
+    assert "media-verify.timer is NOT enabled" in result.stdout
+
+
+@pytest.mark.skipif(BASH is None, reason="requires bash")
+def test_a_reinstall_is_told_to_run_nothing(tmp_path):
+    result = _run_install_tail(tmp_path, ever_triggered=True, deferred_enabled=True)
+    assert result.returncode == 0, result.stderr
+    assert "This was a REINSTALL" in result.stdout
+    assert "There is nothing to run by hand" in result.stdout
+    # The three claims that would be false, including the worst by name.
+    assert "RUN THESE BY HAND NOW" not in result.stdout
+    assert "Nothing is backed up yet" not in result.stdout
+    assert "media-covers.timer is NOT enabled" not in result.stdout
+
+
+@pytest.mark.skipif(BASH is None, reason="requires bash")
+def test_a_disabled_timer_reads_as_disabled_and_nothing_else(tmp_path):
+    # `systemctl is-enabled` prints "disabled" and exits 1, so a
+    # `$(... || echo unknown)` fallback APPENDS to the answer and the state
+    # column reads "disabled" and "unknown" on two lines. Found by running
+    # this block rather than by reading it, which is why this test executes
+    # the script instead of grepping it.
+    result = _run_install_tail(tmp_path, ever_triggered=False, deferred_enabled=False)
+    assert result.returncode == 0, result.stderr
+    assert "unknown" not in result.stdout, "a disabled timer must not also report unknown"
+    assert re.search(r"media-covers\.timer\s+disabled", result.stdout), result.stdout
+
+
 def test_install_enables_timers_by_iteration_not_by_name():
     # A fifth job should slot in by dropping two files in units/. Naming each
     # timer here would mean editing this script every time one is added.

@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# Run this ONCE, on the box, with sudo. It is the only part of the backup
-# system that needs root. Read it before you run it.
+# Install the backup jobs on the box, with sudo. It is the only part of the
+# backup system that needs root. Read it before you run it.
+#
+# RE-RUNNING IS SUPPORTED, and is how the installed units are replaced after
+# the checkout moves: /etc/systemd/system holds copies, and neither a deploy
+# nor a rename touches them. It was written as a once-only script, and the
+# closing message asserted first-install facts unconditionally - that nothing
+# had been backed up yet, that the deferred timers were unarmed. Both were
+# false the first time it was re-run, on 2026-09-21. Everything it now says
+# about state is read off the box.
 #
 #   sudo ./deploy/backup/install.sh
 #
@@ -89,6 +97,21 @@ done
 # half-finished one.
 systemctl list-unit-files 'media-*' --no-pager || true
 echo
+# Has anything here ever fired? The stamps in /var/lib/systemd/timers survive
+# a reinstall and daemon-reload, so a timer that has run says so afterwards -
+# which is the question the closing message below is really asking. `--value`
+# prints an empty string on a timer that has never triggered; some systemd
+# versions print 0 or n/a instead, so all three mean "never".
+first_install=1
+for path in "${UNITS}"/*.timer; do
+    timer="$(basename "${path}")"
+    last="$(systemctl show -p LastTriggerUSec --value "${timer}" 2>/dev/null || true)"
+    case "${last}" in
+        "" | 0 | "n/a") ;;
+        *) first_install=0 ;;
+    esac
+done
+
 cat <<'DONE'
 ==> Done.
 DONE
@@ -103,7 +126,28 @@ done
 echo
 echo "  Enabled now: ${list}"
 
-cat <<'DONE'
+# Every timer's ACTUAL state, read rather than inferred. DEFER says what this
+# run declined to enable; it says nothing about what was already enabled, and
+# on a reinstall the answer is usually "both of them, weeks ago". Printing the
+# DEFER list as though it were the current state contradicted the
+# list-unit-files output four lines above - and the half a reader believes is
+# the one claiming a backup drill is not running when it is.
+echo
+echo "  Timers, as they stand now:"
+for path in "${UNITS}"/*.timer; do
+    timer="$(basename "${path}")"
+    # is-enabled PRINTS "disabled" and EXITS 1 for a disabled unit, so
+    # `|| echo unknown` appends to the answer instead of replacing it and the
+    # column reads as both words, one per line. Capture first, and fall back
+    # only on no output at all - which is what an unknown unit gives you.
+    state="$(systemctl is-enabled "${timer}" 2>/dev/null)" || true
+    [ -n "${state}" ] || state="unknown"
+    printf '    %-22s %s\n' "${timer}" "${state}"
+done
+
+if [ "${first_install}" -eq 1 ]; then
+    cat <<'DONE'
+
   They have NOT run -
   enabling a timer does not trigger it, and Persistent=true only catches up a
   run missed by a timer that has run before. Nothing is backed up yet; the
@@ -115,11 +159,46 @@ cat <<'DONE'
     ./deploy/backup/backup.sh    dump to R2 - do this first, the drill needs it
     ./deploy/backup/sheets.sh    OVERWRITES EVERY TAB of the production sheet
     ./deploy/backup/verify.sh    the drill: restores the dump and asserts it
-
-  NOT enabled, on purpose - enable each by hand when its precondition is met:
-
-    media-covers.timer   after one manual ./deploy/backup/covers.sh, which
-                         pushes 283 MB over the hotspot
-    media-verify.timer   after at least one dump exists in r2:<bucket>/db/daily
-                         (the drill cannot pass against an empty bucket)
 DONE
+else
+    cat <<'DONE'
+
+  This was a REINSTALL. The unit files were replaced; nothing else changed.
+  Schedules and run history are untouched - the stamps in
+  /var/lib/systemd/timers survive this, so Persistent=true still behaves and
+  no job fires early because of it.
+
+  There is nothing to run by hand. The jobs above are already armed and their
+  Healthchecks checks are already reporting; running sheets.sh in particular
+  would OVERWRITE EVERY TAB of the production sheet for no reason.
+
+  Check the paths took, since replacing the units is the point of re-running:
+
+    systemctl cat media-backup.service | grep ExecStart
+DONE
+fi
+
+# The precondition notes, printed only for a timer that is actually disabled.
+# A note telling you to enable something already enabled is the same defect in
+# miniature.
+for timer in "${DEFER[@]}"; do
+    systemctl is-enabled "${timer}" >/dev/null 2>&1 && continue
+    case "${timer}" in
+        media-covers.timer)
+            cat <<'DONE'
+
+  media-covers.timer is NOT enabled. Enable it after one manual
+  ./deploy/backup/covers.sh, which pushes 283 MB over the hotspot:
+      sudo systemctl enable --now media-covers.timer
+DONE
+            ;;
+        media-verify.timer)
+            cat <<'DONE'
+
+  media-verify.timer is NOT enabled. Enable it once a dump exists in
+  r2:<bucket>/db/daily - the drill cannot pass against an empty bucket:
+      sudo systemctl enable --now media-verify.timer
+DONE
+            ;;
+    esac
+done
