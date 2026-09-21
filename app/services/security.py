@@ -91,7 +91,7 @@ def create_access_token(
     `expires_at` is used VERBATIM and takes precedence over both. It exists for
     one caller and one reason: a request that REISSUES a live session's token -
     the access-mode switch - must preserve the original deadline. Without it,
-    toggling between two modes would mint a fresh 24-hour token each time and
+    toggling between two modes would mint a fresh month-long token each time and
     become an unlimited session-extension oracle, which matters here because
     the lifetime is flat with no refresh flow and no revocation. Anything else
     that reissues a token in future must pass this too.

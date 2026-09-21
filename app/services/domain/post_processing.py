@@ -222,6 +222,27 @@ def manga_post_processing(manga: Manga, db: Session) -> None:
     # No completion check here any more - see anime_post_processing.
 
 
+def game_post_processing(game: Game, db: Session) -> None:
+    """
+    The SteamDB row, for every game in the run rather than every game Fill
+    queued.
+
+    Post-processing is the right home for it because it needs no fetch: the
+    appid is the whole of a SteamDB URL, so there is no external call to gate
+    and no reason to make the row wait on one. `fill_eligible` reads columns,
+    and `has_missing_values_game_steam` is deliberately "Steam has written
+    nothing at all" - so once a game has a price, a Metacritic score or an
+    achievement count it is never queued again, and a row derived inside
+    fill() would never reach it.
+
+    The appid itself is already in place by the time this runs: `extract_id`
+    is applied to every entry before the queue is built, not to the queue.
+    Running after the queue also means an appid IGDB supplied earlier in this
+    same pass is picked up.
+    """
+    derive_steamdb_source(game, db)
+
+
 def derive_ep_previous_all_anime(db: Session) -> None:
     """Derives ep_previous for every acg franchise.
 

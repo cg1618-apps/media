@@ -163,7 +163,18 @@ class TestWiring:
 
         assert _steamdb_row(db_session, game).url == SEKIRO_STEAMDB
 
-    def test_fill_derives_the_row(self, db_session, game, monkeypatch):
+    def test_a_fill_run_derives_the_row_for_a_queued_entry(
+        self, db_session, game, monkeypatch
+    ):
+        """
+        The new-entry path, asserted the way the runner actually executes it.
+
+        `fill()` no longer derives the row - `post_process` does, because
+        fill() only ever sees entries that passed `fill_eligible`. So this
+        exercises the pair in the runner's order (every queued entry through
+        fill, then every entry through post_process) rather than calling
+        fill() and assuming the rest.
+        """
         from app.services.pipelines import specs
 
         monkeypatch.setattr(
@@ -172,9 +183,62 @@ class TestWiring:
         monkeypatch.setattr(
             specs, "autofill_game_from_steam", lambda entry, db: None
         )
+        spec = specs.PIPELINES["game"]
         game.steam_appid = 814380
 
-        specs.PIPELINES["game"].fill(db_session, game)
+        # Nothing of Steam's has landed, so this entry IS queued - the mirror
+        # of the already-filled case below.
+        assert spec.fill_eligible(db_session, game) is True
+
+        spec.fill(db_session, game)
+        spec.post_process(game, db_session)
         db_session.flush()
 
         assert _steamdb_row(db_session, game).url == SEKIRO_STEAMDB
+
+    def test_a_game_steam_has_already_filled_still_gets_its_row(
+        self, db_session, game
+    ):
+        """
+        The row has to be derived for entries Fill does NOT queue.
+
+        `fill()` above is only ever called for an entry that passed
+        `fill_eligible`, and that gate reads COLUMNS: once Steam has written a
+        price, a Metacritic score or an achievement count,
+        has_missing_values_game_steam is False for ever and the entry is never
+        queued again. Deriving the row inside fill() therefore reached new
+        entries only - 66 of 67 games with an appid had no SteamDB row, and 65
+        of those were ineligible for exactly this reason.
+
+        `metacritic_score` below is what makes this test bite: without it the
+        entry is eligible, fill() would run, and the assertion would pass with
+        the defect still in place.
+        """
+        from app.services.pipelines import specs
+
+        spec = specs.PIPELINES["game"]
+        game.steam_appid = 814380
+        game.metacritic_score = 90
+
+        assert spec.fill_eligible(db_session, game) is False
+        assert spec.post_process is not None, "game spec has no post_process"
+
+        spec.post_process(game, db_session)
+        db_session.flush()
+
+        assert _steamdb_row(db_session, game).url == SEKIRO_STEAMDB
+
+    def test_post_processing_runs_for_an_entry_with_no_appid(
+        self, db_session, game
+    ):
+        """
+        The mirror of the test above, on the same hook: post-processing sees
+        every entry in the run, so it must be a no-op for a game that has no
+        Steam link at all rather than writing a row for appid None.
+        """
+        from app.services.pipelines import specs
+
+        specs.PIPELINES["game"].post_process(game, db_session)
+        db_session.flush()
+
+        assert _steamdb_row(db_session, game) is None

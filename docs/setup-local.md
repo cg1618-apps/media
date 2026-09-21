@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-09-18
+Last verified: 2026-09-21
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -117,7 +117,7 @@ list. Variable names are case-insensitive.
 | `APP_ENV` | **`production`** | `development` or `production`. Unset means production, deliberately — see `authentication.md`. **Set `APP_ENV=development` in your `.env`**, or the login cookie is issued `Secure` and your browser drops it over plain HTTP, so login silently stops working. |
 | `JWT_SECRET_KEY` | *(none — required)* | JWT signing secret. The app **refuses to start** while this is the value `.env.example` ships. |
 | `ALGORITHM` | `HS256` | JWT algorithm |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | Cookie/JWT lifetime |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `43200` | Cookie/JWT lifetime, in minutes (30 days) |
 | `ADMIN_PASSWORD` | *(none — required)* | Password of the `admin` user seeded on first boot. The app **refuses to start** while this is the value `.env.example` ships. |
 | `TMDB_API_KEY` | unset | TMDB: movie/TV cover, release date, director |
 | `OMDB_API_KEY` | unset | OMDb: IMDb rating |
