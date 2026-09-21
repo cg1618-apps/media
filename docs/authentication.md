@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-09-12
+Last verified: 2026-09-21
 
 ## What this is for
 
@@ -112,7 +112,7 @@ at `/users`.
 | Algorithm | `HS256` (`settings.algorithm`) |
 | Secret | `JWT_SECRET_KEY` (`settings.jwt_secret_key`) |
 | Claims | `sub` = username, `role` = role name, `exp` = now + expiry |
-| Expiry | `ACCESS_TOKEN_EXPIRE_MINUTES` = 1440 (**24 hours**), also used as the cookie `max_age` |
+| Expiry | `ACCESS_TOKEN_EXPIRE_MINUTES` = 43200 (**30 days**), also used as the cookie `max_age`. A machine's `.env` overrides the default, so the effective value is per-machine |
 
 The `role` claim is **vestigial**. Nothing reads it for authorization: the server resolves the user's role and permissions from the database on every request (`resolver.py`), so a token minted before a role change carries a stale claim that is simply ignored. It is still minted because the login response and the old `User.role` shape returned it, and `User.role` is now a read-only `column_property` over `role.name` (`app/models/__init__.py`).
 
@@ -243,6 +243,6 @@ then decides where the new identity may actually stand.
 
 - **No rate limiting or lockout.** `POST /login` logs a warning per failed attempt and nothing else; brute force is bounded only by bcrypt cost.
 - **No password policy.** Any non-empty string is accepted on `/api/users` create/update, and only the first 72 bytes count.
-- **No session revocation short of a role change.** A cookie stays valid until its 24-hour `exp`; changing the user's password does not invalidate existing tokens. Deleting the user or removing `admin` from their role does take effect on the next request, because the role is re-read per request.
+- **No session revocation short of a role change.** A cookie stays valid until its 30-day `exp`; changing the user's password does not invalidate existing tokens. The month-long lifetime is deliberate for a single-owner catalogue, and it is also what makes this the sharpest of the items here: a leaked cookie is usable for a month and there is nothing that ends it early. Deleting the user or removing `admin` from their role does take effect on the next request, because the role is re-read per request.
 - **`JWT_SECRET_KEY` rotation logs everyone out**, since there is no key id or grace list.
 - **The cookie is never `Secure`.** Fine for local HTTP, which is the only runtime today, but it has to be made conditional on the request scheme before the app is served over HTTPS to anyone.

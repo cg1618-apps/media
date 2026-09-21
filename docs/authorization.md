@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-20
+Last verified: 2026-09-21
 
 ## What this is for
 
@@ -1039,7 +1039,7 @@ endpoint enforces it with the **same function**, because the endpoint that
 enforces a rule must not be able to disagree with the payload that advertises
 it. The SPA never models the rule.
 
-**THE REISSUED COOKIE KEEPS THE ORIGINAL `exp`.** Minting a fresh 24-hour
+**THE REISSUED COOKIE KEEPS THE ORIGINAL `exp`.** Minting a fresh month-long
 token on each switch would make toggling between two modes an unlimited
 session-extension oracle, and the lifetime here is flat with no refresh flow
 and no revocation - so the entire session policy would be defeated by a
@@ -1281,6 +1281,6 @@ vocabulary whose name and behaviour have drifted apart.
   item, not a role grant, and no admin page says so.
 - **Seasonal counts include hidden entries.** In [Accepted
   residuals](#accepted-residuals) with its blast radius.
-- **Sessions are flat 24 hours** with no refresh or revocation, and there is
+- **Sessions are flat 30 days** with no refresh or revocation, and there is
   no password reset — an admin sets one at `/users`. See
   [authentication.md](authentication.md).

@@ -202,7 +202,7 @@ def switch_access_mode(
     advertise the cost - the endpoint that ENFORCES the rule must not be able
     to disagree with the payload that ADVERTISES it.
 
-    THE REISSUED COOKIE KEEPS THE ORIGINAL `exp`. Minting a fresh 24-hour
+    THE REISSUED COOKIE KEEPS THE ORIGINAL `exp`. Minting a fresh month-long
     token here would make toggling between two modes an unlimited
     session-extension oracle, and the lifetime is flat with no refresh flow
     and no revocation, so that would be the whole of it. The cookie's max_age

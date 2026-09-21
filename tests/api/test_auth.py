@@ -167,3 +167,92 @@ class TestLoginCookieSecurity:
         for env in (ENV_DEVELOPMENT, ENV_PRODUCTION):
             monkeypatch.setattr(settings, "app_env", env)
             assert "HttpOnly" in self._cookie_header(self._login(client))
+
+
+class TestSessionLifetime:
+    """
+    How long a login lasts, and the fact that two things have to agree about it.
+
+    Neither test reads `settings.access_token_expire_minutes`. That value is
+    whatever the machine's own `.env` says, so asserting on it would test the
+    box the suite happens to be running on - it passed or failed here purely
+    because a local .env pinned a different number. What ships is the DEFAULT,
+    and what must hold on every machine is that the cookie and the token agree.
+    """
+
+    A_MONTH_IN_MINUTES = 30 * 24 * 60
+
+    def _login(self, client):
+        return client.post(
+            "/api/auth/login",
+            data={"username": "testuser", "password": "correct_password"},
+        )
+
+    def _cookie_header(self, response):
+        for key, value in response.headers.items():
+            if key.lower() == "set-cookie" and value.startswith("access_token="):
+                return value
+        raise AssertionError("no access_token cookie was set")
+
+    def _token(self, header):
+        """
+        The JWT out of the Set-Cookie header.
+
+        Taken from the header rather than from `response.cookies` because the
+        value is `Bearer <jwt>` - it contains a space, so it arrives quoted
+        and may be percent-encoded, and feeding that to jwt.decode fails on
+        padding rather than on anything to do with the token.
+        """
+        from urllib.parse import unquote
+
+        value = header.split(";", 1)[0].split("=", 1)[1].strip().strip('"')
+        return unquote(value).removeprefix("Bearer ").strip()
+
+    def _max_age(self, header):
+        return next(
+            int(part.split("=", 1)[1])
+            for part in header.split(";")
+            if part.strip().lower().startswith("max-age=")
+        )
+
+    def test_the_shipped_default_is_a_month(self):
+        """
+        The default a machine gets when its .env says nothing - which is what a
+        fresh box, a worktree and CI all run on.
+        """
+        from app.config import Settings
+
+        default = Settings.model_fields["access_token_expire_minutes"].default
+        assert default == self.A_MONTH_IN_MINUTES
+
+    def test_the_cookie_and_the_token_expire_together(self, client, user_in_db):
+        """
+        The load-bearing invariant, whatever the configured number is.
+
+        A long token behind a short cookie logs people out early and looks
+        exactly like the setting not having been applied; a short token behind
+        a long cookie leaves them holding one the server rejects. Both are
+        derived from one setting today, and this is what says so.
+        """
+        from datetime import datetime, timezone
+
+        import jwt
+
+        from app.config import settings
+
+        response = self._login(client)
+        header = self._cookie_header(response)
+        claims = jwt.decode(
+            self._token(header),
+            settings.jwt_secret_key,
+            algorithms=[settings.algorithm],
+        )
+
+        token_seconds = (
+            datetime.fromtimestamp(claims["exp"], timezone.utc)
+            - datetime.now(timezone.utc)
+        ).total_seconds()
+        cookie_seconds = self._max_age(header)
+
+        # A minute of slack: the token was minted a moment before this ran.
+        assert abs(token_seconds - cookie_seconds) < 60
