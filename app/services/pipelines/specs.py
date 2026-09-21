@@ -66,7 +66,7 @@ from app.services.domain import (
     autofill_tv_show_from_imdb,
     cartoon_post_processing,
     derive_ep_previous_all_anime,
-    derive_steamdb_source,
+    game_post_processing,
     has_missing_values_anime,
     has_missing_values_anime_movie,
     has_missing_values_cartoon,
@@ -140,12 +140,13 @@ def _fill_game(db, entry) -> None:
     """Both of game's sources, in order: IGDB supplies the appid that Steam
     then keys off, so a brand-new entry is complete after one pass.
 
-    The SteamDB row comes last for that reason - by then the appid may have
-    arrived from IGDB in this very pass - and is derived from it rather than
-    fetched."""
+    The SteamDB row is NOT derived here. It used to be, and that put it behind
+    `fill_eligible`, which reads columns - so a game Steam had already filled
+    was never queued and never got its row. It is `game_post_processing` now,
+    which runs for every entry in the run, still after this queue, so an appid
+    IGDB supplied in this pass is picked up either way."""
     autofill_game_from_igdb(entry, db)
     autofill_game_from_steam(entry, db)
-    derive_steamdb_source(entry, db)
 
 
 def _start_game_run(db) -> None:
@@ -320,6 +321,10 @@ PIPELINES: dict[str, PipelineSpec] = {
             or has_missing_values_game_steam(e)
         ),
         fill=_fill_game,
+        # Every entry, not just the queue: the SteamDB row is a pure
+        # derivation off the appid and must not be gated on a column check
+        # meant for network fetches.
+        post_process=game_post_processing,
         pre_run=_start_game_run,
         # IGDB paces at 4/second; the Steam storefront's window is far
         # tighter, so it sets the pace of a game run.

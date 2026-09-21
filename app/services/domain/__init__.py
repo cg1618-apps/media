@@ -141,6 +141,7 @@ from app.services.domain.post_processing import (
     apply_single_replace_tv_show,
     cartoon_post_processing,
     derive_ep_previous_all_anime,
+    game_post_processing,
     manga_post_processing,
     tv_show_post_processing,
 )
@@ -312,6 +313,7 @@ __all__ = [
     "cartoon_post_processing",
     "manga_post_processing",
     "derive_ep_previous_all_anime",
+    "game_post_processing",
     "derive_novel_catalog",
     "derive_novel_list",
     "normalize_arc_progress",

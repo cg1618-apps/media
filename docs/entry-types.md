@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-09-20
+Last verified: 2026-09-21
 
 ## What this is for
 
@@ -170,7 +170,7 @@ style label). Vocabulary source and drift guard: [options.md](options.md#novel-u
 | External id / link | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `comicvine_id` / `comicvine_link` (Comic Vine) | `igdb_id` / `igdb_link` (IGDB), plus `steam_appid` / `steam_link` (Steam) — the appid is normally adopted from IGDB's `external_games` and is what Steam and the derived SteamDB link both key off |
 | Sources card heading | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Read | Where to Read | Where to Read | **Where to Play** |
 | Access `main` platforms | baha, netflix, disney_plus, prime, bilibili, crunchyroll | (same as anime) + Cinema | netflix, disney_plus, prime, hbomax, apple_tv | netflix, disney_plus, prime, hbomax, apple_tv | netflix, disney_plus, prime, hbomax, apple_tv | none | none | none | **none** - a game is played on a platform, not watched on one: that is the `game_platform` tag field, and which copy was owned is `game_copy`. The Sources editor hides the access group for games |
-| Reference `main` sources | official, twitter, anilist, wiki, fandom, keyframe_staff | (same as anime) | wiki | wiki | wiki | twitter, anilist, wiki, fandom | twitter, anilist, wiki, fandom | official, wiki, fandom | SteamDB (**derived**: `derive_steamdb_source` writes it from `steam_appid`, fill-only, so a hand-entered row wins), HowLongToBeat, Metacritic, Official site, Wikipedia, Fandom wiki |
+| Reference `main` sources | official, twitter, anilist, wiki, fandom, keyframe_staff | (same as anime) | wiki | wiki | wiki | twitter, anilist, wiki, fandom | twitter, anilist, wiki, fandom | official, wiki, fandom | SteamDB (**derived**: `derive_steamdb_source` writes it from `steam_appid` in `game_post_processing`, so every entry in a run gets it and not only the queued ones; fill-only, so a hand-entered row wins), HowLongToBeat, Metacritic, Official site, Wikipedia, Fandom wiki |
 | Publisher credit label (`credit_label("publisher", type)`) | 台灣代理商 | 台灣代理商 | — | — | — | 台灣出版商 | 台灣出版商 | 出版商 | 發行商 |
 | Publisher sheet header (`sheet_column_for`) | `distributor_tw` | `distributor_tw` | — | — | — | `publisher_tw` | `publisher_tw` | `publisher` | `publisher` |
 | Origin/exclusivity tag field | `exclusive_source` (single) | `exclusive_source` (single) | `original_source` (multi) | `original_source` (multi) | `original_source` (multi) | `serialization_platform` (multi) | `serialization_platform` (multi) | — | — |
