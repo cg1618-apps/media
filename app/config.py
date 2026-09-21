@@ -66,7 +66,12 @@ class Settings(BaseSettings):
     # --- Auth / JWT ---
     jwt_secret_key: str = "fallback_dev_secret_key_change_me_in_prod"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 1440
+    # 30 days. A login is expected to last until someone deliberately logs
+    # out; this is a single-owner catalogue, not a shared terminal. Note
+    # there is no revocation: nothing short of deleting the user or
+    # changing their role ends a session early, and a password change does
+    # not - see docs/authentication.md.
+    access_token_expire_minutes: int = 43200
     admin_password: str = "admin123"
 
     # --- Image uploads ---

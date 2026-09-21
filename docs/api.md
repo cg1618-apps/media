@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-20
+Last verified: 2026-09-21
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1666,7 +1666,7 @@ Change the active access mode without logging out.
 | **401** | a guest: no account, nothing to switch between |
 
 **The reissued cookie keeps the ORIGINAL `exp`, and its `max_age` is the
-REMAINING seconds.** Minting a fresh 24-hour token on each switch would make
+REMAINING seconds.** Minting a fresh month-long token on each switch would make
 toggling between two modes an unlimited session-extension oracle, and the
 lifetime is flat with no refresh flow and no revocation - so that would be the
 whole session policy defeated by a control whose purpose is to make sessions

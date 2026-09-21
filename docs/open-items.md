@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-09-20
+Last verified: 2026-09-21
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -116,7 +116,7 @@ person writes a note. `app/services/pipelines/tabs.py:259/268/269`.
 ## Authorization and accounts
 
 Two auth items are open **by choice**, and neither blocks inviting somebody:
-**session lifetime** is a flat 24 hours with no refresh and no revocation, and
+**session lifetime** is a flat 30 days with no refresh and no revocation, and
 there is **no password reset** — an admin sets one at `/users`.
 
 **The `guest` role has no `media_type.game`**, so a logged-out visitor sees an
