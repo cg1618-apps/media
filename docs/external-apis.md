@@ -419,8 +419,10 @@ integration.
 This split is deliberate and gives graceful degradation: **the storefront
 half needs no configuration whatsoever.** A missing key, a missing steamid, or
 a private profile skips only the progress half (`hours_played`,
-`achievements_earned`) and logs one warning; prices, the Metacritic score and
-the achievement total keep filling normally. The progress columns stay `null`
+`achievements_earned`) and logs one warning; an app the account does not own
+skips `achievements_earned` silently (see
+[An app the account does not own](#an-app-the-account-does-not-own)); prices,
+the Metacritic score and the achievement total keep filling normally. The progress columns stay `null`
 until both variables are set, which is a per-machine `.env` matter and not a
 property of the code — do not read a `null` `hours_played` as a bug before
 checking them.
@@ -432,6 +434,29 @@ which `_web_request` catches and names rather than retrying — "STEAM_ID is
 probably not a 64-bit steamid" in the log is that case, and it is the one
 Steam misconfiguration that produces no other symptom, since the storefront
 half carries on filling perfectly.
+
+### An app the account does not own
+
+`GetPlayerAchievements` answers **403 `{"error": "Profile is not public"}`**
+for any app the account does not own — with a public profile, public game
+details and a valid key. The message is Steam's and it is wrong: the same
+account gets `200` for an owned app and `400 "Requested app has no stats"`
+for an owned app that publishes no achievement schema, so a 403 on this
+endpoint means *unowned*, not *private*.
+
+A tracked game need not be a Steam-owned one — it may be played on a console,
+or simply wanted — so this is an ordinary outcome and not a fault.
+`fetch_player_achievements` therefore answers it from the cached library
+instead of over the wire: an appid `fetch_owned_games()` does not list
+returns `None` with no request made, which costs nothing and produces no
+warning. **An unreachable library is not an empty one** — when
+`fetch_owned_games()` itself returns `None` (no credentials, a genuinely
+private profile, a failed call), ownership is unknown and the request is
+still made.
+
+That leaves a 403 reachable only when the library call failed too, so the
+warning names both possibilities rather than asserting privacy. A `401` is
+the key alone and says so.
 
 ### Turning Steam off entirely
 
@@ -510,7 +535,7 @@ alias layer.
 | `price_overview.final` | `price_current_{us,jp,tw}` | overwrite | the number a sale moves |
 | `achievements.total` | `achievements_total` | fill-only | absent for many games |
 | `playtime_forever` (from `GetOwnedGames`, minutes ÷ 60) | `hours_played` | overwrite, guarded | see below |
-| unlocked count (from `GetPlayerAchievements`) | `achievements_earned` | overwrite, guarded | see below |
+| unlocked count (from `GetPlayerAchievements`) | `achievements_earned` | overwrite, guarded | see below; not requested at all for an app the library does not list |
 | `name`, `short_description` | nothing | never | name is identity; no summary column, as with IGDB |
 | `genres`, `categories` | nothing | never | IGDB already owns the game vocabulary |
 

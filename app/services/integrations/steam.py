@@ -199,11 +199,23 @@ def _web_request(path: str, params: Dict[str, Any], context: str) -> Optional[An
     try:
         response = requests.get(f"{WEB_API_BASE_URL}/{path}", params=params, timeout=15)
 
-        if response.status_code in (401, 403):
+        if response.status_code == 401:
             logger.warning(
-                "Steam refused the Web API request for %s (%s) — check the key and that the profile is public.",
+                "Steam rejected the Web API key (401) for %s — check STEAM_API_KEY.",
                 context,
-                response.status_code,
+            )
+            return None
+
+        if response.status_code == 403:
+            # Steam says "Profile is not public" here even when it is. The
+            # same 403 is what GetPlayerAchievements answers for an app the
+            # account does not own, so the warning must not send an admin to
+            # a Privacy Settings page that is already correct.
+            logger.warning(
+                "Steam refused the Web API request for %s (403) — the account "
+                "probably does not own that app, or the profile's game details "
+                "are not public.",
+                context,
             )
             return None
 
@@ -315,10 +327,16 @@ def fetch_owned_games() -> Optional[Dict[int, int]]:
         # not the cause.
         if not settings.steam_enabled:
             return None
-        logger.warning(
-            "Steam returned no game list — the profile's game details are "
-            "probably not public."
-        )
+        if payload is None:
+            # _web_request has already said what went wrong. Guessing at
+            # privacy on top of a named 401 or 400 gives the admin two
+            # causes for one fault, one of which is wrong.
+            pass
+        else:
+            logger.warning(
+                "Steam returned no game list — the profile's game details are "
+                "probably not public."
+            )
         _OWNED_CACHE["games"] = None
         _OWNED_CACHE["fetched_at"] = time.time()
         return None
@@ -342,14 +360,31 @@ def fetch_owned_games() -> Optional[Dict[int, int]]:
 def fetch_player_achievements(appid: int) -> Optional[int]:
     """
     How many of this app's achievements are unlocked, or None when the answer
-    is unknowable - no credentials, a private profile, or a game with no
-    achievement schema at all. None is not zero, and the caller must not treat
-    it as one.
+    is unknowable - no credentials, an unowned app, a private profile, or a
+    game with no achievement schema at all. None is not zero, and the caller
+    must not treat it as one.
+
+    An app the library does not list is answered from the cached library
+    rather than over the wire. Steam replies 403 "Profile is not public" to
+    GetPlayerAchievements for an app the account does not own, with a public
+    profile and a valid key, so the request buys a misleading warning and
+    nothing else. An UNREACHABLE library is not an empty one: when
+    fetch_owned_games() returns None, ownership is unknown and the call is
+    still made.
     """
     credentials = _credentials()
     if not credentials:
         return None
     key, steamid = credentials
+
+    owned = fetch_owned_games()
+    if owned is not None and int(appid) not in owned:
+        logger.debug(
+            "Steam app %s is not in the library; its achievements are not this "
+            "account's to report.",
+            appid,
+        )
+        return None
 
     payload = _web_request(
         "ISteamUserStats/GetPlayerAchievements/v1/",

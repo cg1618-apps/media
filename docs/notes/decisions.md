@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-20
+Last verified: 2026-09-21
 
 ## What this is for
 
@@ -467,6 +467,16 @@ A dated log of the choices that shaped the code and, where it matters, the alter
 - **`GetOwnedGames` is fetched once per run, not per game** — it returns the
   whole library with `playtime_forever` in one response, so playtime costs
   nothing per entry.
+- **The cached library also decides whether to ask about achievements at
+  all.** `GetPlayerAchievements` answers `403 "Profile is not public"` for an
+  app the account does not own, on a fully public profile with a valid key —
+  verified against the live API: `200` for an owned app, `400 "Requested app
+  has no stats"` for an owned app with no schema, `403` for an unowned one. A
+  tracked game that is not a Steam purchase is ordinary here, so the appid is
+  checked against the library first and the request is skipped rather than
+  spent on a warning that names the wrong cause. The skip is conditional on
+  the library being **known**: an unreachable one leaves ownership unknown and
+  the call is still made, so the fix cannot mask a real privacy failure.
 - **Steam, not IGDB, sets the pace of Fill Game.** The storefront's unofficial
   ceiling is ~200 requests per 5 minutes per IP, so at three calls per game a
   300-game backfill runs 20-25 minutes. A sliding-window limiter is the guard and
