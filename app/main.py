@@ -10,7 +10,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -33,6 +33,7 @@ from app.routers import (
     community,
     constants,
     content_labels,
+    covers,
     credits,
     data_control,
     form_defaults,
@@ -193,7 +194,17 @@ app = FastAPI(
 # including the exception handler below.
 app.add_middleware(RequestIdMiddleware)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# NOT a single mount of `static/`. Covers are keyed on the entry id, so their
+# URLs are constructible by anyone who learns one, and a cover is exactly what
+# a content label hides - they are served by routers/covers.py, behind the same
+# gates the API uses. The other two subtrees keep the plain mount: their names
+# are content hashes or legacy filenames that cannot be derived from an entry.
+app.mount(
+    "/static/library", StaticFiles(directory="static/library"), name="static-library"
+)
+app.mount(
+    "/static/quotes", StaticFiles(directory="static/quotes"), name="static-quotes"
+)
 
 
 @app.exception_handler(Exception)
@@ -255,6 +266,7 @@ app.include_router(search.router)
 
 app.include_router(announcements.router)
 app.include_router(images.router)
+app.include_router(covers.router)
 app.include_router(form_defaults.router)
 
 app.include_router(data_control.router)
@@ -280,9 +292,20 @@ app.include_router(content_labels.router)
 # ==========================================
 
 
+# Prefixes the SPA must never answer for. Everything under them is served by a
+# router or a mount, so a path that reaches the catch-all is a miss and has to
+# say so: index.html at 200 in reply to a request for an image or an endpoint
+# is an honest-looking answer to a question nobody asked. It also matters for
+# `/static/covers/`, which is deliberately NOT mounted - a 200 there would read
+# like the old ungated path still working.
+NON_SPA_PREFIXES = ("api/", "static/")
+
+
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str):
     """Serves the React SPA for all non-API routes."""
+    if full_path.startswith(NON_SPA_PREFIXES):
+        raise HTTPException(status_code=404, detail="Not Found")
     index = FRONTEND_DIST / "index.html"
     if not index.exists():
         return {"detail": "Frontend not built. Run: cd frontend && npm run build"}

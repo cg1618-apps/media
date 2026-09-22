@@ -72,6 +72,6 @@ describe("Images manager - backfilled legacy rows", () => {
     const { container } = render(<ImagesWithLegacyRow />);
     const imgs = Array.from(container.querySelectorAll("img"));
     const srcs = imgs.map((img) => img.getAttribute("src"));
-    expect(srcs).toContain("/static/covers/anime/x.jpg");
+    expect(srcs).toContain("/api/covers/anime/x.jpg");
   });
 });

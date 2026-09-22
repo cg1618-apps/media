@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-21
+Last verified: 2026-09-22
 
 ## What this is for
 
@@ -648,6 +648,7 @@ sees one error shape.
 | plan-next rows | `routers/plan_next.py` |
 | relations `for-entry`, `scope`, `graph` | `routers/media_relation.py` — hidden anchor → 404; an edge naming a hidden entry is dropped whole; graph is viewer-filtered |
 | attaching an image to a media entry | `routers/images.py` → 404 "Entry not found." Entity and quote/meme owners carry no label and are not checked |
+| serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404. The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), which carries no label and is listed to everyone |
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
 | search | `routers/search.py` |
 | a public profile (`/api/profile/{username}`) | `routers/profile.py` (`apply_media_visibility`) - filtered by the **reader's** permissions, never the list owner's |
@@ -738,16 +739,20 @@ Both answer 404 in the words the router already uses for missing.
   never to the public.
 - Watch-order *list* summaries expose `media_types` and `item_count` including
   hidden items.
-- `/static/covers/...` and `/static/library/...` files are served without
-  checks: the whole `/static` tree is mounted unauthenticated. The two differ
-  in what that costs. A `/static/covers/<owner_type>/<system_id>.jpg` path is
-  **constructible** — anyone who learns an entry's id from any source can
-  build the cover URL for an entry they are not allowed to see, and `/static/`
-  will serve it. A `/static/library/<checksum>.jpg` path is **not
-  constructible** — the key has to be handed to you. Content addressing
-  narrows this residual for uploads without closing it for existing covers;
-  an uploaded image is not "secure", only unguessable, and is still served to
-  anyone holding the URL.
+- `/static/library/...` files are served without checks. The mount is
+  unauthenticated, so anyone holding the URL gets the bytes — but a
+  `/static/library/<checksum>.jpg` path is **not constructible**: the key is a
+  content hash, so nothing a viewer already knows about an entry yields one.
+  An uploaded image is therefore not "secure", only unguessable. Quote images
+  under `/static/quotes/` are the same bargain with legacy filenames.
+
+  **Covers are no longer in that bargain, because their keys are
+  constructible.** `<owner_type>/<system_id>.jpg` is derivable by anyone who
+  learns an entry id from any source, and the cover is exactly the thing a
+  content label hides — so `static/covers/` is not mounted at all. Only
+  `static/library/` and `static/quotes/` are (`app/main.py`), and covers are
+  served by `routers/covers.py`, which asks the same gates the API does before
+  opening the file.
 - Franchise/series hubs may render empty rather than 404 when all children are hidden.
 - A newly created content label reaches **`unrestricted` and no other mode**,
   so it hides its entries from every narrower session until somebody carries
@@ -1175,6 +1180,7 @@ matters is enforced server-side.
 | `tests/api/test_no_bare_admin_permission.py` | the bare `admin` permission is absent from `static_catalog()`, and no module imports a single all-powerful admin dependency |
 | `tests/api/test_media_type_gating.py` | whole type disappears, 404 on detail |
 | `tests/api/test_field_gating.py` | link and source stripping; the narrowest viewer there is still gets credits, both timestamps and `system_id`; and a probe group stands the columns flavour up so the copy-not-setattr rule stays tested with no real column group left |
+| `tests/api/test_cover_images_are_gated.py` | a hidden entry's cover 404s and the same file 200s for an admin, the lying-folder case, and that `/static/covers/` no longer answers. The written file and `nsfw_label` are load-bearing: a missing file 404s too, and an empty label set makes every refusal vacuous |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |
