@@ -10,7 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin
@@ -71,6 +71,11 @@ class Movies(Base, NameFallbackMixin):
 
     imdb_id = Column(String, nullable=True)
     imdb_link = Column(String, nullable=True)
+
+    # Favourite-grid slot per grid key, e.g. {"Movie": 3}. The entry-tier
+    # twin of Franchise.type_slots; only the grids keyed on movie entries
+    # ever appear in it.
+    type_slots = Column(JSONB, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

@@ -712,16 +712,34 @@ Files `pages/public/Statistics.jsx`, `pages/statistics/useStatisticsData.js`,
 `StatsFavoriteGrids.jsx`, `StatsFranchiseSummary.jsx`, `StatsCompletions.jsx`,
 `pages/public/Completions.jsx`, `components/charts/BarChart.jsx`.
 
-`useStatisticsData` runs `useMediaList` for franchise and all nine entry
-types plus `useApiQuery(["api","seasonal"], "/api/seasonal/")` and
+`useStatisticsData` runs `useMediaList` for franchise, series and all nine
+entry types plus `useApiQuery(["api","seasonal"], "/api/seasonal/")` and
 `useApiQuery(["api","seasonal","current-season"], "/api/seasonal/current-season")`.
-Statistics renders the favourite 3×3 grids (one per `franchise_type`: ACG,
-Novel, Movie, TV Show, Cartoon, Comic, Game — `TYPE_TO_ENTRY_TYPES` in
-`utils/statsUtils.js` gained the `Game: ["game"]` row; edited on `/modify` →
-Fav3x3) and the
+
+`StatsSidebar.jsx` is a sticky in-page table of contents down the left, built
+from `pages/statistics/sections.js` — one entry per block and one per
+favourite grid, with an IntersectionObserver highlighting whichever section is
+nearest the top. It is `lg:`-only: on a narrow screen the page is already one
+column. A section's id is both the sidebar's anchor and the block's `id`,
+because `sections.js` is the only place either is written down.
+
+Statistics renders the nine favourite 3×3 grids, then the
 "Rating Distribution" bar-chart cards (my rating per anime franchise, MAL per
 anime, seasonal per season, my rating for manga / novel / anime movie / movie
-/ TV / cartoon / comic franchises). Completions renders `StatsCompletions`:
+/ TV / cartoon / comic franchises).
+
+**The favourite grids** are declared in `config/favoriteGrids.js`, read by
+both this page and `/modify` → Fav3x3. A grid holds one of three tiers — six
+hold franchises (ACG, Novel, Movie, TV, Cartoon, Game), one holds series
+(Comic), two hold entries (Movie, Game) — and every tier stores a slot the
+same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. The
+`favorite*` helpers in `utils/statsUtils.js` (`favoriteName`, `favoriteCover`,
+`favoritePath`, `favoritePool`, `slotIn`) answer everything that differs
+between tiers, so both consumers are tier-blind and a new grid is a config
+entry. A block is sized to its nine covers rather than stretched across a
+column, and the blocks wrap.
+
+Completions renders `StatsCompletions`:
 one tab per type with paged sub-groups (anime by airing type, anime movie by
 studio bucket, movie/TV Disney/Marvel/other, cartoon by network, manga by
 region, novel by region, comic dynamic, game by `completion_level` on the

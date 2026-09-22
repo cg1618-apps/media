@@ -242,7 +242,7 @@ export default function StatsGameSpend({ games, fxRates }) {
   const value = costPerHour(games, fxRates);
 
   return (
-    <section>
+    <section id="game-spend" className="scroll-mt-24">
       <Eyebrow className="mb-2">Games</Eyebrow>
       <h2 className="font-display text-2xl font-semibold text-text mb-4">
         Total Spend
