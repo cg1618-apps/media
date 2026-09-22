@@ -3293,18 +3293,7 @@ export default function Modify() {
 
       {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
       {activeTab === "fav3x3" && (
-        <Fav3x3ModifyTab
-          allFranchises={allFranchises}
-          setAllFranchises={setAllFranchises}
-          allAnime={allAnime}
-          allAnimeMovies={allAnimeMovies}
-          allMovies={allMovies}
-          allTvShows={allTvShows}
-          allCartoons={allCartoons}
-          allMangas={allMangas}
-          allNovels={allNovels}
-          allComics={allComics}
-        />
+        <Fav3x3ModifyTab lists={lists} setList={setList} />
       )}
 
       {/* ═══ DISCOVERY VIEW ═══ */}

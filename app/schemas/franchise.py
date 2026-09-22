@@ -69,6 +69,7 @@ class SeriesBase(BaseModel):
     my_rating: Optional[str] = None
     series_expectation: Optional[str] = "Low"
     cover_entry_id: Optional[UUID] = None
+    type_slots: Optional[dict] = None
     size_group_derived: Optional[dict] = None
     size_group_manual: Optional[dict] = None
     remark: Optional[str] = None

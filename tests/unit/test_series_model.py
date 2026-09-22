@@ -69,6 +69,13 @@ class TestSeriesNameFields:
 
 
 class TestSeriesNewColumns:
+    """
+    `type_slots` is here but `type_covers` is not, and the asymmetry is
+    deliberate: a series holds one favourite-grid slot (the comic-series
+    grid), but it has no per-type cover map because it has no types - its
+    single cover_entry_id says everything type_covers would.
+    """
+
     def test_expected_columns_exist(self):
         cols = set(Series.__table__.columns.keys())
         for name in (
@@ -77,6 +84,7 @@ class TestSeriesNewColumns:
             "my_rating",
             "series_expectation",
             "cover_entry_id",
+            "type_slots",
             "created_at",
             "updated_at",
         ):
@@ -88,7 +96,6 @@ class TestSeriesNewColumns:
             "franchise_type",
             "collection_id",
             "type_covers",
-            "type_slots",
             "watch_next_group",
         ):
             assert name not in cols
@@ -107,6 +114,7 @@ class TestSeriesNewColumns:
             "my_rating",
             "series_expectation",
             "cover_entry_id",
+            "type_slots",
             "size_group_derived",
             "size_group_manual",
             "created_at",

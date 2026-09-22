@@ -184,7 +184,7 @@ export default function StatsFranchiseSummary({
   return (
     <>
       {/* Block 2 — Rating Distribution */}
-      <section>
+      <section id="rating-distribution" className="scroll-mt-24">
         <header className="mb-6">
           <Eyebrow>Statistics</Eyebrow>
           <h1 className="font-display text-3xl sm:text-4xl font-semibold text-text leading-none mt-1">
@@ -260,7 +260,7 @@ export default function StatsFranchiseSummary({
       </section>
 
       {/* Block 2.5 — Anime Seasonal Overview */}
-      <section>
+      <section id="anime-seasonal" className="scroll-mt-24">
         <header className="mb-6">
           <Eyebrow>Statistics</Eyebrow>
           <h1 className="font-display text-3xl sm:text-4xl font-semibold text-text leading-none mt-1">

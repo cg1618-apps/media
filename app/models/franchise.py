@@ -168,6 +168,10 @@ class Series(Base, NameFallbackMixin):
     # Any entry UUID, any type. No FK: no single constraint can span the six
     # entry tables a series may hold. Mirrors Franchise.cover_entry_id.
     cover_entry_id = Column(UUID(as_uuid=True), nullable=True)
+    # Favourite-grid slot per grid key, e.g. {"Comic": 3}. Mirrors
+    # Franchise.type_slots; a series carries only the grids that are keyed on
+    # the series tier.
+    type_slots = Column(JSONB, nullable=True)
     # Size bucket per media type, e.g. {"anime": "24ep", "tv-show": "2season"}.
     # A standing property of the group, not of a plan_next row: a series is
     # "2 Seasons" whether or not it is queued. Two maps rather than one plus an

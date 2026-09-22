@@ -7,8 +7,19 @@ const SEASON_WEIGHT = { FAL: 4, SUM: 3, SPR: 2, WIN: 1 };
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
+function groupBy(entries, field) {
+  const grouped = {};
+  entries.forEach((entry) => {
+    const id = String(entry[field]);
+    if (!grouped[id]) grouped[id] = [];
+    grouped[id].push(entry);
+  });
+  return grouped;
+}
+
 export default function useStatisticsData() {
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
+  const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const animeQuery = useMediaList("anime", LIST_OPTIONS);
   const animeMovieQuery = useMediaList("anime-movie", LIST_OPTIONS);
   const movieQuery = useMediaList("movie", LIST_OPTIONS);
@@ -28,6 +39,7 @@ export default function useStatisticsData() {
   const fxRatesQuery = useApiQuery(["api", "fx-rates"], "/api/fx-rates");
 
   const franchises = franchiseQuery.data || [];
+  const series = seriesQuery.data || [];
   const allAnime = animeQuery.data || [];
   const allAnimeMovies = animeMovieQuery.data || [];
   const allMovies = movieQuery.data || [];
@@ -47,8 +59,8 @@ export default function useStatisticsData() {
     [franchises],
   );
 
-  const allEntriesByFranchise = useMemo(() => {
-    const allEntries = [
+  const allEntries = useMemo(
+    () => [
       ...allAnime.map((entry) => ({ ...entry, _type: "anime" })),
       ...allAnimeMovies.map((entry) => ({ ...entry, _type: "anime_movie" })),
       ...allMovies.map((entry) => ({ ...entry, _type: "movie" })),
@@ -58,25 +70,31 @@ export default function useStatisticsData() {
       ...allNovel.map((entry) => ({ ...entry, _type: "novel" })),
       ...allComic.map((entry) => ({ ...entry, _type: "comic" })),
       ...allGame.map((entry) => ({ ...entry, _type: "game" })),
-    ];
-    const byFranchise = {};
-    allEntries.forEach((entry) => {
-      const id = String(entry.franchise_id);
-      if (!byFranchise[id]) byFranchise[id] = [];
-      byFranchise[id].push(entry);
-    });
-    return byFranchise;
-  }, [
-    allAnime,
-    allAnimeMovies,
-    allMovies,
-    allTVShows,
-    allCartoons,
-    allManga,
-    allNovel,
-    allComic,
-    allGame,
-  ]);
+    ],
+    [
+      allAnime,
+      allAnimeMovies,
+      allMovies,
+      allTVShows,
+      allCartoons,
+      allManga,
+      allNovel,
+      allComic,
+      allGame,
+    ],
+  );
+
+  const allEntriesByFranchise = useMemo(
+    () => groupBy(allEntries, "franchise_id"),
+    [allEntries],
+  );
+
+  // A series has no type of its own, so the favourite comic-series grid works
+  // out what a series holds by looking at its entries.
+  const allEntriesBySeries = useMemo(
+    () => groupBy(allEntries, "series_id"),
+    [allEntries],
+  );
 
   const seasonals = useMemo(
     () =>
@@ -92,6 +110,7 @@ export default function useStatisticsData() {
 
   const queries = [
     franchiseQuery,
+    seriesQuery,
     animeQuery,
     animeMovieQuery,
     movieQuery,
@@ -109,6 +128,7 @@ export default function useStatisticsData() {
 
   return {
     franchises,
+    series,
     allAnime,
     allAnimeMovies,
     allMovies,
@@ -122,6 +142,7 @@ export default function useStatisticsData() {
     seasonals,
     currentSeason: currentSeasonQuery.data?.current_season || null,
     allEntriesByFranchise,
+    allEntriesBySeries,
     franchiseMap,
     loading: queries.some((query) => query.isLoading),
     error: firstError?.message || null,

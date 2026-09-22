@@ -89,6 +89,8 @@ class GameBase(BaseModel):
     steam_appid: Optional[int] = None
     steam_link: Optional[str] = None
 
+    type_slots: Optional[dict] = None
+
     # Virtual: the router factory sets these from plan_next rows (see
     # PLAN_FLAG_FIELDS). Declared here so the response actually carries them -
     # an undeclared field is dropped without a word.
