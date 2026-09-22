@@ -34,7 +34,7 @@ function mockAuthFetch() {
 
 afterEach(() => vi.unstubAllGlobals());
 
-function mount(data, type = "novel", isAdmin = false, variant = "library") {
+function mount(data, type = "novel", isAdmin = false, variant = "library", extra = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
@@ -46,6 +46,7 @@ function mount(data, type = "novel", isAdmin = false, variant = "library") {
               data={data}
               isAdmin={isAdmin}
               variant={variant}
+              {...extra}
             />
           </MemoryRouter>
         </ToastProvider>
@@ -187,5 +188,62 @@ describe("MediaCard - the card is a link", () => {
     mount(base, "anime", true);
     const cardLink = await screen.findByRole("link", { name: /Test Anime/ });
     expect(cardLink.querySelector("button")).toBeNull();
+  });
+});
+
+// The score slot on a card follows the library's sort (LibraryLayout passes
+// `scoreField`), so that sorting by an AniList figure and reading a MAL one
+// off the card cannot happen. The mirror matters as much as the positive
+// case: with no prop the card must still show MAL, because five of the nine
+// media types have no AniList figure at all and never pass one.
+describe("MediaCard - which outside score the card shows", () => {
+  const anime = {
+    system_id: "a1",
+    anime_name_en: "Test Anime",
+    mal_rating: "8.64",
+    anilist_rating: 85,
+  };
+
+  it("shows the MAL score by default", async () => {
+    mockAuthFetch();
+    mount(anime, "anime");
+    expect(await screen.findByTitle("MAL score")).toHaveTextContent("8.64");
+    expect(screen.queryByText("85")).not.toBeInTheDocument();
+  });
+
+  it("shows the AniList score when the sort points at it", async () => {
+    mockAuthFetch();
+    mount(anime, "anime", false, "library", { scoreField: "anilist_rating" });
+    expect(await screen.findByTitle("AniList score")).toHaveTextContent("85");
+    expect(screen.queryByText("8.64")).not.toBeInTheDocument();
+  });
+
+  // An anime movie carries its score as a stamp on the cover rather than on
+  // the meta line, so it is a second code path and not a second case of one.
+  it("follows the sort on an anime movie's cover stamp too", async () => {
+    mockAuthFetch();
+    mount(
+      { system_id: "am1", anime_movie_name_en: "Test Movie", mal_rating: "8.2", anilist_rating: 79 },
+      "anime-movie",
+      false,
+      "library",
+      { scoreField: "anilist_rating" },
+    );
+    expect(await screen.findByTitle("AniList score")).toHaveTextContent("79");
+  });
+
+  // A manga with no AniList score shows nothing there rather than falling
+  // back to the MAL figure the sort was not asking for.
+  it("shows no figure when the entry has no AniList score", async () => {
+    mockAuthFetch();
+    mount(
+      { system_id: "m1", manga_name_en: "Test Manga", mal_rating: "7.9", anilist_rating: null },
+      "manga",
+      false,
+      "library",
+      { scoreField: "anilist_rating" },
+    );
+    await screen.findByText("Test Manga");
+    expect(screen.queryByText("7.9")).not.toBeInTheDocument();
   });
 });

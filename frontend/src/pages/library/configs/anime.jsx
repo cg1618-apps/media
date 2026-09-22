@@ -1,5 +1,7 @@
 import {
   airingStatusColumn,
+  anilistPopularitySort,
+  anilistRatingSort,
   franchiseColumn,
   malRatingColumn,
   malRatingSort,
@@ -98,6 +100,8 @@ const ANIME_LIBRARY_CONFIG = {
     { key: "release_date", label: "Release Date",  compare: (a, b) => getReleaseSortScore(b) - getReleaseSortScore(a) },
     myRatingSort,
     malRatingSort,
+    anilistRatingSort,
+    anilistPopularitySort,
   ],
 
   // -- Table columns ---------------------------------------------------------

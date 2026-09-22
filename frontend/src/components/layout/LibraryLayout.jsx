@@ -157,6 +157,16 @@ export default function LibraryLayout({
     handleUpdated,
   } = useLibraryState(type, config, data, franchiseDict, seriesDict);
 
+  // A sort may name the score a grid card should show in place of its default
+  // (libraryColumns' `cardScoreField`), so that sorting an anime library by
+  // AniList does not leave every card showing its MAL figure. A sort that
+  // names nothing resolves to undefined, which lets MediaCard's own default
+  // parameter stand rather than stating the default twice.
+  const cardScoreField = useMemo(
+    () => config.sortDefs.find((s) => s.key === currentSort)?.cardScoreField,
+    [config.sortDefs, currentSort],
+  );
+
   // -------------------------------------------------------------------------
   // Status toggle — uses the existing hook; wraps mutateAsync so the table
   // view gets the same mutation path as grid MediaCards.
@@ -345,6 +355,7 @@ export default function LibraryLayout({
               type={type}
               data={item}
               onUpdated={handleUpdated}
+              scoreField={cardScoreField}
             />
           ))}
         </div>

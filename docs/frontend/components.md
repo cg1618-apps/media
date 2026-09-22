@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-20
+Last verified: 2026-09-22
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -154,7 +154,11 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `variant="future"`; its status button comes from `getCardStatusConfig(type,
   status)`, which dispatches on the watch / read / **play** axis, and its
   progress line for a game is `hours_played` against `hltb_main`, rendered
-  only when at least one of the two exists), `FranchiseCard`, `CollectionCard`, and `StaffCard`
+  only when at least one of the two exists; its outside-score slot — the
+  meta-line figure on anime, manga and novel, the cover stamp on an anime
+  movie — reads whichever column `scoreField` names, defaulting to
+  `mal_rating`, so a library sorted by an AniList figure can point every card
+  at `anilist_rating` instead), `FranchiseCard`, `CollectionCard`, and `StaffCard`
   (`PersonCard` / `StudioCard` over one shared body — the person and studio
   libraries and the `/search` staff sections all draw it).
 - **`components/tracker`** — `DashboardCard`, `NovelDashboardCard`,
