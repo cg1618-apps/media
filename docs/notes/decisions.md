@@ -1813,3 +1813,31 @@ on a series and on an entry.
   tiers. Both consumers had their own copy of the grid list before this, with
   different titles in each; adding three grids to two lists by hand is how
   they would have drifted further.
+
+### What counts as value, and what "should spend" means (2026-09-22)
+
+Two figures on the statistics page are now computed against the game's own
+list price (`price_original_us` / `_jp` / `_tw`) rather than only against what
+was paid.
+
+- **A title with no list price is left out of the Value card.** Cost per hour
+  is meant to answer "was this worth it", and what was paid for a bundle
+  share, a free weekend or a gift is not what an hour of that game costs. Left
+  in, those rows had the lowest per-hour figures in the library and sat
+  permanently at the top of "best value" — the card's most prominent line was
+  the one built on its least meaningful prices. A recorded `0` counts as no
+  list price, because a market price of nothing is the column never having
+  been filled in.
+- **"Should spend" is the bought copies at list price, and it is deliberately
+  the same copies as Bought.** The two columns are only useful if they
+  subtract, and the difference is what discounts were worth. Pricing per
+  distinct game instead would have been a different and less comparable
+  question ("what would this library cost at full price"), and would not line
+  up with the copy count printed beside it.
+- **The list price is read in the copy's own currency and never converted
+  from another region's column.** `_jp` is yen because the column says so, not
+  because a game is Japanese. A TWD purchase whose game has only a US list
+  price has no should-spend figure at all and is counted as unpriced:
+  converting USD 59.99 into it would invent a number that reads exactly like a
+  recorded one, which is the same failure the FX-rate guard already exists to
+  prevent.

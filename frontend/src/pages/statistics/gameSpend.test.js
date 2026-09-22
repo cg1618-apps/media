@@ -277,7 +277,15 @@ describe("spendByStorefront", () => {
 });
 
 describe("costPerHour", () => {
-  const g = (props, ...copies) => ({ system_id: "g", copies, ...props });
+  // A list price by default: every case below is about hours and rates, and
+  // a title with no `price_original_*` is now excluded before either is
+  // looked at. The tests that are about THAT say so and override it.
+  const g = (props, ...copies) => ({
+    system_id: "g",
+    price_original_us: "59.99",
+    copies,
+    ...props,
+  });
 
   it("divides converted spend by hours played", () => {
     // 20 USD over 40 hours is 0.50/hour, and 0.50 USD is 16 TWD at 32.
@@ -351,5 +359,131 @@ describe("costPerHour", () => {
       FX,
     );
     expect(value.best[0].name).toBe("原神");
+  });
+
+  it("excludes a title with no list price, and says how many", () => {
+    // What was paid for a bundle share or a free weekend is not what an hour
+    // of that game costs, and those rows are exactly the ones that would
+    // otherwise top the best-value list.
+    const value = costPerHour(
+      [
+        g({ game_name_en: "Listed", hours_played: 10 }, { price_paid: "10.00", price_currency: "USD" }),
+        g(
+          { game_name_en: "Unlisted", hours_played: 100, price_original_us: null },
+          { price_paid: "1.00", price_currency: "USD" },
+        ),
+      ],
+      FX,
+    );
+    expect(value.titles).toBe(1);
+    expect(value.unlisted).toBe(1);
+    expect(value.best.map((t) => t.name)).toEqual(["Listed"]);
+  });
+
+  it("treats a zero list price as no list price", () => {
+    // A recorded 0.00 is the column never having been filled in, not a game
+    // whose market price is nothing.
+    const value = costPerHour(
+      [g({ hours_played: 10, price_original_us: "0" }, { price_paid: "10.00", price_currency: "USD" })],
+      FX,
+    );
+    expect(value).toBeNull();
+  });
+
+  it("reads the list price of the currency the copy was bought in", () => {
+    // The TWD purchase has to look at price_original_tw. Falling back to the
+    // USD column would let a title with only a US price through.
+    const usOnly = costPerHour(
+      [
+        g(
+          { hours_played: 10, price_original_tw: null },
+          { price_paid: "590", price_currency: "TWD" },
+        ),
+      ],
+      FX,
+    );
+    expect(usOnly).toBeNull();
+
+    const twListed = costPerHour(
+      [
+        g(
+          { hours_played: 10, price_original_us: null, price_original_tw: "1790" },
+          { price_paid: "590", price_currency: "TWD" },
+        ),
+      ],
+      FX,
+    );
+    expect(twListed.titles).toBe(1);
+  });
+});
+
+describe("computeGameSpend: the should-spend column", () => {
+  const listed = (...copies) => ({
+    system_id: "g",
+    price_original_us: "59.99",
+    price_original_tw: "1790",
+    price_original_jp: "7800",
+    copies,
+  });
+  const should = (spend) => spend.columns.find((c) => c.key === "should");
+
+  it("prices the bought copies at the game's own list price", () => {
+    const spend = computeGameSpend(
+      [
+        listed(
+          { price_paid: "19.99", price_currency: "USD", acquisition: "Bought" },
+          { price_paid: "590", price_currency: "TWD", acquisition: "Bought" },
+        ),
+      ],
+      FX,
+    );
+    expect(rate(should(spend), "USD").cents).toBe(5999);
+    expect(rate(should(spend), "TWD").cents).toBe(179000);
+    // Same copies as Bought, so the two columns subtract.
+    expect(should(spend).copies).toBe(bought(spend).copies);
+  });
+
+  it("leaves out a copy that was not bought", () => {
+    const spend = computeGameSpend(
+      [
+        listed(
+          { price_paid: "19.99", price_currency: "USD", acquisition: "Bought" },
+          { price_paid: "4.00", price_currency: "USD", acquisition: "Bundled" },
+        ),
+      ],
+      FX,
+    );
+    expect(rate(should(spend), "USD").cents).toBe(5999);
+  });
+
+  it("counts a bought copy with no list price instead of pricing it at zero", () => {
+    // Zero would read as a free game and would quietly undercount what the
+    // collection should have cost.
+    const spend = computeGameSpend(
+      [
+        {
+          system_id: "g",
+          price_original_us: "59.99",
+          copies: [
+            { price_paid: "19.99", price_currency: "USD", acquisition: "Bought" },
+            // No price_original_jp on this game.
+            { price_paid: "4800", price_currency: "JPY", acquisition: "Bought" },
+          ],
+        },
+      ],
+      FX,
+    );
+    expect(rate(should(spend), "USD").cents).toBe(5999);
+    expect(rate(should(spend), "JPY")).toBeNull();
+    expect(should(spend).unpriced).toBe(1);
+  });
+
+  it("has no figure for a copy that recorded no currency", () => {
+    const spend = computeGameSpend(
+      [listed({ price_paid: "19.99", acquisition: "Bought" })],
+      FX,
+    );
+    expect(should(spend).copies).toBe(0);
+    expect(should(spend).unpriced).toBe(1);
   });
 });
