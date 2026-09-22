@@ -36,7 +36,7 @@ describe("getCoverUrl", () => {
   it("returns local static path on localhost (jsdom default)", () => {
     // jsdom sets hostname to 'localhost' by default
     const url = getCoverUrl("abc123.jpg");
-    expect(url).toBe("/static/covers/abc123.jpg");
+    expect(url).toBe("/api/covers/abc123.jpg");
   });
 
   it("resolves a library key outside the cover tree", () => {
@@ -50,7 +50,7 @@ describe("getCoverUrl", () => {
     // relative to static/ - not to static/covers/. Prefixing it again doubles
     // the "covers/" segment and 404s.
     expect(getCoverUrl("covers/anime/abc123.jpg")).toBe(
-      "/static/covers/anime/abc123.jpg",
+      "/api/covers/anime/abc123.jpg",
     );
   });
 });
@@ -80,7 +80,7 @@ describe("getQuoteImageUrl", () => {
 
   it("resolves a backfilled image.storage_key that already carries covers/", () => {
     expect(getQuoteImageUrl("covers/quote/abc123.jpg")).toBe(
-      "/static/covers/quote/abc123.jpg",
+      "/api/covers/quote/abc123.jpg",
     );
   });
 });

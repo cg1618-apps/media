@@ -28,14 +28,14 @@ afterEach(() => {
 describe("getCoverUrl", () => {
   it("passes a full owner-typed key through unchanged on localhost", () => {
     expect(getCoverUrl("anime/abc123.jpg")).toBe(
-      "/static/covers/anime/abc123.jpg",
+      "/api/covers/anime/abc123.jpg",
     );
   });
 
-  it("builds the same /static/covers URL off localhost as on it", () => {
+  it("builds the same /api/covers URL off localhost as on it", () => {
     useRemoteHost();
     expect(getCoverUrl("anime-movie/abc123.jpg")).toBe(
-      "/static/covers/anime-movie/abc123.jpg",
+      "/api/covers/anime-movie/abc123.jpg",
     );
   });
 
@@ -60,7 +60,7 @@ describe("getFranchiseCover", () => {
         { e1: entry },
         { f1: [entry] },
       ),
-    ).toBe("/static/covers/anime/e1.jpg");
+    ).toBe("/api/covers/anime/e1.jpg");
   });
 
   it("builds <media_type>/<id>.jpg for a chosen entry with no stored key", () => {
@@ -71,7 +71,7 @@ describe("getFranchiseCover", () => {
         { e1: entry },
         { f1: [entry] },
       ),
-    ).toBe("/static/covers/manga/e1.jpg");
+    ).toBe("/api/covers/manga/e1.jpg");
   });
 
   it("returns the placeholder when the chosen entry has no media_type", () => {
@@ -99,7 +99,7 @@ describe("getFranchiseCover", () => {
       cover_image_file: "movie/e2.jpg",
     };
     expect(getFranchiseCover(franchise, {}, { f1: [old, recent] })).toBe(
-      "/static/covers/movie/e2.jpg",
+      "/api/covers/movie/e2.jpg",
     );
   });
 
@@ -115,7 +115,7 @@ describe("getFranchiseCover", () => {
       release_date: "2020-01-01",
     };
     expect(getFranchiseCover(franchise, {}, { f1: [old, recent] })).toBe(
-      "/static/covers/novel/e2.jpg",
+      "/api/covers/novel/e2.jpg",
     );
   });
 
@@ -141,7 +141,7 @@ describe("getSeriesCover", () => {
       },
     ];
     expect(getSeriesCover({ cover_entry_id: "e1" }, entries)).toBe(
-      "/static/covers/anime/e1.jpg",
+      "/api/covers/anime/e1.jpg",
     );
   });
 
@@ -158,7 +158,7 @@ describe("getSeriesCover", () => {
         cover_image_file: "comic/e2.jpg",
       },
     ];
-    expect(getSeriesCover({}, entries)).toBe("/static/covers/comic/e2.jpg");
+    expect(getSeriesCover({}, entries)).toBe("/api/covers/comic/e2.jpg");
   });
 
   it("returns the placeholder when no entry has a cover", () => {
@@ -184,12 +184,12 @@ describe("getCollectionCover", () => {
           f2: [entry],
         },
       ),
-    ).toBe("/static/covers/anime/e1.jpg");
+    ).toBe("/api/covers/anime/e1.jpg");
   });
 
   it("falls through to the first member franchise that yields a cover", () => {
     expect(getCollectionCover({}, franchises, {}, { f2: [entry] })).toBe(
-      "/static/covers/anime/e1.jpg",
+      "/api/covers/anime/e1.jpg",
     );
   });
 
