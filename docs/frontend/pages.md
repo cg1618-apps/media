@@ -253,6 +253,15 @@ navigating away resets the page. Filtering is entirely client-side over the
 → active `filterDefs` (`match(item, value, franchiseDict, seriesDict)`) →
 `sortDefs[currentSort].compare`.
 
+A sort may also name the figure a **grid card** shows in its score slot,
+through `cardScoreField` on the sortDef: `LibraryLayout` reads it off the
+active sort and passes it to `MediaCard` as `scoreField`, so an anime, anime
+movie, manga or novel library sorted by either AniList figure shows the
+AniList score on every card instead of the MAL one. Both AniList sorts point
+at `anilist_rating` — a card has one score slot, and a popularity rank is
+not the number worth reading in it. A sort that names nothing leaves the card
+on its default, which is what the five types with no AniList figure do.
+
 Filter types: `set` (static `options`), `set-dynamic` (options derived from
 the data), `set-grouped` (group labels mapped through `WATCHING_STATUS_GROUP`
 / `READING_STATUS_GROUP`), `boolean` (checkbox). Top bar: search, "Sort:"
@@ -268,13 +277,13 @@ plan-flag checkboxes (`planFlagColumn`) are disabled for guests.
 
 | Type | Series? | Filters (key: type) | Sorts | Table columns |
 |---|---|---|---|---|
-| anime | yes | airingType: set (TV/Movie/ONA/OVA/Special) · airingStatus: set · watchingStatus: set-grouped · bahaOnly: boolean | title (franchise→series→entry), release_date, my_rating, mal_rating | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`), my, mal, studio, baha, watch |
-| anime-movie | no | airingStatus · watchingStatus · bahaOnly | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating, mal_rating | franchise, title, status, my, mal, studio, director, baha, watch, watch_next, to_rewatch |
+| anime | yes | airingType: set (TV/Movie/ONA/OVA/Special) · airingStatus: set · watchingStatus: set-grouped · bahaOnly: boolean | title (franchise→series→entry), release_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`), my, mal, studio, baha, watch |
+| anime-movie | no | airingStatus · watchingStatus · bahaOnly | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my, mal, studio, director, baha, watch, watch_next, to_rewatch |
 | movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus | title, release_date (year of `release_date_usa` only), my_rating, imdb_rating | franchise, title, status, my, imdb, director, release, watch, watch_next, to_rewatch |
 | tv-show | no | airingStatus · watchingStatus · region: set-dynamic | title, release_date, my_rating, imdb_rating | franchise, title, season, status, ep, my, imdb, watch, watch_next, to_rewatch |
 | cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus · officialSource: set-dynamic | title, release_date, my_rating, imdb_rating | franchise, title_cn, title_en, type, season, airing, ep, source, my, imdb, watch |
-| manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped · region: set-dynamic | title, release_date, end_date, my_rating, mal_rating | franchise, title_cn, title_en, status, ch, vol, my, mal, read, read_next, to_reread |
-| novel | yes | serializationStatus · readingStatus · region · type: set-dynamic | title, release_date, end_date, my_rating, mal_rating | franchise, title_cn, title_en, status, progress (`getNovelProgress`), my, mal, read, read_next, to_reread |
+| manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped · region: set-dynamic | title, release_date, end_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch, vol, my, mal, read, read_next, to_reread |
+| novel | yes | serializationStatus · readingStatus · region · type: set-dynamic | title, release_date, end_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getNovelProgress`), my, mal, read, read_next, to_reread |
 | comic | yes | comicType: set-dynamic · readingStatus · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`), my, read, to_reread |
 | game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) · ownership: set-dynamic · releaseStatus: set-dynamic | title (CN-first), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my, play (`playButtonColumn`), to_replay |
 
@@ -569,7 +578,10 @@ Top to bottom:
    rendered only when it has some, and never its franchise's, which are shown
    on the franchise where they can be changed — franchise/series bar linking
    to the hubs,
-   `ScoreBlock` (MAL score/rank, AniList score, last updated) on Anime,
+   `ScoreBlock` (MAL score, MAL rank, AniList score, AniList rank, AniList
+   popularity — every figure labelled with the source it came from, since
+   AniList's score is an integer on its own 0–100 scale and MAL's is 0–10)
+   on Anime,
    AnimeMovie, Manga, Novel (Movie has an inline IMDb block; TV/Cartoon/Comic
    none), the tracker, `NamingCard`, `InfoCard "Information"`, `InfoCard
    "Production"` — whose Studio row on Anime and AnimeMovie is built by
@@ -772,11 +784,15 @@ File `pages/public/FutureReleases.jsx`. `useMediaList("anime")`,
 `useMediaList("franchise")`,
 `useApiQuery(["api","system","current-season-config"], "/api/system/config/current_season")`,
 and lazily per tab `anime-movie`, `movie` (`{ limit: 2000, airing_status: "Not Yet Aired" }`),
-`tv-show`, `cartoon`. Tabs Anime / Anime Movies / Movies / TV Shows / Cartoons.
+`tv-show`, `cartoon`, `game`. Tabs Anime / Anime Movies / Movies / TV Shows /
+Cartoons / Games.
 Anime keeps `Not Yet Aired` from the current season onward, grouped
 "Spring 2025" / year / TBD with type chips; anime movies group by release
-year; TV also includes "Airing". Cards are `MediaCard` with `isAdmin`;
-`onUpdated` patches the `["media-list", type]` caches.
+year; TV also includes "Airing". Games keep `release_status` of `Rumored` or
+`Unreleased` — `Early Access` is already out and `Cancelled` is never coming —
+grouped by the year of `release_date` with TBD last, and sorted inside a year
+by that date, so a full date precedes a bare year. Cards are `MediaCard` with
+`isAdmin`; `onUpdated` patches the `["media-list", type]` caches.
 
 ### Plan — `/plan`
 

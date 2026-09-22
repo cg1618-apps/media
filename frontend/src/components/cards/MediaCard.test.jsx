@@ -34,7 +34,7 @@ function mockAuthFetch() {
 
 afterEach(() => vi.unstubAllGlobals());
 
-function mount(data, type = "novel", isAdmin = false, variant = "library") {
+function mount(data, type = "novel", isAdmin = false, variant = "library", extra = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
@@ -46,6 +46,7 @@ function mount(data, type = "novel", isAdmin = false, variant = "library") {
               data={data}
               isAdmin={isAdmin}
               variant={variant}
+              {...extra}
             />
           </MemoryRouter>
         </ToastProvider>
@@ -187,5 +188,100 @@ describe("MediaCard - the card is a link", () => {
     mount(base, "anime", true);
     const cardLink = await screen.findByRole("link", { name: /Test Anime/ });
     expect(cardLink.querySelector("button")).toBeNull();
+  });
+});
+
+// A game on the future variant sits on the PLAY axis, not the watch one, and
+// its bolt moves release_status rather than airing_status - the column a game
+// carries instead. Both were hard-coded to anime's vocabulary before games
+// reached the Future releases page.
+describe("MediaCard - the future variant on a game", () => {
+  const game = {
+    system_id: "3c1d5e77-2a4b-4c6d-8e9f-0a1b2c3d4e5f",
+    public_id: 12,
+    game_name_en: "Test Game",
+    playing_status: "Plan to Play",
+    release_status: "Unreleased",
+    release_date: "2027-03",
+  };
+
+  it("offers the playing statuses, not the watching ones", async () => {
+    mockAuthFetch();
+    mount(game, "game", true, "future");
+    await screen.findByText("Test Game");
+    const select = screen.getByRole("combobox");
+    expect(
+      [...select.options].map((o) => o.value),
+    ).toEqual(["Might Play", "Plan to Play", "Play When Released"]);
+  });
+
+  it("titles the bolt with the release status it sets", async () => {
+    mockAuthFetch();
+    mount(game, "game", true, "future");
+    await screen.findByText("Test Game");
+    expect(screen.getByTitle("Mark as Released")).toBeInTheDocument();
+  });
+
+  it("shows the release date on the meta line", async () => {
+    mockAuthFetch();
+    mount(game, "game", false, "future");
+    expect(await screen.findByText("2027-03")).toBeInTheDocument();
+  });
+});
+
+// The score slot on a card follows the library's sort (LibraryLayout passes
+// `scoreField`), so that sorting by an AniList figure and reading a MAL one
+// off the card cannot happen. The mirror matters as much as the positive
+// case: with no prop the card must still show MAL, because five of the nine
+// media types have no AniList figure at all and never pass one.
+describe("MediaCard - which outside score the card shows", () => {
+  const anime = {
+    system_id: "a1",
+    anime_name_en: "Test Anime",
+    mal_rating: "8.64",
+    anilist_rating: 85,
+  };
+
+  it("shows the MAL score by default", async () => {
+    mockAuthFetch();
+    mount(anime, "anime");
+    expect(await screen.findByTitle("MAL score")).toHaveTextContent("8.64");
+    expect(screen.queryByText("85")).not.toBeInTheDocument();
+  });
+
+  it("shows the AniList score when the sort points at it", async () => {
+    mockAuthFetch();
+    mount(anime, "anime", false, "library", { scoreField: "anilist_rating" });
+    expect(await screen.findByTitle("AniList score")).toHaveTextContent("85");
+    expect(screen.queryByText("8.64")).not.toBeInTheDocument();
+  });
+
+  // An anime movie carries its score as a stamp on the cover rather than on
+  // the meta line, so it is a second code path and not a second case of one.
+  it("follows the sort on an anime movie's cover stamp too", async () => {
+    mockAuthFetch();
+    mount(
+      { system_id: "am1", anime_movie_name_en: "Test Movie", mal_rating: "8.2", anilist_rating: 79 },
+      "anime-movie",
+      false,
+      "library",
+      { scoreField: "anilist_rating" },
+    );
+    expect(await screen.findByTitle("AniList score")).toHaveTextContent("79");
+  });
+
+  // A manga with no AniList score shows nothing there rather than falling
+  // back to the MAL figure the sort was not asking for.
+  it("shows no figure when the entry has no AniList score", async () => {
+    mockAuthFetch();
+    mount(
+      { system_id: "m1", manga_name_en: "Test Manga", mal_rating: "7.9", anilist_rating: null },
+      "manga",
+      false,
+      "library",
+      { scoreField: "anilist_rating" },
+    );
+    await screen.findByText("Test Manga");
+    expect(screen.queryByText("7.9")).not.toBeInTheDocument();
   });
 });

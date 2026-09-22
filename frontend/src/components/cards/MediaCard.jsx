@@ -38,32 +38,50 @@ const SPINE_LABEL = {
   game: "Game",
 };
 
-const FUTURE_WATCHING_OPTIONS = [
-  "Might Watch",
-  "Plan to Watch",
-  "Watch When Airs",
-];
+// The statuses the future variant's select offers, per status axis. A game
+// is on the play axis, so it must not be offered the watch vocabulary.
+const FUTURE_STATUS_OPTIONS = {
+  watch: ["Might Watch", "Plan to Watch", "Watch When Airs"],
+  play: ["Might Play", "Plan to Play", "Play When Released"],
+};
 
-const BOLT_AIRING_STATUS = {
-  anime: "Airing",
-  "anime-movie": "Finished Airing",
-  movie: "Finished Airing",
-  "tv-show": "Airing",
-  cartoon: "Airing",
+// What the bolt does on the future variant: the column that says a title is
+// still unreleased, and the value that says it is out. A game carries
+// release_status where the watched types carry airing_status.
+const BOLT_RELEASE = {
+  anime: { field: "airing_status", value: "Airing" },
+  "anime-movie": { field: "airing_status", value: "Finished Airing" },
+  movie: { field: "airing_status", value: "Finished Airing" },
+  "tv-show": { field: "airing_status", value: "Airing" },
+  cartoon: { field: "airing_status", value: "Airing" },
+  game: { field: "release_status", value: "Released" },
 };
 
 // Small ink label laid over cover art.
 const OVERLAY_CLS =
   "bg-black/60 text-white px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] leading-none z-10";
 
-// Score figure on a mono meta line (MAL / IMDb).
-function Score({ value }) {
+// Score figure on a mono meta line (MAL / AniList / IMDb).
+function Score({ value, label = "Score" }) {
   return (
-    <span className="shrink-0 text-text-muted tabular-nums" title="Score">
+    <span className="shrink-0 text-text-muted tabular-nums" title={label}>
       {value}
     </span>
   );
 }
+
+// Which outside score a card shows, and what to call it. The four AniList
+// types read `scoreField` from the active sort (see LibraryLayout) so that a
+// library sorted by an AniList figure does not show a MAL one on the card;
+// every other type only ever has the one score, and takes the default.
+//
+// AniList's is an integer on its own 0-100 scale - 85 where MAL says 8.5 -
+// so the tooltip has to name which of the two the numeral is.
+const SCORE_LABEL = {
+  mal_rating: "MAL score",
+  anilist_rating: "AniList score",
+  imdb_rating: "IMDb score",
+};
 
 function MetaLine({ children, className = "" }) {
   return (
@@ -75,7 +93,7 @@ function MetaLine({ children, className = "" }) {
   );
 }
 
-function PosterBadges({ type, variant, data, franchiseDict }) {
+function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
   const bahaRow = getBahaRow(data);
   const bahaFlag =
     (type === "anime" || type === "anime-movie") && bahaRow?.available === true;
@@ -139,9 +157,12 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
           {data.airing_type}
         </div>
       )}
-      {type === "anime-movie" && data.mal_rating && (
-        <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`} title="MAL score">
-          {data.mal_rating}
+      {type === "anime-movie" && data[scoreField] && (
+        <div
+          className={`absolute top-1 left-1 ${OVERLAY_CLS}`}
+          title={SCORE_LABEL[scoreField]}
+        >
+          {data[scoreField]}
         </div>
       )}
       {(type === "movie" || type === "tv-show") &&
@@ -196,12 +217,12 @@ function yearRange(data) {
   return end && end !== releaseYear(data.release_date) ? `${start} – ${end}` : start;
 }
 
-function LibraryMeta({ type, data }) {
+function LibraryMeta({ type, data, scoreField }) {
   if (type === "anime") {
     return (
       <MetaLine>
         <span className="truncate pr-1">{getReleaseFallback(data)}</span>
-        <Score value={data.mal_rating || "—"} />
+        <Score value={data[scoreField] || "—"} label={SCORE_LABEL[scoreField]} />
       </MetaLine>
     );
   }
@@ -259,7 +280,9 @@ function LibraryMeta({ type, data }) {
     return (
       <MetaLine className="mb-1">
         <span className="truncate pr-1">{yearRange(data)}</span>
-        {data.mal_rating && <Score value={data.mal_rating} />}
+        {data[scoreField] && (
+          <Score value={data[scoreField]} label={SCORE_LABEL[scoreField]} />
+        )}
       </MetaLine>
     );
   }
@@ -281,9 +304,12 @@ function LibraryMeta({ type, data }) {
             {yearRange(data)}
           </span>
         </div>
-        {data.mal_rating && (
-          <span className="font-mono text-[10px] text-text-muted tabular-nums shrink-0">
-            {data.mal_rating}
+        {data[scoreField] && (
+          <span
+            className="font-mono text-[10px] text-text-muted tabular-nums shrink-0"
+            title={SCORE_LABEL[scoreField]}
+          >
+            {data[scoreField]}
           </span>
         )}
       </div>
@@ -494,6 +520,14 @@ function FutureMeta({ type, data }) {
       </div>
     );
   }
+  if (type === "game") {
+    return (
+      <MetaLine className="mt-1 mb-0">
+        {data.game_type && <span className="shrink-0">{data.game_type}</span>}
+        <span className="truncate">{data.release_date || "TBD"}</span>
+      </MetaLine>
+    );
+  }
   return null;
 }
 
@@ -525,6 +559,7 @@ export default function MediaCard({
   franchiseDict = {},
   isAdmin: isAdminProp,
   onUpdated,
+  scoreField = "mal_rating",
 }) {
   const { isAdmin: authAdmin } = useAuth();
   const showAdmin = isAdminProp !== undefined ? isAdminProp : authAdmin;
@@ -546,7 +581,9 @@ export default function MediaCard({
   const imageUrl = getCoverUrl(data.cover_image_file);
   const currentStatus = data[statusField] || FALLBACK_STATUS[statusType];
   const btnConfig = getCardStatusConfig(type, currentStatus);
-  const needsExtra = !FUTURE_WATCHING_OPTIONS.includes(currentStatus);
+  const futureOptions = FUTURE_STATUS_OPTIONS[statusType] || [];
+  const boltRelease = BOLT_RELEASE[type];
+  const needsExtra = !futureOptions.includes(currentStatus);
 
   async function handleStatusToggle() {
     try {
@@ -575,8 +612,8 @@ export default function MediaCard({
   }
 
   async function applyBoltAction(watchingStatus) {
-    const airingStatus = BOLT_AIRING_STATUS[type];
-    const fields = { airing_status: airingStatus };
+    const airingStatus = boltRelease?.value;
+    const fields = { [boltRelease.field]: airingStatus };
     if (watchingStatus) fields[statusField] = watchingStatus;
     try {
       const updated = await statusMutation.mutateAsync({
@@ -596,6 +633,12 @@ export default function MediaCard({
   }
 
   function handleBoltAction() {
+    if (type === "game") {
+      applyBoltAction(
+        currentStatus === "Play When Released" ? "Active Playing" : null,
+      );
+      return;
+    }
     if (!BOLT_PROMPTS_WATCHING.has(type)) {
       applyBoltAction(null);
       return;
@@ -648,6 +691,7 @@ export default function MediaCard({
             variant={variant}
             data={data}
             franchiseDict={franchiseDict}
+            scoreField={scoreField}
           />
           <img
             src={imageUrl}
@@ -692,14 +736,14 @@ export default function MediaCard({
                     value={currentStatus}
                     onChange={handleStatusChange}
                     className="font-mono text-[10px] border border-border-strong px-1 py-0.5 bg-surface text-text-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand w-full"
-                    title="Watching status"
+                    title={statusType === "play" ? "Playing status" : "Watching status"}
                   >
                     {needsExtra && (
                       <option value={currentStatus} disabled>
                         {currentStatus}
                       </option>
                     )}
-                    {FUTURE_WATCHING_OPTIONS.map((s) => (
+                    {futureOptions.map((s) => (
                       <option key={s} value={s}>
                         {s}
                       </option>
@@ -708,7 +752,7 @@ export default function MediaCard({
                   <button
                     onClick={handleBoltAction}
                     className="w-6 h-6 flex items-center justify-center border border-border-strong bg-surface text-text-muted hover:border-brand hover:text-brand transition-colors text-[10px] shrink-0"
-                    title={`Mark as ${BOLT_AIRING_STATUS[type]}`}
+                    title={`Mark as ${boltRelease?.value}`}
                   >
                     <i className="fas fa-bolt"></i>
                   </button>
@@ -718,7 +762,7 @@ export default function MediaCard({
           </>
         ) : (
           <>
-            <LibraryMeta type={type} data={data} />
+            <LibraryMeta type={type} data={data} scoreField={scoreField} />
             <div
               className={`relative z-10 mt-auto flex items-center border-t border-border pt-2.5 ${HAS_PROGRESS.has(type) ? "justify-between" : "justify-end"}`}
             >
@@ -739,7 +783,7 @@ export default function MediaCard({
       {showAiringPrompt && (
         <MarkAiringModal
           title={title}
-          airingStatus={BOLT_AIRING_STATUS[type]}
+          airingStatus={boltRelease?.value}
           currentStatus={currentStatus}
           onSelect={(watchingStatus) => {
             setShowAiringPrompt(false);
