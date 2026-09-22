@@ -723,10 +723,19 @@ nearest the top. It is `lg:`-only: on a narrow screen the page is already one
 column. A section's id is both the sidebar's anchor and the block's `id`,
 because `sections.js` is the only place either is written down.
 
-Statistics renders the nine favourite 3×3 grids, then the
-"Rating Distribution" bar-chart cards (my rating per anime franchise, MAL per
-anime, seasonal per season, my rating for manga / novel / anime movie / movie
-/ TV / cartoon / comic franchises).
+Every block is headed by `StatsSectionHeader.jsx` — an eyebrow and an `<h2>`
+at one size — so the page has exactly one `<h1>`, its own.
+
+Statistics renders the nine favourite 3×3 grids, then the twelve
+"Rating distribution" bar-chart cards in one wrapping grid: my rating per
+anime franchise; MAL rating and **AniList score** over all anime; seasonal
+per season; my rating over all manga / novels / anime movies / movies /
+**comics**; and my rating per TV show / cartoon / **game** franchise. Comics
+are counted per entry rather than per franchise, because a comic franchise is
+usually one long-running title. `computeScoreRows` puts a numeric column into
+a bucket ladder, and `ANILIST_BUCKETS` is `MAL_BUCKETS` scaled by ten and
+rounded — AniList's `averageScore` is an integer 0–100 against MAL's 0–10, so
+the two cards sit side by side on the same cut points.
 
 **The favourite grids** are declared in `config/favoriteGrids.js`, read by
 both this page and `/modify` → Fav3x3. A grid holds one of three tiers — six
@@ -738,6 +747,26 @@ same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. The
 between tiers, so both consumers are tier-blind and a new grid is a config
 entry. A block is sized to its nine covers rather than stretched across a
 column, and the blocks wrap.
+
+**The game spend block** (`StatsGameSpend.jsx` over the pure functions in
+`gameSpend.js`) totals the `game_copy` rows the game list already carries.
+Subtotals are kept in cents and per currency; converted USD and TWD figures
+appear only when FX rates have been entered on the admin page, because a
+total built from a rate nobody entered looks exactly like a real one. Three
+columns: **Owned** is every copy with a `price_paid`, **Bought** narrows to
+`acquisition === "Bought"`, and **Should spend** prices those same bought
+copies at the game's own list price — `price_original_us` / `_jp` / `_tw`,
+picked by the copy's own currency, never by falling back to another region's.
+Bought and Should spend cover the same copies, so the two subtract to what
+waiting for a sale was worth; a bought copy whose game has no list price in
+its currency is counted under the column rather than priced at zero.
+
+The **Value** card is cost per hour, and a title counts only when it has
+logged hours, a convertible price and a list price of its own. The last of
+those is what keeps a bundle share or a free weekend off the top of "best
+value": what was paid for those is not what an hour of that game costs. Each
+of the three exclusions is counted and named separately under the card, since
+they mean different things.
 
 Completions renders `StatsCompletions`:
 one tab per type with paged sub-groups (anime by airing type, anime movie by

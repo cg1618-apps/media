@@ -4,6 +4,7 @@ import StatsFavoriteGrids from "../statistics/StatsFavoriteGrids";
 import StatsFranchiseSummary from "../statistics/StatsFranchiseSummary";
 import StatsGameSpend from "../statistics/StatsGameSpend";
 import StatsSidebar from "../statistics/StatsSidebar";
+import StatsSectionHeader from "../statistics/StatsSectionHeader";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow } from "../../components/ui/primitives";
 
@@ -16,6 +17,7 @@ export default function Statistics() {
     allMovies,
     allManga,
     allNovel,
+    allComic,
     allGame,
     fxRates,
     seasonals,
@@ -57,13 +59,8 @@ export default function Statistics() {
           </header>
 
           {/* Blocks 1 — favourite 3×3 grids, across all three tiers */}
-          <section id="favourites" className="scroll-mt-24 space-y-6">
-            <header>
-              <Eyebrow>Statistics</Eyebrow>
-              <h2 className="font-display text-3xl sm:text-4xl font-semibold text-text leading-none mt-1">
-                Favourites
-              </h2>
-            </header>
+          <section id="favourites" className="scroll-mt-24">
+            <StatsSectionHeader eyebrow="Statistics" title="Favourites" />
             <StatsFavoriteGrids
               franchises={franchises}
               series={series}
@@ -81,6 +78,7 @@ export default function Statistics() {
             allMovies={allMovies}
             allManga={allManga}
             allNovel={allNovel}
+            allComic={allComic}
             seasonals={seasonals}
             currentSeason={currentSeason}
           />

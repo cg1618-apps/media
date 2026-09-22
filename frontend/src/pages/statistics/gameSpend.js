@@ -37,10 +37,38 @@ function pricedCopies(games) {
     (game.copies || []).forEach((copy) => {
       const cents = toCents(copy.price_paid);
       if (cents === null) return;
-      rows.push({ cents, code: normaliseCode(copy.price_currency), copy });
+      rows.push({ cents, code: normaliseCode(copy.price_currency), copy, game });
     });
   });
   return rows;
+}
+
+// The game's own market price, per currency. Three columns, one per region,
+// and the currency each is quoted in is fixed by the column - `_jp` is yen,
+// not "the Japanese price in whatever currency".
+const LIST_PRICE_COLUMN = {
+  USD: "price_original_us",
+  JPY: "price_original_jp",
+  TWD: "price_original_tw",
+};
+
+/**
+ * What a copy would have cost at list price, in the currency it was bought in.
+ *
+ * Returns null when there is no such figure: the copy records no currency,
+ * the currency is one no `price_original_*` column covers, or the game simply
+ * has no list price recorded there. Zero counts as absent too - a list price
+ * of nothing is the column never having been filled in, not a free game.
+ *
+ * Null rather than a fallback to another region's price: converting USD 59.99
+ * into a TWD purchase would invent a number that reads exactly like a
+ * recorded one.
+ */
+export function listPriceCents(row) {
+  const column = LIST_PRICE_COLUMN[row.code];
+  if (!column) return null;
+  const cents = toCents(row.game?.[column]);
+  return cents ? cents : null;
 }
 
 function subtotal(rows) {
@@ -108,21 +136,43 @@ function column(key, label, rows, fx) {
 }
 
 /**
- * The whole block: what the collection cost, owned and bought.
+ * The whole block: what the collection cost, and what it would have.
  *
  * Owned is every priced copy. Bought narrows to the ones actually purchased,
  * so a bundled or subscription copy that happens to carry a price does not
- * inflate what was spent buying games.
+ * inflate what was spent buying games. Should spend is those same purchases
+ * at the game's own list price.
  */
 export default function computeGameSpend(games, fxRates) {
   const fx = fxRates && fxRates.base ? fxRates : null;
   const all = pricedCopies(games);
   const bought = all.filter(({ copy }) => copy.acquisition === "Bought");
 
+  // What those same purchases would have cost at list price. The same copies
+  // as Bought, so the two columns subtract: the difference is what waiting
+  // for a sale was worth. A copy whose game has no list price in its currency
+  // has no figure here at all and is counted instead, because pricing it at
+  // zero would read as a free game rather than as missing data.
+  const shouldSpend = [];
+  let unpriced = 0;
+  bought.forEach((row) => {
+    const cents = listPriceCents(row);
+    if (cents === null) unpriced += 1;
+    else shouldSpend.push({ ...row, cents });
+  });
+
   return {
     columns: [
       column("owned", "Owned", all, fx),
       column("bought", "Bought", bought, fx),
+      {
+        ...column("should", "Should spend", shouldSpend, fx),
+        // Rendered as a note under the column rather than silently dropped.
+        unpriced,
+        // "No priced copies" would be wrong here: there may be plenty of
+        // purchases, with no list price to compare them against.
+        emptyLabel: "No list prices recorded.",
+      },
     ],
     asOf: fx ? fx.asOf || fx.as_of || null : null,
     // Nothing priced anywhere - the caller hides the block rather than
@@ -218,7 +268,8 @@ export function spendByStorefront(games, fxRates) {
  * be ranked without a rate. Per-currency-per-hour would be several lists that
  * answer a question nobody asked.
  *
- * A title counts only when it has BOTH logged hours and a convertible price.
+ * A title counts only when it has logged hours, a convertible price, and a
+ * list price of its own.
  * Two counts come back rather than one, because there are two ways to be
  * left out and they mean different things. `excluded` is priced titles with
  * no logged hours - `hours_played` is populated automatically only for Steam
@@ -226,6 +277,10 @@ export function spendByStorefront(games, fxRates) {
  * rather than imply it covers everything. `unconvertible` is priced titles
  * whose currency has no rate; they are skipped rather than converted to zero,
  * which would have counted them as free and dragged the average down.
+ * `unlisted` is titles with no `price_original_*` for the currency they were
+ * bought in - a bundle share or a free weekend is not what an hour of that
+ * game costs, and those are exactly the rows that would otherwise top the
+ * best-value list.
  */
 export function costPerHour(games, fxRates) {
   const fx = fxRates && fxRates.base ? fxRates : null;
@@ -234,6 +289,7 @@ export function costPerHour(games, fxRates) {
   const titles = [];
   let noHours = 0;
   let unconvertible = 0;
+  let unlisted = 0;
   let totalCents = { USD: 0, TWD: 0 };
   let totalHours = 0;
 
@@ -259,6 +315,15 @@ export function costPerHour(games, fxRates) {
     });
     // No rate for either target currency, so there is nothing to express it in.
     if (!perTarget.USD && !perTarget.TWD) return;
+
+    // A title counts only when it has a list price of its own. Without one,
+    // what was paid cannot be read as value: the free-to-play and
+    // never-priced rows would otherwise sit at the top of "best value" on
+    // the strength of a bundle price that was never a price for THIS game.
+    if (!rows.some((row) => listPriceCents(row) !== null)) {
+      unlisted += 1;
+      return;
+    }
 
     const hours = Number(game.hours_played);
     if (!Number.isFinite(hours) || hours <= 0) {
@@ -302,6 +367,7 @@ export function costPerHour(games, fxRates) {
     worst: ranked.slice(-3).reverse(),
     excluded: noHours,
     unconvertible,
+    unlisted,
     asOf: fx.asOf || fx.as_of || null,
   };
 }
