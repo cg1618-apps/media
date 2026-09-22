@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-20
+Last verified: 2026-09-22
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -154,7 +154,11 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `variant="future"`; its status button comes from `getCardStatusConfig(type,
   status)`, which dispatches on the watch / read / **play** axis, and its
   progress line for a game is `hours_played` against `hltb_main`, rendered
-  only when at least one of the two exists), `FranchiseCard`, `CollectionCard`, and `StaffCard`
+  only when at least one of the two exists. On `variant="future"` the status
+  select comes from `FUTURE_STATUS_OPTIONS`, keyed on the same axis, and the
+  bolt from `BOLT_RELEASE`, which names the column that says a title is still
+  unreleased — `airing_status` for the watched types, `release_status` for a
+  game), `FranchiseCard`, `CollectionCard`, and `StaffCard`
   (`PersonCard` / `StudioCard` over one shared body — the person and studio
   libraries and the `/search` staff sections all draw it).
 - **`components/tracker`** — `DashboardCard`, `NovelDashboardCard`,

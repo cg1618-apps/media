@@ -743,11 +743,15 @@ File `pages/public/FutureReleases.jsx`. `useMediaList("anime")`,
 `useMediaList("franchise")`,
 `useApiQuery(["api","system","current-season-config"], "/api/system/config/current_season")`,
 and lazily per tab `anime-movie`, `movie` (`{ limit: 2000, airing_status: "Not Yet Aired" }`),
-`tv-show`, `cartoon`. Tabs Anime / Anime Movies / Movies / TV Shows / Cartoons.
+`tv-show`, `cartoon`, `game`. Tabs Anime / Anime Movies / Movies / TV Shows /
+Cartoons / Games.
 Anime keeps `Not Yet Aired` from the current season onward, grouped
 "Spring 2025" / year / TBD with type chips; anime movies group by release
-year; TV also includes "Airing". Cards are `MediaCard` with `isAdmin`;
-`onUpdated` patches the `["media-list", type]` caches.
+year; TV also includes "Airing". Games keep `release_status` of `Rumored` or
+`Unreleased` — `Early Access` is already out and `Cancelled` is never coming —
+grouped by the year of `release_date` with TBD last, and sorted inside a year
+by that date, so a full date precedes a bare year. Cards are `MediaCard` with
+`isAdmin`; `onUpdated` patches the `["media-list", type]` caches.
 
 ### Plan — `/plan`
 

@@ -72,11 +72,23 @@ function sortGroup(entries, franchiseDict) {
   });
 }
 
-function getMovieReleaseYear(movie) {
-  const d = movie.release_date_jp || movie.release_date_tw;
-  if (!d) return "TBD";
-  const year = String(d).substring(0, 4);
+// A game is "future" while it is one of these. "Early Access" is already
+// out, and "Cancelled" is never coming - neither belongs on this page.
+const GAME_UNRELEASED_STATUSES = ["Rumored", "Unreleased"];
+
+// games.release_date is ISO and may be a bare year, a year-month or a full
+// date (ck_games_release_date_iso), so the year is always its first four
+// characters.
+function releaseGroupYear(date) {
+  if (!date) return "TBD";
+  const year = String(date).substring(0, 4);
   return /^\d{4}$/.test(year) ? year : "TBD";
+}
+
+function byYearTbdLast(a, b) {
+  if (a === "TBD") return 1;
+  if (b === "TBD") return -1;
+  return a.localeCompare(b);
 }
 
 const SPECIFIC_TYPES = ["TV", "ONA", "Movie"];
@@ -111,6 +123,10 @@ export default function FutureReleases() {
   const cartoonQuery = useMediaList("cartoon", {
     params: { limit: 2000 },
     enabled: mainTab === "cartoon",
+  });
+  const gameQuery = useMediaList("game", {
+    params: { limit: 2000 },
+    enabled: mainTab === "game",
   });
 
   const franchiseDict = useMemo(
@@ -166,6 +182,13 @@ export default function FutureReleases() {
       ),
     [cartoonQuery.data],
   );
+  const allGames = useMemo(
+    () =>
+      (gameQuery.data || []).filter((game) =>
+        GAME_UNRELEASED_STATUSES.includes(game.release_status),
+      ),
+    [gameQuery.data],
+  );
   const loading =
     animeQuery.isLoading || franchiseQuery.isLoading || seasonQuery.isLoading;
   const error =
@@ -181,6 +204,8 @@ export default function FutureReleases() {
   const tvShowError = tvShowQuery.error?.message || null;
   const cartoonLoading = cartoonQuery.isLoading;
   const cartoonError = cartoonQuery.error?.message || null;
+  const gameLoading = gameQuery.isLoading;
+  const gameError = gameQuery.error?.message || null;
 
   const handleUpdated = useCallback((updated) => {
     queryClient.setQueriesData({ queryKey: ["media-list", "anime"] }, (old) =>
@@ -234,6 +259,16 @@ export default function FutureReleases() {
     );
   }, [queryClient]);
 
+  const handleGameUpdated = useCallback((updated) => {
+    queryClient.setQueriesData({ queryKey: ["media-list", "game"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((game) =>
+            game.system_id === updated.system_id ? updated : game,
+          )
+        : old,
+    );
+  }, [queryClient]);
+
   const filtered = allAnime.filter((a) => {
     const t = a.airing_type || "";
     if (activeTypeFilter === "all") return true;
@@ -252,15 +287,11 @@ export default function FutureReleases() {
 
   const movieGroups = {};
   for (const movie of allAnimeMovies) {
-    const year = getMovieReleaseYear(movie);
+    const year = releaseGroupYear(movie.release_date_jp || movie.release_date_tw);
     if (!movieGroups[year]) movieGroups[year] = [];
     movieGroups[year].push(movie);
   }
-  const movieYears = Object.keys(movieGroups).sort((a, b) => {
-    if (a === "TBD") return 1;
-    if (b === "TBD") return -1;
-    return a.localeCompare(b);
-  });
+  const movieYears = Object.keys(movieGroups).sort(byYearTbdLast);
 
   function getLiveMovieYear(m) {
     const d = m.release_date_usa || m.release_date_tw || "";
@@ -275,29 +306,30 @@ export default function FutureReleases() {
     if (!liveMovieGroups[year]) liveMovieGroups[year] = [];
     liveMovieGroups[year].push(movie);
   }
-  const liveMovieYears = Object.keys(liveMovieGroups).sort((a, b) => {
-    if (a === "TBD") return 1;
-    if (b === "TBD") return -1;
-    return a.localeCompare(b);
-  });
+  const liveMovieYears = Object.keys(liveMovieGroups).sort(byYearTbdLast);
 
-  function getCartoonReleaseYear(cartoon) {
-    const d = cartoon.release_date;
-    if (!d) return "TBD";
-    const year = String(d).substring(0, 4);
-    return /^\d{4}$/.test(year) ? year : "TBD";
-  }
   const cartoonGroups = {};
   for (const cartoon of allCartoons) {
-    const year = getCartoonReleaseYear(cartoon);
+    const year = releaseGroupYear(cartoon.release_date);
     if (!cartoonGroups[year]) cartoonGroups[year] = [];
     cartoonGroups[year].push(cartoon);
   }
-  const cartoonYears = Object.keys(cartoonGroups).sort((a, b) => {
-    if (a === "TBD") return 1;
-    if (b === "TBD") return -1;
-    return a.localeCompare(b);
-  });
+  const cartoonYears = Object.keys(cartoonGroups).sort(byYearTbdLast);
+
+  const gameGroups = {};
+  for (const game of allGames) {
+    const year = releaseGroupYear(game.release_date);
+    if (!gameGroups[year]) gameGroups[year] = [];
+    gameGroups[year].push(game);
+  }
+  const gameYears = Object.keys(gameGroups).sort(byYearTbdLast);
+  for (const year of gameYears) {
+    // Within a year the fuller date sorts first, so "2027-03-12" precedes a
+    // bare "2027" rather than being ordered by name.
+    gameGroups[year].sort((a, b) =>
+      (a.release_date || "").localeCompare(b.release_date || ""),
+    );
+  }
 
   const typeFilters = [
     { key: "all", label: "All" },
@@ -350,6 +382,7 @@ export default function FutureReleases() {
           { key: "movie", label: "Movies" },
           { key: "tv-show", label: "TV shows" },
           { key: "cartoon", label: "Cartoons" },
+          { key: "game", label: "Games" },
         ].map((t) => (
           <button
             key={t.key}
@@ -590,6 +623,60 @@ export default function FutureReleases() {
                         franchiseDict={franchiseDict}
                         isAdmin={isAdmin}
                         onUpdated={handleCartoonUpdated}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── GAME TAB ── */}
+      {mainTab === "game" && (
+        <>
+          {gameLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="text-center">
+                <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
+                <p className="text-text-faint text-sm">Loading games...</p>
+              </div>
+            </div>
+          ) : gameError ? (
+            <div className="text-center border border-danger text-danger p-6">
+              <p className="font-bold">Failed to load games</p>
+              <p className="text-sm mt-1">{gameError}</p>
+            </div>
+          ) : gameYears.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <p className="text-text-faint text-sm">
+                No upcoming games found.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              {gameYears.map((year) => (
+                <section key={year}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                      {year}
+                    </h2>
+                    <span className="font-mono text-[11px] text-text-faint tabular-nums">
+                      {gameGroups[year].length}
+                    </span>
+                    <div className="flex-1 border-t border-dotted border-border-strong/60"></div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                    {gameGroups[year].map((game) => (
+                      <MediaCard
+                        key={game.system_id}
+                        type="game"
+                        variant="future"
+                        data={game}
+                        franchiseDict={franchiseDict}
+                        isAdmin={isAdmin}
+                        onUpdated={handleGameUpdated}
                       />
                     ))}
                   </div>
