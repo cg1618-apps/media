@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import {
+  anilistPopularitySort,
+  anilistRatingSort,
   imdbRatingSort,
   malRatingSort,
   planFlagColumn,
@@ -35,6 +37,38 @@ it("rating sorts put the highest first and unrated last", () => {
   expect([...rows].sort(malRatingSort.compare).map((r) => r.mal_rating)).toEqual(["8.9", "7.1", null]);
   const movies = [{ imdb_rating: "N/A" }, { imdb_rating: "8.0" }, { imdb_rating: "6.5" }];
   expect([...movies].sort(imdbRatingSort.compare).map((r) => r.imdb_rating)).toEqual(["8.0", "6.5", "N/A"]);
+});
+
+it("the AniList score sort puts the highest first and unscored last", () => {
+  const rows = [{ anilist_rating: 74 }, { anilist_rating: null }, { anilist_rating: 85 }];
+  expect([...rows].sort(anilistRatingSort.compare).map((r) => r.anilist_rating)).toEqual([
+    85, 74, null,
+  ]);
+});
+
+// A popularity RANK is better when it is smaller, so this sort runs the other
+// way from every score sort above - and an entry AniList has not ranked still
+// has to land last rather than first, which a plain ascending numeric sort
+// with a 0 or -1 default gets backwards. Roughly a third of scored entries
+// carry no all-time rank, so that arm is the common case.
+it("the AniList popularity sort puts the smallest rank first and the unranked last", () => {
+  const rows = [
+    { anilist_popularity_rank: 364 },
+    { anilist_popularity_rank: null },
+    { anilist_popularity_rank: 12 },
+  ];
+  expect(
+    [...rows].sort(anilistPopularitySort.compare).map((r) => r.anilist_popularity_rank),
+  ).toEqual([12, 364, null]);
+});
+
+// The card figure follows the sort, and the popularity sort deliberately
+// shows the SCORE rather than the rank it sorts on - a card has one score
+// slot and the score is the comparable number.
+it("both AniList sorts point a card at the AniList score", () => {
+  expect(anilistRatingSort.cardScoreField).toBe("anilist_rating");
+  expect(anilistPopularitySort.cardScoreField).toBe("anilist_rating");
+  expect(malRatingSort.cardScoreField).toBe("mal_rating");
 });
 
 it("builds a play button column", () => {

@@ -158,7 +158,11 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   select comes from `FUTURE_STATUS_OPTIONS`, keyed on the same axis, and the
   bolt from `BOLT_RELEASE`, which names the column that says a title is still
   unreleased — `airing_status` for the watched types, `release_status` for a
-  game), `FranchiseCard`, `CollectionCard`, and `StaffCard`
+  game. Its outside-score slot — the meta-line figure on anime, manga and
+  novel, the cover stamp on an anime movie — reads whichever column
+  `scoreField` names, defaulting to `mal_rating`, so a library sorted by an
+  AniList figure can point every card at `anilist_rating` instead),
+  `FranchiseCard`, `CollectionCard`, and `StaffCard`
   (`PersonCard` / `StudioCard` over one shared body — the person and studio
   libraries and the `/search` staff sections all draw it).
 - **`components/tracker`** — `DashboardCard`, `NovelDashboardCard`,

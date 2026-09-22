@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-09-06
+Last verified: 2026-09-22
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -120,7 +120,7 @@ ANIME  /  <title>                                  ← Eyebrow breadcrumb
 │ ·TV │   [A]   │  subtitle (muted)
 │ id  │─────────│  ───────────────────────────────
 │     │ progress│  FRANCHISE <link>   SERIES <link>
-└─────┴─────────┘  8.35 │ #274 │ —          last updated
+└─────┴─────────┘  8.35 │ #274 │ 85 │ #74 │ #364   ← ScoreBlock
  Sources           My tracker (Slip)
  Relations         Naming / Information / Production (InfoCard)
                    Notes

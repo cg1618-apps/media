@@ -209,10 +209,49 @@ function numericDesc(read) {
   return (a, b) => read(b) - read(a);
 }
 
+// A sort may name the field a grid card shows in its score slot, so that
+// sorting by a figure and reading a different one off the card cannot happen.
+// LibraryLayout reads `cardScoreField`; a sort that omits it leaves the card
+// on its own default.
 export const malRatingSort = {
   key: "mal_rating",
   label: "MAL Rating",
+  cardScoreField: "mal_rating",
   compare: numericDesc((x) => (x.mal_rating != null ? parseFloat(x.mal_rating) : -1)),
+};
+
+// A rank is better when it is SMALLER, and an unranked entry sorts last
+// rather than first - which is why this is not numericDesc with a sign flip.
+// Roughly a third of AniList-scored entries carry no all-time rank at all
+// (see docs/external-apis.md), so the null arm is the common case, not an
+// edge one.
+function rankAsc(read) {
+  return (a, b) => {
+    const ra = read(a);
+    const rb = read(b);
+    if (ra == null && rb == null) return 0;
+    if (ra == null) return 1;
+    if (rb == null) return -1;
+    return ra - rb;
+  };
+}
+
+// AniList's averageScore is an integer on its own 0-100 scale, not MAL's
+// 0-10 - the two are never compared, only sorted on separately.
+export const anilistRatingSort = {
+  key: "anilist_rating",
+  label: "AniList Score",
+  cardScoreField: "anilist_rating",
+  compare: numericDesc((x) => (x.anilist_rating != null ? Number(x.anilist_rating) : -1)),
+};
+
+export const anilistPopularitySort = {
+  key: "anilist_popularity_rank",
+  label: "AniList Popularity",
+  cardScoreField: "anilist_rating",
+  compare: rankAsc((x) =>
+    x.anilist_popularity_rank != null ? Number(x.anilist_popularity_rank) : null
+  ),
 };
 
 export const imdbRatingSort = {

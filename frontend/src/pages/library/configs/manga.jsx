@@ -1,4 +1,6 @@
 import {
+  anilistPopularitySort,
+  anilistRatingSort,
   franchiseColumn,
   malRatingColumn,
   malRatingSort,
@@ -86,6 +88,8 @@ const MANGA_LIBRARY_CONFIG = {
     },
     myRatingSort,
     malRatingSort,
+    anilistRatingSort,
+    anilistPopularitySort,
   ],
 
   tableColumns: [

@@ -33,6 +33,14 @@ describe("ScoreBlock", () => {
     expect(screen.queryByText(/2026/)).not.toBeInTheDocument();
   });
 
+  // The AniList figure is a SCORE, and its label has to say so: on its own
+  // it reads as the name of the site rather than as the numeral's meaning,
+  // sitting between "MAL score" and "AniList rank" which both do say.
+  it("labels the AniList figure as a score", () => {
+    render(<ScoreBlock malScore="8.1" anilistScore={85} />);
+    expect(screen.getByText("AniList score")).toBeInTheDocument();
+  });
+
   it("renders both AniList ranks with a # prefix", () => {
     render(
       <ScoreBlock
