@@ -29,7 +29,7 @@ describe("ImagePicker", () => {
 
   it("renders the current image when one is set", () => {
     renderPicker({ value: "library/abc123.jpg" });
-    // Library keys are not covers and do not live under /static/covers/ -
+    // Library keys are not covers and do not live under /api/covers/ -
     // getCoverUrl resolves them straight from /static/ instead.
     expect(screen.getByRole("img")).toHaveAttribute(
       "src",

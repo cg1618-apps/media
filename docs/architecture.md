@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-09-08
+Last verified: 2026-09-22
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -17,7 +17,8 @@ browser (React SPA, fetch /api/...)
   -> uvicorn on :8000  (or Vite dev proxy 5173 -> 8000)
   -> FastAPI app (app/main.py)
        global exception handler (500 -> {"detail": "An unexpected server error occurred."})
-       /static/*   -> StaticFiles("static")            cover images, quote images (local disk)
+       /static/library|quotes/* -> StaticFiles            uploads, quote images (local disk)
+       /api/covers/*            -> routers/covers.py      cover images, behind the visibility gate
        /assets/*   -> StaticFiles("frontend_dist/assets") Vite bundle
        /api/*      -> routers (app/routers/*)
             Depends(get_db)              one SQLAlchemy session per request
@@ -225,8 +226,11 @@ At import time:
    `empty` -> `create_all` + warning to stamp Alembic; `unmanaged` (tables
    but no `alembic_version`) -> warning, nothing created. Alembic owns the
    schema; this only stops a dropped database from silently reappearing.
-3. `FastAPI(...)` is created with the `lifespan` below, `/static` and (if
-   `frontend_dist/` exists) `/assets` are mounted, routers included, catch-all
+3. `FastAPI(...)` is created with the `lifespan` below, `/static/library`,
+   `/static/quotes` and (if `frontend_dist/` exists) `/assets` are mounted -
+   `static/covers/` deliberately is not, since a cover URL is constructible
+   from an entry id and `routers/covers.py` serves it behind the visibility
+   gate instead - routers included, catch-all
    added last.
 
 In the lifespan (before the first request):

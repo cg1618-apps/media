@@ -144,7 +144,7 @@ describe("Anime detail page — cast", () => {
     // itself once the character it belongs to has rendered.
     await screen.findByRole("link", { name: "Protagonist" });
     const img = document.querySelector('img[src*="character-portrait.jpg"]');
-    // getCoverUrl() on localhost resolves to /static/covers/<file>.
+    // getCoverUrl() on localhost resolves to /api/covers/<file>.
     expect(img).not.toBeNull();
   });
 

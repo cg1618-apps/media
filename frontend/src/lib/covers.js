@@ -11,8 +11,13 @@ export function isLocalHost() {
   );
 }
 
-// Covers are served from local disk by the app itself, under /static/covers/,
-// on every host.
+// Covers are served by the app's own /api/covers/ route, NOT from /static/.
+// A cover's key is `<owner_type>/<system_id>.jpg`, so its URL can be built by
+// anyone who learns an entry id - and the cover is what a content label exists
+// to hide. static/covers/ is therefore not mounted at all, and the route
+// applies the same visibility gates the API does (app/routers/covers.py).
+// Library uploads keep /static/: their names are content hashes, so nothing
+// about an entry yields one.
 //
 // The key reaching this function comes from one of two places, and each is
 // relative to a different root:
@@ -21,8 +26,8 @@ export function isLocalHost() {
 //     `covers/<owner_type>/<id>.jpg`.
 //   - a legacy mirror column (media.cover_image_file, person.photo_file, ...):
 //     relative to static/covers/, with no prefix - `<owner_type>/<id>.jpg`.
-// So a value that already starts with "covers/" must NOT be prefixed again -
-// doing so doubles the segment (/static/covers/covers/...) and 404s. Do not
+// So a value that already starts with "covers/" must have that segment
+// stripped rather than repeated - doing neither doubles it and 404s. Do not
 // delete either branch as redundant with the other; they resolve keys from
 // two different roots that both call this function.
 export function getCoverUrl(coverFile) {
@@ -30,8 +35,8 @@ export function getCoverUrl(coverFile) {
   // Library images are not covers and do not live in the cover tree.
   if (coverFile.startsWith("library/")) return `/static/${coverFile}`;
   // Backfilled image.storage_key values already carry the covers/ prefix.
-  if (coverFile.startsWith("covers/")) return `/static/${coverFile}`;
-  return `/static/covers/${coverFile}`;
+  if (coverFile.startsWith("covers/")) return `/api/${coverFile}`;
+  return `/api/covers/${coverFile}`;
 }
 
 // Quote images live on local disk under static/quotes/.
@@ -44,9 +49,9 @@ export function getQuoteImageUrl(imageFile) {
   // there was no way to get a file onto the machine at all - which is the thing
   // upload removes - so it does not apply to library keys.
   if (imageFile.startsWith("library/")) return `/static/${imageFile}`;
-  // Same doubled-prefix hazard as getCoverUrl: a backfilled image.storage_key
-  // already carries covers/ and is relative to static/, not to static/quotes/.
-  if (imageFile.startsWith("covers/")) return `/static/${imageFile}`;
+  // Same split as getCoverUrl: a backfilled image.storage_key already carries
+  // covers/, and the cover tree is served by /api/covers/, not by static/.
+  if (imageFile.startsWith("covers/")) return `/api/${imageFile}`;
   if (!isLocalHost()) return null;
   return `/static/quotes/${imageFile}`;
 }

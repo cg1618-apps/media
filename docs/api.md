@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-21
+Last verified: 2026-09-22
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -48,6 +48,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
 - [Quote — `/api/quote`](#quote--apiquote)
 - [Meme — `/api/meme`](#meme--apimeme)
+- [Covers — `/api/covers`](#covers--apicovers)
 - [Images — `/api/images`](#images--apiimages)
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
@@ -604,6 +605,40 @@ no dangling-quote state to represent: deleting a quote simply unlinks it.
 
 Quotes are entry-only, so a tier-owned meme has no quotes of its own to link;
 the frontend hides the quote-link control in that case.
+
+---
+
+## Covers — `/api/covers`
+
+The only way bytes leave `static/covers/`. That folder is **not** mounted as
+static: a cover's storage key is `<owner_type>/<system_id>.jpg`, so its URL is
+constructible by anyone who learns an entry id, and a cover image is exactly
+what a content label exists to hide. Library uploads and quote images keep
+their plain `/static/` mounts, because a content hash cannot be derived from an
+entry.
+
+| Method | Path                            | Auth   | Description                                                                                                       |
+| ------ | ------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/{owner_type}/{entry_id}.jpg`  | Public | One cover image, or **404**. Public means unauthenticated *reads*, not unguarded: the viewer's gates run first. |
+
+**The media type comes from the `media` row, never from the path.** Both halves
+of the pair are caller-supplied here, and a caller-supplied type gates the
+request under the wrong `media_type.<key>` permission — the trap
+`require_visible_media` documents for writes. An id naming no `media` row is an
+entity owner (`staff`, `character`, `publisher`, `studio`), which carries no
+content label and is listed to every viewer.
+
+**Everything that is not a hit answers 404** with the same body: an unknown
+owner type, a filename that is not a UUID plus `.jpg`, an absent file, and a
+refusal. A distinct status for any of them would be the existence oracle the
+gate exists to close. Path traversal has nothing to traverse — the filename
+opened is the canonical form of a parsed UUID, so no caller text reaches the
+filesystem call.
+
+**Caching:** `Cache-Control: private, max-age=300` plus an `ETag` derived from
+the file's mtime and size, so a still-current cover costs a 304 rather than the
+bytes. `private` matters — the response depends on who is asking, and a shared
+cache holding one would hand a narrowed session the image this route withholds.
 
 ---
 
@@ -1785,5 +1820,11 @@ row before serialisation (`docs/authorization.md`).
 **Accepted residuals**, documented rather than fixed: `seasonal` counts are
 precomputed over all entries and over-count for a restricted viewer;
 franchise/series/collection hubs carry no labels and may render as empty
-shells; `/static/covers/<media_type>/<entry_id>.jpg` is served straight from disk by
-`StaticFiles`, so hiding an entry does not hide its cover.
+shells; `/static/library/<checksum>.jpg` uploads are served by `StaticFiles`
+with no check, though their keys are content hashes and so cannot be derived
+from an entry.
+
+Cover images are **not** in that list. Their key is built from the entry id, so
+the URL is constructible by anyone who learns one — `static/covers/` is
+therefore not mounted, and `GET /api/covers/{owner_type}/{entry_id}.jpg`
+(`routers/covers.py`) applies the same gates before serving the file.
