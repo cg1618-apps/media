@@ -38,18 +38,23 @@ const SPINE_LABEL = {
   game: "Game",
 };
 
-const FUTURE_WATCHING_OPTIONS = [
-  "Might Watch",
-  "Plan to Watch",
-  "Watch When Airs",
-];
+// The statuses the future variant's select offers, per status axis. A game
+// is on the play axis, so it must not be offered the watch vocabulary.
+const FUTURE_STATUS_OPTIONS = {
+  watch: ["Might Watch", "Plan to Watch", "Watch When Airs"],
+  play: ["Might Play", "Plan to Play", "Play When Released"],
+};
 
-const BOLT_AIRING_STATUS = {
-  anime: "Airing",
-  "anime-movie": "Finished Airing",
-  movie: "Finished Airing",
-  "tv-show": "Airing",
-  cartoon: "Airing",
+// What the bolt does on the future variant: the column that says a title is
+// still unreleased, and the value that says it is out. A game carries
+// release_status where the watched types carry airing_status.
+const BOLT_RELEASE = {
+  anime: { field: "airing_status", value: "Airing" },
+  "anime-movie": { field: "airing_status", value: "Finished Airing" },
+  movie: { field: "airing_status", value: "Finished Airing" },
+  "tv-show": { field: "airing_status", value: "Airing" },
+  cartoon: { field: "airing_status", value: "Airing" },
+  game: { field: "release_status", value: "Released" },
 };
 
 // Small ink label laid over cover art.
@@ -515,6 +520,14 @@ function FutureMeta({ type, data }) {
       </div>
     );
   }
+  if (type === "game") {
+    return (
+      <MetaLine className="mt-1 mb-0">
+        {data.game_type && <span className="shrink-0">{data.game_type}</span>}
+        <span className="truncate">{data.release_date || "TBD"}</span>
+      </MetaLine>
+    );
+  }
   return null;
 }
 
@@ -568,7 +581,9 @@ export default function MediaCard({
   const imageUrl = getCoverUrl(data.cover_image_file);
   const currentStatus = data[statusField] || FALLBACK_STATUS[statusType];
   const btnConfig = getCardStatusConfig(type, currentStatus);
-  const needsExtra = !FUTURE_WATCHING_OPTIONS.includes(currentStatus);
+  const futureOptions = FUTURE_STATUS_OPTIONS[statusType] || [];
+  const boltRelease = BOLT_RELEASE[type];
+  const needsExtra = !futureOptions.includes(currentStatus);
 
   async function handleStatusToggle() {
     try {
@@ -597,8 +612,8 @@ export default function MediaCard({
   }
 
   async function applyBoltAction(watchingStatus) {
-    const airingStatus = BOLT_AIRING_STATUS[type];
-    const fields = { airing_status: airingStatus };
+    const airingStatus = boltRelease?.value;
+    const fields = { [boltRelease.field]: airingStatus };
     if (watchingStatus) fields[statusField] = watchingStatus;
     try {
       const updated = await statusMutation.mutateAsync({
@@ -618,6 +633,12 @@ export default function MediaCard({
   }
 
   function handleBoltAction() {
+    if (type === "game") {
+      applyBoltAction(
+        currentStatus === "Play When Released" ? "Active Playing" : null,
+      );
+      return;
+    }
     if (!BOLT_PROMPTS_WATCHING.has(type)) {
       applyBoltAction(null);
       return;
@@ -715,14 +736,14 @@ export default function MediaCard({
                     value={currentStatus}
                     onChange={handleStatusChange}
                     className="font-mono text-[10px] border border-border-strong px-1 py-0.5 bg-surface text-text-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand w-full"
-                    title="Watching status"
+                    title={statusType === "play" ? "Playing status" : "Watching status"}
                   >
                     {needsExtra && (
                       <option value={currentStatus} disabled>
                         {currentStatus}
                       </option>
                     )}
-                    {FUTURE_WATCHING_OPTIONS.map((s) => (
+                    {futureOptions.map((s) => (
                       <option key={s} value={s}>
                         {s}
                       </option>
@@ -731,7 +752,7 @@ export default function MediaCard({
                   <button
                     onClick={handleBoltAction}
                     className="w-6 h-6 flex items-center justify-center border border-border-strong bg-surface text-text-muted hover:border-brand hover:text-brand transition-colors text-[10px] shrink-0"
-                    title={`Mark as ${BOLT_AIRING_STATUS[type]}`}
+                    title={`Mark as ${boltRelease?.value}`}
                   >
                     <i className="fas fa-bolt"></i>
                   </button>
@@ -762,7 +783,7 @@ export default function MediaCard({
       {showAiringPrompt && (
         <MarkAiringModal
           title={title}
-          airingStatus={BOLT_AIRING_STATUS[type]}
+          airingStatus={boltRelease?.value}
           currentStatus={currentStatus}
           onSelect={(watchingStatus) => {
             setShowAiringPrompt(false);

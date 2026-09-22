@@ -191,6 +191,44 @@ describe("MediaCard - the card is a link", () => {
   });
 });
 
+// A game on the future variant sits on the PLAY axis, not the watch one, and
+// its bolt moves release_status rather than airing_status - the column a game
+// carries instead. Both were hard-coded to anime's vocabulary before games
+// reached the Future releases page.
+describe("MediaCard - the future variant on a game", () => {
+  const game = {
+    system_id: "3c1d5e77-2a4b-4c6d-8e9f-0a1b2c3d4e5f",
+    public_id: 12,
+    game_name_en: "Test Game",
+    playing_status: "Plan to Play",
+    release_status: "Unreleased",
+    release_date: "2027-03",
+  };
+
+  it("offers the playing statuses, not the watching ones", async () => {
+    mockAuthFetch();
+    mount(game, "game", true, "future");
+    await screen.findByText("Test Game");
+    const select = screen.getByRole("combobox");
+    expect(
+      [...select.options].map((o) => o.value),
+    ).toEqual(["Might Play", "Plan to Play", "Play When Released"]);
+  });
+
+  it("titles the bolt with the release status it sets", async () => {
+    mockAuthFetch();
+    mount(game, "game", true, "future");
+    await screen.findByText("Test Game");
+    expect(screen.getByTitle("Mark as Released")).toBeInTheDocument();
+  });
+
+  it("shows the release date on the meta line", async () => {
+    mockAuthFetch();
+    mount(game, "game", false, "future");
+    expect(await screen.findByText("2027-03")).toBeInTheDocument();
+  });
+});
+
 // The score slot on a card follows the library's sort (LibraryLayout passes
 // `scoreField`), so that sorting by an AniList figure and reading a MAL one
 // off the card cannot happen. The mirror matters as much as the positive
