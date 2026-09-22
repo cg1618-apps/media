@@ -3,12 +3,14 @@ import useStatisticsData from "../statistics/useStatisticsData";
 import StatsFavoriteGrids from "../statistics/StatsFavoriteGrids";
 import StatsFranchiseSummary from "../statistics/StatsFranchiseSummary";
 import StatsGameSpend from "../statistics/StatsGameSpend";
+import StatsSidebar from "../statistics/StatsSidebar";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow } from "../../components/ui/primitives";
 
 export default function Statistics() {
   const {
     franchises,
+    series,
     allAnime,
     allAnimeMovies,
     allMovies,
@@ -19,6 +21,7 @@ export default function Statistics() {
     seasonals,
     currentSeason,
     allEntriesByFranchise,
+    allEntriesBySeries,
     loading,
     error,
   } = useStatisticsData();
@@ -37,40 +40,55 @@ export default function Statistics() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
-      {/* Page header */}
-      <header>
-        <Eyebrow className="mb-2">Archive</Eyebrow>
-        <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none mb-2">
-          Statistics
-        </h1>
-        <p className="text-sm text-text-muted font-mono">
-          {franchises.length} franchises tracked
-        </p>
-      </header>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="lg:flex lg:gap-10">
+        <StatsSidebar />
 
-      {/* Blocks 1 — Favorite Franchise 3×3 Grids */}
-      <StatsFavoriteGrids
-        franchises={franchises}
-        allEntriesByFranchise={allEntriesByFranchise}
-      />
+        <div className="min-w-0 flex-1 space-y-12">
+          {/* Page header */}
+          <header>
+            <Eyebrow className="mb-2">Archive</Eyebrow>
+            <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none mb-2">
+              Statistics
+            </h1>
+            <p className="text-sm text-text-muted font-mono">
+              {franchises.length} franchises tracked
+            </p>
+          </header>
 
-      {/* Blocks 2, 2.5 */}
-      <StatsFranchiseSummary
-        franchises={franchises}
-        allAnime={allAnime}
-        allAnimeMovies={allAnimeMovies}
-        allMovies={allMovies}
-        allManga={allManga}
-        allNovel={allNovel}
-        seasonals={seasonals}
-        currentSeason={currentSeason}
-      />
+          {/* Blocks 1 — favourite 3×3 grids, across all three tiers */}
+          <section id="favourites" className="scroll-mt-24 space-y-6">
+            <header>
+              <Eyebrow>Statistics</Eyebrow>
+              <h2 className="font-display text-3xl sm:text-4xl font-semibold text-text leading-none mt-1">
+                Favourites
+              </h2>
+            </header>
+            <StatsFavoriteGrids
+              franchises={franchises}
+              series={series}
+              entriesByType={{ movie: allMovies, game: allGame }}
+              allEntriesByFranchise={allEntriesByFranchise}
+              allEntriesBySeries={allEntriesBySeries}
+            />
+          </section>
 
-      {/* Block 3 — what the game collection cost */}
-      <StatsGameSpend games={allGame} fxRates={fxRates} />
+          {/* Blocks 2, 2.5 */}
+          <StatsFranchiseSummary
+            franchises={franchises}
+            allAnime={allAnime}
+            allAnimeMovies={allAnimeMovies}
+            allMovies={allMovies}
+            allManga={allManga}
+            allNovel={allNovel}
+            seasonals={seasonals}
+            currentSeason={currentSeason}
+          />
 
+          {/* Block 3 — what the game collection cost */}
+          <StatsGameSpend games={allGame} fxRates={fxRates} />
+        </div>
+      </div>
     </div>
   );
 }
-

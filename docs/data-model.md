@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-20
+Last verified: 2026-09-22
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -185,7 +185,7 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `collection_id` | UUID | yes | | FK `collection.system_id` ON DELETE SET NULL, indexed. Declared here (not at the end) so it lands as sheet column J. |
 | `cover_entry_id` | UUID | yes | | Any entry UUID of any type; no FK (six tables). |
 | `type_covers` | JSONB | yes | | Per-media-type cover choice (dict). |
-| `type_slots` | JSONB | yes | | Per-media-type slot layout (dict). |
+| `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). Six grids are keyed here (ACG, Novel, Movie, TV, Cartoon, Game). |
 | `size_group_derived` | JSONB | yes | | Size bucket per media type, e.g. `{"anime": "24ep", "tv-show": "2season"}`. Written by Calculate, rewritten freely. |
 | `size_group_manual` | JSONB | yes | | Same shape, written by the admin, never touched by Calculate. Manual key wins (`app/services/domain/size_group.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |
@@ -208,6 +208,7 @@ deliberate grouping). Model: `Series` (`app/models/franchise.py`).
 | `my_rating` | String | yes | | MY_RATINGS |
 | `series_expectation` | String | yes | `"Low"` | FRANCHISE_EXPECTATIONS |
 | `cover_entry_id` | UUID | yes | | Any entry UUID, any type; no FK. |
+| `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Comic. There is no `type_covers` beside it: a series has no types, so `cover_entry_id` says everything a per-type map would. |
 | `size_group_derived` / `size_group_manual` | JSONB | yes | | As on franchise. |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -346,6 +347,7 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 | `release_date_tw` | String | yes | | Preferred for sorting (RELEASE_PRIORITY: tw, then usa) |
 | `imdb_id` | String | yes | | Derived from `imdb_link` |
 | `imdb_link` | String | yes | | |
+| `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Movie - the favourite *movies*, which is a different grid from the favourite movie *franchises* that key "Movie" on `franchise`. |
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `director`,
 `original_source` (tag link fields; `original_source` has no
@@ -571,6 +573,7 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `metacritic_user_score` | Float | yes | | Metacritic's user score, out of 10. A second column rather than a second reading of the first: the two scales differ, and neither is `my_rating` |
 | `igdb_id` / `igdb_link` | Integer / String | yes | | The external pair Fill fetches on. `igdb_id` is what Fill runs on and is typed in or set by the IGDB picker; `apply_extract_igdb_id` recovers it only from an `api.igdb.com` link, never from the public slug URL - see [data-actions.md](data-actions.md). |
 | `steam_appid` / `steam_link` | Integer / String | yes | | Written by **IGDB**, not by Steam: `map_igdb_to_game_data` reads `external_games` and adopts the pair fill-only, only when the entry has neither, so a hand-typed `steam_link` is never paired with IGDB's appid for a different edition. `apply_extract_steam_appid` also recovers `steam_appid` from a hand-typed `steam_link` (`store.steampowered.com/app/<id>`), the same way `apply_extract_igdb_id` does for `igdb_link` - see [business-rules.md](business-rules.md) section 2. Steam itself only ever *reads* `steam_appid`; it never writes either column. |
+| `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Game - the favourite *games*, distinct from the favourite game *franchises*. |
 
 CHECKs beyond the date one: `ck_games_base_no_parent`
 (`game_type <> 'Base Game' OR base_game_id IS NULL`) and

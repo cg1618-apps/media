@@ -528,6 +528,7 @@ def parse_series_from_sheet(raw: dict) -> dict:
         # Must be a real UUID: unlike franchise_id there is no name-resolution
         # step for this column, so a junk cell would hit the DB.
         "cover_entry_id": _uuid_or_none(raw.get("cover_entry_id")),
+        "type_slots": _safe_json(raw.get("type_slots")),
         "size_group_derived": _safe_json(raw.get("size_group_derived")),
         "size_group_manual": _safe_json(raw.get("size_group_manual")),
         # Previously omitted, so every Pull of the Series tab silently wiped it.
@@ -661,6 +662,7 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "director": parse_from_sheet(raw.get("director"), str),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
+        "type_slots": _safe_json(raw.get("type_slots")),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
@@ -938,6 +940,7 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "igdb_link": parse_from_sheet(raw.get("igdb_link"), str),
         "steam_appid": parse_from_sheet(raw.get("steam_appid"), int),
         "steam_link": parse_from_sheet(raw.get("steam_link"), str),
+        "type_slots": _safe_json(raw.get("type_slots")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
