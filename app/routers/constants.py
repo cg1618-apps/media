@@ -12,10 +12,18 @@ admin-only and lives in app/services/integrations/catalog.py.
 """
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
+from app.dependencies import get_db
 from app.services.domain.watch_order import ITEM_IMPORTANCE
 from app.services.integrations.catalog import catalog_payload
-from app.services.rbac.resolver import require_manage_catalog
+from app.services.rbac.gated_types import (
+    hidden_franchise_types,
+    hidden_option_categories,
+    hidden_person_roles,
+    unseeable_gated_types,
+)
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils import constants as c
 from app.utils.character_roles import CHARACTER_ROLES
 from app.utils.credit_roles import (
@@ -37,10 +45,57 @@ def _values(enum_cls) -> list[str]:
     return [member.value for member in enum_cls]
 
 
+# Vocabularies that exist for one media type alone, keyed by that type. When
+# the type is gated and the viewer cannot see it, the key is left out of the
+# payload entirely - the session is not told the type exists.
+TYPE_ONLY_VOCABULARIES: dict[str, dict[str, tuple[str, ...]]] = {
+    "h-comic": {
+        "h_comic_region": c.H_COMIC_REGIONS,
+        "h_comic_originality": c.H_COMIC_ORIGINALITY,
+        "h_comic_animation_status": c.H_COMIC_ANIMATION_STATUSES,
+        "h_comic_usefulness": c.H_COMIC_USEFULNESS,
+    },
+}
+
+
+def _without(values, hidden) -> list[str]:
+    return [value for value in values if value not in hidden]
+
+
 @router.get("", summary="Get All Closed Enums")
 @router.get("/", include_in_schema=False)
-def get_constants() -> dict[str, list[str]]:
-    """Every Tier 1 enum, keyed by snake_case field name."""
+def get_constants(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+) -> dict[str, list[str]]:
+    """
+    Every Tier 1 enum, keyed by snake_case field name.
+
+    Viewer-scoped on one axis only: what exists solely for a gated type the
+    viewer cannot see (gated_types.py) is left out - the type's own
+    vocabularies, its media-type key, its franchise type, its person roles and
+    its tag categories. Everything else is the same for every caller.
+    """
+    hidden = unseeable_gated_types(db, viewer)
+    payload = _constants()
+    payload["media_type"] = _without(payload["media_type"], hidden)
+    payload["franchise_type"] = _without(
+        payload["franchise_type"], hidden_franchise_types(hidden)
+    )
+    payload["person_role"] = _without(
+        payload["person_role"], hidden_person_roles(hidden)
+    )
+    categories = hidden_option_categories(hidden)
+    payload["option_categories"] = _without(payload["option_categories"], categories)
+    payload["tag_categories"] = _without(payload["tag_categories"], categories)
+    for media_type, vocabularies in TYPE_ONLY_VOCABULARIES.items():
+        if media_type not in hidden:
+            payload.update({key: list(values) for key, values in vocabularies.items()})
+    return payload
+
+
+def _constants() -> dict[str, list[str]]:
+    """The unscoped payload; get_constants narrows it per viewer."""
     return {
         "watching_status": _values(c.WatchStatus),
         "reading_status": _values(c.ReadStatus),
@@ -113,6 +168,8 @@ def get_constants() -> dict[str, list[str]]:
 @router.get("/external-apis", summary="Get External API Field Coverage")
 def get_external_api_coverage(
     _admin=Depends(require_manage_catalog),
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ) -> dict:
     """
     Which external API writes which field, and whether it fills or replaces it.
@@ -124,5 +181,12 @@ def get_external_api_coverage(
     Read-only by design - every rule it reports is a property of the code in
     app/services/domain/autofill.py, so there is nothing here an admin could
     edit that would change what a Fill run does.
+
+    Viewer-scoped the way GET /api/constants is: a gated type the viewer
+    cannot see has no row in `media`, so a catalogue editor in a narrower mode
+    is not told the type exists (gated_types.py).
     """
-    return catalog_payload()
+    hidden = unseeable_gated_types(db, viewer)
+    payload = catalog_payload()
+    payload["media"] = [m for m in payload["media"] if m["key"] not in hidden]
+    return payload

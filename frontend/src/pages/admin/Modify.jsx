@@ -10,7 +10,14 @@ import {
   buildCreditsPayload,
   creditsResponseToForm,
   gameFieldsPayload,
+  hComicFieldsPayload,
 } from "../../utils/media";
+import { clearedForRegion } from "../../lib/hComicRegion";
+import { hComicSourceFields } from "../../lib/hComicForm";
+import {
+  requiredLabelsForFranchiseType,
+  requiredLabelsForType,
+} from "../../lib/gatedTypes";
 import { fetchAllSources } from "../../lib/sources";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
 import AnimeMovieNotes from "../detail/AnimeMovieNotes";
@@ -31,6 +38,8 @@ import MangaModifyTab from "../modify-tabs/MangaModifyTab";
 import NovelModifyTab from "../modify-tabs/NovelModifyTab";
 import ComicModifyTab from "../modify-tabs/ComicModifyTab";
 import GameModifyTab from "../modify-tabs/GameModifyTab";
+import HComicModifyTab from "../modify-tabs/HComicModifyTab";
+import { H_COMIC_FRANCHISE_TYPE } from "../add-tabs/HComicAddTab";
 import CartoonModifyTab from "../modify-tabs/CartoonModifyTab";
 import TvShowModifyTab from "../modify-tabs/TvShowModifyTab";
 import MovieModifyTab from "../modify-tabs/MovieModifyTab";
@@ -72,9 +81,15 @@ import ContentLabelPicker, {
 } from "../../components/forms/ContentLabelPicker";
 import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
 
-// The four media types character_casting supports, in their hyphenated key
-// form - see docs/superpowers/specs/2026-09-05-seiyuu-character-design.md.
-const CAST_MEDIA_TYPES = new Set(["anime", "anime-movie", "manga", "novel"]);
+// The media types whose editor carries a cast (CASTING_MEDIA_TYPES on the
+// backend holds these and more), in their hyphenated key form.
+const CAST_MEDIA_TYPES = new Set([
+  "anime",
+  "anime-movie",
+  "manga",
+  "novel",
+  "h-comic",
+]);
 
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: "", part_num: "" };
@@ -243,6 +258,7 @@ export default function Modify() {
   const allNovels = lists.novel;
   const allComics = lists.comic;
   const allGames = lists.game;
+  const allHComics = lists["h-comic"];
   // Creating a franchise or series inline, or saving an entry, writes the new
   // row back into the list it came from so the pickers see it without a
   // refetch.
@@ -258,6 +274,7 @@ export default function Modify() {
   const setAllNovels = (v) => setList("novel", v);
   const setAllComics = (v) => setList("comic", v);
   const setAllGames = (v) => setList("game", v);
+  const setAllHComics = (v) => setList("h-comic", v);
   const [sources, setSources] = useState({ options: [], studios: [], people: {} });
   // The page paints as soon as the pickers have their vocabularies. Waiting
   // for entry lists too is what made this page slow to first paint.
@@ -302,6 +319,7 @@ export default function Modify() {
   // NOTE: cmf is the CARTOON form here; comic is ccmf. Add.jsx uses cmf for comic.
   const [ccmf, setCcmf] = useState({});
   const [cgmf, setCgmf] = useState({});
+  const [chcf, setChcf] = useState({});
   const [optValue, setOptValue] = useState("");
   const [optScopes, setOptScopes] = useState([]);
   const [optUsages, setOptUsages] = useState([]);
@@ -423,6 +441,7 @@ export default function Modify() {
   const unv = (k, v) => setCnvf((p) => ({ ...p, [k]: v }));
   const ucm = (k, v) => setCcmf((p) => ({ ...p, [k]: v }));
   const ugm = (k, v) => setCgmf((p) => ({ ...p, [k]: v }));
+  const uhc = (k, v) => setChcf((p) => ({ ...p, [k]: v }));
 
   // Merges an entry's cast (fetched by the useCasting call above) into
   // whichever form is currently open, exactly once per opened entry - a
@@ -449,6 +468,7 @@ export default function Modify() {
       setAmf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "manga") setCmgf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "novel") setCnvf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "h-comic") setChcf((p) => ({ ...p, cast: rows }));
   }, [castMediaType, editingItem, castData]);
 
   // The active tab's own list goes out FIRST, before the twenty-odd source
@@ -840,6 +860,48 @@ export default function Modify() {
     };
   }
 
+  // Region first in the form, and every column as its form string. The
+  // credit and tag fields arrive through loadCreditsIntoForm, as for every
+  // other type; highlight_group_order is not in the form at all - the detail
+  // page's drag owns it, and a PATCH that leaves it out leaves it alone.
+  function hComicToForm(h, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === h.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === h.series_id,
+    );
+    return {
+      region: h.region || "",
+      h_comic_name_cn: h.h_comic_name_cn || "",
+      h_comic_name_en: h.h_comic_name_en || "",
+      h_comic_name_alt: h.h_comic_name_alt || "",
+      h_comic_name_jp: h.h_comic_name_jp || "",
+      h_comic_name_kr: h.h_comic_name_kr || "",
+      franchise_id: h.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: h.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      originality: h.originality || "",
+      animation_status: h.animation_status || "",
+      series_number: h.series_number ?? "",
+      serialization_status: h.serialization_status || "",
+      page_total: h.page_total ?? "",
+      ch_total: h.ch_total ?? "",
+      ch_behind: h.ch_behind ?? "",
+      release_date: h.release_date ?? "",
+      end_date: h.end_date ?? "",
+      reading_status: h.reading_status || md("h-comic").reading_status,
+      my_rating: h.my_rating || "",
+      usefulness: h.usefulness || "",
+      page_fin: h.page_fin ?? "",
+      ch_fin: h.ch_fin ?? "",
+      sources: h.sources || [],
+      read_next: h.read_next ?? false,
+      to_reread: h.to_reread ?? false,
+      cover_image_file: h.cover_image_file || "",
+      remark: h.remark || "",
+    };
+  }
+
   function openEditorWith(
     item,
     type,
@@ -879,6 +941,9 @@ export default function Modify() {
     } else if (type === "game") {
       setCgmf(gameToForm(item, franchises, series));
       loadCreditsIntoForm("game", item.system_id, setCgmf);
+    } else if (type === "h-comic") {
+      setChcf(hComicToForm(item, franchises, series));
+      loadCreditsIntoForm("h-comic", item.system_id, setChcf);
     } else if (type === "options") {
       setOptValue(item.value || "");
       setOptScopes(item.scopes ?? []);
@@ -916,6 +981,7 @@ export default function Modify() {
       else if (editingType === "novel") await saveNovel();
       else if (editingType === "comic") await saveComic();
       else if (editingType === "game") await saveGame();
+      else if (editingType === "h-comic") await saveHComic();
       else if (editingType === "options") await saveOption();
     } catch (e) {
       showToast("error", e?.message || "Request failed");
@@ -1093,7 +1159,11 @@ export default function Modify() {
       );
       setEditingItem(updated);
       try {
-        await saveFranchiseLabels(updated.system_id, contentLabels);
+        await saveFranchiseLabels(
+          updated.system_id,
+          contentLabels,
+          updated.franchise_type,
+        );
       } catch {
         // The franchise saved; only its visibility did not. Say so rather
         // than letting the admin believe a franchise - and everything under
@@ -2332,6 +2402,127 @@ export default function Modify() {
     showToast("success", "Update successful.");
   }
 
+  async function saveHComic() {
+    if (!chcf.region) {
+      showToast("warning", "Choose a region first: JP or KR.");
+      return;
+    }
+    let franchiseId = chcf.franchise_id;
+    if (!franchiseId && (chcf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: H_COMIC_FRANCHISE_TYPE,
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_cn: chcf.h_comic_name_cn || null,
+          franchise_name_en: chcf.h_comic_name_en || null,
+          franchise_name_jp: chcf.h_comic_name_jp || null,
+          franchise_name_alt: chcf.h_comic_name_alt || null,
+          franchise_type: H_COMIC_FRANCHISE_TYPE,
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = chcf.series_id;
+    if (!seriesId && (chcf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: chcf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_cn: chcf.h_comic_name_cn || null,
+          series_name_en: chcf.h_comic_name_en || null,
+          series_name_alt: chcf.h_comic_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    // Blank what the region does not use (lib/hComicRegion.js) - including
+    // the KR-only author and official source, which only this form clears.
+    const form = clearedForRegion(chcf);
+    await ensureSourceValues(hComicSourceFields(form, splitTags));
+
+    const payload = {
+      ...hComicFieldsPayload(form),
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+    };
+    const res = await fetch(endpoints.resource("h-comic").patch(editingItem.system_id), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("h-comic", updated.system_id, form);
+    await saveCast("h-comic", updated.system_id, chcf);
+    setAllHComics((prev) =>
+      prev.map((h) => (h.system_id === updated.system_id ? updated : h)),
+    );
+    setEditingItem(updated);
+    setChcf((prev) => ({
+      ...hComicToForm(updated, allFranchises, allSeries),
+      cast: prev.cast,
+    }));
+    loadCreditsIntoForm("h-comic", updated.system_id, setChcf);
+    window.scrollTo(0, 0);
+    showToast("success", "Update successful.");
+  }
+
   function getItemLabel(item, type) {
     if (type === "anime")
       return item.anime_name_cn || item.anime_name_en || "Unknown";
@@ -2390,6 +2581,7 @@ export default function Modify() {
         item.game_name_alt ||
         "Unknown"
       );
+    if (type === "h-comic") return getDisplayName(item, "h-comic");
     if (type === "options") return `${item.category}: ${item.value}`;
     return "Unknown";
   }
@@ -2521,6 +2713,18 @@ export default function Modify() {
           ].some((name) => name && cleanString(name).includes(q)),
         )
         .slice(0, 10);
+    if (activeTab === "h-comic")
+      return allHComics
+        .filter((h) =>
+          [
+            h.h_comic_name_cn,
+            h.h_comic_name_en,
+            h.h_comic_name_alt,
+            h.h_comic_name_jp,
+            h.h_comic_name_kr,
+          ].some((name) => name && cleanString(name).includes(q)),
+        )
+        .slice(0, 10);
     return sources.options
       .filter(
         (o) =>
@@ -2549,6 +2753,8 @@ export default function Modify() {
     if (activeTab === "novel") return [...allNovels].sort(sort).slice(0, 12);
     if (activeTab === "comic") return [...allComics].sort(sort).slice(0, 12);
     if (activeTab === "game") return [...allGames].sort(sort).slice(0, 12);
+    if (activeTab === "h-comic")
+      return [...allHComics].sort(sort).slice(0, 12);
     return [];
   })();
 
@@ -2850,6 +3056,18 @@ export default function Modify() {
   const seriesItemsForGame = (
     cgmf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === cgmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForHComic = (
+    chcf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === chcf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -3667,6 +3885,21 @@ export default function Modify() {
               />
             )}
 
+            {/* ── H-COMIC EDITOR ── (gated: the tab is offered only to a
+                session that can see the type) */}
+            {editingType === "h-comic" && (
+              <HComicModifyTab
+                franchiseCollections={franchiseCollections}
+                chcf={chcf}
+                uhc={uhc}
+                allFranchises={allFranchises}
+                seriesItemsForHComic={seriesItemsForHComic}
+                editingItem={editingItem}
+                ribbonSection={null}
+                sources={sources}
+              />
+            )}
+
             {/* ── OPTIONS EDITOR ── */}
             {editingType === "options" && (
               <OptionsModifyTab
@@ -3699,6 +3932,11 @@ export default function Modify() {
                   }
                   value={contentLabels}
                   onChange={setContentLabels}
+                  required={
+                    editingType === "franchise"
+                      ? requiredLabelsForFranchiseType(ff.franchise_type)
+                      : requiredLabelsForType(editingType)
+                  }
                   scopeNote={
                     editingType === "franchise"
                       ? FRANCHISE_SCOPE_NOTE

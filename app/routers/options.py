@@ -10,12 +10,17 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_
+from sqlalchemy import false, or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.rbac.resolver import Viewer, require_manage_catalog
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.shared_visibility import (
+    apply_shared_visibility,
+    hidden_scopes,
+    require_visible_shared,
+)
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -34,6 +39,41 @@ def _filter_by_child(query, relation, column, value):
     return query.filter(or_(~relation.any(), relation.any(column == value)))
 
 
+def _visible_options(query, db: Session, viewer: Viewer, scope: Optional[str]):
+    """
+    Narrow an option query to the values this viewer may see, or to nothing
+    when `scope` names a gated type the viewer cannot see.
+
+    A value is a shared record (app/services/rbac/shared_visibility.py): its
+    connections are the entries tagged with it and the gated types it is
+    scoped to, and it is hidden when every one of them is. A value nobody
+    has used and that is scoped to no gated type has no connections and
+    stays visible.
+    """
+    if scope and scope in hidden_scopes(db, viewer):
+        return query.filter(false())
+    return apply_shared_visibility(query, models.SystemOption, db, viewer)
+
+
+def _omit_hidden_scopes(options: list, db: Session, viewer: Viewer) -> list:
+    """
+    Serialise options with their hidden scopes left out, so a visible value
+    does not name the gated type it is also offered on.
+    """
+    hidden = hidden_scopes(db, viewer)
+    if not hidden:
+        return options
+    out = []
+    for option in options:
+        response = schemas.SystemOptionResponse.model_validate(option)
+        out.append(
+            response.model_copy(
+                update={"scopes": [s for s in response.scopes if s not in hidden]}
+            )
+        )
+    return out
+
+
 # ==========================================
 # PUBLIC READ OPERATIONS (Unprotected)
 # ==========================================
@@ -50,12 +90,14 @@ def get_all_system_options(
     limit: int = Query(default=1000, ge=1, le=5000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Fetches all system options across all categories.
     Used by the frontend UI to populate all dropdowns dynamically at once.
+    Values hidden from this viewer are absent (see _visible_options).
     """
-    query = db.query(models.SystemOption)
+    query = _visible_options(db.query(models.SystemOption), db, viewer, scope)
     query = _filter_by_child(
         query, models.SystemOption.scopes, models.SystemOptionScope.scope, scope
     )
@@ -72,7 +114,7 @@ def get_all_system_options(
         .offset(offset)
         .all()
     )
-    return options
+    return _omit_hidden_scopes(options, db, viewer)
 
 
 @router.get(
@@ -87,12 +129,19 @@ def get_system_options(
     limit: int = Query(default=1000, ge=1, le=5000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Fetches a list of system options for a specific category (e.g., 'Studio', 'Genre Main').
     Used extensively by the frontend UI to populate dropdowns dynamically.
+    Values hidden from this viewer are absent (see _visible_options).
     """
-    query = db.query(models.SystemOption).filter(models.SystemOption.category == category)
+    query = _visible_options(
+        db.query(models.SystemOption).filter(models.SystemOption.category == category),
+        db,
+        viewer,
+        scope,
+    )
     query = _filter_by_child(
         query, models.SystemOption.scopes, models.SystemOptionScope.scope, scope
     )
@@ -105,7 +154,7 @@ def get_system_options(
         .offset(offset)
         .all()
     )
-    return options
+    return _omit_hidden_scopes(options, db, viewer)
 
 
 # ==========================================
@@ -201,6 +250,9 @@ def update_system_option(
 
     if not db_option:
         raise HTTPException(status_code=404, detail="System option not found.")
+    require_visible_shared(
+        db, admin, models.SystemOption, option_id, "System option not found."
+    )
 
     # Prevent updating to a category+value combination that already exists
     duplicate_check = (
@@ -235,10 +287,17 @@ def update_system_option(
     #
     # Payload duplicates are already dropped by SystemOptionCreate's
     # _known_scopes validator, so these rows cannot collide with each other.
-    db.query(models.SystemOptionScope).filter_by(option_id=option_id).delete(
-        synchronize_session=False
-    )
+    #
+    # A scope naming a gated type this editor cannot see is kept: the form
+    # never showed it, so its absence from the payload is not a removal.
+    hidden = hidden_scopes(db, admin)
+    replaced = db.query(models.SystemOptionScope).filter_by(option_id=option_id)
+    if hidden:
+        replaced = replaced.filter(models.SystemOptionScope.scope.notin_(hidden))
+    replaced.delete(synchronize_session=False)
     for scope in payload.scopes:
+        if scope in hidden:
+            continue
         db.add(models.SystemOptionScope(option_id=option_id, scope=scope))
 
     db.query(models.SystemOptionUsage).filter_by(option_id=option_id).delete(
@@ -260,11 +319,15 @@ def update_system_option(
     db.commit()
     db.refresh(db_option)
 
-    return db_option
+    return _omit_hidden_scopes([db_option], db, admin)[0]
 
 
-@router.delete("/{option_id}", dependencies=[Depends(require_manage_catalog)])
-def delete_option(option_id: UUID, db: Session = Depends(get_db)):
+@router.delete("/{option_id}")
+def delete_option(
+    option_id: UUID,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
     """Deletes an option and logs it to the deleted_record table."""
     db_opt = (
         db.query(models.SystemOption)
@@ -273,6 +336,9 @@ def delete_option(option_id: UUID, db: Session = Depends(get_db)):
     )
     if not db_opt:
         raise HTTPException(status_code=404, detail="Option not found")
+    require_visible_shared(
+        db, admin, models.SystemOption, option_id, "Option not found"
+    )
 
     log_deleted_record(db, db_opt, "System Options")
 

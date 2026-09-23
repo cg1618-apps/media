@@ -18,9 +18,12 @@ from sqlalchemy.orm import Session
 from app import models
 from app.utils.character_roles import CHARACTER_ROLES
 
-# The four ACG media types character_casting.media_type may hold - a subset
-# of MEDIA_TABLES's eight, per ck_casting_voice_scope's own comment.
-CASTING_MEDIA_TYPES: tuple[str, ...] = ("anime", "anime-movie", "manga", "novel")
+# The ACG media types character_casting.media_type may hold - a subset of
+# MEDIA_TABLES. h-comic casts real character rows like manga does (D6); it has
+# no voice acting, so ck_casting_voice_scope already refuses a seiyuu there.
+CASTING_MEDIA_TYPES: tuple[str, ...] = (
+    "anime", "anime-movie", "manga", "novel", "h-comic",
+)
 
 # Media types a seiyuu (person_id) may be attached to - the two with voice
 # acting. Mirrors ck_casting_voice_scope exactly.

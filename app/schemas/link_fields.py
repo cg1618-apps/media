@@ -212,6 +212,19 @@ class GameLinkFields(AttachedFields):
     label: Optional[str] = None
 
 
+class HComicLinkFields(AttachedFields):
+    # No legacy sheet column for any of these: the type is new, so every
+    # header is its own key (credit_roles.sheet_column_for's fallback).
+    credit_refs: dict[str, list[PersonRef]] = {}
+    illustrator: Optional[str] = None
+    author: Optional[str] = None
+    club: Optional[str] = None
+    original_source: Optional[str] = None
+    h_genre_plot: Optional[str] = None
+    h_genre_appearance: Optional[str] = None
+    h_genre_relation: Optional[str] = None
+
+
 # media_type key (hyphenated) -> mixin, for the drift test.
 LINK_FIELD_MIXINS: dict[str, type[BaseModel]] = {
     "anime": AnimeLinkFields,
@@ -223,4 +236,5 @@ LINK_FIELD_MIXINS: dict[str, type[BaseModel]] = {
     "novel": NovelLinkFields,
     "comic": ComicLinkFields,
     "game": GameLinkFields,
+    "h-comic": HComicLinkFields,
 }

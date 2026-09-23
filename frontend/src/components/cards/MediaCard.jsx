@@ -12,6 +12,7 @@ import MarkAiringModal from "../modals/MarkAiringModal";
 import { entityPath } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
 import { effectiveProgressDisplay } from "../../lib/novelUnits";
+import { progressFor } from "../../lib/hComicRegion";
 import {
   getDisplayName,
   getCoverUrl,
@@ -36,6 +37,7 @@ const SPINE_LABEL = {
   novel: "Novel",
   comic: "Comic",
   game: "Game",
+  "h-comic": "H-Comic",
 };
 
 // The statuses the future variant's select offers, per status axis. A game
@@ -177,7 +179,8 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
           {data.region}
         </div>
       )}
-      {(type === "manga" || type === "novel") && data.region && (
+      {(type === "manga" || type === "novel" || type === "h-comic") &&
+        data.region && (
         <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
           {data.region}
         </div>
@@ -271,6 +274,17 @@ function LibraryMeta({ type, data, scoreField }) {
           <span className="truncate">
             {data.release_date_tw || data.release_date_usa}
           </span>
+        )}
+      </MetaLine>
+    );
+  }
+
+  if (type === "h-comic") {
+    return (
+      <MetaLine className="mb-1">
+        <span className="truncate pr-1">{yearRange(data)}</span>
+        {data.serialization_status && (
+          <span className="shrink-0">{data.serialization_status}</span>
         )}
       </MetaLine>
     );
@@ -459,6 +473,19 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     return <Count fin={issFin} total={issTotal} unit="iss" />;
   }
 
+  // Pages on a JP h-comic, chapters on a KR one (lib/hComicRegion.js).
+  if (type === "h-comic") {
+    const progress = progressFor(data);
+    if (!progress) return null;
+    return (
+      <Count
+        fin={progress.fin}
+        total={progress.total ?? "?"}
+        unit={progress.unit}
+      />
+    );
+  }
+
   // A game has no episode/chapter counter - playtime against the main-story
   // estimate is its progress. With neither figure there is nothing to show.
   if (type === "game") {
@@ -542,6 +569,7 @@ const HAS_PROGRESS = new Set([
   "novel",
   "comic",
   "game",
+  "h-comic",
 ]);
 const ADMIN_ONLY_STATUS = new Set(["movie", "anime-movie"]);
 

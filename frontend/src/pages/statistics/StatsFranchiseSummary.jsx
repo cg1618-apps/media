@@ -154,6 +154,8 @@ export default function StatsFranchiseSummary({
   allManga,
   allNovel,
   allComic,
+  // null for a session that cannot see the gated type: no card at all.
+  allHComic = null,
   seasonals,
   currentSeason,
 }) {
@@ -213,6 +215,8 @@ export default function StatsFranchiseSummary({
   // usually one long-running title and its rating says less than the volumes'.
   const { rows: comicRows, ratedCount: comicRatedCount } =
     computeRatingRows(allComic);
+  // Per entry, like comics: an h-comic franchise is rarely rated on its own.
+  const hComicRating = allHComic ? computeRatingRows(allHComic) : null;
 
   return (
     <>
@@ -295,6 +299,14 @@ export default function StatsFranchiseSummary({
             rows={gameRows}
             total={gameRatedCount}
           />
+          {hComicRating && (
+            <RatingDistributionCard
+              title="My rating"
+              subtitle="All h-comics"
+              rows={hComicRating.rows}
+              total={hComicRating.ratedCount}
+            />
+          )}
         </div>
       </section>
 

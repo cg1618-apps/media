@@ -7,7 +7,8 @@
 // blanket "delete anyway" from this page.
 import { useEffect, useState } from "react";
 
-import { IMAGE_OWNER_TYPE_GROUPS } from "../../config/imageOwnerTypes";
+import { visibleImageOwnerTypeGroups } from "../../config/imageOwnerTypes";
+import { useAuth } from "../../contexts/AuthContext";
 import { getCoverUrl } from "../../lib/covers";
 import {
   useDeleteImage,
@@ -107,6 +108,7 @@ export default function Images() {
     duplicates: false,
   });
   const [ownerType, setOwnerType] = useState("");
+  const ownerTypeGroups = visibleImageOwnerTypeGroups(useAuth());
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
@@ -241,7 +243,7 @@ export default function Images() {
           className="rounded border border-border-strong bg-surface px-2 py-1.5 text-sm text-text disabled:opacity-50"
         >
           <option value="">Used on…</option>
-          {IMAGE_OWNER_TYPE_GROUPS.map((group) => (
+          {ownerTypeGroups.map((group) => (
             <optgroup key={group.label} label={group.label}>
               {group.options.map((opt) => (
                 <option key={opt.value} value={opt.value}>

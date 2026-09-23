@@ -93,6 +93,10 @@ class FranchiseType(str, Enum):
     ACG = "ACG"
     NOVEL = "Novel"
     GAME = "Game"
+    # The franchise type of the adult comics type. An h-comic only ever sits
+    # in a franchise of this type, and every franchise of this type carries
+    # the `h-comic` content label - see app/services/domain/h_comic.py.
+    H_COMIC = "H-Comic"
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +199,7 @@ FRANCHISE_TYPES: tuple[str, ...] = (
     "Comic",
     "Novel",
     "Game",
+    "H-Comic",
 )
 
 ANIME_AIRING_TYPES: tuple[str, ...] = (
@@ -273,3 +278,30 @@ GAME_ACQUISITION_KINDS: tuple[str, ...] = (
     "Bundled",
     "Subscription",
 )
+
+
+# ---------------------------------------------------------------------------
+# h-comic. One type with two variants keyed on `region`, the same pattern as
+# novel's `type`: the columns a region does not use are cleared on every write
+# path (H_COMIC_REGION_CLEARS in app/services/domain/h_comic.py), not merely
+# hidden by the form.
+# ---------------------------------------------------------------------------
+
+H_COMIC_REGIONS: tuple[str, ...] = ("JP", "KR")
+H_COMIC_REGION_JP = "JP"
+H_COMIC_REGION_KR = "KR"
+
+# 原創 is an original work, 同人 a derivative one. JP only.
+H_COMIC_ORIGINALITY: tuple[str, ...] = ("原創", "同人")
+
+# Hand-set, JP only. Whether the work has been adapted into a hentai entry.
+H_COMIC_ANIMATION_STATUSES: tuple[str, ...] = (
+    "Not Animated",
+    "Announced",
+    "Animated",
+)
+
+# How useful a work was to the reader. PERSONAL - it lives on
+# user_media_list beside my_rating, not on the entry - and it is also the
+# vocabulary of the highlight rows' `status` dropdown.
+H_COMIC_USEFULNESS: tuple[str, ...] = ("非常實用", "實用", "特定情況實用", "不實用")

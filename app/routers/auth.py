@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.config import settings
 from app.dependencies import get_db
+from app.services.rbac.gated_types import visible_gated_types
 from app.services.rbac.modes import (
     ResolvedMode,
     default_mode_id,
@@ -165,6 +166,11 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         # switching to it needs the password, belongs to the switcher - which
         # is Phase D. There is no switcher yet, so there is nothing here to
         # feed it.
+        # The gated media types this session may see (gated_types.py), so
+        # the SPA can offer their navigation. Only the seeable ones are named:
+        # a session that cannot see a gated type is not told it exists, so an
+        # empty list and "no gated types" read the same.
+        "visible_gated_types": visible_gated_types(db, viewer),
         "mode": {
             "id": str(viewer.mode_id) if viewer.mode_id else None,
             "key": viewer.mode_key,

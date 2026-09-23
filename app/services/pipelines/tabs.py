@@ -17,7 +17,7 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
 
     Users            -> User Media List      (user_media_list.user_id)
     Media            -> User Media List      (user_media_list.media_id)
-    Media            -> the nine media tabs  (detail.system_id -> media)
+    Media            -> the media tabs       (detail.system_id -> media)
     Collection -> Franchise -> Series -> Media
     Watch Order List -> Section -> Item
     Person / Studio / Publisher / Character / Content Label -> the media tabs
@@ -198,6 +198,13 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # People and studios before every media tab: credits resolve against them.
     SheetTab("Person", models.Person, f.parse_person_from_sheet),
     SheetTab("Person Role", models.PersonRole, f.parse_person_role_from_sheet),
+    # After Person: both ends are people, cited by uuid and translated through
+    # the Person tab (DERIVED_IDENTITY_PARENTS in pull.py).
+    SheetTab(
+        "Person Membership",
+        models.PersonMembership,
+        f.parse_person_membership_from_sheet,
+    ),
     SheetTab("Studio", models.Studio, f.parse_studio_from_sheet),
     SheetTab("Publisher", models.Publisher, f.parse_publisher_from_sheet),
     # After Publisher (real FK) and before every media tab: zero scope rows
@@ -234,6 +241,9 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Game", models.Game, f.parse_game_from_sheet, "game", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     # After Game: game_id is a real FK, so the parent rows must exist first.
     SheetTab("Game Copy", models.GameCopy, f.parse_game_copy_from_sheet),
+    # The gated type. Its rows travel like every entry tab - the sheet is
+    # private - and Pull re-attaches the h-comic label after the tab lands.
+    SheetTab("H-Comic", models.HComic, f.parse_h_comic_from_sheet, "h-comic", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     # Personal list rows. After every media tab: media_id resolves through
     # media_type + public_id, and user_id through username, so both must
     # already be restored. Backup drops the three database-local ids and

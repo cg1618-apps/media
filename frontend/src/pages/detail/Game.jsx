@@ -183,6 +183,7 @@ export default function Game() {
   const { showToast } = useToast();
 
   const [game, setGame] = useState(null);
+  const [autofilling, setAutofilling] = useState(false);
 
   const gameQuery = useMediaItem("game", publicId);
   useCanonicalPath("game", gameQuery.data);
@@ -231,6 +232,25 @@ export default function Game() {
     } catch {
       showToast("error", "Update failed");
       fetchMediaItem();
+    }
+  }
+
+  async function handleAutofill() {
+    setAutofilling(true);
+    try {
+      const res = await fetch(endpoints.dataControl.replaceSingle("game", system_id), {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Autofill failed");
+      showToast("success", "Autofill completed");
+      await invalidateMedia();
+      await fetchMediaItem();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setAutofilling(false);
     }
   }
 
@@ -317,6 +337,9 @@ export default function Game() {
                 }}
               >
                 Mark completed
+              </Button>
+              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+                {autofilling ? "Autofilling…" : "Autofill & update"}
               </Button>
             </div>
           </div>

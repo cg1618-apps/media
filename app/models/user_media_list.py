@@ -79,6 +79,10 @@ class UserMediaList(Base):
     ch_fin_in_arc = Column(Float, nullable=True)          # novel
     progress_display = Column(String, nullable=True)      # novel
     issue_fin = Column(Integer, nullable=True)            # comic
+    page_fin = Column(Integer, nullable=True)             # h-comic, JP
+    # One of constants.H_COMIC_USEFULNESS. Personal for the reason my_rating
+    # is: it says how useful the work was to this reader.
+    usefulness = Column(String, nullable=True)            # h-comic
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

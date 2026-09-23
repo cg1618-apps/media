@@ -184,6 +184,11 @@ export const endpoints = {
     entries: (id) => `/api/person/${id}/entries`,
     roleCounts: () => "/api/person/role-counts",
     roleScopes: () => "/api/person/role-scopes",
+    // Club membership (person_membership). `clubs` reads and replaces the
+    // clubs an artist belongs to; `members` reads and replaces a club's
+    // members, in display order. PUT bodies: {club_ids} / {member_ids}.
+    clubs: (id) => `/api/person/${id}/clubs`,
+    members: (id) => `/api/person/${id}/members`,
   },
 
   credits: {

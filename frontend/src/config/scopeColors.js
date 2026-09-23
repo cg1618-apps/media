@@ -29,6 +29,7 @@ export const SCOPE_CHIPS = {
   novel: `${CHIP} bg-scope-novel/12 border-scope-novel/40 text-scope-novel`,
   comic: `${CHIP} bg-scope-comic/12 border-scope-comic/40 text-scope-comic`,
   game: `${CHIP} bg-scope-game/12 border-scope-game/40 text-scope-game`,
+  "h-comic": `${CHIP} bg-scope-h-comic/12 border-scope-h-comic/40 text-scope-h-comic`,
 };
 
 // A scope row can hold a key this build has never heard of - an older

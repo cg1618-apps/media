@@ -81,10 +81,18 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     "composer": CreditRole(
         "composer", "Music / Composer", "person", ("anime", "game")
     ),
-    "author": CreditRole("author", "Author", "person", ("manga", "novel", "comic")),
-    "illustrator": CreditRole(
-        "illustrator", "Illustrator", "person", ("manga", "novel", "comic")
+    "author": CreditRole(
+        "author", "Author", "person", ("manga", "novel", "comic", "h-comic")
     ),
+    "illustrator": CreditRole(
+        "illustrator", "Illustrator", "person",
+        ("manga", "novel", "comic", "h-comic"),
+    ),
+    # The circle an h-comic comes out of. Studio-like as an idea, an author as
+    # a schema: a `person` row, so a club and its artists live in one table
+    # and person_membership can link them. Its only scope is the gated type,
+    # which is what hides a club created before its first credit.
+    "club": CreditRole("club", "Club", "person", ("h-comic",)),
     # Stored in character_casting, NOT media_credit: a seiyuu reaches an anime
     # through the character they voice. credit_roles_for() filters this out for
     # exactly that reason.
@@ -110,6 +118,7 @@ _LABEL_OVERRIDES: dict[tuple[str, str], str] = {
     ("illustrator", "manga"): "作畫",
     ("author", "comic"): "Writer",
     ("illustrator", "comic"): "Artist",
+    ("illustrator", "h-comic"): "繪師",
     # One role, six reader-facing words. 台灣代理商 and 台灣出版商 both name a
     # TAIWANESE licensor; a comic's publisher is Marvel - the work's original
     # publisher, not a TW party - so it reads 出版商 without the 台灣. 發行商
@@ -161,7 +170,7 @@ TAG_FIELDS: dict[str, TagField] = {
     # on a streaming service the same day.
     "original_source": TagField(
         "original_source", "Original Source", PLATFORM_CATEGORY,
-        ("tv-show", "cartoon", "movie"),
+        ("tv-show", "cartoon", "movie", "h-comic"),
     ),
     # Which platform carries a work EXCLUSIVELY. Blank means not exclusive,
     # which is a fact about the work, not a missing value. Single-valued: you
@@ -200,6 +209,19 @@ TAG_FIELDS: dict[str, TagField] = {
     # copy was bought is game_copy.
     "game_platform": TagField(
         "game_platform", "Platform", "Game Platform", ("game",)
+    ),
+    # The three h-comic genre vocabularies. They exist for the gated type
+    # alone, so every value is scoped to it - which is what hides an unused
+    # value from a session that cannot see h-comic (shared_visibility.py).
+    "h_genre_plot": TagField(
+        "h_genre_plot", "Genre Plot", "H Genre Plot", ("h-comic",)
+    ),
+    "h_genre_appearance": TagField(
+        "h_genre_appearance", "Genre Appearance", "H Genre Appearance",
+        ("h-comic",),
+    ),
+    "h_genre_relation": TagField(
+        "h_genre_relation", "Genre Relation", "H Genre Relation", ("h-comic",)
     ),
 }
 

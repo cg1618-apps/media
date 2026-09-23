@@ -319,3 +319,41 @@ describe("the two permission surfaces agree", () => {
     }
   });
 });
+
+describe("the gated h-comic row", () => {
+  const holdsEverything = () => true;
+  const libraryRoutes = (canSeeType) =>
+    visibleSections(NAV_SECTIONS, holdsEverything, canSeeType)
+      .filter((s) => s.key === "library")
+      .flatMap((s) => sectionItems(s).map((i) => i.to));
+
+  it("is hidden from a session that cannot see the gated type", () => {
+    // Even from a viewer holding every permission: the gate is the mode's
+    // label, not a capability, so a root account in `safe` does not see it.
+    const routes = libraryRoutes((type) => type !== "h-comic");
+    expect(routes).not.toContain("/library/h-comic");
+    // Nothing else in the library went with it.
+    expect(routes).toContain("/library/manga");
+    expect(routes).toContain("/library/game");
+  });
+
+  it("is hidden when the caller does not answer the gated question", () => {
+    expect(libraryRoutes(undefined)).not.toContain("/library/h-comic");
+  });
+
+  it("is shown to a session that can", () => {
+    expect(libraryRoutes((type) => type === "h-comic")).toContain(
+      "/library/h-comic",
+    );
+  });
+
+  it("names the same gated type App.jsx's route guard asks for", () => {
+    // App.jsx wraps /library/h-comic and /h-comic/:publicId in
+    // <ProtectedRoute gatedType="h-comic" />; this is the nav half.
+    const item = sectionItems(
+      NAV_SECTIONS.find((s) => s.key === "library"),
+    ).find((i) => i.to === "/library/h-comic");
+    expect(item.gatedType).toBe("h-comic");
+    expect(activeItem("/h-comic/3/some-title").item).toBe(item);
+  });
+});

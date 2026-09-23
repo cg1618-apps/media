@@ -12,7 +12,19 @@
 // `column` reads and writes that column at the top level of the payload, and
 // one naming none lives under `fields[key]`. `fromNote`, `toPayload` and
 // `readValue` are the only places that know the difference.
+//
+// Two more things come from the registry rather than from this file:
+//   - a `names` field (a list of free-text names, always under `fields`) gets
+//     NamesInput, which suggests `nameSuggestions` - the page's cast;
+//   - a section naming `group_by` reads as one group per name of that field
+//     (groupedRows.js). The GROUPS are ordered - by the owner's stored order,
+//     `groupOrder`, which a drag of a group header rewrites through
+//     `onGroupOrderChange` - and the rows inside a group are not.
+// Neither names a section: any section declaring them gets them.
 import { useState } from "react";
+
+import NamesInput from "./NamesInput";
+import { groupNotes, movedGroupOrder, namesOf } from "./groupedRows";
 
 import {
   EmptyHint,
@@ -38,8 +50,11 @@ const isBlank = (v) =>
 // editors below never have to special-case a first row; a scalar starts on
 // the registry's `default` where it declares one, which is how a new
 // collectible opens on "not collected" and a new enemy on "to beat".
+// Fields whose form value is an array rather than a string.
+const ARRAY_TYPES = new Set(["links", "list", "names"]);
+
 const emptyValue = (field) =>
-  field.type === "links" || field.type === "list" ? [] : field.default || "";
+  ARRAY_TYPES.has(field.type) ? [] : field.default || "";
 
 const emptyDraft = (section) =>
   Object.fromEntries(section.fields.map((f) => [f.key, emptyValue(f)]));
@@ -50,7 +65,7 @@ const fromNote = (section, note) =>
   Object.fromEntries(
     section.fields.map((f) => {
       const raw = f.column ? note[f.column] : (note.fields || {})[f.key];
-      if (f.type === "links" || f.type === "list") return [f.key, raw || []];
+      if (ARRAY_TYPES.has(f.type)) return [f.key, raw || []];
       return [f.key, raw == null ? "" : String(raw)];
     }),
   );
@@ -66,6 +81,10 @@ const toPayload = (section, val) => {
     let out;
     if (f.type === "links") {
       out = (raw || []).map((l) => l.trim()).filter(Boolean);
+      if (!out.length) out = null;
+    } else if (f.type === "names") {
+      // Deduplicated, blanks dropped: the server refuses a blank name.
+      out = [...new Set(namesOf(raw))];
       if (!out.length) out = null;
     } else if (f.type === "list") {
       out = (raw || []).filter((row) =>
@@ -209,11 +228,22 @@ function ScalarInput({ field, value, onChange, ariaLabel }) {
   );
 }
 
-function StructuredForm({ section, val, setVal }) {
+function StructuredForm({ section, val, setVal, nameSuggestions }) {
   return (
     <div className="space-y-2">
       {section.fields.map((field) => {
         const set = (v) => setVal({ ...val, [field.key]: v });
+        if (field.type === "names") {
+          return (
+            <NamesInput
+              key={field.key}
+              label={field.label}
+              value={val[field.key] || []}
+              onChange={set}
+              suggestions={nameSuggestions}
+            />
+          );
+        }
         if (field.type === "links") {
           return (
             <LinksEditor key={field.key} links={val[field.key]} onChange={set} />
@@ -350,9 +380,30 @@ function rowLabel(section, note) {
 }
 
 
-function StructuredRow({ section, note, isAdmin, onUpdate }) {
+// A `names` field on a saved row, as tags. In a grouped section the group's
+// own name is left out of its rows - the header already says it - so what is
+// left reads as "with whom".
+function NamesView({ field, note, omit }) {
+  const names = namesOf(readValue(field, note)).filter((n) => n !== omit);
+  if (!names.length) return null;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+        {field.label}
+      </span>
+      {names.map((name) => (
+        <span key={name} className={`${tagCls} normal-case tracking-normal`}>
+          {name}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function StructuredRow({ section, note, isAdmin, onUpdate, groupName }) {
   const heading = rowHeading(section, note);
   const headingKey = heading?.field.key;
+  const namesFields = section.fields.filter((f) => f.type === "names");
 
   // Short scalars become tags, the bodies become paragraphs, and the lists
   // and links render themselves. The heading is drawn once and skipped here.
@@ -389,6 +440,18 @@ function StructuredRow({ section, note, isAdmin, onUpdate }) {
               note={note}
               isAdmin={isAdmin}
               onUpdate={onUpdate}
+            />
+          ))}
+        </div>
+      )}
+      {namesFields.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {namesFields.map((f) => (
+            <NamesView
+              key={f.key}
+              field={f}
+              note={note}
+              omit={f.key === section.group_by ? groupName : undefined}
             />
           ))}
         </div>
@@ -441,6 +504,165 @@ function buildTree(notes, hierarchical) {
   return roots;
 }
 
+// --- Grouped read view ----------------------------------------------------
+
+// The rows of a `group_by` section, one group per name (groupedRows.js).
+//
+// A group header is what moves: dragged onto another header, or stepped with
+// its arrows, it saves the whole new order through `onGroupOrderChange`. The
+// rows inside a group have no handle - their order is sort_index, and it does
+// not matter. A row filed under two names is drawn under both, and editing it
+// opens the form only where the edit was started.
+function GroupedRows({
+  section,
+  notes,
+  isAdmin,
+  groupOrder,
+  onGroupOrderChange,
+  onUpdate,
+  onDelete,
+  nameSuggestions,
+}) {
+  const [editKey, setEditKey] = useState(null);
+  const [editVal, setEditVal] = useState({});
+  const [dragging, setDragging] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
+  // The order just saved, until the owner comes back with it. Keyed on the
+  // order it was saved over, so a fresh `groupOrder` from the page wins
+  // without an effect having to reset anything.
+  const [pending, setPending] = useState(null);
+  const order =
+    pending && pending.base === groupOrder ? pending.order : groupOrder || [];
+
+  const groups = groupNotes(notes, section.group_by, order);
+  const named = groups.filter((g) => g.name !== null);
+  const canMove = isAdmin && Boolean(onGroupOrderChange) && named.length > 1;
+  const groupField = section.fields.find((f) => f.key === section.group_by);
+  const noName = `No ${(groupField?.label || "name").toLowerCase()}`;
+
+  const move = (from, to) => {
+    if (from === to) return;
+    const next = movedGroupOrder(groups, from, to);
+    setPending({ base: groupOrder, order: next });
+    onGroupOrderChange(next);
+  };
+
+  const endDrag = () => {
+    setDragging(null);
+    setDropTarget(null);
+  };
+
+  return (
+    <div className="space-y-3">
+      {groups.map((group, gi) => {
+        const movable = canMove && group.name !== null;
+        const dragProps = movable
+          ? {
+              draggable: true,
+              onDragStart: (e) => {
+                setDragging(gi);
+                e.dataTransfer?.setData?.("text/plain", group.name);
+              },
+              onDragOver: (e) => {
+                if (dragging === null) return;
+                e.preventDefault();
+                setDropTarget(gi);
+              },
+              onDragLeave: () => setDropTarget((t) => (t === gi ? null : t)),
+              onDrop: (e) => {
+                e.preventDefault();
+                if (dragging !== null) move(dragging, gi);
+                endDrag();
+              },
+              onDragEnd: endDrag,
+            }
+          : {};
+        return (
+          <section
+            key={group.name ?? "__unnamed__"}
+            aria-label={group.name ?? noName}
+            className="border-t border-border pt-2 first:border-t-0 first:pt-0"
+          >
+            <div
+              {...dragProps}
+              data-testid="group-header"
+              title={movable ? "Drag to reorder" : undefined}
+              className={`flex items-center gap-2 mb-1.5 ${
+                movable ? "cursor-grab active:cursor-grabbing" : ""
+              } ${
+                dropTarget === gi && dragging !== gi
+                  ? "outline outline-2 outline-brand"
+                  : ""
+              }`}
+            >
+              {movable && (
+                <MoveButtons
+                  label={`group ${group.name}`}
+                  atTop={gi === 0}
+                  atBottom={gi === named.length - 1}
+                  onUp={() => move(gi, gi - 1)}
+                  onDown={() => move(gi, gi + 1)}
+                />
+              )}
+              <h5 className="text-sm font-medium text-text">
+                {group.name ?? <span className="text-text-faint">{noName}</span>}
+              </h5>
+              <span className="font-mono text-[10px] text-text-faint tabular-nums">
+                {group.notes.length}
+              </span>
+              <span className="flex-1 border-t border-dotted border-border-strong/60" />
+            </div>
+            <div className="ml-3 pl-3 border-l border-border space-y-2">
+              {group.notes.map((n) => {
+                const key = `${group.name}|${n.system_id}`;
+                if (editKey === key) {
+                  return (
+                    <div key={key}>
+                      <StructuredForm
+                        section={section}
+                        val={editVal}
+                        setVal={setEditVal}
+                        nameSuggestions={nameSuggestions}
+                      />
+                      <SaveCancel
+                        onSave={() => {
+                          if (invalid(section, editVal)) return;
+                          onUpdate(n.system_id, toPayload(section, editVal));
+                          setEditKey(null);
+                        }}
+                        onCancel={() => setEditKey(null)}
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <div key={key} className="flex gap-2 items-start">
+                    <StructuredRow
+                      section={section}
+                      note={n}
+                      isAdmin={isAdmin}
+                      onUpdate={onUpdate}
+                      groupName={group.name}
+                    />
+                    <ItemActions
+                      isAdmin={isAdmin}
+                      onEdit={() => {
+                        setEditKey(key);
+                        setEditVal(fromNote(section, n));
+                      }}
+                      onDelete={() => onDelete(n.system_id)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 // --- Section --------------------------------------------------------------
 
 export default function StructuredSection({
@@ -451,6 +673,9 @@ export default function StructuredSection({
   onUpdate,
   onDelete,
   onReorder,
+  nameSuggestions = [],
+  groupOrder = null,
+  onGroupOrderChange,
 }) {
   // `null` means the draft is a root; an id means it is a child of that row.
   // `false` means no draft is open, which is why this is not a boolean.
@@ -513,7 +738,12 @@ export default function StructuredSection({
 
   const renderDraft = () => (
     <div className={draftCls}>
-      <StructuredForm section={section} val={draft} setVal={setDraft} />
+      <StructuredForm
+        section={section}
+        val={draft}
+        setVal={setDraft}
+        nameSuggestions={nameSuggestions}
+      />
       <SaveCancel onSave={commit} onCancel={closeDraft} />
     </div>
   );
@@ -530,6 +760,7 @@ export default function StructuredSection({
                 section={section}
                 val={editVal}
                 setVal={setEditVal}
+                nameSuggestions={nameSuggestions}
               />
               <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
             </div>
@@ -586,15 +817,41 @@ export default function StructuredSection({
       );
     });
 
+  const openDraft = () => {
+    setDraft(emptyDraft(section));
+    setAddingUnder(null);
+  };
+
+  if (section.group_by && !section.hierarchical) {
+    return (
+      <SectionCard
+        label={section.label}
+        count={notes.length}
+        isAdmin={isAdmin}
+        onAdd={openDraft}
+      >
+        <GroupedRows
+          section={section}
+          notes={notes}
+          isAdmin={isAdmin}
+          groupOrder={groupOrder}
+          onGroupOrderChange={onGroupOrderChange}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          nameSuggestions={nameSuggestions}
+        />
+        {addingUnder === null && renderDraft()}
+        {!notes.length && addingUnder === false && <EmptyHint />}
+      </SectionCard>
+    );
+  }
+
   return (
     <SectionCard
       label={section.label}
       count={notes.length}
       isAdmin={isAdmin}
-      onAdd={() => {
-        setDraft(emptyDraft(section));
-        setAddingUnder(null);
-      }}
+      onAdd={openDraft}
     >
       {renderNodes(tree, 0)}
       {addingUnder === null && renderDraft()}

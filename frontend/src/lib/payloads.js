@@ -101,6 +101,21 @@ const CREDITS_FIELD_MAP = {
       label: "label",
     },
   },
+  // A new type, so every form field is named for its own role or tag key -
+  // no legacy sheet header to keep.
+  "h-comic": {
+    credits: {
+      illustrator: "illustrator",
+      author: "author",
+      club: "club",
+    },
+    tags: {
+      original_source: "original_source",
+      h_genre_plot: "h_genre_plot",
+      h_genre_appearance: "h_genre_appearance",
+      h_genre_relation: "h_genre_relation",
+    },
+  },
 };
 
 // Form fields that hold an array value directly (comic.events, via its
@@ -363,6 +378,59 @@ export function gameFieldsPayload(f) {
       })),
     play_next: f.play_next ?? false,
     to_replay: f.to_replay ?? false,
+    cover_image_file: f.cover_image_file || null,
+    remark: f.remark || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// H-Comic
+// ---------------------------------------------------------------------------
+
+/**
+ * The scalar half of an h-comic's create/update body - everything but the
+ * franchise and series ids, which the caller resolves (and may have just
+ * created) first.
+ *
+ * `f` should already be `clearedForRegion(form)` (lib/hComicRegion.js): the
+ * server clears the columns a region does not use anyway, and blanking them
+ * here keeps the request saying what will be stored. `highlight_group_order`
+ * is not in the form - it is written by the detail page's drag - so it is
+ * never sent from here, and a save leaves it alone.
+ */
+export function hComicFieldsPayload(f) {
+  return {
+    region: f.region || null,
+    h_comic_name_cn: f.h_comic_name_cn || null,
+    h_comic_name_en: f.h_comic_name_en || null,
+    h_comic_name_alt: f.h_comic_name_alt || null,
+    h_comic_name_jp: f.h_comic_name_jp || null,
+    h_comic_name_kr: f.h_comic_name_kr || null,
+    originality: f.originality || null,
+    animation_status: f.animation_status || null,
+    series_number: int(f.series_number),
+    serialization_status: f.serialization_status || null,
+    page_total: int(f.page_total),
+    ch_total: int(f.ch_total),
+    ch_behind: int(f.ch_behind),
+    release_date: f.release_date || null,
+    end_date: f.end_date || null,
+    reading_status: f.reading_status || "Might Read",
+    my_rating: f.my_rating || null,
+    usefulness: f.usefulness || null,
+    page_fin: int(f.page_fin) ?? 0,
+    ch_fin: int(f.ch_fin) ?? 0,
+    sources: (f.sources || [])
+      .filter((s) => (s.name || "").trim())
+      .map((s) => ({
+        kind: s.kind || "access",
+        bucket: s.bucket || "other",
+        name: s.name.trim(),
+        url: (s.url || "").trim() || null,
+        available: s.available ?? null,
+      })),
+    read_next: f.read_next ?? false,
+    to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
     remark: f.remark || null,
   };

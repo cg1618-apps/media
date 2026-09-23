@@ -172,7 +172,7 @@ def make_movie(entry_id, name="Some Movie"):
 
 
 class TestMediaTypeMap:
-    def test_covers_the_nine_media_types(self):
+    def test_covers_the_ten_media_types(self):
         # Games included: an entry is an entry, and a franchise's order may
         # legitimately step through its game beside its anime.
         assert VALID_WATCH_ORDER_MEDIA_TYPES == {
@@ -185,6 +185,7 @@ class TestMediaTypeMap:
             "novel",
             "comic",
             "game",
+            "h-comic",
         }
 
     def test_every_slug_maps_to_a_model(self):

@@ -26,7 +26,7 @@ import logging
 import uuid
 from typing import Any, Dict, Optional, Tuple
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_, true
 from sqlalchemy.orm import Session
 
 from app.database import get_taipei_now
@@ -57,7 +57,15 @@ FRANCHISE_TYPE_FOR = {
     "novel": FranchiseType.NOVEL,
     "comic": FranchiseType.COMIC,
     "game": FranchiseType.GAME,
+    "h-comic": FranchiseType.H_COMIC,
 }
+
+# The one franchise type that is kept apart in BOTH directions (D9 in the
+# h-comic design): an h-comic matches only a franchise of this type, and every
+# other media type matches only a franchise that is not. A shared name - an
+# h-comic called "Fate" - must never attach to the mainstream franchise, and a
+# mainstream entry must never land under a franchise whose label hides it.
+SEGREGATED_TYPE = FranchiseType.H_COMIC.value
 
 
 def _clean_names(names: Dict[str, Any]) -> Dict[str, Optional[str]]:
@@ -68,11 +76,35 @@ def _clean_names(names: Dict[str, Any]) -> Dict[str, Optional[str]]:
     return out
 
 
-def _find_by_names(db: Session, model, columns, values) -> Optional[Any]:
+def _find_by_names(db: Session, model, columns, values, *criteria) -> Optional[Any]:
     values = [v for v in values if v]
     if not values:
         return None
-    return db.query(model).filter(or_(*[c.ilike(v) for c in columns for v in values])).first()
+    return (
+        db.query(model)
+        .filter(or_(*[c.ilike(v) for c in columns for v in values]), *criteria)
+        .first()
+    )
+
+
+def _segregation(media_type: str):
+    """The franchise-type condition name matching runs under for this type.
+
+    franchise_type is a comma-separated list, so the test is on the padded
+    token rather than a substring: "H-Comic" must not match inside some
+    longer type name.
+    """
+    padded = func.concat(
+        ",", func.replace(func.coalesce(Franchise.franchise_type, ""), " ", ""), ","
+    )
+    token = f"%,{SEGREGATED_TYPE},%"
+    if media_type == "series":
+        # A series names its parent franchise; it is not a work of any type,
+        # and an H-Comic series belongs under an H-Comic franchise.
+        return true()
+    if FRANCHISE_TYPE_FOR.get(media_type) == FranchiseType.H_COMIC:
+        return padded.like(token)
+    return ~padded.like(token)
 
 
 def resolve_franchise(db: Session, franchise_id: Any, names: Dict[str, Any], media_type: str) -> Any:
@@ -84,7 +116,9 @@ def resolve_franchise(db: Session, franchise_id: Any, names: Dict[str, Any], med
     cell = franchise_id.strip() if isinstance(franchise_id, str) else ""
     names = {"en": cell} if cell else _clean_names(names)
 
-    existing = _find_by_names(db, Franchise, FRANCHISE_NAME_COLUMNS, names.values())
+    existing = _find_by_names(
+        db, Franchise, FRANCHISE_NAME_COLUMNS, names.values(), _segregation(media_type)
+    )
     if existing:
         logger.info("Auto-resolved existing Franchise for %s: %s", label, existing.system_id)
         return existing.system_id
@@ -105,6 +139,12 @@ def resolve_franchise(db: Session, franchise_id: Any, names: Dict[str, Any], med
     )
     db.add(created)
     db.flush()
+    if created.franchise_type == FranchiseType.H_COMIC:
+        # Imported here: h_comic imports models, and this module is loaded
+        # while app.services.domain is still initialising.
+        from app.services.domain.h_comic import ensure_franchise_label
+
+        ensure_franchise_label(db, created)
     logger.info("Auto-created missing Franchise for %s: %s", label, created.system_id)
     return created.system_id
 
@@ -143,6 +183,7 @@ resolve_manga_parent_hierarchy = _entry_resolver("manga")
 resolve_novel_parent_hierarchy = _entry_resolver("novel")
 resolve_comic_parent_hierarchy = _entry_resolver("comic")
 resolve_game_parent_hierarchy = _entry_resolver("game")
+resolve_h_comic_parent_hierarchy = _entry_resolver("h-comic")
 
 
 def resolve_anime_movie_parent_hierarchy(db: Session, franchise_id: Any, names: Dict[str, Any]) -> Any:

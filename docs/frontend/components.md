@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-22
+Last verified: 2026-09-24
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -42,7 +42,7 @@ src/
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
 | `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
-| `pages/plan/usePlanData` | The Plan page's eleven lists (franchise, series and the nine entry types) plus `["plan-next"]`. |
+| `pages/plan/usePlanData` | The Plan page's lists (franchise, series and the ten entry types - `h-comic` fetched only for a session that can see it) plus `["plan-next"]`. |
 
 Query defaults (`main.jsx`): `staleTime` 30 s, `retry` 1, no refetch on window
 focus. Query keys in use: `["media-list", type(, params)]`, media item keys,
@@ -58,7 +58,8 @@ toggled inside a hub does not update the library cache until it goes stale.
 ## Contexts
 
 - **`AuthContext`** — `GET /api/auth/me` on mount; exposes `isAdmin`,
-  `username`, `role`, `isRoot`, `permissions`, `loading`, `has(permission)`
+  `username`, `role`, `isRoot`, `permissions`, `visibleGatedTypes` (read
+  through `lib/gatedTypes.js`, never directly), `loading`, `has(permission)`
   (root short-circuit) and `refetchAuth()`. `ProtectedRoute` and the nav
   gate on `has("admin")`; page controls gate on `isAdmin`. `refetchAuth()` is
   *not* how an identity change is applied: sign-in, sign-out and an
@@ -126,12 +127,12 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 
 | File | Holds |
 |---|---|
-| `mediaRegistry.js` | `MEDIA_CONFIG`: per type `statusField`, `apiEndpoint`, `navPath`, `statusType` (incl. collection/franchise/series). `statusType` is the status axis — `watch`, `read` or, for `game`, `play` (`statusField: "playing_status"`). Source for `endpoints.resource`. |
-| `navigation.js` | `NAV_SECTIONS` (Library mega-panel, Track, Insights, then Entry, Note and Admin with `requires: "admin"`), `activeItem`, `visibleSections` (filters rows as well as sections — Insights carries two `requires: "admin"` rows). |
+| `mediaRegistry.js` | `MEDIA_CONFIG`: per type `statusField`, `apiEndpoint`, `navPath`, `statusType` (incl. collection/franchise/series). `statusType` is the status axis — `watch`, `read` or, for `game`, `play` (`statusField: "playing_status"`). `h-comic` is registered like any other type (`read` axis); where it is drawn is decided by the gate below. Source for `endpoints.resource`. |
+| `navigation.js` | `NAV_SECTIONS` (Library mega-panel, Track, Insights, then Entry, Note and Admin with `requires: "admin"`), `activeItem`, `visibleSections(sections, has, canSeeType)` (filters rows as well as sections — Insights carries two `requires: "admin"` rows, and the Library's H-Comic row carries `gatedType: "h-comic"`, dropped unless `canSeeType` says yes; left out, every gated row is dropped). |
 | `statusGroups.js` | `WATCHING_STATUS_GROUP`, `READING_STATUS_GROUP`, `PLAYING_STATUS_GROUP`, `AIRING_STATUS_CLS`; plus the picker groups (`STATUS_PICKER_GROUP`, `groupStatusOptions()`) that `components/ui/StatusOptions.jsx` renders as `<optgroup>`s. Filter buckets and picker groups are separate splits of the same vocabulary — and one `STATUS_PICKER_GROUP` map covers all three status axes, because no value means something different between them (Paused is Paused whether you watch, read or play). |
 | `planNextGroups.js` | Size buckets and labels — a hand-kept copy of `app/utils/plan_next_kinds.py`; keep them in sync. `game` has **no** `SIZE_GROUPS` entry (as `anime-movie` has an empty one): there is no count a game groups by, so its Plan tab renders one ungrouped list. Its `ALLOWED_SCOPES` are entry/series/franchise for both `next` and `rewatch`. |
 | `fieldOptions.js` + `useConstants.js` | Fallback enum arrays, overwritten in place by `/api/constants` once on mount — but only the arrays listed in `CONSTANTS_FALLBACK`. The seven game vocabularies (`GAME_TYPES`, `COMPLETION_LEVELS`, `GAME_RELEASE_STATUSES`, `GAME_STOREFRONTS`, `GAME_OWNERSHIP_KINDS`, `GAME_COPY_FORMATS`, `GAME_ACQUISITION_KINDS`) are **not** in that map, so they stay hand-maintained literals that must be kept matching `app/utils/constants.py` by hand — even though `/api/constants` does serve all eight game keys now. `PLAYING_STATUSES` is the one game list that is a real fallback. `PRICE_CURRENCIES` is frontend-only: `game_copy.price_currency` is a free string on the backend. |
-| `formFactories.js` | `freshForm(type)` defaults per form. |
+| `formFactories.js` | `freshForm(type)` defaults per form. `defaultHComic` starts with `region: ""`, so the form shows no region-only field until one is chosen. |
 | `formFields/fieldMeta.js`, `formFields/index.js` | Field metadata (label, control, option source, coerce) for defaults and autofill. |
 | `mediaTypeColors.js`, `namingConfigs.js`, `adminTabs.js`, `weekdays.js`, `broadcastTimes.js` | Media-type chip classes (one ink chip for every type — colour never encodes a category); name-field order per type; the Add/Modify tab bar; schedule constants. |
 
@@ -150,11 +151,13 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `AdminStrip`, `HeroCover`, `Field`, `HubTabs`, `Section`, `SELECT_CLS`,
   `pillCls`) and `HubStates`: the franchise/series/collection hub chrome in
   the archive look.
-- **`components/cards`** — `MediaCard` (one card for all nine types,
+- **`components/cards`** — `MediaCard` (one card for all ten types,
   `variant="future"`; its status button comes from `getCardStatusConfig(type,
   status)`, which dispatches on the watch / read / **play** axis, and its
   progress line for a game is `hours_played` against `hltb_main`, rendered
-  only when at least one of the two exists. On `variant="future"` the status
+  only when at least one of the two exists; for an h-comic it is
+  `progressFor(entry)` - pages on JP, chapters on KR, nothing without a
+  region. On `variant="future"` the status
   select comes from `FUTURE_STATUS_OPTIONS`, keyed on the same axis, and the
   bolt from `BOLT_RELEASE`, which names the column that says a title is still
   unreleased — `airing_status` for the watched types, `release_status` for a
@@ -201,7 +204,9 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   (achievements when the game reports a total and no estimate exists), so
   there is no progress callback to thread through.
 - **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `ScoreBlock`,
-  `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`.
+  `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`,
+  `ClubMembership` (see [Entity components](#entity-components-person-studio-and-character)).
+  `NamingCard` shows an h-comic's own region's name only (JP or KR).
   `SourcesCard` reads the entry's `sources` array (server-ordered — access
   rows in `sort_order`/insertion order, never re-sorted client-side), splits
   it into `access`/`reference` sections by `row.kind`, titles the access
@@ -227,7 +232,10 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   a **franchise's** label set through the one URL builder, so the two pages
   cannot drift; `LABELLABLE_TABS` exported beside it is the one list of tabs
   that carry labels, which is what closed the gap where `game` was missing
-  from Add's list while Add's submit wrote labels anyway),
+  from Add's list while Add's submit wrote labels anyway. Its `required` prop
+  draws a gated type's required label checked and locked, and
+  `saveEntryLabels` / `saveFranchiseLabels(id, keys, franchiseType)` add it
+  back to the set they send),
   `SourcesEditor` (the one shared editor for every Add
   and Modify tab's `sources` field, replacing eight copy-pasted
   `source_other` editors; produces `access` rows for `main`/`other`/
@@ -300,8 +308,15 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   a rule, and a move that flattens the whole tree depth-first (the reorder
   endpoint takes ids naming exactly the section, so a sibling-only payload is
   refused). Its owners are thirteen 攻略 sections, both 劇情 plot sections, the
-  four 劇情列表 strands and the standalone `guide_resources` card;
-  `docs/systems/notes.md` lists each one's spec.
+  four 劇情列表 strands, the standalone `guide_resources` card and 亮點
+  Highlights; `docs/systems/notes.md` lists each one's spec. Two registry
+  features are rendered here and named nowhere else: a `names` field gets
+  `NamesInput` (several free-text names, suggesting `nameSuggestions`), and a
+  section with `group_by` reads as one group per name (`groupedRows.js`), the
+  groups reorderable by dragging a header or with its arrows through
+  `onGroupOrderChange`, the rows inside a group not reorderable at all. The
+  provider passes both in from the owner page; `NotesContext` also drops a
+  section whose `owner_where` the owner row fails (`ownerMatches`).
   `NotesTemplate`'s `SHAPES` map covers all nine stored shapes.
 
 ## The access-mode admin pages (`pages/admin/`)
@@ -342,7 +357,7 @@ is a second place to keep in step.
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
 | `formatters.js` | `getSourceValues(sources, source)` (filters the `fetchAllSources()` bag by category/scope/**usage** for a `ComboBox`) and display formatters |
-| `payloads.js` | form state → request body for every media type, including mapping the `SourcesEditor` array into the `sources` write-payload key |
+| `payloads.js` | form state → request body for every media type, including mapping the `SourcesEditor` array into the `sources` write-payload key. `hComicFieldsPayload` never sends `highlight_group_order`: the detail page's drag owns that column, and a form save leaves it alone |
 | `autofill.js`, `ensureSourceValues.js` | fill a form from a picked row; keep option sources consistent |
 | `covers.js` | `getCoverUrl`, `FALLBACK_SVG` (`/static/covers/<key>` on every host, except a `library/`-prefixed key — an uploaded image — which resolves to `/static/<key>` instead, since the library root is a sibling of `covers/` under `static/`, not part of it. The app serves its own images off local disk, so there is no hostname switch and no bucket URL). `withMediaType` for tagging a fetched list so the convention-filename fallback knows which folder to look in — an untagged entry falls back to the placeholder rather than a broken URL plus the grouping-tier resolvers `getFranchiseCover` / `getSeriesCover` / `getCollectionCover`. `getSeriesCover` takes one flat combined list and its caller must pass **every** entry list the page loaded: a series whose `cover_entry_id` points at a type left out silently falls back to the placeholder. Passing fewer lists than the page loaded is the standing bug here, and it fails silently. Also `isLocalHost` and `getQuoteImageUrl`: quote images live under `static/quotes/`, and a `library/`-prefixed key (an uploaded quote or meme image) resolves the same way `getCoverUrl` resolves one — off the localhost hold, which only ever existed because there was no way to get a file onto the machine at all |
 | `status.js` | status button configs (`getStatusButtonConfig`, `getReadingButtonConfig`, `getPlayingButtonConfig`) and `getCardStatusConfig(type, status)`, which picks between them from two `Set`s (`READ_TYPES`, `PLAY_TYPES`) rather than a chain of `||` — a tenth media type is one entry, not another ternary arm |
@@ -351,6 +366,9 @@ is a second place to keep in step.
 | `relationLayout.js`, `relationHandles.js`, `relationUndo.js` | pure graph layout (union-find contraction, dagre), handle geometry, undo stack |
 | `textFit.js` | width measurement for `FittedName` |
 | `clipboardImage.js` | copy an image to the clipboard (quotes/memes) |
+| `gatedTypes.js` | The gated-type question - see [Gated media types](#gated-media-types). `GATED_TYPES`, `canSeeGatedType`, the list filters, and `REQUIRED_LABEL_FOR_TYPE` (mirrors the backend's) with `requiredLabelsForType` / `requiredLabelsForFranchiseType` |
+| `hComicRegion.js` | Which h-comic fields a region uses, the novelUnits pattern for a variant-dependent form. `REGION_ONLY_FIELDS` (JP: `h_comic_name_jp`, originality, animation status, series number, page total and `page_fin`; KR: `h_comic_name_kr`, chapter total, `ch_behind`, `ch_fin`, author, official source, `highlight_group_order` - the catalogue and reader columns mirror the server's `REGION_CLEARS` / `LIST_REGION_CLEARS`), `showsField(region, field)` (a region-only field shows on its region and on none while the region is unset), `clearedForRegion(form)` (blanks the other region's fields before a save; names are kept, and the KR-only author and official source - credits the server does not clear - are cleared here), `progressFor(entry)` (pages on JP, chapters on KR) |
+| `hComicForm.js` | `hComicSourceFields(form, split)`: the credit and tag fields the h-comic Add and Modify saves hand to `ensureSourceValues`, each person source with its role and `h-comic` scope |
 | `novelUnits.js` | `NOVEL_UNIT_KINDS_BY_TYPE` (hand-mirrored from `app/utils/constants.py`, pinned by `config/novelUnitKinds.test.js`), `kindsForType`, `unitDisplayKey`, `arcStep` (frontend mirror of `normalize_arc_progress`) |
 
 ## Testing conventions
@@ -389,6 +407,43 @@ Every detail page is addressed `/<type>/<public_id>/<slug>` - `/anime/47/cowboy-
   rename. It uses `navigate(..., { replace: true })`, so the back button still
   leaves the page in one press.
 
+## Gated media types
+
+A **gated type** is a media type whose every entry carries a required content
+label - today only `h-comic`
+([authorization.md](../authorization.md#gated-types)). A session whose access
+mode lacks the label is not told the type exists: the server withholds its
+entries, vocabularies and constants, and `GET /api/auth/me` names in
+`visible_gated_types` only the gated types the session may see.
+`AuthContext` exposes that list as `visibleGatedTypes` (empty until
+`/api/auth/me` answers, so nothing gated flashes on screen first).
+
+**One helper asks the question: `lib/gatedTypes.js`.** `canSeeGatedType(auth,
+type)` is true for an ungated type and, for a gated one, only when the server
+named it. `visibleMediaTypes`, `visibleByType` (any list of objects naming a
+type) and `visibleFranchiseTypes` (drops `H-Comic` with its type) filter lists
+through it. Every h-comic surface goes through one of them, never a literal
+`"h-comic"` test:
+
+| Surface | How it asks |
+|---|---|
+| `App.jsx` routes `/library/h-comic` and `/h-comic/:publicId/:slug?` | `<ProtectedRoute gatedType="h-comic">` - a signed-in narrow session is sent home, a signed-out visitor to login |
+| Nav row (Library → ACG → H-Comic) | `gatedType: "h-comic"` on the item in `config/navigation.js`; `visibleSections(sections, has, canSeeType)` drops it. Both permission surfaces ask the same helper, and `navigation.test.js` pins the pair |
+| Add / Modify / Delete / Form Defaults tab | `AdminTabBar` filters every tab list through `visibleByType` |
+| Nav search scope, Plan tabs, Completions tabs, Quotes filter, image owner-type filter, watch-order type filter, Control Center Fill button, `PersonSubTabBar` Club tab | `visibleByType` / `canSeeGatedType` at the list |
+| Lists fetched only when visible | `usePlanData`, `Completions`, `useStatisticsData` (the h-comic rating card), `SeriesPage` and `FranchiseLibrary` (which waits for `/api/auth/me`) |
+| Club membership on the person page | `ClubMembership` renders, and fetches, nothing for a narrow session |
+
+What a gated type's surface does **not** filter is what the server already
+answers empty for a narrow session: the `h-comic` search bucket, the profile
+groups, a franchise hub (only an `H-Comic` franchise, hidden with its label,
+asks for h-comics at all). Hiding in the SPA is cosmetic in every case.
+
+A gated type's **required label** is locked on in `ContentLabelPicker`
+(`required` prop, from `requiredLabelsForType` / `requiredLabelsForFranchiseType`)
+and added back by `saveEntryLabels` / `saveFranchiseLabels`, because the
+content-label endpoints refuse (422) a set that drops it.
+
 ## Adding a media type on the frontend
 
 1. `config/mediaRegistry.js` — add the key (hyphenated), `apiEndpoint`, `navPath`, `statusField`.
@@ -398,12 +453,13 @@ Every detail page is addressed `/<type>/<public_id>/<slug>` - `/anime/47/cowboy-
 5. `pages/add-tabs/<Type>AddTab.jsx`, `pages/modify-tabs/<Type>ModifyTab.jsx`, entries in `config/adminTabs.js`, `formFactories.js`, `formFields/fieldMeta.js`, `lib/payloads.js`, and the submit/save handlers in `Add.jsx` / `Modify.jsx`. Export the field body from the Add tab and render it from the Modify tab, the way `GameModifyTab` renders `GameAddTab`'s `GameFormBody` and `GameLineageFields` — the comic pair keeps two near-identical files and can drift.
 6. `Delete.jsx` `MEDIA_KEYS`, `pages/plan/usePlanData.js`, `pages/statistics/useStatisticsData.js` (+ `StatsCompletions.jsx`, `utils/statsUtils.js`), `Index.jsx` divisions, `Completions.jsx`, `Search.jsx`, `NavSearch.jsx` scopes and quotas, `GroupedEntryPage.jsx` `MEDIA_TYPE_FILTERS`, `navigation.js`, `lib/status.js`, `libraryColumns.jsx`, `planNextGroups.js`, `mediaTypeColors.js`, and `scopeColors.js` plus the three `--c-scope-*` palettes in `index.css`.
 7. Backend first: registry spec, pipeline spec, sheet tab — see [../entry-types.md](../entry-types.md).
+8. A **gated** type (one naming a required label) also needs its key in `GATED_TYPES` (and a franchise type stamped only for it in `GATED_FRANCHISE_TYPES`) in `lib/gatedTypes.js`, its nav row given `gatedType`, both routes wrapped in `<ProtectedRoute gatedType>`, and every list above that names it rendered through the helper - see [Gated media types](#gated-media-types). `h-comic` is the worked example.
 
 ## Entity components (person, studio and character)
 
 | Component | What it is |
 |---|---|
-| `forms/PersonSubTabBar.jsx` | The five person types (`PERSON_SUB_TABS`), shared by the admin Modify / Delete pages and by the `/library/person` type filter, so one vocabulary drives all three. It filters a list; the Add page has no list and so no bar, and it never scopes the editor, because a person is one row that may hold several types. |
+| `forms/PersonSubTabBar.jsx` | The seven person types (`PERSON_SUB_TABS`; the Club tab carries `gatedType: "h-comic"` and is drawn only for a session that can see the type), shared by the admin Modify / Delete pages and by the `/library/person` type filter, so one vocabulary drives all three. It filters a list; the Add page has no list and so no bar, and it never scopes the editor, because a person is one row that may hold several types. |
 | `forms/OptionSubTabBar.jsx` | The Options / Tags halves of the System Option tab. People and studios were once entries here. |
 | `forms/OptionCategorySelect.jsx` | The Tier 2 category dropdown on all three admin pages — Add's Category field, Modify's and Delete's "select a category" filter. A closed `<select>`, so Add can no longer coin a category by typing one; its `<optgroup>`s come from `groupTier2Categories` (`lib/optionsPageGroups.js`), the same arrangement `/options` reads, and a list yielding one section renders flat. |
 | `add-tabs/PersonAddTab.jsx` | Exports `PersonFields` (the editor) and `useRoleScopes` (the legal role → media-type map from `GET /api/person/role-scopes`), both reused by `modify-tabs/PersonModifyTab.jsx`. |
@@ -411,7 +467,8 @@ Every detail page is addressed `/<type>/<public_id>/<slug>` - `/anime/47/cowboy-
 | `info/StudioLinks.jsx` | The same pair for `studio_refs`, without a role key. Generalised over its detail route rather than copied for the third entity: `StudioLinks` takes a `base` prop (default `/studio`), `studioValue(item)` reads `studio_refs`, and `publisherValue(item)` reads `publisher_refs` with `base="/publisher"`. A game's Production card uses both — Developer through `studioValue` (a developer *is* a studio), the publisher row through `publisherValue`, and the same publisher row now appears on Anime, AnimeMovie, Manga, Novel and Comic. `publisherLabel(item, fallback)` beside them returns `publisher_refs[0].label` — the backend's `credit_label("publisher", media_type)` — so no page hard-codes 台灣代理商 or 發行商; the fallback literal is only reached on an entry with no publisher credited yet. The duplicate `info/PublisherLinks.jsx` was **deleted**: nothing imported it, and a second label mechanism beside this one is how the two drift apart. |
 | `forms/PublisherScopePills.jsx` | One row of media-type pills (Anime, Anime Movie, Manga, Novel, Comic, Game) on the Publisher Add and Modify tabs, writing the `scopes` list the POST/PUT body carries. `PersonRoleMatrix`'s shape with no role axis to cross it against — a publisher holds exactly one role. Clicking a held pill removes it; this is the only path that *narrows* a publisher, since credit writes and `POST /api/publisher` are additive. The toggle rebuilds the list in the component's own order rather than appending, so the value posted does not depend on click order. Mirrors `legal_scopes("publisher")` in `app/utils/credit_roles.py`: a seventh media type added there must be added here. |
 | `forms/CastEditor.jsx` | The anime/anime-movie/manga/novel Add/Modify cast table. Controlled like `NovelUnitsEditor` — the parent owns `value` and gets every change through `onChange` — and never saves a cast list itself, only searches/creates the two entities its comboboxes reference: a character combobox (debounced `GET /api/character/?name=`, existing matches shown with the entries they already appear in, plus a synthetic "create new character named X" choice — never find-or-create, per Decision G) and a seiyuu combobox (find-or-creates through the existing `ensureSourceValues.js` path, same as every other person field). Renders **without** the seiyuu column on manga/novel (`SEIYUU_MEDIA_TYPES`), mirroring `ck_casting_voice_scope` so the UI cannot offer what the database will reject. One row per casting: character, seiyuu (when shown), a Main/Supporting `role` select, a photo slot, a remark, and drag-to-reorder writing `position`. |
-| `hooks/useCasting.js` | TanStack Query hook over `GET /api/casting/{media_type}/{entry_id}`, read by the four ACG detail pages' Cast section. |
+| `hooks/useCasting.js` | TanStack Query hook over `GET /api/casting/{media_type}/{entry_id}`, read by the ACG detail pages' Cast section and by the h-comic page, which also hands the cast's names to the Highlights `names` inputs. |
+| `info/ClubMembership.jsx` | Club membership on the person page, over `GET`/`PUT /api/person/{id}/clubs` and `/members`. A club (a person holding the `club` role) lists its **Members** in the club's order; an admin edits them with arrows, remove and a search to add, and Save PUTs the whole ordered `member_ids`. A person lists the **Clubs** they belong to (ordered by name, so no arrows); an admin is offered that editor on anyone holding an `h-comic`-scoped role. Renders and fetches nothing for a session that cannot see h-comic. |
 
 Neither entity detail page reuses `MediaCard`: it resolves its title through
 `getDisplayName(data, type)` and reads status, franchise and admin props, none

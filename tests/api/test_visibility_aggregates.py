@@ -322,24 +322,30 @@ def test_a_hidden_entry_is_not_an_addable_candidate(
 # ---------------------------------------------------------------------------
 
 def test_a_credit_on_a_hidden_entry_is_not_counted(
-    client, db_session, hidden_anime
+    client, db_session, hidden_anime, sample_anime
 ):
+    """
+    The person also holds a visible credit: one credited ONLY on hidden
+    entries is hidden with them (shared_visibility.py), and a count on a row
+    that is absent would prove nothing.
+    """
     person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Director")
     db_session.add(person)
     db_session.flush()
-    db_session.add(
-        models.MediaCredit(
-            system_id=uuid.uuid4(),
-            media_id=hidden_anime.system_id,
-            role="director",
-            person_id=person.system_id,
+    for entry in (hidden_anime, sample_anime):
+        db_session.add(
+            models.MediaCredit(
+                system_id=uuid.uuid4(),
+                media_id=entry.system_id,
+                role="director",
+                person_id=person.system_id,
+            )
         )
-    )
     db_session.flush()
 
     body = client.get("/api/person/").json()
     row = next(p for p in body if p["system_id"] == str(person.system_id))
-    assert row["credit_count"] == 0
+    assert row["credit_count"] == 1
 
 
 def test_admin_still_counts_the_credit(admin_client, db_session, hidden_anime):

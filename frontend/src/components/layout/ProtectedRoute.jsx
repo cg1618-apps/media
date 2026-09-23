@@ -12,17 +12,29 @@
 // mirroring the server's get_current_user_id. The per-user pages (Plan,
 // Seasonal, Statistics) need an account, not a role.
 //
+// `gatedType` asks the third question - "may this session see this gated
+// media type?" - through canSeeGatedType, the same helper navigation.js asks
+// for the nav row, so the route and its link cannot disagree. A session that
+// may not see the type is not told it exists: a signed-in one lands on the
+// home page as if the path were unknown, and only a signed-out visitor is sent
+// to log in, since signing in may bring a mode that carries the label. It
+// composes with `permission`/`requireAuth` only when one is passed explicitly;
+// on its own it asks nothing else.
+//
 // This is a redirect, not a security boundary: the API refuses the request on
 // its own. The point is to send someone to the login page instead of showing
 // them a screen that will only fill with errors.
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { canSeeGatedType } from "../../lib/gatedTypes";
 
 export default function ProtectedRoute({
-  permission = "admin",
+  permission,
   requireAuth = false,
+  gatedType,
 }) {
-  const { has, username, loading } = useAuth();
+  const auth = useAuth();
+  const { has, username, loading } = auth;
   const location = useLocation();
 
   if (loading) {
@@ -36,8 +48,27 @@ export default function ProtectedRoute({
     );
   }
 
+  if (gatedType && !canSeeGatedType(auth, gatedType)) {
+    return username ? (
+      <Navigate to="/" replace />
+    ) : (
+      <Navigate
+        to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
+        replace
+      />
+    );
+  }
+
   // requireAuth gates on "is anyone logged in" rather than on a permission.
-  const allowed = requireAuth ? Boolean(username) : has(permission);
+  // With neither, a gated-type route asks nothing more; any other bare use
+  // keeps the old default of "admin", a permission no role holds.
+  const allowed = requireAuth
+    ? Boolean(username)
+    : permission
+      ? has(permission)
+      : gatedType
+        ? true
+        : has("admin");
 
   // Without it, send them to login and preserve the page they wanted.
   return allowed ? (

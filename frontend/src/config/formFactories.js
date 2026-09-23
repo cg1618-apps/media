@@ -383,6 +383,51 @@ export const defaultGame = () => ({
   remark: "",
 });
 
+// The gated h-comic type. `region` starts unset on purpose: every
+// region-only field stays hidden until it is chosen (lib/hComicRegion.js), so
+// the form asks for it first. The credit and tag keys are the credit-role and
+// tag-field keys themselves - the type is new, so there is no legacy sheet
+// header to keep (payloads.js CREDITS_FIELD_MAP).
+export const defaultHComic = () => ({
+  region: "",
+  h_comic_name_cn: "",
+  h_comic_name_en: "",
+  h_comic_name_alt: "",
+  h_comic_name_jp: "",
+  h_comic_name_kr: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  originality: "",
+  animation_status: "",
+  series_number: "",
+  serialization_status: "",
+  page_total: "",
+  ch_total: "",
+  ch_behind: "",
+  release_date: "",
+  end_date: "",
+  reading_status: "Might Read",
+  my_rating: "",
+  usefulness: "",
+  page_fin: "",
+  ch_fin: "",
+  illustrator: "",
+  author: "",
+  club: "",
+  original_source: "",
+  h_genre_plot: "",
+  h_genre_appearance: "",
+  h_genre_relation: "",
+  sources: [],
+  read_next: false,
+  to_reread: false,
+  cover_image_file: "",
+  pending_image_id: null,
+  remark: "",
+});
+
 export const defaultCollection = () => ({
   collection_name_en: "",
   collection_name_cn: "",
@@ -507,6 +552,7 @@ export const FORM_FACTORIES = {
   novel: defaultNovel,
   comic: defaultComic,
   game: defaultGame,
+  "h-comic": defaultHComic,
   collection: defaultCollection,
   franchise: defaultFranchise,
   series: defaultSeries,

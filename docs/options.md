@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-13
+Last verified: 2026-09-23
 
 ## What this is for
 
@@ -68,10 +68,18 @@ diverged from the Enum long ago and reconciling them is out of scope (the
 file's own comment calls this Ruling R10). See
 [Known discrepancies](#known-discrepancies).
 
+The payload is **viewer-scoped on one axis**: what exists only for a gated
+type the viewer cannot see is left out
+([authorization.md](authorization.md#what-a-narrow-session-is-not-told)). For
+any session outside `unrestricted` that means no `h_comic_*` keys at all, no
+`H-Comic` in `franchise_type`, no `h-comic` in `media_type`, no `club` in
+`person_role`, and none of the three H Genre categories in
+`option_categories`.
+
 | Name | Values (in order) | Used by | `/api/constants` key |
 |---|---|---|---|
 | `WatchStatus` (Enum) | `Might Watch`, `Plan to Watch`, `Watch When Airs`, `Active Watching`, `Passive Watching`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Watch` | `watching_status` on anime, anime_movies, movies, tv_shows, cartoons | `watching_status` |
-| `ReadStatus` (Enum) | `Might Read`, `Plan to Read`, `Active Reading`, `Passive Reading`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Read` | `reading_status` on manga, novel, comic | `reading_status` |
+| `ReadStatus` (Enum) | `Might Read`, `Plan to Read`, `Active Reading`, `Passive Reading`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Read` | `reading_status` on manga, novel, comic, h_comic | `reading_status` |
 | `COMPLETED_WATCH_STATUSES` | `{Completed, Completed (解說)}` | completion checks (`Completed (解說)` = finished via a summary/commentary video; counts as completed everywhere) | not served |
 | `COMPLETED_READ_STATUSES` | `{Completed, Completed (解說)}` | same, for reading types | not served |
 | `PlayStatus` (Enum) | `Might Play`, `Plan to Play`, `Play When Released`, `Active Playing`, `Passive Playing`, `Play Anytime`, `Paused`, `Completed`, `Temp Dropped`, `Dropped`, `Won't Play` | `playing_status` on games. `Play When Released` is `Watch When Airs`'s analogue and more load-bearing here: a pre-ordered or wishlisted unreleased title is an ordinary state in a collection organised by purchasable. `Play Anytime` covers titles with nothing to resume and nothing to finish - sandbox (Minecraft), live-service (Valorant) and roguelike (Slay the Spire) alike, because what differs between those three is the game, not the state | `playing_status` |
@@ -80,8 +88,8 @@ file's own comment calls this Ruling R10). See
 | `AnimeAiringType` (Enum) | `TV`, `ONA`, `OVA`, `OAD`, `Special`, `Movie` | backend-internal only | not served |
 | `ANIME_AIRING_TYPES` | `TV`, `Movie`, `ONA`, `OVA`, `OAD`, `Special`, `Other` | `anime.airing_type` dropdown | `anime_airing_type` |
 | `CARTOON_AIRING_TYPES` | `TV`, `Movie`, `OVA`, `Special` | `cartoons.airing_type` dropdown (Fill only handles `TV` and `Movie`, see business-rules.md section 17) | `cartoon_airing_type` |
-| `FranchiseType` (Enum) | `Anime`, `Movie`, `TV`, `Cartoon`, `Comic`, `ACG`, `Novel`, `Game` | backend-internal only | not served |
-| `FRANCHISE_TYPES` | `ACG`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game` | `franchise.franchise_type` dropdown | `franchise_type` |
+| `FranchiseType` (Enum) | `Anime`, `Movie`, `TV`, `Cartoon`, `Comic`, `ACG`, `Novel`, `Game`, `H-Comic` | backend-internal only | not served |
+| `FRANCHISE_TYPES` | `ACG`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic` | `franchise.franchise_type` dropdown. `H-Comic` is the one type code branches on: a franchise carrying it carries the `h-comic` label and only h-comics resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
 | `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `franchise.franchise_expectation` | `franchise_expectation` |
 | `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on entries, franchise, seasonal, person, studio | `my_rating` |
 | `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; `comic.is_main_entry` is a Boolean, not this) | `is_main` |
@@ -99,11 +107,15 @@ file's own comment calls this Ruling R10). See
 | `GAME_OWNERSHIP_KINDS` | `Owned`, `Wishlist`, `Subscription`, `Free`, `Not Owned` | `game_copy.ownership`; also the precedence order `derive_game_ownership` reads | `game_ownership` |
 | `GAME_COPY_FORMATS` | `Digital`, `Physical` | `game_copy.copy_format` | `game_copy_format` |
 | `GAME_ACQUISITION_KINDS` | `Bought`, `Gifted`, `Free`, `Bundled`, `Subscription` | `game_copy.acquisition` | `game_acquisition` |
-| `MANGA_SERIALIZATION_STATUSES` | `連載中`, `停更`, `腰斬`, `完結` | `manga.serialization_status` | `manga_serialization_status` |
+| `MANGA_SERIALIZATION_STATUSES` | `連載中`, `停更`, `腰斬`, `完結` | `manga.serialization_status`, `h_comic.serialization_status` | `manga_serialization_status` |
 | `NOVEL_SERIALIZATION_STATUSES` | `連載中`, `連載中 (不穩定)`, `連載中 (有生之年)`, `停更`, `完結`, `腰斬`, `可能更多`, `未出` | `novel.serialization_status`; `完結` gates the volume/chapter checks | `novel_serialization_status` |
 | `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
 | `MUSIC_STATUSES` | `Need`, `Pending`, `Done` | `note.status` on the `op`, `ed`, `insert_songs`, `ost` sections | `music_status` |
 | `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
+| `H_COMIC_REGIONS` | `JP`, `KR` | `h_comic.region`, required on every write; decides which columns the entry keeps ([entry-types.md](entry-types.md#h-comic-regions-region_clears-appservicesdomainh_comicpy)) | `h_comic_region` |
+| `H_COMIC_ORIGINALITY` | `原創`, `同人` | `h_comic.originality` (JP only) | `h_comic_originality` |
+| `H_COMIC_ANIMATION_STATUSES` | `Not Animated`, `Announced`, `Animated` | `h_comic.animation_status` (JP only, hand-set) | `h_comic_animation_status` |
+| `H_COMIC_USEFULNESS` | `非常實用`, `實用`, `特定情況實用`, `不實用` | `user_media_list.usefulness` (personal) and the `status` field of the `h_comic_highlights` note section | `h_comic_usefulness` |
 
 `anime.seiyuu` and the `seiyuu` **person role** below are unrelated, and the
 name collision is worth flagging: `anime.seiyuu` is a `Need`/`Done` to-do flag
@@ -120,9 +132,10 @@ zero castings, and vice versa.
 `game_ownership`, `game_copy_format` and `game_acquisition`. The four
 `game_copy` vocabularies are prefixed `game_` because the column name alone
 (storefront, ownership, acquisition) would not say which table it belongs to
-in one flat map. Two derived keys widened automatically when the games backend
-landed: `franchise_type` now carries `Game`, and `media_type` carries `game`,
-because both are built from lists that grew.
+in one flat map. Two derived keys widen with every new type, because both are
+built from lists: `franchise_type` carries `Game` and `H-Comic`, and
+`media_type` carries `game` and `h-comic`. The four h-comic vocabularies are
+served under `h_comic_`-prefixed keys for the same one-flat-map reason.
 
 Only `playing_status` is wired into the frontend fallback map, though. It is
 the one game list in `CONSTANTS_FALLBACK` in
@@ -233,7 +246,7 @@ can only hold URLs and `text_links` has no title, so neither could say
 | `quotes_memes` | 名言/梗 Quotes and Memes |
 
 **Sections** (`NOTE_SECTIONS`, in display order). "All" means every media
-type plus `series`, `franchise`, `collection`; "Entries" means the nine
+type plus `series`, `franchise`, `collection`; "Entries" means the ten
 media types only.
 
 | Key | Shape | Label | Owners | Group | Kinds / statuses |
@@ -250,6 +263,7 @@ media types only.
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
 | `highlight_passages` | text | 神片段 | novel | | |
 | `highlight_moments` | episode_text | 神場景 Highlights | game | | locator required, placeholder "Chapter / Boss" |
+| `h_comic_highlights` | structured | 亮點 Highlights | h-comic | | KR entries only (`owner_where`); grouped by the `female_characters` names field; usefulness select `H_COMIC_USEFULNESS` |
 | `analysis` | text_links | 解析 Analysis | All | analysis_group; **reviews** for game | Last in the 評論 card for a game - see `groups_by_owner` |
 | `cinematography` | text_links | 分鏡/演出/巧思 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
 | `craft` | text_links | 巧思 | novel | analysis_group | |
@@ -388,17 +402,21 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 | Key | Label | Target | Media types |
 |---|---|---|---|
 | `studio` | Studio | studio | anime, anime-movie, game |
-| `publisher` | Publisher | publisher | game |
+| `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
 | `director` | Director | person | anime, anime-movie, movie, game |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime, game |
-| `author` | Author | person | manga, novel, comic |
-| `illustrator` | Illustrator | person | manga, novel, comic |
+| `author` | Author | person | manga, novel, comic, h-comic |
+| `illustrator` | Illustrator | person | manga, novel, comic, h-comic |
+| `club` | Club | person | h-comic |
 | `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie |
 
 `PERSON_ROLES` (derived, served as `/api/constants` `person_role`): `director`,
-`producer`, `composer`, `author`, `illustrator`, `seiyuu` - `CREDIT_ROLES`
-filtered to `target == "person"`, which excludes both company keys.
+`producer`, `composer`, `author`, `illustrator`, `club`, `seiyuu` -
+`CREDIT_ROLES` filtered to `target == "person"`, which excludes both company
+keys. `club` is the circle an h-comic comes out of: a person row, so artists
+can belong to it through `person_membership`; its only scope is the gated
+h-comic type.
 
 **`target` is a three-value axis**: `"person"`, `"studio"` or `"publisher"`,
 the last pointing at the `publisher` table (see
@@ -449,8 +467,8 @@ read through `/api/casting`, keyed off `character_casting` - see
 
 The reader-facing word is **derived, not stored**:
 `credit_label(role, media_type)` reads 原作 / Author / Writer for `author` on
-manga / novel / comic and 作畫 / Illustrator / Artist for `illustrator`. One
-vocabulary, several words.
+manga / novel / comic and 作畫 / Illustrator / Artist / 繪師 for `illustrator`
+on manga / novel / comic / h-comic. One vocabulary, several words.
 
 **Person scope is not option scope.** Every `person_role` row carries a
 NOT NULL media-type scope and a person is offered in the union of their rows;
@@ -473,7 +491,7 @@ Tier 2 category:
 | `genre_sub` | Genre Sub | `Genre Sub` | anime |
 | `label` | 標籤 Label | `Label` | anime, game |
 | `quality` | Quality 品質 | `Quality` | anime |
-| `original_source` | Original Source | `Platform` | tv-show, cartoon, movie |
+| `original_source` | Original Source | `Platform` | tv-show, cartoon, movie, h-comic |
 | `exclusive_source` | Exclusive Source | `Platform` | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | `Serialization Platform` | manga, novel |
 | `comic_imprint` | Imprint | `Comic Imprint` | comic |
@@ -485,6 +503,19 @@ Tier 2 category:
 | `game_mode` | Mode | `Game Mode` | game |
 | `combat_mode` | Combat Mode | `Combat Mode` | game |
 | `game_platform` | Platform | `Game Platform` | game |
+| `h_genre_plot` | Genre Plot | `H Genre Plot` | h-comic |
+| `h_genre_appearance` | Genre Appearance | `H Genre Appearance` | h-comic |
+| `h_genre_relation` | Genre Relation | `H Genre Relation` | h-comic |
+
+The three h-comic genre fields exist for the gated type alone, and their
+**category itself is a connection** to h-comic: every value in `H Genre Plot`,
+`H Genre Appearance` or `H Genre Relation` is hidden from a session that
+cannot see h-comic, whatever scope rows it has - an unscoped, unused value
+included ([authorization.md](authorization.md#shared-records)). A category
+shared with an ungated type, such as Official Source, keeps the ordinary
+rule: its values are hidden only through their uses and gated scopes.
+They have no legacy sheet header; h-comic credits and tags all surface under
+their own keys.
 
 The five game fields mirror IGDB's own four fields plus one that is not an
 IGDB field: genre, theme, mode and platform carry `system_option_alias` rows
@@ -585,7 +616,7 @@ labels.
 `MEDIA_TYPE_KEYS` (hyphenated, stored in `media_relation`, `watch_order_item`,
 `plan_next`, `media_credit`, `media_tag`, `system_option_scope`; served as
 `/api/constants` `media_type`): `anime`, `anime-movie`, `movie`, `tv-show`,
-`cartoon`, `manga`, `novel`, `comic`, `game`. `OWNER_TYPE_KEYS` adds the grouping
+`cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`. `OWNER_TYPE_KEYS` adds the grouping
 tiers `series`, `franchise`, `collection` for note and meme owners.
 
 ---
@@ -600,7 +631,7 @@ described in
 
 **Categories.** The category string is free text on the API
 (`SystemOptionCreate.category: str`), but the ones anything reads are the
-seventeen in `OPTION_CATEGORIES`:
+twenty in `OPTION_CATEGORIES`:
 
 | Category | Offered in (scopes) | Read by |
 |---|---|---|
@@ -608,7 +639,7 @@ seventeen in `OPTION_CATEGORIES`:
 | `Genre Sub` | anime | tag field `genre_sub` |
 | `Label` | anime | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
 | `Quality` | anime | tag field `quality` (品質: production-quality tags; ships with no values, an admin adds them through the Options Add page) |
-| `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
+| `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie, h-comic) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
 | `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
 | `Serialization Platform` | manga, novel | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |
 | `Comic Imprint` | comic | tag field `comic_imprint` |
@@ -620,6 +651,9 @@ seventeen in `OPTION_CATEGORIES`:
 | `Game Mode` | game | tag field `game_mode`; 5 seeded values, each with an IGDB alias |
 | `Combat Mode` | game | tag field `combat_mode`; `PvE` and `PvP`, seeded **without** aliases - it is not an IGDB field |
 | `Game Platform` | game | tag field `game_platform`; `PlayStation`, `Nintendo`, `Xbox`, `PC`, `Mobile`, `Browser` - each folding a whole IGDB console generation in through its aliases. Brand names, so English rather than Chinese |
+| `H Genre Plot` | h-comic | tag field `h_genre_plot`; admin-managed, ships empty |
+| `H Genre Appearance` | h-comic | tag field `h_genre_appearance`; admin-managed, ships empty |
+| `H Genre Relation` | h-comic | tag field `h_genre_relation`; admin-managed, ships empty |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
 
 **The game vocabulary is seeded from code, not inline SQL.**
@@ -710,6 +744,14 @@ media types it is offered in as `system_option_scope` rows. A value with
 which returns values that are unscoped *or* scoped to that key. Results are
 ordered by `category`, `sort_order`, `value`. Scopes must be one of
 `MEDIA_TYPE_KEYS` (validated in `app/schemas/system.py`, duplicates dropped).
+
+**Hidden values.** Both reads apply the shared-record rule
+([authorization.md](authorization.md#shared-records)): a value every
+`media_tag` row of which is on a label-hidden entry, and that is scoped to no
+gated type the viewer can see, is left out for that viewer. A value used
+nowhere and scoped to no gated type stays. A scope naming a gated type the
+viewer cannot see is dropped from a visible value's `scopes`, and a
+`?scope=` naming one answers `[]`.
 
 **Writes.** `POST /api/options/`, `PUT /api/options/{id}`,
 `DELETE /api/options/{id}` are admin-only. Add and update reject an exact

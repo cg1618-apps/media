@@ -10,6 +10,7 @@ from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import (
     FIELD_LINKS,
     FIELD_LIST,
+    FIELD_NAMES,
     FIELD_SELECT,
     SHAPE_EPISODE_NAME_LINKS,
     SHAPE_EPISODE_TEXT,
@@ -132,6 +133,12 @@ class NoteSectionOut(BaseModel):
     require_any: List[List[str]] = []
     # Rows may carry a parent_id and render as a tree.
     hierarchical: bool = False
+    # The key of a `names` field the read view draws one group per name of.
+    # None renders the rows flat.
+    group_by: Optional[str] = None
+    # Owner-entry columns the section is limited to, {column: [values]}. The
+    # page renders no card on an owner outside them; the API refuses a row.
+    owner_where: dict[str, List[str]] = {}
 
 
 class NoteReorder(BaseModel):
@@ -181,6 +188,8 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         fields=[field_out(f) for f in section.fields],
         require_any=[list(group) for group in section.require_any],
         hierarchical=section.hierarchical,
+        group_by=section.group_by,
+        owner_where={k: list(v) for k, v in section.owner_where.items()},
     )
 
 
@@ -231,6 +240,15 @@ def _check_field(field: NoteField, value, where: str) -> None:
     if field.type == FIELD_LINKS:
         if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
             raise ValueError(f"{where} must be a list of URLs.")
+        return
+
+    if field.type == FIELD_NAMES:
+        # Free-text names, several allowed. Each must say something: a blank
+        # name would draw an unnamed group on a grouped section.
+        if not isinstance(value, list) or not all(
+            isinstance(v, str) and v.strip() for v in value
+        ):
+            raise ValueError(f"{where} must be a list of non-empty names.")
         return
 
     if field.type == FIELD_LIST:

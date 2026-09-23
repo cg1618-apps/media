@@ -43,7 +43,9 @@ def test_dub_preference_is_gone(client):
     assert "dub_preference" not in body
 
 
-def test_serves_the_person_role_vocabulary(client):
+def test_serves_the_person_role_vocabulary(admin_client):
+    # admin_client: `unrestricted`, which sees every gated type, so nothing
+    # is narrowed. A narrow session's payload is covered below.
     """
     OptionsAddTab.jsx hand-duplicated this list with nothing enforcing the
     match against credit_roles.py - the exact two-copies pattern the options
@@ -51,21 +53,25 @@ def test_serves_the_person_role_vocabulary(client):
     """
     from app.utils.credit_roles import PERSON_ROLES
 
-    body = client.get("/api/constants").json()
+    body = admin_client.get("/api/constants").json()
     assert body["person_role"] == list(PERSON_ROLES)
 
 
-def test_serves_the_hyphenated_media_type_keys(client):
+def test_serves_the_hyphenated_media_type_keys(admin_client):
+    # admin_client: `unrestricted`, which sees every gated type, so nothing
+    # is narrowed. A narrow session's payload is covered below.
     """What the Options form's scope picker offers. NOT person-role scopes."""
     from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
-    body = client.get("/api/constants").json()
+    body = admin_client.get("/api/constants").json()
     assert body["media_type"] == list(MEDIA_TYPE_KEYS)
     assert "anime-movie" in body["media_type"]
     assert "anime_movie" not in body["media_type"]
 
 
-def test_serves_the_declared_option_categories(client):
+def test_serves_the_declared_option_categories(admin_client):
+    # admin_client: `unrestricted`, which sees every gated type, so nothing
+    # is narrowed. A narrow session's payload is covered below.
     """
     The Options form used to build its category list purely from the options
     already in the database, so a category declared in TAG_FIELDS but not yet
@@ -74,7 +80,7 @@ def test_serves_the_declared_option_categories(client):
     """
     from app.utils.credit_roles import OPTION_CATEGORIES
 
-    body = client.get("/api/constants").json()
+    body = admin_client.get("/api/constants").json()
     assert body["option_categories"] == list(OPTION_CATEGORIES)
     assert "Quality" in body["option_categories"]
 
@@ -113,3 +119,43 @@ def test_serves_the_seven_other_game_vocabularies(client):
     assert body["game_ownership"] == list(c.GAME_OWNERSHIP_KINDS)
     assert body["game_copy_format"] == list(c.GAME_COPY_FORMATS)
     assert body["game_acquisition"] == list(c.GAME_ACQUISITION_KINDS)
+
+
+def test_serves_the_h_comic_vocabularies_to_unrestricted(admin_client):
+    body = admin_client.get("/api/constants").json()
+    assert body["h_comic_region"] == list(c.H_COMIC_REGIONS)
+    assert body["h_comic_originality"] == list(c.H_COMIC_ORIGINALITY)
+    assert body["h_comic_animation_status"] == list(c.H_COMIC_ANIMATION_STATUSES)
+    assert body["h_comic_usefulness"] == list(c.H_COMIC_USEFULNESS)
+    assert "H-Comic" in body["franchise_type"]
+    assert "h-comic" in body["media_type"]
+    assert "club" in body["person_role"]
+    assert "H Genre Plot" in body["option_categories"]
+
+
+def test_a_session_that_cannot_see_h_comic_is_not_told_it_exists(client, db_session):
+    """
+    The refusal. The `h-comic` label exists (seeded session-wide) and the
+    anonymous `safe` mode lacks it - asserted, so the narrowing has a hidden
+    set to compute over. The mirror is the test above, same endpoint.
+    """
+    from app import models
+
+    assert db_session.query(models.ContentLabel).filter_by(key="h-comic").count() == 1
+
+    body = client.get("/api/constants").json()
+    for key in (
+        "h_comic_region",
+        "h_comic_originality",
+        "h_comic_animation_status",
+        "h_comic_usefulness",
+    ):
+        assert key not in body, key
+    assert "H-Comic" not in body["franchise_type"]
+    assert "h-comic" not in body["media_type"]
+    assert "club" not in body["person_role"]
+    for category in ("H Genre Plot", "H Genre Appearance", "H Genre Relation"):
+        assert category not in body["option_categories"]
+    # Everything else is untouched.
+    assert "Game" in body["franchise_type"]
+    assert "illustrator" in body["person_role"]

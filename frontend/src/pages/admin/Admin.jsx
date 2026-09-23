@@ -5,6 +5,8 @@ import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
 import { entityPath } from "../../lib/entityPath";
 import FxRatesEditor from "./FxRatesEditor";
+import { useAuth } from "../../contexts/AuthContext";
+import { canSeeGatedType } from "../../lib/gatedTypes";
 
 // entityPath returns "" when an entity has no public_id; never navigate to the site root.
 function goTo(path) {
@@ -1440,6 +1442,7 @@ function DuplicatesModal({ results, onClose }) {
 
 export default function Admin() {
   const { showToast } = useToast();
+  const canSeeHComic = canSeeGatedType(useAuth(), "h-comic");
 
   // Season config
   const [currentSeason, setCurrentSeason] = useState("Loading...");
@@ -2019,6 +2022,13 @@ export default function Admin() {
                 // hourly quota to protect. The button is for filling one type
                 // after linking an igdb_id, without a full run.
                 { label: "Game", url: "/api/data-control/fill/game" },
+                // Fetches nothing - h-comic has no external API. It re-runs
+                // the region clears and the h-comic label over the whole
+                // table, and is out of Fill All; there is no bulk Replace.
+                // Gated like every other h-comic surface.
+                ...(canSeeHComic
+                  ? [{ label: "H-Comic", url: "/api/data-control/fill/h-comic" }]
+                  : []),
                 // The only non-media type here: a studio fills its logo and
                 // founding facts from MAL's producer record. Replace has no
                 // Studio row to match - see PipelineSpec.fill_only.

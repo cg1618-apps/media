@@ -25,6 +25,10 @@ from app.schemas.image import AttachmentIn, AttachmentOut, ImageListOut, ImageOu
 from app.services.integrations import image_library
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, require_manage_catalog, viewer_user_id
+from app.services.rbac.shared_visibility import (
+    ENTITY_OWNER_MODELS,
+    shared_record_visible,
+)
 from app.utils.media_resolver import MEDIA_TABLES
 
 router = APIRouter(prefix="/api/images", tags=["Images"])
@@ -300,7 +304,8 @@ def attach_image(
     The permission gate is NOT sufficient on its own. manage.catalog says
     nothing about WHICH entries a writer may reach, so a media owner is checked
     against entry_visible and 404s exactly as a missing entry does - writes
-    follow reads.
+    follow reads. An entity owner (staff, character, publisher, studio) is a
+    shared record and is checked against shared_record_visible the same way.
     """
     if payload.owner_type not in ATTACHABLE_OWNERS:
         raise HTTPException(
@@ -313,6 +318,10 @@ def attach_image(
 
     if payload.owner_type in MEDIA_TABLES:
         if not entry_visible(db, admin, payload.owner_type, payload.owner_id):
+            raise HTTPException(status_code=404, detail="Entry not found.")
+    elif payload.owner_type in ENTITY_OWNER_MODELS:
+        model = ENTITY_OWNER_MODELS[payload.owner_type]
+        if not shared_record_visible(db, admin, model, payload.owner_id):
             raise HTTPException(status_code=404, detail="Entry not found.")
 
     existing = (

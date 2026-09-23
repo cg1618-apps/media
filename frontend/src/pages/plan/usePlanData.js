@@ -6,6 +6,8 @@ import { fetchJson } from "../../hooks/queryUtils";
 import { entryBucket } from "../../utils/planNext";
 import { getCoverForSlot } from "../../utils/statsUtils";
 import { getCoverUrl } from "../../utils/media";
+import { useAuth } from "../../contexts/AuthContext";
+import { canSeeGatedType } from "../../lib/gatedTypes";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -114,6 +116,12 @@ export default function usePlanData(reloadKey = 0) {
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const gameQuery = useMediaList("game", LIST_OPTIONS);
+  // Gated: fetched only for a session that can see the type. For anyone else
+  // plan_next holds no h-comic row they may read, and the tab is not drawn.
+  const hComicQuery = useMediaList("h-comic", {
+    ...LIST_OPTIONS,
+    enabled: canSeeGatedType(useAuth(), "h-comic"),
+  });
 
   // Not a media type - plan_next has no MEDIA_CONFIG entry, so this is a plain
   // useQuery under its own key: the media-list cache writers
@@ -136,6 +144,7 @@ export default function usePlanData(reloadKey = 0) {
   const allNovel = novelQuery.data || [];
   const allComics = comicQuery.data || [];
   const allGames = gameQuery.data || [];
+  const allHComics = hComicQuery.data || [];
   const planNextRows = planNextQuery.data || [];
 
   const franchiseMap = useMemo(
@@ -197,6 +206,7 @@ export default function usePlanData(reloadKey = 0) {
       novel: allNovel,
       comic: allComics,
       game: allGames,
+      "h-comic": allHComics,
     }),
     [
       allAnime,
@@ -208,6 +218,7 @@ export default function usePlanData(reloadKey = 0) {
       allNovel,
       allComics,
       allGames,
+      allHComics,
     ],
   );
 
@@ -252,6 +263,7 @@ export default function usePlanData(reloadKey = 0) {
     mangaQuery,
     novelQuery,
     gameQuery,
+    hComicQuery,
     seriesQuery,
     comicQuery,
     planNextQuery,

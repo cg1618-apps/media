@@ -211,9 +211,9 @@ mis-set `POSTGRES_DB` fails fast instead of wiping a real database.
 the metadata as well or it simply does not exist under test. Two things in this
 category, both in `app/models/media_sync.py`:
 
-- the `delete_media_row()` function and the nine `trg_<table>_delete_media`
+- the `delete_media_row()` function and the ten `trg_<table>_delete_media`
   triggers, attached as `after_create` DDL;
-- the nine `<table>_public_id_seq` sequences, declared against the metadata now
+- the ten `<table>_public_id_seq` sequences, declared against the metadata now
   that no column hangs them.
 
 Four guards keep the supertable honest, and a failure in any of them names the

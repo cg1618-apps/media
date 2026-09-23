@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-09-20
+Last verified: 2026-09-24
 
 ## What this is for
 
@@ -13,7 +13,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | Column | Type | Notes |
 | --- | --- | --- |
 | `system_id` | UUID PK | Generated with `uuid.uuid4()`. |
-| `media_id` | UUID, indexed | FK `media.system_id` ON DELETE CASCADE. Set when the owner is any of the nine media types. |
+| `media_id` | UUID, indexed | FK `media.system_id` ON DELETE CASCADE. Set when the owner is any of the ten media types. |
 | `collection_id` / `franchise_id` / `series_id` | UUID, indexed | FK to the matching tier table, ON DELETE CASCADE. Set when the owner is a grouping tier. |
 | `author_id` | UUID, indexed, **NOT NULL** | FK `users.id` ON DELETE CASCADE. Who wrote the row — always set, whatever the section's scope, because a catalogue note has an author too and that is the only provenance the catalogue has. Never read from the payload (`NoteBase` has no such field): the router stamps whoever is asking. |
 | `section` | String, indexed | Key of an entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`). |
@@ -68,7 +68,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | --- | --- |
 | `key` | Its key in the `fields` blob, and its identity in `require_any`. Unique within the section. |
 | `label` | What the form and the read view call it. |
-| `type` | `text`, `textarea`, `select`, `links` or `list`. |
+| `type` | `text`, `textarea`, `select`, `links`, `list` or `names`. `names` is a list of free-text, non-empty strings - several allowed - stored in `fields`, never in a column. They are names, not character ids: the editor may suggest the characters cast on the entry, but any string is accepted, and renaming a character does not rewrite a row that named it. |
 | `column` | One of `locator`, `kind`, `status`, `title`, `content`, `links`, or `None` to store in `fields`. No two fields of one section may claim the same column. |
 | `options` | The values a `select` accepts. **A select with no options is free text** — the guide sections' type, group and tier are open vocabularies stored in the columns a closed dropdown would use. |
 | `required` | This field alone may not be blank. |
@@ -77,7 +77,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `quick_edit` | Render an inline editor in the read view, saving on blur without opening the row. For a value that changes while playing rather than while writing. |
 | `placeholder` | Overrides the label in the input. |
 
-Two rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright.
+Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
 
 **Why one JSONB column and not a column per field.** Most of what the structured sections need already has a column — a name is `title`, a description is `content`, a dropdown is `kind` or `status` — so `fields` carries only the leftovers and the nested lists. A column per field would put a dozen mostly-blank columns on a table all twelve owner types share, and those columns are also the Google Sheets Note tab; the nested lists would need JSONB regardless. The cost, stated plainly: the leftover scalars have no database-level type and no column to filter on. The values worth filtering (a beaten status, a completion status) land in the real `status` column, which is why that cost stays theoretical.
 
@@ -90,7 +90,7 @@ fields count, not about whether the value was touched, so choosing "skip" and
 filling in nothing else is refused too. A test asserts no section defaults
 *every* field it has, since one that did could never be saved at all.
 
-**Validation** (`_validate_structured`) replaces the per-shape rules rather than adding to them: a structured section's `kind` and `status` are checked against its spec, not against `kinds` / `statuses`. In order — every blob key is declared; every column no field claims is empty (otherwise a value would be stored where no editor can reach it); each field matches its type and its options; each `required` field is filled; each `require_any` group has one; and the row as a whole says something.
+**Validation** (`_validate_structured`) replaces the per-shape rules rather than adding to them: a structured section's `kind` and `status` are checked against its spec, not against `kinds` / `statuses`. In order — every blob key is declared; every column no field claims is empty (otherwise a value would be stored where no editor can reach it); each field matches its type and its options (a `names` value must be a list of non-empty strings); each `required` field is filled (an empty `names` list counts as blank); each `require_any` group has one; and the row as a whole says something.
 
 ### Groups
 
@@ -191,7 +191,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 
 ### Section registry
 
-`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all twelve owners (`ALL_OWNERS`); "Entries" = the nine media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically — `game` reached `remark`, `resources`, `questions`, `memes` and the rest of the shared sections on the day it was registered, with no registry edit.
+`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all twelve owners (`ALL_OWNERS`); "Entries" = the ten media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically — `h-comic` has `remark`, `remark_list`, `personal_reviews`, `public_reviews`, `resources`, `questions`, `memes` and the rest of the shared sections with no registry edit of its own.
 
 | Key | Label | Shape | Group / standalone | Owners | Kinds (`kind`) | Statuses | Locator placeholder | Locator req. | Singleton | Content req. |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -207,6 +207,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `highlight_episodes` | 神回/神片段 (manga: 神回) | episode_text | flat | tv-show, cartoon, manga | tv-show & cartoon: 神回, 神片段, 神篇章; manga: none | — | "Episode(s), e.g. ep 3" (manga: "Chapter(s), e.g. ch 6") | **yes** | no | no |
 | `highlight_passages` | 神片段 | text | flat | novel | — | — | — | no | no | no |
 | `highlight_moments` | 神場景 Highlights | episode_text | flat | game | — | — | "Chapter / Boss, e.g. Ch 3" | **yes** | no | no |
+| `h_comic_highlights` | 亮點 Highlights | **structured** | flat | h-comic (**KR only**, `owner_where`) | — | — | *(on its `chapter` field)* | no | no | no |
 | `analysis` | 解析 Analysis | text_links | analysis_group (**reviews** for game) | All | — | — | — | no | no | no |
 | `cinematography` | 分鏡/演出/巧思 | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, series | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
@@ -256,6 +257,45 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `memes` | 梗/迷因 Memes | external | quotes_memes | All | — | — | — | — | — | — |
 
 Per-owner overrides (`labels`, `kinds_by_owner`, `locator_placeholders`, `desc_required`) are resolved for one owner by `section_out()` in `app/schemas/note.py` before they reach the frontend, so the page only ever sees a flat `NoteSectionOut`.
+
+### H-Comic highlights (`h_comic_highlights`)
+
+A KR h-comic's standout scenes, grouped by the female characters in them.
+Catalogue scope, owners `("h-comic",)`, `group_by = "female_characters"`,
+`owner_where = {"region": ("KR",)}` - a JP entry is refused a row (422).
+
+| Field | Type | Stored in | Notes |
+|---|---|---|---|
+| `female_characters` | names | `fields.female_characters` | **required**; the grouping key |
+| `male_characters` | names | `fields.male_characters` | |
+| `chapter` | text | `locator` | free text, e.g. `1-5` |
+| `location` | text | `fields.location` | |
+| `label` | text | `kind` | a `kind`-backed field with no options: free text |
+| `usefulness` | select | `status` | `H_COMIC_USEFULNESS` |
+| `description` | textarea | `content` | |
+
+**The group order is the entry's, not the rows'.** Rows inside a group
+follow `sort_index`. The order of the groups is `h_comic.highlight_group_order`,
+a list of names written through the ordinary entry update
+(`PUT` / `PATCH /api/h-comic/{id}` with `highlight_group_order`): it is
+deduplicated with blanks dropped, a non-list is a 422, and on a JP entry it is
+cleared like every KR-only column. Groups follow the list; a name the list
+lacks renders after it in first-appearance order, and a listed name no row
+carries any more is ignored. It is a column rather than a table because it is
+only ever read and written whole.
+
+**On the page** (`frontend/src/pages/detail/HComic.jsx`, `HComicNotes.jsx`):
+the detail page hands the notes page the entry row, the cast's character names
+and the stored group order. A JP entry gets no Highlights card at all
+(`owner_where`, see below). The rows render one group per female character
+name; each group header can be dragged onto another, or stepped with its
+arrows, and the drop PATCHes the entry's `highlight_group_order` with the whole
+new order of the names on screen - which is how a name no row carries any more
+drops out of the list. The rows inside a group have no handle: they follow
+`sort_index`. A row naming two female characters is drawn under both, and
+under each it lists the other female characters it names, not the group's own.
+The `names` inputs suggest the entry's cast by display name and accept any
+other name typed (Enter, a comma, or leaving the field).
 
 ### The 攻略 Guides field specs
 
@@ -365,13 +405,13 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 
 A `structured` section takes none of this path: check 4 is followed by the nesting rule (a flat section refuses a `parent_id`) and then by `_validate_structured`, which returns. Checks 5 to 9 are per-shape, and a structured section's equivalents live in its spec — see [Structured sections](#structured-sections). A non-structured section given a `fields` payload is refused outright ("Section '…' takes no structured fields.").
 
-Singleton uniqueness is **not** here — it needs a query, so `_reject_second_singleton` in `app/routers/note.py` does it (422 "This owner already has a 'remark' note.").
+Singleton uniqueness is **not** here — it needs a query, so `_reject_second_singleton` in `app/routers/note.py` does it (422 "This owner already has a 'remark' note."). The same goes for `owner_where`: `_require_owner_where` reads the owner row and answers 422 "Section '…' applies only where region is KR." on POST and on the merged row of a PATCH, so a row cannot be moved onto a JP entry either.
 
 ### Viewer visibility
 
 `GET /api/notes` applies the RBAC layer:
 
-- If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. Grouping tiers carry no labels, so they skip this check.
+- If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. A franchise owner carrying a label the viewer's mode lacks, or a series in such a franchise, answers the same 404 (`tier_visible`); every write resolves the tier from the id through `require_visible_owner` and answers it too. A collection carries no labels and skips the check.
 - **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer (or the profile owner named by `?author=`); a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
 - `gated_note_sections(viewer)` (`app/services/rbac/field_gate.py`) returns section keys the viewer is not entitled to; those rows are simply **absent** from the response (an empty card would advertise that there is something to not-see). The only field group naming a note section is `personal_notes` → `personal_reviews` (`app/services/rbac/field_groups.py`), and it withholds **only rows the viewer did not write** — hiding someone's own notes from them is not a permission, it is a bug.
 - `GET /api/notes/sections` is *not* filtered: withheld sections still appear in the registry, they just never have rows.
@@ -422,9 +462,19 @@ The notes page is three pieces:
 | `NotesGroup` | `NotesTemplate.jsx` | **One** group's sections with no card of their own, for a screen that puts a group somewhere else. |
 
 `NotesTemplate` is a provider wrapped around `NotesBlocks`, which is what the
-**ten** thin wrappers under `frontend/src/pages/detail/*Notes.jsx` (e.g.
+**eleven** thin wrappers under `frontend/src/pages/detail/*Notes.jsx` (e.g.
 `AnimeNotes.jsx`, `ComicNotes.jsx`, `FranchiseNotes.jsx`) render — they fix the
 owner type and forward the rest, unchanged by the split.
+
+Four optional props reach the provider through `NotesTemplate` and matter only
+to a section declaring the matching registry feature, so no wrapper names a
+section: **`owner`** (the owner row) drops a section whose `owner_where` the
+row fails (`ownerMatches` in `NotesContext.jsx`; without the row every section
+is kept); **`nameSuggestions`** feeds every `names` input; **`groupOrder`** and
+**`onGroupOrderChange`** are the owner's stored order for its grouped section
+and the callback that saves a new one. An owner type has at most one grouped
+section, so one order suffices. `HComicNotes.jsx` is the only wrapper passing
+them.
 
 **The game detail page composes the three itself** and has no wrapper: it puts
 待辦 Todo inside its Progress slip with `NotesGroup`, and renders everything
@@ -455,7 +505,9 @@ once when both are used.
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
 | `NameLinksSection.jsx` | name_links | title, links |
 | `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, reorderable in the form). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
-| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns the up/down reorder buttons (`PATCH /api/notes/reorder`), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move that flattens the whole tree depth-first. |
+| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns the up/down reorder buttons (`PATCH /api/notes/reorder`), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): the group headers are draggable and carry arrows, the rows are not movable. |
+| `NamesInput.jsx` | — | the `names` input: chosen names as removable tags, a combobox suggesting `nameSuggestions` filtered by what is typed, any other text accepted |
+| `groupedRows.js` | — | pure: `groupNotes` (one group per name, a row under every name it carries, stored order first then first appearance, a trailing unnamed group only when a row names nobody), `movedGroupOrder`, `namesOf` |
 | `EpisodeNameLinksSection.jsx` | episode_name_links | locator, title, content, links, status |
 | `MusicTrackSection.jsx` | music_track | title, kind (starts on `default_kind`), status, link, content |
 | `QuoteSection.jsx` / `MemeSection.jsx` | external | adapt the long-lived quote/meme components; report counts |

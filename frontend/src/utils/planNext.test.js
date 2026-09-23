@@ -154,7 +154,7 @@ describe("kind vocabulary", () => {
 
   it("covers every media type under both kinds", () => {
     const types = Object.keys(ALLOWED_SCOPES.next);
-    expect(types).toHaveLength(9);
+    expect(types).toHaveLength(10);
     expect(Object.keys(ALLOWED_SCOPES.rewatch).sort()).toEqual(types.sort());
   });
 });
@@ -172,6 +172,8 @@ describe("scopesFor", () => {
     ["rewatch", "comic", ["entry", "series"]],
     ["next", "game", ["entry", "series", "franchise"]],
     ["rewatch", "game", ["entry", "series", "franchise"]],
+    ["next", "h-comic", ["entry"]],
+    ["rewatch", "h-comic", ["entry"]],
   ])("%s / %s", (kind, mediaType, expected) => {
     expect(scopesFor(kind, mediaType)).toEqual(expected);
   });
@@ -187,7 +189,7 @@ describe("scopesFor", () => {
 });
 
 describe("REWATCH_TABS", () => {
-  it("covers all nine types", () => {
+  it("covers all ten types", () => {
     expect(REWATCH_TABS.map((t) => t.key)).toEqual([
       "anime",
       "anime-movie",
@@ -198,6 +200,7 @@ describe("REWATCH_TABS", () => {
       "novel",
       "comic",
       "game",
+      "h-comic",
     ]);
   });
 });

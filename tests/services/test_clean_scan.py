@@ -13,7 +13,7 @@ from app.services.integrations.sheets import SheetsUnavailableError
 from app.services.pipelines import clean
 
 
-def test_clean_tabs_are_the_thirteen_in_scope():
+def test_clean_tabs_are_the_fourteen_in_scope():
     assert clean.CLEAN_TABS == (
         "Collection",
         "Franchise",
@@ -28,6 +28,7 @@ def test_clean_tabs_are_the_thirteen_in_scope():
         "Novel",
         "Comic",
         "Game",
+        "H-Comic",
     )
 
 

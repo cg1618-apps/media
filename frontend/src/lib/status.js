@@ -171,7 +171,7 @@ export function getPlayingButtonConfig(status) {
 
 // The three status axes, as sets rather than a chain of ||: a ninth media
 // type should be one entry here, not another arm on a ternary.
-const READ_TYPES = new Set(["manga", "novel", "comic"]);
+const READ_TYPES = new Set(["manga", "novel", "comic", "h-comic"]);
 const PLAY_TYPES = new Set(["game"]);
 
 export function getCardStatusConfig(type, status) {

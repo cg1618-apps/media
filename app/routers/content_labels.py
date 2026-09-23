@@ -48,8 +48,13 @@ from app.services.domain.content_labels import (
     label_keys_for_entry,
     label_keys_for_franchise,
 )
+from app.services.domain.h_comic import (
+    refuse_label_removal_on_entry,
+    refuse_label_removal_on_franchise,
+)
 from app.services.rbac import cache
 from app.services.rbac.enforcement import entry_visible, franchise_visible
+from app.services.rbac.gated_types import required_label_keys
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ, PERM_MANAGE_CATALOG
 from app.services.rbac.resolver import (
     Viewer,
@@ -271,8 +276,18 @@ def delete_label(
     db: Session = Depends(get_db),
     actor=Depends(require_admin_authz),
 ):
-    """Deleting a label reveals every entry that carried it - by design."""
+    """Deleting a label reveals every entry that carried it - by design.
+
+    Except a label a gated type REQUIRES: deleting it would publish every
+    entry of that type at once, and the next write would only mint it again.
+    That is a 409 - the label exists and is in use by the system.
+    """
     row = _get_or_404(db, label_id)
+    if row.key in required_label_keys():
+        raise HTTPException(
+            status_code=409,
+            detail=f"The '{row.key}' label is required by a media type and cannot be deleted.",
+        )
     db.delete(row)
     db.commit()
     cache.bump()
@@ -312,6 +327,8 @@ def replace_entry_labels(
     actor: Viewer = Depends(require_manage_catalog),
 ):
     _resolve_entry(db, media_type, entry_id, actor)
+    # Before anything is deleted: an h-comic keeps its required label.
+    refuse_label_removal_on_entry(db, media_type, entry_id, payload.label_keys)
     return _replace_labels(
         db,
         models.MediaContentLabel,
@@ -369,6 +386,8 @@ def replace_franchise_labels(
     the set here reveals everything it covered.
     """
     _resolve_franchise(db, franchise_id, actor)
+    # An H-Comic franchise keeps the h-comic label, for the same reason.
+    refuse_label_removal_on_franchise(db, franchise_id, payload.label_keys)
     return _replace_labels(
         db,
         models.FranchiseContentLabel,

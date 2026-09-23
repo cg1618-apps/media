@@ -22,6 +22,10 @@ from app.services.domain.credits import credit_counts, find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.shared_visibility import (
+    apply_shared_visibility,
+    require_visible_shared,
+)
 from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
@@ -29,6 +33,8 @@ from app.utils.release_date import primary_release_value
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/studio", tags=["Studio Management"])
+
+NOT_FOUND = "Studio not found."
 
 
 def _to_response(
@@ -78,8 +84,14 @@ def get_all_studios(
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Retrieves every studio, sorted by display name."""
-    studios = db.query(models.Studio).all()
+    """
+    Retrieves every studio this viewer may see, sorted by display name. A
+    studio every credit of which is on a label-hidden entry is absent - see
+    app/services/rbac/shared_visibility.py.
+    """
+    studios = apply_shared_visibility(
+        db.query(models.Studio), models.Studio, db, viewer
+    ).all()
     studios.sort(key=lambda s: s.display_name.casefold())
     counts = credit_counts(
         db,
@@ -104,7 +116,8 @@ def get_studio_by_id(
     """Retrieves a single studio by its public_id or its UUID."""
     studio = find_entity(db, models.Studio, system_id)
     if studio is None:
-        raise HTTPException(status_code=404, detail="Studio not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, viewer, models.Studio, studio.system_id, NOT_FOUND)
     return _to_response(db, studio, viewer)
 
 
@@ -117,16 +130,17 @@ def get_studio_entries(
     """
     The entries this studio is credited on, grouped by media type.
 
-    The reverse of GET /api/credits/{media_type}/{entry_id}. Visibility runs
-    through the same filter_visible_pairs call _to_response uses for
+    The reverse of GET /api/credits/{media_type}/{entry_id}. A studio hidden
+    from this viewer - every credit on a label-hidden entry - answers 404, as
+    its own page does; a visible studio omits its hidden credits. Visibility
+    runs through the same filter_visible_pairs call _to_response uses for
     credit_count, so the number on the card and the list on the page can
-    never disagree. A studio carries no content label of its own, so one
-    whose every credit is hidden answers with empty groups, not a 404 - the
-    studio is not the secret, its credits are.
+    never disagree.
     """
     studio = db.get(models.Studio, system_id)
     if studio is None:
-        raise HTTPException(status_code=404, detail="Studio not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, viewer, models.Studio, system_id, NOT_FOUND)
 
     rows = (
         db.query(models.Media.media_type, models.MediaCredit.media_id)
@@ -225,7 +239,8 @@ def update_studio(
     """
     studio = db.get(models.Studio, system_id)
     if studio is None:
-        raise HTTPException(status_code=404, detail="Studio not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Studio, system_id, NOT_FOUND)
 
     for key, value in payload.model_dump().items():
         setattr(studio, key, value)
@@ -253,7 +268,8 @@ def delete_studio(
     """
     studio = db.get(models.Studio, system_id)
     if studio is None:
-        raise HTTPException(status_code=404, detail="Studio not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Studio, system_id, NOT_FOUND)
 
     db.delete(studio)
     db.commit()
@@ -281,7 +297,9 @@ def merge_studio(
     keep = db.get(models.Studio, system_id)
     drop = db.get(models.Studio, payload.source_id)
     if keep is None or drop is None:
-        raise HTTPException(status_code=404, detail="Studio not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    for studio_id in (system_id, payload.source_id):
+        require_visible_shared(db, admin, models.Studio, studio_id, NOT_FOUND)
 
     # media_id alone identifies the entry - it is globally unique across the
     # nine media tables, which is what the supertable bought.

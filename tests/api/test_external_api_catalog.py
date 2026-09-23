@@ -200,3 +200,27 @@ def test_endpoint_payload_is_json_serialisable(admin_client):
     fields = {w["field"]: w["rule"] for w in tenrai["writes"]}
     assert fields["mal_rating"] == "overwrite"
     assert fields["airing_type"] == "fill-only"
+
+
+def test_a_catalogue_editor_who_cannot_see_h_comic_is_not_told_it_exists(
+    catalog_writer, db_session
+):
+    """
+    The refusal. The `h-comic` label exists (seeded session-wide) and the
+    editor's mode carries no label at all - asserted, so the narrowing has a
+    hidden type to act on. The mirror is the unrestricted test below.
+    """
+    from app import models
+
+    assert db_session.query(models.ContentLabel).filter_by(key="h-comic").count() == 1
+    narrow = catalog_writer()
+    body = narrow.get("/api/constants/external-apis").json()
+    keys = {e["key"] for e in body["media"]}
+    assert "h-comic" not in keys
+    # Nothing ungated went with it.
+    assert {"anime", "game", "studio"} <= keys
+
+
+def test_unrestricted_is_told_about_h_comic(admin_client):
+    body = admin_client.get("/api/constants/external-apis").json()
+    assert "h-comic" in {e["key"] for e in body["media"]}

@@ -188,3 +188,30 @@ class StudioResponse(StudioBase):
 
 class MergeRequest(BaseModel):
     source_id: UUID
+
+
+class MembershipRef(BaseModel):
+    """
+    One end of a club membership, as a page links to it: the other person.
+
+    `position` is the member's place in the club's member list. On a
+    person's list of clubs it is still that club-side position, and the list
+    itself is ordered by the clubs' display names.
+    """
+
+    system_id: UUID
+    public_id: int
+    display_name: str
+    position: int = 0
+
+
+class ClubsReplace(BaseModel):
+    """PUT /api/person/{id}/clubs: every club this person belongs to."""
+
+    club_ids: List[UUID]
+
+
+class MembersReplace(BaseModel):
+    """PUT /api/person/{id}/members: this club's members, in display order."""
+
+    member_ids: List[UUID]

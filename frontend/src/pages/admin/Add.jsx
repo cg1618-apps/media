@@ -8,7 +8,14 @@ import {
   buildAnimeMoviePayload,
   buildCreditsPayload,
   gameFieldsPayload,
+  hComicFieldsPayload,
 } from "../../utils/media";
+import { clearedForRegion } from "../../lib/hComicRegion";
+import { hComicSourceFields } from "../../lib/hComicForm";
+import {
+  requiredLabelsForFranchiseType,
+  requiredLabelsForType,
+} from "../../lib/gatedTypes";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
 import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
 import CollectionAddTab, {
@@ -51,6 +58,10 @@ import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
 import NovelAddTab, { defaultNovel } from "../add-tabs/NovelAddTab";
 import ComicAddTab, { defaultComic } from "../add-tabs/ComicAddTab";
 import GameAddTab, { defaultGame } from "../add-tabs/GameAddTab";
+import HComicAddTab, {
+  H_COMIC_FRANCHISE_TYPE,
+  defaultHComic,
+} from "../add-tabs/HComicAddTab";
 import CartoonAddTab, { defaultCartoon } from "../add-tabs/CartoonAddTab";
 import TvShowAddTab, { defaultTvShow } from "../add-tabs/TvShowAddTab";
 import MovieAddTab, { defaultMovie } from "../add-tabs/MovieAddTab";
@@ -106,6 +117,7 @@ export default function Add() {
   const setAllNovels = (v) => setList("novel", v);
   const setAllComics = (v) => setList("comic", v);
   const setAllGames = (v) => setList("game", v);
+  const setAllHComics = (v) => setList("h-comic", v);
   const [sources, setSources] = useState({ options: [], studios: [], people: {} });
   // Admin-configured form defaults, keyed by media type. {} = use the built-ins.
   const [formDefaults, setFormDefaults] = useState({});
@@ -177,6 +189,7 @@ export default function Add() {
   const [nvf, setNvf] = useState(defaultNovel());
   const [cmf, setCmf] = useState(defaultComic());
   const [gmf, setGmf] = useState(defaultGame());
+  const [hcf, setHcf] = useState(defaultHComic());
   // Quote is not a media entry, so like System Options it keeps its own
   // form state instead of going through the media form factories.
   const [qf, setQf] = useState(emptyQuote({ media_type: "", entry_id: null }));
@@ -232,6 +245,7 @@ export default function Add() {
   const unv = (k, v) => setNvf((p) => ({ ...p, [k]: v }));
   const ucm = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
   const ugm = (k, v) => setGmf((p) => ({ ...p, [k]: v }));
+  const uhc = (k, v) => setHcf((p) => ({ ...p, [k]: v }));
 
   // A blank form for `type` with the admin's configured defaults applied.
   const freshForm = (type) => resolveDefaults(type, formDefaults);
@@ -368,6 +382,7 @@ export default function Add() {
       setNvf(resolveDefaults("novel", fd));
       setCmf(resolveDefaults("comic", fd));
       setGmf(resolveDefaults("game", fd));
+      setHcf(resolveDefaults("h-comic", fd));
       setColf(resolveDefaults("collection", fd));
       setFf(resolveDefaults("franchise", fd));
       setSf(resolveDefaults("series", fd));
@@ -644,6 +659,7 @@ export default function Add() {
       else if (activeTab === "novel") await submitNovel();
       else if (activeTab === "comic") await submitComic();
       else if (activeTab === "game") await submitGame();
+      else if (activeTab === "h-comic") await submitHComic();
       else if (activeTab === "quote") await submitQuote();
       else if (activeTab === "meme") await submitMeme();
       else if (activeTab === "options") await submitOptions();
@@ -904,7 +920,11 @@ export default function Add() {
           "New Franchise",
       );
       try {
-        await saveFranchiseLabels(created.system_id, contentLabels);
+        await saveFranchiseLabels(
+          created.system_id,
+          contentLabels,
+          ff.franchise_type,
+        );
       } catch {
         // The franchise saved; only its visibility did not. Say so rather
         // than letting the admin believe a franchise is restricted when it
@@ -2625,6 +2645,143 @@ export default function Add() {
     setAllGames((prev) => [...prev, created]);
   }
 
+  async function submitHComic() {
+    if (!hcf.region) {
+      showToast("warning", "Choose a region first: JP or KR.");
+      return;
+    }
+    if (!hcf.h_comic_name_cn && !hcf.h_comic_name_en) {
+      showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+    if (!hcf.franchise_id && !hcf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
+
+    // An h-comic only ever sits in an H-Comic franchise (the server refuses
+    // any other), so a new one is created with that type - and with the
+    // h-comic label, which the server attaches on create.
+    let franchiseId = hcf.franchise_id;
+    if (!franchiseId && hcf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: H_COMIC_FRANCHISE_TYPE,
+          onConfirm: (expectation, remark) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation, remark });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_cn: hcf.h_comic_name_cn || null,
+          franchise_name_en: hcf.h_comic_name_en || null,
+          franchise_name_jp: hcf.h_comic_name_jp || null,
+          franchise_name_alt: hcf.h_comic_name_alt || null,
+          franchise_type: H_COMIC_FRANCHISE_TYPE,
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = hcf.series_id;
+    if (!seriesId && hcf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: hcf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_cn: hcf.h_comic_name_cn || null,
+          series_name_en: hcf.h_comic_name_en || null,
+          series_name_alt: hcf.h_comic_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    // What the region does not use is blanked before anything is sent: the
+    // server clears those columns anyway, and the KR-only author and official
+    // source are this form's to clear (lib/hComicRegion.js).
+    const form = clearedForRegion(hcf);
+    await ensureSourceValues(hComicSourceFields(form, splitTags));
+
+    const payload = {
+      ...hComicFieldsPayload(form),
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+    };
+
+    const res = await fetch(endpoints.resource("h-comic").create(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Failed to create entry",
+      );
+      return;
+    }
+    const created = await res.json();
+    await attachPendingImage(
+      hcf.pending_image_id,
+      "h-comic",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
+    await saveCredits("h-comic", created.system_id, form);
+    await saveCast("h-comic", created.system_id, hcf);
+    window.scrollTo(0, 0);
+    showToast("success", "H-Comic appended successfully.");
+    setLastAdded(getDisplayName(created, "h-comic"));
+    setHcf(freshForm("h-comic"));
+    setContentLabels([]);
+    setAllHComics((prev) => [...prev, created]);
+  }
+
   // franchise system_id -> the name of the collection it belongs to, so every
   // tab with a franchise picker can name the wider grouping.
   const franchiseCollections = Object.fromEntries(
@@ -2739,6 +2896,18 @@ export default function Add() {
   const seriesItemsForGame = (
     gmf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === gmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForHComic = (
+    hcf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === hcf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -2992,6 +3161,19 @@ export default function Add() {
           />
         )}
 
+        {/* ═══ H-COMIC TAB ═══ (gated: AdminTabBar offers it only to a
+            session that can see the type) */}
+        {activeTab === "h-comic" && (
+          <HComicAddTab
+            franchiseCollections={franchiseCollections}
+            hcf={hcf}
+            uhc={uhc}
+            allFranchises={allFranchises}
+            seriesItemsForHComic={seriesItemsForHComic}
+            sources={sources}
+          />
+        )}
+
         {/* ═══ FRANCHISE TAB ═══ */}
         {activeTab === "collection" && <CollectionAddTab cf={colf} uf={ucol} />}
         {activeTab === "franchise" && (
@@ -3086,6 +3268,11 @@ export default function Add() {
             <ContentLabelPicker
               value={contentLabels}
               onChange={setContentLabels}
+              required={
+                activeTab === "franchise"
+                  ? requiredLabelsForFranchiseType(ff.franchise_type)
+                  : requiredLabelsForType(activeTab)
+              }
               scopeNote={
                 activeTab === "franchise" ? FRANCHISE_SCOPE_NOTE : undefined
               }

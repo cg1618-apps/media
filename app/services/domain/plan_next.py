@@ -101,17 +101,23 @@ def target_visible(db: Session, viewer, scope: str, media_type: str, target_id: 
     """
     Whether this viewer may see the planned target.
 
-    Entry and FRANCHISE scope can both carry a content label. Series cannot -
-    there is no series join table - so a series-scope target is visible
-    whenever its row exists, and that is the only scope for which existence is
-    the whole gate.
+    Entry and FRANCHISE scope can both carry a content label. A series
+    carries none of its own but is hidden with its franchise, read-time
+    through `series.franchise_id`. A collection-scope target is visible
+    whenever its row exists.
     """
-    from app.services.rbac.enforcement import entry_visible, franchise_visible
+    from app.services.rbac.enforcement import (
+        entry_visible,
+        franchise_visible,
+        series_visible,
+    )
 
     if scope == "entry":
         return entry_visible(db, viewer, media_type, target_id)
     if scope == "franchise":
         return franchise_visible(db, viewer, target_id)
+    if scope == "series":
+        return series_visible(db, viewer, target_id)
     return True
 
 

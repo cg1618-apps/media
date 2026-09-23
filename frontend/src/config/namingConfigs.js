@@ -42,6 +42,15 @@ export const NAMING_CONFIGS = {
     "game_name_jp",
     "game_name_alt",
   ],
+  // CN first like every ACG type. The fourth name is the region's own: JP
+  // for a JP entry, KR for a KR one - see namingFieldsFor() below.
+  "h-comic": [
+    "h_comic_name_cn",
+    "h_comic_name_en",
+    "h_comic_name_jp",
+    "h_comic_name_kr",
+    "h_comic_name_alt",
+  ],
   collection: [
     "collection_name_cn",
     "collection_name_en",

@@ -12,6 +12,7 @@ const TYPE_TO_ENTRY_TYPES = {
   Novel: ["novel"],
   Comic: ["comic"],
   Game: ["game"],
+  "H-Comic": ["h_comic"],
 };
 
 export function getDisplayName(f) {

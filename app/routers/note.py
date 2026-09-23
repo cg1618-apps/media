@@ -27,8 +27,13 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.schemas.note import sections_out, validate_note_payload
-from app.services.rbac.enforcement import entry_visible, require_visible_media
+from app.services.rbac.enforcement import (
+    entry_visible,
+    require_visible_owner,
+    tier_visible,
+)
 from app.services.rbac.field_gate import gated_note_sections
+from app.services.rbac.gated_types import unseeable_gated_types
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_SELF_PERSONAL_NOTES,
@@ -98,18 +103,19 @@ def _require_visible_owner(db: Session, viewer: Viewer, owner_id) -> None:
     owner, reads through Note.media -> Media.media_type, and update_note's
     `merged` object fills each field independently from the payload or the
     stored row - so a PATCH naming only `owner_id` would pair a NEW id with
-    the OLD, stale type. `require_visible_media` resolves the type from the id
+    the OLD, stale type. `require_visible_owner` resolves the type from the id
     itself, which closes that regardless of which field(s) a caller supplied
     and regardless of what type the caller claimed.
 
-    An owner may instead be a grouping tier, which carries no labels and is
-    not a Media row at all - so a tier (or a nonexistent id, which the
-    caller's own validation and the media_id FK are responsible for) is never
-    refused here. 404 and "Owner not found.", exactly as the read answers - a
-    403 here is note.py's answer for writing SOMEBODY ELSE's note, and reusing
-    it would confirm this entry exists.
+    An owner may instead be a grouping tier, which is not a Media row at all.
+    A franchise hides by its own labels and a series by its franchise's, and
+    `tier_visible` resolves which from the id alone. A collection, or a
+    nonexistent id (which the caller's own validation and the FKs are
+    responsible for), is never refused here. 404 and "Owner not found.",
+    exactly as the read answers - a 403 here is note.py's answer for writing
+    SOMEBODY ELSE's note, and reusing it would confirm this entry exists.
     """
-    require_visible_media(db, viewer, owner_id, "Owner not found.")
+    require_visible_owner(db, viewer, owner_id, "Owner not found.")
 
 
 # ---------------------------------------------------------------------------
@@ -139,6 +145,32 @@ def _get_or_404(db: Session, note_id: str) -> models.Note:
     if not db_note:
         raise HTTPException(status_code=404, detail=NOTE_NOT_FOUND)
     return db_note
+
+
+def _require_owner_where(db: Session, payload: schemas.NoteBase) -> None:
+    """
+    A section limited to some owners of its types (`owner_where`) refuses a
+    row anywhere else - the KR-only h-comic highlights on a JP entry.
+
+    Runs after the owner is known to be visible, so the 422 tells the caller
+    nothing about an entry it could not already read.
+    """
+    section = section_by_key(payload.section or "")
+    if section is None or not section.owner_where:
+        return
+    ref = OWNER_TABLES.get(payload.owner_type or "")
+    owner = db.get(ref.model, payload.owner_id) if ref and payload.owner_id else None
+    if owner is None:
+        return
+    for column, allowed in section.owner_where.items():
+        if getattr(owner, column, None) not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Section '{section.key}' applies only where {column} is "
+                    f"{' or '.join(allowed)}."
+                ),
+            )
 
 
 def _validate_or_422(payload: schemas.NoteBase) -> None:
@@ -314,9 +346,23 @@ def _ordered(notes: List[models.Note]) -> List[models.Note]:
 
 
 @router.get("/sections", response_model=List[schemas.NoteSectionOut])
-def get_sections(owner_type: str = Query(...)):
-    """The section registry, resolved for one owner type, in display order."""
+def get_sections(
+    owner_type: str = Query(...),
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """
+    The section registry, resolved for one owner type, in display order.
+
+    A gated type the viewer cannot see answers exactly as an unknown one:
+    its sections (the h-comic highlights) name the type as surely as an
+    entry would. No other owner type lists them - their `owners` say so.
+    """
     _validate_owner_type(owner_type)
+    if owner_type in unseeable_gated_types(db, viewer):
+        raise HTTPException(
+            status_code=400, detail=f"Unknown owner_type '{owner_type}'."
+        )
     return sections_out(owner_type)
 
 
@@ -334,11 +380,13 @@ def list_notes(
 ):
     """Every note for one owner, ordered the way the page renders them."""
     _validate_owner_type(owner_type)
-    # An owner may be a grouping tier, which carries no labels; entry_visible
-    # only has an opinion about the eight media types.
-    if owner_type in MEDIA_TABLES and not entry_visible(
-        db, viewer, owner_type, owner_id
-    ):
+    # An entry owner is asked through entry_visible; a franchise or series
+    # owner hides with the franchise's labels; a collection carries none.
+    if owner_type in MEDIA_TABLES:
+        visible = entry_visible(db, viewer, owner_type, owner_id)
+    else:
+        visible = tier_visible(db, viewer, owner_id)
+    if not visible:
         raise HTTPException(status_code=404, detail="Owner not found.")
     query = db.query(models.Note).filter(*_owner_filters(owner_type, owner_id))
 
@@ -410,6 +458,7 @@ def create_note(
     _authorize_write(viewer, payload.section)
     _validate_or_422(payload)
     _require_visible_owner(db, viewer, payload.owner_id)
+    _require_owner_where(db, payload)
     _reject_second_singleton(db, payload, author_id=viewer.user_id)
     _validate_parent(db, payload)
 
@@ -510,6 +559,7 @@ def update_note(
     # may not write.
     _authorize_write(viewer, merged.section)
     _require_visible_owner(db, viewer, merged.owner_id)
+    _require_owner_where(db, merged)
     _reject_second_singleton(
         db, merged, exclude_id=note_id, author_id=db_note.author_id
     )

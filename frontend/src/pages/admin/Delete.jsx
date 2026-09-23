@@ -4,7 +4,7 @@ import { endpoints } from "../../api/endpoints";
 import { useEntryLists, GROUP_LIST_TYPES } from "../../hooks/useEntryLists";
 import { ADD_TAB_LISTS, listsForTab } from "../../config/adminEntryLists";
 import { useToast } from "../../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
@@ -81,6 +81,7 @@ function getDisplayTitle(item, type) {
       item.comic_name_alt ||
       "Unknown"
     );
+  if (type === "h-comic") return getDisplayName(item, "h-comic");
   if (type === "game")
     return (
       item.game_name_cn ||
@@ -211,7 +212,7 @@ export default function Delete() {
   // orphan checks count all of them: the old anime-only counts offered to
   // delete franchises that still held movies/comics and cascaded past
   // non-anime children, leaving them with franchise_id = NULL.
-  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game"];
+  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game", "h-comic"];
   const entriesIn = (field, id) =>
     MEDIA_KEYS.reduce((n, k) => n + db[k].filter((e) => e[field] === id).length, 0);
   const standaloneEntriesIn = (franchiseId) =>
@@ -239,6 +240,7 @@ export default function Delete() {
   const [selectedNovel, setSelectedNovel] = useState(null);
   const [selectedComic, setSelectedComic] = useState(null);
   const [selectedGame, setSelectedGame] = useState(null);
+  const [selectedHComic, setSelectedHComic] = useState(null);
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -758,6 +760,31 @@ export default function Delete() {
           });
         }
         setSelectedNovel(null);
+        showToast("success", "Deletion successful");
+        await Promise.all([loadDb(), reloadLoaded()]);
+        setModal(null);
+        return;
+      }
+
+      if (type === "h-comic") {
+        const res = await fetch(endpoints.resource("h-comic").remove(item.system_id), {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete h-comic");
+        if (orphanSeriesChecked && item.series_id) {
+          await fetch(`/api/series/${item.series_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        if (orphanFranchiseChecked && item.franchise_id) {
+          await fetch(`/api/franchise/${item.franchise_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        setSelectedHComic(null);
         showToast("success", "Deletion successful");
         await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
@@ -1812,6 +1839,91 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("game", selectedGame)}
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* H-COMIC TAB (gated: AdminTabBar offers it only to a session that
+          can see the type) */}
+      {tab === "h-comic" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search h-comic to delete..."
+              items={db["h-comic"]}
+              type="h-comic"
+              onSelect={setSelectedHComic}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "h-comic")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {getFranchiseTitle(item.franchise_id)}
+                    {item.region ? ` · ${item.region}` : ""}
+                    {item.release_date ? ` · ${item.release_date}` : ""}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedHComic && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  src={getCoverUrl(selectedHComic.cover_image_file)}
+                  className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-text text-base truncate">
+                    {getDisplayTitle(selectedHComic, "h-comic")}
+                  </h3>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {[
+                      selectedHComic.region,
+                      selectedHComic.serialization_status,
+                      selectedHComic.reading_status,
+                    ]
+                      .filter(Boolean)
+                      .map((v) => (
+                        <span
+                          key={v}
+                          className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold"
+                        >
+                          {v}
+                        </span>
+                      ))}
+                  </div>
+                  <p className="text-xs text-text-faint mt-1">
+                    {getFranchiseTitle(selectedHComic.franchise_id)}
+                    {selectedHComic.series_id &&
+                      ` / ${getSeriesTitle(selectedHComic.series_id)}`}
+                  </p>
+                  <p className="text-xs font-mono text-text-faint">
+                    {selectedHComic.system_id}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedHComic(null)}
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() => initDelete("h-comic", selectedHComic)}
                     className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
@@ -3136,7 +3248,7 @@ export default function Delete() {
                 )}
 
               {/* Orphan series warning (manga) */}
-              {modal.type === "manga" &&
+              {(modal.type === "manga" || modal.type === "h-comic") &&
                 modal.item.series_id &&
                 entriesIn("series_id", modal.item.series_id) === 1 && (
                   <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
@@ -3159,7 +3271,7 @@ export default function Delete() {
                 )}
 
               {/* Orphan franchise warning (manga) */}
-              {modal.type === "manga" &&
+              {(modal.type === "manga" || modal.type === "h-comic") &&
                 modal.item.franchise_id &&
                 entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 (db.series.filter(
