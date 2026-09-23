@@ -8,8 +8,11 @@ import { LIBRARY_CONFIGS } from "./configs";
 
 const EMPTY = [];
 
-export default function Library() {
-  const { type } = useParams();
+// `type` comes from the route, or as a prop from a route that names it - the
+// gated /library/h-comic, which App.jsx declares on its own behind its guard.
+export default function Library({ type: typeProp }) {
+  const params = useParams();
+  const type = typeProp ?? params.type;
   const config = LIBRARY_CONFIGS[type];
   const usesSeries = Boolean(config?.usesSeries);
 

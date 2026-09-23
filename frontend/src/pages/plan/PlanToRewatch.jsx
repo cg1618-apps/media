@@ -6,6 +6,8 @@
 import { useState } from "react";
 import { REWATCH_TABS, scopesFor } from "../../config/planNextGroups";
 import { Eyebrow } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
+import { visibleByType } from "../../lib/gatedTypes";
 import PlanNextCard from "./PlanNextCard";
 
 const SCOPE_LABELS = {
@@ -16,6 +18,8 @@ const SCOPE_LABELS = {
 
 export default function PlanToRewatch({ planRows }) {
   const [tab, setTab] = useState("anime");
+  // A gated type's tab only for a session that may see the type.
+  const tabs = visibleByType(useAuth(), REWATCH_TABS);
 
   const rows = planRows.filter(
     (row) => row.kind === "rewatch" && row.media_type === tab,
@@ -29,7 +33,7 @@ export default function PlanToRewatch({ planRows }) {
       </h2>
 
       <div className="flex flex-wrap gap-1.5 mb-6">
-        {REWATCH_TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}

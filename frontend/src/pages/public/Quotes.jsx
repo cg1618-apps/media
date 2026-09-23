@@ -17,6 +17,7 @@ import QuoteForm, {
 } from "../../components/forms/QuoteForm";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useAuth } from "../../contexts/AuthContext";
+import { visibleByType } from "../../lib/gatedTypes";
 import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
@@ -230,7 +231,9 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
 }
 
 export default function Quotes() {
-  const { isAdmin } = useAuth();
+  const auth = useAuth();
+  const { isAdmin } = auth;
+  const mediaTypeFilters = visibleByType(auth, MEDIA_TYPE_FILTERS, (m) => m.value);
   const queryClient = useQueryClient();
 
   const [mediaType, setMediaType] = useState("");
@@ -285,7 +288,7 @@ export default function Quotes() {
             onChange={(e) => setMediaType(e.target.value)}
             className={controlCls}
           >
-            {MEDIA_TYPE_FILTERS.map((m) => (
+            {mediaTypeFilters.map((m) => (
               <option key={m.value} value={m.value}>
                 {m.label}
               </option>

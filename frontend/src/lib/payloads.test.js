@@ -5,6 +5,7 @@ import {
   buildCreditsPayload,
   creditsResponseToForm,
   gameFieldsPayload,
+  hComicFieldsPayload,
 } from "./payloads";
 
 describe("source rows in the payload", () => {
@@ -155,5 +156,46 @@ describe("steam progress sync", () => {
     expect(gameFieldsPayload({ steam_progress_sync: "false" }).steam_progress_sync).toBe(false);
     expect(gameFieldsPayload({ steam_progress_sync: "true" }).steam_progress_sync).toBe(true);
     expect(gameFieldsPayload({ steam_progress_sync: "" }).steam_progress_sync).toBeNull();
+  });
+});
+
+describe("h-comic payloads", () => {
+  it("sends each credit and tag under its own key", () => {
+    const body = buildCreditsPayload("h-comic", {
+      illustrator: "A, B",
+      author: "",
+      club: "Circle",
+      original_source: "Toomics",
+      h_genre_plot: "x",
+      h_genre_appearance: undefined,
+      h_genre_relation: "y, z",
+    });
+    expect(body.credits).toEqual({ illustrator: ["A", "B"], author: [], club: ["Circle"] });
+    expect(body.tags).toEqual({
+      original_source: ["Toomics"],
+      h_genre_plot: ["x"],
+      h_genre_relation: ["y", "z"],
+    });
+  });
+
+  it("builds the entry body without the group order the detail page owns", () => {
+    const body = hComicFieldsPayload({
+      region: "KR",
+      h_comic_name_en: "T",
+      ch_total: "12",
+      ch_behind: "",
+      page_fin: "",
+      reading_status: "",
+      sources: [{ name: " Site ", url: "" }],
+    });
+    expect(body.region).toBe("KR");
+    expect(body.ch_total).toBe(12);
+    expect(body.ch_behind).toBeNull();
+    expect(body.page_fin).toBe(0);
+    expect(body.reading_status).toBe("Might Read");
+    expect(body.sources).toEqual([
+      { kind: "access", bucket: "other", name: "Site", url: null, available: null },
+    ]);
+    expect("highlight_group_order" in body).toBe(false);
   });
 });

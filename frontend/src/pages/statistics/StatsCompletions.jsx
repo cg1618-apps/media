@@ -3,9 +3,26 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   getCoverUrl,
+  getDisplayName,
   FALLBACK_SVG,
   COMPLETED_STATUSES,
 } from "../../utils/media";
+import { useAuth } from "../../contexts/AuthContext";
+import { visibleByType } from "../../lib/gatedTypes";
+
+const COMPLETION_TABS = [
+  { key: "anime", label: "Anime" },
+  { key: "anime-movie", label: "Anime movie" },
+  { key: "movie", label: "Movie" },
+  { key: "tv-show", label: "TV show" },
+  { key: "cartoon", label: "Cartoon" },
+  { key: "manga", label: "Manga" },
+  { key: "novel", label: "Novel" },
+  { key: "comic", label: "Comic" },
+  { key: "game", label: "Game" },
+  // Gated: offered through visibleByType only.
+  { key: "h-comic", label: "H-Comic" },
+];
 import { Button, Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import { entityPath } from "../../lib/entityPath";
 
@@ -19,8 +36,10 @@ export default function StatsCompletions({
   allNovel,
   allComic,
   allGame,
+  allHComic,
   franchiseMap,
 }) {
+  const tabs = visibleByType(useAuth(), COMPLETION_TABS);
   const [completionsTab, setCompletionsTab] = useState("anime");
   const [groupPages, setGroupPages] = useState({
     TV: 0,
@@ -42,6 +61,7 @@ export default function StatsCompletions({
   const [novelCompletionPages, setNovelCompletionPages] = useState({});
   const [comicCompletionPages, setComicCompletionPages] = useState({});
   const [gameCompletionPages, setGameCompletionPages] = useState({});
+  const [hComicCompletionPages, setHComicCompletionPages] = useState({});
 
   return (
     <section>
@@ -54,17 +74,7 @@ export default function StatsCompletions({
 
       {/* Tab bar */}
       <div className="flex flex-wrap gap-1.5 mb-6">
-        {[
-          { key: "anime", label: "Anime" },
-          { key: "anime-movie", label: "Anime movie" },
-          { key: "movie", label: "Movie" },
-          { key: "tv-show", label: "TV show" },
-          { key: "cartoon", label: "Cartoon" },
-          { key: "manga", label: "Manga" },
-          { key: "novel", label: "Novel" },
-          { key: "comic", label: "Comic" },
-          { key: "game", label: "Game" },
-        ].map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setCompletionsTab(tab.key)}
@@ -1534,6 +1544,155 @@ export default function StatsCompletions({
           );
         })()}
 
+      {/* H-Comic tab - gated: the tab bar only offers it to a session that
+          can see the type, and the list is empty for any other. */}
+      {completionsTab === "h-comic" &&
+        (() => {
+          // Grouped by region: a JP h-comic reads in pages and a KR one in
+          // chapters, so the two are different reading experiences.
+          const completed = (allHComic || [])
+            .filter(
+              (h) => COMPLETED_STATUSES.includes(h.reading_status) && h.completed_at,
+            )
+            .sort(
+              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+            );
+          const byRegion = {};
+          completed.forEach((h) => {
+            const key = h.region || "Unrecorded";
+            if (!byRegion[key]) byRegion[key] = [];
+            byRegion[key].push(h);
+          });
+          const REGION_GROUPS = ["JP", "KR", "Unrecorded"].filter(
+            (key) => byRegion[key]?.length,
+          );
+
+          if (completed.length === 0) {
+            return (
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">
+                  No h-comic completions recorded yet.
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="space-y-8">
+              {REGION_GROUPS.map((key) => {
+                const items = byRegion[key];
+                const PAGE_SIZE = 10;
+                const page = hComicCompletionPages[key] ?? 0;
+                const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                const pageItems = items.slice(
+                  page * PAGE_SIZE,
+                  (page + 1) * PAGE_SIZE,
+                );
+                const setPage = (p) =>
+                  setHComicCompletionPages((prev) => ({ ...prev, [key]: p }));
+
+                return (
+                  <div key={key}>
+                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
+                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                        {key}
+                      </h3>
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
+                        {items.length}
+                      </span>
+                    </div>
+                    <div className="bg-surface border border-border">
+                      {pageItems.map((h, idx) => {
+                        const globalIdx = page * PAGE_SIZE + idx;
+                        const franchise = franchiseMap[String(h.franchise_id)];
+                        const name = getDisplayName(h, "h-comic");
+                        const franchiseName = franchise
+                          ? getDisplayName(franchise, "franchise")
+                          : null;
+                        const dateStr = new Date(
+                          h.completed_at,
+                        ).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        });
+                        const path = entityPath("h-comic", h);
+                        const Wrapper = path ? Link : "div";
+                        const wrapperProps = path ? { to: path } : {};
+                        return (
+                          <Wrapper
+                            key={h.system_id}
+                            {...wrapperProps}
+                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
+                              idx < pageItems.length - 1
+                                ? "border-b border-border"
+                                : ""
+                            }`}
+                          >
+                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
+                              {globalIdx + 1}
+                            </span>
+                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
+                              <img
+                                src={getCoverUrl(h.cover_image_file)}
+                                alt={name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = FALLBACK_SVG;
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-display text-base leading-tight text-text truncate">
+                                {name}
+                              </p>
+                              {franchiseName && (
+                                <p className="font-mono text-[11px] text-text-faint truncate">
+                                  {franchiseName}
+                                </p>
+                              )}
+                            </div>
+                            {h.usefulness && (
+                              <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
+                                {h.usefulness}
+                              </span>
+                            )}
+                            <RatingStamp rating={h.my_rating} />
+                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
+                              {dateStr}
+                            </span>
+                          </Wrapper>
+                        );
+                      })}
+                    </div>
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between mt-3 px-1">
+                        <Button
+                          size="sm"
+                          onClick={() => setPage(page - 1)}
+                          disabled={page === 0}
+                        >
+                          Previous
+                        </Button>
+                        <span className="font-mono text-[11px] text-text-faint">
+                          Page {page + 1} of {totalPages}
+                        </span>
+                        <Button
+                          size="sm"
+                          onClick={() => setPage(page + 1)}
+                          disabled={page >= totalPages - 1}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
       {/* Under-development tabs */}
       {![
         "anime",
@@ -1545,6 +1704,7 @@ export default function StatsCompletions({
         "novel",
         "comic",
         "game",
+        "h-comic",
       ].includes(completionsTab) && (
         <div className="border border-dashed border-border-strong px-4 py-10 text-center">
           <Eyebrow className="mb-1">Under development</Eyebrow>

@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-22
+Last verified: 2026-09-24
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -39,7 +39,10 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   (`startStream`). The reader parses `data: {...}` events (`processing`,
   `success`, `error`) into a status line and toasts on completion; **Stop**
   aborts the fetch via an `AbortController`, and the page aborts any running
-  stream on unmount. Only one stream runs at a time.
+  stream on unmount. Only one stream runs at a time. The Fill box's
+  **H-Comic** button (`/fill/h-comic`) is drawn only for a session that can see
+  the type; it fetches nothing and re-runs the region clears and the label, and
+  h-comic has no Replace button, since there is no bulk Replace for it.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
 - **Announcements.** Create / edit / delete the dashboard board
@@ -70,7 +73,8 @@ back to the owning franchise/series where the ids still exist.
 ## /add (`Add.jsx`)
 
 A two-level tab bar (`config/adminTabs.js`): **Entries** (anime, anime movie,
-movie, TV show, cartoon, manga, novel, comic, game), **Structure** (collection,
+movie, TV show, cartoon, manga, novel, comic, game, and the gated h-comic for a
+session that can see it), **Structure** (collection,
 franchise, series, quote, meme), **Entity** (studio, publisher, person,
 character) and **System** (system option, alias). Each
 tab is a form component in `pages/add-tabs/`; the page owns the state objects,
@@ -182,6 +186,27 @@ people scoped to `game`), release date and the six price fields, **Copies**,
 sources, flags and notes. Submit needs a CN or EN name, `POST /api/game/` then
 `saveCredits`; **games are never enriched on Add** — the toast is a plain "Game
 appended successfully."
+
+**H-Comic tab.** `HComicAddTab.jsx`, offered only to a session that can see
+the gated type (`AdminTabBar` filters every tab list through `visibleByType`,
+so Add, Modify, Delete and Form Defaults agree). **Region comes first**: until
+JP or KR is chosen only the fields both regions share are offered, and choosing
+one reveals its own (`lib/hComicRegion.js`) - JP the originality, animation
+status, series number, page total and pages read; KR the chapter total,
+chapters read, chapters behind the official source, author and official
+source. The region's own name field (JP or KR) shows beside the shared EN / CN
+/ Alt names. Both regions carry serialization status, club, 繪師 (artists),
+the three H Genre tag fields, reading status, rating, usefulness, release /
+end date, the cast (`CastEditor`, no seiyuu column) and sources. The franchise
+picker offers **H-Comic franchises only**, and a new franchise typed there is
+created with that type - the server refuses an h-comic anywhere else. Submit
+needs a region and a CN or EN name, blanks what the region does not use
+(`clearedForRegion` - names are kept), quick-creates the typed people and genre
+values through `hComicSourceFields`, then `POST /api/h-comic/`, the credits,
+the cast and the labels, without enrichment (there is no external API). The
+content-label picker shows the `h-comic` label checked and locked: every entry
+carries it, and the save adds it back. The form never sends
+`highlight_group_order` - the detail page's drag owns it.
 
 **Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
 owned or wanted (storefront, ownership, format, acquisition, price paid +
@@ -329,10 +354,11 @@ holds — a franchise, a series or an entry; see
 - **Data loading** is `hooks/useEntryLists.js`, as on `/add`: collections,
   franchises and series eagerly, the media lists per tab. The three
   grouping-tier tabs are the ones that read more than their own — **franchise**
-  pulls the eight non-game lists for its ribbon, **series** the seven (a series
-  never lists anime movies), and **fav3x3** all nine, because two of its grids
-  hold game rows. `config/adminEntryLists.js` holds the map; games appear in no
-  tier ribbon.
+  pulls the eight lists that are neither game nor h-comic for its ribbon,
+  **series** the seven (a series never lists anime movies), and **fav3x3** every
+  list but h-comic, because two of its grids hold game rows and none holds an
+  h-comic. `config/adminEntryLists.js` holds the map; games and h-comics appear
+  in no tier ribbon.
 - **Finding a row.** A search box over that tab's list, or a deep link
   `/modify?id=<system_id>[&type=<type>]` used by the dashboard cards and
   detail-page "Quick Edit" buttons. The deep-link effect runs once on mount,
@@ -359,6 +385,10 @@ holds — a franchise, a series or an entry; see
   pair, which still keeps two near-identical files. The Modify tab has **no IGDB
   search box** — identification happens once, on Add — and it saves with
   `PATCH /api/game/{id}`, without enrichment.
+- **H-Comic tab.** `HComicModifyTab.jsx` renders `HComicAddTab`'s exported
+  `HComicRegionField`, `HComicLineageFields` and `HComicFormBody`, the game
+  pattern. It loads the cast like the other cast-carrying tabs, and saves with
+  `PATCH /api/h-comic/{id}`, then credits, cast and labels, without enrichment.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
 - **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
@@ -418,7 +448,10 @@ The **Game tab**'s panel adds one line of its own: when the selected game has
 copy rows it warns how many will be deleted with it. Its DLC and expansion rows
 are not cascaded — they survive with `base_game_id` set to `NULL`.
 
-Counts are computed across all nine media types (`entriesIn`,
+The **H-Comic tab** (gated like its Add tab) offers the same orphan series
+and orphan franchise checkboxes as the manga tab.
+
+Counts are computed across all ten media types (`entriesIn`,
 `standaloneEntriesIn`), so **opening the confirmation waits for every media
 list to be in** — lazily loaded ones included — and `executeDirectDelete`
 waits again before cascading. A list that was never fetched reads as empty,
@@ -468,6 +501,10 @@ rule); values are stored per type via `/api/form-defaults/<type>` and applied
 by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
 defaults for that type. Note `coerce: "tristate"` is implemented but unused
 by any field.
+
+`h-comic` is present here for a session that can see it; its Add form has no
+"copy an existing entry" search either, so its auto-fill ticks drive nothing
+yet.
 
 `game` is present here like any other media type, but its Add form has no
 "copy an existing entry" search (its box searches IGDB), so the auto-fill ticks

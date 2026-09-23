@@ -5,6 +5,7 @@ import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
+import { canSeeGatedType } from "../../lib/gatedTypes";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
@@ -97,7 +98,11 @@ async function asList(res) {
 
 export default function SeriesPage() {
   const { publicId } = useParams();
-  const { isAdmin, has } = useAuth();
+  const auth = useAuth();
+  const { isAdmin, has } = auth;
+  // Gated: a series under an H-Comic franchise is hidden from a session that
+  // cannot see the type, so only a session that can asks for its h-comics.
+  const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const { showToast } = useToast();
 
   // ── data ──────────────────────────────────────────────────────────────────
@@ -111,6 +116,7 @@ export default function SeriesPage() {
   const [novelList, setNovelList] = useState([]);
   const [comicList, setComicList] = useState([]);
   const [gameList, setGameList] = useState([]);
+  const [hComicList, setHComicList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -286,6 +292,27 @@ export default function SeriesPage() {
     };
   }, [publicId]);
 
+  // The series' h-comics, apart from the load above because the question
+  // "may this session see them" is answered by /api/auth/me, which can land
+  // after this page mounts. Asked only when the answer is yes.
+  const seriesId = series?.system_id;
+  useEffect(() => {
+    if (!canSeeHComic || !seriesId) return undefined;
+    let cancelled = false;
+    fetch(
+      buildUrl(endpoints.resource("h-comic").list(), { series_id: seriesId }),
+      { credentials: "include" },
+    )
+      .then(asList)
+      .then((list) => {
+        if (!cancelled) setHComicList(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [canSeeHComic, seriesId]);
+
   // Media types this series actually holds entries for. PlanKindToggles
   // further filters this down to what rewatch allows at series scope (movie,
   // tv-show, novel, comic - anime and cartoon rewatch at franchise scope only).
@@ -299,6 +326,7 @@ export default function SeriesPage() {
     if (novelList.length) list.push("novel");
     if (comicList.length) list.push("comic");
     if (gameList.length) list.push("game");
+    if (hComicList.length) list.push("h-comic");
     return list;
   }, [
     animeList,
@@ -309,6 +337,7 @@ export default function SeriesPage() {
     novelList,
     comicList,
     gameList,
+    hComicList,
   ]);
 
   const seriesApplicableRewatchTypes = useMemo(
@@ -327,6 +356,7 @@ export default function SeriesPage() {
       novelList.length && "Novel",
       comicList.length && "Comic",
       gameList.length && "Game",
+      hComicList.length && "H-Comic",
       movieList.length && "Movies",
       tvShowList.length && "TV Shows",
       cartoonList.length && "Cartoons",
@@ -338,6 +368,7 @@ export default function SeriesPage() {
     novelList,
     comicList,
     gameList,
+    hComicList,
     movieList,
     tvShowList,
     cartoonList,
@@ -398,6 +429,12 @@ export default function SeriesPage() {
   const handleGameUpdated = useCallback(
     (u) =>
       setGameList((p) => p.map((g) => (g.system_id === u.system_id ? u : g))),
+    [],
+  );
+
+  const handleHComicUpdated = useCallback(
+    (u) =>
+      setHComicList((p) => p.map((h) => (h.system_id === u.system_id ? u : h))),
     [],
   );
 
@@ -895,6 +932,7 @@ export default function SeriesPage() {
       "TV Shows": tvShowList.length,
       Cartoons: cartoonList.length,
       Game: gameList.length,
+      "H-Comic": hComicList.length,
     };
     return map[tab] ?? 0;
   }
@@ -924,6 +962,7 @@ export default function SeriesPage() {
     ...novelList,
     ...comicList,
     ...gameList,
+    ...hComicList,
   ];
   const coverUrl = getSeriesCover(series, allEntries);
 
@@ -1540,6 +1579,35 @@ export default function SeriesPage() {
               ))}
             </div>
           )}
+        </Section>
+      )}
+
+      {/* ── H-Comic tab content ─────────────────────────────────────────── */}
+      {activeTab === "H-Comic" && hComicList.length > 0 && (
+        <Section
+          title="H-Comic"
+          subtitle="In series order"
+          count={hComicList.length}
+        >
+          <div className={GRID_CLS}>
+            {[...hComicList]
+              .sort(
+                (a, b) =>
+                  (a.series_number ?? Infinity) - (b.series_number ?? Infinity) ||
+                  String(a.release_date || "").localeCompare(
+                    String(b.release_date || ""),
+                  ),
+              )
+              .map((h) => (
+                <MediaCard
+                  key={h.system_id}
+                  type="h-comic"
+                  data={h}
+                  isAdmin={isAdmin}
+                  onUpdated={handleHComicUpdated}
+                />
+              ))}
+          </div>
         </Section>
       )}
 

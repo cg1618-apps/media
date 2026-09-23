@@ -51,7 +51,7 @@ function SourceRow({ tag, children, muted = false }) {
 }
 
 // Media types whose sources are things you read rather than watch.
-const READING_TYPES = new Set(["manga", "novel", "comic"]);
+const READING_TYPES = new Set(["manga", "novel", "comic", "h-comic"]);
 const PLAYING_TYPES = new Set(["game"]);
 
 export function accessHeading(mediaType) {

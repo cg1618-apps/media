@@ -8,6 +8,8 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { buildUrl, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
+import { useAuth } from "../../contexts/AuthContext";
+import { canSeeGatedType } from "../../lib/gatedTypes";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
 import {
@@ -44,6 +46,8 @@ const TYPE_LABELS = {
   manga: "Manga",
   novel: "Novel",
   comic: "Comic",
+  // Gated: offered as a filter only to a session that can see the type.
+  "h-comic": "H-Comic",
 };
 
 function ItemRow({
@@ -353,6 +357,7 @@ function addedLabel(added) {
 function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("");
+  const auth = useAuth();
   const [hideAdded, setHideAdded] = useState(false);
 
   const added = useMemo(() => buildAddedIndex(items), [items]);
@@ -420,7 +425,9 @@ function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget
           className="px-2 py-1.5 text-xs border border-border-strong bg-surface text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand"
         >
           <option value="">All types</option>
-          {Object.entries(TYPE_LABELS).map(([slug, label]) => (
+          {Object.entries(TYPE_LABELS)
+            .filter(([slug]) => canSeeGatedType(auth, slug))
+            .map(([slug, label]) => (
             <option key={slug} value={slug}>
               {label}
             </option>

@@ -1,9 +1,11 @@
 // Frontend: the owner types an image can be attached to, for the image
 // library's owner-type filter (Images.jsx, ImagePicker's library modal).
 //
-// Mirrors app/routers/images.py's ATTACHABLE_OWNERS - the nine media entry
+// Mirrors app/routers/images.py's ATTACHABLE_OWNERS - the ten media entry
 // tables plus six entity/content tables. Grouped into two optgroups rather
 // than rendered as fifteen buttons in a row.
+import { canSeeGatedType } from "../lib/gatedTypes";
+
 export const IMAGE_OWNER_TYPE_GROUPS = [
   {
     label: "Media",
@@ -17,6 +19,8 @@ export const IMAGE_OWNER_TYPE_GROUPS = [
       { value: "novel", label: "Novel" },
       { value: "comic", label: "Comic" },
       { value: "game", label: "Game" },
+      // Gated: the owner-type pickers filter it through visibleByType.
+      { value: "h-comic", label: "H-Comic" },
     ],
   },
   {
@@ -31,3 +35,11 @@ export const IMAGE_OWNER_TYPE_GROUPS = [
     ],
   },
 ];
+
+/** The groups above without a gated owner type this session may not see. */
+export function visibleImageOwnerTypeGroups(auth) {
+  return IMAGE_OWNER_TYPE_GROUPS.map((group) => ({
+    ...group,
+    options: group.options.filter((opt) => canSeeGatedType(auth, opt.value)),
+  }));
+}

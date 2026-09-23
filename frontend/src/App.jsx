@@ -25,6 +25,7 @@ import Manga from "./pages/detail/Manga";
 import Novel from "./pages/detail/Novel";
 import Comic from "./pages/detail/Comic";
 import Game from "./pages/detail/Game";
+import HComic from "./pages/detail/HComic";
 
 
 import CollectionLibrary from "./pages/library/CollectionLibrary";
@@ -126,6 +127,21 @@ export default function App() {
                   path="/library/character"
                   element={<CharacterLibrary />}
                 />
+                {/* The gated h-comic type: both of its routes ask the same
+                    question navigation.js asks for its nav row -
+                    canSeeGatedType - so a session that cannot see the type
+                    has neither a link nor a page. The static library path
+                    outranks /library/:type below. */}
+                <Route element={<ProtectedRoute gatedType="h-comic" />}>
+                  <Route
+                    path="/library/h-comic"
+                    element={<Library type="h-comic" />}
+                  />
+                  <Route
+                    path="/h-comic/:publicId/:slug?"
+                    element={<HComic />}
+                  />
+                </Route>
                 <Route path="/library/:type" element={<Library />} />
                 <Route path="/future-releases" element={<FutureReleases />} />
                 <Route path="/anime/:publicId/:slug?" element={<Anime />} />

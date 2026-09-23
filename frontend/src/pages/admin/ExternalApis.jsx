@@ -49,6 +49,7 @@ const SCOPED_KEYS = new Set([
   "novel",
   "comic",
   "game",
+  "h-comic",
 ]);
 
 function mediaId(key) {

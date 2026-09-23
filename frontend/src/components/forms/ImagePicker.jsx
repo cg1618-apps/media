@@ -19,7 +19,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
-import { IMAGE_OWNER_TYPE_GROUPS } from "../../config/imageOwnerTypes";
+import { visibleImageOwnerTypeGroups } from "../../config/imageOwnerTypes";
+import { useAuth } from "../../contexts/AuthContext";
 import { getCoverUrl } from "../../lib/covers";
 import { useAttachImage, useImages, useUploadImage } from "../../hooks/useImages";
 import { Button, Chip } from "../ui/primitives";
@@ -148,6 +149,7 @@ function LibraryModal({ onSelect, onClose }) {
   const [unused, setUnused] = useState(true);
   const [missing, setMissing] = useState(false);
   const [ownerType, setOwnerType] = useState("");
+  const ownerTypeGroups = visibleImageOwnerTypeGroups(useAuth());
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
@@ -249,7 +251,7 @@ function LibraryModal({ onSelect, onClose }) {
             className="rounded border border-border-strong bg-surface px-2 py-1.5 text-sm text-text disabled:opacity-50"
           >
             <option value="">Used on…</option>
-            {IMAGE_OWNER_TYPE_GROUPS.map((group) => (
+            {ownerTypeGroups.map((group) => (
               <optgroup key={group.label} label={group.label}>
                 {group.options.map((opt) => (
                   <option key={opt.value} value={opt.value}>

@@ -27,6 +27,11 @@ const ANONYMOUS = {
   role: "guest",
   isRoot: false,
   permissions: [],
+  // The gated media types this session may see (`visible_gated_types`).
+  // Only the seeable ones are named, so a narrow session's list is empty and
+  // it is never told a gated type exists. Read through canSeeGatedType
+  // (lib/gatedTypes.js), not directly.
+  visibleGatedTypes: [],
   // The OBJECT axis. `mode` is the active access mode; `modes` is every mode
   // this account holds, each already carrying `requires_password` - the
   // server computes that subset test so the SPA never models it. A guest
@@ -52,6 +57,7 @@ export function AuthProvider({ children }) {
           role: data.role ?? "guest",
           isRoot: data.is_root ?? false,
           permissions: data.permissions ?? [],
+          visibleGatedTypes: data.visible_gated_types ?? [],
           mode: data.mode ?? null,
           modes: data.modes ?? [],
           loading: false,

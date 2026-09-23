@@ -19,6 +19,7 @@ export default function Statistics() {
     allNovel,
     allComic,
     allGame,
+    allHComic,
     fxRates,
     seasonals,
     currentSeason,
@@ -79,6 +80,7 @@ export default function Statistics() {
             allManga={allManga}
             allNovel={allNovel}
             allComic={allComic}
+            allHComic={allHComic}
             seasonals={seasonals}
             currentSeason={currentSeason}
           />

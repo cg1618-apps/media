@@ -7,6 +7,8 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
+import { useAuth } from "../../contexts/AuthContext";
+import { visibleFranchiseTypes } from "../../lib/gatedTypes";
 import {
   FRANCHISE_EXPECTATIONS,
   FRANCHISE_TYPES,
@@ -16,6 +18,8 @@ import {
 export { defaultFranchise } from "../../config/formFactories";
 
 export default function FranchiseAddTab({ ff, uf, collectionItems }) {
+  // A gated type's franchise type (H-Comic) only for a session that can see it.
+  const franchiseTypes = visibleFranchiseTypes(useAuth(), FRANCHISE_TYPES);
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-sitemap" title="Titles & Naming" />
@@ -82,7 +86,7 @@ export default function FranchiseAddTab({ ff, uf, collectionItems }) {
         </Field>
         <Field label="Franchise Type">
           <div className="flex flex-wrap gap-3">
-            {FRANCHISE_TYPES.map(
+            {franchiseTypes.map(
               (v) => {
                 const types = parseTypes(ff.franchise_type);
                 const checked = types.includes(v);

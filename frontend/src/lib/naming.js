@@ -1,6 +1,7 @@
 // Display-name resolution and name-field helpers.
 
 import { NAMING_CONFIGS } from "../config/namingConfigs";
+import { showsField } from "./hComicRegion";
 
 export function cleanString(str) {
   if (!str) return "";
@@ -36,6 +37,18 @@ export function getDisplayName(item, type) {
       "Unknown Title"
     );
   }
+  // HComicResponse.display_name's chain: CN, EN, Alt, then the region's own
+  // name. The key is hyphenated, so the generic prefix below cannot reach it.
+  if (type === "h-comic") {
+    return (
+      item.h_comic_name_cn ||
+      item.h_comic_name_en ||
+      item.h_comic_name_alt ||
+      item.h_comic_name_jp ||
+      item.h_comic_name_kr ||
+      "Unknown Title"
+    );
+  }
   return (
     item[`${prefix}_name_cn`] ||
     item[`${prefix}_name_en`] ||
@@ -50,12 +63,17 @@ const NAMING_LABELS = {
   cn: "Chinese",
   en: "English",
   jp: "Japanese",
+  kr: "Korean",
   roman: "Roman",
   alt: "Alternative",
 };
 
 export function getNamingFields(item, type) {
-  const fields = NAMING_CONFIGS[type] || [];
+  let fields = NAMING_CONFIGS[type] || [];
+  // An h-comic shows the name of its own region only (JP or KR).
+  if (type === "h-comic") {
+    fields = fields.filter((field) => showsField(item?.region, field));
+  }
   return fields.map((field) => {
     const suffix = field.split("_").pop();
     return {
@@ -76,6 +94,16 @@ export function getSortName(item, type) {
   if (type === "series") {
     return (
       item.series_name_en || item.series_name_cn || item.series_name_alt || ""
+    );
+  }
+  if (type === "h-comic") {
+    return (
+      item.h_comic_name_en ||
+      item.h_comic_name_cn ||
+      item.h_comic_name_alt ||
+      item.h_comic_name_jp ||
+      item.h_comic_name_kr ||
+      ""
     );
   }
   return (

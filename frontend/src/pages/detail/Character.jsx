@@ -38,6 +38,7 @@ const TYPE_LABELS = {
   manga: "Manga",
   novel: "Novel",
   comic: "Comic",
+  "h-comic": "H-Comic",
 };
 
 export default function Character() {

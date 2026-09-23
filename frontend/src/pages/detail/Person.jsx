@@ -10,7 +10,8 @@
 //
 // Like Studio.jsx it reads the API with plain fetch. The media detail pages go
 // through TanStack hooks because their payloads are also written back from
-// admin controls; nothing on this page is editable.
+// admin controls. The one thing editable here is club membership
+// (ClubMembership), which has its own endpoints and no other page to live on.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -18,6 +19,7 @@ import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
+import ClubMembership from "../../components/info/ClubMembership";
 import InfoCard from "../../components/info/InfoCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
@@ -183,6 +185,8 @@ export default function Person() {
               { label: "Remark", value: person.remark },
             ]}
           />
+
+          <ClubMembership person={person} />
 
           {groups.length === 0 ? (
             <section className="border border-dashed border-border-strong px-4 py-10 text-center">

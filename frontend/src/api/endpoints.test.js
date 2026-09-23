@@ -35,6 +35,11 @@ describe("resource() endpoints (derived from MEDIA_CONFIG)", () => {
     expect(resource("game").list()).toBe("/api/game/");
   });
 
+  it("derives the gated h-comic resource from MEDIA_CONFIG", () => {
+    expect(resource("h-comic").list()).toBe("/api/h-comic/");
+    expect(resource("h-comic").complete("X")).toBe("/api/h-comic/X/complete");
+  });
+
   it("throws on unknown type", () => {
     expect(() => resource("nope")).toThrow();
   });
@@ -78,6 +83,11 @@ describe("named endpoint groups", () => {
     expect(endpoints.character.remove(7, 2)).toBe("/api/character/7?castings=2");
     expect(endpoints.character.merge(7)).toBe("/api/character/7/merge");
     expect(endpoints.character.entries(7)).toBe("/api/character/7/entries");
+  });
+
+  it("person membership", () => {
+    expect(endpoints.person.clubs(7)).toBe("/api/person/7/clubs");
+    expect(endpoints.person.members(7)).toBe("/api/person/7/members");
   });
 
   it("casting", () => {

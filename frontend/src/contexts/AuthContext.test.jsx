@@ -165,3 +165,31 @@ describe("useAuth().has", () => {
     );
   });
 });
+
+describe("useAuth().visibleGatedTypes", () => {
+  function GatedProbe() {
+    const { visibleGatedTypes, loading } = useAuth();
+    if (loading) return <div>loading</div>;
+    return <span data-testid="gated">{visibleGatedTypes.join(",") || "none"}</span>;
+  }
+
+  it("carries the gated types /api/auth/me names", async () => {
+    mockMe({ is_admin: true, username: "admin", role: "admin", is_root: true, permissions: [], visible_gated_types: ["h-comic"] });
+    render(
+      <AuthProvider>
+        <GatedProbe />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("gated")).toHaveTextContent("h-comic"));
+  });
+
+  it("is empty when the server names none - even for a root account", async () => {
+    mockMe({ is_admin: true, username: "admin", role: "admin", is_root: true, permissions: [], visible_gated_types: [] });
+    render(
+      <AuthProvider>
+        <GatedProbe />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("gated")).toHaveTextContent("none"));
+  });
+});

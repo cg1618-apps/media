@@ -9,6 +9,8 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
+import { useAuth } from "../../contexts/AuthContext";
+import { visibleFranchiseTypes } from "../../lib/gatedTypes";
 import {
   FRANCHISE_TYPES,
   MY_RATINGS,
@@ -55,6 +57,8 @@ export default function FranchiseModifyTab({
   collectionItems,
   editingItem,
 }) {
+  // A gated type's franchise type (H-Comic) only for a session that can see it.
+  const auth = useAuth();
   const franchiseId = editingItem?.system_id;
 
   // ── plan-next: which media types this franchise is queued for ───────────
@@ -283,7 +287,7 @@ export default function FranchiseModifyTab({
         </Field>
         <Field label="Franchise Type">
           <div className="flex flex-wrap gap-3">
-            {FRANCHISE_TYPES.map((v) => {
+            {visibleFranchiseTypes(auth, FRANCHISE_TYPES).map((v) => {
               const types = parseTypes(ff.franchise_type);
               const checked = types.includes(v);
               return (
