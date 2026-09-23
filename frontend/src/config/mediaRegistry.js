@@ -10,6 +10,9 @@ export const MEDIA_CONFIG = {
   novel:         { statusField: "reading_status",  apiEndpoint: "/api/novel",       navPath: "/novel",        statusType: "read"  },
   comic:         { statusField: "reading_status",  apiEndpoint: "/api/comic",       navPath: "/comic",        statusType: "read"  },
   game:          { statusField: "playing_status",  apiEndpoint: "/api/game",        navPath: "/game",         statusType: "play"  },
+  // A gated type: registered like any other, drawn only where canSeeGatedType
+  // (lib/gatedTypes.js) says the session may see it.
+  "h-comic":     { statusField: "reading_status",  apiEndpoint: "/api/h-comic",     navPath: "/h-comic",      statusType: "read"  },
   collection:    { statusField: null,              apiEndpoint: "/api/collection",  navPath: "/collection",   statusType: null    },
   franchise:     { statusField: null,              apiEndpoint: "/api/franchise",   navPath: "/franchise",    statusType: null    },
   series:        { statusField: null,              apiEndpoint: "/api/series",      navPath: "/series",       statusType: null    },

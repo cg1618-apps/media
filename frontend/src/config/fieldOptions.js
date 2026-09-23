@@ -208,6 +208,11 @@ export const FRANCHISE_TYPES = [
   "Cartoon",
   "Comic",
   "Novel",
+  "Game",
+  // Only the gated h-comic type's franchises. /api/constants omits it for a
+  // session that cannot see h-comic; pickers filter the fallback through
+  // visibleFranchiseTypes (lib/gatedTypes.js) for the first paint too.
+  "H-Comic",
 ];
 
 export const FRANCHISE_EXPECTATIONS = ["Highest", "High", "Medium", "Low"];
@@ -228,6 +233,15 @@ export const TRISTATE = ["true", "false"];
 // Mirrors GAME_COMPLETION_FLAGS in app/utils/constants.py, served by
 // GET /api/constants as `game_completion_flag`.
 export const GAME_COMPLETION_FLAGS = ["Yes", "No", "Inapplicable"];
+
+// The h-comic vocabularies (app/utils/constants.py). /api/constants serves
+// them only to a session that can see the gated type, so for anyone else
+// these fallbacks are simply never overwritten - and never rendered, since
+// no h-comic form is offered to that session.
+export const H_COMIC_REGIONS = ["JP", "KR"];
+export const H_COMIC_ORIGINALITY = ["原創", "同人"];
+export const H_COMIC_ANIMATION_STATUSES = ["Not Animated", "Announced", "Animated"];
+export const H_COMIC_USEFULNESS = ["非常實用", "實用", "特定情況實用", "不實用"];
 
 export const MUSIC_STATUSES = ["Need", "Pending", "Done"];
 
@@ -269,6 +283,9 @@ export const MEDIA_TYPES = [
   "novel",
   "comic",
   "game",
+  // Gated: omitted by /api/constants for a session that cannot see it, and
+  // filtered through visibleMediaTypes wherever this list is rendered.
+  "h-comic",
 ];
 
 // Tier 2 CATEGORY NAMES (OPTION_CATEGORIES in app/utils/credit_roles.py), not
@@ -293,6 +310,9 @@ export const OPTION_CATEGORIES = [
   "Game Mode",
   "Combat Mode",
   "Game Platform",
+  "H Genre Plot",
+  "H Genre Appearance",
+  "H Genre Relation",
   "Franchise for Filter",
 ];
 
@@ -328,6 +348,10 @@ export const CONSTANTS_FALLBACK = {
   game_acquisition: GAME_ACQUISITION_KINDS,
   manga_serialization_status: MANGA_SERIALIZATION_STATUSES,
   novel_serialization_status: NOVEL_SERIALIZATION_STATUSES,
+  h_comic_region: H_COMIC_REGIONS,
+  h_comic_originality: H_COMIC_ORIGINALITY,
+  h_comic_animation_status: H_COMIC_ANIMATION_STATUSES,
+  h_comic_usefulness: H_COMIC_USEFULNESS,
   day_of_week: WEEKDAYS,
   music_status: MUSIC_STATUSES,
   seiyuu_status: SEIYUU_STATUSES,

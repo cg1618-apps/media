@@ -14,10 +14,12 @@
 import { MEDIA_LIST_TYPES } from "../hooks/useEntryLists";
 
 // The grouping-tier editors show a ribbon of everything hanging off the tier,
-// one section per media type. Games are absent from both by design:
-// FranchiseModifyTab and SeriesModifyTab take no allGames prop, so a game
-// never appears in a franchise or series ribbon.
-const RIBBON_TYPES = MEDIA_LIST_TYPES.filter((type) => type !== "game");
+// one section per media type. Games and h-comics are absent from both by
+// design: FranchiseModifyTab and SeriesModifyTab take no allGames or
+// allHComics prop, so neither appears in a franchise or series ribbon.
+const RIBBON_TYPES = MEDIA_LIST_TYPES.filter(
+  (type) => type !== "game" && type !== "h-comic",
+);
 
 // SeriesModifyTab additionally takes no allAnimeMovies prop - an anime movie
 // belongs to a franchise but is never listed under a series.
@@ -31,12 +33,13 @@ export const ADD_TAB_LISTS = Object.fromEntries(
 
 // Modify: the same, plus the three tiers that render cross-type ribbons.
 // fav3x3 reads every list, games included: two of its grids hold game rows
-// (the favourite game franchises and the favourite games themselves).
+// (the favourite game franchises and the favourite games themselves). No grid
+// holds an h-comic, so that list is not fetched for it.
 export const MODIFY_TAB_LISTS = {
   ...ADD_TAB_LISTS,
   franchise: RIBBON_TYPES,
   series: SERIES_RIBBON_TYPES,
-  fav3x3: MEDIA_LIST_TYPES,
+  fav3x3: MEDIA_LIST_TYPES.filter((type) => type !== "h-comic"),
 };
 
 export function listsForTab(map, tab) {

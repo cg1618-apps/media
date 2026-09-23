@@ -35,6 +35,7 @@ beforeEach(() => {
   auth.isAdmin = false;
   auth.username = null;
   auth.role = "guest";
+  delete auth.visibleGatedTypes;
   hardNavigate.mockClear();
   vi.stubGlobal(
     "fetch",
@@ -144,6 +145,31 @@ describe("Nav panels", () => {
     expect(
       within(groupsColumn).getByRole("link", { name: /collection/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("Nav gated types", () => {
+  it("offers no H-Comic link to a session that cannot see the type", async () => {
+    const user = userEvent.setup();
+    auth.isAdmin = true; // every permission: the gate is the mode, not a role
+    auth.visibleGatedTypes = [];
+    renderNav("/");
+    await user.click(tab("library"));
+    const panel = document.querySelector("[data-nav-panel]");
+    expect(within(panel).getByRole("link", { name: /^manga$/i })).toBeInTheDocument();
+    expect(within(panel).queryByRole("link", { name: /h-comic/i })).toBeNull();
+  });
+
+  it("offers it once /api/auth/me names the type", async () => {
+    const user = userEvent.setup();
+    auth.visibleGatedTypes = ["h-comic"];
+    renderNav("/");
+    await user.click(tab("library"));
+    const panel = document.querySelector("[data-nav-panel]");
+    expect(within(panel).getByRole("link", { name: /h-comic/i })).toHaveAttribute(
+      "href",
+      "/library/h-comic",
+    );
   });
 });
 

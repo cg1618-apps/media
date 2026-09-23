@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-09-23
+Last verified: 2026-09-24
 
 ## What this is for
 
@@ -73,7 +73,7 @@ Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_re
 | `game` | `games` | One **purchasable**, not one work: `game_type` is `"Base Game"`, `"DLC"`, `"Expansion"` or `"Bundle"`, and a DLC is a row in this same table with a `base_game_id`. Ownership is not a column - it is derived from the `game_copy` rows. |
 | `h-comic` | `h_comic` | Adult comics, seen in the `unrestricted` access mode only. One table, two variants keyed on `region` (`"JP"` or `"KR"`, required): the columns a region does not use are cleared on every write path (see "H-Comic regions" below). A **gated type** - every entry carries the `h-comic` content label ([authorization.md](authorization.md)). |
 
-All ten have their own router under `app/routers/`. Nine have a detail page in `frontend/src/App.jsx`; H-Comic is API-only - it has no library, detail or form page in the SPA.
+All ten have their own router under `app/routers/` and a detail page in `frontend/src/App.jsx`. H-Comic's library and detail routes are gated: they, its nav row and every other h-comic surface in the SPA are drawn only for a session that can see the type ([frontend/components.md](frontend/components.md#gated-media-types)).
 
 ### H-Comic regions (`REGION_CLEARS`, `app/services/domain/h_comic.py`)
 
@@ -187,11 +187,11 @@ style label). Vocabulary source and drift guard: [options.md](options.md#novel-u
 | Status vocabulary | `WatchStatus` | `WatchStatus` | `WatchStatus` | `WatchStatus` | `WatchStatus` | `ReadStatus` | `ReadStatus` | `ReadStatus` | `PlayStatus` | `ReadStatus` |
 | Default status | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Read"` | `"Might Read"` | `"Might Read"` | `"Might Play"` | `"Might Read"` |
 | Display-name fallback (model `display_name`) | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP | CN → EN → Alt | CN → EN → Alt | CN → EN → Alt | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP | **EN → CN → Alt** | CN → EN → Alt → roman → JP | CN → EN → Alt → JP → KR |
-| Name order in `NAMING_CONFIGS` (frontend) | cn, en, roman, jp, alt | cn, en, roman, jp, alt | cn, en, alt | cn, en, alt | cn, en, alt | cn, en, roman, jp, alt | cn, en, roman, jp, alt | en, cn, alt | cn, en, roman, jp, alt | — (no SPA page) |
+| Name order in `NAMING_CONFIGS` (frontend) | cn, en, roman, jp, alt | cn, en, roman, jp, alt | cn, en, alt | cn, en, alt | cn, en, alt | cn, en, roman, jp, alt | cn, en, roman, jp, alt | en, cn, alt | cn, en, roman, jp, alt | cn, en, jp, kr, alt - the naming card shows the entry's own region's name only |
 | Progress columns | `ep_fin` / `ep_total` (+ `ep_previous`, `ep_special`) | — (one sitting) | — (one sitting) | `ep_fin` / `ep_total` | `ep_fin` / `ep_total` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total`, `vol_fin_page` | `ch_fin` / `ch_total` / `ch_fin_in_arc` (derived from `novel_unit` arc rows; cleared outright on `Light Novel` and `Novel`), `vol_fin` / `vol_total_original` / `vol_total_tw` (never derived), `arc_fin` / `arc_total`, `progress_display`, `units` | `issue_fin` / `issue_total` | No fraction at all: `hours_played` plus **five independent completion axes** - `completion_level`, `all_endings`, `all_achievements`, `all_collected`, `achievements_earned` / `achievements_total`. Nothing is derived from anything, including `all_achievements` from the counts. The middle three carry GAME_COMPLETION_FLAGS, so a game with no endings or no achievement list answers `Inapplicable` rather than leaving the axis blank. | `page_fin` / `page_total` (JP) or `ch_fin` / `ch_total` (KR), plus `ch_behind` (KR, hand-set: chapters behind the official source). The other region's pair is cleared on every write |
 | Other status column | `airing_status` | `airing_status` | `airing_status` | `airing_status` | `airing_status` | `serialization_status` | `serialization_status` | `serialization_status` | `release_status` | `serialization_status` (`MANGA_SERIALIZATION_STATUSES`), plus `animation_status` (JP, hand-set) |
 | External id / link | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `comicvine_id` / `comicvine_link` (Comic Vine) | `igdb_id` / `igdb_link` (IGDB), plus `steam_appid` / `steam_link` (Steam) — the appid is normally adopted from IGDB's `external_games` and is what Steam and the derived SteamDB link both key off | none - there is no external API |
-| Sources card heading | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Read | Where to Read | Where to Read | **Where to Play** | — (no SPA page) |
+| Sources card heading | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Read | Where to Read | Where to Read | **Where to Play** | Where to Read |
 | Access `main` platforms | baha, netflix, disney_plus, prime, bilibili, crunchyroll | (same as anime) + Cinema | netflix, disney_plus, prime, hbomax, apple_tv | netflix, disney_plus, prime, hbomax, apple_tv | netflix, disney_plus, prime, hbomax, apple_tv | none | none | none | **none** - a game is played on a platform, not watched on one: that is the `game_platform` tag field, and which copy was owned is `game_copy`. The Sources editor hides the access group for games | none seeded |
 | Reference `main` sources | official, twitter, anilist, wiki, fandom, keyframe_staff | (same as anime) | wiki | wiki | wiki | twitter, anilist, wiki, fandom | twitter, anilist, wiki, fandom | official, wiki, fandom | SteamDB (**derived**: `derive_steamdb_source` writes it from `steam_appid` in `game_post_processing`, so every entry in a run gets it and not only the queued ones; fill-only, so a hand-entered row wins), HowLongToBeat, Metacritic, Official site, Wikipedia, Fandom wiki | none seeded |
 | Publisher credit label (`credit_label("publisher", type)`) | 台灣代理商 | 台灣代理商 | — | — | — | 台灣出版商 | 台灣出版商 | 出版商 | 發行商 | — |
@@ -220,12 +220,12 @@ Status values themselves are listed in [options.md](options.md). The frontend `M
 
 | | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Library page | `/library/anime` | `/library/anime-movie` | `/library/movie` | `/library/tv-show` | `/library/cartoon` | `/library/manga` | `/library/novel` | `/library/comic` | `/library/game` | none |
-| Detail route | `/anime/:system_id` | `/anime-movie/:system_id` | `/movie/:system_id` | `/tv-show/:system_id` | `/cartoon/:system_id` | `/manga/:system_id` | `/novel/:system_id` | `/comic/:system_id` | `/game/:system_id` | none |
-| API base (`MEDIA_CONFIG.apiEndpoint`) | `/api/anime` | `/api/anime-movie` | `/api/movies` | `/api/tv-shows` | `/api/cartoon` | `/api/manga` | `/api/novel` | `/api/comic` | `/api/game` | `/api/h-comic` (not in `MEDIA_CONFIG`) |
+| Library page | `/library/anime` | `/library/anime-movie` | `/library/movie` | `/library/tv-show` | `/library/cartoon` | `/library/manga` | `/library/novel` | `/library/comic` | `/library/game` | `/library/h-comic` (gated) |
+| Detail route | `/anime/:system_id` | `/anime-movie/:system_id` | `/movie/:system_id` | `/tv-show/:system_id` | `/cartoon/:system_id` | `/manga/:system_id` | `/novel/:system_id` | `/comic/:system_id` | `/game/:system_id` | `/h-comic/:system_id` (gated) |
+| API base (`MEDIA_CONFIG.apiEndpoint`) | `/api/anime` | `/api/anime-movie` | `/api/movies` | `/api/tv-shows` | `/api/cartoon` | `/api/manga` | `/api/novel` | `/api/comic` | `/api/game` | `/api/h-comic` |
 | Dashboard card on `/` (`Index.jsx`) | `DashboardCard` | none | none | `DashboardCard` | `DashboardCard` | `DashboardCard` (reading section) | `NovelDashboardCard` | `ComicDashboardCard` | none | none |
 
-`/library/:type` is one page (`frontend/src/pages/library/Library.jsx`) that picks a config from `LIBRARY_CONFIGS` (`frontend/src/pages/library/configs/index.js`), which has nine keys - every type but `h-comic`. The dashboard loads `anime`, `franchise`, `tv-show`, `cartoon`, `manga`, `novel` and `comic` lists; movies and anime movies never appear on it.
+`/library/:type` is one page (`frontend/src/pages/library/Library.jsx`) that picks a config from `LIBRARY_CONFIGS` (`frontend/src/pages/library/configs/index.js`), which has ten keys; `/library/h-comic` is declared on its own route, behind its gate, and renders the same page. The dashboard loads `anime`, `franchise`, `tv-show`, `cartoon`, `manga`, `novel` and `comic` lists; movies and anime movies never appear on it.
 
 ### Plan-next, rewatch, size buckets (`app/utils/plan_next_kinds.py`)
 
@@ -246,10 +246,10 @@ Buckets are stored on franchise and series as two JSONB maps keyed by media type
 
 | | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` |
 |---|---|---|---|---|---|---|---|---|---|---|
-| From/to range offered (`supportsEpisodeRange`) | yes | no | no | yes | yes | no | no | yes | yes (by default — `game` is in neither set) | yes by default (in neither set); the backend has no total column for it (`_TOTAL_FIELDS`) |
-| Unit label (`RANGE_UNITS`, default `"Ep"`) | `Ep` | — | — | `Ep` | `Ep` | `Ch` | `Ch` | `#` | `Ep` (the fallback; no game unit declared) | `Ep` (the fallback) |
+| From/to range offered (`supportsEpisodeRange`) | yes | no | no | yes | yes | no | no | yes | yes (by default — `game` is in neither set) | no - whole-only, like manga |
+| Unit label (`RANGE_UNITS`, default `"Ep"`) | `Ep` | — | — | `Ep` | `Ep` | `Ch` | `Ch` | `#` | `Ep` (the fallback; no game unit declared) | — |
 
-`WHOLE_ONLY_TYPES = {"movie", "anime-movie", "manga", "novel"}`: those steps always cover the work whole. An unknown or null `media_type` keeps the range inputs. (The test file is `frontend/src/components/tracker/watchOrderRange.test.js`; there is no `frontend/src/utils/watchOrderRange.js`.) See [systems/watch-orders.md](systems/watch-orders.md).
+`WHOLE_ONLY_TYPES = {"movie", "anime-movie", "manga", "novel", "h-comic"}`: those steps always cover the work whole. An unknown or null `media_type` keeps the range inputs. (The test file is `frontend/src/components/tracker/watchOrderRange.test.js`; there is no `frontend/src/utils/watchOrderRange.js`.) See [systems/watch-orders.md](systems/watch-orders.md).
 
 ### Fill / Replace pipelines (`app/services/pipelines/specs.py`)
 

@@ -65,3 +65,36 @@ describe("ProtectedRoute requireAuth", () => {
     expect(screen.getByText("the pipelines page")).toBeInTheDocument();
   });
 });
+
+describe("ProtectedRoute gatedType", () => {
+  function renderGated(auth) {
+    mockAuth.mockReturnValue({ has: () => false, loading: false, ...auth });
+    return render(
+      <MemoryRouter initialEntries={["/library/h-comic"]}>
+        <Routes>
+          <Route element={<ProtectedRoute gatedType="h-comic" />}>
+            <Route path="/library/h-comic" element={<div>the h-comic library</div>} />
+          </Route>
+          <Route path="/" element={<div>the home page</div>} />
+          <Route path="/login" element={<div>the login page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it("lets through a session the server named the type for", () => {
+    renderGated({ username: "cg1618", visibleGatedTypes: ["h-comic"] });
+    expect(screen.getByText("the h-comic library")).toBeInTheDocument();
+  });
+
+  it("sends a signed-in narrow session home, as for an unknown path", () => {
+    renderGated({ username: "cg1618", visibleGatedTypes: [] });
+    expect(screen.getByText("the home page")).toBeInTheDocument();
+    expect(screen.queryByText("the h-comic library")).not.toBeInTheDocument();
+  });
+
+  it("sends a signed-out visitor to login", () => {
+    renderGated({ username: null, visibleGatedTypes: [] });
+    expect(screen.getByText("the login page")).toBeInTheDocument();
+  });
+});

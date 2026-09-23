@@ -83,6 +83,19 @@ const EXTERNAL_SHAPES = {
 
 const NotesContext = createContext(null);
 
+// Whether a section applies to this owner ROW, not just this owner type.
+// `owner_where` ({column: [allowed values]}) narrows a section to some rows of
+// its owner types - 亮點 Highlights is KR h-comics only - and the server
+// refuses a note on any other row (422). Without the row there is nothing to
+// test, so the section is kept, as it always was.
+export function ownerMatches(section, owner) {
+  const where = section.owner_where || {};
+  if (!owner) return true;
+  return Object.entries(where).every(([column, allowed]) =>
+    allowed.includes(owner[column]),
+  );
+}
+
 export function useNotes() {
   const value = useContext(NotesContext);
   if (!value) {
@@ -91,8 +104,27 @@ export function useNotes() {
   return value;
 }
 
-export function NotesProvider({ ownerType, ownerId, isAdmin, children }) {
-  const [sections, setSections] = useState([]);
+// `owner` is the owner row, for `owner_where`. The next three feed the
+// structured shape and only matter to a section declaring the matching field:
+// `nameSuggestions` for a `names` input, and the owner's stored group order
+// (`groupOrder`) with the callback that saves a new one (`onGroupOrderChange`)
+// for a section with `group_by`. An owner type has at most one grouped
+// section, so one order is enough.
+export function NotesProvider({
+  ownerType,
+  ownerId,
+  isAdmin,
+  owner,
+  nameSuggestions,
+  groupOrder,
+  onGroupOrderChange,
+  children,
+}) {
+  const [allSections, setSections] = useState([]);
+  const sections = useMemo(
+    () => allSections.filter((section) => ownerMatches(section, owner)),
+    [allSections, owner],
+  );
   const [notes, setNotes] = useState([]);
   // Quotes and memes live in their own tables, so their rows never arrive in
   // `notes` and the page cannot count them itself. Each external section
@@ -227,6 +259,9 @@ export function NotesProvider({ ownerType, ownerId, isAdmin, children }) {
         section={section}
         notes={bySection[section.key] || []}
         isAdmin={isAdmin}
+        nameSuggestions={nameSuggestions}
+        groupOrder={groupOrder}
+        onGroupOrderChange={onGroupOrderChange}
         {...handlers}
       />
     );

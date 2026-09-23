@@ -17,11 +17,12 @@ const LABELS = {
   novel: "Novel",
   comic: "Comic",
   game: "Game",
+  "h-comic": "H-Comic",
 };
 
 // Read types say "reread"; play types say "replay"; watch types say
 // "rewatch", which is also the label a mixed group falls back to.
-const READ_TYPES = new Set(["manga", "novel", "comic"]);
+const READ_TYPES = new Set(["manga", "novel", "comic", "h-comic"]);
 const PLAY_TYPES = new Set(["game"]);
 
 function allIn(set, mediaTypes) {

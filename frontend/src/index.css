@@ -65,6 +65,7 @@
   --color-scope-novel: var(--c-scope-novel);
   --color-scope-comic: var(--c-scope-comic);
   --color-scope-game: var(--c-scope-game);
+  --color-scope-h-comic: var(--c-scope-h-comic);
 
   /* Semantic state hues; tint with opacity modifiers (bg-success/15). */
   --color-danger: #ef4444;
@@ -119,6 +120,7 @@
   --c-scope-novel: hsl(185 45% 35%);
   --c-scope-comic: hsl(310 35% 48%);
   --c-scope-game: hsl(95 40% 33%);
+  --c-scope-h-comic: hsl(70 55% 30%);
 }
 
 /* Dark palette. Applied by the attribute, and by the OS preference when no
@@ -149,6 +151,7 @@
   --c-scope-novel: hsl(185 45% 58%);
   --c-scope-comic: hsl(310 45% 70%);
   --c-scope-game: hsl(95 45% 58%);
+  --c-scope-h-comic: hsl(70 50% 56%);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
@@ -178,6 +181,8 @@
     --c-scope-novel: hsl(185 45% 58%);
     --c-scope-comic: hsl(310 45% 70%);
     --c-scope-game: hsl(95 45% 58%);
+    --c-scope-h-comic: hsl(70 50% 56%);
+  --c-scope-h-comic: hsl(70 50% 56%);
   }
 }
 

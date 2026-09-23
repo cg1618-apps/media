@@ -3,6 +3,8 @@ import StatsCompletions from "../statistics/StatsCompletions";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useMediaList } from "../../hooks/useMediaList";
 import { Eyebrow } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
+import { canSeeGatedType } from "../../lib/gatedTypes";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -17,6 +19,11 @@ export default function Completions() {
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const gameQuery = useMediaList("game", LIST_OPTIONS);
+  // Gated: fetched only for a session that can see the type.
+  const hComicQuery = useMediaList("h-comic", {
+    ...LIST_OPTIONS,
+    enabled: canSeeGatedType(useAuth(), "h-comic"),
+  });
   const queries = [
     franchiseQuery,
     animeQuery,
@@ -28,6 +35,7 @@ export default function Completions() {
     mangaQuery,
     novelQuery,
     comicQuery,
+    hComicQuery,
   ];
   const firstError = queries.find((query) => query.error)?.error;
   const isLoading = queries.some((query) => query.isLoading);
@@ -69,6 +77,7 @@ export default function Completions() {
         allNovel={novelQuery.data || []}
         allComic={comicQuery.data || []}
         allGame={gameQuery.data || []}
+        allHComic={hComicQuery.data || []}
         franchiseMap={franchiseMap}
       />
     </div>

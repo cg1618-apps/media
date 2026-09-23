@@ -152,14 +152,18 @@ describe("person field sources", () => {
     for (const key of retired) expect(json).not.toContain(`"${key}"`);
   });
 
-  it("asks for thirteen distinct role/scope pairs", () => {
+  it("asks for sixteen distinct role/scope pairs", () => {
     // Eleven before games; director|game and composer|game are the two the
-    // ninth media type adds.
+    // ninth media type adds, and illustrator, author and club the three the
+    // gated h-comic type adds.
     const keys = PERSON_SOURCES.map((s) => `${s.role}|${s.scope}`);
-    expect(new Set(keys).size).toBe(13);
-    expect(keys).toHaveLength(13);
+    expect(new Set(keys).size).toBe(16);
+    expect(keys).toHaveLength(16);
     expect(keys).toContain("director|game");
     expect(keys).toContain("composer|game");
+    expect(keys).toContain("illustrator|h-comic");
+    expect(keys).toContain("author|h-comic");
+    expect(keys).toContain("club|h-comic");
   });
 });
 

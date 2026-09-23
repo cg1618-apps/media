@@ -12,6 +12,8 @@ import {
 } from "../../config/planNextGroups";
 import { groupByBucket } from "../../utils/planNext";
 import { Eyebrow } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
+import { visibleByType } from "../../lib/gatedTypes";
 import PlanNextCard from "./PlanNextCard";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
@@ -25,6 +27,8 @@ function byExpectation(a, b) {
 
 export default function PlanWatchNext({ planRows }) {
   const [tab, setTab] = useState("anime");
+  // A gated type's tab only for a session that may see the type.
+  const tabs = visibleByType(useAuth(), PLAN_TABS);
 
   const rows = planRows
     .filter((r) => r.kind === "next" && r.media_type === tab)
@@ -43,7 +47,7 @@ export default function PlanWatchNext({ planRows }) {
 
       {/* Tab bar */}
       <div className="flex flex-wrap gap-1.5 mb-6">
-        {PLAN_TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}

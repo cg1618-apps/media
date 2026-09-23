@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-23
+Last verified: 2026-09-24
 
 ## What this is for
 
@@ -769,7 +769,14 @@ because a missing label means a public entry:
 With the label on every entry, the ordinary gates hide the type everywhere
 `enforcement.py` reaches, and the shared-record rule above hides everything
 connected only to it. `/api/auth/me`'s `visible_gated_types` tells the SPA
-whether to offer the type's navigation at all.
+whether to offer the type at all: `AuthContext` exposes it, and one helper,
+`canSeeGatedType` (`frontend/src/lib/gatedTypes.js`), is what both SPA
+permission surfaces ask - `<ProtectedRoute gatedType="h-comic">` around the
+library and detail routes, and the nav row's `gatedType` in `navigation.js` -
+along with every picker, tab and list that names the type
+([frontend/components.md](frontend/components.md#gated-media-types)). A root
+account in a narrower mode is not shown the type either: the gate is the
+mode's label, not a capability.
 
 #### What a narrow session is not told
 
@@ -783,8 +790,11 @@ a second gated type needs no edit to them:
 | `GET /api/person/role-scopes`, `/role-counts` | the gated type from every role's scopes, and a role scoped only to it (`club`) entirely |
 | `GET /api/notes/sections?owner_type=h-comic` | the whole answer: 400, as for an unknown owner type. No other owner type lists `h_comic_highlights` |
 | `GET /api/auth/me` | the type from `visible_gated_types` |
+| `GET /api/constants/external-apis` | the type's row in `media` |
 
-The mirror is `unrestricted`, which is told everything.
+The mirror is `unrestricted`, which is told everything. The SPA adds nothing
+to this list - it draws what the server tells it - but it does leave the
+type's nav row, routes, tabs and pickers out rather than render them empty.
 
 ### Covered surfaces
 

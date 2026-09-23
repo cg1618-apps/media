@@ -120,6 +120,7 @@ export default function FranchisePage() {
   const [novelList, setNovelList] = useState([]);
   const [comicList, setComicList] = useState([]);
   const [gameList, setGameList] = useState([]);
+  const [hComicList, setHComicList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -230,6 +231,19 @@ export default function FranchisePage() {
         if (!fRes.ok) throw new Error("Franchise not found");
         const franchiseData = await fRes.json();
         const resolvedId = franchiseData.system_id;
+        // Only an H-Comic franchise holds h-comics (an h-comic never sits in
+        // any other), and a session that cannot see the gated type never
+        // reaches one - so the list is asked for only where it can exist.
+        const hComicFetch = parseTypes(franchiseData.franchise_type).includes(
+          "H-Comic",
+        )
+          ? fetch(
+              buildUrl(endpoints.resource("h-comic").list(), {
+                franchise_id: resolvedId,
+              }),
+              { credentials: "include" },
+            ).then((r) => (r.ok ? r.json() : []))
+          : Promise.resolve([]);
         const [
           sRes,
           aRes,
@@ -289,6 +303,7 @@ export default function FranchisePage() {
           gmRes.json(),
           pnRes.ok ? pnRes.json() : [],
         ]);
+        const hc = await hComicFetch;
         if (cancelled) return;
         setFranchise(franchiseData);
         setSeriesList(s);
@@ -301,6 +316,7 @@ export default function FranchisePage() {
         setNovelList(nv);
         setComicList(cm);
         setGameList(gm);
+        setHComicList(hc);
         setPlannedTypes(
           new Set(
             pn
@@ -357,6 +373,7 @@ export default function FranchisePage() {
   const hasCartoon = useMemo(() => types.includes("Cartoon"), [types]);
   const hasComic = useMemo(() => types.includes("Comic"), [types]);
   const hasGame = useMemo(() => types.includes("Game"), [types]);
+  const hasHComic = useMemo(() => types.includes("H-Comic"), [types]);
 
   // Media types this franchise carries a size bucket for, restricted to
   // franchise-eligible scopes (comic/anime-movie/manga/novel can never be
@@ -386,6 +403,7 @@ export default function FranchisePage() {
     if (novelList.length) list.push("novel");
     if (comicList.length) list.push("comic");
     if (gameList.length) list.push("game");
+    if (hComicList.length) list.push("h-comic");
     return list;
   }, [
     animeList,
@@ -397,6 +415,7 @@ export default function FranchisePage() {
     novelList,
     comicList,
     gameList,
+    hComicList,
   ]);
 
   const franchiseApplicableRewatchTypes = useMemo(
@@ -416,6 +435,7 @@ export default function FranchisePage() {
       hasNovel && novelList.length && "Novel",
       hasComic && comicList.length && "Comic",
       hasGame && gameList.length && "Game",
+      hasHComic && hComicList.length && "H-Comic",
       hasMovie && movieList.length && "Movies",
       hasTV && tvShowList.length && "TV Shows",
       hasCartoon && cartoonList.length && "Cartoons",
@@ -427,6 +447,7 @@ export default function FranchisePage() {
     hasNovel,
     hasComic,
     hasGame,
+    hasHComic,
     hasAnimeMovie,
     hasMovie,
     hasTV,
@@ -437,6 +458,7 @@ export default function FranchisePage() {
     novelList,
     comicList,
     gameList,
+    hComicList,
     movieList,
     tvShowList,
     cartoonList,
@@ -501,6 +523,11 @@ export default function FranchisePage() {
   );
   const handleGameUpdated = useCallback(
     (u) => setGameList((p) => p.map((g) => (g.system_id === u.system_id ? u : g))),
+    [],
+  );
+  const handleHComicUpdated = useCallback(
+    (u) =>
+      setHComicList((p) => p.map((h) => (h.system_id === u.system_id ? u : h))),
     [],
   );
 
@@ -1206,6 +1233,7 @@ export default function FranchisePage() {
     ...withMediaType(novelList, "novel"),
     ...withMediaType(comicList, "comic"),
     ...withMediaType(gameList, "game"),
+    ...withMediaType(hComicList, "h-comic"),
   ];
   const coverUrl = getFranchiseCover(
     franchise,
@@ -2076,6 +2104,34 @@ export default function FranchisePage() {
                   type="game"
                   data={g}
                   onUpdated={handleGameUpdated}
+                />
+              ))}
+          </div>
+        </Section>
+      )}
+
+      {/* ── H-Comic tab content ─────────────────────────────── */}
+      {activeTab === "H-Comic" && hComicList.length > 0 && (
+        <Section
+          title="H-Comic"
+          subtitle="In series order, then by release"
+          count={hComicList.length}
+        >
+          <div className={GRID_CLS}>
+            {[...hComicList]
+              .sort(
+                (a, b) =>
+                  (a.series_number ?? Infinity) - (b.series_number ?? Infinity) ||
+                  String(a.release_date || "").localeCompare(
+                    String(b.release_date || ""),
+                  ),
+              )
+              .map((h) => (
+                <MediaCard
+                  key={h.system_id}
+                  type="h-comic"
+                  data={h}
+                  onUpdated={handleHComicUpdated}
                 />
               ))}
           </div>

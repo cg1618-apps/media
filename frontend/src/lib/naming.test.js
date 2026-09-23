@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { displayPersonName, displayStudioName } from "./naming";
+import {
+  displayPersonName,
+  displayStudioName,
+  getDisplayName,
+  getNamingFields,
+  getSortName,
+} from "./naming";
 
 describe("displayStudioName", () => {
   it("honours the chosen field", () => {
@@ -57,5 +63,26 @@ describe("displayPersonName", () => {
   it("returns an empty string for a nameless person", () => {
     expect(displayPersonName({})).toBe("");
     expect(displayPersonName(null)).toBe("");
+  });
+});
+
+describe("h-comic names", () => {
+  it("resolves the display name CN -> EN -> Alt -> JP -> KR, as the server does", () => {
+    expect(getDisplayName({ h_comic_name_en: "E", h_comic_name_kr: "K" }, "h-comic")).toBe("E");
+    expect(getDisplayName({ h_comic_name_kr: "K" }, "h-comic")).toBe("K");
+    expect(getDisplayName({ h_comic_name_cn: "C", h_comic_name_en: "E" }, "h-comic")).toBe("C");
+  });
+
+  it("sorts by the English name first", () => {
+    expect(getSortName({ h_comic_name_cn: "C", h_comic_name_en: "E" }, "h-comic")).toBe("E");
+  });
+
+  it("shows only the region's own name on the naming card", () => {
+    const labels = (region) =>
+      getNamingFields({ region }, "h-comic").map((f) => f.label);
+    expect(labels("JP")).toContain("Japanese");
+    expect(labels("JP")).not.toContain("Korean");
+    expect(labels("KR")).toContain("Korean");
+    expect(labels("KR")).not.toContain("Japanese");
   });
 });

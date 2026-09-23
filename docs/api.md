@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-23
+Last verified: 2026-09-24
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -990,7 +990,7 @@ Served from `EXTERNAL_APIS` in `app/services/integrations/catalog.py`. Body:
 | Key | What it holds |
 |---|---|
 | `services` | One row per API — `key`, `label`, `base_url`, `auth` (the env var), `rate_limit`, `docs_anchor`, and `feeds`, the media keys it supplies. |
-| `media` | One row per `PIPELINES` key: `keyed_by` (the column the lookup runs on), `combination` (`single` / `merged` / `either-or`), `requests_per_entry`, `note`, and a `sources` list of `{source, label, writes}`. Each write is `{field, target, rule, note}`. |
+| `media` | One row per `PIPELINES` key the viewer may see - a gated type the session cannot see has no row ([authorization.md](authorization.md#what-a-narrow-session-is-not-told)): `keyed_by` (the column the lookup runs on), `combination` (`single` / `merged` / `either-or`), `requests_per_entry`, `note`, and a `sources` list of `{source, label, writes}`. Each write is `{field, target, rule, note}`. |
 | `rules`, `targets`, `combinations` | The vocabularies the three fields above draw on, each with a description, so the page needs no second copy. |
 | `key_missing_behaviour` | One sentence: a missing key is never fatal. |
 
@@ -1454,8 +1454,8 @@ announcements, it reuses `system_configs` — one row per media type, keyed
 `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`), the grouping tiers
 (`collection`, `franchise`, `series`) and the entities (`studio`, `publisher`, `person`,
 `character`); anything else is 400. The list mirrors `FORM_TABS` in
-`frontend/src/config/adminTabs.js`, which has no `h-comic` tab: the SPA has no
-h-comic form.
+`frontend/src/config/adminTabs.js`, whose `h-comic` tab is offered only to a
+session that can see the gated type.
 
 | Method   | Path            | Auth  | Description                                                                     |
 | -------- | --------------- | ----- | ------------------------------------------------------------------------------- |

@@ -13,6 +13,9 @@
 //   divider  true for a rule between item groups (admin menu only)
 //   requires the permission a viewer must hold to see this one row, for the
 //            admin-only pages that sit inside a tab everyone may open
+//   gatedType the gated media type this row belongs to. The row is drawn only
+//            for a session that may see that type (canSeeGatedType in
+//            lib/gatedTypes.js), the same question App.jsx's route asks
 //
 // Sections either carry `items` (a single list) or `columns` (a mega-panel).
 
@@ -99,6 +102,16 @@ export const NAV_SECTIONS = [
             icon: "fas fa-gamepad",
             to: "/library/game",
             matches: ["/game"],
+          },
+          // Gated: only a session whose mode carries the h-comic label is told
+          // the type exists. App.jsx's <ProtectedRoute gatedType> asks the
+          // same question for both of its routes.
+          {
+            label: "H-Comic",
+            icon: "fas fa-book",
+            to: "/library/h-comic",
+            matches: ["/h-comic"],
+            gatedType: "h-comic",
           },
           {
             label: "Seiyuu",
@@ -324,9 +337,14 @@ export function itemRequirement(item) {
   return item.requires ?? (item.adminOnly ? "admin.authz" : null);
 }
 
-// The rows of one list a viewer may see.
-export function visibleItems(items, has) {
+// Nobody is shown a gated row unless the caller says they may see it.
+const SEES_NO_GATED_TYPE = () => false;
+
+// The rows of one list a viewer may see. `canSeeType(type)` answers for rows
+// carrying a `gatedType`; left out, every such row is hidden.
+export function visibleItems(items, has, canSeeType = SEES_NO_GATED_TYPE) {
   return items.filter((item) => {
+    if (item.gatedType && !canSeeType(item.gatedType)) return false;
     const needed = itemRequirement(item);
     return !needed || has(needed);
   });
@@ -335,10 +353,10 @@ export function visibleItems(items, has) {
 // The same section with the rows this viewer may not see removed. Returns the
 // section itself when nothing was dropped, and always hands back the original
 // item objects — Nav marks the current row by identity.
-function withVisibleItems(section, has) {
+function withVisibleItems(section, has, canSeeType) {
   if (section.columns) {
     const columns = section.columns
-      .map((col) => ({ ...col, items: visibleItems(col.items, has) }))
+      .map((col) => ({ ...col, items: visibleItems(col.items, has, canSeeType) }))
       .filter((col) => col.items.length > 0);
     const kept = columns.reduce((n, col) => n + col.items.length, 0);
     return kept === sectionItems(section).length
@@ -346,19 +364,20 @@ function withVisibleItems(section, has) {
       : { ...section, columns };
   }
   if (!section.items) return section;
-  const items = visibleItems(section.items, has);
+  const items = visibleItems(section.items, has, canSeeType);
   return items.length === section.items.length ? section : { ...section, items };
 }
 
 // The sections a viewer may see, each trimmed to the rows they may see. A
 // section left with nothing but dividers is dropped along with them.
-export function visibleSections(sections, has) {
+// `canSeeType` is the gated-type question (see visibleItems).
+export function visibleSections(sections, has, canSeeType = SEES_NO_GATED_TYPE) {
   return sections
     .filter((section) => {
       const needed = sectionRequirement(section);
       return !needed || has(needed);
     })
-    .map((section) => withVisibleItems(section, has))
+    .map((section) => withVisibleItems(section, has, canSeeType))
     .filter(
       (section) =>
         !(section.items || section.columns) ||

@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-21
+Last verified: 2026-09-24
 
 ## What this is for
 
@@ -1841,3 +1841,96 @@ was paid.
   converting USD 59.99 into it would invent a number that reads exactly like a
   recorded one, which is the same failure the FX-rate guard already exists to
   prevent.
+
+### H-Comic, the first gated type (spec: 2026-09-23 h-comic-design)
+
+A tenth media type for adult comics, seen in the `unrestricted` access mode
+only. It shipped in three pull requests - the visibility groundwork, the
+backend type, the frontend - and the owner settled the shape before any of
+them.
+
+- **One type with a `region`, not a reuse of `manga` and not two types.**
+  Hentai is an `anime` row with the `hentai` label because its fields are an
+  anime's; an h-comic's are not a manga's - club, originality, animation
+  status, a place in a series, pages on one side and chapters behind the
+  official source on the other, a personal usefulness, and a highlights
+  section. Reusing `manga` would have hung all of that on every manga row.
+  Two types (a JP one and a KR one) was the other extreme: the two share most
+  of their fields, so they would have been two near-identical tables, forms
+  and pages. One table with a `region` follows manga's `region` and novel's
+  `novel_type`: the columns a region does not use are cleared on every write
+  path, not only hidden by the form, while a name column the region does not
+  use is kept, since a name is harmless and keeping it makes a region change
+  undoable. The frontend mirrors the rule in `lib/hComicRegion.js`, the way
+  `lib/novelUnits.js` mirrors the novel one, and additionally clears the two
+  KR-only link fields (author, official source) that the server does not.
+- **The label is required, and the server attaches it.** A media type naming a
+  required label (`REQUIRED_LABEL_FOR_TYPE`) is a *gated type*. Every h-comic
+  entry and every `H-Comic` franchise carries the `h-comic` label on every
+  write path, and a set that drops it is refused. It is not left to the admin
+  to tick, because an entry missing its label is a public entry. The label
+  reaches `unrestricted` only; `borderline`, which otherwise carries every
+  label as of its seed, is kept off it. The SPA locks the label on in its
+  picker and adds it back on save, so no save the admin never touched can hit
+  the refusal.
+- **Everything connected only to h-comic is hidden, by a derived rule.** The
+  label already hid the entries; what leaked was everything they point at -
+  artists, clubs, characters, genre and platform values - because those rows
+  carry no label. The rule adopted is that *a shared record is hidden when
+  every connection it has is hidden*, a connection being an appearance on an
+  entry or a scope naming a gated type. Two alternatives were rejected:
+  **label tables for people, characters and vocabulary** would have needed the
+  admin to remember to label every artist and every genre value, and would go
+  stale the day an artist is credited on a mainstream work; **separate tables
+  for h-comic people** would have split one artist who also draws mainstream
+  manga into two rows. The derived rule needs nothing remembered - crediting
+  someone on a normal work reveals them, removing the credit hides them again
+  - and it reverses the earlier stance that "the person is not the secret,
+  their credits are". Scopes count as connections for two cases that have no
+  appearance to hide behind: a club created before its first credit, and an
+  unused value of the three h-comic-only genre vocabularies. Only label-hidden
+  appearances count; a guest lacking a *media-type* permission still sees the
+  people of that type, as before.
+- **A narrow session is not told the type exists.** Beyond hiding rows, every
+  surface that would name the type - constants, role scopes, the notes
+  registry, `/api/auth/me` - leaves it out for a session that cannot see it,
+  and the SPA draws no nav row, route, tab or picker for it. The SPA asks one
+  question in one place (`canSeeGatedType`) rather than testing `"h-comic"`
+  at each surface, because both SPA permission surfaces - the route guard and
+  `navigation.js` - have to agree, and they drift when each keeps its own
+  test. A signed-in narrow session sent to an h-comic URL lands on the home
+  page, as for any unknown path, rather than on a login page that would say
+  there is something behind it.
+- **H-Comic franchises are kept apart from mainstream ones.** A new franchise
+  type, `H-Comic`; an h-comic only ever sits in one, and the name resolver
+  matches only those both ways. Otherwise a Fate-themed h-comic would attach
+  itself to the mainstream Fate franchise, whose hub would then either list it
+  or carry a hole where it was hidden. Keeping the franchise separate is also
+  what lets the franchise carry the label - and a series under a labelled
+  franchise is hidden through the same join entries use, which closed the
+  standing gap where a series under a hidden franchise still showed its name.
+- **Club membership is its own table and not a connection.** A club is a
+  person holding the `club` role (studio-like as an idea, an author as a
+  schema), so a club and its artists live in one table and `person_membership`
+  links them, ordered on the club's side. Membership cannot make a hidden club
+  or artist visible; a visible club's member list omits hidden members.
+- **Highlight names are free text, not character ids.** A highlight names the
+  characters it is about, and the ones worth naming are often not on the cast
+  at all; requiring a character row for each would mean creating rows for
+  every one-scene name. The editor suggests the cast and accepts anything.
+  The price, accepted: renaming a character does not rewrite the highlights
+  that named it.
+- **The group order is a column on the entry.** The owner orders the female
+  characters of one entry's highlights ("this one above that one"); the order
+  of the rows inside a group does not matter. So the order is
+  `h_comic.highlight_group_order`, a JSONB list written whole by dragging a
+  group header, rather than a table of `(entry, name, position)` rows or a
+  second sort key on the notes. It is only ever read and written whole, and a
+  column on a table that already has a sheet tab travels between the machines
+  the day it is added. A listed name no row carries any more is ignored when
+  drawing and falls out on the next save, so a renamed or deleted group needs
+  no cleanup.
+- **The grouping is generic.** `group_by` and the `names` field type are
+  registry features the structured notes component renders without naming
+  the section, like every other structured field: the next section wanting
+  groups or free-text names is a registry edit.

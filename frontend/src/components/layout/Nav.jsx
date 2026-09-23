@@ -12,6 +12,7 @@ import { Link, useLocation } from "react-router-dom";
 import ModeSwitcher from "./ModeSwitcher";
 import { hardNavigate } from "../../lib/hardNavigate";
 import { useAuth } from "../../contexts/AuthContext";
+import { canSeeGatedType } from "../../lib/gatedTypes";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useToast } from "../../hooks/useToast";
 import {
@@ -100,7 +101,8 @@ const DRAWER_ROW =
 
 export default function Nav() {
   const { theme, toggle: toggleTheme } = useTheme();
-  const { isAdmin, has, username, role } = useAuth();
+  const auth = useAuth();
+  const { isAdmin, has, username, role } = auth;
   const { showToast } = useToast();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -109,7 +111,9 @@ export default function Nav() {
   const stripRef = useRef(null);
   const triggerRefs = useRef({});
 
-  const sections = visibleSections(NAV_SECTIONS, has);
+  const sections = visibleSections(NAV_SECTIONS, has, (type) =>
+    canSeeGatedType(auth, type),
+  );
   const currentSection = activeSectionKey(location.pathname);
   const currentItem = activeItem(location.pathname)?.item ?? null;
 

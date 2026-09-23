@@ -7,13 +7,18 @@
 // brand hue, not pills.
 import { useEffect, useRef, useState } from "react";
 import { TAB_GROUPS, groupOf } from "../../config/adminTabs";
+import { useAuth } from "../../contexts/AuthContext";
+import { visibleByType } from "../../lib/gatedTypes";
 
 export default function AdminTabBar({
-  tabs,
+  tabs: allTabs,
   activeTab,
   onSelect,
   renderBadge,
 }) {
+  // A gated media type's tab (h-comic) is drawn only for a session that may
+  // see the type - the one place all four admin pages ask, so they agree.
+  const tabs = visibleByType(useAuth(), allTabs);
   const [activeGroup, setActiveGroup] = useState(() =>
     groupOf(tabs, activeTab),
   );

@@ -24,6 +24,9 @@ export const MEDIA_LIST_TYPES = [
   "novel",
   "comic",
   "game",
+  // Gated. Only fetched by a tab that reads it, and only an h-comic tab does;
+  // for a session that cannot see the type the server answers [] anyway.
+  "h-comic",
 ];
 
 // Loaded on mount by every page: read across all tabs, not owned by one.

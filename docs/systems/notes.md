@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-09-23
+Last verified: 2026-09-24
 
 ## What this is for
 
@@ -284,6 +284,19 @@ lacks renders after it in first-appearance order, and a listed name no row
 carries any more is ignored. It is a column rather than a table because it is
 only ever read and written whole.
 
+**On the page** (`frontend/src/pages/detail/HComic.jsx`, `HComicNotes.jsx`):
+the detail page hands the notes page the entry row, the cast's character names
+and the stored group order. A JP entry gets no Highlights card at all
+(`owner_where`, see below). The rows render one group per female character
+name; each group header can be dragged onto another, or stepped with its
+arrows, and the drop PATCHes the entry's `highlight_group_order` with the whole
+new order of the names on screen - which is how a name no row carries any more
+drops out of the list. The rows inside a group have no handle: they follow
+`sort_index`. A row naming two female characters is drawn under both, and
+under each it lists the other female characters it names, not the group's own.
+The `names` inputs suggest the entry's cast by display name and accept any
+other name typed (Enter, a comma, or leaving the field).
+
 ### The 攻略 Guides field specs
 
 Most of the 攻略 sections are `structured`, so their columns are declared
@@ -449,9 +462,19 @@ The notes page is three pieces:
 | `NotesGroup` | `NotesTemplate.jsx` | **One** group's sections with no card of their own, for a screen that puts a group somewhere else. |
 
 `NotesTemplate` is a provider wrapped around `NotesBlocks`, which is what the
-**ten** thin wrappers under `frontend/src/pages/detail/*Notes.jsx` (e.g.
+**eleven** thin wrappers under `frontend/src/pages/detail/*Notes.jsx` (e.g.
 `AnimeNotes.jsx`, `ComicNotes.jsx`, `FranchiseNotes.jsx`) render — they fix the
 owner type and forward the rest, unchanged by the split.
+
+Four optional props reach the provider through `NotesTemplate` and matter only
+to a section declaring the matching registry feature, so no wrapper names a
+section: **`owner`** (the owner row) drops a section whose `owner_where` the
+row fails (`ownerMatches` in `NotesContext.jsx`; without the row every section
+is kept); **`nameSuggestions`** feeds every `names` input; **`groupOrder`** and
+**`onGroupOrderChange`** are the owner's stored order for its grouped section
+and the callback that saves a new one. An owner type has at most one grouped
+section, so one order suffices. `HComicNotes.jsx` is the only wrapper passing
+them.
 
 **The game detail page composes the three itself** and has no wrapper: it puts
 待辦 Todo inside its Progress slip with `NotesGroup`, and renders everything
@@ -482,7 +505,9 @@ once when both are used.
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
 | `NameLinksSection.jsx` | name_links | title, links |
 | `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, reorderable in the form). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
-| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns the up/down reorder buttons (`PATCH /api/notes/reorder`), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move that flattens the whole tree depth-first. |
+| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns the up/down reorder buttons (`PATCH /api/notes/reorder`), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): the group headers are draggable and carry arrows, the rows are not movable. |
+| `NamesInput.jsx` | — | the `names` input: chosen names as removable tags, a combobox suggesting `nameSuggestions` filtered by what is typed, any other text accepted |
+| `groupedRows.js` | — | pure: `groupNotes` (one group per name, a row under every name it carries, stored order first then first appearance, a trailing unnamed group only when a row names nobody), `movedGroupOrder`, `namesOf` |
 | `EpisodeNameLinksSection.jsx` | episode_name_links | locator, title, content, links, status |
 | `MusicTrackSection.jsx` | music_track | title, kind (starts on `default_kind`), status, link, content |
 | `QuoteSection.jsx` / `MemeSection.jsx` | external | adapt the long-lived quote/meme components; report counts |

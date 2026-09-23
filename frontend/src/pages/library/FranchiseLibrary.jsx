@@ -12,6 +12,8 @@ import { getFranchiseCover, withMediaType } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import { Chip, Eyebrow } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
+import { canSeeGatedType } from "../../lib/gatedTypes";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -31,6 +33,7 @@ function getFilterCategories(franchise, animeSet, mangaSet) {
   if (types.includes("TV")) cats.push("TV");
   if (types.includes("Cartoon")) cats.push("Cartoon");
   if (types.includes("Comic")) cats.push("Comic");
+  if (types.includes("H-Comic")) cats.push("H-Comic");
   if (cats.length === 0) cats.push("Other");
   return cats;
 }
@@ -51,6 +54,9 @@ const ENTRY_SOURCES = [
   ["novel", "/api/novel/"],
   ["comic", "/api/comic/"],
   ["game", "/api/game/"],
+  // Gated: fetched only for a session that can see the type (see the load
+  // effect), so a narrower one never asks.
+  ["h-comic", "/api/h-comic/"],
 ];
 
 // Breakpoints below which a column collapses, matching libraryColumns.jsx.
@@ -204,6 +210,9 @@ async function fetchList(path) {
 }
 
 export default function FranchiseLibrary() {
+  const auth = useAuth();
+  const authLoading = Boolean(auth?.loading);
+  const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const [allFranchises, setAllFranchises] = useState([]);
   const [allEntriesDict, setAllEntriesDict] = useState({});
   const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
@@ -219,20 +228,26 @@ export default function FranchiseLibrary() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   useEffect(() => {
+    // Wait for /api/auth/me: which entry lists to fetch depends on whether
+    // this session may see the gated h-comic type.
+    if (authLoading) return;
+    const sources = ENTRY_SOURCES.filter(
+      ([type]) => type !== "h-comic" || canSeeHComic,
+    );
     async function load() {
       try {
         const [franchises, collections, ...entryLists] = await Promise.all([
           fetchList("/api/franchise/"),
           fetchList("/api/collection/"),
-          ...ENTRY_SOURCES.map(([, path]) => fetchList(path)),
+          ...sources.map(([, path]) => fetchList(path)),
         ]);
         // Tagged with the media type each list was fetched as: covers live
         // in owner-typed folders, so the cover fallback needs it.
-        const allEntries = ENTRY_SOURCES.flatMap(([type], i) =>
+        const allEntries = sources.flatMap(([type], i) =>
           withMediaType(entryLists[i], type),
         );
         const byType = Object.fromEntries(
-          ENTRY_SOURCES.map(([type], i) => [type, entryLists[i]]),
+          sources.map(([type], i) => [type, entryLists[i]]),
         );
         setAllFranchises(franchises);
         setCollectionDict(
@@ -265,7 +280,7 @@ export default function FranchiseLibrary() {
       }
     }
     load();
-  }, []);
+  }, [authLoading, canSeeHComic]);
 
   function toggleFilter(value) {
     setFilters((prev) => {
@@ -462,6 +477,7 @@ export default function FranchiseLibrary() {
                 <FilterTag value="TV" label="TV" />
                 <FilterTag value="Cartoon" label="Cartoon" />
                 <FilterTag value="Comic" label="Comic" />
+                {canSeeHComic && <FilterTag value="H-Comic" label="H-Comic" />}
                 <FilterTag value="Other" label="Other" />
               </div>
               {activeFilterCount > 0 && (

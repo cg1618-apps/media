@@ -35,4 +35,5 @@ export {
   buildCreditsPayload,
   creditsResponseToForm,
   gameFieldsPayload,
+  hComicFieldsPayload,
 } from "../lib/payloads";

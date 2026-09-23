@@ -9,6 +9,7 @@ import manga from "./manga";
 import novel from "./novel";
 import comic from "./comic";
 import game from "./game";
+import hComic from "./hComic";
 
 export const LIBRARY_CONFIGS = {
   anime,
@@ -20,4 +21,7 @@ export const LIBRARY_CONFIGS = {
   novel,
   comic,
   game,
+  // Gated: App.jsx routes /library/h-comic through <ProtectedRoute gatedType>
+  // before the generic /library/:type route can reach this entry.
+  "h-comic": hComic,
 };

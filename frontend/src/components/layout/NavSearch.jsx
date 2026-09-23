@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { cleanString, getDisplayName } from "../../utils/media";
 import { Chip } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
+import { useAuth } from "../../contexts/AuthContext";
+import { visibleByType } from "../../lib/gatedTypes";
 
 const SCOPES = [
   { key: "all", label: "All" },
@@ -23,6 +25,9 @@ const SCOPES = [
   { key: "novel", label: "Novel" },
   { key: "comic", label: "Comic" },
   { key: "game", label: "Game" },
+  // Gated: offered only through visibleByType. The server's `h-comic` bucket
+  // is empty for a session that cannot see the type in any case.
+  { key: "h-comic", label: "H-Comic" },
   { key: "seasonal", label: "Seasonal" },
   { key: "person", label: "Person" },
   { key: "studio", label: "Studio" },
@@ -43,6 +48,7 @@ const TYPE_LABEL = {
   novel: "NOVEL",
   comic: "COMIC",
   game: "GAME",
+  "h-comic": "H-COMIC",
   seasonal: "SEASON",
   person: "PERSON",
   studio: "STUDIO",
@@ -61,6 +67,7 @@ const DETAIL_TYPES = new Set([
   "novel",
   "comic",
   "game",
+  "h-comic",
   "anime-movie",
   "movie",
   "tv-show",
@@ -129,6 +136,7 @@ function mergeBuckets(buckets, quotas) {
 
 export default function NavSearch() {
   const navigate = useNavigate();
+  const scopes = visibleByType(useAuth(), SCOPES);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState("all");
   const [showScopeMenu, setShowScopeMenu] = useState(false);
@@ -171,6 +179,7 @@ export default function NavSearch() {
         ["novel", 5],
         ["comic", 5],
         ["game", 5],
+        ["h-comic", 5],
         ["seasonal", 3],
         // Last, and smallest: a query is usually about a title, so staff rows
         // take the slots the media buckets left behind rather than claiming
@@ -274,7 +283,7 @@ export default function NavSearch() {
     if (path) navigate(path);
   }
 
-  const scopeLabel = SCOPES.find((s) => s.key === searchScope)?.label;
+  const scopeLabel = scopes.find((s) => s.key === searchScope)?.label;
 
   return (
     // A slot recessed into the ink row: dark and inset at rest, lifting to
@@ -299,7 +308,7 @@ export default function NavSearch() {
             role="listbox"
             className="absolute left-0 top-full mt-2 bg-surface border border-border shadow-xl z-50 overflow-hidden min-w-[140px] py-1"
           >
-            {SCOPES.map((s) => (
+            {scopes.map((s) => (
               <button
                 key={s.key}
                 type="button"

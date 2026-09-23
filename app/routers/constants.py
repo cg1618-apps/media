@@ -168,6 +168,8 @@ def _constants() -> dict[str, list[str]]:
 @router.get("/external-apis", summary="Get External API Field Coverage")
 def get_external_api_coverage(
     _admin=Depends(require_manage_catalog),
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ) -> dict:
     """
     Which external API writes which field, and whether it fills or replaces it.
@@ -179,5 +181,12 @@ def get_external_api_coverage(
     Read-only by design - every rule it reports is a property of the code in
     app/services/domain/autofill.py, so there is nothing here an admin could
     edit that would change what a Fill run does.
+
+    Viewer-scoped the way GET /api/constants is: a gated type the viewer
+    cannot see has no row in `media`, so a catalogue editor in a narrower mode
+    is not told the type exists (gated_types.py).
     """
-    return catalog_payload()
+    hidden = unseeable_gated_types(db, viewer)
+    payload = catalog_payload()
+    payload["media"] = [m for m in payload["media"] if m["key"] not in hidden]
+    return payload

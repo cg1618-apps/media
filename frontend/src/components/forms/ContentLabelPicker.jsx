@@ -16,6 +16,10 @@ import { useCallback, useEffect, useState } from "react";
 
 import { fetchJson } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
+import {
+  requiredLabelsForFranchiseType,
+  requiredLabelsForType,
+} from "../../lib/gatedTypes";
 
 // { kind: "entry", mediaType, id } | { kind: "franchise", id } -> URL.
 // Returns null when the owner has no id yet (the Add page), which is the
@@ -38,6 +42,10 @@ export default function ContentLabelPicker({
   // entries, so saying "this entry" there would understate it by a whole
   // franchise.
   scopeNote = "A labelled entry is hidden from anyone whose active mode does not carry that label.",
+  // Labels the thing must carry whatever the admin picks - a gated type's
+  // required label (lib/gatedTypes.js). Drawn checked and locked; the savers
+  // below add them to the set, so they need not be in `value`.
+  required = [],
 }) {
   const [labels, setLabels] = useState([]);
   const [failed, setFailed] = useState(false);
@@ -71,14 +79,16 @@ export default function ContentLabelPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
+  const locked = new Set(required);
   const toggle = useCallback(
     (key) => {
+      if (required.includes(key)) return;
       const held = new Set(value);
       if (held.has(key)) held.delete(key);
       else held.add(key);
       onChange([...held].sort());
     },
-    [value, onChange],
+    [value, onChange, required],
   );
 
   // Nothing defined means nothing to restrict - draw no empty box.
@@ -94,12 +104,16 @@ export default function ContentLabelPicker({
           <label
             key={row.system_id}
             className="flex items-center gap-1.5 text-sm cursor-pointer"
-            title={row.description || ""}
+            title={
+              locked.has(row.key)
+                ? "Required: every entry of this type carries it"
+                : row.description || ""
+            }
           >
             <input
               type="checkbox"
-              disabled={disabled}
-              checked={value.includes(row.key)}
+              disabled={disabled || locked.has(row.key)}
+              checked={locked.has(row.key) || value.includes(row.key)}
               onChange={() => toggle(row.key)}
             />
             {row.label}
@@ -125,6 +139,7 @@ export const LABELLABLE_TABS = [
   "novel",
   "comic",
   "game",
+  "h-comic",
   "franchise",
 ];
 
@@ -136,13 +151,27 @@ export const FRANCHISE_SCOPE_NOTE =
 // Save an entry's labels. Call after a create returns its system_id, or after
 // a modify submit. Failure is reported to the caller rather than swallowed:
 // the entry saved, but its visibility did not.
+//
+// A gated type's required label is always in the set sent: the endpoint
+// refuses (422) one that drops it, and the admin cannot uncheck it anyway.
 export async function saveEntryLabels(mediaType, entryId, labelKeys) {
-  return saveLabels(endpoints.contentLabels.forEntry(mediaType, entryId), labelKeys);
+  return saveLabels(
+    endpoints.contentLabels.forEntry(mediaType, entryId),
+    withRequired(labelKeys, requiredLabelsForType(mediaType)),
+  );
 }
 
-// The same for a franchise.
-export async function saveFranchiseLabels(franchiseId, labelKeys) {
-  return saveLabels(endpoints.contentLabels.forFranchise(franchiseId), labelKeys);
+// The same for a franchise. `franchiseType` is the franchise_type the save
+// just wrote: an H-Comic franchise carries the h-comic label.
+export async function saveFranchiseLabels(franchiseId, labelKeys, franchiseType) {
+  return saveLabels(
+    endpoints.contentLabels.forFranchise(franchiseId),
+    withRequired(labelKeys, requiredLabelsForFranchiseType(franchiseType)),
+  );
+}
+
+function withRequired(labelKeys, required) {
+  return [...new Set([...(labelKeys || []), ...required])].sort();
 }
 
 function saveLabels(url, labelKeys) {
