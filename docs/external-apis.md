@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-09-21
+Last verified: 2026-09-23
 
 ## What this is for
 
@@ -643,7 +643,7 @@ What goes in which tab, the tab order, and the credit/tag columns are described 
 
 ## Cover images (local disk)
 
-Images are stored one per row at `"{owner_type}/{system_id}.jpg"` under `COVER_DIR = "static/covers"`, and the column that references one (`cover_image_file`, `photo_file`, `logo_file`) holds that whole key, folder included. The owner type is the table the id belongs to - each table has its own id space, so a bare id does not identify a file. `image_manager.cover_key()` is the only place the layout is spelled out, and `COVER_OWNERS` lists the thirteen folders: the nine media types plus `staff`, `character`, `publisher` and `studio`.
+Images are stored one per row at `"{owner_type}/{system_id}.jpg"` under `COVER_DIR = "static/covers"`, and the column that references one (`cover_image_file`, `photo_file`, `logo_file`) holds that whole key, folder included. The owner type is the table the id belongs to - each table has its own id space, so a bare id does not identify a file. `image_manager.cover_key()` is the only place the layout is spelled out, and `COVER_OWNERS` lists the fourteen folders: the ten media types plus `staff`, `character`, `publisher` and `studio`.
 
 Local disk is the only storage path. `app/services/integrations/image_manager.py` is plain local-disk cover storage and is the only module that knows where the files live. In production that directory is a bind mount into the container, so the files sit on the box's disk as ordinary files - see [deployment-selfhost.md](deployment-selfhost.md#a-volume-for-the-database-bind-mounts-for-the-images).
 

@@ -54,11 +54,12 @@ EXPECTED_HEADERS = {
 # ---------------------------------------------------------------------------
 
 
-def test_the_vocabulary_is_eight_entries():
+def test_the_vocabulary_is_nine_entries():
     """
     Was six before the seiyuu role was added (Task 1 of the seiyuu/character
-    work), and seven before `publisher` became the third entity target.
-    Renamed from test_the_vocabulary_is_seven_entries.
+    work), seven before `publisher` became the third entity target, and eight
+    before h-comic added `club`. Renamed from
+    test_the_vocabulary_is_eight_entries.
     """
     assert set(cr.CREDIT_ROLES) == {
         "studio",
@@ -68,6 +69,7 @@ def test_the_vocabulary_is_eight_entries():
         "composer",
         "author",
         "illustrator",
+        "club",
         "seiyuu",
     }
 
@@ -79,6 +81,7 @@ def test_person_roles_are_every_role_targeting_a_person():
         "composer",
         "author",
         "illustrator",
+        "club",
         "seiyuu",
     }
     assert "studio" not in cr.PERSON_ROLES
@@ -134,6 +137,32 @@ def test_derived_labels():
     assert cr.credit_label("illustrator", "comic") == "Artist"
 
 
+def test_h_comic_labels():
+    """An h-comic's artist reads 繪師; its author and club keep the role label."""
+    assert cr.credit_label("illustrator", "h-comic") == "繪師"
+    assert cr.credit_label("author", "h-comic") == "Author"
+    assert cr.credit_label("club", "h-comic") == "Club"
+
+
+def test_club_is_a_person_role_scoped_to_h_comic_alone():
+    club = cr.CREDIT_ROLES["club"]
+    assert club.target == "person"
+    assert club.media_types == ("h-comic",)
+    assert club.credited_via == "media_credit"
+
+
+def test_h_comic_tag_fields():
+    keys = {f.key for f in cr.tag_fields_for("h-comic")}
+    assert keys == {
+        "original_source",
+        "h_genre_plot",
+        "h_genre_appearance",
+        "h_genre_relation",
+    }
+    for key in ("h_genre_plot", "h_genre_appearance", "h_genre_relation"):
+        assert cr.TAG_FIELDS[key].media_types == ("h-comic",)
+
+
 def test_unoverridden_labels_fall_back_to_the_role_label():
     assert cr.credit_label("director", "movie") == "Director"
     assert cr.credit_label("director", "anime") == "Director"
@@ -165,8 +194,9 @@ def test_legal_scopes_match_media_types():
     assert cr.legal_scopes("director") == ("anime", "anime-movie", "movie", "game")
     assert cr.legal_scopes("producer") == ("anime",)
     assert cr.legal_scopes("composer") == ("anime", "game")
-    assert cr.legal_scopes("author") == ("manga", "novel", "comic")
-    assert cr.legal_scopes("illustrator") == ("manga", "novel", "comic")
+    assert cr.legal_scopes("author") == ("manga", "novel", "comic", "h-comic")
+    assert cr.legal_scopes("illustrator") == ("manga", "novel", "comic", "h-comic")
+    assert cr.legal_scopes("club") == ("h-comic",)
 
 
 def test_publisher_is_offered_on_six_media_types():

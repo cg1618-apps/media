@@ -59,6 +59,7 @@ MEDIA_TABLES: dict[str, MediaRef] = {
     "novel": MediaRef("novel", "Novel", models.Novel, "/novel"),
     "comic": MediaRef("comic", "Comic", models.Comic, "/comic"),
     "game": MediaRef("game", "Game", models.Game, "/game"),
+    "h-comic": MediaRef("h-comic", "H-Comic", models.HComic, "/h-comic"),
 }
 
 MEDIA_TYPE_KEYS: tuple[str, ...] = tuple(MEDIA_TABLES.keys())

@@ -49,6 +49,7 @@ CLEAN_TABS: tuple[str, ...] = (
     "Novel",
     "Comic",
     "Game",
+    "H-Comic",
 )
 
 

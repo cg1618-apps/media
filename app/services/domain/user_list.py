@@ -33,6 +33,7 @@ STATUS_FIELD: dict[str, str] = {
     "novel": "reading_status",
     "comic": "reading_status",
     "game": "playing_status",
+    "h-comic": "reading_status",
 }
 
 # The NOT NULL default each detail column carried before it moved. Copied from
@@ -47,6 +48,7 @@ DEFAULT_STATUS: dict[str, str] = {
     "novel": "Might Read",
     "comic": "Might Read",
     "game": "Might Play",
+    "h-comic": "Might Read",
 }
 
 # The counters that were NOT NULL DEFAULT 0 on their detail table. On
@@ -65,6 +67,7 @@ LIST_FIELD_DEFAULTS: dict[str, int] = {
     "arc_fin": 0,
     "ch_fin_in_arc": 0,
     "issue_fin": 0,
+    "page_fin": 0,
 }
 
 # Every payload key that lives on the list row, per type. The status key is
@@ -85,6 +88,13 @@ LIST_FIELDS: dict[str, tuple[str, ...]] = {
     ),
     "comic": ("reading_status", "my_rating", "issue_fin", "completed_at"),
     "game": ("playing_status", "my_rating", "completed_at"),
+    # page_fin is JP's counter and ch_fin KR's; the other is cleared on every
+    # write (app/services/domain/h_comic.py). usefulness is personal, like
+    # my_rating.
+    "h-comic": (
+        "reading_status", "my_rating", "page_fin", "ch_fin", "usefulness",
+        "completed_at",
+    ),
 }
 
 

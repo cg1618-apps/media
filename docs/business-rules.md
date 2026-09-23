@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-21
+Last verified: 2026-09-23
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -711,7 +711,7 @@ back their own; a viewer with none reads `null`, never somebody else's.
 
 - `attach_remark(db, owner_type, entries, user_id)` is the read. One query per
   page, filtered on `note.author_id`, called beside the other `attach_*`
-  helpers on every read path: the nine detail routes and the list route in
+  helpers on every read path: the ten detail routes and the list route in
   `routers/_factory.py`, and the collection / franchise / series routers.
   `remark` is a **plain attribute**, defaulted to `None` on the class, so a
   path that forgets the call serialises null rather than raising — and shows

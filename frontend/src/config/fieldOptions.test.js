@@ -112,8 +112,9 @@ const LEGAL = {
   director: ["anime", "anime-movie", "movie", "game"],
   producer: ["anime"],
   composer: ["anime", "game"],
-  author: ["manga", "novel", "comic"],
-  illustrator: ["manga", "novel", "comic"],
+  author: ["manga", "novel", "comic", "h-comic"],
+  illustrator: ["manga", "novel", "comic", "h-comic"],
+  club: ["h-comic"],
 };
 
 function everyMeta() {

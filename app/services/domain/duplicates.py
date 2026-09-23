@@ -20,6 +20,7 @@ from app.models import (
     Comic,
     Franchise,
     Game,
+    HComic,
     Manga,
     Movies,
     Novel,
@@ -216,6 +217,21 @@ def find_duplicate_game(db: Session) -> list[list[dict]]:
     )
 
 
+def find_duplicate_h_comic(db: Session) -> list[list[dict]]:
+    """Same franchise, series, region, series number + a shared name.
+
+    region is in the key because a JP work and its KR namesake are different
+    works; series_number because a numbered run shares its series' name.
+    """
+    return _find(
+        _with_franchise(db, HComic),
+        key=lambda h: (str(h.franchise_id), _ref(h.series_id), h.region, h.series_number),
+        fields=("franchise_id", "series_id", "region", "series_number",
+                "h_comic_name_cn", "h_comic_name_en", "h_comic_name_alt",
+                "h_comic_name_jp", "h_comic_name_kr"),
+    )
+
+
 def find_duplicate_system_options(db: Session) -> list[list[dict]]:
     """Same category and value, case-insensitively - what the exact-match
     UNIQUE(category, value) constraint cannot catch ("Netflix" vs "netflix")."""
@@ -244,6 +260,7 @@ def find_all_duplicates(db: Session) -> dict:
         "novel": find_duplicate_novel(db),
         "comic": find_duplicate_comic(db),
         "game": find_duplicate_game(db),
+        "h_comic": find_duplicate_h_comic(db),
         "system_options": find_duplicate_system_options(db),
         "entities": find_duplicate_entities(db),
     }

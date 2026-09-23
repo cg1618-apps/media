@@ -17,6 +17,7 @@ from app.models import (
     Cartoon,
     Comic,
     Game,
+    HComic,
     Manga,
     Movies,
     Novel,
@@ -29,6 +30,7 @@ from app.services.calculation import (
     run_sync_cartoon,
     run_sync_comic,
     run_sync_game,
+    run_sync_h_comic,
     run_sync_manga,
     run_sync_novel,
     run_sync_tv_show,
@@ -340,6 +342,24 @@ PIPELINES: dict[str, PipelineSpec] = {
         replace_sleep=STEAM_PAUSE,
         replace_after=(("Syncing system options...", run_sync_game),),
         single_after=(run_sync_game,),
+    ),
+    # There is no external API for h-comic, so Fill finds nothing eligible and
+    # there is no bulk Replace. The spec exists for the single-entry write
+    # hook and for the routes the pipeline page lists by type; both only
+    # re-run the sync, which keeps the region rule and the label. Out of Fill
+    # All and Replace All, which have nothing to gain from it - the precedent
+    # is game's first spec, which fetched nothing either.
+    "h-comic": PipelineSpec(
+        key="h-comic", label="H-Comic", model=HComic,
+        extract_id=None,
+        fill_eligible=lambda db, e: False,
+        fill=lambda db, e: None,
+        fill_after=(("Syncing h-comic invariants...", run_sync_h_comic),),
+        in_fill_all=False,
+        replace_select=None,
+        replace=None,
+        single_after=(run_sync_h_comic,),
+        in_replace_all=False,
     ),
     "studio": PipelineSpec(
         key="studio", label="Studio", model=Studio,

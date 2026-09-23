@@ -21,6 +21,7 @@ from app.models import (
     Cartoon,
     Comic,
     Game,
+    HComic,
     Manga,
     Media,
     Movies,
@@ -44,6 +45,8 @@ MEDIA_TYPE_MODELS = {
     # its game beside its anime, and plan_next_kinds already gives games all
     # three plan scopes.
     "game": Game,
+    # Whole-only, like game: a step names the work, never a range of it.
+    "h-comic": HComic,
 }
 
 # Per type: which column holds the progress status, and which holds the unit
@@ -59,6 +62,7 @@ _STATUS_FIELDS = {
     "novel": "reading_status",
     "comic": "reading_status",
     "game": "playing_status",
+    "h-comic": "reading_status",
 }
 
 _TOTAL_FIELDS = {

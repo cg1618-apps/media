@@ -28,6 +28,7 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 | Table | Purpose | Key constraints |
 |---|---|---|
 | `person` | One human credited anywhere, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `gender`, `my_rating`, `photo_file` (GCS key), `remark`, timestamps. Same name shape as `studio`. `gender` sits on the base table on purpose — it is a fact about the person, not a seiyuu-only attribute. | `uq_person_name (name_en, name_cn, name_jp, name_alt)` **NULLS NOT DISTINCT**; `ck_person_has_a_name` (at least one name) |
+| `person_membership` | One artist belonging to one club (a person holding the `club` role): `member_id`, `club_id` (both FK `person`, cascade), `position` (the member's place in the club's list), `created_at`. That the club end holds the `club` role is checked by the API, not the database. | `uq_person_membership (member_id, club_id)`; `ck_person_membership_not_self` |
 | `person_role` | Which dropdowns a person appears in: `person_id` (FK, cascade), `role` (one of `PERSON_ROLES`), `scope` (**NOT NULL**, a hyphenated media-type key, one of `legal_scopes(role)`). Explicit, not derived from credits, so a new director can be offered before their first credit. A person's visibility is the union of their rows; there is no "offered everywhere" state — see [options.md](../options.md) for why this differs from option scope. | `uq_person_role (person_id, role, scope)` (plain — no nullable column left in the key) |
 | `studio` | One **anime** production studio only, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `my_rating`, `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`. Publishers and distributors are **not** here — they are their own `publisher` table (next row), not a vocabulary. Studios deliberately carry **no** scope table, unlike publishers. | `uq_studio_name (name_en, name_cn, name_jp, name_alt)` NULLS NOT DISTINCT; `ck_studio_has_a_name` (at least one name); ISO-8601 CHECKs on both dates |
 | `publisher` | One publisher or distributor — a games publisher, or a TW licensor — and a public entity. Deliberately shaped after `studio`: the same four optional names with `display_name_field`, plus `my_rating`, `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`, `website_url`. **No `mal_id` / `mal_link`**: MAL has no record of a games publisher or a Taiwanese distributor, so there is nothing to autofill from. A separate table rather than a `publisher` role pointing at `studio`, because most publisher/distributor values are distributors (木棉花, 曼迪) that never developed anything, and listing them on `/library/studio` would blur what that page means. Bandai Namco and Kadokawa, which do both, exist as two unlinked rows — accepted cost. | `uq_publisher_name (name_en, name_cn, name_jp, name_alt)` NULLS NOT DISTINCT; `ck_publisher_has_a_name` (at least one name); `ck_publisher_founded_date` / `ck_publisher_defunct_date` ISO-8601 |
@@ -60,12 +61,20 @@ the stored value, tuple of keys for validation.
 |---|---|---|---|
 | `studio` | Studio | studio | anime, anime-movie, game |
 | `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
-| `director` | Director | person | anime, anime-movie, movie |
+| `director` | Director | person | anime, anime-movie, movie, game |
 | `producer` | Producer | person | anime |
-| `composer` | Music / Composer | person | anime |
-| `author` | Author | person | manga, novel, comic |
-| `illustrator` | Illustrator | person | manga, novel, comic |
+| `composer` | Music / Composer | person | anime, game |
+| `author` | Author | person | manga, novel, comic, h-comic |
+| `illustrator` | Illustrator | person | manga, novel, comic, h-comic |
+| `club` | Club | person | h-comic |
 | `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie |
+
+**`club` is the circle an h-comic comes out of.** Studio-like as an idea, an
+author as a schema: a `person` row, so a club and its artists live in one
+table and `person_membership` can link them. Its only scope is `h-comic`, the
+gated type, which is what hides a club created before its first credit from a
+session that cannot see h-comic (a scope naming a gated type is a connection -
+see [authorization.md](../authorization.md#shared-records)).
 
 **`target` is a three-value axis, not a person/company boolean**: `"person"`,
 `"studio"` or `"publisher"`. **Anything reading it as "studio else person" is
@@ -76,7 +85,7 @@ nothing falls through to person.
 
 **`seiyuu` is a `CreditRole` whose credits are not stored in
 `media_credit`.** `CreditRole` carries a `credited_via` field, `"media_credit"`
-for the other five and `"character_casting"` for `seiyuu`. `credit_roles_for()`
+for every other role and `"character_casting"` for `seiyuu`. `credit_roles_for()`
 filters to `credited_via == "media_credit"`, so `/api/credits` and the sheet
 link-column builder never ask `media_credit` for seiyuu rows that will never
 exist there — a seiyuu's actual work lives in `character_casting` and is read
@@ -89,7 +98,7 @@ filter in `credit_roles_for()` is not assumed to catch every site. See
 the table and the reasoning.
 
 **One vocabulary, not two.** Credit roles and person roles are the same person
-keys — five plus `seiyuu`, plus the two company keys `studio`
+keys — six plus `seiyuu`, plus the two company keys `studio`
 and `publisher` — so `media_credit.role` and `person_role.role` (where they
 store rows at all) store the same strings, and `PERSON_ROLES` is `CREDIT_ROLES`
 filtered to `target == "person"`, `seiyuu` included, minus both company keys. This is the one
@@ -99,7 +108,7 @@ storage out of `media_credit` — see the `seiyuu` row above.
 **Labels are derived, not stored.** `credit_label(role, media_type)` is the
 single owner of the reader-facing word: the same `author` credit reads 原作 on
 a manga, Author on a novel and Writer on a comic, and `illustrator` reads 作畫 /
-Illustrator / Artist. A small `{(role, media_type): label}` override map falls
+Illustrator / Artist / 繪師 on manga / novel / comic / h-comic. A small `{(role, media_type): label}` override map falls
 back to `CreditRole.label`; nothing else in the codebase — no page, no form —
 may hard-code these words.
 
@@ -134,15 +143,25 @@ that names a credit which does not exist.
 |---|---|---|---|
 | `genre_main` | Genre Main | Genre Main | anime |
 | `genre_sub` | Genre Sub | Genre Sub | anime |
-| `label` | 標籤 Label | Label | anime |
+| `label` | 標籤 Label | Label | anime, game |
 | `quality` | Quality 品質 | Quality | anime |
-| `original_source` | Original Source | Platform | tv-show, cartoon, movie |
+| `original_source` | Original Source | Platform | tv-show, cartoon, movie, h-comic (the KR official source) |
 | `exclusive_source` | Exclusive Source | Platform | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | Serialization Platform | manga, novel |
 | `comic_imprint` | Imprint | Comic Imprint | comic |
 | `comic_continuity` | Continuity | Comic Continuity | comic |
 | `comic_era` | Era | Comic Era | comic |
 | `comic_event` | Events | Comic Event | comic |
+| `game_genre` / `game_theme` / `game_mode` / `combat_mode` / `game_platform` | Genre / Theme / Mode / Combat Mode / Platform | Game Genre / Game Theme / Game Mode / Combat Mode / Game Platform | game |
+| `h_genre_plot` | Genre Plot | H Genre Plot | h-comic |
+| `h_genre_appearance` | Genre Appearance | H Genre Appearance | h-comic |
+| `h_genre_relation` | Genre Relation | H Genre Relation | h-comic |
+
+The three h-comic genre vocabularies are admin-managed and exist for the gated
+type alone; a value used or scoped only there is hidden from a session that
+cannot see h-comic. No h-comic credit or tag has a legacy sheet header, so each
+travels under its own key (`illustrator`, `author`, `club`,
+`original_source`, `h_genre_*`).
 
 `FILTER_ONLY_CATEGORIES = ("Franchise for Filter", "Reference Source")` exists
 as a vocabulary but backs no field. **There is no `publisher_tw` or
@@ -241,7 +260,11 @@ All.
 | `POST /api/person/` | admin | **Find-or-create** on normalized name (matches `resolve_person`), then adds any missing roles; metadata of an existing person is untouched. Find-or-create because `ensureSourceValues.js` POSTs whenever a typed name is absent from a *role-filtered* list. The body carries either the four labelled name columns (the admin form) or one unslotted `name` (every other writer), which the endpoint places through `name_slot_for` — a caller holding one typed string cannot know its column, and copying the rule into the frontend would give one name two homes. |
 | `PUT /api/person/{id}` | admin | Full metadata update; replaces the role set. |
 | `DELETE /api/person/{id}?credits=N` | admin | Credits cascade away — wrong fix for a duplicate. `credits` is **required** and is the count the confirmation dialog showed; a mismatch is a 409, because an admin who agreed to destroy three credits did not agree to destroy the five that exist now. |
-| `POST /api/person/{id}/merge` `{source_id}` | admin | Repoints every credit from source onto target (drops ones that would collide on `(media_type, entry_id, role)`), unions `person_role` rows, deletes the source. 400 on self-merge. Returns `credits_moved`. |
+| `POST /api/person/{id}/merge` `{source_id}` | admin | Repoints every credit from source onto target (drops ones that would collide on `(media_type, entry_id, role)`), unions `person_role` rows, moves both ends of every club membership (dropping a duplicate or a self-membership), deletes the source. 400 on self-merge. Returns `credits_moved`. |
+| `GET /api/person/{id}/clubs` | public | The clubs this person belongs to, as `MembershipRef` (`system_id`, `public_id`, `display_name`, `position`), ordered by name. Hidden clubs are omitted; 404 when the person is hidden. |
+| `PUT /api/person/{id}/clubs` `{club_ids}` | admin | Whole-list replace. Each id must be a person the writer may see (422 otherwise) holding the `club` role (422), and not the person itself (422). A new membership joins the end of its club's list. Memberships of clubs the writer cannot see are kept. Returns the new list. |
+| `GET /api/person/{id}/members` | public | A club's members in `position` order, as `MembershipRef`; hidden members are omitted, and a person who is not a club answers `[]`. 404 when the club is hidden. |
+| `PUT /api/person/{id}/members` `{member_ids}` | admin | Whole-list replace, in display order (`position` = index). The person must hold the `club` role (422); each id must be a visible person and not the club (422). Members the writer cannot see keep their rows, after the visible ones. |
 | `GET /api/studio/`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/merge` | as person | Same shape minus roles, and `POST /` is find-or-create for the same reason. The list is sorted by resolved `display_name`, and both reads carry it. Renaming a studio changes what every credited entry shows — no propagation step. |
 | `GET /api/studio/{id}/entries` | public | The reverse of `GET /api/credits/...`: the entries this studio is credited on, grouped by media type, filtered through the same `filter_visible_pairs` as `credit_count` so the two can never disagree. 404 when the studio is hidden — every credit on a label-hidden entry. |
 | `GET /api/publisher/?scope=`, `GET /{id}`, `GET /{id}/entries`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/merge` | as studio | `app/routers/publisher.py` mirrors `app/routers/studio.py` endpoint for endpoint, minus the MAL derivation and autofill (there is no MAL record to enrich a publisher from) — and minus the delete guard: `DELETE` takes no `?credits=N`, exactly as studio's does not. One deliberate divergence, below. Studio has no counterpart for the `scopes` list every publisher payload carries: `?scope=<media-type>` narrows the list to publishers offered on one type (omitted, it returns everything, including publishers holding no scope at all — the admin list page must be able to see a publisher in order to give it one); `POST` inserts scopes additively, `PUT` replaces the whole set, and merge unions both sides'. There is no `/api/publisher/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
@@ -253,7 +276,7 @@ All.
 | `DELETE /api/character/{id}?castings=N` | admin | Same count-guard shape as `DELETE /api/person?credits=N`: castings cascade away, and a count that moved underneath the admin is a 409. |
 | `POST /api/character/{id}/merge` `{source_id}` | admin | Repoints every casting from source onto target (drops ones that would collide on `uq_character_casting`), deletes the source. The correct fix for a duplicate, since a delete would cascade the castings away. |
 | `GET /api/casting/{media_type}/{entry_id}` | public (viewer) | The entry's cast, ordered by `position`. Missing or hidden entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
-| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order. Rejects (422) a seiyuu on a non-voiced media type or an unknown role before the row ever reaches `ck_casting_voice_scope`. |
+| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, novel, h-comic). Rejects (422) a seiyuu on a non-voiced media type - h-comic included - or an unknown role before the row ever reaches `ck_casting_voice_scope`. |
 
 **Deleting a publisher removes its logo; deleting a studio does not.** This
 asymmetry is deliberate, not an oversight. `delete_publisher` calls

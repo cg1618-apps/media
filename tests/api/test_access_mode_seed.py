@@ -93,7 +93,15 @@ def test_unrestricted_carries_every_label_and_normal_carries_none(db_session):
             )
         }
 
-    assert labels(MODE_UNRESTRICTED) == {label.system_id}
+    # The system `h-comic` label exists in every database and is granted to
+    # unrestricted by its own seed - so unrestricted already holds a row and
+    # is not topped up; its set is derived instead (cache.mode_sets), which
+    # is what a session in it resolves. Borderline never gets h-comic.
+    from app.services.rbac import cache
+
+    cache.bump()
+    unrestricted = cache.mode_sets(db_session, _mode(db_session, MODE_UNRESTRICTED).system_id)
+    assert label.system_id in unrestricted.label_ids
     assert labels(MODE_BORDERLINE) == {label.system_id}
     assert labels(MODE_NORMAL) == set()
     assert labels(MODE_SAFE) == set()

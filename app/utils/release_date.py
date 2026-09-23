@@ -44,6 +44,7 @@ RELEASE_PRIORITY: Dict[str, tuple] = {
     "novel": ("release_date",),
     "comic": ("release_date",),
     "game": ("release_date",),
+    "h-comic": ("release_date",),
 }
 
 # Every column on every table holding an ISO release value, including the run-end
@@ -60,6 +61,7 @@ DATE_COLUMNS: Dict[str, tuple] = {
     "novel": ("release_date", "end_date"),
     "comic": ("release_date", "end_date"),
     "games": ("release_date",),
+    "h_comic": ("release_date", "end_date"),
     "game_copy": ("acquired_date",),
     "studio": ("founded_date", "defunct_date"),
 }

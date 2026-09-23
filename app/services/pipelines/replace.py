@@ -38,6 +38,8 @@ execute_replace_single_novel = _single("novel")
 # only re-syncs system options and logs the write like every other type.
 execute_replace_single_comic = _single("comic")
 execute_replace_single_game = _single("game")
+# Fetches nothing either: there is no external API for h-comic.
+execute_replace_single_h_comic = _single("h-comic")
 
 execute_replace_anime = _bulk("anime")
 execute_replace_anime_movie = _bulk("anime-movie")

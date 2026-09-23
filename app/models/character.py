@@ -156,7 +156,8 @@ class CharacterCasting(Base):
         UniqueConstraint(
             "character_id", "media_type", "entry_id", name="uq_character_casting"
         ),
-        # Characters reach the four ACG types; seiyuu reach only two of them.
+        # Characters reach the ACG types (CASTING_MEDIA_TYPES); seiyuu reach
+        # only the two with voice acting.
         # Enforced here rather than by convention because the Fill pipeline and
         # any future migration write these rows without going through the API.
         CheckConstraint(
@@ -175,7 +176,7 @@ class CharacterCasting(Base):
         nullable=False,
         index=True,
     )
-    # One of "anime", "anime-movie", "manga", "novel" (hyphenated keys).
+    # One of casting.CASTING_MEDIA_TYPES (hyphenated keys).
     media_type = Column(String, nullable=False)
     entry_id = Column(UUID(as_uuid=True), nullable=False)
     person_id = Column(

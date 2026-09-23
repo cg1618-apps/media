@@ -192,6 +192,52 @@ class PersonRole(Base):
     person = relationship("Person", back_populates="roles")
 
 
+class PersonMembership(Base):
+    """
+    One artist belonging to one club.
+
+    A club is a person credited under the `club` role - studio-like as an
+    idea, an author as a schema - so both ends are `person` rows. That the
+    club end holds the `club` role is checked by the API
+    (app/services/domain/membership.py), not here: a role is a set of rows and
+    no constraint can reach across to it.
+
+    Membership is NOT a connection in the shared-record sense
+    (app/services/rbac/shared_visibility.py): it cannot make a hidden club or
+    a hidden artist visible. A visible club's member list simply omits the
+    members the viewer may not see.
+
+    `position` orders a CLUB's member list. A person's list of clubs is
+    ordered by the clubs' display names.
+    """
+
+    __tablename__ = "person_membership"
+    __table_args__ = (
+        UniqueConstraint("member_id", "club_id", name="uq_person_membership"),
+        CheckConstraint(
+            "member_id <> club_id", name="ck_person_membership_not_self"
+        ),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    member_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("person.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    club_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("person.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime, nullable=True, default=get_taipei_now)
+
+
 class Studio(Base, NameFallbackMixin):
     """
     One anime production studio.

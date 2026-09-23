@@ -12,7 +12,13 @@ import pytest
 from app.main import app
 from app.services.pipelines import replace
 
-MEDIA = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"]
+MEDIA = [
+    "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
+    "comic", "h-comic",
+]
+# Types with no bulk Replace: comic spends an hourly quota, and h-comic has no
+# external API to replace from.
+NO_BULK_REPLACE = {"comic", "h-comic"}
 
 
 def routes():
@@ -25,9 +31,14 @@ def test_fill_and_single_replace_exist_for_every_type(media):
     assert ("POST", f"/api/data-control/replace/{media}/{{entry_id}}") in routes()
 
 
-@pytest.mark.parametrize("media", [m for m in MEDIA if m != "comic"])
-def test_bulk_replace_exists_for_every_type_but_comic(media):
+@pytest.mark.parametrize("media", [m for m in MEDIA if m not in NO_BULK_REPLACE])
+def test_bulk_replace_exists_for_every_type_but_comic_and_h_comic(media):
     assert ("POST", f"/api/data-control/replace/{media}") in routes()
+
+
+@pytest.mark.parametrize("media", sorted(NO_BULK_REPLACE))
+def test_no_bulk_replace_for_the_types_that_have_none(media):
+    assert ("POST", f"/api/data-control/replace/{media}") not in routes()
 
 
 def test_orchestrators_and_pull_routes_exist():
