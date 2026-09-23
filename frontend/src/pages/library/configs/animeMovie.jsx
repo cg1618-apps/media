@@ -1,5 +1,7 @@
 import {
   airingStatusColumn,
+  anilistPopularitySort,
+  anilistRatingSort,
   franchiseColumn,
   malRatingColumn,
   malRatingSort,
@@ -97,6 +99,8 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
     },
     myRatingSort,
     malRatingSort,
+    anilistRatingSort,
+    anilistPopularitySort,
   ],
 
   tableColumns: [

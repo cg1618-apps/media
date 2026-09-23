@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-20
+Last verified: 2026-09-22
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -253,6 +253,15 @@ navigating away resets the page. Filtering is entirely client-side over the
 → active `filterDefs` (`match(item, value, franchiseDict, seriesDict)`) →
 `sortDefs[currentSort].compare`.
 
+A sort may also name the figure a **grid card** shows in its score slot,
+through `cardScoreField` on the sortDef: `LibraryLayout` reads it off the
+active sort and passes it to `MediaCard` as `scoreField`, so an anime, anime
+movie, manga or novel library sorted by either AniList figure shows the
+AniList score on every card instead of the MAL one. Both AniList sorts point
+at `anilist_rating` — a card has one score slot, and a popularity rank is
+not the number worth reading in it. A sort that names nothing leaves the card
+on its default, which is what the five types with no AniList figure do.
+
 Filter types: `set` (static `options`), `set-dynamic` (options derived from
 the data), `set-grouped` (group labels mapped through `WATCHING_STATUS_GROUP`
 / `READING_STATUS_GROUP`), `boolean` (checkbox). Top bar: search, "Sort:"
@@ -268,13 +277,13 @@ plan-flag checkboxes (`planFlagColumn`) are disabled for guests.
 
 | Type | Series? | Filters (key: type) | Sorts | Table columns |
 |---|---|---|---|---|
-| anime | yes | airingType: set (TV/Movie/ONA/OVA/Special) · airingStatus: set · watchingStatus: set-grouped · bahaOnly: boolean | title (franchise→series→entry), release_date, my_rating, mal_rating | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`), my, mal, studio, baha, watch |
-| anime-movie | no | airingStatus · watchingStatus · bahaOnly | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating, mal_rating | franchise, title, status, my, mal, studio, director, baha, watch, watch_next, to_rewatch |
+| anime | yes | airingType: set (TV/Movie/ONA/OVA/Special) · airingStatus: set · watchingStatus: set-grouped · bahaOnly: boolean | title (franchise→series→entry), release_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`), my, mal, studio, baha, watch |
+| anime-movie | no | airingStatus · watchingStatus · bahaOnly | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my, mal, studio, director, baha, watch, watch_next, to_rewatch |
 | movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus | title, release_date (year of `release_date_usa` only), my_rating, imdb_rating | franchise, title, status, my, imdb, director, release, watch, watch_next, to_rewatch |
 | tv-show | no | airingStatus · watchingStatus · region: set-dynamic | title, release_date, my_rating, imdb_rating | franchise, title, season, status, ep, my, imdb, watch, watch_next, to_rewatch |
 | cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus · officialSource: set-dynamic | title, release_date, my_rating, imdb_rating | franchise, title_cn, title_en, type, season, airing, ep, source, my, imdb, watch |
-| manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped · region: set-dynamic | title, release_date, end_date, my_rating, mal_rating | franchise, title_cn, title_en, status, ch, vol, my, mal, read, read_next, to_reread |
-| novel | yes | serializationStatus · readingStatus · region · type: set-dynamic | title, release_date, end_date, my_rating, mal_rating | franchise, title_cn, title_en, status, progress (`getNovelProgress`), my, mal, read, read_next, to_reread |
+| manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped · region: set-dynamic | title, release_date, end_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch, vol, my, mal, read, read_next, to_reread |
+| novel | yes | serializationStatus · readingStatus · region · type: set-dynamic | title, release_date, end_date, my_rating, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getNovelProgress`), my, mal, read, read_next, to_reread |
 | comic | yes | comicType: set-dynamic · readingStatus · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`), my, read, to_reread |
 | game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) · ownership: set-dynamic · releaseStatus: set-dynamic | title (CN-first), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my, play (`playButtonColumn`), to_replay |
 
@@ -569,7 +578,10 @@ Top to bottom:
    rendered only when it has some, and never its franchise's, which are shown
    on the franchise where they can be changed — franchise/series bar linking
    to the hubs,
-   `ScoreBlock` (MAL score/rank, AniList score, last updated) on Anime,
+   `ScoreBlock` (MAL score, MAL rank, AniList score, AniList rank, AniList
+   popularity — every figure labelled with the source it came from, since
+   AniList's score is an integer on its own 0–100 scale and MAL's is 0–10)
+   on Anime,
    AnimeMovie, Manga, Novel (Movie has an inline IMDb block; TV/Cartoon/Comic
    none), the tracker, `NamingCard`, `InfoCard "Information"`, `InfoCard
    "Production"` — whose Studio row on Anime and AnimeMovie is built by
@@ -700,16 +712,63 @@ Files `pages/public/Statistics.jsx`, `pages/statistics/useStatisticsData.js`,
 `StatsFavoriteGrids.jsx`, `StatsFranchiseSummary.jsx`, `StatsCompletions.jsx`,
 `pages/public/Completions.jsx`, `components/charts/BarChart.jsx`.
 
-`useStatisticsData` runs `useMediaList` for franchise and all nine entry
-types plus `useApiQuery(["api","seasonal"], "/api/seasonal/")` and
+`useStatisticsData` runs `useMediaList` for franchise, series and all nine
+entry types plus `useApiQuery(["api","seasonal"], "/api/seasonal/")` and
 `useApiQuery(["api","seasonal","current-season"], "/api/seasonal/current-season")`.
-Statistics renders the favourite 3×3 grids (one per `franchise_type`: ACG,
-Novel, Movie, TV Show, Cartoon, Comic, Game — `TYPE_TO_ENTRY_TYPES` in
-`utils/statsUtils.js` gained the `Game: ["game"]` row; edited on `/modify` →
-Fav3x3) and the
-"Rating Distribution" bar-chart cards (my rating per anime franchise, MAL per
-anime, seasonal per season, my rating for manga / novel / anime movie / movie
-/ TV / cartoon / comic franchises). Completions renders `StatsCompletions`:
+
+`StatsSidebar.jsx` is a sticky in-page table of contents down the left, built
+from `pages/statistics/sections.js` — one entry per block and one per
+favourite grid, with an IntersectionObserver highlighting whichever section is
+nearest the top. It is `lg:`-only: on a narrow screen the page is already one
+column. A section's id is both the sidebar's anchor and the block's `id`,
+because `sections.js` is the only place either is written down.
+
+Every block is headed by `StatsSectionHeader.jsx` — an eyebrow and an `<h2>`
+at one size — so the page has exactly one `<h1>`, its own.
+
+Statistics renders the nine favourite 3×3 grids, then the twelve
+"Rating distribution" bar-chart cards in one wrapping grid: my rating per
+anime franchise; MAL rating and **AniList score** over all anime; seasonal
+per season; my rating over all manga / novels / anime movies / movies /
+**comics**; and my rating per TV show / cartoon / **game** franchise. Comics
+are counted per entry rather than per franchise, because a comic franchise is
+usually one long-running title. `computeScoreRows` puts a numeric column into
+a bucket ladder, and `ANILIST_BUCKETS` is `MAL_BUCKETS` scaled by ten and
+rounded — AniList's `averageScore` is an integer 0–100 against MAL's 0–10, so
+the two cards sit side by side on the same cut points.
+
+**The favourite grids** are declared in `config/favoriteGrids.js`, read by
+both this page and `/modify` → Fav3x3. A grid holds one of three tiers — six
+hold franchises (ACG, Novel, Movie, TV, Cartoon, Game), one holds series
+(Comic), two hold entries (Movie, Game) — and every tier stores a slot the
+same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. The
+`favorite*` helpers in `utils/statsUtils.js` (`favoriteName`, `favoriteCover`,
+`favoritePath`, `favoritePool`, `slotIn`) answer everything that differs
+between tiers, so both consumers are tier-blind and a new grid is a config
+entry. A block is sized to its nine covers rather than stretched across a
+column, and the blocks wrap.
+
+**The game spend block** (`StatsGameSpend.jsx` over the pure functions in
+`gameSpend.js`) totals the `game_copy` rows the game list already carries.
+Subtotals are kept in cents and per currency; converted USD and TWD figures
+appear only when FX rates have been entered on the admin page, because a
+total built from a rate nobody entered looks exactly like a real one. Three
+columns: **Owned** is every copy with a `price_paid`, **Bought** narrows to
+`acquisition === "Bought"`, and **Should spend** prices those same bought
+copies at the game's own list price — `price_original_us` / `_jp` / `_tw`,
+picked by the copy's own currency, never by falling back to another region's.
+Bought and Should spend cover the same copies, so the two subtract to what
+waiting for a sale was worth; a bought copy whose game has no list price in
+its currency is counted under the column rather than priced at zero.
+
+The **Value** card is cost per hour, and a title counts only when it has
+logged hours, a convertible price and a list price of its own. The last of
+those is what keeps a bundle share or a free weekend off the top of "best
+value": what was paid for those is not what an hour of that game costs. Each
+of the three exclusions is counted and named separately under the card, since
+they mean different things.
+
+Completions renders `StatsCompletions`:
 one tab per type with paged sub-groups (anime by airing type, anime movie by
 studio bucket, movie/TV Disney/Marvel/other, cartoon by network, manga by
 region, novel by region, comic dynamic, game by `completion_level` on the
@@ -725,11 +784,15 @@ File `pages/public/FutureReleases.jsx`. `useMediaList("anime")`,
 `useMediaList("franchise")`,
 `useApiQuery(["api","system","current-season-config"], "/api/system/config/current_season")`,
 and lazily per tab `anime-movie`, `movie` (`{ limit: 2000, airing_status: "Not Yet Aired" }`),
-`tv-show`, `cartoon`. Tabs Anime / Anime Movies / Movies / TV Shows / Cartoons.
+`tv-show`, `cartoon`, `game`. Tabs Anime / Anime Movies / Movies / TV Shows /
+Cartoons / Games.
 Anime keeps `Not Yet Aired` from the current season onward, grouped
 "Spring 2025" / year / TBD with type chips; anime movies group by release
-year; TV also includes "Airing". Cards are `MediaCard` with `isAdmin`;
-`onUpdated` patches the `["media-list", type]` caches.
+year; TV also includes "Airing". Games keep `release_status` of `Rumored` or
+`Unreleased` — `Early Access` is already out and `Cancelled` is never coming —
+grouped by the year of `release_date` with TBD last, and sorted inside a year
+by that date, so a full date precedes a bare year. Cards are `MediaCard` with
+`isAdmin`; `onUpdated` patches the `["media-list", type]` caches.
 
 ### Plan — `/plan`
 

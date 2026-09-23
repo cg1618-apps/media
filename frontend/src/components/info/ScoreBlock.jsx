@@ -31,7 +31,7 @@ export default function ScoreBlock({
     <div className="flex flex-wrap items-end gap-y-4">
       <Figure label="MAL score" value={malScore} />
       <Figure label="MAL rank" value={malRank ? `#${malRank}` : null} />
-      <Figure label="AniList" value={anilistScore} />
+      <Figure label="AniList score" value={anilistScore} />
       <Figure label="AniList rank" value={anilistRank ? `#${anilistRank}` : null} />
       <Figure
         label="AniList popularity"

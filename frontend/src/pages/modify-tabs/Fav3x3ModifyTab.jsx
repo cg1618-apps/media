@@ -1,37 +1,35 @@
 // Frontend: modify tab page file for Fav3x3ModifyTab.
+//
+// One editor per favourite grid. A grid holds franchises, series or entries
+// (see config/favoriteGrids.js) and this file is deliberately tier-blind:
+// everything that differs between the three is answered by the favorite*
+// helpers in utils/statsUtils, so a new grid is a config entry and nothing
+// here changes.
 import { useState, useMemo, useCallback } from "react";
-import { parseTypes, FALLBACK_SVG } from "../../utils/media";
-import { getDisplayName, getCoverForSlot } from "../../utils/statsUtils";
+import { FALLBACK_SVG, MEDIA_CONFIG } from "../../utils/media";
+import {
+  favoriteCover,
+  favoriteName,
+  favoriteOptions,
+  favoriteSearchNames,
+  slotIn,
+} from "../../utils/statsUtils";
+import { FAVORITE_GRIDS } from "../../config/favoriteGrids";
 import { useToast } from "../../hooks/useToast";
 
-const GRID_CONFIGS = [
-  { title: "Favorite ACG Franchise", typeKey: "ACG", forType: null },
-  { title: "Favorite Novel Franchise", typeKey: "Novel", forType: "Novel" },
-  { title: "Favorite Movie Franchise", typeKey: "Movie", forType: "Movie" },
-  { title: "Favorite TV Show Franchise", typeKey: "TV", forType: "TV" },
-  { title: "Favorite Cartoon Franchise", typeKey: "Cartoon", forType: "Cartoon" },
-  { title: "Favorite Comic Franchise", typeKey: "Comic", forType: "Comic" },
-];
+const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-function buildDrafts(franchises) {
-  const drafts = {};
-  GRID_CONFIGS.forEach(({ typeKey }) => {
-    drafts[typeKey] = {};
-    franchises.forEach((f) => {
-      const slot = f.type_slots?.[typeKey];
-      if (slot >= 1 && slot <= 9) {
-        drafts[typeKey][String(slot)] = f.system_id;
-      }
-    });
-  });
-  return drafts;
+// Which entry list a grid's rows live in, and so which endpoint saves one.
+// A franchise and a series name their own list; an entry grid names its type.
+function listTypeFor(grid) {
+  return grid.tier === "entry" ? grid.entryType : grid.tier;
 }
 
-function computeOriginal(franchises, typeKey) {
+function computeOriginal(rows, grid) {
   const original = {};
-  franchises.forEach((f) => {
-    const slot = f.type_slots?.[typeKey];
-    if (slot >= 1 && slot <= 9) original[String(slot)] = f.system_id;
+  rows.forEach((row) => {
+    const slot = slotIn(row, grid);
+    if (slot !== null) original[String(slot)] = row.system_id;
   });
   return original;
 }
@@ -41,13 +39,12 @@ function cleanStr(s) {
   return s.toLowerCase().replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
 }
 
-function FranchisePickerModal({
+function RowPickerModal({
   slot,
-  title,
-  currentFranchiseId,
-  franchiseOptions,
-  allEntriesByFranchise,
-  forType,
+  grid,
+  currentRowId,
+  options,
+  coverFor,
   onSelect,
   onClear,
   onClose,
@@ -55,18 +52,12 @@ function FranchisePickerModal({
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return franchiseOptions;
+    if (!query.trim()) return options;
     const q = cleanStr(query);
-    return franchiseOptions.filter((f) =>
-      [
-        f.franchise_name_cn,
-        f.franchise_name_en,
-        f.franchise_name_roman,
-        f.franchise_name_jp,
-        f.franchise_name_alt,
-      ].some((n) => n && cleanStr(n).includes(q)),
+    return options.filter((row) =>
+      favoriteSearchNames(row).some((name) => cleanStr(name).includes(q)),
     );
-  }, [query, franchiseOptions]);
+  }, [query, options]);
 
   return (
     <div
@@ -80,7 +71,9 @@ function FranchisePickerModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h3 className="text-sm font-black text-text">
             Assign to Slot {slot}
-            <span className="text-text-faint font-medium ml-2">— {title}</span>
+            <span className="text-text-faint font-medium ml-2">
+              — {grid.title}
+            </span>
           </h3>
           <button
             type="button"
@@ -100,28 +93,28 @@ function FranchisePickerModal({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search franchise..."
+              placeholder={`Search ${grid.tier}...`}
               className="w-full pl-9 pr-4 py-2 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
             />
           </div>
         </div>
 
-        {/* Franchise grid */}
+        {/* Candidates */}
         <div className="overflow-y-auto flex-1 p-4">
           {filtered.length === 0 ? (
             <p className="text-center text-text-faint text-sm font-medium py-8">
-              No franchises found
+              Nothing found
             </p>
           ) : (
             <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
-              {filtered.map((f) => {
-                const isSelected = f.system_id === currentFranchiseId;
-                const coverUrl = getCoverForSlot(f, allEntriesByFranchise, forType);
+              {filtered.map((row) => {
+                const isSelected = row.system_id === currentRowId;
+                const name = favoriteName(row, grid);
                 return (
                   <button
-                    key={f.system_id}
+                    key={row.system_id}
                     type="button"
-                    onClick={() => onSelect(f.system_id)}
+                    onClick={() => onSelect(row.system_id)}
                     className={`group flex flex-col focus:outline-none rounded-xl overflow-hidden border-2 transition-all ${
                       isSelected
                         ? "border-brand shadow-md"
@@ -131,8 +124,8 @@ function FranchisePickerModal({
                     <div className="relative rounded-t-xl overflow-hidden bg-surface-2">
                       <div className="aspect-[3/4]">
                         <img
-                          src={coverUrl}
-                          alt={getDisplayName(f)}
+                          src={coverFor(row)}
+                          alt={name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             e.target.src = FALLBACK_SVG;
@@ -147,7 +140,7 @@ function FranchisePickerModal({
                     </div>
                     <div className="px-1 py-1.5 bg-surface">
                       <p className="text-[10px] font-bold text-text-muted truncate leading-tight">
-                        {getDisplayName(f)}
+                        {name}
                       </p>
                     </div>
                   </button>
@@ -158,7 +151,7 @@ function FranchisePickerModal({
         </div>
 
         {/* Footer */}
-        {currentFranchiseId && (
+        {currentRowId && (
           <div className="px-5 py-3 border-t border-border shrink-0">
             <button
               type="button"
@@ -175,7 +168,7 @@ function FranchisePickerModal({
   );
 }
 
-function SlotCard({ slot, franchise, coverUrl, onOpen }) {
+function SlotCard({ slot, name, coverUrl, onOpen }) {
   return (
     <button
       type="button"
@@ -186,7 +179,7 @@ function SlotCard({ slot, franchise, coverUrl, onOpen }) {
         <div className="aspect-[3/4]">
           <img
             src={coverUrl}
-            alt={franchise ? getDisplayName(franchise) : ""}
+            alt={name || ""}
             className="w-full h-full object-cover"
             onError={(e) => {
               e.target.src = FALLBACK_SVG;
@@ -201,17 +194,18 @@ function SlotCard({ slot, franchise, coverUrl, onOpen }) {
         <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-black/60 rounded-md flex items-center justify-center">
           <span className="text-white text-[10px] font-black">{slot}</span>
         </div>
-        {franchise && (
+        {name ? (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-1.5 pt-4 pb-1.5">
             <p className="text-white text-[10px] font-bold leading-tight truncate">
-              {getDisplayName(franchise)}
+              {name}
             </p>
           </div>
-        )}
-        {!franchise && (
+        ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-black text-text-faint/60">{slot}</span>
-            <span className="text-[10px] text-text-faint/60 font-medium mt-1">Empty</span>
+            <span className="text-[10px] text-text-faint/60 font-medium mt-1">
+              Empty
+            </span>
           </div>
         )}
       </div>
@@ -219,7 +213,15 @@ function SlotCard({ slot, franchise, coverUrl, onOpen }) {
   );
 }
 
-function RankListItem({ slot, franchise, coverUrl, onDragStart, onDragOver, onDrop, isDragOver }) {
+function RankListItem({
+  slot,
+  name,
+  coverUrl,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  isDragOver,
+}) {
   return (
     <div
       draggable
@@ -245,8 +247,10 @@ function RankListItem({ slot, franchise, coverUrl, onDragStart, onDragOver, onDr
       }`}
     >
       <span className="text-text-faint/60 text-sm leading-none shrink-0">⠿</span>
-      <span className="text-[11px] font-black text-text-faint w-4 shrink-0">{slot}</span>
-      {franchise ? (
+      <span className="text-[11px] font-black text-text-faint w-4 shrink-0">
+        {slot}
+      </span>
+      {name ? (
         <>
           <div className="w-7 h-9 rounded overflow-hidden shrink-0 border border-border">
             <img
@@ -259,24 +263,23 @@ function RankListItem({ slot, franchise, coverUrl, onDragStart, onDragOver, onDr
             />
           </div>
           <span className="text-xs font-bold text-text-muted truncate min-w-0">
-            {getDisplayName(franchise)}
+            {name}
           </span>
         </>
       ) : (
-        <span className="text-xs text-text-faint/60 font-medium italic">Empty</span>
+        <span className="text-xs text-text-faint/60 font-medium italic">
+          Empty
+        </span>
       )}
     </div>
   );
 }
 
 function GridEditor({
-  typeKey,
-  forType,
-  title,
+  grid,
   draft,
-  franchiseOptions,
-  allFranchises,
-  allEntriesByFranchise,
+  options,
+  coverFor,
   isDirty,
   onSlotChange,
   onDragSwap,
@@ -286,22 +289,24 @@ function GridEditor({
   const [dragOverSlot, setDragOverSlot] = useState(null);
   const [pickerSlot, setPickerSlot] = useState(null);
 
-  const franchiseById = useMemo(() => {
-    const m = {};
-    allFranchises.forEach((f) => (m[f.system_id] = f));
-    return m;
-  }, [allFranchises]);
+  const rowById = useMemo(() => {
+    const byId = {};
+    options.forEach((row) => {
+      byId[row.system_id] = row;
+    });
+    return byId;
+  }, [options]);
 
-  function getCoverForFranchise(f) {
-    if (!f) return FALLBACK_SVG;
-    return getCoverForSlot(f, allEntriesByFranchise, forType);
+  function slotRow(slot) {
+    const id = draft[String(slot)];
+    return id ? rowById[id] : null;
   }
 
   return (
     <section className="bg-surface rounded-2xl border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-black text-text flex items-center gap-2">
-          {title}
+          {grid.title}
         </h2>
         {isDirty && (
           <button
@@ -323,18 +328,14 @@ function GridEditor({
       <div className="flex flex-col lg:flex-row gap-5">
         {/* Left: 3×3 visual grid */}
         <div className="grid grid-cols-3 gap-2 max-w-xs shrink-0">
-          {Array.from({ length: 9 }, (_, i) => i + 1).map((slot) => {
-            const fid = draft[String(slot)];
-            const franchise = fid ? franchiseById[fid] : null;
-            const coverUrl = franchise
-              ? getCoverForFranchise(franchise)
-              : FALLBACK_SVG;
+          {SLOTS.map((slot) => {
+            const row = slotRow(slot);
             return (
               <SlotCard
                 key={slot}
                 slot={slot}
-                franchise={franchise}
-                coverUrl={coverUrl}
+                name={row ? favoriteName(row, grid) : null}
+                coverUrl={row ? coverFor(row) : FALLBACK_SVG}
                 onOpen={(s) => setPickerSlot(s)}
               />
             );
@@ -351,24 +352,20 @@ function GridEditor({
             onDragLeave={() => setDragOverSlot(null)}
             onDrop={() => setDragOverSlot(null)}
           >
-            {Array.from({ length: 9 }, (_, i) => i + 1).map((slot) => {
-              const fid = draft[String(slot)];
-              const franchise = fid ? franchiseById[fid] : null;
-              const coverUrl = franchise
-                ? getCoverForFranchise(franchise)
-                : FALLBACK_SVG;
+            {SLOTS.map((slot) => {
+              const row = slotRow(slot);
               return (
                 <RankListItem
                   key={slot}
                   slot={slot}
-                  franchise={franchise}
-                  coverUrl={coverUrl}
+                  name={row ? favoriteName(row, grid) : null}
+                  coverUrl={row ? coverFor(row) : FALLBACK_SVG}
                   isDragOver={dragOverSlot === slot}
                   onDragStart={() => setDragOverSlot(null)}
                   onDragOver={(s) => setDragOverSlot(s)}
                   onDrop={(fromSlot, toSlot) => {
                     setDragOverSlot(null);
-                    onDragSwap(typeKey, fromSlot, toSlot);
+                    onDragSwap(grid, fromSlot, toSlot);
                   }}
                 />
               );
@@ -377,21 +374,20 @@ function GridEditor({
         </div>
       </div>
 
-      {/* Franchise picker modal */}
+      {/* Row picker modal */}
       {pickerSlot !== null && (
-        <FranchisePickerModal
+        <RowPickerModal
           slot={pickerSlot}
-          title={title}
-          currentFranchiseId={draft[String(pickerSlot)] || null}
-          franchiseOptions={franchiseOptions}
-          allEntriesByFranchise={allEntriesByFranchise}
-          forType={forType}
-          onSelect={(fid) => {
-            onSlotChange(typeKey, pickerSlot, fid);
+          grid={grid}
+          currentRowId={draft[String(pickerSlot)] || null}
+          options={options}
+          coverFor={coverFor}
+          onSelect={(id) => {
+            onSlotChange(grid, pickerSlot, id);
             setPickerSlot(null);
           }}
           onClear={() => {
-            onSlotChange(typeKey, pickerSlot, null);
+            onSlotChange(grid, pickerSlot, null);
             setPickerSlot(null);
           }}
           onClose={() => setPickerSlot(null)}
@@ -401,119 +397,145 @@ function GridEditor({
   );
 }
 
-export default function Fav3x3ModifyTab({
-  allFranchises,
-  setAllFranchises,
-  allAnime,
-  allAnimeMovies,
-  allMovies,
-  allTvShows,
-  allCartoons,
-  allMangas,
-  allNovels,
-  allComics,
-}) {
+export default function Fav3x3ModifyTab({ lists, setList }) {
   const { showToast } = useToast();
-  const [drafts, setDrafts] = useState(() => buildDrafts(allFranchises));
-  const [savingByType, setSavingByType] = useState({});
+  const [savingByGrid, setSavingByGrid] = useState({});
 
-  const allEntriesByFranchise = useMemo(() => {
-    const allEntries = [
-      ...(allAnime || []).map((e) => ({ ...e, _type: "anime" })),
-      ...(allAnimeMovies || []).map((e) => ({ ...e, _type: "anime_movie" })),
-      ...(allMovies || []).map((e) => ({ ...e, _type: "movie" })),
-      ...(allTvShows || []).map((e) => ({ ...e, _type: "tv_show" })),
-      ...(allCartoons || []).map((e) => ({ ...e, _type: "cartoon" })),
-      ...(allMangas || []).map((e) => ({ ...e, _type: "manga" })),
-      ...(allNovels || []).map((e) => ({ ...e, _type: "novel" })),
-      ...(allComics || []).map((e) => ({ ...e, _type: "comic" })),
+  // Covers come from the entries hanging off a group, so both indexes are
+  // built once here and shared by every grid.
+  const { byFranchise, bySeries } = useMemo(() => {
+    const entries = [
+      ...(lists.anime || []).map((e) => ({ ...e, _type: "anime" })),
+      ...(lists["anime-movie"] || []).map((e) => ({
+        ...e,
+        _type: "anime_movie",
+      })),
+      ...(lists.movie || []).map((e) => ({ ...e, _type: "movie" })),
+      ...(lists["tv-show"] || []).map((e) => ({ ...e, _type: "tv_show" })),
+      ...(lists.cartoon || []).map((e) => ({ ...e, _type: "cartoon" })),
+      ...(lists.manga || []).map((e) => ({ ...e, _type: "manga" })),
+      ...(lists.novel || []).map((e) => ({ ...e, _type: "novel" })),
+      ...(lists.comic || []).map((e) => ({ ...e, _type: "comic" })),
+      ...(lists.game || []).map((e) => ({ ...e, _type: "game" })),
     ];
-    const byFranchise = {};
-    allEntries.forEach((e) => {
-      const id = String(e.franchise_id);
-      if (!byFranchise[id]) byFranchise[id] = [];
-      byFranchise[id].push(e);
-    });
-    return byFranchise;
-  }, [allAnime, allAnimeMovies, allMovies, allTvShows, allCartoons, allMangas, allNovels, allComics]);
+    const group = (field) => {
+      const grouped = {};
+      entries.forEach((entry) => {
+        const id = String(entry[field]);
+        if (!grouped[id]) grouped[id] = [];
+        grouped[id].push(entry);
+      });
+      return grouped;
+    };
+    return { byFranchise: group("franchise_id"), bySeries: group("series_id") };
+  }, [lists]);
 
-  const franchiseOptionsByType = useMemo(() => {
-    const result = {};
-    GRID_CONFIGS.forEach(({ typeKey }) => {
-      result[typeKey] = allFranchises
-        .filter((f) => parseTypes(f.franchise_type).includes(typeKey))
-        .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)));
-    });
-    return result;
-  }, [allFranchises]);
+  const optionsByGrid = useMemo(
+    () =>
+      Object.fromEntries(
+        FAVORITE_GRIDS.map((grid) => [
+          grid.id,
+          favoriteOptions(grid, {
+            franchises: lists.franchise,
+            series: lists.series,
+            bySeries,
+            entries: lists[grid.entryType],
+          }),
+        ]),
+      ),
+    [lists, bySeries],
+  );
 
-  const isDirtyByType = useMemo(() => {
-    const result = {};
-    GRID_CONFIGS.forEach(({ typeKey }) => {
-      const original = computeOriginal(allFranchises, typeKey);
-      result[typeKey] =
-        JSON.stringify(drafts[typeKey] || {}) !== JSON.stringify(original);
-    });
-    return result;
-  }, [drafts, allFranchises]);
+  // What is saved, per grid, read back off the lists. The draft starts as a
+  // copy of it and is compared against it to decide whether Save shows.
+  const originalByGrid = useMemo(
+    () =>
+      Object.fromEntries(
+        FAVORITE_GRIDS.map((grid) => [
+          grid.id,
+          computeOriginal(optionsByGrid[grid.id], grid),
+        ]),
+      ),
+    [optionsByGrid],
+  );
 
-  const handleSlotChange = useCallback((typeKey, slot, franchiseId) => {
+  const [drafts, setDrafts] = useState(originalByGrid);
+
+  const isDirtyByGrid = useMemo(
+    () =>
+      Object.fromEntries(
+        FAVORITE_GRIDS.map((grid) => [
+          grid.id,
+          JSON.stringify(drafts[grid.id] || {}) !==
+            JSON.stringify(originalByGrid[grid.id] || {}),
+        ]),
+      ),
+    [drafts, originalByGrid],
+  );
+
+  const handleSlotChange = useCallback((grid, slot, rowId) => {
     setDrafts((prev) => {
-      const grid = { ...prev[typeKey] };
-      if (franchiseId) {
-        Object.keys(grid).forEach((s) => {
-          if (grid[s] === franchiseId && s !== String(slot)) delete grid[s];
+      const gridDraft = { ...prev[grid.id] };
+      if (rowId) {
+        // One row cannot hold two slots in one grid: its slot is a single
+        // number in `type_slots`, so assigning it here vacates the old one.
+        Object.keys(gridDraft).forEach((s) => {
+          if (gridDraft[s] === rowId && s !== String(slot)) delete gridDraft[s];
         });
-        grid[String(slot)] = franchiseId;
+        gridDraft[String(slot)] = rowId;
       } else {
-        delete grid[String(slot)];
+        delete gridDraft[String(slot)];
       }
-      return { ...prev, [typeKey]: grid };
+      return { ...prev, [grid.id]: gridDraft };
     });
   }, []);
 
-  const handleDragSwap = useCallback((typeKey, fromSlot, toSlot) => {
+  const handleDragSwap = useCallback((grid, fromSlot, toSlot) => {
     if (fromSlot === toSlot) return;
     setDrafts((prev) => {
-      const grid = { ...prev[typeKey] };
-      const a = grid[String(fromSlot)];
-      const b = grid[String(toSlot)];
-      if (b) grid[String(fromSlot)] = b;
-      else delete grid[String(fromSlot)];
-      if (a) grid[String(toSlot)] = a;
-      else delete grid[String(toSlot)];
-      return { ...prev, [typeKey]: grid };
+      const gridDraft = { ...prev[grid.id] };
+      const from = gridDraft[String(fromSlot)];
+      const to = gridDraft[String(toSlot)];
+      if (to) gridDraft[String(fromSlot)] = to;
+      else delete gridDraft[String(fromSlot)];
+      if (from) gridDraft[String(toSlot)] = from;
+      else delete gridDraft[String(toSlot)];
+      return { ...prev, [grid.id]: gridDraft };
     });
   }, []);
 
-  async function handleSave(typeKey) {
-    const draft = drafts[typeKey];
-    const newSlotByFranchise = {};
-    Object.entries(draft).forEach(([slot, fid]) => {
-      if (fid) newSlotByFranchise[fid] = parseInt(slot, 10);
+  async function handleSave(grid) {
+    const draft = drafts[grid.id] || {};
+    const newSlotByRow = {};
+    Object.entries(draft).forEach(([slot, id]) => {
+      if (id) newSlotByRow[id] = parseInt(slot, 10);
     });
 
-    const changed = allFranchises.filter((f) => {
-      const oldSlot = f.type_slots?.[typeKey] ?? undefined;
-      const newSlot = newSlotByFranchise[f.system_id];
-      return oldSlot !== newSlot;
-    });
-
+    const listType = listTypeFor(grid);
+    const rows = lists[listType] || [];
+    const changed = rows.filter(
+      (row) =>
+        (row.type_slots?.[grid.key] ?? undefined) !==
+        newSlotByRow[row.system_id],
+    );
     if (changed.length === 0) return;
 
-    setSavingByType((p) => ({ ...p, [typeKey]: true }));
+    setSavingByGrid((prev) => ({ ...prev, [grid.id]: true }));
     try {
+      const endpoint = MEDIA_CONFIG[listType].apiEndpoint;
       const results = await Promise.all(
-        changed.map((f) => {
-          const newSlot = newSlotByFranchise[f.system_id];
-          const newTypeSlots = { ...(f.type_slots || {}) };
-          if (newSlot) newTypeSlots[typeKey] = newSlot;
-          else delete newTypeSlots[typeKey];
-          return fetch(`/api/franchise/${f.system_id}`, {
+        changed.map((row) => {
+          const slot = newSlotByRow[row.system_id];
+          // Patch the whole map, not one key: `type_slots` is a single JSONB
+          // column and the other grids' keys have to survive the write.
+          const typeSlots = { ...(row.type_slots || {}) };
+          if (slot) typeSlots[grid.key] = slot;
+          else delete typeSlots[grid.key];
+          return fetch(`${endpoint}/${row.system_id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              type_slots: Object.keys(newTypeSlots).length ? newTypeSlots : null,
+              type_slots: Object.keys(typeSlots).length ? typeSlots : null,
             }),
             credentials: "include",
           }).then((r) =>
@@ -521,50 +543,37 @@ export default function Fav3x3ModifyTab({
           );
         }),
       );
-      setAllFranchises((prev) =>
-        prev.map((f) => {
-          const updated = results.find((r) => r.system_id === f.system_id);
-          return updated || f;
-        }),
-      );
-      setDrafts((prev) => ({
-        ...prev,
-        [typeKey]: computeOriginal(
-          allFranchises.map((f) => {
-            const updated = results.find((r) => r.system_id === f.system_id);
-            return updated || f;
-          }),
-          typeKey,
+      setList(
+        listType,
+        rows.map(
+          (row) =>
+            results.find((saved) => saved.system_id === row.system_id) || row,
         ),
-      }));
+      );
       showToast("success", "Saved.");
     } catch {
       showToast("error", "Save failed.");
     } finally {
-      setSavingByType((p) => ({ ...p, [typeKey]: false }));
+      setSavingByGrid((prev) => ({ ...prev, [grid.id]: false }));
     }
   }
 
   return (
     <div className="space-y-6">
-      {GRID_CONFIGS.map(({ typeKey, forType, title }) => (
+      {FAVORITE_GRIDS.map((grid) => (
         <GridEditor
-          key={typeKey}
-          typeKey={typeKey}
-          forType={forType}
-          title={title}
-          draft={drafts[typeKey] || {}}
-          franchiseOptions={franchiseOptionsByType[typeKey] || []}
-          allFranchises={allFranchises}
-          allEntriesByFranchise={allEntriesByFranchise}
-          isDirty={isDirtyByType[typeKey]}
+          key={grid.id}
+          grid={grid}
+          draft={drafts[grid.id] || {}}
+          options={optionsByGrid[grid.id]}
+          coverFor={(row) => favoriteCover(row, grid, { byFranchise, bySeries })}
+          isDirty={isDirtyByGrid[grid.id]}
           onSlotChange={handleSlotChange}
           onDragSwap={handleDragSwap}
-          onSave={() => handleSave(typeKey)}
-          saving={!!savingByType[typeKey]}
+          onSave={() => handleSave(grid)}
+          saving={!!savingByGrid[grid.id]}
         />
       ))}
     </div>
   );
 }
-

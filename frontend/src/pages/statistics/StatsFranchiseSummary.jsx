@@ -9,6 +9,7 @@ import {
   RatingStamp,
   Slip,
 } from "../../components/ui/primitives";
+import StatsSectionHeader from "./StatsSectionHeader";
 
 const RATING_ORDER = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -36,6 +37,37 @@ const MAL_BUCKETS = [
   { key: "4+", min: 4, max: 7, color: "bg-brand/20" },
   { key: "<4", min: 0, max: 4, color: "bg-border-strong" },
 ];
+
+// AniList publishes `averageScore` as an integer 0-100, not MAL's 0-10, so
+// the same cut points are the MAL ones times ten. Derived rather than typed
+// out again: two hand-written ladders would let the cards stop being
+// comparable without anything saying so.
+// Rounded, because the scaling is decimal arithmetic in binary floats: the
+// cut points in use today all land exactly, but one written as 8.3 would
+// scale to 82.99999999999999 and put a score of 83 in the bucket below.
+const scale = (n) => Math.round(n * 10);
+export const ANILIST_BUCKETS = MAL_BUCKETS.map(({ key, min, max, color }) => ({
+  key: key.replace(/[\d.]+/, (n) => String(scale(Number(n)))),
+  min: scale(min),
+  max: scale(max),
+  color,
+}));
+
+// One bucket ladder, over whichever numeric score column is named.
+export function computeScoreRows(items, field, buckets) {
+  const scored = items.filter((item) => item[field] != null);
+  return {
+    rows: buckets.map(({ key, min, max, color }) => ({
+      label: key,
+      color,
+      count: scored.filter(
+        (item) => item[field] >= min && item[field] < max,
+      ).length,
+      dim: false,
+    })),
+    scoredCount: scored.length,
+  };
+}
 
 function computeRatingRows(items) {
   const counts = {};
@@ -121,6 +153,7 @@ export default function StatsFranchiseSummary({
   allMovies,
   allManga,
   allNovel,
+  allComic,
   seasonals,
   currentSeason,
 }) {
@@ -134,21 +167,17 @@ export default function StatsFranchiseSummary({
   const { rows: animeRows, ratedCount: animeRatedCount } =
     computeRatingRows(animeFranchises);
 
-  // MAL rating distribution (all anime)
-  const malRatingRows = MAL_BUCKETS.map((b) => ({
-    ...b,
-    count: allAnime.filter(
-      (a) =>
-        a.mal_rating != null && a.mal_rating >= b.min && a.mal_rating < b.max,
-    ).length,
-  }));
-  const totalWithMal = allAnime.filter((a) => a.mal_rating != null).length;
-  const malRows = malRatingRows.map(({ key, count, color }) => ({
-    label: key,
-    color,
-    count,
-    dim: false,
-  }));
+  // MAL and AniList score distributions (all anime)
+  const { rows: malRows, scoredCount: totalWithMal } = computeScoreRows(
+    allAnime,
+    "mal_rating",
+    MAL_BUCKETS,
+  );
+  const { rows: anilistRows, scoredCount: totalWithAnilist } = computeScoreRows(
+    allAnime,
+    "anilist_rating",
+    ANILIST_BUCKETS,
+  );
 
   // Seasonal rating distribution
   const { rows: seasonalRows, ratedCount: seasonalRatedCount } =
@@ -171,26 +200,28 @@ export default function StatsFranchiseSummary({
   const cartoonFranchises = franchises.filter((f) =>
     parseTypes(f.franchise_type).includes("Cartoon"),
   );
-  const comicFranchises = franchises.filter((f) =>
-    parseTypes(f.franchise_type).includes("Comic"),
+  const gameFranchises = franchises.filter((f) =>
+    parseTypes(f.franchise_type).includes("Game"),
   );
   const { rows: tvRows, ratedCount: tvRatedCount } =
     computeRatingRows(tvFranchises);
   const { rows: cartoonRows, ratedCount: cartoonRatedCount } =
     computeRatingRows(cartoonFranchises);
+  const { rows: gameRows, ratedCount: gameRatedCount } =
+    computeRatingRows(gameFranchises);
+  // Comics are rated per entry, not per franchise: a comic franchise is
+  // usually one long-running title and its rating says less than the volumes'.
   const { rows: comicRows, ratedCount: comicRatedCount } =
-    computeRatingRows(comicFranchises);
+    computeRatingRows(allComic);
 
   return (
     <>
       {/* Block 2 — Rating Distribution */}
-      <section>
-        <header className="mb-6">
-          <Eyebrow>Statistics</Eyebrow>
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-text leading-none mt-1">
-            Rating distribution
-          </h1>
-        </header>
+      <section id="rating-distribution" className="scroll-mt-24">
+        <StatsSectionHeader eyebrow="Statistics" title="Rating distribution" />
+        {/* One wrapping grid rather than three rows of three: the cards are
+            peers and the count changes, so a fixed row is a row that ends up
+            with a hole in it. */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <RatingDistributionCard
             title="My rating"
@@ -205,13 +236,17 @@ export default function StatsFranchiseSummary({
             total={totalWithMal}
           />
           <RatingDistributionCard
+            title="AniList score"
+            subtitle="All anime"
+            rows={anilistRows}
+            total={totalWithAnilist}
+          />
+          <RatingDistributionCard
             title="Seasonal rating"
             subtitle="Per season"
             rows={seasonalRows}
             total={seasonalRatedCount}
           />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
           <RatingDistributionCard
             title="My rating"
             subtitle="All manga"
@@ -230,13 +265,17 @@ export default function StatsFranchiseSummary({
             rows={animeMovieRows}
             total={animeMovieRatedCount}
           />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
           <RatingDistributionCard
             title="My rating"
             subtitle="All movies"
             rows={movieRows}
             total={movieRatedCount}
+          />
+          <RatingDistributionCard
+            title="My rating"
+            subtitle="All comics"
+            rows={comicRows}
+            total={comicRatedCount}
           />
           <RatingDistributionCard
             title="My rating"
@@ -252,21 +291,16 @@ export default function StatsFranchiseSummary({
           />
           <RatingDistributionCard
             title="My rating"
-            subtitle="Comic franchises"
-            rows={comicRows}
-            total={comicRatedCount}
+            subtitle="Game franchises"
+            rows={gameRows}
+            total={gameRatedCount}
           />
         </div>
       </section>
 
       {/* Block 2.5 — Anime Seasonal Overview */}
-      <section>
-        <header className="mb-6">
-          <Eyebrow>Statistics</Eyebrow>
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-text leading-none mt-1">
-            Anime seasonal overview
-          </h1>
-        </header>
+      <section id="anime-seasonal" className="scroll-mt-24">
+        <StatsSectionHeader eyebrow="Statistics" title="Anime seasonal overview" />
         {seasonals.length === 0 ? (
           <div className="border border-dashed border-border-strong px-4 py-10 text-center">
             <p className="text-sm text-text-muted">No seasonal data yet.</p>

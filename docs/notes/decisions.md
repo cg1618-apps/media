@@ -1779,3 +1779,65 @@ Both failures are silent at rename time and surface at 04:00 the next
 morning, in a timer nobody is watching, as a backup that did not happen. The
 health check the deploy runs says nothing about either, because the
 application was never the thing that broke.
+
+### Favourite grids beyond the franchise tier (2026-09-22)
+
+The favourite 3×3 grids held franchises only, because `type_slots` existed on
+exactly one table. Three of the nine now hold something else — favourite comic
+*series*, favourite movies and favourite games — so a slot had to be storable
+on a series and on an entry.
+
+- **The same column on each table, not a generic `(grid, slot) -> owner`
+  table.** A join table is the more normalised answer and it was the first
+  thing considered. What ruled it out is the Google Sheet: data travels
+  between the two machines by tab, so a new table needs its own `SheetTab`,
+  its own parser and its own place in the Pull ordering before any of this
+  survives a machine switch, whereas a column on a table that already has a
+  tab travels the day it is added. It also keeps one shape for the reader —
+  `type_slots` means the same thing wherever it appears.
+- **The entry-tier column is on `movies` and `games`, not on `media`.** The
+  supertable would have served all nine types at once and the next favourite
+  entry grid would have needed no migration at all. `app/models/media.py`'s
+  promotion rule requires two things, and only the first holds: every type
+  could carry a slot, but nothing queries across types by one — each grid
+  reads one type's list. A later grid pays for its own column, which is the
+  rule working rather than a cost to route around.
+- **A grid's key is only meaningful beside its tier.** The favourite movie
+  *franchises* and the favourite *movies* both key `"Movie"`, on `franchise`
+  and on `movies` respectively, and they are different slots. That is safe
+  precisely because the column is per-table; it is the one thing the generic
+  table above would have had to disambiguate with a second column.
+- **`config/favoriteGrids.js` is the single declaration**, read by the public
+  page and the admin editor, and the `favorite*` helpers in
+  `utils/statsUtils.js` answer everything that differs between the three
+  tiers. Both consumers had their own copy of the grid list before this, with
+  different titles in each; adding three grids to two lists by hand is how
+  they would have drifted further.
+
+### What counts as value, and what "should spend" means (2026-09-22)
+
+Two figures on the statistics page are now computed against the game's own
+list price (`price_original_us` / `_jp` / `_tw`) rather than only against what
+was paid.
+
+- **A title with no list price is left out of the Value card.** Cost per hour
+  is meant to answer "was this worth it", and what was paid for a bundle
+  share, a free weekend or a gift is not what an hour of that game costs. Left
+  in, those rows had the lowest per-hour figures in the library and sat
+  permanently at the top of "best value" — the card's most prominent line was
+  the one built on its least meaningful prices. A recorded `0` counts as no
+  list price, because a market price of nothing is the column never having
+  been filled in.
+- **"Should spend" is the bought copies at list price, and it is deliberately
+  the same copies as Bought.** The two columns are only useful if they
+  subtract, and the difference is what discounts were worth. Pricing per
+  distinct game instead would have been a different and less comparable
+  question ("what would this library cost at full price"), and would not line
+  up with the copy count printed beside it.
+- **The list price is read in the copy's own currency and never converted
+  from another region's column.** `_jp` is yen because the column says so, not
+  because a game is Japanese. A TWD purchase whose game has only a US list
+  price has no should-spend figure at all and is counted as unpriced:
+  converting USD 59.99 into it would invent a number that reads exactly like a
+  recorded one, which is the same failure the FX-rate guard already exists to
+  prevent.

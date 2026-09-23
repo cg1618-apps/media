@@ -14,7 +14,7 @@ from sqlalchemy import (
     Numeric,
     String,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now
@@ -164,6 +164,11 @@ class Game(Base, NameFallbackMixin):
     # column, because nothing fetches on it.
     steam_appid = Column(Integer, nullable=True)
     steam_link = Column(String, nullable=True)
+
+    # Favourite-grid slot per grid key, e.g. {"Game": 3}. The entry-tier
+    # twin of Franchise.type_slots; only the grids keyed on game entries
+    # ever appear in it.
+    type_slots = Column(JSONB, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

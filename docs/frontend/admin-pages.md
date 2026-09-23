@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-20
+Last verified: 2026-09-22
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -321,15 +321,18 @@ library; **Delete** is disabled until every attachment is gone.
 ## /modify (`Modify.jsx`)
 
 Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
-**Fav 3x3** (`Fav3x3ModifyTab.jsx`: the per-type favourite grids stored in
-`franchise.type_slots`).
+**Fav 3x3** (`Fav3x3ModifyTab.jsx`: the nine favourite grids of
+`config/favoriteGrids.js`, each stored as a `type_slots` map on the row it
+holds — a franchise, a series or an entry; see
+[pages.md](pages.md#statistics--statistics--completions--completions)).
 
 - **Data loading** is `hooks/useEntryLists.js`, as on `/add`: collections,
   franchises and series eagerly, the media lists per tab. The three
   grouping-tier tabs are the ones that read more than their own — **franchise**
-  and **fav3x3** pull the eight non-game lists for their ribbons, **series**
-  the seven (a series never lists anime movies). `config/adminEntryLists.js`
-  holds the map; games appear in no tier ribbon.
+  pulls the eight non-game lists for its ribbon, **series** the seven (a series
+  never lists anime movies), and **fav3x3** all nine, because two of its grids
+  hold game rows. `config/adminEntryLists.js` holds the map; games appear in no
+  tier ribbon.
 - **Finding a row.** A search box over that tab's list, or a deep link
   `/modify?id=<system_id>[&type=<type>]` used by the dashboard cards and
   detail-page "Quick Edit" buttons. The deep-link effect runs once on mount,

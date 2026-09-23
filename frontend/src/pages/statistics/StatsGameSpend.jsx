@@ -7,9 +7,10 @@ import computeGameSpend, {
   spendByYear,
 } from "./gameSpend";
 import { Eyebrow, Slip } from "../../components/ui/primitives";
+import StatsSectionHeader from "./StatsSectionHeader";
 
 function SpendColumn({ column }) {
-  const { label, currencies, copies, converted } = column;
+  const { label, currencies, copies, converted, unpriced, emptyLabel } = column;
 
   return (
     <div>
@@ -23,7 +24,9 @@ function SpendColumn({ column }) {
       </div>
 
       {currencies.length === 0 ? (
-        <p className="font-mono text-[11px] text-text-faint">No priced copies.</p>
+        <p className="font-mono text-[11px] text-text-faint">
+          {emptyLabel || "No priced copies."}
+        </p>
       ) : (
         <dl className="space-y-1.5">
           {currencies.map(({ code, cents, copies: count }) => (
@@ -47,6 +50,16 @@ function SpendColumn({ column }) {
             </div>
           ))}
         </dl>
+      )}
+
+      {/* A purchase whose game has no recorded list price in that currency
+          contributes nothing above, so the column's copy count would differ
+          from Bought's with nothing to say why. */}
+      {unpriced > 0 && (
+        <p className="mt-3 font-mono text-[11px] text-text-faint">
+          {unpriced} bought {unpriced === 1 ? "copy has" : "copies have"} no
+          list price recorded.
+        </p>
       )}
 
       {/* Converted totals. Absent entirely when no rates are configured -
@@ -204,11 +217,18 @@ function ValueCard({ value }) {
 
       {/* Two ways to be left out, and they mean different things - so both
           are named rather than rolled into one "excluded" number. */}
-      {(value.excluded > 0 || value.unconvertible > 0) && (
+      {(value.excluded > 0 || value.unconvertible > 0 || value.unlisted > 0) && (
         <p className="mt-4 pt-3 border-t border-dotted border-border-strong/60 font-mono text-[11px] text-text-faint">
           {value.excluded > 0 && (
             <>Excludes {value.excluded} priced{" "}
             {value.excluded === 1 ? "title" : "titles"} with no hours logged.{" "}</>
+          )}
+          {value.unlisted > 0 && (
+            <>
+              {value.unlisted}{" "}
+              {value.unlisted === 1 ? "title has" : "titles have"} no list price
+              recorded and {value.unlisted === 1 ? "is" : "are"} left out.{" "}
+            </>
           )}
           {value.unconvertible > 0 && (
             <>
@@ -242,11 +262,8 @@ export default function StatsGameSpend({ games, fxRates }) {
   const value = costPerHour(games, fxRates);
 
   return (
-    <section>
-      <Eyebrow className="mb-2">Games</Eyebrow>
-      <h2 className="font-display text-2xl font-semibold text-text mb-4">
-        Total Spend
-      </h2>
+    <section id="game-spend" className="scroll-mt-24">
+      <StatsSectionHeader eyebrow="Games" title="Total spend" />
 
       <Slip
         title="Game Spend"
@@ -258,7 +275,7 @@ export default function StatsGameSpend({ games, fxRates }) {
           )
         }
       >
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {spend.columns.map((column) => (
             <SpendColumn key={column.key} column={column} />
           ))}
