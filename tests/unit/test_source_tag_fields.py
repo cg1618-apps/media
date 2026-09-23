@@ -10,10 +10,11 @@ def test_source_official_is_gone():
     assert "source_official" not in TAG_FIELDS
 
 
-def test_original_source_is_offered_on_the_reality_types():
+def test_original_source_is_offered_on_the_reality_types_and_h_comic():
+    """h-comic's official source (a KR platform) is the same vocabulary (D10)."""
     field = TAG_FIELDS["original_source"]
     assert field.category == PLATFORM_CATEGORY
-    assert set(field.media_types) == {"movie", "tv-show", "cartoon"}
+    assert set(field.media_types) == {"movie", "tv-show", "cartoon", "h-comic"}
 
 
 def test_exclusive_source_is_offered_on_the_anime_types():

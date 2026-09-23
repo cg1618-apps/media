@@ -28,6 +28,7 @@ MEDIA_MODELS = [
     ("novel", models.Novel, "novel_name_en"),
     ("comic", models.Comic, "comic_name_en"),
     ("game", models.Game, "game_name_en"),
+    ("h-comic", models.HComic, "h_comic_name_en"),
 ]
 IDS = [m.__tablename__ for _, m, _ in MEDIA_MODELS]
 

@@ -52,7 +52,11 @@ def test_a_granted_mode_resolves_to_its_sets(db_session, admin_user, label):
     resolved = resolve_mode(db_session, admin_user, mode.system_id)
 
     assert resolved.mode_key == MODE_UNRESTRICTED
-    assert resolved.label_ids == frozenset({label.system_id})
+    # Every label there is: this one and the system `h-comic` label.
+    assert resolved.label_ids == frozenset(
+        row.system_id for row in db_session.query(models.ContentLabel)
+    )
+    assert label.system_id in resolved.label_ids
     assert "sources_restricted" in resolved.field_groups
 
 
@@ -69,7 +73,12 @@ def test_denials_subtract(db_session, admin_user, label):
 
     resolved = resolve_mode(db_session, admin_user, mode.system_id)
 
-    assert resolved.label_ids == frozenset()
+    assert label.system_id not in resolved.label_ids
+    assert resolved.label_ids == frozenset(
+        row.system_id
+        for row in db_session.query(models.ContentLabel)
+        if row.system_id != label.system_id
+    )
     assert "sources_restricted" in resolved.field_groups
 
 

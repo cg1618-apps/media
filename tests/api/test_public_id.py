@@ -111,6 +111,8 @@ def test_migration_tables_match_models_with_a_public_id_column():
 MOVED_TO_MEDIA = {
     "anime", "anime_movies", "movies", "tv_shows", "cartoons",
     "manga", "novel", "comic", "games",
+    # Never had the column: created after the move, on the same pattern.
+    "h_comic",
 }
 
 

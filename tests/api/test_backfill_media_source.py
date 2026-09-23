@@ -20,10 +20,18 @@ migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(migration)
 
 
+# Types registered after the archived migration ran. It pins HISTORY - the
+# source columns that existed to move - so a later type is excluded here by
+# name rather than written into a migration that has already run everywhere.
+TYPES_AFTER_THE_BACKFILL = {"h-comic"}
+
+
 def test_the_map_covers_every_media_type():
     from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
-    assert set(migration.SOURCE_COLUMNS) == set(MEDIA_TYPE_KEYS)
+    assert set(migration.SOURCE_COLUMNS) == (
+        set(MEDIA_TYPE_KEYS) - TYPES_AFTER_THE_BACKFILL
+    )
 
 
 def test_baha_carries_both_its_flag_and_its_link():

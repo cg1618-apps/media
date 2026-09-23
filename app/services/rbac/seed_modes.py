@@ -146,9 +146,23 @@ def ensure_access_mode_seed(db: Session) -> None:
 
     The label side is defined over the content_label rows that exist WHEN THIS
     RUNS. A label minted later is not retro-granted to `unrestricted` - same
-    rule, and the reason the access-mode admin page exists.
+    rule, and the reason the access-mode admin page exists. A label a gated
+    type requires is never granted here at all (see below).
     """
-    label_ids = [row.system_id for row in db.query(models.ContentLabel.system_id)]
+    # A label some gated type REQUIRES is left out of the top-up. `borderline`
+    # also carries "all labels", but only as of its seed: it must never pick
+    # up a gated type's label, which is `unrestricted`'s alone (and which
+    # `unrestricted` derives anyway - cache.mode_sets). Without this, a fresh
+    # install would hand `h-comic` to borderline on the first boot after the
+    # label seed ran, because borderline still held nothing to top up.
+    from app.services.rbac.gated_types import required_label_keys
+
+    required = required_label_keys()
+    label_ids = [
+        row.system_id
+        for row in db.query(models.ContentLabel.system_id, models.ContentLabel.key)
+        if row.key not in required
+    ]
     # `safe` means "today's guest exactly", and that is read from the guest
     # role rather than assumed. See guest_field_groups().
     safe_groups = guest_field_groups(db)

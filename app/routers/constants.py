@@ -77,6 +77,14 @@ def get_constants() -> dict[str, list[str]]:
         "game_ownership": list(c.GAME_OWNERSHIP_KINDS),
         "game_copy_format": list(c.GAME_COPY_FORMATS),
         "game_acquisition": list(c.GAME_ACQUISITION_KINDS),
+        # The four h-comic vocabularies. h-comic's serialization_status
+        # reuses manga_serialization_status. Served to every caller like the
+        # rest of this endpoint: a vocabulary names no entry, and the entries
+        # themselves are what the h-comic label hides.
+        "h_comic_region": list(c.H_COMIC_REGIONS),
+        "h_comic_originality": list(c.H_COMIC_ORIGINALITY),
+        "h_comic_animation_status": list(c.H_COMIC_ANIMATION_STATUSES),
+        "h_comic_usefulness": list(c.H_COMIC_USEFULNESS),
         "manga_serialization_status": list(c.MANGA_SERIALIZATION_STATUSES),
         "novel_serialization_status": list(c.NOVEL_SERIALIZATION_STATUSES),
         "day_of_week": list(c.WEEKDAYS),

@@ -338,6 +338,8 @@ def parse_user_media_list_from_sheet(raw: dict) -> dict:
         "ch_fin_in_arc": parse_from_sheet(raw.get("ch_fin_in_arc"), float),
         "progress_display": parse_from_sheet(raw.get("progress_display"), str),
         "issue_fin": parse_from_sheet(raw.get("issue_fin"), int),
+        "page_fin": parse_from_sheet(raw.get("page_fin"), int),
+        "usefulness": parse_from_sheet(raw.get("usefulness"), str),
     }
 
 
@@ -946,6 +948,76 @@ def parse_game_from_sheet(raw: dict) -> dict:
     }
     parsed.update(_public_id_from_sheet(raw))
     return parsed
+
+
+def parse_h_comic_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the H-Comic sheet into typed data ready for
+    the Database.
+
+    franchise_id and series_id may each be a UUID or a raw string name, like
+    every entry tab. The credit and tag columns carry their own keys as
+    headers - the type is new, so none has a legacy header - and Pull applies
+    them through replace_credits / replace_tags once the row exists.
+
+    The region's unused columns are NOT cleared here: a parser only types what
+    the sheet says. Pull runs enforce_h_comic_invariants after the tab lands,
+    which clears them and re-attaches the h-comic label.
+    """
+    parsed = {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "h_comic_name_en": parse_from_sheet(raw.get("h_comic_name_en"), str),
+        "h_comic_name_cn": parse_from_sheet(raw.get("h_comic_name_cn"), str),
+        "h_comic_name_alt": parse_from_sheet(raw.get("h_comic_name_alt"), str),
+        "h_comic_name_jp": parse_from_sheet(raw.get("h_comic_name_jp"), str),
+        "h_comic_name_kr": parse_from_sheet(raw.get("h_comic_name_kr"), str),
+        "region": parse_from_sheet(raw.get("region"), str),
+        "originality": parse_from_sheet(raw.get("originality"), str),
+        "animation_status": parse_from_sheet(raw.get("animation_status"), str),
+        "series_number": parse_from_sheet(raw.get("series_number"), int),
+        "serialization_status": parse_from_sheet(
+            raw.get("serialization_status"), str
+        ),
+        "page_total": parse_from_sheet(raw.get("page_total"), int),
+        "ch_total": parse_from_sheet(raw.get("ch_total"), int),
+        "ch_behind": parse_from_sheet(raw.get("ch_behind"), int),
+        "release_date": release_date.normalize(
+            parse_from_sheet(raw.get("release_date"), str)
+        ),
+        "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
+        "highlight_group_order": _safe_json(raw.get("highlight_group_order")),
+        "illustrator": parse_from_sheet(raw.get("illustrator"), str),
+        "author": parse_from_sheet(raw.get("author"), str),
+        "club": parse_from_sheet(raw.get("club"), str),
+        "original_source": parse_from_sheet(raw.get("original_source"), str),
+        "h_genre_plot": parse_from_sheet(raw.get("h_genre_plot"), str),
+        "h_genre_appearance": parse_from_sheet(raw.get("h_genre_appearance"), str),
+        "h_genre_relation": parse_from_sheet(raw.get("h_genre_relation"), str),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
+
+
+def parse_person_membership_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Person Membership sheet.
+
+    Both ends cite a person by uuid, and a person's uuid is minted per
+    database - Pull translates each through the Person tab by natural key
+    before the row is stored (DERIVED_IDENTITY_PARENTS in pull.py).
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "member_id": _uuid_or_none(raw.get("member_id")),
+        "club_id": _uuid_or_none(raw.get("club_id")),
+        "position": parse_from_sheet(raw.get("position"), int) or 0,
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
 
 
 def parse_game_copy_from_sheet(raw: dict) -> dict:

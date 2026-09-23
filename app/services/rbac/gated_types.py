@@ -27,8 +27,33 @@ from sqlalchemy.orm import Session
 from app import models
 from app.services.rbac.enforcement import hidden_label_ids
 
-# media-type key -> content-label key. Empty until a gated type is registered.
-REQUIRED_LABEL_FOR_TYPE: dict[str, str] = {}
+# media-type key -> content-label key. The label is a system label: created
+# by its migration and by the lifespan seed (h_comic.ensure_label), attached
+# to every entry of the type on every write path, and granted to no mode but
+# `unrestricted` - see ensure_access_mode_seed, which keeps it off the other
+# all-labels mode.
+REQUIRED_LABEL_FOR_TYPE: dict[str, str] = {"h-comic": "h-comic"}
+
+
+def required_label_keys() -> frozenset[str]:
+    """Every content-label key some gated type requires."""
+    return frozenset(REQUIRED_LABEL_FOR_TYPE.values())
+
+
+def visible_gated_types(db: Session, viewer: Optional[object]) -> list[str]:
+    """
+    The gated types this viewer may see, sorted.
+
+    What /api/auth/me publishes so the SPA can decide whether to offer a gated
+    type's navigation at all. Only the SEEABLE ones are named: a session that
+    cannot see a type is not told that it exists.
+    """
+    if not REQUIRED_LABEL_FOR_TYPE:
+        return []
+    if viewer is None:
+        return sorted(REQUIRED_LABEL_FOR_TYPE)
+    hidden = hidden_gated_types(db, hidden_label_ids(db, viewer))
+    return sorted(t for t in REQUIRED_LABEL_FOR_TYPE if t not in hidden)
 
 
 def gated_types() -> frozenset[str]:

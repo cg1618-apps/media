@@ -794,6 +794,22 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             ),
         ),
     ),
+    # No external API covers adult comics, so nothing is fetched and nothing
+    # is written. Listed because every pipeline spec is: the page shows the
+    # type with no source, which is the truth.
+    Coverage(
+        key="h-comic",
+        keyed_by="system_id",
+        combination="single",
+        requests_per_entry="0 - there is no external API",
+        note=(
+            "No source. Fill finds nothing eligible and there is no bulk "
+            "Replace; the single-entry hook only re-runs the h-comic sync, "
+            "which clears the region's unused columns and keeps the h-comic "
+            "label on."
+        ),
+        sources=(),
+    ),
     Coverage(
         key="studio",
         keyed_by="mal_id",

@@ -157,8 +157,11 @@ SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
     # sorts by: a comic's display name falls back EN -> CN -> Alt, so sorting on
     # CN would order the list by a name most rows do not show.
     _spec("comic", "comic", "comic_name_en"),
-    # Last of the media entries, so games rank below every other type.
+    # Games rank below every other ungated type.
     _spec("game", "game", "game_name_cn"),
+    # After game. Its entries carry the h-comic label, so a session that
+    # cannot see the type gets this bucket back empty, like any hidden entry.
+    _spec("h-comic", "h_comic", "h_comic_name_cn"),
     SearchableType(
         key="seasonal",
         model=models.Seasonal,

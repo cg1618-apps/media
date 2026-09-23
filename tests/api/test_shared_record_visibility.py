@@ -20,9 +20,9 @@ Two things make the refusal tests bite, and both look like decoration:
 The narrow viewer is the anonymous `client`, which resolves to the `safe`
 mode; a label created by a test reaches only the wide modes.
 
-The scope half has nothing to act on in production yet - REQUIRED_LABEL_FOR_TYPE
-is empty - so those tests register a gated type for the test by pointing an
-existing type key (`manga`) at `nsfw`.
+The scope-half tests here register a gated type of their own by pointing an
+existing type key (`manga`) at `nsfw`, so they stay independent of h-comic;
+tests/api/test_h_comic_shared_records.py covers the real gated type.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
@@ -658,6 +658,10 @@ def test_a_publisher_scoped_only_to_a_hidden_gated_type_is_hidden(
     assert admin_client.get(f"/api/publisher/{publisher.system_id}").status_code == 200
 
 
-def test_the_registry_is_empty_in_production():
-    """Nothing is gated until a type is registered; this PR registers none."""
-    assert gated_types.REQUIRED_LABEL_FOR_TYPE == {}
+def test_the_registry_names_exactly_h_comic():
+    """h-comic is the one gated type, and it requires the label its own
+    domain module stamps - the two spellings are pinned together here."""
+    from app.services.domain import h_comic
+
+    assert gated_types.REQUIRED_LABEL_FOR_TYPE == {"h-comic": "h-comic"}
+    assert gated_types.REQUIRED_LABEL_FOR_TYPE[h_comic.MEDIA_TYPE] == h_comic.LABEL_KEY

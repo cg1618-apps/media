@@ -146,6 +146,32 @@ def _get_or_404(db: Session, note_id: str) -> models.Note:
     return db_note
 
 
+def _require_owner_where(db: Session, payload: schemas.NoteBase) -> None:
+    """
+    A section limited to some owners of its types (`owner_where`) refuses a
+    row anywhere else - the KR-only h-comic highlights on a JP entry.
+
+    Runs after the owner is known to be visible, so the 422 tells the caller
+    nothing about an entry it could not already read.
+    """
+    section = section_by_key(payload.section or "")
+    if section is None or not section.owner_where:
+        return
+    ref = OWNER_TABLES.get(payload.owner_type or "")
+    owner = db.get(ref.model, payload.owner_id) if ref and payload.owner_id else None
+    if owner is None:
+        return
+    for column, allowed in section.owner_where.items():
+        if getattr(owner, column, None) not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Section '{section.key}' applies only where {column} is "
+                    f"{' or '.join(allowed)}."
+                ),
+            )
+
+
 def _validate_or_422(payload: schemas.NoteBase) -> None:
     try:
         validate_note_payload(payload)
@@ -417,6 +443,7 @@ def create_note(
     _authorize_write(viewer, payload.section)
     _validate_or_422(payload)
     _require_visible_owner(db, viewer, payload.owner_id)
+    _require_owner_where(db, payload)
     _reject_second_singleton(db, payload, author_id=viewer.user_id)
     _validate_parent(db, payload)
 
@@ -517,6 +544,7 @@ def update_note(
     # may not write.
     _authorize_write(viewer, merged.section)
     _require_visible_owner(db, viewer, merged.owner_id)
+    _require_owner_where(db, merged)
     _reject_second_singleton(
         db, merged, exclude_id=note_id, author_id=db_note.author_id
     )

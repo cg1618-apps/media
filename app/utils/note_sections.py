@@ -23,6 +23,7 @@ vs `craft`): the drift is intentional, not accidental.
 
 from dataclasses import dataclass, field
 
+from app.utils.constants import H_COMIC_USEFULNESS
 from app.utils.media_resolver import MEDIA_TYPE_KEYS, OWNER_TYPE_KEYS
 
 # --- Shapes ---------------------------------------------------------------
@@ -110,6 +111,12 @@ FIELD_TEXTAREA = "textarea"  # a body
 FIELD_SELECT = "select"  # a dropdown over `options`
 FIELD_LINKS = "links"  # the repeatable URL editor
 FIELD_LIST = "list"  # a repeatable row of `item_fields`
+# A list of free-text names, e.g. the characters a highlight is about. Always
+# stored in `fields`, never in a column: no `note` column holds a list of
+# strings. The editor suggests the names of the characters cast on the owner,
+# but any non-empty string is accepted - these are names, not character ids,
+# so renaming a character does not rewrite a row that named it.
+FIELD_NAMES = "names"
 
 # The `note` columns a structured field may claim. Anything else a section
 # declares is stored under its own key in the `fields` JSONB blob.
@@ -307,6 +314,17 @@ class NoteSection:
     # same section, to any depth. Flat sections refuse a parent outright, so a
     # section does not grow a tree by accident.
     hierarchical: bool = False
+    # The key of a `names` field the read view groups rows by: one group per
+    # name, and a row naming two appears under both. Display-only - rows are
+    # stored and ordered exactly as in any structured section. The order of
+    # the GROUPS is the owner entry's, not this registry's (for h-comic,
+    # `h_comic.highlight_group_order`). Checked at import.
+    group_by: str | None = None
+    # Owner-entry columns this section is limited to: {column: allowed
+    # values}. The note router refuses (422) a row on an owner whose column
+    # holds anything else, and the page renders no card for it. Empty means
+    # every owner of the section's types.
+    owner_where: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
@@ -599,6 +617,54 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("game",),
         scope=SCOPE_CATALOG,
         locator_placeholder="Chapter / Boss, e.g. Ch 3",
+    ),
+    NoteSection(
+        # A KR h-comic's standout scenes, grouped by the female characters in
+        # them. KR only: a JP entry is refused a row (owner_where) and renders
+        # no card. The group order is a column on the entry,
+        # h_comic.highlight_group_order, written through the entry update.
+        key="h_comic_highlights",
+        shape=SHAPE_STRUCTURED,
+        label="亮點 Highlights",
+        owners=("h-comic",),
+        scope=SCOPE_CATALOG,
+        group_by="female_characters",
+        owner_where={"region": ("KR",)},
+        fields=(
+            NoteField(
+                key="female_characters",
+                label="Female Characters",
+                type=FIELD_NAMES,
+                required=True,
+            ),
+            NoteField(
+                key="male_characters",
+                label="Male Characters",
+                type=FIELD_NAMES,
+            ),
+            NoteField(
+                key="chapter",
+                label="Chapter",
+                column="locator",
+                placeholder="Chapter(s), e.g. 1-5",
+            ),
+            NoteField(key="location", label="Location"),
+            # A `kind`-backed field with no options is free text.
+            NoteField(key="label", label="Label", column="kind"),
+            NoteField(
+                key="usefulness",
+                label="Usefulness",
+                type=FIELD_SELECT,
+                column="status",
+                options=H_COMIC_USEFULNESS,
+            ),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+        ),
     ),
     NoteSection(
         key="analysis",
@@ -1358,6 +1424,22 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
 )
 
 _BY_KEY = {s.key: s for s in NOTE_SECTIONS}
+
+
+def _check_group_by(section: NoteSection) -> None:
+    """A section's `group_by` must name one of its own `names` fields."""
+    if section.group_by is None:
+        return
+    target = next((f for f in section.fields if f.key == section.group_by), None)
+    if target is None or target.type != FIELD_NAMES or target.column:
+        raise ValueError(
+            f"Section '{section.key}' groups by '{section.group_by}', which is "
+            "not one of its `names` fields."
+        )
+
+
+for _section in NOTE_SECTIONS:
+    _check_group_by(_section)
 
 PERSONAL_SECTIONS: frozenset[str] = frozenset(
     s.key for s in NOTE_SECTIONS if s.scope == SCOPE_PERSONAL

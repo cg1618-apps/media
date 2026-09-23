@@ -37,6 +37,7 @@ from app.services.domain import (
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
     resolve_game_parent_hierarchy,
+    resolve_h_comic_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
@@ -45,11 +46,18 @@ from app.services.domain import (
     write_novel_units,
 )
 from app.services.domain.anime_write import prepare_anime_write
+from app.services.domain.h_comic import (
+    h_comic_progress_hook,
+    h_comic_progress_hook_list,
+    mark_h_comic_catalog,
+    mark_h_comic_list,
+)
 from app.services.domain.sources import media_sources_writer
 from app.services.pipelines import (
     execute_replace_single_cartoon,
     execute_replace_single_comic,
     execute_replace_single_game,
+    execute_replace_single_h_comic,
     execute_replace_single_manga,
     execute_replace_single_movie,
     execute_replace_single_novel,
@@ -336,5 +344,38 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
             "copies": write_game_copies,
             "sources": media_sources_writer("game"),
         },
+    ),
+    "h_comic": MediaTypeSpec(
+        key="h_comic",
+        owner_type="h-comic",
+        label="H-Comic",
+        route="h-comic",
+        model=models.HComic,
+        create_schema=schemas.HComicCreate,
+        update_schema=schemas.HComicUpdate,
+        response_schema=schemas.HComicResponse,
+        status_field="reading_status",
+        list_filters=(
+            "franchise_id", "series_id", "reading_status", "serialization_status",
+            "region",
+        ),
+        # The hierarchy resolver's keys. The KR name has no slot of its own
+        # there; a KR work is matched by its CN, EN and Alt names.
+        hierarchy_names={"en": "h_comic_name_en", "cn": "h_comic_name_cn",
+                         "jp": "h_comic_name_jp", "alt": "h_comic_name_alt"},
+        search_fields=("h_comic_name_cn", "h_comic_name_en", "h_comic_name_alt",
+                       "h_comic_name_jp", "h_comic_name_kr"),
+        resolve_hierarchy=resolve_h_comic_parent_hierarchy,
+        mark_completed=mark_h_comic_catalog,
+        mark_completed_list=mark_h_comic_list,
+        # Fetches nothing: there is no external API. It re-runs the h-comic
+        # sync, which is the net under the two hooks below.
+        write_hook=execute_replace_single_h_comic,
+        nested_collections={"sources": media_sources_writer("h-comic")},
+        # Called on create, update AND the tracker PATCH: validates the h-comic
+        # vocabularies (PATCH has no schema), clears the columns the region
+        # does not use, and keeps the `h-comic` label on the entry.
+        progress_hook=h_comic_progress_hook,
+        progress_hook_list=h_comic_progress_hook_list,
     ),
 }

@@ -35,6 +35,7 @@ from app.services.domain import (
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
     resolve_game_parent_hierarchy,
+    resolve_h_comic_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
@@ -49,6 +50,7 @@ from app.services.domain.credits import (
     replace_credits,
     replace_tags,
 )
+from app.services.domain.h_comic import enforce_h_comic_invariants
 from app.services.domain.user_list import installation_owner_id
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
@@ -93,6 +95,20 @@ _FINDERS = {
 # apply step below: a tab absent here has no link columns to restore.
 MEDIA_TYPE_FOR_TAB = _MEDIA_TYPE_FOR_TAB
 
+
+# Tabs after which the h-comic invariants are re-established (see
+# app/services/domain/h_comic.py). Every tab that writes an h-comic row, a
+# reader's counter on one, a franchise type, or a content label assignment.
+H_COMIC_INVARIANT_TABS: frozenset[str] = frozenset(
+    {
+        "H-Comic",
+        "User Media List",
+        "Franchise",
+        "Content Label",
+        "Media Content Label",
+        "Franchise Content Label",
+    }
+)
 
 # Restore order for Pull All. STRICT: parents before children (FK constraints).
 TABS_IN_ORDER = TAB_NAMES
@@ -140,6 +156,9 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     ),  # uq_system_option_alias
     "Content Label": ("key",),  # content_label.key is UNIQUE
     "Person Role": ("person_id", "role", "scope"),  # uq_person_role
+    # Mints its own uuid; both ends are people, translated to local uuids by
+    # the parent translation below before this match runs.
+    "Person Membership": ("member_id", "club_id"),  # uq_person_membership
     # No `role` in the key: a publisher holds exactly one.
     "Publisher Scope": ("publisher_id", "scope"),  # uq_publisher_scope
     # These two mint their own uuid but cite entry ids, which the sheet does
@@ -209,14 +228,18 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
 # database's uuid, so it has to be translated through the parent's own tab
 # before it can be stored here.
-DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
-    "System Option Scope": ("option_id", "System Options"),
-    "System Option Usage": ("option_id", "System Options"),
-    "System Option Alias": ("option_id", "System Options"),
-    "Person Role": ("person_id", "Person"),
-    "Publisher Scope": ("publisher_id", "Publisher"),
-    "Media Content Label": ("label_id", "Content Label"),
-    "Franchise Content Label": ("label_id", "Content Label"),
+#
+# A tab may cite its parent in more than one column - Person Membership names
+# a person at both ends - so each tab maps to every (column, parent tab) pair.
+DERIVED_IDENTITY_PARENTS: dict[str, tuple[tuple[str, str], ...]] = {
+    "System Option Scope": (("option_id", "System Options"),),
+    "System Option Usage": (("option_id", "System Options"),),
+    "System Option Alias": (("option_id", "System Options"),),
+    "Person Role": (("person_id", "Person"),),
+    "Person Membership": (("member_id", "Person"), ("club_id", "Person")),
+    "Publisher Scope": (("publisher_id", "Publisher"),),
+    "Media Content Label": (("label_id", "Content Label"),),
+    "Franchise Content Label": (("label_id", "Content Label"),),
 }
 
 # Tabs whose PRIMARY KEY is itself minted per database and must be ignored as
@@ -672,8 +695,9 @@ def execute_pull_specific(
     # Built on first use, and only for the two tabs that need it: reading the
     # parent tab costs a Sheets round trip, so a tab that cites no derived
     # identity never pays for one.
-    parent_ref = DERIVED_IDENTITY_PARENTS.get(tab_name)
-    foreign_uuids: dict[str, object] | None = None
+    parent_refs = DERIVED_IDENTITY_PARENTS.get(tab_name, ())
+    # One map per parent tab, however many columns cite it.
+    foreign_uuids: dict[str, dict[str, object]] = {}
 
     for row in data_rows:
         if not row or not any(row):
@@ -834,28 +858,33 @@ def execute_pull_specific(
         # OTHER database minted. Translate it to the local one before anything
         # stores it; a reference that survives untranslated is dangling, and
         # the FK violation it raises at commit rolls back the whole tab.
-        if parent_ref:
-            fk_column, parent_tab = parent_ref
+        unresolved_parent = False
+        for fk_column, parent_tab in parent_refs:
             sheet_ref = clean_header_dict.get(fk_column)
-            if sheet_ref is not None:
-                known_locally = (
-                    db.query(TAB_MODELS[parent_tab])
-                    .filter(TAB_MODELS[parent_tab].system_id == sheet_ref)
-                    .first()
+            if sheet_ref is None:
+                continue
+            known_locally = (
+                db.query(TAB_MODELS[parent_tab])
+                .filter(TAB_MODELS[parent_tab].system_id == sheet_ref)
+                .first()
+            )
+            if known_locally is not None:
+                continue
+            if parent_tab not in foreign_uuids:
+                foreign_uuids[parent_tab] = _foreign_uuid_map(db, parent_tab)
+            local_ref = foreign_uuids[parent_tab].get(str(sheet_ref))
+            if local_ref is None:
+                logger.warning(
+                    "Could not resolve %s %s for the %s tab. Skipping row.",
+                    fk_column,
+                    sheet_ref,
+                    tab_name,
                 )
-                if known_locally is None:
-                    if foreign_uuids is None:
-                        foreign_uuids = _foreign_uuid_map(db, parent_tab)
-                    local_ref = foreign_uuids.get(str(sheet_ref))
-                    if local_ref is None:
-                        logger.warning(
-                            "Could not resolve %s %s for the %s tab. Skipping row.",
-                            fk_column,
-                            sheet_ref,
-                            tab_name,
-                        )
-                        continue
-                    clean_header_dict[fk_column] = local_ref
+                unresolved_parent = True
+                break
+            clean_header_dict[fk_column] = local_ref
+        if unresolved_parent:
+            continue
 
         # Resolve String Foreign Keys -> Actual UUIDs
         # TV Show uses resolve_tv_show_parent_hierarchy (auto-creates franchise, looks up series)
@@ -936,6 +965,20 @@ def execute_pull_specific(
             }
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_game_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # H-Comic uses resolve_h_comic_parent_hierarchy, which matches and
+        # auto-creates ONLY franchises of type "H-Comic" (and labels them)
+        elif tab_name == "H-Comic" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("h_comic_name_en"),
+                "cn": clean_header_dict.get("h_comic_name_cn"),
+                "jp": clean_header_dict.get("h_comic_name_jp"),
+                "alt": clean_header_dict.get("h_comic_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_h_comic_parent_hierarchy(db, fid, sid, name_fields)
             )
         # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
         elif tab_name == "Movies" and "franchise_id" in clean_header_dict:
@@ -1439,7 +1482,7 @@ def execute_pull_specific(
             # question from confining the pipelines.
             if tab_name in (
                 "Anime", "Movies", "Anime Movie", "TV Shows", "Cartoons",
-                "Game", "Manga",
+                "Game", "Manga", "H-Comic",
             ):
                 if clean_header_dict.get("created_at") is None:
                     clean_header_dict["created_at"] = get_taipei_now()
@@ -1592,6 +1635,16 @@ def execute_pull_specific(
     # sheet. Runs after the commit above so MAX() reads the rows that landed.
     resync_public_id_sequence(db, Model)
     db.commit()
+
+    # A restore writes rows straight to the tables, so neither h-comic hook
+    # ran. Re-establish both invariants - the region's unused columns cleared,
+    # the h-comic label on every entry and every H-Comic franchise - after
+    # every tab that can break one: the entries themselves, the list rows
+    # holding their counters, the franchises, and the label tabs a sheet
+    # could have restored without the required label.
+    if tab_name in H_COMIC_INVARIANT_TABS:
+        enforce_h_comic_invariants(db)
+        db.commit()
 
     logger.info("Successfully pulled and upserted %s records from '%s'.", processed, tab_name)
     if log_action:

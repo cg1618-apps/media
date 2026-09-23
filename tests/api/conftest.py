@@ -18,6 +18,7 @@ from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db
 from app.main import app
+from app.services.domain.h_comic import ensure_label as ensure_h_comic_label
 from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.modes import grant_all_modes_to_existing_accounts
@@ -80,6 +81,13 @@ def test_engine():
     # SELECT. Committed before any content_label row exists, so `unrestricted`
     # starts with no labels; carry_label_in_wide_modes() tops it up.
     ensure_access_mode_seed(seeding)
+    seeding.commit()
+    # The system label the gated h-comic type requires. The lifespan seeds it
+    # too, on its own connection; seeding it here first, committed, keeps the
+    # lifespan's copy to a SELECT for the same reason as the modes above. It
+    # exists in every test from here on, as it does on every real database -
+    # so a narrow mode is never vacuously narrow on this axis.
+    ensure_h_comic_label(seeding)
     seeding.commit()
     # And grant them to any account that already exists - the lifespan does
     # this too, and doing it here first, committed, keeps its copy to a SELECT

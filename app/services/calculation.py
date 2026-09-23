@@ -16,6 +16,7 @@ from app.models import (
     CharacterCasting,
     Comic,
     Game,
+    HComic,
     ImageAttachment,
     Manga,
     Media,
@@ -48,6 +49,7 @@ from app.services.domain import (
     sync_seasonal_counts,
     tv_show_post_processing,
 )
+from app.services.domain.h_comic import enforce_h_comic_invariants
 from app.services.domain.plan_next import derive_size_groups
 from app.services.domain.user_list import installation_owner_id, list_row
 from app.services.integrations.image_library import uploaded_image_ids
@@ -245,6 +247,17 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
+        h_comics = db.query(HComic).join(HComic.media_row).filter(Media.cover_image_file.isnot(None)).all()
+        for hc in h_comics:
+            if not cover_image_exists("h-comic", str(hc.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(hc.system_id),
+                        "name": hc.display_name or str(hc.system_id),
+                        "entry_type": "h-comic",
+                    }
+                )
+
     total_checked = len(animes) + (
         0
         if entry_type
@@ -256,6 +269,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
         + len(novels)
         + len(comics)
         + len(games)
+        + len(h_comics)
     )
     return {
         "status": "success",
@@ -429,6 +443,13 @@ def bulk_download_missing_covers(
         else:
             skipped += 1
 
+    # No external source to fetch a cover from: a missing h-comic cover is
+    # counted and skipped, like a novel with no MAL link.
+    h_comic_query = db.query(HComic).join(HComic.media_row).filter(Media.cover_image_file.isnot(None))
+    for _entry in _collect(h_comic_query, HComic, "h-comic"):
+        total += 1
+        skipped += 1
+
     if total:
         db.commit()
     parts = [f"Downloaded {downloaded} of {total} missing cover images."]
@@ -501,6 +522,7 @@ def run_sync(db: Session) -> dict:
     run_sync_manga(db)
     run_sync_novel(db)
     run_sync_comic(db)
+    run_sync_h_comic(db)
     run_sync_size_groups(db)
     return {
         "status": "success",
@@ -592,6 +614,22 @@ def run_sync_comic(db: Session) -> dict:
     return {
         "status": "success",
         "message": "Comic sync completed.",
+    }
+
+
+def run_sync_h_comic(db: Session) -> dict:
+    """
+    Re-establish the h-comic invariants over the whole table: the region's
+    unused columns cleared, and the label on every entry and every H-Comic
+    franchise. A Sheets restore writes rows without going through the router,
+    so this is the net under it - the same reason run_sync_novel re-derives.
+    """
+    extract_system_options(db)
+    result = enforce_h_comic_invariants(db)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"H-Comic sync completed ({result['entries']} entries).",
     }
 
 

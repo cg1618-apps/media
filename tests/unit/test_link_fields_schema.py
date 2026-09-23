@@ -24,6 +24,7 @@ RESPONSE_SCHEMAS = {
     "novel": schemas.NovelResponse,
     "comic": schemas.ComicResponse,
     "game": schemas.GameResponse,
+    "h-comic": schemas.HComicResponse,
 }
 
 CREATE_SCHEMAS = {
@@ -36,6 +37,7 @@ CREATE_SCHEMAS = {
     "novel": schemas.NovelCreate,
     "comic": schemas.ComicCreate,
     "game": schemas.GameCreate,
+    "h-comic": schemas.HComicCreate,
 }
 
 

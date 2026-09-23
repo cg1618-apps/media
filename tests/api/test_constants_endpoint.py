@@ -113,3 +113,12 @@ def test_serves_the_seven_other_game_vocabularies(client):
     assert body["game_ownership"] == list(c.GAME_OWNERSHIP_KINDS)
     assert body["game_copy_format"] == list(c.GAME_COPY_FORMATS)
     assert body["game_acquisition"] == list(c.GAME_ACQUISITION_KINDS)
+
+
+def test_serves_the_h_comic_vocabularies(client):
+    body = client.get("/api/constants").json()
+    assert body["h_comic_region"] == list(c.H_COMIC_REGIONS)
+    assert body["h_comic_originality"] == list(c.H_COMIC_ORIGINALITY)
+    assert body["h_comic_animation_status"] == list(c.H_COMIC_ANIMATION_STATUSES)
+    assert body["h_comic_usefulness"] == list(c.H_COMIC_USEFULNESS)
+    assert "H-Comic" in body["franchise_type"]

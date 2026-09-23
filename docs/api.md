@@ -17,14 +17,14 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 | Convention | Where | Behaviour |
 |---|---|---|
-| `limit` / `offset` on list endpoints | collection, franchise, series, all nine media types, watch-order lists, quote, meme, options | `limit` defaults to 500, range 1–2000; `offset` defaults to 0. |
+| `limit` / `offset` on list endpoints | collection, franchise, series, all ten media types, watch-order lists, quote, meme, options | `limit` defaults to 500, range 1–2000; `offset` defaults to 0. |
 | `PATCH` with a raw JSON dict | collection, franchise, series, media entries, watch-order lists/items/sections, quote, meme | Handled by `apply_column_patch` (`app/routers/_patching.py`). Any of `system_id`, `id`, `created_at`, `updated_at` in the body → **422**. Keys that are not real columns of the row (relationship names, virtual fields such as `watch_next`, typos) are **silently ignored** and logged at debug level, so an older bundle sending an extra key does not break. |
 | Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it must **never** surface as a 500, or the SPA retries and creates duplicates. |
-| Personal fields are the viewer's | all nine media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move. Until real accounts ship, a logged-out visitor resolves to the admin, so the public pages are unchanged. A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
+| Personal fields are the viewer's | all ten media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move. Until real accounts ship, a logged-out visitor resolves to the admin, so the public pages are unchanged. A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
 | A novel unit's `my_rating` is the reader's | `/api/novel` | Same idea one level down: served and accepted on each unit, stored in `user_novel_unit_rating`. A `null` rating stores no row. |
 | Delete returning `204` | notes, content labels, users, roles | No body. Every other delete returns a JSON `{status, message}` or the deleted row. |
 | Hidden = missing | every public read | An entry the viewer may not see answers **404** with the router's normal not-found message. |
-| Detail GET takes a `public_id` **or** a UUID | the single-entry GET on all seventeen entity endpoints: the nine media types plus collection, franchise, series, person, studio, publisher, character and `/api/watch-order/lists/{ref}` | One resolver, `find_entity` in `app/utils/entity_ref.py`, decides which form the segment is: a positive decimal integer with no sign or separators is a `public_id`, anything else is parsed as a UUID. **Everything else still takes the UUID** - every write, and the nested `/entries`, credits, relations, sources and cover routes. A reference that parses as neither, or that resolves to no row, is a **404** with the router's normal not-found message - never a 422, because a hand-mangled detail URL is a missing page rather than a bad request. |
+| Detail GET takes a `public_id` **or** a UUID | the single-entry GET on all eighteen entity endpoints: the ten media types plus collection, franchise, series, person, studio, publisher, character and `/api/watch-order/lists/{ref}` | One resolver, `find_entity` in `app/utils/entity_ref.py`, decides which form the segment is: a positive decimal integer with no sign or separators is a `public_id`, anything else is parsed as a UUID. **Everything else still takes the UUID** - every write, and the nested `/entries`, credits, relations, sources and cover routes. A reference that parses as neither, or that resolves to no row, is a **404** with the router's normal not-found message - never a 422, because a hand-mangled detail URL is a missing page rather than a bad request. |
 
 ---
 
@@ -43,6 +43,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Novel — `/api/novel`](#novel--apinovel)
 - [Comic — `/api/comic`](#comic--apicomic)
 - [Game — `/api/game`](#game--apigame)
+- [H-Comic — `/api/h-comic`](#h-comic--apih-comic)
 - [Watch Order — `/api/watch-order`](#watch-order--apiwatch-order)
 - [Media Relation — `/api/media-relation`](#media-relation--apimedia-relation)
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
@@ -80,7 +81,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | Method | Path      | Auth   | Description                                                                                              |
 | ------ | --------- | ------ | -------------------------------------------------------------------------------------------------------- |
 | `POST` | `/login`  | Public | Authenticate with username + password (form data). Sets HTTP-Only JWT cookie. Returns `{message, role}`. |
-| `GET`  | `/me`     | Public | Returns `{is_admin: bool, username}` from the current cookie. Used by `AuthContext` on app boot.         |
+| `GET`  | `/me`     | Public | The viewer's auth state, from the current cookie. Used by `AuthContext` on app boot. Full shape under [Authorization](#get-apiauthme-extended). |
 | `POST` | `/logout` | Public | Clears the `access_token` cookie.                                                                        |
 
 **Login request:** `OAuth2PasswordRequestForm` — `username` and `password` fields.
@@ -144,7 +145,7 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 
 ---
 
-> **Media entry routers.** All eight media types — `anime`, `anime-movie`, `movies`, `tv-shows`, `cartoon`, `manga`, `novel`, `comic` — are generated by `make_media_router` from their `MEDIA_REGISTRY` spec (`app/routers/_factory.py`, `app/registry.py`); `anime.py` and `anime_movie.py` are now two-line files. Every type uses `/{entry_id}` for single-entry paths and exposes the same shape: list (`limit`/`offset`, `search_query`, plus the type's `list_filters`), get, `POST`, `PUT`, `PATCH`, `POST /{entry_id}/complete`, `DELETE`. Comic adds `/search-comicvine`. Lists are ordered `created_at` descending. Every list and detail response carries the plan flags, the link fields (credits/tags) — see Credits below — and a `sources` list (`SourceRef[]`, filtered per viewer's `sources_other`/`sources_restricted` grants). `POST` and `PUT` accept an optional `sources` key in the body (`SourceWrite[]`): omitted means leave the existing set alone, `[]` clears it, present-and-non-empty replaces the whole set in list order — the same `nested_collections` seam `units` uses on `novel`. `PATCH` cannot touch `sources` — like `units`, it is not a real column, so `apply_column_patch` silently ignores the key. See [data-model.md](data-model.md#media_source).
+> **Media entry routers.** All ten media types — `anime`, `anime-movie`, `movies`, `tv-shows`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic` — are generated by `make_media_router` from their `MEDIA_REGISTRY` spec (`app/routers/_factory.py`, `app/registry.py`); `anime.py` and `anime_movie.py` are now two-line files. Every type uses `/{entry_id}` for single-entry paths and exposes the same shape: list (`limit`/`offset`, `search_query`, plus the type's `list_filters`), get, `POST`, `PUT`, `PATCH`, `POST /{entry_id}/complete`, `DELETE`. Comic adds `/search-comicvine`. Lists are ordered `created_at` descending. Every list and detail response carries the plan flags, the link fields (credits/tags) — see Credits below — and a `sources` list (`SourceRef[]`, filtered per viewer's `sources_other`/`sources_restricted` grants). `POST` and `PUT` accept an optional `sources` key in the body (`SourceWrite[]`): omitted means leave the existing set alone, `[]` clears it, present-and-non-empty replaces the whole set in list order — the same `nested_collections` seam `units` uses on `novel`. `PATCH` cannot touch `sources` — like `units`, it is not a real column, so `apply_column_patch` silently ignores the key. See [data-model.md](data-model.md#media_source).
 
 ## Anime — `/api/anime`
 
@@ -369,6 +370,62 @@ populated by any read path yet**, so it comes back `null`.
 sync: the admin form writes both, but no pipeline reads them yet. The IGDB search endpoint
 under this prefix, and the Fill pipeline behind `igdb_id`, shipped in their
 own plan — see [external-apis.md](external-apis.md).
+
+---
+
+## H-Comic — `/api/h-comic`
+
+Adult comics, a **gated type**: every entry carries the `h-comic` content
+label, so a session whose mode lacks it (every mode but `unrestricted`) gets
+**404** on the detail route and never finds an entry in the list or in
+search, as for any label-hidden entry
+([authorization.md](authorization.md#gated-types)). Generated by the router
+factory from `MEDIA_REGISTRY["h_comic"]`: the standard media-entry surface,
+with no additions. There is no external API, so the write hook fetches nothing.
+
+| Method   | Path                   | Auth   | Description |
+| -------- | ---------------------- | ------ | ----------- |
+| `GET`    | `/`                    | Public | List. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `region`, `search_query` (matched against all five name columns). |
+| `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
+| `POST`   | `/`                    | Admin  | Create. Body: `HComicCreate`; **`region` is required** (`JP` / `KR`). Auto-runs `execute_replace_single_h_comic`, which fetches nothing and runs `run_sync_h_comic`. |
+| `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HComicUpdate`. `region` may be omitted, but not sent as `null` (422). Same write hook. |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The h-comic vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. |
+| `POST`   | `/{entry_id}/complete` | Admin  | `reading_status = "Completed"`; `serialization_status` becomes `完結` unless it is `腰斬`; the region's counter reaches its total (`page_fin = page_total` on JP, `ch_fin = ch_total` on KR). |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete. Logs to `deleted_record` under type `H-Comic`. |
+
+**Payload fields** (`HComicBase`): `franchise_id`, `series_id`,
+`h_comic_name_en` / `_cn` / `_alt` / `_jp` / `_kr`, `region`, `originality`,
+`animation_status`, `series_number`, `serialization_status`, `page_total`,
+`ch_total`, `ch_behind`, `release_date`, `end_date`, `highlight_group_order`
+(list of strings), the personal `reading_status` (default `Might Read`),
+`my_rating`, `page_fin`, `ch_fin`, `usefulness`, `completed_at`, the plan flags
+`read_next` / `to_reread`, `remark`, `cover_image_file`, and `sources`.
+`region`, `originality`, `animation_status` and `usefulness` are checked
+against their vocabularies ([options.md](options.md)) - a blank string reads as
+`null`, anything else unknown is 422.
+
+**Every write keeps two invariants** (`app/services/domain/h_comic.py`):
+
+- **Region.** The columns the region does not use are cleared whatever the
+  payload says - on KR `originality`, `animation_status`, `series_number`,
+  `page_total` and the reader's `page_fin`; on JP `ch_total`, `ch_behind`,
+  `highlight_group_order` and the reader's `ch_fin`.
+- **Label.** The `h-comic` label is attached if missing.
+
+**Franchise.** An h-comic auto-resolves only into a franchise whose type
+includes `H-Comic` (and auto-creates one of that type, labelled). A
+`franchise_id` naming a franchise without that type is **422**.
+
+**`highlight_group_order`** is the order of the KR highlight groups (see
+[systems/notes.md](systems/notes.md#h-comic-highlights-h_comic_highlights)):
+a list of female character names, written whole through `PUT` or `PATCH`,
+deduplicated with blanks dropped (`[]` stores `null`); a non-list, or a list
+holding a non-string, is 422. It is cleared on a JP entry.
+
+**Response model:** `HComicResponse` — the columns, the personal fields,
+`display_name` (CN → EN → Alt → JP → KR), `public_id`, `content_labels`,
+`sources`, `credit_refs` and the link fields `illustrator`, `author`, `club`,
+`original_source`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`.
 
 ---
 
@@ -710,7 +767,15 @@ tier on a write is resolved from the id, never from the payload's
 
 **Response models:** `NoteResponse`, `NoteSectionOut` (one resolved registry
 entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
-`locator_required`, `singleton`, `desc_required`).
+`locator_required`, `singleton`, `desc_required`, and for a structured section
+`fields` - each field's `type` may be `names`, a list of strings stored under
+`fields[key]` - `require_any`, `hierarchical`, `group_by` (the `names` field
+the read view groups by, or `null`) and `owner_where` (`{owner column:
+[allowed values]}`, `{}` for none)).
+
+A section with `owner_where` refuses a row on any other owner with **422**, on
+`POST` and on the merged row of a `PATCH`: `h_comic_highlights` is
+`{"region": ["KR"]}`, so a JP h-comic takes no highlights.
 
 **The registry is the contract.** `app/utils/note_sections.py` is the single
 authority on what a section is; `/sections` is how the frontend learns it, so
@@ -799,6 +864,7 @@ Sorting in SQL rather than after the fact means an exact match cannot be cut by
     "collection": [...], "franchise": [...], "series": [...],
     "anime": [...], "anime-movie": [...], "movie": [...], "tv-show": [...],
     "cartoon": [...], "manga": [...], "novel": [...], "comic": [...],
+    "game": [...], "h-comic": [...],
     "seasonal": [...], "person": [...], "studio": [...], "publisher": [...]
   },
   "related_franchises": [...]
@@ -806,7 +872,8 @@ Sorting in SQL rather than after the fact means an exact match cannot be cut by
 ```
 
 Every bucket key is always present, empty for the types the scope did not ask
-about. Rows carry the same response schema as that type's own list endpoint —
+about - and `h-comic` is empty for every session that cannot see the gated
+type. Rows carry the same response schema as that type's own list endpoint —
 plan flags, link fields, RBAC visibility, and field gating all included.
 
 **People, studios and publishers.** `person`, `studio` and `publisher` are
@@ -881,8 +948,10 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `franchise_expectation`, `my_rating`, `is_main`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
 `manga_serialization_status`, `novel_serialization_status`, `day_of_week`,
-`music_status`, `seiyuu_status`, `watch_order_importance`, `person_role`,
-`media_type`, `option_categories`, `tag_categories`. The last four are for
+`music_status`, `seiyuu_status`, `watch_order_importance`, `h_comic_region`,
+`h_comic_originality`, `h_comic_animation_status`, `h_comic_usefulness`,
+`person_role`, `media_type`, `option_categories`, `tag_categories`.
+`franchise_type` includes `H-Comic` and `media_type` includes `h-comic`. The last four are for
 the admin forms:
 `person_role` is derived from `CREDIT_ROLES` in `app/utils/credit_roles.py`
 (it replaced a hand-written copy in `OptionsAddTab.jsx`), `media_type` is the
@@ -981,9 +1050,10 @@ value in any of the three is a 422 naming what was expected.
 ## Person — `/api/person`
 
 Tier 3 entity CRUD for people credited on media entries, plus the
-reverse-credit read the public person page uses. One vocabulary of five types —
-director, producer, composer, author, illustrator — each scoped to the media
-types it may be credited on; the reader-facing label (原作 / Author / Writer) is
+reverse-credit read the public person page uses, and club membership. One
+vocabulary of person roles — director, producer, composer, author,
+illustrator, club, seiyuu — each scoped to the media types it may be credited
+on; the reader-facing label (原作 / Author / Writer) is
 derived from `(role, media_type)`, never stored.
 
 | Method   | Path              | Auth   | Description                                                                          |
@@ -996,7 +1066,16 @@ derived from `(role, media_type)`, never stored.
 | `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. A body with no name at all is 422, mirroring `ck_person_has_a_name`. |
 | `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit` and `person_role` rows — no `deleted_record` entry is logged. `credits` is **required**: it is the count the confirmation dialog showed, and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
-| `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and unions the `person_role` rows onto the survivor, then deletes the loser. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
+| `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit`, unions the `person_role` rows and moves every club membership onto the survivor, then deletes the loser. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
+| `GET`    | `/{system_id}/clubs` | Public | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
+| `PUT`    | `/{system_id}/clubs` | Admin  | Replace the clubs this person belongs to. Body: `ClubsReplace` (`{club_ids: [uuid, ...]}`). Each must be a person the writer may see (422 `Unknown club(s)` otherwise), hold the `club` role (422) and not be this person (422). A new membership joins the end of that club's member list; memberships of clubs the writer cannot see are kept. Returns the new `List[MembershipRef]`. |
+| `GET`    | `/{system_id}/members` | Public | A club's members, as `List[MembershipRef]` in the club's order. Hidden members are omitted; `[]` for a person who is not a club; 404 if the club is absent or hidden. |
+| `PUT`    | `/{system_id}/members` | Admin  | Replace a club's members, in display order. Body: `MembersReplace` (`{member_ids: [uuid, ...]}`). 422 if this person does not hold the `club` role, if an id is not a visible person, or if it names the club itself. Members the writer cannot see keep their rows, after the visible ones. Returns the new list. |
+
+**`MembershipRef`**: `{system_id, public_id, display_name, position}` - the
+other person, and the member's `position` in the club's list. Membership is
+not a connection: it never makes a hidden club or artist visible
+([authorization.md](authorization.md#shared-records)).
 
 **Response model:** `PersonResponse` — the four name columns,
 `display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
@@ -1316,8 +1395,9 @@ credits payload is `Dict[str, List[str]]`, bare names keyed by role, while a
 cast row names a character, an optional seiyuu, a role, a display position, a
 photo and a remark — forcing that shape into `/api/credits` would break the
 simpler contract for every other role, and it would pull character casting
-into a role vocabulary (`credit_roles_for`) that only four of the eight media
-types even have.
+into a role vocabulary (`credit_roles_for`) that only some media types have.
+The castable types are `CASTING_MEDIA_TYPES`: anime, anime-movie, manga, novel
+and h-comic; a seiyuu is refused (422) on any but the first two.
 
 | Method | Path                       | Auth   | Description                                                                    |
 | ------ | -------------------------- | ------ | ------------------------------------------------------------------------------- |
@@ -1365,11 +1445,12 @@ initial value of each Add-form field and which fields auto-fill copies. Like
 announcements, it reuses `system_configs` — one row per media type, keyed
 `form_defaults:<media_type>`, with a JSON blob as `config_value`. No dedicated table.
 
-`media_type` is one of the form tabs — the nine media slugs (`anime`, `anime-movie`,
-`movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`), the grouping tiers
+`media_type` is one of the form tabs — the ten media slugs (`anime`, `anime-movie`,
+`movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`), the grouping tiers
 (`collection`, `franchise`, `series`) and the entities (`studio`, `publisher`, `person`,
 `character`); anything else is 400. The list mirrors `FORM_TABS` in
-`frontend/src/config/adminTabs.js`.
+`frontend/src/config/adminTabs.js`, which has no `h-comic` tab: the SPA has no
+h-comic form.
 
 | Method   | Path            | Auth  | Description                                                                     |
 | -------- | --------------- | ----- | ------------------------------------------------------------------------------- |
@@ -1455,6 +1536,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/fill/manga`       | Fill missing metadata for all manga from Tenrai. Streams SSE progress.        |
 | `POST` | `/fill/novel`       | Fill missing metadata for all novels from Tenrai. Streams SSE progress.       |
 | `POST` | `/fill/comic`       | Runs options extraction for all comics. No external call — comics are manual-entry. Streams SSE progress. |
+| `POST` | `/fill/h-comic`     | Nothing is eligible - there is no external API - so it only runs `run_sync_h_comic` (region clears and the `h-comic` label, over the whole table). Streams SSE progress. Not part of Fill All. |
 | `POST` | `/fill/studio`      | Fill missing logo, MAL link, founding date, Japanese name and website for every studio that has a MAL id, from Tenrai's producers endpoint. Fill-only; there is no `/replace/studio`. Streams SSE progress. |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
@@ -1477,6 +1559,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/replace/novel`                        | Replace metadata for all novels that have a MAL ID. Streams SSE progress.            |
 | `POST` | `/replace/novel/{entry_id}`             | Replace metadata for a single novel entry by UUID. Returns JSON.                     |
 | `POST` | `/replace/comic/{entry_id}`             | Runs the Replace write hook for a single comic entry. Fetches nothing — comics are manual-entry, so there is no external record to reconcile against; it exists only so the write is logged like every other type's. Returns JSON. |
+| `POST` | `/replace/h-comic/{entry_id}`           | The write hook for one h-comic: fetches nothing, runs `run_sync_h_comic`. Returns JSON. There is no bulk `/replace/h-comic`, and h-comic is not part of Replace All. |
 | `POST` | `/replace/all`                          | Replace all + auto-backup on completion. Streams SSE progress.                       |
 
 **Single replace error mapping.** A single-entry Replace returns the pipeline's status dict; when `status == "error"` the router raises the HTTP code the dict names in `status_code` (404 for a missing entry) and falls back to **400** otherwise, instead of answering 200 with an error body.
@@ -1705,8 +1788,15 @@ Now also returns:
 { "is_admin": false, "username": null, "role": "guest",
   "is_root": false,
   "permissions": ["media_type.anime", "field_group.sources_other", ...],
+  "visible_gated_types": [],
   "mode": { "id": "…uuid…", "key": "safe" } }
 ```
+
+**`visible_gated_types`** is the sorted list of gated media types this session
+may see (`gated_types.visible_gated_types`): `["h-comic"]` for a mode that
+carries the `h-comic` label, `[]` otherwise. Only the seeable types are named,
+so a session that cannot see a gated type is not told it exists. The SPA reads
+it to decide whether to offer a gated type's navigation at all.
 
 This is where the SPA learns what to draw. Hiding in the UI is cosmetic — the
 server has already withheld what the viewer may not see.
@@ -1846,11 +1936,11 @@ the admin page's table and the Add/Modify picker's checkbox list.
 | GET | `/api/content-labels/` | either | Every label as `ContentLabelResponse` (`system_id`, `key`, `label`, `description`, `sort_order`). |
 | POST | `/api/content-labels/` | `admin.authz` | `ContentLabelCreate` (`key`, `label`, `description`, `sort_order`). 201. 409 if the key exists. Grants the new label to the `unrestricted` mode and to no other, so that tagging an entry with it does not hide that entry from every session in the installation. |
 | PATCH | `/api/content-labels/{id}` | `admin.authz` | `ContentLabelUpdate` — `label`, `description`, `sort_order`. `key` is not editable; it is half of a permission name that grants already hold. |
-| DELETE | `/api/content-labels/{id}` | `admin.authz` | **204**. Cascades every assignment, on entries and franchises alike. |
+| DELETE | `/api/content-labels/{id}` | `admin.authz` | **204**. Cascades every assignment, on entries and franchises alike. **409** for `h-comic`, the label the gated h-comic type requires. |
 | GET | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | The label keys this entry carries. |
-| PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing **or hidden** entry, 422 on an unknown label. |
+| PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing **or hidden** entry, 422 on an unknown label, 422 on an h-comic whose new set lacks `h-comic` (checked before anything is deleted). |
 | GET | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | The label keys this franchise carries. |
-| PUT | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | Same body and same answers, one tier up. A franchise's labels hide the franchise **and every entry in it**. |
+| PUT | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | Same body and same answers, one tier up. A franchise's labels hide the franchise **and every entry in it**. 422 on a franchise whose type includes `H-Comic` when the new set lacks `h-comic`. |
 
 Both assignment surfaces bind to the read: a thing the caller's active mode
 cannot see answers 404, so a narrowed editor cannot clear the label that is
@@ -1862,7 +1952,7 @@ admin grants it on `/access-modes`. That is the safe direction.
 
 ### What gating touches
 
-Read routes that now consult the viewer: the eight media list/detail routes
+Read routes that now consult the viewer: the ten media list/detail routes
 (`_factory.py`), `/api/search`, `media_resolver.resolve_entries`,
 quote (list/grouped/by-id), meme (list/grouped/by-id), `media_relation`
 (`/for-entry`, the scope listing, and `/graph`), `watch_order` (`/lists/{id}`,

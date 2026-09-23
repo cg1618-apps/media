@@ -252,6 +252,7 @@ export const PERSON_ROLES = [
   "composer",
   "author",
   "illustrator",
+  "club",
   "seiyuu",
 ];
 

@@ -69,6 +69,13 @@ from app.schemas.game import (
     GameSheetSync,
     GameUpdate,
 )
+from app.schemas.h_comic import (
+    HComicBase,
+    HComicCreate,
+    HComicResponse,
+    HComicSheetSync,
+    HComicUpdate,
+)
 from app.schemas.link_fields import PublisherRef
 from app.schemas.manga import (
     MangaBase,
@@ -176,6 +183,9 @@ from app.schemas.rbac import (
     UserAccessModes,
 )
 from app.schemas.staff import (
+    ClubsReplace,
+    MembershipRef,
+    MembersReplace,
     MergeRequest,
     PersonBase,
     PersonCreate,
@@ -343,6 +353,11 @@ __all__ = [
     "GameResponse",
     "GameSheetSync",
     "GameCopyIO",
+    "HComicBase",
+    "HComicCreate",
+    "HComicUpdate",
+    "HComicResponse",
+    "HComicSheetSync",
     "MovieBase",
     "MovieCreate",
     "MovieUpdate",
@@ -410,6 +425,9 @@ __all__ = [
     "NoteReorder",
     "NoteSectionOut",
     "PersonRoleIn",
+    "MembershipRef",
+    "ClubsReplace",
+    "MembersReplace",
     "PersonBase",
     "PersonCreate",
     "PersonUpdate",

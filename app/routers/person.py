@@ -23,6 +23,13 @@ from sqlalchemy.orm import Session, selectinload
 from app import models, schemas
 from app.dependencies import get_db
 from app.services.domain.credits import credit_counts, find_person
+from app.services.domain.membership import (
+    clubs_of,
+    members_of,
+    merge_memberships,
+    replace_clubs,
+    replace_members,
+)
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
     label_hidden_entry_ids,
@@ -375,6 +382,97 @@ def get_person_entries(
     return {"groups": out}
 
 
+# ==========================================
+# CLUB MEMBERSHIP
+# ==========================================
+# A club is a person holding the `club` role; its members are artists. Both
+# lists are read through the shared-record rule: the person asked about must
+# be visible (404 otherwise), and the other ends the viewer may not see are
+# simply left out. Membership is not a connection, so it reveals nobody.
+
+
+def _visible_person_or_404(db: Session, viewer, system_id: str) -> models.Person:
+    person = find_entity(db, models.Person, system_id)
+    if person is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, viewer, models.Person, person.system_id, NOT_FOUND)
+    return person
+
+
+@router.get(
+    "/{system_id}/clubs",
+    response_model=List[schemas.MembershipRef],
+    summary="Clubs This Person Belongs To",
+)
+def get_person_clubs(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """The visible clubs this artist belongs to, ordered by name."""
+    person = _visible_person_or_404(db, viewer, system_id)
+    return clubs_of(db, viewer, person.system_id)
+
+
+@router.put(
+    "/{system_id}/clubs",
+    response_model=List[schemas.MembershipRef],
+    summary="Replace the Clubs This Person Belongs To",
+)
+def put_person_clubs(
+    system_id: str,
+    payload: schemas.ClubsReplace,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Whole-list replace. Every id must be a visible person holding the `club`
+    role (422 otherwise); memberships of clubs the writer cannot see are kept.
+    """
+    person = _visible_person_or_404(db, admin, system_id)
+    replace_clubs(db, admin, person.system_id, payload.club_ids)
+    db.commit()
+    return clubs_of(db, admin, person.system_id)
+
+
+@router.get(
+    "/{system_id}/members",
+    response_model=List[schemas.MembershipRef],
+    summary="A Club's Members",
+)
+def get_club_members(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """The visible members of a club, in the club's order. Empty for a person
+    who is not a club."""
+    person = _visible_person_or_404(db, viewer, system_id)
+    return members_of(db, viewer, person.system_id)
+
+
+@router.put(
+    "/{system_id}/members",
+    response_model=List[schemas.MembershipRef],
+    summary="Replace a Club's Members",
+)
+def put_club_members(
+    system_id: str,
+    payload: schemas.MembersReplace,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Whole-list replace, in display order. The person must hold the `club`
+    role and every id must be a visible person (422 otherwise); members the
+    writer cannot see keep their rows, after the visible ones.
+    """
+    person = _visible_person_or_404(db, admin, system_id)
+    replace_members(db, admin, person.system_id, payload.member_ids)
+    db.commit()
+    return members_of(db, admin, person.system_id)
+
+
 @router.get(
     "/{system_id}", response_model=schemas.PersonResponse, summary="Get Person by ID"
 )
@@ -601,6 +699,9 @@ def merge_person(
                     person_id=system_id, role=role_row.role, scope=role_row.scope
                 )
             )
+
+    # Club memberships follow the survivor too, in both directions.
+    merge_memberships(db, system_id, payload.source_id)
 
     db.delete(drop)
     db.commit()

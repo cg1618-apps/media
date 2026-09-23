@@ -26,6 +26,7 @@ from app.models.content_label import (
 from app.models.franchise import Franchise, Series
 from app.models.game import Game
 from app.models.game_copy import GameCopy
+from app.models.h_comic import HComic
 from app.models.image import Image, ImageAttachment
 from app.models.manga import Manga
 from app.models.media import Media
@@ -40,6 +41,7 @@ from app.models.plan_next import PlanNext
 from app.models.quote import Quote
 from app.models.staff import (
     Person,
+    PersonMembership,
     PersonRole,
     Publisher,
     PublisherScope,
@@ -90,6 +92,7 @@ __all__ = [
     "Comic",
     "Game",
     "GameCopy",
+    "HComic",
     "Image",
     "ImageAttachment",
     "WatchOrderList",
@@ -98,6 +101,7 @@ __all__ = [
     "MediaRelation",
     "Person",
     "PersonRole",
+    "PersonMembership",
     "Studio",
     "Publisher",
     "PublisherScope",
@@ -172,6 +176,7 @@ for _model in (
     Novel,
     Comic,
     Game,
+    HComic,
     Series,
     Franchise,
     Collection,
@@ -218,6 +223,7 @@ _MEDIA_TYPES = (
     (Novel, "novel"),
     (Comic, "comic"),
     (Game, "game"),
+    (HComic, "h-comic"),
 )
 
 for _entry in _MEDIA_TYPES:
