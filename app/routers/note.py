@@ -27,7 +27,11 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.schemas.note import sections_out, validate_note_payload
-from app.services.rbac.enforcement import entry_visible, require_visible_media
+from app.services.rbac.enforcement import (
+    entry_visible,
+    require_visible_owner,
+    tier_visible,
+)
 from app.services.rbac.field_gate import gated_note_sections
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
@@ -98,18 +102,19 @@ def _require_visible_owner(db: Session, viewer: Viewer, owner_id) -> None:
     owner, reads through Note.media -> Media.media_type, and update_note's
     `merged` object fills each field independently from the payload or the
     stored row - so a PATCH naming only `owner_id` would pair a NEW id with
-    the OLD, stale type. `require_visible_media` resolves the type from the id
+    the OLD, stale type. `require_visible_owner` resolves the type from the id
     itself, which closes that regardless of which field(s) a caller supplied
     and regardless of what type the caller claimed.
 
-    An owner may instead be a grouping tier, which carries no labels and is
-    not a Media row at all - so a tier (or a nonexistent id, which the
-    caller's own validation and the media_id FK are responsible for) is never
-    refused here. 404 and "Owner not found.", exactly as the read answers - a
-    403 here is note.py's answer for writing SOMEBODY ELSE's note, and reusing
-    it would confirm this entry exists.
+    An owner may instead be a grouping tier, which is not a Media row at all.
+    A franchise hides by its own labels and a series by its franchise's, and
+    `tier_visible` resolves which from the id alone. A collection, or a
+    nonexistent id (which the caller's own validation and the FKs are
+    responsible for), is never refused here. 404 and "Owner not found.",
+    exactly as the read answers - a 403 here is note.py's answer for writing
+    SOMEBODY ELSE's note, and reusing it would confirm this entry exists.
     """
-    require_visible_media(db, viewer, owner_id, "Owner not found.")
+    require_visible_owner(db, viewer, owner_id, "Owner not found.")
 
 
 # ---------------------------------------------------------------------------
@@ -334,11 +339,13 @@ def list_notes(
 ):
     """Every note for one owner, ordered the way the page renders them."""
     _validate_owner_type(owner_type)
-    # An owner may be a grouping tier, which carries no labels; entry_visible
-    # only has an opinion about the eight media types.
-    if owner_type in MEDIA_TABLES and not entry_visible(
-        db, viewer, owner_type, owner_id
-    ):
+    # An entry owner is asked through entry_visible; a franchise or series
+    # owner hides with the franchise's labels; a collection carries none.
+    if owner_type in MEDIA_TABLES:
+        visible = entry_visible(db, viewer, owner_type, owner_id)
+    else:
+        visible = tier_visible(db, viewer, owner_id)
+    if not visible:
         raise HTTPException(status_code=404, detail="Owner not found.")
     query = db.query(models.Note).filter(*_owner_filters(owner_type, owner_id))
 

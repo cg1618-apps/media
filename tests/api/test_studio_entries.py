@@ -63,9 +63,10 @@ def test_a_labelled_entry_is_hidden_from_a_viewer_without_the_permission(
     )
     r = client.get(f"/api/studio/{mappa.system_id}/entries")
     # Assert on the whole body, not parsed fields: a title can leak through a
-    # key this test does not model.
+    # key this test does not model. A studio credited only on hidden entries
+    # is hidden with them, so the answer is the not-found one.
     assert HIDDEN_NAME not in r.text
-    assert r.json()["groups"] == []
+    assert r.status_code == 404
 
 
 def test_the_same_entry_is_visible_to_a_viewer_holding_the_label(

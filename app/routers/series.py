@@ -22,6 +22,7 @@ from app.services.domain import (
     resolve_series_parent_hierarchy,
     upsert_remark,
 )
+from app.services.rbac.enforcement import apply_series_visibility, series_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -50,8 +51,11 @@ def get_all_series(
     - If 'franchise_id' is provided, filters strictly to that parent franchise.
     - If 'search_query' is provided, searches across EN, CN, and Alt names.
     Used by the frontend to populate autocomplete search and form dropdowns.
+
+    A series in a franchise carrying a label this session's mode lacks is
+    absent, as the franchise itself is.
     """
-    query = db.query(models.Series)
+    query = apply_series_visibility(db.query(models.Series), db, viewer)
 
     if franchise_id:
         query = query.filter(models.Series.franchise_id == franchise_id)
@@ -81,7 +85,9 @@ def get_series_by_id(
 ):
     """Retrieves a single series by its public_id or its UUID."""
     db_series = find_entity(db, models.Series, system_id)
-    if not db_series:
+    # Same message either way: a series under a hidden franchise must be
+    # indistinguishable from one that was never there.
+    if not db_series or not series_visible(db, viewer, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found.")
     attach_remark(db, "series", db_series, viewer.user_id)
     return db_series
@@ -141,7 +147,7 @@ def update_series(
     db_series = (
         db.query(models.Series).filter(models.Series.system_id == system_id).first()
     )
-    if not db_series:
+    if not db_series or not series_visible(db, viewer, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found.")
 
     update_data, remark, has_remark = pop_remark(series_in.model_dump(exclude_unset=True))
@@ -178,7 +184,7 @@ def patch_series(
     db_series = (
         db.query(models.Series).filter(models.Series.system_id == system_id).first()
     )
-    if not db_series:
+    if not db_series or not series_visible(db, viewer, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found.")
 
     payload, remark, has_remark = pop_remark(payload)
@@ -214,7 +220,7 @@ def delete_series(
     db_series = (
         db.query(models.Series).filter(models.Series.system_id == system_id).first()
     )
-    if not db_series:
+    if not db_series or not series_visible(db, admin, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found")
 
     log_deleted_record(db, db_series, "Series")
