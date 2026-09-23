@@ -143,6 +143,7 @@ The common entry columns come from the `media` supertable, as for every type.
 | `ch_total` | Integer | | ✓ | |
 | `ch_behind` | Integer | | ✓ | Chapters behind the official source, hand-set (D8) |
 | `release_date` / `end_date` | String | ✓ | ✓ | ISO CHECKs, like manga's |
+| `highlight_group_order` | JSONB | | ✓ | Manual order of the highlight groups (see "KR highlights") |
 
 **One table, two variants.** The JP-only and KR-only columns share one table
 because the variants share most of their fields. `docs/data-model.md` marks
@@ -222,12 +223,18 @@ it is the reason to note it.
 group per female character name. A row naming two female characters appears
 under both.
 
-**Manual order** uses the existing `sort_index` and `PATCH /api/notes/reorder`.
-The order is **one order per row**, shared by every group the row appears in:
-dragging a row inside one group moves it in every group. Per-group positions
-would need a second ordering table, and nothing so far asks for that.
+**Manual order is of the GROUPS, not the rows.** The owner orders female
+characters ("abc above bde"); the order of rows inside a group does not matter
+and follows `sort_index` (creation order), with no drag handle.
 
-Group order is by first appearance in the manual order.
+The group order is a catalogue column on the entry,
+`h_comic.highlight_group_order` (JSONB list of names, nullable), written by
+dragging a group header in the read view. At read time, groups follow the list,
+and names absent from it are appended in first-appearance order. A name in the
+list that no row carries any more is ignored when rendering, and it is dropped
+on the next group-order save. A column on the entry rather than a table,
+because the order belongs to one entry's highlights and is only ever read and
+written whole.
 
 ## Registration
 
