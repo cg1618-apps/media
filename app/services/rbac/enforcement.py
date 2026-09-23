@@ -142,6 +142,84 @@ def franchise_visible(db: Session, viewer, franchise_id) -> bool:
     )
 
 
+def _series_hidden(series_franchise_id_column, hidden: list[UUID]):
+    """
+    The condition "this series sits in a label-hidden franchise".
+
+    A series carries no labels of its own - there is no series join table -
+    so its franchise is the whole of the question, asked read-time through
+    `series.franchise_id` exactly as an entry's franchise half is asked
+    through `media.franchise_id`. A series with no franchise is never hidden.
+    """
+    return _franchise_hidden(series_franchise_id_column, hidden)
+
+
+def apply_series_visibility(query: Query, db: Session, viewer):
+    """Narrow a `models.Series` query to the series `viewer` may see."""
+    if viewer is None:
+        return query
+    hidden = hidden_label_ids(db, viewer)
+    if not hidden:
+        return query
+    return query.filter(~_series_hidden(models.Series.franchise_id, hidden))
+
+
+def series_visible(db: Session, viewer, series_id) -> bool:
+    """
+    Whether one series may be seen. Callers 404 in the words they already use
+    for missing, as franchise_visible's callers do.
+    """
+    if viewer is None or series_id is None:
+        return True
+    hidden = hidden_label_ids(db, viewer)
+    if not hidden:
+        return True
+    return (
+        db.query(models.Series.system_id)
+        .filter(
+            models.Series.system_id == series_id,
+            _series_hidden(models.Series.franchise_id, hidden),
+        )
+        .first()
+        is None
+    )
+
+
+def tier_visible(db: Session, viewer, tier_id) -> bool:
+    """
+    Whether a grouping-tier id may be seen, resolving the tier from the id.
+
+    A franchise hides by its own labels and a series by its franchise's; a
+    collection carries none. The id alone decides - it is matched against the
+    franchise and series tables both, so a caller-supplied tier type is never
+    trusted - and an id naming neither answers True.
+    """
+    if viewer is None or tier_id is None:
+        return True
+    hidden = hidden_label_ids(db, viewer)
+    if not hidden:
+        return True
+    franchise_hidden = (
+        db.query(models.Franchise.system_id)
+        .filter(
+            models.Franchise.system_id == tier_id,
+            _franchise_hidden(models.Franchise.system_id, hidden),
+        )
+        .first()
+    )
+    if franchise_hidden is not None:
+        return False
+    return (
+        db.query(models.Series.system_id)
+        .filter(
+            models.Series.system_id == tier_id,
+            _series_hidden(models.Series.franchise_id, hidden),
+        )
+        .first()
+        is None
+    )
+
+
 def apply_entry_visibility(
     query: Query, model, media_type: str, db: Session, viewer: Optional[Viewer]
 ) -> Query:
@@ -271,6 +349,21 @@ def require_visible_media(
     return media_type
 
 
+def require_visible_owner(
+    db: Session, viewer: Optional[Viewer], owner_id, detail: str
+) -> Optional[str]:
+    """
+    require_visible_media for a write whose owner may be an entry OR a
+    grouping tier (a note, a meme): the entry half as there, and a tier id
+    through tier_visible. Raises HTTPException(404, detail) either way, and
+    returns the resolved media type, or None for a tier.
+    """
+    media_type = require_visible_media(db, viewer, owner_id, detail)
+    if media_type is None and not tier_visible(db, viewer, owner_id):
+        raise HTTPException(status_code=404, detail=detail)
+    return media_type
+
+
 def filter_visible_pairs(
     db: Session,
     viewer: Optional[Viewer],
@@ -287,9 +380,9 @@ def filter_visible_pairs(
     if viewer is None or not pairs:
         return pairs
 
-    # A pair naming a grouping tier is not a media entry: tiers carry no
-    # labels and have no media_type permission, so denying them by default
-    # would blank every meme attached to a franchise.
+    # A pair naming a grouping tier is not a media entry: tiers have no
+    # media_type permission, so denying them on the type axis would blank
+    # every meme attached to a franchise. Their label half is asked below.
     allowed = {
         pair
         for pair in pairs
@@ -302,15 +395,66 @@ def filter_visible_pairs(
     # One id column, not a tuple: media_id is unique across the nine media
     # tables, so a pair is hidden exactly when its id carries a hidden label -
     # its own, or its franchise's.
-    candidate_ids = [entry_id for _, entry_id in allowed]
-    hidden_ids = {
+    hidden_ids = _label_hidden_ids(
+        db,
+        [entry_id for media_type, entry_id in allowed if media_type in MEDIA_TABLES],
+        hidden,
+    )
+    # A franchise hides by its own labels, a series by its franchise's; a
+    # collection carries none.
+    franchise_ids = [eid for mt, eid in allowed if mt == "franchise"]
+    if franchise_ids:
+        hidden_ids |= {
+            system_id
+            for (system_id,) in db.query(models.Franchise.system_id).filter(
+                models.Franchise.system_id.in_(franchise_ids),
+                _franchise_hidden(models.Franchise.system_id, hidden),
+            )
+        }
+    series_ids = [eid for mt, eid in allowed if mt == "series"]
+    if series_ids:
+        hidden_ids |= {
+            system_id
+            for (system_id,) in db.query(models.Series.system_id).filter(
+                models.Series.system_id.in_(series_ids),
+                _series_hidden(models.Series.franchise_id, hidden),
+            )
+        }
+    return {pair for pair in allowed if pair[1] not in hidden_ids}
+
+
+def label_hidden_entry_ids(
+    db: Session, viewer: Optional[Viewer], entry_ids: Iterable[UUID]
+) -> set[UUID]:
+    """
+    The subset of `entry_ids` hidden by a LABEL - the entry's own or its
+    franchise's - in one query.
+
+    The label axis alone, without the media-type half. A shared record's
+    connections are judged on this axis only (docs/authorization.md, "Shared
+    records"): a guest lacking `media_type.game` still sees a person credited
+    only on games, so a row hidden by a type gap is not a hidden connection,
+    and callers that drop hidden connections whole ask this rather than
+    filter_visible_pairs.
+    """
+    ids = {entry_id for entry_id in entry_ids if entry_id is not None}
+    if viewer is None or not ids:
+        return set()
+    return _label_hidden_ids(db, ids, hidden_label_ids(db, viewer))
+
+
+def _label_hidden_ids(db: Session, entry_ids, hidden: list[UUID]) -> set[UUID]:
+    """The ids among `entry_ids` carrying a label in `hidden`, in one query."""
+    ids = set(entry_ids)
+    if not ids or not hidden:
+        return set()
+    return {
         system_id
         for (system_id,) in db.query(models.Media.system_id).filter(
-            models.Media.system_id.in_(candidate_ids),
+            models.Media.system_id.in_(ids),
             _hidden_by_label(models.Media.system_id, hidden),
         )
     }
-    return {pair for pair in allowed if pair[1] not in hidden_ids}
 
 
 def drop_hidden_rows(

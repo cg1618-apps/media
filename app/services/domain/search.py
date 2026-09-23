@@ -27,10 +27,12 @@ from app.services.domain.plan_next import planned_entry_ids
 from app.services.rbac.enforcement import (
     apply_entry_visibility,
     apply_franchise_visibility,
+    apply_series_visibility,
     filter_visible_pairs,
 )
 from app.services.rbac.field_gate import gate
 from app.services.rbac.resolver import viewer_user_id
+from app.services.rbac.shared_visibility import CONNECTIONS, apply_shared_visibility
 from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS
 
 # The characters cleanString deletes: whitespace plus the punctuation that
@@ -242,6 +244,12 @@ def _run(
         # `owner_type` - but a franchise can carry content labels of its own,
         # and one that does must not surface in a search either.
         query = apply_franchise_visibility(query, db, viewer)
+    elif spec.model is models.Series:
+        # Hidden with its franchise, read-time through series.franchise_id.
+        query = apply_series_visibility(query, db, viewer)
+    elif spec.model in CONNECTIONS:
+        # People, studios and publishers: hidden when every connection is.
+        query = apply_shared_visibility(query, spec.model, db, viewer)
     sort_column = getattr(spec.model, spec.sort_field)
     if spec.sort_fallbacks:
         sort_column = func.coalesce(

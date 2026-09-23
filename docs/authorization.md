@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-22
+Last verified: 2026-09-23
 
 ## What this is for
 
@@ -619,9 +619,12 @@ question.
 | `apply_entry_visibility(query, model, media_type, db, viewer)` | list routes | `filter(false)` if the type is not held; otherwise `NOT EXISTS` anti-join on `media_content_label` **and** on `franchise_content_label` reached through `media.franchise_id` |
 | `apply_franchise_visibility(query, db, viewer)` | franchise list, franchise search bucket | `NOT EXISTS` anti-join on `franchise_content_label`. No media-type half: a franchise has no type of its own and may hold entries of several |
 | `franchise_visible(db, viewer, franchise_id)` | franchise detail and its writes | bool; callers **404 with their normal not-found message** |
+| `apply_series_visibility(query, db, viewer)` / `series_visible(db, viewer, series_id)` | series list, search bucket, detail and writes; series-scope plan targets | A series carries no labels; it is hidden when its franchise is, through the same `franchise_content_label` anti-join reached read-time via `series.franchise_id`. A series with no franchise is never hidden |
+| `tier_visible(db, viewer, tier_id)` / `require_visible_owner(db, viewer, owner_id, detail)` | note and meme owners | `tier_visible` resolves a franchise or series **from the id**, never from a caller-supplied tier type, and answers True for anything else. `require_visible_owner` is `require_visible_media` plus that tier half, raising the caller's own 404 |
 | `apply_media_visibility(query, db, viewer)` | anything spanning every type at once | The same two gates over the `media` supertable rather than one detail table: the media-type check becomes an `IN` over the types the viewer holds, and the label anti-join goes through `media_content_label.media_id` and `media.franchise_id`. The profile page needs this — it answers for all nine types in one query. The query must already select from or join `Media` |
 | `entry_visible(db, viewer, media_type, entry_id)` | detail and per-entry sub-routes | bool; callers **404 with their normal not-found message** |
-| `filter_visible_pairs(db, viewer, pairs)` | cross-type batches | one query for many `(media_type, id)` pairs. A pair naming a grouping tier is allowed here: it has no media-type permission, and a franchise pair reaching this helper is one the caller already resolved. A franchise's own labels are asked by `franchise_visible` |
+| `filter_visible_pairs(db, viewer, pairs)` | cross-type batches | one query for many `(media_type, id)` pairs. A pair naming a grouping tier passes the media-type half (a tier holds no such permission) and meets the label half as a tier: a `franchise` pair by its own labels, a `series` pair by its franchise's, a `collection` pair never |
+| `label_hidden_entry_ids(db, viewer, ids)` | shared-record sub-routes | the ids hidden by a **label** alone, without the media-type half. A person's or character's `/entries` drops these rows whole, group and all, because a label-hidden appearance is a hidden connection; a row withheld only by a type gap is not (see [Shared records](#shared-records)) |
 | `drop_hidden_rows(db, viewer, rows, type_attr, id_attr)` | quotes, memes, plan-next | rows are **dropped**, not degraded to `missing=True` (the text itself is the leak; `missing` means "dangling reference, fix it"); rows with no reference are kept |
 
 `viewer=None` returns input untouched everywhere, and that half of the guard
@@ -636,21 +639,89 @@ permission.
 cannot enumerate what exists. Admin routes use **401**, never 403, so the SPA
 sees one error shape.
 
+### Shared records
+
+People (in every role), characters, studios, publishers and vocabulary values
+(`system_option`) are **shared records**: entries point at them, and none
+carries a content label. They are hidden by what they are connected to, in
+`app/services/rbac/shared_visibility.py`:
+
+> **A shared record is hidden when it has at least one connection and every
+> connection it has is hidden.** A record with no connections at all stays
+> visible.
+
+| Record | Connections (`CONNECTIONS`) |
+|---|---|
+| person | `media_credit` rows, `character_casting` rows (a seiyuu is credited through casting), `person_role` scopes |
+| character | `character_casting` rows |
+| studio | `media_credit` rows |
+| publisher | `media_credit` rows, `publisher_scope` scopes |
+| vocabulary value | `media_tag` rows, `system_option_scope` scopes |
+
+A connection is one of two kinds:
+
+- **An appearance** — a row placing the record on an entry. Hidden when the
+  entry is **label-hidden**, by its own label or its franchise's. A media-type
+  permission gap does **not** hide an appearance: a viewer lacking
+  `media_type.game` still sees a person credited only on games, exactly as
+  before the rule existed.
+- **A scope naming a gated type.** A media type named in
+  `REQUIRED_LABEL_FOR_TYPE` (`app/services/rbac/gated_types.py`) is a *gated
+  type*: every entry of it carries that label. A viewer can see a gated type
+  when its required label is not in the viewer's hidden set
+  (`can_see_gated_type`). A scope row naming a gated type is a connection,
+  hidden when the viewer cannot see that type. **A scope naming an ordinary
+  type is not a connection at all** — every credit writes a matching role row,
+  so counting ordinary scopes would keep visible every person whose only
+  credits are hidden. The map is empty today, so only appearances act.
+
+So crediting somebody on a visible entry reveals them and removing that credit
+hides them again; nothing is stored. The rule is one SQL condition
+(`_hidden_condition`, `EXISTS connection AND NOT EXISTS visible connection`,
+built on `hidden_label_ids` and `_hidden_by_label`), applied three ways:
+
+| Helper | Use |
+|---|---|
+| `apply_shared_visibility(query, model, db, viewer)` | list, search and option routes — a filter, so pages do not shrink after `LIMIT` and a list costs no per-row query |
+| `shared_record_visible(db, viewer, model, id)` / `require_visible_shared(...)` | detail routes, `/entries`, writes, `/api/covers` and image attach — callers 404 with their own not-found message |
+| `hidden_scopes(db, viewer)` / `without_hidden_scopes(...)` | the gated types a viewer cannot see, left out of a visible record's `roles` / `scopes` and of `role-scopes`; a `?scope=` naming one answers `[]` |
+
+The connection tables are **aliased** inside the condition. The person list
+already joins `person_role` to filter by role, and an unaliased `EXISTS` over
+the same table would correlate to the caller's row instead of scanning its
+own.
+
+**A visible record omits its hidden connections.** Counts and entry lists go
+through `filter_visible_pairs`, as before; a person's and a character's
+`/entries` additionally drop label-hidden rows *whole*, so no empty group is
+left naming the hidden work's media type. A scope the viewer cannot see is
+left out of the record's `roles` / `scopes`, and the full-replace writers
+(`PUT /api/person`, `PUT /api/publisher`, `PUT /api/options`) **keep** those
+rows, because a form that never showed them cannot mean to delete them.
+
+Hidden means what it means for an entry: absent from list, search, filter and
+combobox endpoints; **404** on the detail route, its sub-routes and its
+writes; its photo or logo not served by `/api/covers`. The `viewer=None`
+convention holds here too.
+
 ### Covered surfaces
 
 | Surface | Where wired |
 |---|---|
 | media lists, detail (every type, incl. gating) | `app/routers/_factory.py` (`apply_entry_visibility`, `entry_visible`, `gate`) |
 | credits for an entry | `routers/credits.py` → 404; hidden entries' credits not counted on person/studio |
-| notes for an owner | `routers/note.py` → 404 for hidden entry owners, `gated_note_sections` withheld |
+| people, characters, studios, publishers (list, detail, `/entries`, `role-counts`, `role-scopes`, writes) | `routers/person.py`, `character.py`, `studio.py`, `publisher.py` — [Shared records](#shared-records) |
+| option lists (`/api/options/`, `/api/options/{category}`) and option writes | `routers/options.py` (`_visible_options`) — [Shared records](#shared-records) |
+| series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden with a label-hidden franchise |
+| notes for an owner | `routers/note.py` → 404 for a hidden entry, franchise or series owner (`tier_visible`, `require_visible_owner`), `gated_note_sections` withheld |
 | quotes (list, grouped, by id) | `routers/quote.py` (`drop_hidden_rows`) |
-| memes (list, grouped, by id) | `routers/meme.py` |
+| memes (list, grouped, by id) | `routers/meme.py` — a meme on a hidden entry, franchise or series is dropped; writes use `require_visible_owner` |
 | plan-next rows | `routers/plan_next.py` |
 | relations `for-entry`, `scope`, `graph` | `routers/media_relation.py` — hidden anchor → 404; an edge naming a hidden entry is dropped whole; graph is viewer-filtered |
-| attaching an image to a media entry | `routers/images.py` → 404 "Entry not found." Entity and quote/meme owners carry no label and are not checked |
-| serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404. The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), which carries no label and is listed to everyone |
+| attaching an image to a media entry or an entity | `routers/images.py` → 404 "Entry not found." An entity owner is asked through `shared_record_visible`; quote/meme owners carry no label and are not checked |
+| serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404. The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible`; its folder is read from the path, which is safe because the folder names the file |
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
-| search | `routers/search.py` |
+| search | `routers/search.py` — entries, franchises, series and the person/studio/publisher buckets |
 | a public profile (`/api/profile/{username}`) | `routers/profile.py` (`apply_media_visibility`) - filtered by the **reader's** permissions, never the list owner's |
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
 | account settings (`/api/account/settings`) | `routers/account.py` - the `list_is_public` toggle, writable only by its owner |
@@ -679,7 +750,8 @@ calls `entry_visible` to answer *may it reach this particular entry*. A
 holder of `manage.catalog` who lacks an entry's restriction label would
 otherwise be able to attach a cover to (and so overwrite the cover of) an
 entry it cannot even read; the same trap `casting.py`'s `_resolve_entry`
-documents. Entity owners (`staff`, `character`, `publisher`, `studio`) and
+documents. An entity owner (`staff`, `character`, `publisher`, `studio`) is a
+shared record and is asked through `shared_record_visible`, with the same 404.
 `quote`/`meme` carry no content label, so attach skips the check for them —
 there is nothing for it to test.
 
@@ -725,12 +797,12 @@ Both answer 404 in the words the router already uses for missing.
   the object axis means for a pipeline is the parked policy question (a
   `manage.pipelines` holder can already rewrite labels and role assignments
   through Pull All).
-- `note.py`'s owner guard waves through an `owner_id` naming no media row,
-  because a grouping tier is a legitimate owner and is not a `media` row
-  either. A *nonexistent* id therefore reaches the insert and fails on the
-  `media_id` foreign key, surfacing as a 500, while a hidden id answers 404 —
-  so on that one path hidden and missing are still distinguishable, by the
-  status code rather than by the body.
+- `note.py`'s owner guard waves through an `owner_id` naming neither a
+  `media` row nor a hidden franchise or series, because a collection is a
+  legitimate owner and is neither. A *nonexistent* id therefore reaches the
+  insert and fails on a foreign key, surfacing as a 500, while a hidden id
+  answers 404 — so on that one path hidden and missing are still
+  distinguishable, by the status code rather than by the body.
 
 ### Accepted residuals
 
@@ -1181,6 +1253,7 @@ matters is enforced server-side.
 | `tests/api/test_media_type_gating.py` | whole type disappears, 404 on detail |
 | `tests/api/test_field_gating.py` | link and source stripping; the narrowest viewer there is still gets credits, both timestamps and `system_id`; and a probe group stands the columns flavour up so the copy-not-setattr rule stays tested with no real column group left |
 | `tests/api/test_cover_images_are_gated.py` | a hidden entry's cover 404s and the same file 200s for an admin, the lying-folder case, and that `/static/covers/` no longer answers. The written file and `nsfw_label` are load-bearing: a missing file 404s too, and an empty label set makes every refusal vacuous |
+| `tests/api/test_shared_record_visibility.py` | the shared-record rule: a person, seiyuu, character, studio, publisher or vocabulary value connected only to label-hidden entries is hidden, one visible connection keeps it visible with the hidden one omitted, no connections stays visible, a type gap hides nothing; series under a hidden franchise; entity photos; notes on a hidden series; and scope connections through a gated type registered for the test (`manga` pointed at `nsfw`), since `REQUIRED_LABEL_FOR_TYPE` is empty. Every refusal pairs with `admin_client` seeing the same record |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |

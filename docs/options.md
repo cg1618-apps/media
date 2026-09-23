@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-13
+Last verified: 2026-09-23
 
 ## What this is for
 
@@ -710,6 +710,14 @@ media types it is offered in as `system_option_scope` rows. A value with
 which returns values that are unscoped *or* scoped to that key. Results are
 ordered by `category`, `sort_order`, `value`. Scopes must be one of
 `MEDIA_TYPE_KEYS` (validated in `app/schemas/system.py`, duplicates dropped).
+
+**Hidden values.** Both reads apply the shared-record rule
+([authorization.md](authorization.md#shared-records)): a value every
+`media_tag` row of which is on a label-hidden entry, and that is scoped to no
+gated type the viewer can see, is left out for that viewer. A value used
+nowhere and scoped to no gated type stays. A scope naming a gated type the
+viewer cannot see is dropped from a visible value's `scopes`, and a
+`?scope=` naming one answers `[]`.
 
 **Writes.** `POST /api/options/`, `PUT /api/options/{id}`,
 `DELETE /api/options/{id}` are admin-only. Add and update reject an exact

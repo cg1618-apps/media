@@ -20,8 +20,15 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.rbac.enforcement import filter_visible_pairs
+from app.services.rbac.enforcement import (
+    filter_visible_pairs,
+    label_hidden_entry_ids,
+)
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.shared_visibility import (
+    apply_shared_visibility,
+    require_visible_shared,
+)
 from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
@@ -29,6 +36,8 @@ from app.utils.release_date import primary_release_value
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/character", tags=["Character Management"])
+
+NOT_FOUND = "Character not found."
 
 
 def _to_response(
@@ -90,8 +99,13 @@ def get_all_characters(
     constraint on purpose - see CharacterCreate), so this search, together
     with the entries each match already appears in, is how an admin tells
     one "Yuki" from another before reusing or minting one.
+
+    A character every casting of which is on a label-hidden entry is absent
+    - see app/services/rbac/shared_visibility.py.
     """
-    query = db.query(models.Character)
+    query = apply_shared_visibility(
+        db.query(models.Character), models.Character, db, viewer
+    )
     if name:
         search_term = f"%{name}%"
         query = query.filter(
@@ -124,15 +138,20 @@ def get_character_entries(
     the mirror of get_person_entries - except that a character holds no roles,
     so the group key is only the media type, not (media type, role).
 
+    A character hidden from this viewer - every casting on a label-hidden
+    entry, see shared_visibility.py - answers 404, as their own page does. A
+    visible character's castings on label-hidden entries are omitted whole,
+    group and all; a casting withheld only by a media-type permission gap
+    keeps its group, empty, because that gap does not hide the connection.
+
     Visibility runs through the same filter_visible_pairs call _to_response
     uses for casting_count, so the number on the card and the list on the
-    page can never disagree. A character carries no content label of their
-    own, so one whose every casting is hidden answers with empty groups, not
-    a 404 - the character is not the secret, their castings are.
+    page can never disagree.
     """
     character = db.get(models.Character, system_id)
     if character is None:
-        raise HTTPException(status_code=404, detail="Character not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, viewer, models.Character, system_id, NOT_FOUND)
 
     rows = (
         db.query(models.CharacterCasting)
@@ -147,6 +166,8 @@ def get_character_entries(
             [(r.media_type, r.entry_id) for r in rows if r.media_type and r.entry_id],
         )
     )
+    label_hidden = label_hidden_entry_ids(db, viewer, [r.entry_id for r in rows])
+    rows = [r for r in rows if r.entry_id not in label_hidden]
 
     # One query per media type that appears, not one per casting row.
     wanted: dict[str, set[UUID]] = {}
@@ -176,10 +197,9 @@ def get_character_entries(
     for row in rows:
         if row.media_type not in MEDIA_TABLES:
             continue
-        # setdefault before the visibility check on purpose: a group the
-        # viewer may not see any entry of still exists, empty. Hiding the
-        # group as well would tell them the character has no such castings
-        # at all.
+        # setdefault before the visibility check on purpose: a group whose
+        # entries are withheld only by a media-type gap still exists, empty.
+        # Label-hidden rows were dropped above and make no group at all.
         payload = groups.setdefault(row.media_type, [])
         entry = loaded.get(row.media_type, {}).get(row.entry_id)
         if entry is None:
@@ -226,7 +246,10 @@ def get_character_by_id(
     """Retrieves a single character by their public_id or their UUID."""
     character = find_entity(db, models.Character, system_id)
     if character is None:
-        raise HTTPException(status_code=404, detail="Character not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(
+        db, viewer, models.Character, character.system_id, NOT_FOUND
+    )
     return _to_response(db, character, viewer)
 
 
@@ -273,7 +296,8 @@ def update_character(
     """Fully updates a character's metadata."""
     character = db.get(models.Character, system_id)
     if character is None:
-        raise HTTPException(status_code=404, detail="Character not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Character, system_id, NOT_FOUND)
 
     for key, value in payload.model_dump().items():
         setattr(character, key, value)
@@ -303,7 +327,8 @@ def delete_character(
     """
     character = db.get(models.Character, system_id)
     if character is None:
-        raise HTTPException(status_code=404, detail="Character not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Character, system_id, NOT_FOUND)
 
     actual = (
         db.query(models.CharacterCasting).filter_by(character_id=system_id).count()
@@ -343,7 +368,9 @@ def merge_character(
     keep = db.get(models.Character, system_id)
     drop = db.get(models.Character, payload.source_id)
     if keep is None or drop is None:
-        raise HTTPException(status_code=404, detail="Character not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    for character_id in (system_id, payload.source_id):
+        require_visible_shared(db, admin, models.Character, character_id, NOT_FOUND)
 
     held = {
         (c.media_type, c.entry_id)

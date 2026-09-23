@@ -29,6 +29,10 @@ from app.dependencies import get_db
 from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.shared_visibility import (
+    ENTITY_OWNER_MODELS,
+    shared_record_visible,
+)
 
 router = APIRouter(prefix="/api/covers", tags=["Images"])
 
@@ -42,31 +46,37 @@ CACHE_CONTROL = "private, max-age=300"
 NOT_FOUND = "Cover image not found"
 
 
-def _entry_hidden(db: Session, viewer: Viewer, entry_id: UUID) -> bool:
+def _owner_hidden(
+    db: Session, viewer: Viewer, owner_type: str, owner_id: UUID
+) -> bool:
     """
-    Whether the label/type gates hide the entry this image belongs to.
+    Whether the gates hide the thing this image depicts.
 
-    The media type is resolved from the `media` row, never read out of the
-    URL. A caller-supplied type paired with a caller-supplied id gates under
-    the WRONG `media_type.<key>` permission - the trap
+    For an entry, the media type is resolved from the `media` row, never read
+    out of the URL. A caller-supplied type paired with a caller-supplied id
+    gates under the WRONG `media_type.<key>` permission - the trap
     `enforcement.require_visible_media` documents for the write side, and it
     is no less live here, where both halves of the pair come from the path.
 
     An id naming no `media` row belongs to one of the entity owners - staff
-    and character portraits, publisher and studio logos. Those tables carry no
-    content labels and their rows are listed to every viewer
-    (`routers/character.py` filters a character's CASTINGS, not the character),
-    so there is nothing here to gate them on. If either ever becomes hideable,
-    this is the branch that has to learn about it.
+    and character portraits, publisher and studio logos - which are shared
+    records: hidden when every connection they have is hidden
+    (`shared_visibility.py`). Their owner type IS read from the path, and that
+    is safe: the file served is `<owner_type>/<id>.jpg`, so the folder named
+    is the table whose row the image belongs to, and naming another folder
+    names another file.
     """
     row = (
         db.query(models.Media.media_type)
-        .filter(models.Media.system_id == entry_id)
+        .filter(models.Media.system_id == owner_id)
         .first()
     )
-    if row is None:
+    if row is not None:
+        return not entry_visible(db, viewer, row.media_type, owner_id)
+    model = ENTITY_OWNER_MODELS.get(owner_type)
+    if model is None:
         return False
-    return not entry_visible(db, viewer, row.media_type, entry_id)
+    return not shared_record_visible(db, viewer, model, owner_id)
 
 
 @router.get("/{owner_type}/{filename}", summary="Fetch One Cover Image")
@@ -100,7 +110,7 @@ def get_cover_image(
         # os.path.join at all.
         raise HTTPException(status_code=404, detail=NOT_FOUND)
 
-    if _entry_hidden(db, viewer, entry_id):
+    if _owner_hidden(db, viewer, owner_type, entry_id):
         raise HTTPException(status_code=404, detail=NOT_FOUND)
 
     path = os.path.join(COVER_DIR, owner_type, f"{entry_id}.jpg")

@@ -32,7 +32,7 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.rbac.enforcement import drop_hidden_rows, require_visible_media
+from app.services.rbac.enforcement import drop_hidden_rows, require_visible_owner
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import (
@@ -205,14 +205,15 @@ def _require_visible_owner(db: Session, viewer, owner_id) -> None:
     {"owner_type": "movie", "owner_id": <an anime id>} and attach a meme to an
     entry it cannot read - only the type axis was bypassed, because the label
     half of the check is keyed on media_id. A PATCH naming only `owner_id`
-    had the same shape with the STORED type. `require_visible_media` resolves
+    had the same shape with the STORED type. `require_visible_owner` resolves
     the type from the id itself, which closes both.
 
-    An owner may be a grouping tier, which carries no labels and is not a
-    Media row at all, so a tier is never refused here. 404 and "Meme not
+    An owner may be a grouping tier, which is not a Media row at all: a
+    franchise hides by its own labels and a series by its franchise's, asked
+    from the id alone; a collection is never refused. 404 and "Meme not
     found.", so a hidden owner answers exactly as a missing meme.
     """
-    require_visible_media(db, viewer, owner_id, "Meme not found.")
+    require_visible_owner(db, viewer, owner_id, "Meme not found.")
 
 
 _INTEGRITY_DETAIL = "That quote is already linked to a meme, or does not exist."

@@ -1,9 +1,10 @@
 """
 The entries a person is credited on, with RBAC applied, and the delete guard.
 
-Mirrors the studio endpoint. A person carries no content label of their own,
-so a person whose every credit is hidden returns empty groups, not a 404 -
-the same treatment credit_count already gets in _to_response.
+Mirrors the studio endpoint. A person carries no content label of their own;
+one whose every credit is on a label-hidden entry is hidden with them and
+answers 404 (app/services/rbac/shared_visibility.py), and a visible person
+omits the hidden credits.
 """
 
 import uuid
@@ -127,13 +128,11 @@ def test_an_unknown_person_is_404(client):
 def test_a_labelled_entry_is_hidden_from_a_restricted_viewer(
     restricted_client, person_with_labelled_credit
 ):
-    body = restricted_client.get(
+    r = restricted_client.get(
         f"/api/person/{person_with_labelled_credit.system_id}/entries"
-    ).json()
-    assert all(not g["entries"] for g in body["groups"])
-    assert "Zvornik Labelled Anime" not in restricted_client.get(
-        f"/api/person/{person_with_labelled_credit.system_id}/entries"
-    ).text
+    )
+    assert r.status_code == 404
+    assert "Zvornik Labelled Anime" not in r.text
 
 
 def test_a_root_role_sees_the_labelled_entry(
@@ -145,17 +144,17 @@ def test_a_root_role_sees_the_labelled_entry(
     assert any(g["entries"] for g in body["groups"])
 
 
-def test_all_credits_hidden_is_empty_not_404(
+def test_all_credits_hidden_is_404(
     restricted_client, person_with_labelled_credit
 ):
     """
-    The person is not the secret, their credits are - so a person every one of
-    whose entries is withheld still answers 200 with empty groups.
+    A person every one of whose credits is on a label-hidden entry is hidden
+    with them - 404, exactly as a person who does not exist.
     """
     r = restricted_client.get(
         f"/api/person/{person_with_labelled_credit.system_id}/entries"
     )
-    assert r.status_code == 200
+    assert r.status_code == 404
 
 
 def test_a_seiyuus_entries_come_from_castings(client, seiyuu_with_one_casting, anime):
@@ -175,14 +174,13 @@ def test_a_seiyuus_entries_come_from_castings(client, seiyuu_with_one_casting, a
     assert group["entries"][0]["character_name"]
 
 
-def test_a_hidden_entry_is_filtered_from_a_seiyuus_groups(
+def test_a_seiyuu_cast_only_on_a_hidden_entry_is_404(
     client, seiyuu_with_hidden_casting
 ):
-    groups = client.get(
-        f"/api/person/{seiyuu_with_hidden_casting.system_id}/entries"
-    ).json()["groups"]
-    for group in groups:
-        assert group["entries"] == []
+    """A casting is a seiyuu's connection, so hiding it hides them."""
+    r = client.get(f"/api/person/{seiyuu_with_hidden_casting.system_id}/entries")
+    assert r.status_code == 404
+    assert "Zvornik Hidden Anime" not in r.text
 
 
 # ---------------------------------------------------------------------------

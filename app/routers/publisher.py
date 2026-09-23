@@ -24,6 +24,12 @@ from app.services.domain.credits import credit_counts, find_publisher
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.shared_visibility import (
+    apply_shared_visibility,
+    hidden_scopes,
+    require_visible_shared,
+    without_hidden_scopes,
+)
 from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
@@ -32,12 +38,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/publisher", tags=["Publisher Management"])
 
+NOT_FOUND = "Publisher not found."
+
 
 def _to_response(
     db: Session,
     publisher: models.Publisher,
     viewer=None,
     credit_count: Optional[int] = None,
+    hidden: Optional[frozenset[str]] = None,
 ) -> schemas.PublisherResponse:
     # Count only credits on entries the viewer may see. A number is a smaller
     # leak than a title, but "published 3 things, you can see 2" is still one.
@@ -48,6 +57,10 @@ def _to_response(
         credit_count = credit_counts(
             db, viewer, [publisher.system_id], models.MediaCredit.publisher_id
         ).get(publisher.system_id, 0)
+    # A scope naming a gated type the viewer cannot see is a hidden
+    # connection; a visible publisher omits it rather than naming the type.
+    if hidden is None:
+        hidden = hidden_scopes(db, viewer)
     return schemas.PublisherResponse(
         system_id=publisher.system_id,
         public_id=publisher.public_id,
@@ -64,7 +77,9 @@ def _to_response(
         defunct_date=publisher.defunct_date,
         country=publisher.country,
         website_url=publisher.website_url,
-        scopes=sorted(s.scope for s in publisher.scopes),
+        scopes=sorted(
+            without_hidden_scopes((s.scope for s in publisher.scopes), hidden)
+        ),
         credit_count=credit_count,
     )
 
@@ -89,13 +104,20 @@ def get_all_publishers(
     form asks for the suggestions it can actually use. Omitting it returns
     everything, including publishers holding no scope at all - the admin list
     page must be able to see a publisher in order to give it one.
+
+    A publisher hidden from this viewer (shared_visibility.py) is absent, and
+    a `scope` naming a gated type the viewer cannot see matches nobody.
     """
+    hidden = hidden_scopes(db, viewer)
+    if scope and scope in hidden:
+        return []
     # scopes is read by _to_response for every row, so it is preloaded rather
     # than lazy-loaded per publisher - the same N+1 credit_counts exists to
     # remove, one relationship over.
     query = db.query(models.Publisher).options(
         selectinload(models.Publisher.scopes)
     )
+    query = apply_shared_visibility(query, models.Publisher, db, viewer)
     if scope:
         query = query.join(models.PublisherScope).filter(
             models.PublisherScope.scope == scope
@@ -109,7 +131,9 @@ def get_all_publishers(
         models.MediaCredit.publisher_id,
     )
     return [
-        _to_response(db, publisher, viewer, counts.get(publisher.system_id, 0))
+        _to_response(
+            db, publisher, viewer, counts.get(publisher.system_id, 0), hidden
+        )
         for publisher in publishers
     ]
 
@@ -127,7 +151,10 @@ def get_publisher_by_id(
     """Retrieves a single publisher by its public_id or its UUID."""
     publisher = find_entity(db, models.Publisher, system_id)
     if publisher is None:
-        raise HTTPException(status_code=404, detail="Publisher not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(
+        db, viewer, models.Publisher, publisher.system_id, NOT_FOUND
+    )
     return _to_response(db, publisher, viewer)
 
 
@@ -140,15 +167,16 @@ def get_publisher_entries(
     """
     The entries this publisher is credited on, grouped by media type.
 
-    Visibility runs through the same filter_visible_pairs call _to_response
-    uses for credit_count, so the number on the card and the list on the page
-    can never disagree. A publisher carries no content label of its own, so
-    one whose every credit is hidden answers with empty groups, not a 404 -
-    the publisher is not the secret, its credits are.
+    A publisher hidden from this viewer - every connection hidden, see
+    shared_visibility.py - answers 404, as its own page does; a visible
+    publisher omits its hidden credits. Visibility runs through the same
+    filter_visible_pairs call _to_response uses for credit_count, so the
+    number on the card and the list on the page can never disagree.
     """
     publisher = db.get(models.Publisher, system_id)
     if publisher is None:
-        raise HTTPException(status_code=404, detail="Publisher not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, viewer, models.Publisher, system_id, NOT_FOUND)
 
     rows = (
         db.query(models.Media.media_type, models.MediaCredit.media_id)
@@ -259,21 +287,27 @@ def update_publisher(
 
     The scopes are a full replace, like PUT /api/person's roles: this is the
     one path an admin uses to take a scope away, so unlike POST it must be able
-    to narrow.
+    to narrow. A scope naming a gated type this editor cannot see is kept: the
+    form never showed it, so its absence from the payload is not a removal.
     """
     publisher = db.get(models.Publisher, system_id)
     if publisher is None:
-        raise HTTPException(status_code=404, detail="Publisher not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Publisher, system_id, NOT_FOUND)
 
     data = payload.model_dump()
     wanted = list(dict.fromkeys(data.pop("scopes", [])))
     for key, value in data.items():
         setattr(publisher, key, value)
 
-    db.query(models.PublisherScope).filter_by(
-        publisher_id=system_id
-    ).delete(synchronize_session=False)
+    hidden = hidden_scopes(db, admin)
+    replaced = db.query(models.PublisherScope).filter_by(publisher_id=system_id)
+    if hidden:
+        replaced = replaced.filter(models.PublisherScope.scope.notin_(hidden))
+    replaced.delete(synchronize_session=False)
     for scope in wanted:
+        if scope in hidden:
+            continue
         db.add(models.PublisherScope(publisher_id=system_id, scope=scope))
 
     db.commit()
@@ -293,7 +327,8 @@ def delete_publisher(
     """
     publisher = db.get(models.Publisher, system_id)
     if publisher is None:
-        raise HTTPException(status_code=404, detail="Publisher not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Publisher, system_id, NOT_FOUND)
 
     db.delete(publisher)
     db.commit()
@@ -326,7 +361,9 @@ def merge_publisher(
     keep = db.get(models.Publisher, system_id)
     drop = db.get(models.Publisher, payload.source_id)
     if keep is None or drop is None:
-        raise HTTPException(status_code=404, detail="Publisher not found.")
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    for publisher_id in (system_id, payload.source_id):
+        require_visible_shared(db, admin, models.Publisher, publisher_id, NOT_FOUND)
 
     # media_id alone identifies the entry - it is globally unique across the
     # nine media tables, which is what the supertable bought.
