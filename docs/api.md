@@ -758,7 +758,7 @@ tier on a write is resolved from the id, never from the payload's
 
 | Method   | Path           | Auth   | Description                                                                                                                                       |
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one.                            |
+| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic` outside `unrestricted`).                            |
 | `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`.                                        |
 | `POST`   | `""`           | Admin  | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, or on a second row in a singleton section. `sort_index` defaults to the end.     |
 | `PATCH`  | `/reorder`     | Admin  | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes.                |
@@ -951,7 +951,11 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `music_status`, `seiyuu_status`, `watch_order_importance`, `h_comic_region`,
 `h_comic_originality`, `h_comic_animation_status`, `h_comic_usefulness`,
 `person_role`, `media_type`, `option_categories`, `tag_categories`.
-`franchise_type` includes `H-Comic` and `media_type` includes `h-comic`. The last four are for
+`franchise_type` includes `H-Comic` and `media_type` includes `h-comic`
+**for a session that can see h-comic**: the payload is viewer-scoped, and for
+anyone else the four `h_comic_*` keys are absent and `H-Comic`, `h-comic`,
+`club` and the H Genre categories are left out of their lists
+([authorization.md](authorization.md#what-a-narrow-session-is-not-told)). The last four are for
 the admin forms:
 `person_role` is derived from `CREDIT_ROLES` in `app/utils/credit_roles.py`
 (it replaced a hand-written copy in `OptionsAddTab.jsx`), `media_type` is the
@@ -1092,7 +1096,8 @@ search, and answers 404 on `/{system_id}`, `/entries`, `PUT`, `DELETE` and
 `merge`. A person with no credits, castings or gated roles stays visible. A
 visible person's `roles` omit a role scoped to a gated type the viewer cannot
 see, `role-scopes` omits such types, a `?scope=` naming one answers `[]`, and
-`PUT` keeps the role rows the editor cannot see.
+`PUT` keeps the role rows the editor cannot see. A role scoped only to such
+types (`club`) is absent from `role-scopes` and `role-counts` altogether.
 
 ### `GET /api/person/{system_id}/entries`
 

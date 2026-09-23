@@ -236,10 +236,12 @@ def test_a_scopeless_role_is_rejected(admin_client):
 # ---------------------------------------------------------------------------
 
 
-def test_role_counts_covers_every_person_role_including_the_empty_ones(client):
+def test_role_counts_covers_every_person_role_including_the_empty_ones(admin_client):
+    """`unrestricted` sees every role; a session that cannot see h-comic is
+    not told `club` exists (tests/api/test_h_comic_shared_records.py)."""
     from app.utils.credit_roles import PERSON_ROLES
 
-    counts = client.get("/api/person/role-counts").json()
+    counts = admin_client.get("/api/person/role-counts").json()
     assert set(counts) == set(PERSON_ROLES)
     assert all(v == 0 for v in counts.values())
 

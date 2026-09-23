@@ -349,3 +349,77 @@ def test_merging_people_moves_their_memberships(admin_client, db_session, club):
     assert response.status_code == 200, response.text
     clubs = admin_client.get(f"/api/person/{keep.system_id}/clubs").json()
     assert [c["system_id"] for c in clubs] == [str(club.system_id)]
+
+
+# ---------------------------------------------------------------------------
+# What a narrow session is told about the type
+# ---------------------------------------------------------------------------
+
+
+def test_the_role_surfaces_omit_club_for_a_narrow_session(client, db_session):
+    assert db_session.query(models.ContentLabel).filter_by(key="h-comic").count() == 1
+    scopes = client.get("/api/person/role-scopes").json()
+    assert "club" not in scopes
+    assert "h-comic" not in scopes["illustrator"]
+    assert "manga" in scopes["illustrator"]
+    assert "club" not in client.get("/api/person/role-counts").json()
+
+
+def test_the_role_surfaces_name_club_for_unrestricted(admin_client):
+    """The mirror."""
+    scopes = admin_client.get("/api/person/role-scopes").json()
+    assert scopes["club"] == ["h-comic"]
+    assert "h-comic" in scopes["illustrator"]
+    assert "club" in admin_client.get("/api/person/role-counts").json()
+
+
+def test_the_note_registry_answers_h_comic_as_unknown_to_a_narrow_session(
+    client, admin_client
+):
+    narrow = client.get("/api/notes/sections", params={"owner_type": "h-comic"})
+    assert narrow.status_code == 400
+    wide = admin_client.get("/api/notes/sections", params={"owner_type": "h-comic"})
+    assert wide.status_code == 200
+    assert "h_comic_highlights" in {s["key"] for s in wide.json()}
+    # No other owner lists the section, for anybody.
+    for owner in ("manga", "anime", "franchise"):
+        keys = {
+            s["key"]
+            for s in admin_client.get(
+                "/api/notes/sections", params={"owner_type": owner}
+            ).json()
+        }
+        assert "h_comic_highlights" not in keys, owner
+
+
+# ---------------------------------------------------------------------------
+# A gated-only tag category is itself a connection
+# ---------------------------------------------------------------------------
+
+
+def test_an_unscoped_h_genre_value_is_still_hidden(client, admin_client, db_session):
+    """No scope row and no use: the category alone connects it to h-comic."""
+    option = models.SystemOption(category="H Genre Relation", value="Zvornik Unscoped")
+    db_session.add(option)
+    db_session.flush()
+    assert option.scopes == []
+
+    def values(c, path):
+        response = c.get(path)
+        assert response.status_code == 200, response.text
+        return {row["value"] for row in response.json()}
+
+    for path in ("/api/options/H Genre Relation", "/api/options/"):
+        assert "Zvornik Unscoped" not in values(client, path)
+        assert "Zvornik Unscoped" in values(admin_client, path)
+
+
+def test_an_unscoped_unused_official_source_stays_visible(client, db_session):
+    """The shared vocabulary keeps the ordinary rule: no connection, visible."""
+    from app.utils.source_fields import PLATFORM_CATEGORY
+
+    option = models.SystemOption(category=PLATFORM_CATEGORY, value="Zvornik Open Platform")
+    db_session.add(option)
+    db_session.flush()
+    values = {row["value"] for row in client.get("/api/options/").json()}
+    assert "Zvornik Open Platform" in values

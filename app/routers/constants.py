@@ -12,10 +12,18 @@ admin-only and lives in app/services/integrations/catalog.py.
 """
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
+from app.dependencies import get_db
 from app.services.domain.watch_order import ITEM_IMPORTANCE
 from app.services.integrations.catalog import catalog_payload
-from app.services.rbac.resolver import require_manage_catalog
+from app.services.rbac.gated_types import (
+    hidden_franchise_types,
+    hidden_option_categories,
+    hidden_person_roles,
+    unseeable_gated_types,
+)
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils import constants as c
 from app.utils.character_roles import CHARACTER_ROLES
 from app.utils.credit_roles import (
@@ -37,10 +45,57 @@ def _values(enum_cls) -> list[str]:
     return [member.value for member in enum_cls]
 
 
+# Vocabularies that exist for one media type alone, keyed by that type. When
+# the type is gated and the viewer cannot see it, the key is left out of the
+# payload entirely - the session is not told the type exists.
+TYPE_ONLY_VOCABULARIES: dict[str, dict[str, tuple[str, ...]]] = {
+    "h-comic": {
+        "h_comic_region": c.H_COMIC_REGIONS,
+        "h_comic_originality": c.H_COMIC_ORIGINALITY,
+        "h_comic_animation_status": c.H_COMIC_ANIMATION_STATUSES,
+        "h_comic_usefulness": c.H_COMIC_USEFULNESS,
+    },
+}
+
+
+def _without(values, hidden) -> list[str]:
+    return [value for value in values if value not in hidden]
+
+
 @router.get("", summary="Get All Closed Enums")
 @router.get("/", include_in_schema=False)
-def get_constants() -> dict[str, list[str]]:
-    """Every Tier 1 enum, keyed by snake_case field name."""
+def get_constants(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+) -> dict[str, list[str]]:
+    """
+    Every Tier 1 enum, keyed by snake_case field name.
+
+    Viewer-scoped on one axis only: what exists solely for a gated type the
+    viewer cannot see (gated_types.py) is left out - the type's own
+    vocabularies, its media-type key, its franchise type, its person roles and
+    its tag categories. Everything else is the same for every caller.
+    """
+    hidden = unseeable_gated_types(db, viewer)
+    payload = _constants()
+    payload["media_type"] = _without(payload["media_type"], hidden)
+    payload["franchise_type"] = _without(
+        payload["franchise_type"], hidden_franchise_types(hidden)
+    )
+    payload["person_role"] = _without(
+        payload["person_role"], hidden_person_roles(hidden)
+    )
+    categories = hidden_option_categories(hidden)
+    payload["option_categories"] = _without(payload["option_categories"], categories)
+    payload["tag_categories"] = _without(payload["tag_categories"], categories)
+    for media_type, vocabularies in TYPE_ONLY_VOCABULARIES.items():
+        if media_type not in hidden:
+            payload.update({key: list(values) for key, values in vocabularies.items()})
+    return payload
+
+
+def _constants() -> dict[str, list[str]]:
+    """The unscoped payload; get_constants narrows it per viewer."""
     return {
         "watching_status": _values(c.WatchStatus),
         "reading_status": _values(c.ReadStatus),
@@ -77,14 +132,6 @@ def get_constants() -> dict[str, list[str]]:
         "game_ownership": list(c.GAME_OWNERSHIP_KINDS),
         "game_copy_format": list(c.GAME_COPY_FORMATS),
         "game_acquisition": list(c.GAME_ACQUISITION_KINDS),
-        # The four h-comic vocabularies. h-comic's serialization_status
-        # reuses manga_serialization_status. Served to every caller like the
-        # rest of this endpoint: a vocabulary names no entry, and the entries
-        # themselves are what the h-comic label hides.
-        "h_comic_region": list(c.H_COMIC_REGIONS),
-        "h_comic_originality": list(c.H_COMIC_ORIGINALITY),
-        "h_comic_animation_status": list(c.H_COMIC_ANIMATION_STATUSES),
-        "h_comic_usefulness": list(c.H_COMIC_USEFULNESS),
         "manga_serialization_status": list(c.MANGA_SERIALIZATION_STATUSES),
         "novel_serialization_status": list(c.NOVEL_SERIALIZATION_STATUSES),
         "day_of_week": list(c.WEEKDAYS),

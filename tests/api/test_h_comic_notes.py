@@ -93,8 +93,8 @@ def test_a_highlight_cannot_be_moved_onto_a_jp_entry(admin_client, kr, jp):
     assert response.status_code == 422
 
 
-def test_the_section_is_offered_to_h_comic_with_its_grouping(client):
-    sections = client.get("/api/notes/sections", params={"owner_type": "h-comic"}).json()
+def test_the_section_is_offered_to_h_comic_with_its_grouping(admin_client):
+    sections = admin_client.get("/api/notes/sections", params={"owner_type": "h-comic"}).json()
     by_key = {s["key"]: s for s in sections}
     section = by_key[SECTION]
     assert section["group_by"] == "female_characters"
@@ -109,10 +109,10 @@ def test_the_section_is_offered_to_h_comic_with_its_grouping(client):
     assert fields["description"]["column"] == "content"
 
 
-def test_the_every_owner_sections_reach_h_comic(client):
+def test_the_every_owner_sections_reach_h_comic(admin_client):
     keys = {
         s["key"]
-        for s in client.get("/api/notes/sections", params={"owner_type": "h-comic"}).json()
+        for s in admin_client.get("/api/notes/sections", params={"owner_type": "h-comic"}).json()
     }
     assert {"remark_list", "personal_reviews", "public_reviews"} <= keys
 

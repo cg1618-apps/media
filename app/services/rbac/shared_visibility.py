@@ -10,7 +10,7 @@ hidden by one directly. They are hidden by what they are connected to:
     connection it has is hidden. A record with no connections at all stays
     visible.
 
-A connection is one of two things:
+A connection is one of three things:
 
   appearance   a row placing the record on an entry - a `media_credit`, a
                `character_casting`, a `media_tag`. Hidden when the ENTRY is
@@ -24,6 +24,12 @@ A connection is one of two things:
                type. A scope naming an ordinary type is not a connection at
                all: it would otherwise keep visible every person whose only
                credits are hidden, since every credit writes a matching role.
+
+  declared     a vocabulary value's own category, when every tag field using
+               that category serves gated types only (the h-comic genres).
+               The code declares it, so no row is needed: a value created
+               with no scope is still connected to - and hidden with - the
+               type. See DeclaredScope.
 
 So crediting somebody on a visible entry reveals them, and removing that
 credit hides them again; nothing is stored, and nothing needs remembering.
@@ -49,7 +55,11 @@ from sqlalchemy.orm import Query, Session, aliased
 
 from app import models
 from app.services.rbac.enforcement import _hidden_by_label, hidden_label_ids
-from app.services.rbac.gated_types import gated_types, hidden_gated_types
+from app.services.rbac.gated_types import (
+    gated_tag_categories,
+    gated_types,
+    hidden_gated_types,
+)
 
 
 @dataclass(frozen=True)
@@ -70,7 +80,21 @@ class Scope:
     scope_column: str
 
 
-Connection = Union[Appearance, Scope]
+@dataclass(frozen=True)
+class DeclaredScope:
+    """
+    A column on the record itself whose value the CODE declares as serving
+    some media types - a vocabulary value's `category`, whose tag fields name
+    them. Only a value serving gated types alone is a connection
+    (gated_types.gated_tag_categories), so the shared Official Source
+    vocabulary is untouched while every H Genre value is connected to h-comic
+    whatever scope rows it has, or has not, been given.
+    """
+
+    record_column: str
+
+
+Connection = Union[Appearance, Scope, DeclaredScope]
 
 # Every shared record, and every way it can be connected. A person's castings
 # count as appearances because a seiyuu is credited through character_casting
@@ -93,6 +117,7 @@ CONNECTIONS: dict[type, tuple[Connection, ...]] = {
     models.SystemOption: (
         Appearance(models.MediaTag, "option_id", "media_id"),
         Scope(models.SystemOptionScope, "option_id", "scope"),
+        DeclaredScope("category"),
     ),
 }
 
@@ -135,6 +160,16 @@ def _hidden_condition(model, hiding: _Hiding):
     any_connection = []
     visible_connection = []
     for connection in CONNECTIONS[model]:
+        if isinstance(connection, DeclaredScope):
+            served = gated_tag_categories()
+            if not served:
+                continue
+            column = getattr(model, connection.record_column)
+            any_connection.append(column.in_(list(served)))
+            seen = [value for value, types in served.items() if types & visible_types]
+            if seen:
+                visible_connection.append(column.in_(seen))
+            continue
         table = aliased(connection.table)
         owns = getattr(table, connection.record_column) == record_id
         if isinstance(connection, Appearance):

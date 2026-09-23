@@ -68,6 +68,14 @@ diverged from the Enum long ago and reconciling them is out of scope (the
 file's own comment calls this Ruling R10). See
 [Known discrepancies](#known-discrepancies).
 
+The payload is **viewer-scoped on one axis**: what exists only for a gated
+type the viewer cannot see is left out
+([authorization.md](authorization.md#what-a-narrow-session-is-not-told)). For
+any session outside `unrestricted` that means no `h_comic_*` keys at all, no
+`H-Comic` in `franchise_type`, no `h-comic` in `media_type`, no `club` in
+`person_role`, and none of the three H Genre categories in
+`option_categories`.
+
 | Name | Values (in order) | Used by | `/api/constants` key |
 |---|---|---|---|
 | `WatchStatus` (Enum) | `Might Watch`, `Plan to Watch`, `Watch When Airs`, `Active Watching`, `Passive Watching`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Watch` | `watching_status` on anime, anime_movies, movies, tv_shows, cartoons | `watching_status` |
@@ -499,12 +507,13 @@ Tier 2 category:
 | `h_genre_appearance` | Genre Appearance | `H Genre Appearance` | h-comic |
 | `h_genre_relation` | Genre Relation | `H Genre Relation` | h-comic |
 
-The three h-comic genre fields exist for the gated type alone, so their values
-are meant to be scoped to `h-comic` when an admin adds them: a value scoped
-only there, or used only on h-comic entries, is hidden from a session that
-cannot see h-comic ([authorization.md](authorization.md#shared-records)). A
-tag write adds no scope (Ruling R27), so an unscoped, unused value stays
-visible like any other.
+The three h-comic genre fields exist for the gated type alone, and their
+**category itself is a connection** to h-comic: every value in `H Genre Plot`,
+`H Genre Appearance` or `H Genre Relation` is hidden from a session that
+cannot see h-comic, whatever scope rows it has - an unscoped, unused value
+included ([authorization.md](authorization.md#shared-records)). A category
+shared with an ungated type, such as Official Source, keeps the ordinary
+rule: its values are hidden only through their uses and gated scopes.
 They have no legacy sheet header; h-comic credits and tags all surface under
 their own keys.
 

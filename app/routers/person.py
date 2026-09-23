@@ -34,6 +34,7 @@ from app.services.rbac.enforcement import (
     filter_visible_pairs,
     label_hidden_entry_ids,
 )
+from app.services.rbac.gated_types import hidden_person_roles
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
@@ -179,6 +180,7 @@ def get_role_counts(
     with the list it heads.
     """
     hidden = hidden_scopes(db, viewer)
+    roles = [role for role in PERSON_ROLES if role not in hidden_person_roles(hidden)]
     query = db.query(
         models.PersonRole.role,
         func.count(func.distinct(models.PersonRole.person_id)),
@@ -187,7 +189,7 @@ def get_role_counts(
     if hidden:
         query = query.filter(models.PersonRole.scope.notin_(hidden))
     tallied = dict(query.group_by(models.PersonRole.role).all())
-    return {role: tallied.get(role, 0) for role in PERSON_ROLES}
+    return {role: tallied.get(role, 0) for role in roles}
 
 
 @router.get(
@@ -211,12 +213,16 @@ def get_role_scopes(
     is a map of lists. Declared BEFORE /{system_id} for the same reason
     role-counts is - that route parses its path as a UUID.
 
-    A gated type the viewer cannot see is left out, as it is everywhere else.
+    A gated type the viewer cannot see is left out, as it is everywhere else,
+    and so is a role that exists only for such types (`club`): the session is
+    not told it exists.
     """
     hidden = hidden_scopes(db, viewer)
+    gone = hidden_person_roles(hidden)
     return {
         role: without_hidden_scopes(legal_scopes(role), hidden)
         for role in PERSON_ROLES
+        if role not in gone
     }
 
 

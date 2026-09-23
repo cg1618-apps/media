@@ -674,7 +674,7 @@ carries a content label. They are hidden by what they are connected to, in
 | publisher | `media_credit` rows, `publisher_scope` scopes |
 | vocabulary value | `media_tag` rows, `system_option_scope` scopes |
 
-A connection is one of two kinds:
+A connection is one of three kinds:
 
 - **An appearance** — a row placing the record on an entry. Hidden when the
   entry is **label-hidden**, by its own label or its franchise's. A media-type
@@ -694,6 +694,15 @@ A connection is one of two kinds:
   for a session outside `unrestricted`: a club created before its first
   credit (its `club` role is scoped to h-comic alone) and an unused
   h-comic genre value are hidden by their scope.
+- **A category serving gated types only.** A vocabulary value's own
+  `category` is a connection when every tag field drawing on that category
+  serves gated types alone (`gated_tag_categories`,
+  `DeclaredScope("category")` in `shared_visibility.py`). The code declares
+  it, so no row is needed: every value of `H Genre Plot`, `H Genre
+  Appearance` and `H Genre Relation` is hidden from a session that cannot see
+  h-comic even with no scope row and no use. A category shared with an
+  ungated type (Official Source) is not a connection, and its values follow
+  the two rules above.
 
 **Club membership is not a connection.** `person_membership` never makes a
 hidden club or artist visible. A visible club's `/members` omits the members
@@ -761,6 +770,21 @@ With the label on every entry, the ordinary gates hide the type everywhere
 `enforcement.py` reaches, and the shared-record rule above hides everything
 connected only to it. `/api/auth/me`'s `visible_gated_types` tells the SPA
 whether to offer the type's navigation at all.
+
+#### What a narrow session is not told
+
+A session that cannot see a gated type is not told the type exists. Each
+surface below narrows by what the code already declares (`gated_types.py`), so
+a second gated type needs no edit to them:
+
+| Surface | Left out |
+|---|---|
+| `GET /api/constants` | the type's own vocabularies (`TYPE_ONLY_VOCABULARIES`: the `h_comic_*` keys), its key from `media_type`, a franchise type stamped only for it from `franchise_type` (`H-Comic`), a person role scoped only to it from `person_role` (`club`), a category serving only it from `option_categories` / `tag_categories` (the H Genre categories) |
+| `GET /api/person/role-scopes`, `/role-counts` | the gated type from every role's scopes, and a role scoped only to it (`club`) entirely |
+| `GET /api/notes/sections?owner_type=h-comic` | the whole answer: 400, as for an unknown owner type. No other owner type lists `h_comic_highlights` |
+| `GET /api/auth/me` | the type from `visible_gated_types` |
+
+The mirror is `unrestricted`, which is told everything.
 
 ### Covered surfaces
 

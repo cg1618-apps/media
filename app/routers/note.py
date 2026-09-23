@@ -33,6 +33,7 @@ from app.services.rbac.enforcement import (
     tier_visible,
 )
 from app.services.rbac.field_gate import gated_note_sections
+from app.services.rbac.gated_types import unseeable_gated_types
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_SELF_PERSONAL_NOTES,
@@ -345,9 +346,23 @@ def _ordered(notes: List[models.Note]) -> List[models.Note]:
 
 
 @router.get("/sections", response_model=List[schemas.NoteSectionOut])
-def get_sections(owner_type: str = Query(...)):
-    """The section registry, resolved for one owner type, in display order."""
+def get_sections(
+    owner_type: str = Query(...),
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """
+    The section registry, resolved for one owner type, in display order.
+
+    A gated type the viewer cannot see answers exactly as an unknown one:
+    its sections (the h-comic highlights) name the type as surely as an
+    entry would. No other owner type lists them - their `owners` say so.
+    """
     _validate_owner_type(owner_type)
+    if owner_type in unseeable_gated_types(db, viewer):
+        raise HTTPException(
+            status_code=400, detail=f"Unknown owner_type '{owner_type}'."
+        )
     return sections_out(owner_type)
 
 
