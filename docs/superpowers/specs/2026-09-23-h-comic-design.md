@@ -10,40 +10,30 @@ fields are too different from manga's to share one.
 | # | Question | Answer |
 |---|---|---|
 | D1 | Reuse `manga`, one new type, or two new types? | **One type, `h-comic`, with `region` JP / KR.** Same pattern as manga's `region` and novel's `novel_type`: variant-dependent fields, hidden and cleared by variant. |
-| D2 | Originality values | `原創`, `同人`, or null |
+| D2 | Originality values | `原創`, `同人`, or null. JP only. |
 | D3 | Club | A studio-like idea, schema-wise an **author**: a `person` row credited under a new `club` role. Artists belong to clubs. |
-| D4 | Usefulness values | `非常實用`, `實用`, `特定情況實用`, `不實用`, or null |
-| D5 | Animation status | Hand-set. A link to hentai entries comes later and is out of scope. |
-| D6 | Characters | Real `character` rows through `character_casting`, and **unrestricted-only** too. |
-| D7 | Series number | The entry's position in its `series`, like a volume number. |
-| D8 | How characters, artists and clubs stay hidden | **Derived from their appearances** (see "Visibility"). |
+| D4 | Usefulness | `非常實用`, `實用`, `特定情況實用`, `不實用`, or null. **Personal**, on `user_media_list`, like `my_rating`. |
+| D5 | Animation status | Hand-set, **JP only**: `Not Animated`, `Announced`, `Animated`, or null. A link to hentai entries comes later and is out of scope. |
+| D6 | Characters | Real `character` rows through `character_casting`, as for every ACG type. |
+| D7 | Series number | The entry's position in its `series`, like a volume number. JP only. |
+| D8 | Chapters behind the official source | **Hand-set** by the owner, a catalogue column. Not derived. |
 | D9 | Franchise | A **new franchise type `H-Comic`**. An h-comic never sits in a mainstream franchise. |
+| D10 | Official source | The existing `original_source` tag field, as on cartoons, with its scope extended to `h-comic`. |
+| D11 | What stays hidden | **Everything connected only to h-comic** — entries, franchises, series, people in every role (author, artist, club), characters, and vocabulary values such as official sources and genres. See "Visibility". |
+| D12 | Derived hiding keys on labels only | A person hidden by a *media-type permission* gap (a guest who lacks `game`) stays visible, as today. Only label-hidden appearances count. |
+| D13 | Notes | Remark list, my comment, public comment and characters work as on every other type. **KR gets a highlights section**; **JP gets none**. |
 
-## Assumptions to confirm before the plan
-
-- **A1 — usefulness is personal**, like `my_rating`: one person's judgement, so it
-  goes on `user_media_list`.
-- **A2 — chapters behind is derived.** The catalogue stores the official chapter
-  count, `ch_total_official`, and the gap is `ch_total_official - ch_total`,
-  where `ch_total` is what the reading source has. Neither number is typed twice.
-- **A3 — animation status vocabulary** is `未動畫化`, `動畫化決定`, `已動畫化`, or
-  null. The owner gave no values.
-- **A4 — the official source** is the existing `original_source` tag field
-  ("like cartoon"), with its scope extended to `h-comic`.
-- **A5 — derived hiding keys on labels only.** An entity is hidden when every
-  appearance it has is hidden *by a content label*. Media-type permission gaps
-  (a guest who lacks `game`) do not hide a person, so nothing outside this
-  feature changes behaviour.
-
-## The content label
+## The content label, and the type that requires it
 
 - A system label, key `h-comic`, created by a migration and by the lifespan
   seed, for the reason `seed_modes.py` gives: API tests build the schema with
   `create_all` and never run Alembic.
-- **Every h-comic entry carries it, on every write path** — the form, the tracker
-  PATCH, Pull, and a sheet restore. It is attached server-side in the registry
-  `write_hook`, and a request that would remove it is refused (422). A missing
-  label means a public entry, so this is not left to the admin.
+- **`REQUIRED_LABEL_FOR_TYPE = {"h-comic": "h-comic"}`**, which the rest of the
+  design keys on. A media type naming a required label is a **gated type**.
+- **Every h-comic entry carries the label, on every write path**: the form, the
+  tracker PATCH, Pull, and a sheet restore. It is attached server-side in the
+  registry `write_hook`, and a request that would remove it is refused (422).
+  A missing label means a public entry, so this is not left to the admin.
 - **Every `H-Comic` franchise carries it** through `franchise_content_label`,
   attached on auto-create and on any change to type `H-Comic`.
 - **It reaches no mode except `unrestricted`**, which derives every label.
@@ -51,47 +41,65 @@ fields are too different from manga's to share one.
   the h-comic label does not reach it: a test asserts that the only mode
   carrying `h-comic` is `unrestricted`.
 
+A viewer **can see a gated type** when their session's mode carries its
+required label. Everything below that says "hidden" means hidden from a viewer
+who cannot see the gated type, or more generally from a viewer whose mode lacks
+the label hiding it.
+
 Negative tests follow the root `CLAUDE.md` rule: the refusal tests create the
 label and a labelled entry, so the hidden set is not empty. Each refusal is
 paired with the mirror case, where `unrestricted` sees the same row.
 
-## Visibility beyond the entry
+## Visibility: everything connected only to h-comic
 
 The label already hides the entry everywhere `enforcement.py` reaches, including
 lists, search, relations, watch orders, quotes, memes and detail pages (404).
-Three things still leak a name today, and this feature closes each one.
+What leaks today is everything the entry *points at*, because those records
+carry no label. The rule for all of them:
 
-### Characters, people (artists, authors, clubs)
+> **A shared record is hidden when every connection it has is hidden.** A
+> connection is an appearance on an entry (hidden when the entry is
+> label-hidden) or a scope naming a gated type (hidden when the viewer cannot
+> see that type). A record with no connections at all stays visible, as today.
 
-These are shared records with no label. Today their pages render for everyone:
-`app/routers/person.py`'s `/entries` docstring says "the person is not the
-secret, their credits are". `character.py`, `studio.py` and `publisher.py`
-follow the same rule.
-
-**New rule:** a person or character is hidden from a viewer when **it has at
-least one appearance and every appearance is hidden by a content label**.
-Appearances are `media_credit` rows for people and `character_casting` rows
-for characters. Hidden means the same thing it means for an entry:
-- absent from the list and search endpoints and from every combobox
-- 404 on its detail page and its `/entries`
-- its photo is not served by `/api/covers`, which currently serves entity
-  owners to everyone (`docs/authorization.md`, the covers row)
+Hidden means the same thing it means for an entry:
+- absent from list, search, filter and combobox endpoints
+- 404 on its detail page
+- its photo not served by `/api/covers`, which currently serves entity owners
+  to everyone (`docs/authorization.md`, the covers row)
 - notes attached to it are 404
 
-Consequences, and why this rule was chosen over label tables:
+A record with one visible connection stays visible, and only the hidden
+connections drop out, which is what `filter_visible_pairs` already does. So a
+character in both Fate and a Fate-themed h-comic is visible through Fate, and
+an artist who also draws mainstream manga keeps a page listing only the
+mainstream work.
 
-- A Fate character cast in both Fate and a Fate-themed h-comic stays visible
-  through Fate. Only the h-comic casting disappears, which is what
-  `filter_visible_pairs` already does.
-- Nothing needs remembering: casting a character in a normal work reveals it,
-  and removing that casting hides it again.
-- A record with **no** appearances stays visible, as today. That covers a newly
-  created person in the admin's dropdown before the first credit is saved.
-- One query shape serves both: `NOT EXISTS (a visible appearance) AND EXISTS
-  (an appearance)`, built on `hidden_label_ids`.
+Nothing needs remembering: crediting someone on a normal work reveals them, and
+removing that credit hides them again.
 
-The docstrings in `person.py` and `character.py` and the matching paragraph in
-`docs/authorization.md` are rewritten to state the new rule.
+This reverses a rule stated today. `app/routers/person.py`'s `/entries`
+docstring says "the person is not the secret, their credits are", and
+`character.py`, `studio.py` and `publisher.py` follow it. Those docstrings and
+the matching paragraph in `docs/authorization.md` are rewritten to state the
+new rule.
+
+| Record | Connections |
+|---|---|
+| person, in any role (author, artist, club, and every existing role) | `media_credit` rows; `person_role` scopes |
+| character | `character_casting` rows |
+| studio, publisher | `media_credit` rows; `publisher_scope` for publishers |
+| vocabulary value (official source platform, genre, …) | `media_tag` rows; `system_option_scope` rows |
+| franchise | label on the franchise itself, as today |
+| series | its franchise (below) |
+
+Two cases show why scopes count as connections:
+- **A club created before its first credit** holds only the `club` role, whose
+  sole scope is `h-comic`. Without scopes it would have no connections and
+  would stay visible.
+- **The three genre vocabularies** exist only for h-comic. An unused genre
+  value has no `media_tag` row, only its scope, so without scopes it would
+  show in every narrower session's option list.
 
 ### Club membership
 
@@ -106,10 +114,10 @@ A new table, `person_membership`:
 | `created_at` | DateTime | yes | now |
 
 UNIQUE `(member_id, club_id)`, plus CHECK `member_id <> club_id`. Membership is
-not an appearance: a club with visible members but only hidden credits is still
-hidden. The member list on a visible club omits hidden members.
+not a connection: it cannot make a hidden club or artist visible. A visible
+club's member list omits hidden members.
 
-### Series under an `H-Comic` franchise
+### Series under a hidden franchise
 
 `docs/open-items.md` lists this: there is no `series_content_label`, so a
 series in a label-hidden franchise still renders its name. Every h-comic series
@@ -128,30 +136,33 @@ The common entry columns come from the `media` supertable, as for every type.
 | `h_comic_name_kr` | String | | ✓ | |
 | `region` | String | | | `H_COMIC_REGIONS = ("JP", "KR")`, required |
 | `originality` | String | ✓ | | `H_COMIC_ORIGINALITY = ("原創", "同人")` |
-| `serialization_status` | String | ✓ | ✓ | reuses `MANGA_SERIALIZATION_STATUSES` |
-| `animation_status` | String | ✓ | ✓ | `H_COMIC_ANIMATION_STATUSES` (A3) |
+| `animation_status` | String | ✓ | | `H_COMIC_ANIMATION_STATUSES = ("Not Animated", "Announced", "Animated")` |
 | `series_number` | Integer | ✓ | | Position in the series (D7) |
+| `serialization_status` | String | ✓ | ✓ | reuses `MANGA_SERIALIZATION_STATUSES` |
 | `page_total` | Integer | ✓ | | |
-| `ch_total` | Integer | | ✓ | Chapters at the reading source |
-| `ch_total_official` | Integer | | ✓ | The official count (A2) |
+| `ch_total` | Integer | | ✓ | |
+| `ch_behind` | Integer | | ✓ | Chapters behind the official source, hand-set (D8) |
 | `release_date` / `end_date` | String | ✓ | ✓ | ISO CHECKs, like manga's |
+
+**One table, two variants.** The JP-only and KR-only columns share one table
+because the variants share most of their fields. `docs/data-model.md` marks
+each column's variant in its description, so the table reads correctly without
+the spec.
 
 Variant rule, following novel's volume-only rule: the columns a region does
 not use are **cleared on every write path**, not only hidden in the form. The
-cleared columns are `page_total`, `series_number` and `originality` on KR, and
-`ch_total` and `ch_total_official` on JP. A name column the region does not use
-is kept but not shown, since a name is harmless.
+cleared columns are `originality`, `animation_status`, `series_number` and
+`page_total` on KR, and `ch_total` and `ch_behind` on JP. A name column the
+region does not use is kept but not shown, since a name is harmless.
 
-Virtual and derived fields:
-- `display_name`: CN → EN → Alt → JP/KR
-- `ch_behind` (KR): `ch_total_official - ch_total`, null if either is null
-- the usual credit and tag link fields
+Virtual fields: `display_name` (CN → EN → Alt → JP/KR), plus the usual credit
+and tag link fields.
 
 **Personal columns** (`user_media_list`): `reading_status` (ReadStatus, default
 `Might Read`), `my_rating` (MY_RATINGS), `completed_at`, `ch_fin` (existing
 column, KR), plus two new nullable columns:
 - `page_fin` (Integer, JP; default 0 in `LIST_FIELD_DEFAULTS`)
-- `usefulness` (String, `H_COMIC_USEFULNESS`, A1)
+- `usefulness` (String, `H_COMIC_USEFULNESS`, both regions)
 
 ### Credits and tags
 
@@ -160,7 +171,7 @@ column, KR), plus two new nullable columns:
 | artists | `illustrator` credit role, scope extended to `h-comic`. Label override `("illustrator", "h-comic")` → 繪師 |
 | author (KR) | `author` credit role, scope extended to `h-comic` |
 | club | **new** person credit role `club` (`CreditRole("club", "Club", "person", ("h-comic",))`) |
-| official source (KR) | `original_source` tag field, scope extended (A4) |
+| official source (KR) | `original_source` tag field, scope extended (D10) |
 | genre plot / appearance / relation | three new tag fields, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`, scoped `("h-comic",)`, with admin-managed vocabularies |
 | sources | `media_source`, as every type |
 
@@ -168,15 +179,55 @@ The pinned sets in `tests/unit/test_credit_roles.py` (eight keys, the exact
 `PERSON_ROLES`, the legal scopes) and the frontend mirrors (`fieldOptions.js`
 `PERSON_ROLES` and `LEGAL`, `PersonSubTabBar`) move together.
 
-### Notes
+## Notes
+
+Both regions, unchanged from every other entry type:
 
 | Owner's note | Section |
 |---|---|
-| remark | `remark` (already `ALL_OWNERS`) |
+| remark | `remark_list` (already `ALL_OWNERS`) |
 | my comment | `personal_reviews` (already `ALL_OWNERS`, personal scope) |
 | public comment | `public_reviews` (already `ALL_OWNERS`, catalogue scope) |
-| highlights | `highlight_episodes`, owners extended to `h-comic`, label `神回`, locator `Chapter(s)` for KR and `Page(s)` for JP |
-| characters | not a note: `character_casting` (D6), with `h-comic` added to `CASTING_MEDIA_TYPES`. `ck_casting_voice_scope` already rejects a seiyuu there. |
+| characters | `character_casting`, with `h-comic` added to `CASTING_MEDIA_TYPES`. `ck_casting_voice_scope` already rejects a seiyuu there. |
+
+The other `ALL_OWNERS` sections reach `h-comic` automatically, as they reached
+`game`.
+
+### KR highlights: `h_comic_highlights`
+
+A new `structured` section, owners `("h-comic",)`, catalogue scope. **KR
+entries only**: the validator refuses it (422) on a JP entry, and a JP detail
+page renders no card for it.
+
+| Field | Type | Column | Notes |
+|---|---|---|---|
+| female characters | **names** (new) | `fields.female_characters` | Required. Several allowed. |
+| male characters | **names** (new) | `fields.male_characters` | Optional. Several allowed. |
+| chapter | text | `locator` | Free text, e.g. `1-5` |
+| location | text | `fields.location` | |
+| label | text | `kind` | Free text: a `kind`-backed field with no options |
+| usefulness | select | `status` | `H_COMIC_USEFULNESS` |
+| description | textarea | `content` | |
+
+**The `names` field type** is new to `NoteField`. It holds a list of free-text
+strings and is stored in `fields`, never in a column. Its input is a
+multi-value combobox that suggests the display names of the characters cast on
+this entry. A name that matches no cast character is still accepted, which is
+what "free text" means. The strings are not character ids: renaming a
+character does not rewrite old highlights. That is the price of free text, and
+it is the reason to note it.
+
+**Grouped rendering** is new to the structured component. A new
+`NoteSection.group_by = "female_characters"` makes the read view draw one
+group per female character name. A row naming two female characters appears
+under both.
+
+**Manual order** uses the existing `sort_index` and `PATCH /api/notes/reorder`.
+The order is **one order per row**, shared by every group the row appears in:
+dragging a row inside one group moves it in every group. Per-group positions
+would need a second ordering table, and nothing so far asks for that.
+
+Group order is by first appearance in the manual order.
 
 ## Registration
 
@@ -201,9 +252,11 @@ are listed so the plan knows which ones must change rather than be "fixed".
   Backup and Pull like every tab. The sheet is private, and it already holds the
   hentai rows.
 - **Search:** a bucket; hidden entries are already filtered there.
-- **Dashboard:** none. **Navigation:** library entry `/library/h-comic`, shown
-  only when the viewer's mode carries the label, so a narrower session is not
-  told the type exists.
+- **Dashboard:** none.
+- **Navigation:** library entry `/library/h-comic`, shown only when the
+  viewer's mode can see the gated type, so a narrower session is not told the
+  type exists. Both SPA permission surfaces (`App.jsx`'s `ProtectedRoute` and
+  `navigation.js`) ask the same question.
 - **Frontend:**
   - `mediaRegistry`, the library config, the detail route, `NAMING_CONFIGS`,
     colours, forms (Add, Modify, Delete)
@@ -218,16 +271,30 @@ are listed so the plan knows which ones must change rather than be "fixed".
 
 Three plans, in this order, each a PR into `dev`:
 
-1. **Visibility groundwork**: derived entity hiding, series under a hidden
-   franchise, and hidden entity photos and notes. It ships behaviour-neutral
-   for data with no labels, and it can be proven against the existing `hentai`
-   label before any h-comic exists.
-2. **Backend type**: the migration, model, registry, label enforcement,
-   credits, tags, notes, casting, Sheets and pipelines. It adds an Alembic
-   revision, so its `down_revision` is checked against `alembic heads` when the
-   plan is executed.
-3. **Frontend**: the library, detail and forms, the region-dependent fields,
-   and the gated nav entry.
+1. **Visibility groundwork**:
+   - the "every connection hidden" rule for people, characters, studios,
+     publishers and vocabulary values
+   - series under a hidden franchise
+   - hidden entity photos and notes
+   - `REQUIRED_LABEL_FOR_TYPE`, empty at first
+
+   It ships behaviour-neutral for data with no labels, and it can be proven
+   against the existing `hentai` label before any h-comic exists. Scope
+   connections to a gated type have nothing to act on until plan 2 registers
+   one, so their tests use a type registered for the test.
+2. **Backend type**:
+   - the migration, model and registry
+   - the label and its enforcement
+   - credits, club membership, tags and casting
+   - the KR highlights section with the `names` field
+   - Sheets and pipelines
+
+   It adds an Alembic revision, so its `down_revision` is checked against
+   `alembic heads` when the plan is executed.
+3. **Frontend**:
+   - the library, detail and forms, and the region-dependent fields
+   - the gated nav entry
+   - the `names` combobox and grouped, reorderable highlights
 
 Docs land with each plan: `data-model.md`, `entry-types.md` (a tenth column in
 every matrix), `authorization.md`, `options.md`, `systems/notes.md` and
