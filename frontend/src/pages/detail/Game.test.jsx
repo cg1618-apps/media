@@ -3,9 +3,14 @@
 // A game has no episode counter. Its progress is playtime against the
 // main-story estimate, plus achievements when the game reports a total —
 // so the block must render nothing at all rather than a misleading "0 h".
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { GameCopiesSection, GameProgress, outOf, yesNo } from "./Game";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { AuthProvider } from "../../contexts/AuthContext";
+import { ToastProvider } from "../../hooks/useToast";
+import Game, { GameCopiesSection, GameProgress, outOf, yesNo } from "./Game";
 
 describe("GameProgress", () => {
   it("shows playtime against the main-story estimate", () => {
@@ -111,5 +116,88 @@ describe("GameCopiesSection", () => {
   it("renders nothing when the game has no copies", () => {
     const { container } = render(<GameCopiesSection copies={[]} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+// The admin toolbar's Replace: the single-entry Replace route has been
+// registered for game all along (Steam only - playtime, achievements and the
+// store figures drift), and the page is where an admin refreshes one entry.
+describe("Game detail page — Replace", () => {
+  const GAME = {
+    system_id: "g1",
+    game_name_en: "Test Game",
+    franchise_id: null,
+    series_id: null,
+    cover_image_file: null,
+  };
+
+  function mockFetch({ isAdmin }) {
+    const calls = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url, init) => {
+        const u = String(url);
+        calls.push({ url: u, method: init?.method || "GET" });
+        let body = [];
+        if (u.startsWith("/api/auth/me")) {
+          body = {
+            is_admin: isAdmin,
+            username: isAdmin ? "admin" : null,
+            role: isAdmin ? "admin" : "guest",
+            is_root: isAdmin,
+            permissions: [],
+          };
+        } else if (u.startsWith("/api/game/g1")) {
+          body = GAME;
+        } else if (u.startsWith("/api/data-control/replace/")) {
+          body = { status: "success", message: "done" };
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+      })
+    );
+    return calls;
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  function mount() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <ToastProvider>
+            <MemoryRouter initialEntries={["/game/g1"]}>
+              <Routes>
+                <Route path="/game/:publicId/:slug?" element={<Game />} />
+              </Routes>
+            </MemoryRouter>
+          </ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  it("posts the single-entry Replace for this game", async () => {
+    const calls = mockFetch({ isAdmin: true });
+    mount();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Autofill & update" }));
+
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        url: "/api/data-control/replace/game/g1",
+        method: "POST",
+      })
+    );
+  });
+
+  // Mirror case: the same page, a guest, and no toolbar - so the admin test
+  // above is finding the button because of isAdmin, not because it is always there.
+  it("offers no Replace to a guest", async () => {
+    mockFetch({ isAdmin: false });
+    mount();
+
+    await screen.findByRole("heading", { name: "Test Game" });
+    expect(screen.queryByRole("button", { name: "Autofill & update" })).not.toBeInTheDocument();
   });
 });

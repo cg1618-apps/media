@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-22
+Last verified: 2026-09-23
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -561,11 +561,11 @@ Top to bottom:
 2. **Admin toolbar** (`isAdmin`): **Quick Edit** → `/modify?id={id}`;
    **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;
    **Autofill & Update** → `POST /api/data-control/replace/{type}/{id}`
-   with a spinner. Comic and Game render no Autofill button. The single
-   Replace route does exist for both (only a `fill_only` type such as Studio
-   has none) — the pages simply do not offer it, since neither Comic Vine nor
-   IGDB carries a score or rank that drifts, which is also why neither type is
-   in bulk Replace.
+   with a spinner. On Game it re-fetches Steam only (appid, SteamDB link,
+   store figures), since IGDB carries nothing that drifts. Comic renders no
+   Autofill button: the single Replace route exists for it, but Comic Vine
+   carries no score or rank that drifts, which is also why comic is not in
+   bulk Replace.
 3. **Left column**: poster card (my_rating badge, cover, hover progress
    overlay — percent or "{n} ep"), `SourcesCard` (Baha/Netflix/other,
    MAL/AniList/official/Twitter/IMDb links, official source, serialization
@@ -637,7 +637,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | |
 | Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Main Line, Serialization/Reading Status, Release Year, Issue Total | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
-| Game | Type, Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Steam Progress Sync (the one flag left here: it governs whether Steam may write this entry's progress, so it is a fact about the source rather than an answer about a playthrough — playing status and the four completion axes are editable in the tracker and Completion blocks instead), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Info card's count is no longer their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no Autofill, no `RelationsSection`, no `ScoreBlock`, no Cast |
+| Game | Type, Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Steam Progress Sync (the one flag left here: it governs whether Steam may write this entry's progress, so it is a fact about the source rather than an answer about a playthrough — playing status and the four completion axes are editable in the tracker and Completion blocks instead), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Info card's count is no longer their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
 
 `MarkAiringModal` is not used by any detail page; only `MediaCard` opens it.
 
