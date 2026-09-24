@@ -973,6 +973,17 @@ shape is what it is.
   always shows a failure teaches you to skim past the command you would use to
   find a real one.
 
+  **Reversed when the cable became the connection.** `optional` was right for an
+  interface nobody depended on, and wrong the moment `eno1` was the only one:
+  with the WiFi block removed, every interface was optional, netplan generated
+  no wait at all, and Docker started 3.7 s into boot, ahead of DHCP. The first
+  boot on the cable showed it — `cloudflared` restarted three times on failed
+  DNS, and `media-drift` failed once — with nothing left failed to point at the
+  cause. So `eno1` is now the interface boot waits on, `routable` with DNS.
+  Rejected: keeping `optional` and relying on restarts, because it works only
+  for services that retry, and a boot-time timer that fails once reports a
+  false alarm until its next run.
+
 **What the design got wrong**, recorded because a design that is only ever
 amended forward teaches nothing about its own reasoning: the compose file's
 location, the tunnel id's home, and the rollback procedure were all wrong in
@@ -1123,7 +1134,7 @@ A merge to `main` deploys itself. What runs is
 
 - **A self-hosted GitHub Actions runner on the box, long-polling outbound.**
   The constraint decides this: no service publishes a port, the only ingress is
-  an outbound Cloudflare Tunnel, and the hotspot gives no stable address, so
+  an outbound Cloudflare Tunnel, and the box has no public address, so
   GitHub cannot push, `ssh` or webhook in. Rejected: a `git ls-remote` poll loop
   on a systemd timer — fewer moving parts and it fits the timers already here,
   but deploy logs would live only on the box and there is no approval mechanism,

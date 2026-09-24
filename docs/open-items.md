@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-09-23
+Last verified: 2026-09-24
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -57,8 +57,7 @@ the command silently discarded before the fix.
 
 | Item | Why it is stuck |
 |---|---|
-| A DHCP reservation for the box | A phone hotspot offers none. The address is whatever DHCP hands out, and `ssh` failing is how you learn it moved |
-| The cable handover | No Ethernet yet. When it arrives, the reservation moves to the Ethernet MAC, the `wifis:` block leaves the netplan file, and the `iwlwifi` power-save override goes with it |
+| A DHCP reservation for the box | Its cable is bridged past the home router, so its address comes from the router above it, which needs that router's admin — or the cable moved onto the home router's own network. Until then the address is whatever DHCP hands out, and `ssh` failing is how you learn it moved |
 | An idle power reading for the box | No meter |
 
 ## The two machines and the backup sheet
