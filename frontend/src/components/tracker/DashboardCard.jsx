@@ -144,6 +144,7 @@ export default function DashboardCard({
               className="absolute top-1.5 right-1.5 z-10"
             />
             <img
+              loading="lazy"
               src={imageUrl}
               alt="Cover"
               className="w-full h-full object-cover"
@@ -187,6 +188,7 @@ export default function DashboardCard({
                 title="Watch on Bahamut"
               >
                 <img
+                  loading="lazy"
                   src="https://i2.bahamut.com.tw/anime/logo.svg"
                   className="h-3.5 opacity-90"
                   alt="Baha"
@@ -196,6 +198,7 @@ export default function DashboardCard({
             {bahaFlag && !bahaRow?.url && (
               <span className="inline-block" title="Available on Bahamut">
                 <img
+                  loading="lazy"
                   src="https://i2.bahamut.com.tw/anime/logo.svg"
                   className="h-3.5 opacity-50 grayscale"
                   alt="Baha"

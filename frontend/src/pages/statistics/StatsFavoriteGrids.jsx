@@ -47,6 +47,7 @@ function FavoriteGrid({ grid, rows, covers }) {
               >
                 <div className="aspect-[3/4] bg-surface-2">
                   <img
+                    loading="lazy"
                     src={favoriteCover(row, grid, covers)}
                     alt={name}
                     className="w-full h-full object-cover"

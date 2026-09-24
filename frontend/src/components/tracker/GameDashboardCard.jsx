@@ -80,6 +80,7 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
               </div>
             )}
             <img
+              loading="lazy"
               src={imageUrl}
               alt="Cover"
               className="w-full h-full object-cover"

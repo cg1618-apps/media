@@ -279,6 +279,7 @@ export default function Comic() {
               />
               <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
                 <img
+                  loading="lazy"
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"

@@ -191,6 +191,7 @@ export default function QuoteSection({
                   </div>
                   {imageUrl && (
                     <img
+                      loading="lazy"
                       src={imageUrl}
                       alt=""
                       className="mt-1 max-h-40 border border-border"

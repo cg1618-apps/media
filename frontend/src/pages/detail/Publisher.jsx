@@ -130,6 +130,7 @@ export default function Publisher() {
               style={{ aspectRatio: "2/3" }}
             >
               <img
+                loading="lazy"
                 src={logoUrl}
                 alt={`${name} logo`}
                 className="w-full h-full object-cover"
@@ -249,6 +250,7 @@ function CreditCard({ entry, navPath }) {
         style={{ aspectRatio: "2/3" }}
       >
         <img
+          loading="lazy"
           src={getCoverUrl(entry.cover_image_file)}
           alt=""
           className="w-full h-full object-cover"

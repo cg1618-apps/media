@@ -145,6 +145,7 @@ export default function MemeManageTab({ mode = "modify" }) {
                 <div className="flex-1 min-w-0">
                   {imageUrl && (
                     <img
+                      loading="lazy"
                       src={imageUrl}
                       alt=""
                       className="mb-2 max-h-32 rounded-lg border border-border"

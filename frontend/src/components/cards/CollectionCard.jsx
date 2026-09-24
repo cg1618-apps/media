@@ -44,6 +44,7 @@ export default function CollectionCard({ collection, coverUrl, memberCount }) {
             </div>
           )}
           <img
+            loading="lazy"
             src={coverUrl}
             alt="Cover"
             className="w-full h-full object-cover"

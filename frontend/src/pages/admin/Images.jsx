@@ -48,6 +48,7 @@ function ImageTile({ image, onDetach, onDelete, busy }) {
           </div>
         ) : (
           <img
+            loading="lazy"
             src={getCoverUrl(image.thumb_key || image.storage_key)}
             alt={image.original_filename || ""}
             className="h-full w-full object-cover"

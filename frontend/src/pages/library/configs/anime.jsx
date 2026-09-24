@@ -168,6 +168,7 @@ const ANIME_LIBRARY_CONFIG = {
         const bahaRow = getBahaRow(item);
         const logo = (
           <img
+            loading="lazy"
             src="https://i2.bahamut.com.tw/anime/logo.svg"
             className={`h-4 inline-block ${bahaRow?.url ? "opacity-90" : "opacity-50 grayscale"}`}
             alt="Baha"

@@ -95,6 +95,7 @@ export default function ImagePicker({
     <div className="space-y-2">
       {value && (
         <img
+          loading="lazy"
           src={getCoverUrl(value)}
           alt="Current image"
           className="max-h-40 rounded-lg border border-border"
@@ -308,6 +309,7 @@ function LibraryModal({ onSelect, onClose }) {
                   </span>
                 ) : (
                   <img
+                    loading="lazy"
                     src={getCoverUrl(image.thumb_key || image.storage_key)}
                     alt=""
                     className="h-full w-full object-cover"

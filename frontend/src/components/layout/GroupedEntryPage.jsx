@@ -169,6 +169,7 @@ export default function GroupedEntryPage({
                         </div>
                       ) : (
                         <img
+                          loading="lazy"
                           src={getCoverUrl(group.cover_image_file)}
                           alt=""
                           className="w-9 h-12 object-cover shrink-0 border border-border"
