@@ -236,7 +236,7 @@ deliberate, and each was tested rather than assumed.
 | If this happens | What brings it back | Measured |
 | --- | --- | --- |
 | Mains power cut | BIOS **After Power Loss → Power On** | Comes up unattended |
-| Boot | `docker.service` enabled, ordered after `network-online.target`; `restart: unless-stopped` on all three | Not yet timed on the cable |
+| Boot | `docker.service` enabled, ordered after `network-online.target`; `restart: unless-stopped` on all three | **20.2 s** to boot, network online at 7.4 s and Docker after it; **37 s** from `reboot` to serving, with no tunnel restarts |
 | The network disappears and returns | `systemd-networkd` renews DHCP on `eno1` | Not yet tested on the cable |
 | The tunnel drops | `cloudflared` retries its outbound connection indefinitely | Four QUIC connections re-registered |
 | A container exits | `restart: unless-stopped` | — |
