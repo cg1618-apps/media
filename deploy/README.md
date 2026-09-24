@@ -40,7 +40,7 @@ box. `.github/workflows/deploy.yml` in this repository is one decision —
 `app: media` — and everything else is the platform's. A self-hosted GitHub
 Actions runner on the box long-polls GitHub outbound, which is the only shape
 available: no service here publishes a port, the only ingress is an outbound
-Cloudflare Tunnel, and the box has no stable address on its hotspot.
+Cloudflare Tunnel, and the box has no public address to reach.
 
 There are two lanes. Which one a merge takes is decided by the platform's
 `classify` job, from `apps.yml` and from this app's own
@@ -183,7 +183,7 @@ does not — there is no oldest-missing commit and no window that could ever
 expire, so that alerts immediately. It means the checkout has left `main`.
 
 A run that cannot reach GitHub at all fails and pings nothing, which is correct:
-the missing ping is what the dead-man's switch is for, and a hotspot blip
+the missing ping is what the dead-man's switch is for, and a network blip
 self-corrects on the next run well inside the grace window.
 
 ### Two things a deploy does not do
