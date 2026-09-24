@@ -225,7 +225,7 @@ def test_backup_copies_the_dump_and_syncs_the_library():
 def test_the_nightly_does_not_touch_covers():
     # Load-bearing for the data plan: covers are 283 MB and weekly, the dump
     # and library are tiny and nightly. Nothing else would notice this
-    # silently reverting, and the box is on a metered hotspot.
+    # silently reverting, and every byte goes up the box's limited upload.
     body = BACKUP.read_text(encoding="utf-8")
     assert "static/covers" not in body
 
@@ -657,7 +657,7 @@ def test_timer_schedule_matches_the_design(unit, oncalendar):
 
 @pytest.mark.parametrize("unit", sorted(SCHEDULE))
 def test_every_timer_catches_up_a_missed_run(unit):
-    # The box is on a phone hotspot and may be off overnight. Without
+    # The box can be off when a run is due - a power cut, a move. Without
     # Persistent=true a missed run is simply lost, which is the failure mode
     # this whole system exists to make visible.
     body = (UNITS / f"{unit}.timer").read_text(encoding="utf-8")
@@ -678,8 +678,8 @@ def test_install_script_needs_no_sudo_beyond_what_it_documents():
 
 
 def test_install_defers_the_cover_timer():
-    # The first cover run pushes 283 MB over a metered phone hotspot. That is
-    # the owner's cost to spend deliberately, not one a timer picks at 04:20.
+    # The first cover run pushes 283 MB up the upload the tunnel serves the
+    # site on. That is the owner's cost to spend deliberately, not one a timer picks at 04:20.
     # install.sh iterates units/*.timer so a later job needs no edit here, and
     # this is what stops that convenience from silently enabling this one.
     body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
