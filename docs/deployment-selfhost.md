@@ -1,6 +1,6 @@
 # Production: the self-hosted box
 
-Last verified: 2026-09-21 (the application is deployed and serving at
+Last verified: 2026-09-24 (the box is on its cable and serving at
 `media.cg1618.com`)
 
 **What this is.** The application runs on an HP ProDesk 600 G4 Desktop Mini at
@@ -236,8 +236,8 @@ deliberate, and each was tested rather than assumed.
 | If this happens | What brings it back | Measured |
 | --- | --- | --- |
 | Mains power cut | BIOS **After Power Loss → Power On** | Comes up unattended |
-| Boot | `docker.service` enabled; `restart: unless-stopped` on all three | **23.6 s** from power-on to serving |
-| The network disappears and returns | `wpa_supplicant` reassociates; DHCP renews | Same address recovered, unattended |
+| Boot | `docker.service` enabled, ordered after `network-online.target`; `restart: unless-stopped` on all three | **20.2 s** to boot, network online at 7.4 s and Docker after it; **37 s** from `reboot` to serving, with no tunnel restarts |
+| The network disappears and returns | `systemd-networkd` renews DHCP on `eno1` | Not yet tested on the cable |
 | The tunnel drops | `cloudflared` retries its outbound connection indefinitely | Four QUIC connections re-registered |
 | A container exits | `restart: unless-stopped` | — |
 | The app container is replaced | `cloudflared` re-resolves the service name | Verified across a rebuild |
@@ -245,20 +245,27 @@ deliberate, and each was tested rather than assumed.
 `restart: unless-stopped` rather than `always`, so a deliberate
 `docker compose stop` survives a daemon restart instead of fighting you.
 
-**Two settings quietly undo this if they are wrong.** `S5 Maximum Power
-Savings` in the BIOS cuts power to devices in soft-off and breaks power-on
-after loss; and on a WiFi box `iwlmvm`'s default power scheme idles the radio
-hard enough that a local ping runs around 200 ms instead of 1-3, which presents
-as an unreachable machine rather than a sleeping radio.
+**One BIOS setting quietly undoes this if it is wrong.** `S5 Maximum Power
+Savings` cuts power to devices in soft-off and breaks power-on after loss.
 
-**The boot time is a setting, not a property.** The installer's netplan makes
-`systemd-networkd-wait-online` block on the Ethernet interface, which never
-comes up without a cable; it waits its full two-minute timeout, fails, and
-`docker.service` waits behind it. Marking that interface `optional: true` took
-startup from **2 min 18 s to 23.6 s** and left `systemctl --failed` empty
-instead of permanently showing one failure — the second mattering more, because
-a box that always shows a failure teaches you to skim past the command you
-would use to find a real one.
+**`network-online.target` means `eno1` is routable with DNS.** Netplan holds
+only `eno1` — `dhcp4: true`, not `optional` — so the generated
+`systemd-networkd-wait-online` drop-in runs
+`--any --dns -o routable -i eno1`, and `docker.service` starts behind it.
+`optional` is the setting that silently breaks this: with every interface
+optional, netplan generates no `ExecStart` at all, the target is reached
+immediately, and Docker starts about four seconds into boot, before DHCP has
+answered. Nothing stays failed — `cloudflared` exits on its edge lookup
+(`lookup _v2-origintunneld._tcp.argotunnel.com on 127.0.0.11:53: server
+misbehaving`) and is restarted until DNS works, and a timer that fires at boot,
+`media-drift` among them, fails once and runs again on its next schedule — so
+the only trace is a restart count and one failed unit.
+
+**The box is not on the same network as the laptop that manages it.** Its cable
+goes into a port bridged past the home router to the network above it, and its
+address comes from that network's DHCP, with no reservation (see
+[What is not done](#what-is-not-done)). A laptop on the home router reaches it
+through the router's NAT; the box cannot open a connection back.
 
 ## Backups
 
@@ -358,7 +365,7 @@ time rather than drifting later after every late run:
 | `media-drift` | 6 h | no successful drift check by 16:00 |
 
 A dead-man's switch rather than an error reporter, because a job that never
-ran — box off, hotspot down, timer disabled — cannot report anything on its
+ran — box off, network down, timer disabled — cannot report anything on its
 own; only something outside the box notices the absence.
 
 **A job that fails before it has loaded its configuration cannot ping either**,
@@ -464,10 +471,11 @@ Both are in
 Building in CI and pulling from GHCR is the conventional answer and stays
 available — the compose file already names the image, carries no build args and
 bakes in no environment-specific values, so the switch is about two lines. It
-is not done for a reason the hotspot decides rather than the tooling: a registry
-deploy ships roughly a gigabyte to the box per release, over its worst link.
+is not done for a reason the connection decides rather than the tooling: a registry
+deploy ships roughly a gigabyte to the box per release.
 That is the same argument that already ruled out `docker save | ssh docker load`.
-When Ethernet arrives, this is worth revisiting.
+On the cable, which downloads at about 80 Mbps, that is under two minutes, so
+the decision is open to revisit.
 
 **The dump before the pull is the only protection against a bad migration.**
 Migrations run on every start, so by the time one is visible it has already
@@ -723,12 +731,12 @@ work — but the gate was left rather than removed blind.
 
 ## What is not done
 
-- **A DHCP reservation**, which is impossible while the box lives on a phone
-  hotspot. Its address is whatever DHCP hands out, and `ssh` failing is the
+- **A DHCP reservation.** The box's address comes from the router *above* the
+  home router, which is not the one the laptop's admin page reaches, so the
+  reservation needs that router's admin — or the box's cable moved to a port on
+  the home router's own network, where the reservation can be set instead.
+  Until then the address is whatever DHCP hands out, and `ssh` failing is the
   signal that it moved.
-- **The cable handover** — when Ethernet arrives, the reservation moves to the
-  Ethernet MAC, the `wifis:` block comes out of the netplan file, and the
-  `iwlwifi` power-save override is deleted with it.
 - **Whether `journal`, `health` and `money` get Cloudflare Access** or no public
   hostname at all. None of them exists yet, and the decision belongs before the
   ingress rule rather than after — `tests/unit/test_prod_compose.py` fails if
