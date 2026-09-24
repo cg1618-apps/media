@@ -2,7 +2,7 @@
 # Weekly: mirror static/covers/ to R2.
 #
 # Weekly rather than nightly, and separate from the database job, because this
-# is 283 MB across 1,986 files on a metered phone hotspot. rclone sync only
+# is 283 MB across 1,986 files up the box's limited upload. rclone sync only
 # transfers what differs - but it must still LIST the bucket to know that,
 # which is about 1 MB a night to learn that nothing changed.
 #

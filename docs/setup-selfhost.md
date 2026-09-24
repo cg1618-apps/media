@@ -1076,8 +1076,8 @@ Healthchecks check, which stays grey and unmonitored until its first ping:
 **Two timers are deliberately left disabled**, each until its precondition is
 met:
 
-- **`media-covers.timer`** — its first run uploads 283 MB over a metered phone
-  hotspot, a cost worth spending on purpose rather than at whatever hour a
+- **`media-covers.timer`** — its first run uploads 283 MB through the same
+  upload the tunnel serves the site on, a cost worth spending on purpose rather than at whatever hour a
   timer happens to fire. Run the sync by hand once, then enable it.
 - **`media-verify.timer`** — the weekly drill restores the newest dump in R2
   and cannot pass while the bucket holds none. Its scheduled Wednesday 04:40 run

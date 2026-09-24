@@ -2,8 +2,8 @@
 # Nightly: stamp the database, dump it, put the dump in R2, mirror
 # static/library/, prune old dumps.
 #
-# The cover-image directory is deliberately NOT here - it is 283 MB against a
-# metered hotspot, it changes only when entries are added, and it is
+# The cover-image directory is deliberately NOT here - it is 283 MB up the
+# box's limited upload, it changes only when entries are added, and it is
 # re-fetchable from the metadata APIs. It has its own weekly job.
 # static/library/ is here because it is tiny and is the one store nothing
 # anywhere can re-fetch.
