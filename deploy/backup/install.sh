@@ -56,8 +56,8 @@ echo "==> Enabling timers"
 # is added by dropping two unit files in units/ - no edit here.
 #
 # media-covers is on the defer list deliberately. Its first run uploads 283 MB
-# over a metered phone hotspot, and that is a cost to spend on purpose, not one
-# a timer picks at 04:20. Run covers.sh by hand once, then:
+# through the same upload the tunnel serves the site on, and that is a cost to
+# spend on purpose, not one a timer picks at 04:20. Run covers.sh by hand once, then:
 #     sudo systemctl enable --now media-covers.timer
 #
 # media-verify is on it because the drill CANNOT pass before a dump exists in
@@ -188,7 +188,7 @@ for timer in "${DEFER[@]}"; do
             cat <<'DONE'
 
   media-covers.timer is NOT enabled. Enable it after one manual
-  ./deploy/backup/covers.sh, which pushes 283 MB over the hotspot:
+  ./deploy/backup/covers.sh, which pushes 283 MB up the box's upload:
       sudo systemctl enable --now media-covers.timer
 DONE
             ;;
