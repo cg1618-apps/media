@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-21
+Last verified: 2026-09-24
 
 ## What this is for
 
@@ -20,42 +20,56 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 
 | | **Company** | **Home** |
 |---|---|---|
-| Project path | `C:\Users\q601513\Documents\anime_site` | `C:\Users\cgent\Documents\cg1618\media` |
+| Project path | `C:\Users\q601513\Documents\personal\cg1618\media` | `C:\Users\cgent\Documents\cg1618\media` |
 | OS | Windows 11 Pro (10.0.26200) | Windows 11 Home (10.0.26200) |
-| PostgreSQL | **home:** the platform's `docker-compose.dev-db.yml` (`postgres:17`, container `cg1618-dev-db`, `127.0.0.1:5432`, volume `cg1618_dev_pgdata`). Start it with the platform's `.\dev-db.cmd`, or let any app's `dev.ps1` do it. **company:** still pre-migration — media's own `docker-compose.yml`, container `anime_site_postgres_db`, volume `postgres_anime_data`, started with `docker-compose up -d`. The two are no longer identical, and will be once company is migrated. | **docker-compose**, identical. Native PostgreSQL 17 and 18 are also installed here, with their services set to **Manual** start so they cannot claim 5432 ahead of the container. If the container will not bind the port, check that neither native service has been started by hand. |
-| Database | still `anime_site_db` as `postgres` on `127.0.0.1:5432` — this machine has not been migrated, and owes the rename below when it is | `media` as `postgres` on `127.0.0.1:5432` |
-| Python | `venv/Scripts/python.exe` — **3.11.9** (the project targets 3.13; this machine runs 3.11) | `venv/Scripts/python.exe` — **3.13.6**, the version the project targets |
+| PostgreSQL | the platform's `docker-compose.dev-db.yml` (`postgres:17`, container `cg1618-dev-db`, `127.0.0.1:5432`, volume `cg1618_dev_pgdata`). Start it with the platform's `.\dev-db.cmd`, or let any app's `dev.ps1` do it. Identical on both machines since company migrated on 2026-09-24. No native PostgreSQL is installed here. | **docker-compose**, identical. Native PostgreSQL 17 and 18 are also installed here, with their services set to **Manual** start so they cannot claim 5432 ahead of the container. If the container will not bind the port, check that neither native service has been started by hand. |
+| Database | `media` as `postgres` on `127.0.0.1:5432` | `media` as `postgres` on `127.0.0.1:5432` |
+| Python | `venv/Scripts/python.exe` — **3.13.15**, built with `py -3.13`. 3.11 and 3.14 are also installed; neither is used here | `venv/Scripts/python.exe` — **3.13.6**, the version the project targets |
 | Node / npm | v24.18.0 / 11.16.0 | v24.14.1 / 11.11.0 |
 | Google Sheet | `GOOGLE_SHEET_ID=1d-rh8joD3xHhG58KdFyBDQ-g99xDfMnHNiBu7ECFemU` — the same sheet on both machines, and the only channel data travels through | same sheet |
-| Remote | `origin` → `https://github.com/cgentle1618/anime_site.git` — archived, and still what this machine's clone points at | `origin` → `https://github.com/cg1618-apps/media.git` |
+| Remote | `origin` → `https://github.com/cg1618-apps/media.git`. Git's **global** identity on this machine is the work account, which has no write access to `cg1618-apps`, so this clone sets `user.name`, `user.email` and a `credential.helper` in its **local** config — see below | `origin` → `https://github.com/cg1618-apps/media.git` |
 
 > Both columns are recorded from the machine itself. Keep it that way — record
 > from the machine rather than from memory, and bump the `Last verified` line.
 
-**The pre-migration tree is kept on each machine rather than deleted** — home's
-is `C:\Users\cgent\Documents\anime_site`, and the company machine's stays at
-`C:\Users\q601513\Documents\anime_site` when it migrates. Nothing runs from
-either: `origin` is the archived `cgentle1618/anime_site`, `frontend_dist/` goes
-stale the moment anything is built in the live tree, and the only irreplaceable
-things in it — `.env` and `credentials.json` — have been copied into
-`cg1618\media`.
+**The pre-migration tree was kept on home and deleted on company.** Home's is
+still `C:\Users\cgent\Documents\anime_site`; the company machine's
+`C:\Users\q601513\Documents\anime_site` was deleted on 2026-09-24, once the new
+tree was verified, along with its `anime_site_postgres_db` container and its
+`anime_site_postgres_anime_data` volume.
 
-What makes it worth a note rather than a silent second copy: it shares the same
+Keeping one is only worth it for `static/covers/`, which is gitignored and does
+not travel. Once those have been copied across, what remains is a clone of the
+archived `cgentle1618/anime_site` that nothing can be pushed to, a stale
+`frontend_dist/`, and copies of `.env` and `credentials.json` that now live in
+the app.
+
+The reason to be deliberate about it while it exists: it shares the same
 PostgreSQL and the same `COMPOSE_PROJECT_NAME`, so a command run there reaches
-the **real** development database while its remote is a repository that can no
-longer be pushed to. Be deliberate about which directory a session is in. What
-it is good for is `static/covers/`, which is gitignored and did not travel.
+the **real** development database while its remote is read-only.
 
-**The company machine has not been migrated**, and nothing can be pushed from
-it until it is: it holds a clone of `cgentle1618/anime_site`, which is archived
-and therefore read-only. Migrate it before the first edit, not after.
+**Both machines are migrated.** Company migrated on 2026-09-24, into
+`C:\Users\q601513\Documents\personal\cg1618\media`, as a clone alongside the
+old tree rather than a replacement of it.
 
-It migrates the same way the home machine did — a clone alongside, not a
-replacement. Clone `cg1618-apps/media` into
-`C:\Users\q601513\Documents\cg1618\media`, copy `.env`, `credentials.json` and
-`CLAUDE.local.md` across from `C:\Users\q601513\Documents\anime_site`, build a
-`venv` (`python -m venv`, `pip install -r requirements-dev.txt`), then
-`npm install` and `npm run build`. The old directory stays where it is.
+Its database was not rebuilt from the sheet. The old container's volume was
+copied into the platform's with `.\dev-db.cmd -Migrate`, which leaves the source
+untouched as the rollback, and the copy was then renamed and brought to head:
+
+```bash
+# from the platform checkout, with nothing connected to either database
+docker stop anime_site_postgres_db
+.\dev-db.cmd -Migrate
+.\dev-db.cmd
+docker exec cg1618-dev-db psql -U postgres -d postgres -c "ALTER DATABASE anime_site_db RENAME TO media"
+docker exec cg1618-dev-db createdb -U postgres media_test
+venv/Scripts/alembic.exe upgrade head          # s1e2asonalix -> h1c2o3m4i5c6
+```
+
+**Pull All was deliberately not run**, so the 2,081 media rows on that machine
+are its own rather than the sheet's. See
+[open-items.md](open-items.md#the-two-machines-and-the-backup-sheet) for why
+that is the safe order rather than an oversight.
 
 Two things that are easy to lose in a fresh clone:
 
@@ -70,16 +84,45 @@ Two things that are easy to lose in a fresh clone:
   the box. Nothing else in `.env` changes; that machine keeps
   `STEAM_ENABLED=false`.
 - **`static/covers/` is not in the clone.** It is gitignored and per-machine —
-  about 2,000 files, 284MB on the home machine. Copy it from the old directory,
-  which is quick and is why keeping that directory is useful; failing that,
-  `/system` → Calculate → **download missing covers** rebuilds it from the
-  APIs.
+  about 2,000 files, 284MB on the home machine; 1,883 files, 235MB on company.
+  Copy it from the old directory, which is quick and is the one thing that
+  directory is still good for; failing that, `/system` → Calculate → **download
+  missing covers** rebuilds it from the APIs.
+
+  **It belongs at `static/covers/<owner_type>/`, not under `static/library/`.**
+  `image_manager.py` sets `COVER_DIR = "static/covers"`; `static/library/` is
+  content-addressed upload storage and `static/quotes/` holds the pre-existing
+  quote images. A copy that lands one level deep serves 404s for every cover
+  while looking entirely plausible on disk, because the 13 owner folders are all
+  there and all named correctly.
+
+- **Git's identity and credentials are per-repository on company.** That
+  machine's global `.gitconfig` is the work account, and it also serves an Azure
+  DevOps remote and an internal Git server, so it must not be repointed. Each
+  personal clone sets its own instead:
+
+  ```bash
+  git config --local user.name cgentle1618
+  git config --local user.email cgentle1618@gmail.com
+  git config --local --replace-all credential.helper ""
+  git config --local --add credential.helper "!gh auth git-credential"
+  ```
+
+  Without the identity, commits are authored as the work account. Without the
+  credential lines the Windows Credential Manager answers first with that
+  account, and the push fails `403 Permission to cg1618-apps/... denied` naming
+  an account that has nothing to do with this project. `--add` after
+  `--replace-all ""` matters: a helper set with a plain `git config` is appended
+  to the inherited list rather than replacing it, and the first helper to answer
+  wins.
 
 Run **Backup** from whichever machine holds the newer data before touching the
 other.
 
 **This repository is cloned inside the platform repository.**
-`C:\Users\cgent\Documents\cg1618` is itself a clone of `cg1618-apps/platform`,
+`C:\Users\cgent\Documents\cg1618` on home, and
+`C:\Users\q601513\Documents\personal\cg1618` on company, is itself a clone of
+`cg1618-apps/platform`,
 which holds `apps.yml` — the registry the box derives from — and, as the
 platform sequence proceeds, the shared PostgreSQL, the tunnel ingress and the
 deploy scripts. It ignores `/media/`, so the two histories never meet and a
@@ -105,7 +148,7 @@ below.
 | | Revision | Notes |
 |---|---|---|
 | **Home** | `f1r2anlabel3` — head, as of 2026-09-20 | Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row. Two of the revisions it now holds declare `irreversible = True`, so it cannot be downgraded past them — going back before the notes rework means restoring a dump |
-| **Company** | `m5b2memefks` — **behind** | Needs `git pull`, then `alembic upgrade head`, then Pull All, in that order. The order matters: see the company-machine entries in [open-items.md](open-items.md#the-two-machines-and-the-backup-sheet). **Its Pull All is now the dangerous step**: the sheet predates the notes rework, so a Pull from it restores note rows in their old shape — see below |
+| **Company** | `h1c2o3m4i5c6` — head, as of 2026-09-24 | Volume-copied out of the pre-migration `anime_site_postgres_anime_data` on 2026-09-24, renamed `anime_site_db` → `media`, then upgraded from `s1e2asonalix`. 2,081 `media` rows, 833 `anime`, 2 accounts, 59 tables; the recovery dump taken before the upgrade is below. **Pull All has still not been run here**, so its rows are its own and not the sheet's — the sheet predates the notes rework, which is why that is the safe place to stop |
 
 Read it from the machine rather than from memory:
 
@@ -119,16 +162,17 @@ every key set, `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` and `STEAM_API_KEY` /
 `STEAM_ID` included; a machine missing the Steam pair cannot run the Steam
 import.
 
-### The `anime_site` names, and the one-off each machine owes
+### The `anime_site` names, and the one-off each machine owed
 
 On 2026-09-21 the last `anime_site` names were renamed to `media`: production's
 checkout (`~/anime_site` → `~/media`) and live database (`anime_site_db` →
 `media`), and, in this repository, the development database, the test database
 (`anime_site_test` → `media_test`) and `COMPOSE_PROJECT_NAME`.
 
-**Production and home are done. Company is not**, because a database is
-machine state and does not travel with the branch that renames it. The
-procedure, per machine, with nothing connected to either database:
+**All three are done** — production and home on 2026-09-21, company on
+2026-09-24 — because a database is machine state and does not travel with the
+branch that renames it. The procedure that was run, per machine, with nothing
+connected to either database:
 
 ```bash
 docker exec cg1618-dev-db psql -U postgres -d postgres -c "ALTER DATABASE anime_site_db RENAME TO media"
@@ -147,10 +191,12 @@ which reads as real breakage rather than as somebody else's rename. Creating
 the new one first makes the two coexist for as long as it takes every tree to
 catch up.
 
-**Company owes all of it**, and owes it *after* its migration rather than
-before: it is still on the pre-migration tree with its own
-`anime_site_postgres_db` container, so there is no `cg1618-dev-db` on it to run
-the commands against yet.
+On company this ran after its migration rather than before, because the
+commands address `cg1618-dev-db` and that container did not exist there until
+the migration created it. Seven stale `anime_site_test_step*` scratch databases
+were dropped in the same pass — leftovers from worktrees whose branches had
+merged, which `worktree.ps1` is supposed to drop and which nothing notices when
+it does not.
 
 ### Recovery dumps
 
@@ -164,7 +210,16 @@ have nothing beyond the Google Sheet.
 | `~/anime_site_pre_owner_flag_20260912.sql` | home | `o1a1ownerflag` moved every user row off `admin` |
 | `~/anime_site_home_pre_step1_20260909.sql` | home | the `m0a*`..`m1b1anime` run, which deleted 2 orphaned `media_credit` and 10 orphaned `media_tag` rows by design |
 | `~/anime_site_home_pre_docker_20260908.sql` | home | the move from native PostgreSQL 17.6 into the container |
-| `~/anime_site_pre_games_20260906_134907.sql` | company | the games migration |
+| `~/media_company_pre_upgrade_20260924.sql` | company | the `s1e2asonalix` → `h1c2o3m4i5c6` upgrade that followed that machine's migration; two revisions in that range declare `irreversible = True` |
+| `~/anime_site_company_pre_baseline_20260916.sql` | company | the baseline rework |
+| `~/anime_site_company_pre_pull_20260910.sql` | company | a Pull All |
+| `~/anime_site_pre_step3_20260910.sql` | company | the step-3 migration run |
+| `~/anime_site_pre_publisher_20260907.sql` | company | the publisher migration |
+
+Read from the machines rather than from memory. A row for
+`anime_site_pre_games_20260906_134907.sql` on company was listed here and no
+such file exists there — a dump the page asserts and the disk does not have is
+worse than no row at all, because it reads as a rollback somebody has.
 
 **Scratch test databases are not tracked.** Each worktree gets its own from
 `worktree.ps1` and drops it when the branch merges, and
@@ -232,29 +287,6 @@ tab; Pull All overwrites every table. So:
 
 ## 4. Arriving in an environment (handoff in)
 
-> ### One-time on the company machine: the Postgres 15 -> 17 volume
->
-> The company machine still has the pre-migration layout, so this is written
-> in its terms: media's own `docker-compose.yml` and the
-> `anime_site_postgres_anime_data` volume. On a migrated machine both are gone
-> — the platform's `docker-compose.dev-db.yml` and `cg1618_dev_pgdata` replace
-> them — and this step is done there instead.
->
-> `docker-compose.yml` pins `postgres:17`. **A `postgres:17` container refuses
-> to start on a `postgres_anime_data` volume holding an older data directory**
-> — the log says *"database files are incompatible with server"* and the
-> container exits. The volume has to be recreated once, which means the
-> database in it is destroyed, so take the data out first:
->
-> 1. On the machine with the newer data, run **Backup**.
-> 2. `docker-compose down -v` — this **deletes** the local database volume.
-> 3. `docker-compose up -d`, then `alembic upgrade head`.
-> 4. **Pull All** from `/system` to refill from the sheet, then **Calculate All**.
->
-> To avoid the sheet, dump first instead: with the image temporarily set back
-> to the older major version, run `pg_dump -U postgres -h 127.0.0.1
-> media -f dump.sql`, then do steps 2-3 and `psql -U postgres -h
-> 127.0.0.1 -d media -f dump.sql` in place of the Pull.
 
 
 1. `git fetch origin`, then `git checkout <branch>` — the branch you left work
