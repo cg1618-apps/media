@@ -706,10 +706,15 @@ gate exists to close. Path traversal has nothing to traverse — the filename
 opened is the canonical form of a parsed UUID, so no caller text reaches the
 filesystem call.
 
-**Caching:** `Cache-Control: private, max-age=300` plus an `ETag` derived from
-the file's mtime and size, so a still-current cover costs a 304 rather than the
-bytes. `private` matters — the response depends on who is asking, and a shared
-cache holding one would hand a narrowed session the image this route withholds.
+**Caching:** `Cache-Control: private, max-age=86400` plus an `ETag` derived
+from the file's mtime and size. The browser keeps a cover for a day, and after
+that a still-current cover costs a 304 rather than the bytes. A day because
+every cover crosses the box's upload, the same one the tunnel serves the whole
+site on; the cost is that a re-downloaded cover can show its old image for up
+to a day in a browser that already held it, until a hard refresh. `private`
+matters — the response depends on who is asking, and a shared cache holding one
+would hand a narrowed session the image this route withholds, so Cloudflare
+never caches a cover.
 
 ---
 

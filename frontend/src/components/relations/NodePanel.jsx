@@ -20,6 +20,7 @@ export default function NodePanel({
     <div className="absolute left-3 top-3 z-40 w-64 rounded-xl border border-border bg-surface p-3 shadow-xl">
       <div className="flex items-start gap-2">
         <img
+          loading="lazy"
           src={getCoverUrl(node.cover_image_file)}
           alt=""
           className="h-16 w-12 shrink-0 rounded-md object-cover"

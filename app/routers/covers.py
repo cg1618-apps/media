@@ -36,12 +36,15 @@ from app.services.rbac.shared_visibility import (
 
 router = APIRouter(prefix="/api/covers", tags=["Images"])
 
-# Long enough that a list page of forty covers is not forty round trips on
-# every navigation, short enough that a re-downloaded cover appears without
-# anyone clearing anything. PRIVATE because the response depends on who is
-# asking: a shared cache holding one would hand a narrowed session the very
-# image this route exists to withhold.
-CACHE_CONTROL = "private, max-age=300"
+# A day, because every cover crosses the box's upload - the one the tunnel
+# serves the whole site on - and a list page re-fetching hundreds of them on
+# every visit starves every other request. The cost is that a re-downloaded
+# cover can show its old image for up to a day in a browser that already held
+# it; a hard refresh clears it, and after the day the ETag makes the check a
+# 304. PRIVATE because the response depends on who is asking: a shared cache
+# holding one would hand a narrowed session the very image this route exists
+# to withhold.
+CACHE_CONTROL = "private, max-age=86400"
 
 NOT_FOUND = "Cover image not found"
 

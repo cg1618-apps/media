@@ -39,6 +39,7 @@ export default function FranchiseCard({ franchise, coverUrl }) {
             className="absolute top-1.5 right-1.5 z-10"
           />
           <img
+            loading="lazy"
             src={coverUrl}
             alt="Cover"
             className="w-full h-full object-cover"

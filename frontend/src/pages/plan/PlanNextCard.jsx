@@ -26,6 +26,7 @@ export default function PlanNextCard({ row }) {
     <>
       <div className="relative aspect-[3/4] bg-surface-2 overflow-hidden">
         <img
+          loading="lazy"
           src={src}
           alt={row.display_name || ""}
           onError={(e) => {

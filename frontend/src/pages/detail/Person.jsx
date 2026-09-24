@@ -126,6 +126,7 @@ export default function Person() {
               style={{ aspectRatio: "2/3" }}
             >
               <img
+                loading="lazy"
                 src={photoUrl}
                 alt={`${name} photo`}
                 className="w-full h-full object-cover"
@@ -240,6 +241,7 @@ function CreditCard({ entry, navPath }) {
         style={{ aspectRatio: "2/3" }}
       >
         <img
+          loading="lazy"
           src={getCoverUrl(entry.cover_image_file)}
           alt=""
           className="w-full h-full object-cover"

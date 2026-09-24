@@ -63,6 +63,7 @@ function CastSection({ cast }) {
           <div key={row.system_id} className="flex items-center gap-3">
             <div className="w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded">
               <img
+                loading="lazy"
                 src={getCoverUrl(row.photo_file)}
                 alt=""
                 className="w-full h-full object-cover"
@@ -574,6 +575,7 @@ export default function Manga() {
               />
               <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
                 <img
+                  loading="lazy"
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"

@@ -1022,6 +1022,7 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={getCoverUrl(selectedAnime.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   onError={(e) => {
@@ -1111,6 +1112,7 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={getCoverUrl(selectedAnimeMovie.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   onError={(e) => {
@@ -1201,6 +1203,7 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={getCoverUrl(selectedMovie.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   onError={(e) => {
@@ -1294,6 +1297,7 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={getCoverUrl(selectedTvShow.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   onError={(e) => {
@@ -1389,6 +1393,7 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={getCoverUrl(selectedCartoon.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   onError={(e) => {
@@ -1479,6 +1484,7 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={getCoverUrl(selectedManga.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   onError={(e) => {
@@ -1577,6 +1583,7 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={getCoverUrl(selectedNovel.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   onError={(e) => {
@@ -1680,6 +1687,7 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={getCoverUrl(selectedComic.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   onError={(e) => {
@@ -1780,6 +1788,7 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={getCoverUrl(selectedGame.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   onError={(e) => {
@@ -1879,6 +1888,7 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
+                  loading="lazy"
                   src={getCoverUrl(selectedHComic.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   onError={(e) => {

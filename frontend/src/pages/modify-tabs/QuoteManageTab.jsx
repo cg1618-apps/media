@@ -163,6 +163,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
                   </div>
                   {imageUrl && (
                     <img
+                      loading="lazy"
                       src={imageUrl}
                       alt=""
                       className="mt-2 max-h-32 rounded-lg border border-border"

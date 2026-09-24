@@ -78,6 +78,13 @@ counts). `h1` is display by default.
 7. **Both themes.** Anything on a brand fill uses `text-on-brand`, never
    `text-white`. Nothing sits on a hard-coded grey (`src/theme-tokens.test.js`
    guards this); overlays on cover art may use `bg-black/60`.
+8. **Images lazy-load.** Every `<img>` carries `loading="lazy"`, so the
+   browser fetches a cover only as it nears the screen. Covers are served
+   from the box's upload, which the tunnel also serves the whole site on,
+   and a list of hundreds of entries with eager images downloads every cover
+   at once and stalls every other request. `src/lazy-images.test.js` guards
+   this. An image already on screen still loads at once, so the rule has no
+   above-the-fold exception.
 
 ## Primitives (`components/ui/primitives.jsx`)
 

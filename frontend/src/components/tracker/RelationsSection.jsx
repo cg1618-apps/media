@@ -91,6 +91,7 @@ export default function RelationsSection({ mediaType, entryId }) {
         const body = (
           <>
             <img
+              loading="lazy"
               src={getCoverUrl(other.cover_image_file)}
               className="w-10 h-14 object-cover shrink-0 border border-border"
               onError={(e) => {

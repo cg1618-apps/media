@@ -101,6 +101,7 @@ export default function ComicDashboardCard({
               </div>
             )}
             <img
+              loading="lazy"
               src={imageUrl}
               alt="Cover"
               className="w-full h-full object-cover"

@@ -194,6 +194,7 @@ export default function StatsCompletions({
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
+                                loading="lazy"
                                 src={coverUrl}
                                 alt={name}
                                 className="w-full h-full object-cover"
@@ -354,6 +355,7 @@ export default function StatsCompletions({
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
+                                loading="lazy"
                                 src={getCoverUrl(am.cover_image_file)}
                                 alt={name}
                                 className="w-full h-full object-cover"
@@ -508,6 +510,7 @@ export default function StatsCompletions({
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
+                                loading="lazy"
                                 src={getCoverUrl(movie.cover_image_file)}
                                 alt={name}
                                 className="w-full h-full object-cover"
@@ -661,6 +664,7 @@ export default function StatsCompletions({
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
+                                loading="lazy"
                                 src={getCoverUrl(tv.cover_image_file)}
                                 alt={name}
                                 className="w-full h-full object-cover"
@@ -830,6 +834,7 @@ export default function StatsCompletions({
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
+                                loading="lazy"
                                 src={getCoverUrl(cartoon.cover_image_file)}
                                 alt={name}
                                 className="w-full h-full object-cover"
@@ -998,6 +1003,7 @@ export default function StatsCompletions({
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
+                                loading="lazy"
                                 src={getCoverUrl(m.cover_image_file)}
                                 alt={name}
                                 className="w-full h-full object-cover"
@@ -1162,6 +1168,7 @@ export default function StatsCompletions({
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
+                                loading="lazy"
                                 src={getCoverUrl(n.cover_image_file)}
                                 alt={name}
                                 className="w-full h-full object-cover"
@@ -1326,6 +1333,7 @@ export default function StatsCompletions({
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
+                                loading="lazy"
                                 src={getCoverUrl(c.cover_image_file)}
                                 alt={name}
                                 className="w-full h-full object-cover"
@@ -1485,6 +1493,7 @@ export default function StatsCompletions({
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
+                                loading="lazy"
                                 src={getCoverUrl(g.cover_image_file)}
                                 alt={name}
                                 className="w-full h-full object-cover"
@@ -1634,6 +1643,7 @@ export default function StatsCompletions({
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
+                                loading="lazy"
                                 src={getCoverUrl(h.cover_image_file)}
                                 alt={name}
                                 className="w-full h-full object-cover"

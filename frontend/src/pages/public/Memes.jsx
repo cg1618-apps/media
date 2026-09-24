@@ -115,6 +115,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
               always leads. */}
           {imageUrl && (
             <img
+              loading="lazy"
               src={imageUrl}
               alt=""
               className="mb-2 max-h-64 border border-border"

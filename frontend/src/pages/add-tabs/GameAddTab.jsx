@@ -156,6 +156,7 @@ export function IgdbSearchBox({ onPick }) {
                 <div className="flex items-center gap-3">
                   {cover ? (
                     <img
+                      loading="lazy"
                       src={cover}
                       alt={g.name}
                       className="w-8 h-11 object-cover rounded shrink-0"

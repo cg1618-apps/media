@@ -160,6 +160,7 @@ export default function MemeSection({
                 <div className="flex-1 space-y-1">
                   {imageUrl && (
                     <img
+                      loading="lazy"
                       src={imageUrl}
                       alt=""
                       className="mb-1 max-h-40 border border-border"
