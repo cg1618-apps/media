@@ -29,6 +29,10 @@ export default function Completions() {
     ...LIST_OPTIONS,
     enabled: canSeeGatedType(auth, "h-game"),
   });
+  const hentaiQuery = useMediaList("hentai", {
+    ...LIST_OPTIONS,
+    enabled: canSeeGatedType(auth, "hentai"),
+  });
   const queries = [
     franchiseQuery,
     animeQuery,
@@ -42,6 +46,7 @@ export default function Completions() {
     comicQuery,
     hComicQuery,
     hGameQuery,
+    hentaiQuery,
   ];
   const firstError = queries.find((query) => query.error)?.error;
   const isLoading = queries.some((query) => query.isLoading);
@@ -85,6 +90,7 @@ export default function Completions() {
         allGame={gameQuery.data || []}
         allHComic={hComicQuery.data || []}
         allHGame={hGameQuery.data || []}
+        allHentai={hentaiQuery.data || []}
         franchiseMap={franchiseMap}
       />
     </div>

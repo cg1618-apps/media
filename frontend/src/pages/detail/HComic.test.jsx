@@ -6,7 +6,7 @@
 // registry entry is KR-only (`owner_where`), so the page must not draw the
 // card on a JP entry even though /api/notes/sections lists it for the type.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -47,7 +47,7 @@ const HIGHLIGHT_ROW = {
   fields: { female_characters: ["Ahri"] },
 };
 
-function mockFetch(entry, notes = []) {
+function mockFetch(entry, notes = [], relations = []) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => {
@@ -70,6 +70,8 @@ function mockFetch(entry, notes = []) {
         body = notes;
       } else if (u.startsWith("/api/casting/")) {
         body = { cast: [] };
+      } else if (u.startsWith("/api/media-relation/for-entry")) {
+        body = relations;
       }
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
     })
@@ -151,5 +153,66 @@ describe("HComic detail page", () => {
     expect(await screen.findByText("亮點 Highlights")).toBeInTheDocument();
     // Grouped by female character.
     expect(screen.getByRole("heading", { name: "Ahri" })).toBeInTheDocument();
+  });
+});
+
+// An adaptation relation from a hentai, as the relation card receives it on
+// the h-comic's side: the stored row runs hentai -> h-comic, so it is reverse.
+const ADAPTED_BY = {
+  system_id: "r1",
+  relation_type: "adaptation",
+  label: "Adaptation",
+  family: "derivation",
+  direction: "reverse",
+  derived: false,
+  other: {
+    media_type: "hentai",
+    entry_id: "ht1",
+    missing: false,
+    display_name: "The Anime",
+    label: "Hentai",
+    nav_path: "/hentai/5/the-anime",
+  },
+};
+
+describe("HComic animation status", () => {
+  const JP = {
+    ...BASE,
+    system_id: "jp2",
+    region: "JP",
+    h_comic_name_en: "Jay Pee Two",
+    page_fin: 0,
+    page_total: 10,
+  };
+
+  it("names the hentai a derived status comes from, linked", async () => {
+    mockFetch(
+      { ...JP, animation_status: "Animated", animation_status_source: "derived" },
+      [],
+      [ADAPTED_BY]
+    );
+    mount({ system_id: "jp2" });
+    await screen.findByRole("heading", { name: "Jay Pee Two" });
+    // Named inside the note itself, not only on the relation card beside it.
+    const note = await screen.findByText(/Derived from/);
+    expect(await within(note).findByRole("link", { name: "The Anime" })).toHaveAttribute(
+      "href",
+      "/hentai/5/the-anime"
+    );
+  });
+
+  it("shows a hand-set status plainly, with the same relation row present", async () => {
+    // The mirror case: the relation is there, so a missing note proves the
+    // page read the source rather than the relation.
+    mockFetch(
+      { ...JP, animation_status: "Announced", animation_status_source: "manual" },
+      [],
+      [ADAPTED_BY]
+    );
+    mount({ system_id: "jp2" });
+    await screen.findByRole("heading", { name: "Jay Pee Two" });
+    expect(screen.getByText("Announced")).toBeInTheDocument();
+    await screen.findAllByRole("link", { name: /The Anime/ });
+    expect(screen.queryByText(/Derived from/)).toBeNull();
   });
 });

@@ -133,3 +133,38 @@ describe("ProtectedRoute gatedType h-game", () => {
     expect(screen.getByText("the login page")).toBeInTheDocument();
   });
 });
+
+describe("ProtectedRoute gatedType hentai", () => {
+  function renderHentai(auth) {
+    mockAuth.mockReturnValue({ has: () => false, loading: false, ...auth });
+    return render(
+      <MemoryRouter initialEntries={["/hentai/7/some-title"]}>
+        <Routes>
+          <Route element={<ProtectedRoute gatedType="hentai" />}>
+            <Route path="/hentai/:publicId/:slug?" element={<div>the hentai page</div>} />
+          </Route>
+          <Route path="/" element={<div>the home page</div>} />
+          <Route path="/login" element={<div>the login page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it("lets through a session the server named hentai for", () => {
+    renderHentai({ username: "cg1618", visibleGatedTypes: ["h-comic", "hentai"] });
+    expect(screen.getByText("the hentai page")).toBeInTheDocument();
+  });
+
+  it("sends home a session that sees the other gated types but not hentai", () => {
+    // The mirror of the case above, with the gated list non-empty: the guard
+    // refuses because hentai is missing, not because the list is.
+    renderHentai({ username: "cg1618", visibleGatedTypes: ["h-comic", "h-game"] });
+    expect(screen.getByText("the home page")).toBeInTheDocument();
+    expect(screen.queryByText("the hentai page")).not.toBeInTheDocument();
+  });
+
+  it("sends a signed-out visitor to login", () => {
+    renderHentai({ username: null, visibleGatedTypes: [] });
+    expect(screen.getByText("the login page")).toBeInTheDocument();
+  });
+});

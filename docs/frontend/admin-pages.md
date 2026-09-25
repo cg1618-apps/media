@@ -45,7 +45,10 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   h-comic has no Replace button, since there is no bulk Replace for it. The
   **H-Game** buttons (`/fill/h-game` in the Fill box, `/replace/h-game` in the
   Replace box) are gated the same way; they run Game's IGDB and Steam fill and
-  Game's Steam Replace over the h-game table.
+  Game's Steam Replace over the h-game table. The **Hentai** buttons
+  (`/fill/hentai`, `/replace/hentai`) are gated the same way too; both fetch
+  Tenrai's airing status, release date and cover over the hentai table, and
+  both are fill-only - Replace completes what is blank and overwrites nothing.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
 - **Announcements.** Create / edit / delete the dashboard board
@@ -76,8 +79,8 @@ back to the owning franchise/series where the ids still exist.
 ## /add (`Add.jsx`)
 
 A two-level tab bar (`config/adminTabs.js`): **Entries** (anime, anime movie,
-movie, TV show, cartoon, manga, novel, comic, game, and the gated h-comic and
-h-game, each for a session that can see it), **Structure** (collection,
+movie, TV show, cartoon, manga, novel, comic, game, and the gated h-comic,
+h-game and hentai, each for a session that can see it), **Structure** (collection,
 franchise, series, quote, meme), **Entity** (studio, publisher, person,
 character) and **System** (system option, alias). Each
 tab is a form component in `pages/add-tabs/`; the page owns the state objects,
@@ -100,10 +103,11 @@ and meme are excluded — those four have no factory in
 tab's pickers and by `buildAutofillPatch`), the form defaults and the
 suggestion sources — all started together, in one wave.
 
-**The eleven media lists are fetched per tab**, by `hooks/useEntryLists.js`: the
+**The twelve media lists are fetched per tab**, by `hooks/useEntryLists.js`: the
 visible tab's list goes out first, and another tab's list is fetched the first
 time that tab is opened and never again. Which lists a tab reads is
-`config/adminEntryLists.js`. All twelve still carry `limit=2000` — the API
+`config/adminEntryLists.js`. Every list, the three eager ones included, still
+carries `limit=2000` — the API
 default of 500 would silently truncate the auto-fill search and the duplicate
 check.
 
@@ -201,8 +205,10 @@ source. The region's own name field (JP or KR) shows beside the shared EN / CN
 / Alt names. Both regions carry serialization status, club, 繪師 (artists),
 the three H Genre tag fields, reading status, rating, usefulness, release /
 end date, the cast (`CastEditor`, no seiyuu column) and sources. The franchise
-picker offers **H-Comic franchises only**, and a new franchise typed there is
-created with that type - the server refuses an h-comic anywhere else. Submit
+picker (`FamilyLineageFields`, shared with the Hentai tab) offers the h-comic
+family's franchises - **H-Comic and Hentai**, so an h-comic can join the
+franchise of the hentai that adapts it - and a new franchise typed there is
+created as `H-Comic`; the server refuses an h-comic in any other family. Submit
 needs a region and a CN or EN name, blanks what the region does not use
 (`clearedForRegion` - names are kept), quick-creates the typed people and genre
 values through `hComicSourceFields`, then `POST /api/h-comic/`, the credits,
@@ -236,6 +242,24 @@ Submit needs a CN or EN name, quick-creates the developer and tag values
 through `hGameSourceFields`, then `POST /api/h-game/`, the credits and the
 labels, without enrichment; the `h-game` label is checked and locked in the
 picker.
+
+**Hentai tab.** `HentaiAddTab.jsx`, gated like the H-Comic tab. It exports
+`HentaiLineageFields` and `HentaiFormBody`, which the Modify tab renders too,
+and it is simpler than h-comic's: no region, no cast and no progress - one
+entry is one episode. The franchise picker is `FamilyLineageFields` over the
+h-comic family (**Hentai and H-Comic** franchises), so a hentai can join the
+franchise of the h-comic it adapts; a new franchise typed there is created as
+`Hentai` (`HENTAI_FRANCHISE_TYPE`). The body has the five names;
+classification (source material, originality, series number and the three H
+Genre fields); credits (**Studio** and **Director**); airing status and
+release date; watching status, rating and **usefulness**; the **MAL link** -
+there is no MAL id input, since the write hook derives `mal_id` from the link
+and `hentaiFieldsPayload` sends an id only beside one; sources, Watch Next /
+To Rewatch, cover and remark. Submit needs a CN or EN name and a franchise,
+quick-creates the studio, director and genre values through `hentaiSourceFields`, then
+`POST /api/hentai/`, the credits and the labels, without enrichment (Fill and
+Replace fetch from Tenrai later); the `hentai` label is checked and locked in
+the picker.
 
 **Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
 owned or wanted (storefront, ownership, format, acquisition, price paid +
@@ -375,19 +399,21 @@ library; **Delete** is disabled until every attachment is gone.
 ## /modify (`Modify.jsx`)
 
 Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
-**Fav 3x3** (`Fav3x3ModifyTab.jsx`: the nine favourite grids of
-`config/favoriteGrids.js`, each stored as a `type_slots` map on the row it
+**Fav 3x3** (`Fav3x3ModifyTab.jsx`: the favourite grids of
+`config/favoriteGrids.js` - nine, and eleven for a session that can see
+h-game - each stored as a `type_slots` map on the row it
 holds — a franchise, a series or an entry; see
 [pages.md](pages.md#statistics--statistics--completions--completions)).
 
 - **Data loading** is `hooks/useEntryLists.js`, as on `/add`: collections,
   franchises and series eagerly, the media lists per tab. The three
   grouping-tier tabs are the ones that read more than their own — **franchise**
-  pulls the eight lists that are neither game, h-comic nor h-game for its
-  ribbon, **series** the seven (a series never lists anime movies), and
-  **fav3x3** every list but h-comic, because two of its grids hold game rows,
-  two hold h-game rows and none holds an h-comic. `config/adminEntryLists.js`
-  holds the map; games, h-comics and h-games appear in no tier ribbon. The two
+  pulls the eight lists that are neither game, h-comic, h-game nor hentai for
+  its ribbon, **series** the seven (a series never lists anime movies), and
+  **fav3x3** every list but h-comic and hentai, because two of its grids hold
+  game rows, two hold h-game rows and none holds an h-comic or a hentai.
+  `config/adminEntryLists.js` holds the map; games, h-comics, h-games and
+  hentai appear in no tier ribbon. The two
   h-game grids are drawn only for a session that can see the type
   (`visibleFavoriteGrids`).
 - **Finding a row.** A search box over that tab's list, or a deep link
@@ -420,11 +446,23 @@ holds — a franchise, a series or an entry; see
   `HComicRegionField`, `HComicLineageFields` and `HComicFormBody`, the game
   pattern. It loads the cast like the other cast-carrying tabs, and saves with
   `PATCH /api/h-comic/{id}`, then credits, cast and labels, without enrichment.
+  `hComicToForm` carries the row's `animation_status_source`: while it is
+  `"derived"` (a hentai adapts the entry) the form shows the animation status
+  as a disabled, read-only input with the hint "Derived from a linked hentai
+  adaptation - remove the relation to set it by hand", and
+  `hComicFieldsPayload` leaves the field out of the save, since the server
+  refuses (422) any other value. A hand-set status is an ordinary select.
 - **H-Game tab.** `HGameModifyTab.jsx` renders `HGameAddTab`'s exported
   `HGameLineageFields` and `HGameFormBody`, the game pattern, with the row
   being edited left out of its own Base Game picker. `hGameToForm` keeps an
   unrecorded list `null` rather than `[]`. No IGDB box, as on Game; it saves
   with `PATCH /api/h-game/{id}`, then credits and labels, without enrichment.
+- **Hentai tab.** `HentaiModifyTab.jsx` renders `HentaiAddTab`'s exported
+  `HentaiLineageFields` and `HentaiFormBody`, the game pattern, with no
+  ribbon. `hentaiToForm` seeds the columns and the credit and genre fields
+  arrive through `loadCreditsIntoForm`; a new franchise typed there is created
+  as `Hentai`. It saves with `PATCH /api/hentai/{id}`, then credits and
+  labels, without enrichment.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
 - **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
@@ -487,9 +525,11 @@ are not cascaded — they survive with `base_game_id` set to `NULL`.
 The **H-Comic tab** (gated like its Add tab) offers the same orphan series
 and orphan franchise checkboxes as the manga tab. The **H-Game tab** (gated
 the same way) offers them too, and warns about copy rows as the Game tab
-does; its DLC rows likewise survive with `base_game_id` set to `NULL`.
+does; its DLC rows likewise survive with `base_game_id` set to `NULL`. The
+**Hentai tab** (gated the same way) offers the orphan series and orphan
+franchise checkboxes as well.
 
-Counts are computed across all eleven media types (`entriesIn`,
+Counts are computed across all twelve media types (`entriesIn`,
 `standaloneEntriesIn`), so **opening the confirmation waits for every media
 list to be in** — lazily loaded ones included — and `executeDirectDelete`
 waits again before cascading. A list that was never fetched reads as empty,
@@ -544,7 +584,10 @@ by any field.
 "copy an existing entry" search either, so its auto-fill ticks drive nothing
 yet. `h-game` is present the same way and for Game's reason (its box searches
 IGDB); its three multi-choice lists offer no default, since their unset state
-is `null`, "not recorded".
+is `null`, "not recorded". `hentai` is present the same way; its Add form has
+no copy search either, so its auto-fill ticks drive nothing yet; its
+`mal_id` is hidden (the write hook derives it from the link) and `mal_link`
+is not auto-fillable.
 
 `game` is present here like any other media type, but its Add form has no
 "copy an existing entry" search (its box searches IGDB), so the auto-fill ticks

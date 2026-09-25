@@ -19,8 +19,8 @@ vi.mock("../../contexts/AuthContext", () => ({
 
 const SOURCES = { options: [], studios: [], publishers: {}, people: {} };
 
-function Harness({ franchises = [] }) {
-  const [form, setForm] = useState(defaultHComic());
+function Harness({ franchises = [], initial = {} }) {
+  const [form, setForm] = useState({ ...defaultHComic(), ...initial });
   return (
     <HComicAddTab
       franchiseCollections={{}}
@@ -104,16 +104,39 @@ describe("HComicAddTab", () => {
     expect(screen.getByText("Author")).toBeInTheDocument();
   });
 
-  it("offers only H-Comic franchises", async () => {
+  it("offers a hand-set animation status as a select", () => {
+    renderTab({
+      initial: { region: "JP", animation_status: "Announced", animation_status_source: "manual" },
+    });
+    expect(screen.getByRole("combobox", { name: "Animation Status" })).toHaveValue("Announced");
+  });
+
+  it("shows a derived animation status read-only, with where it comes from", () => {
+    // The mirror of the case above: same region, same value, only the source
+    // differs - so the missing select is the derivation's doing.
+    renderTab({
+      initial: { region: "JP", animation_status: "Animated", animation_status_source: "derived" },
+    });
+    expect(screen.queryByRole("combobox", { name: "Animation Status" })).toBeNull();
+    const input = screen.getByRole("textbox", { name: "Animation Status" });
+    expect(input).toHaveValue("Animated");
+    expect(input).toBeDisabled();
+    expect(screen.getByText(/Derived from a linked hentai adaptation/)).toBeInTheDocument();
+  });
+
+  it("offers only the h-comic family's franchises", async () => {
     const user = userEvent.setup();
     renderTab({
       franchises: [
         { system_id: "f1", franchise_name_en: "Mainstream Fate", franchise_type: "ACG" },
         { system_id: "f2", franchise_name_en: "Adult Fate", franchise_type: "H-Comic" },
+        // The same family: an h-comic may share its hentai adaptation's.
+        { system_id: "f3", franchise_name_en: "Adult Anime", franchise_type: "Hentai" },
       ],
     });
     await user.click(screen.getByPlaceholderText("Search or type new franchise..."));
     expect(screen.getByText("Adult Fate")).toBeInTheDocument();
+    expect(screen.getByText("Adult Anime")).toBeInTheDocument();
     expect(screen.queryByText("Mainstream Fate")).toBeNull();
   });
 });
