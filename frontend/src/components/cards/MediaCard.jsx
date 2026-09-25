@@ -38,6 +38,7 @@ const SPINE_LABEL = {
   comic: "Comic",
   game: "Game",
   "h-comic": "H-Comic",
+  "h-game": "H-Game",
   hentai: "Hentai",
 };
 
@@ -283,6 +284,18 @@ function LibraryMeta({ type, data, scoreField }) {
     );
   }
 
+  // Play style and language: what an h-game library is browsed by.
+  if (type === "h-game") {
+    return (
+      <MetaLine className="mb-1">
+        <span className="truncate pr-1">{data.playstyle || "—"}</span>
+        {data.language_availability && (
+          <span className="shrink-0">{data.language_availability}</span>
+        )}
+      </MetaLine>
+    );
+  }
+
   if (type === "h-comic") {
     return (
       <MetaLine className="mb-1">
@@ -515,6 +528,14 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     );
   }
 
+  // An h-game records no playtime, so achievements are its progress - shown
+  // only against a total, since "12 earned" alone measures nothing.
+  if (type === "h-game") {
+    const total = Number(data.achievements_total);
+    if (!Number.isFinite(total) || total <= 0) return null;
+    return <Count fin={data.achievements_earned ?? 0} total={total} unit="ach" />;
+  }
+
   return null;
 }
 
@@ -586,6 +607,7 @@ const HAS_PROGRESS = new Set([
   "comic",
   "game",
   "h-comic",
+  "h-game",
 ]);
 const ADMIN_ONLY_STATUS = new Set(["movie", "anime-movie"]);
 

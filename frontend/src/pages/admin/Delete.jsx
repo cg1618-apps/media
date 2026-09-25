@@ -82,6 +82,7 @@ function getDisplayTitle(item, type) {
       "Unknown"
     );
   if (type === "h-comic") return getDisplayName(item, "h-comic");
+  if (type === "h-game") return getDisplayName(item, "h-game");
   if (type === "game")
     return (
       item.game_name_cn ||
@@ -212,7 +213,7 @@ export default function Delete() {
   // orphan checks count all of them: the old anime-only counts offered to
   // delete franchises that still held movies/comics and cascaded past
   // non-anime children, leaving them with franchise_id = NULL.
-  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game", "h-comic"];
+  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game", "h-comic", "h-game"];
   const entriesIn = (field, id) =>
     MEDIA_KEYS.reduce((n, k) => n + db[k].filter((e) => e[field] === id).length, 0);
   const standaloneEntriesIn = (franchiseId) =>
@@ -241,6 +242,7 @@ export default function Delete() {
   const [selectedComic, setSelectedComic] = useState(null);
   const [selectedGame, setSelectedGame] = useState(null);
   const [selectedHComic, setSelectedHComic] = useState(null);
+  const [selectedHGame, setSelectedHGame] = useState(null);
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -785,6 +787,31 @@ export default function Delete() {
           });
         }
         setSelectedHComic(null);
+        showToast("success", "Deletion successful");
+        await Promise.all([loadDb(), reloadLoaded()]);
+        setModal(null);
+        return;
+      }
+
+      if (type === "h-game") {
+        const res = await fetch(endpoints.resource("h-game").remove(item.system_id), {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete h-game");
+        if (orphanSeriesChecked && item.series_id) {
+          await fetch(`/api/series/${item.series_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        if (orphanFranchiseChecked && item.franchise_id) {
+          await fetch(`/api/franchise/${item.franchise_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        setSelectedHGame(null);
         showToast("success", "Deletion successful");
         await Promise.all([loadDb(), reloadLoaded()]);
         setModal(null);
@@ -1934,6 +1961,100 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("h-comic", selectedHComic)}
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* H-GAME TAB (gated like the h-comic tab) */}
+      {tab === "h-game" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search h-game to delete..."
+              items={db["h-game"]}
+              type="h-game"
+              onSelect={setSelectedHGame}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "h-game")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {getFranchiseTitle(item.franchise_id)}
+                    {item.game_type ? ` · ${item.game_type}` : ""}
+                    {item.release_date ? ` · ${item.release_date}` : ""}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedHGame && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  loading="lazy"
+                  src={getCoverUrl(selectedHGame.cover_image_file)}
+                  className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-text text-base truncate">
+                    {getDisplayTitle(selectedHGame, "h-game")}
+                  </h3>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {[
+                      selectedHGame.game_type,
+                      selectedHGame.playstyle,
+                      selectedHGame.playing_status,
+                      selectedHGame.ownership,
+                    ]
+                      .filter(Boolean)
+                      .map((v) => (
+                        <span
+                          key={v}
+                          className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold"
+                        >
+                          {v}
+                        </span>
+                      ))}
+                  </div>
+                  <p className="text-xs text-text-faint mt-1">
+                    {getFranchiseTitle(selectedHGame.franchise_id)}
+                    {selectedHGame.series_id &&
+                      ` / ${getSeriesTitle(selectedHGame.series_id)}`}
+                  </p>
+                  {/* As for a game: its copy rows go with it, and its DLC
+                      rows stay with base_game_id set to NULL. */}
+                  {selectedHGame.copies?.length > 0 && (
+                    <p className="text-xs italic text-text-faint mt-1">
+                      {selectedHGame.copies.length} copy row(s) will be deleted
+                      with it.
+                    </p>
+                  )}
+                  <p className="text-xs font-mono text-text-faint">
+                    {selectedHGame.system_id}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedHGame(null)}
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() => initDelete("h-game", selectedHGame)}
                     className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
@@ -3258,7 +3379,9 @@ export default function Delete() {
                 )}
 
               {/* Orphan series warning (manga) */}
-              {(modal.type === "manga" || modal.type === "h-comic") &&
+              {(modal.type === "manga" ||
+                modal.type === "h-comic" ||
+                modal.type === "h-game") &&
                 modal.item.series_id &&
                 entriesIn("series_id", modal.item.series_id) === 1 && (
                   <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
@@ -3281,7 +3404,9 @@ export default function Delete() {
                 )}
 
               {/* Orphan franchise warning (manga) */}
-              {(modal.type === "manga" || modal.type === "h-comic") &&
+              {(modal.type === "manga" ||
+                modal.type === "h-comic" ||
+                modal.type === "h-game") &&
                 modal.item.franchise_id &&
                 entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 (db.series.filter(

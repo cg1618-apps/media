@@ -30,6 +30,7 @@ export const SCOPE_CHIPS = {
   comic: `${CHIP} bg-scope-comic/12 border-scope-comic/40 text-scope-comic`,
   game: `${CHIP} bg-scope-game/12 border-scope-game/40 text-scope-game`,
   "h-comic": `${CHIP} bg-scope-h-comic/12 border-scope-h-comic/40 text-scope-h-comic`,
+  "h-game": `${CHIP} bg-scope-h-game/12 border-scope-h-game/40 text-scope-h-game`,
   hentai: `${CHIP} bg-scope-hentai/12 border-scope-hentai/40 text-scope-hentai`,
 };
 

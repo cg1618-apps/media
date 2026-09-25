@@ -8,7 +8,8 @@ import {
   favoritePath,
   slotIn,
 } from "../../utils/statsUtils";
-import { FAVORITE_GRIDS } from "../../config/favoriteGrids";
+import { visibleFavoriteGrids } from "../../config/favoriteGrids";
+import { useAuth } from "../../contexts/AuthContext";
 import { RatingStamp, Slip } from "../../components/ui/primitives";
 
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -99,9 +100,11 @@ export default function StatsFavoriteGrids({
     byFranchise: allEntriesByFranchise,
     bySeries: allEntriesBySeries,
   };
+  // A gated grid (the two h-game ones) only for a session that can see it.
+  const grids = visibleFavoriteGrids(useAuth());
   return (
     <div className="flex flex-wrap gap-6">
-      {FAVORITE_GRIDS.map((grid) => (
+      {grids.map((grid) => (
         <FavoriteGrid
           key={grid.id}
           grid={grid}

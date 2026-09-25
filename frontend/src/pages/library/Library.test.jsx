@@ -62,6 +62,7 @@ it("has a config for every media type that has a library", () => {
       "comic",
       "game",
       "h-comic",
+      "h-game",
       "manga",
       "movie",
       "novel",

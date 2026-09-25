@@ -121,6 +121,7 @@ export default function FranchisePage() {
   const [comicList, setComicList] = useState([]);
   const [gameList, setGameList] = useState([]);
   const [hComicList, setHComicList] = useState([]);
+  const [hGameList, setHGameList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -244,6 +245,17 @@ export default function FranchisePage() {
               { credentials: "include" },
             ).then((r) => (r.ok ? r.json() : []))
           : Promise.resolve([]);
+        // The same for h-games: only an H-Game franchise holds them.
+        const hGameFetch = parseTypes(franchiseData.franchise_type).includes(
+          "H-Game",
+        )
+          ? fetch(
+              buildUrl(endpoints.resource("h-game").list(), {
+                franchise_id: resolvedId,
+              }),
+              { credentials: "include" },
+            ).then((r) => (r.ok ? r.json() : []))
+          : Promise.resolve([]);
         const [
           sRes,
           aRes,
@@ -304,6 +316,7 @@ export default function FranchisePage() {
           pnRes.ok ? pnRes.json() : [],
         ]);
         const hc = await hComicFetch;
+        const hg = await hGameFetch;
         if (cancelled) return;
         setFranchise(franchiseData);
         setSeriesList(s);
@@ -317,6 +330,7 @@ export default function FranchisePage() {
         setComicList(cm);
         setGameList(gm);
         setHComicList(hc);
+        setHGameList(hg);
         setPlannedTypes(
           new Set(
             pn
@@ -374,6 +388,7 @@ export default function FranchisePage() {
   const hasComic = useMemo(() => types.includes("Comic"), [types]);
   const hasGame = useMemo(() => types.includes("Game"), [types]);
   const hasHComic = useMemo(() => types.includes("H-Comic"), [types]);
+  const hasHGame = useMemo(() => types.includes("H-Game"), [types]);
 
   // Media types this franchise carries a size bucket for, restricted to
   // franchise-eligible scopes (comic/anime-movie/manga/novel can never be
@@ -404,6 +419,7 @@ export default function FranchisePage() {
     if (comicList.length) list.push("comic");
     if (gameList.length) list.push("game");
     if (hComicList.length) list.push("h-comic");
+    if (hGameList.length) list.push("h-game");
     return list;
   }, [
     animeList,
@@ -416,6 +432,7 @@ export default function FranchisePage() {
     comicList,
     gameList,
     hComicList,
+    hGameList,
   ]);
 
   const franchiseApplicableRewatchTypes = useMemo(
@@ -436,6 +453,7 @@ export default function FranchisePage() {
       hasComic && comicList.length && "Comic",
       hasGame && gameList.length && "Game",
       hasHComic && hComicList.length && "H-Comic",
+      hasHGame && hGameList.length && "H-Game",
       hasMovie && movieList.length && "Movies",
       hasTV && tvShowList.length && "TV Shows",
       hasCartoon && cartoonList.length && "Cartoons",
@@ -448,6 +466,7 @@ export default function FranchisePage() {
     hasComic,
     hasGame,
     hasHComic,
+    hasHGame,
     hasAnimeMovie,
     hasMovie,
     hasTV,
@@ -459,6 +478,7 @@ export default function FranchisePage() {
     comicList,
     gameList,
     hComicList,
+    hGameList,
     movieList,
     tvShowList,
     cartoonList,
@@ -528,6 +548,11 @@ export default function FranchisePage() {
   const handleHComicUpdated = useCallback(
     (u) =>
       setHComicList((p) => p.map((h) => (h.system_id === u.system_id ? u : h))),
+    [],
+  );
+  const handleHGameUpdated = useCallback(
+    (u) =>
+      setHGameList((p) => p.map((g) => (g.system_id === u.system_id ? u : g))),
     [],
   );
 
@@ -1234,6 +1259,7 @@ export default function FranchisePage() {
     ...withMediaType(comicList, "comic"),
     ...withMediaType(gameList, "game"),
     ...withMediaType(hComicList, "h-comic"),
+    ...withMediaType(hGameList, "h-game"),
   ];
   const coverUrl = getFranchiseCover(
     franchise,
@@ -2132,6 +2158,34 @@ export default function FranchisePage() {
                   type="h-comic"
                   data={h}
                   onUpdated={handleHComicUpdated}
+                />
+              ))}
+          </div>
+        </Section>
+      )}
+
+      {/* ── H-Game tab content ──────────────────────────────── */}
+      {activeTab === "H-Game" && hGameList.length > 0 && (
+        <Section
+          title="H-Game"
+          subtitle="Base games, DLC &amp; expansions"
+          count={hGameList.length}
+        >
+          <div className={GRID_CLS}>
+            {[...hGameList]
+              .sort(
+                (a, b) =>
+                  (a.series_number ?? Infinity) - (b.series_number ?? Infinity) ||
+                  String(a.release_date || "").localeCompare(
+                    String(b.release_date || ""),
+                  ),
+              )
+              .map((g) => (
+                <MediaCard
+                  key={g.system_id}
+                  type="h-game"
+                  data={g}
+                  onUpdated={handleHGameUpdated}
                 />
               ))}
           </div>

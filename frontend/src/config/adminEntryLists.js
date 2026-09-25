@@ -16,11 +16,10 @@ import { MEDIA_LIST_TYPES } from "../hooks/useEntryLists";
 // The grouping-tier editors show a ribbon of everything hanging off the tier,
 // one section per media type. Games and the gated types are absent from both
 // by design: FranchiseModifyTab and SeriesModifyTab take no allGames,
-// allHComics or allHentai prop, so none of them appears in a franchise or
+// allHComics, allHGames or allHentai prop, so none appears in a franchise or
 // series ribbon.
-const RIBBON_TYPES = MEDIA_LIST_TYPES.filter(
-  (type) => type !== "game" && type !== "h-comic" && type !== "hentai",
-);
+const NO_RIBBON = new Set(["game", "h-comic", "h-game", "hentai"]);
+const RIBBON_TYPES = MEDIA_LIST_TYPES.filter((type) => !NO_RIBBON.has(type));
 
 // SeriesModifyTab additionally takes no allAnimeMovies prop - an anime movie
 // belongs to a franchise but is never listed under a series.
@@ -34,8 +33,10 @@ export const ADD_TAB_LISTS = Object.fromEntries(
 
 // Modify: the same, plus the three tiers that render cross-type ribbons.
 // fav3x3 reads every list, games included: two of its grids hold game rows
-// (the favourite game franchises and the favourite games themselves). No grid
-// holds an h-comic or a hentai, so neither list is fetched for it.
+// (the favourite game franchises and the favourite games themselves), and two
+// hold h-game rows - the server answers [] for a session that cannot see the
+// type, whose editor draws neither grid. No grid holds an h-comic or a
+// hentai, so neither list is fetched for it.
 export const MODIFY_TAB_LISTS = {
   ...ADD_TAB_LISTS,
   franchise: RIBBON_TYPES,

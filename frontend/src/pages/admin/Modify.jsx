@@ -11,10 +11,12 @@ import {
   creditsResponseToForm,
   gameFieldsPayload,
   hComicFieldsPayload,
+  hGameFieldsPayload,
   hentaiFieldsPayload,
 } from "../../utils/media";
 import { clearedForRegion } from "../../lib/hComicRegion";
 import { hComicSourceFields } from "../../lib/hComicForm";
+import { hGameSourceFields } from "../../lib/hGameForm";
 import { hentaiSourceFields } from "../../lib/hentaiForm";
 import {
   requiredLabelsForFranchiseType,
@@ -42,6 +44,8 @@ import ComicModifyTab from "../modify-tabs/ComicModifyTab";
 import GameModifyTab from "../modify-tabs/GameModifyTab";
 import HComicModifyTab from "../modify-tabs/HComicModifyTab";
 import { H_COMIC_FRANCHISE_TYPE } from "../add-tabs/HComicAddTab";
+import HGameModifyTab from "../modify-tabs/HGameModifyTab";
+import { H_GAME_FRANCHISE_TYPE } from "../add-tabs/HGameAddTab";
 import HentaiModifyTab from "../modify-tabs/HentaiModifyTab";
 import { HENTAI_FRANCHISE_TYPE } from "../add-tabs/HentaiAddTab";
 import CartoonModifyTab from "../modify-tabs/CartoonModifyTab";
@@ -263,6 +267,7 @@ export default function Modify() {
   const allComics = lists.comic;
   const allGames = lists.game;
   const allHComics = lists["h-comic"];
+  const allHGames = lists["h-game"];
   const allHentai = lists.hentai;
   // Creating a franchise or series inline, or saving an entry, writes the new
   // row back into the list it came from so the pickers see it without a
@@ -280,6 +285,7 @@ export default function Modify() {
   const setAllComics = (v) => setList("comic", v);
   const setAllGames = (v) => setList("game", v);
   const setAllHComics = (v) => setList("h-comic", v);
+  const setAllHGames = (v) => setList("h-game", v);
   const setAllHentai = (v) => setList("hentai", v);
   const [sources, setSources] = useState({ options: [], studios: [], people: {} });
   // The page paints as soon as the pickers have their vocabularies. Waiting
@@ -326,6 +332,7 @@ export default function Modify() {
   const [ccmf, setCcmf] = useState({});
   const [cgmf, setCgmf] = useState({});
   const [chcf, setChcf] = useState({});
+  const [chgf, setChgf] = useState({});
   const [chtf, setChtf] = useState({});
   const [optValue, setOptValue] = useState("");
   const [optScopes, setOptScopes] = useState([]);
@@ -449,6 +456,7 @@ export default function Modify() {
   const ucm = (k, v) => setCcmf((p) => ({ ...p, [k]: v }));
   const ugm = (k, v) => setCgmf((p) => ({ ...p, [k]: v }));
   const uhc = (k, v) => setChcf((p) => ({ ...p, [k]: v }));
+  const uhg = (k, v) => setChgf((p) => ({ ...p, [k]: v }));
   const uht = (k, v) => setChtf((p) => ({ ...p, [k]: v }));
 
   // Merges an entry's cast (fetched by the useCasting call above) into
@@ -872,6 +880,72 @@ export default function Modify() {
   // credit and tag fields arrive through loadCreditsIntoForm, as for every
   // other type; highlight_group_order is not in the form at all - the detail
   // page's drag owns it, and a PATCH that leaves it out leaves it alone.
+  // Game's shape for the columns the two share. The multi-choice lists keep
+  // null as null - "not recorded" is not the empty list - and the credit and
+  // tag fields arrive through loadCreditsIntoForm. highlight_group_order is
+  // not in the form: the detail page's drag owns it.
+  function hGameToForm(g, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === g.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === g.series_id,
+    );
+    const tri = (v) => (v == null ? "" : v ? "true" : "false");
+    const list = (v) => (Array.isArray(v) ? v : null);
+    return {
+      h_game_name_cn: g.h_game_name_cn || "",
+      h_game_name_en: g.h_game_name_en || "",
+      h_game_name_roman: g.h_game_name_roman || "",
+      h_game_name_jp: g.h_game_name_jp || "",
+      h_game_name_alt: g.h_game_name_alt || "",
+      franchise_id: g.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: g.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      series_number: g.series_number ?? "",
+      playstyle: g.playstyle || "",
+      game_type: g.game_type || "",
+      base_game_id: g.base_game_id || null,
+      playing_status: g.playing_status || md("h-game").playing_status,
+      completion_level: g.completion_level || "",
+      all_endings: g.all_endings || "",
+      all_cg: g.all_cg || "",
+      steam_progress_sync: tri(g.steam_progress_sync),
+      animation_availability: tri(g.animation_availability),
+      achievements_earned: g.achievements_earned ?? "",
+      achievements_total: g.achievements_total ?? "",
+      release_status: g.release_status || "",
+      release_date: g.release_date ?? "",
+      current_patch: g.current_patch || "",
+      hltb_main: g.hltb_main ?? "",
+      hltb_main_extra: g.hltb_main_extra ?? "",
+      hltb_completionist: g.hltb_completionist ?? "",
+      price_original_us: g.price_original_us ?? "",
+      price_original_jp: g.price_original_jp ?? "",
+      price_original_tw: g.price_original_tw ?? "",
+      price_current_us: g.price_current_us ?? "",
+      price_current_jp: g.price_current_jp ?? "",
+      price_current_tw: g.price_current_tw ?? "",
+      language_availability: g.language_availability || "",
+      audio_availability: list(g.audio_availability),
+      h_presentation: list(g.h_presentation),
+      platform: list(g.platform),
+      my_rating: g.my_rating || "",
+      usefulness: g.usefulness || "",
+      igdb_id: g.igdb_id ?? "",
+      igdb_link: g.igdb_link || "",
+      steam_appid: g.steam_appid ?? "",
+      steam_link: g.steam_link || "",
+      dlsite_link_jp: g.dlsite_link_jp || "",
+      dlsite_link_tw: g.dlsite_link_tw || "",
+      sources: g.sources || [],
+      copies: g.copies || [],
+      play_next: g.play_next ?? false,
+      to_replay: g.to_replay ?? false,
+      cover_image_file: g.cover_image_file || "",
+      remark: g.remark || "",
+    };
+  }
+
   function hComicToForm(h, allFranchises, seriesList) {
     const f = allFranchises.find((x) => x.system_id === h.franchise_id);
     const s = (seriesList || allSeries).find(
@@ -990,6 +1064,9 @@ export default function Modify() {
     } else if (type === "h-comic") {
       setChcf(hComicToForm(item, franchises, series));
       loadCreditsIntoForm("h-comic", item.system_id, setChcf);
+    } else if (type === "h-game") {
+      setChgf(hGameToForm(item, franchises, series));
+      loadCreditsIntoForm("h-game", item.system_id, setChgf);
     } else if (type === "hentai") {
       setChtf(hentaiToForm(item, franchises, series));
       loadCreditsIntoForm("hentai", item.system_id, setChtf);
@@ -1031,6 +1108,7 @@ export default function Modify() {
       else if (editingType === "comic") await saveComic();
       else if (editingType === "game") await saveGame();
       else if (editingType === "h-comic") await saveHComic();
+      else if (editingType === "h-game") await saveHGame();
       else if (editingType === "hentai") await saveHentai();
       else if (editingType === "options") await saveOption();
     } catch (e) {
@@ -2573,6 +2651,118 @@ export default function Modify() {
     showToast("success", "Update successful.");
   }
 
+  async function saveHGame() {
+    let franchiseId = chgf.franchise_id;
+    if (!franchiseId && (chgf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: H_GAME_FRANCHISE_TYPE,
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_cn: chgf.h_game_name_cn || null,
+          franchise_name_en: chgf.h_game_name_en || null,
+          franchise_name_roman: chgf.h_game_name_roman || null,
+          franchise_name_jp: chgf.h_game_name_jp || null,
+          franchise_name_alt: chgf.h_game_name_alt || null,
+          franchise_type: H_GAME_FRANCHISE_TYPE,
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = chgf.series_id;
+    if (!seriesId && (chgf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: chgf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_cn: chgf.h_game_name_cn || null,
+          series_name_en: chgf.h_game_name_en || null,
+          series_name_alt: chgf.h_game_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    await ensureSourceValues(hGameSourceFields(chgf, splitTags));
+
+    const payload = {
+      ...hGameFieldsPayload(chgf),
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      playing_status: chgf.playing_status || md("h-game").playing_status,
+    };
+    const res = await fetch(endpoints.resource("h-game").patch(editingItem.system_id), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("h-game", updated.system_id, chgf);
+    setAllHGames((prev) =>
+      prev.map((g) => (g.system_id === updated.system_id ? updated : g)),
+    );
+    setEditingItem(updated);
+    setChgf(hGameToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("h-game", updated.system_id, setChgf);
+    window.scrollTo(0, 0);
+    showToast("success", "Update successful.");
+  }
+
   async function saveHentai() {
     let franchiseId = chtf.franchise_id;
     if (!franchiseId && (chtf.franchise_text || "").trim()) {
@@ -2743,6 +2933,7 @@ export default function Modify() {
         "Unknown"
       );
     if (type === "h-comic") return getDisplayName(item, "h-comic");
+    if (type === "h-game") return getDisplayName(item, "h-game");
     if (type === "hentai") return getDisplayName(item, "hentai");
     if (type === "options") return `${item.category}: ${item.value}`;
     return "Unknown";
@@ -2887,6 +3078,18 @@ export default function Modify() {
           ].some((name) => name && cleanString(name).includes(q)),
         )
         .slice(0, 10);
+    if (activeTab === "h-game")
+      return allHGames
+        .filter((g) =>
+          [
+            g.h_game_name_cn,
+            g.h_game_name_en,
+            g.h_game_name_roman,
+            g.h_game_name_jp,
+            g.h_game_name_alt,
+          ].some((name) => name && cleanString(name).includes(q)),
+        )
+        .slice(0, 10);
     if (activeTab === "hentai")
       return allHentai
         .filter((h) =>
@@ -2929,6 +3132,8 @@ export default function Modify() {
     if (activeTab === "game") return [...allGames].sort(sort).slice(0, 12);
     if (activeTab === "h-comic")
       return [...allHComics].sort(sort).slice(0, 12);
+    if (activeTab === "h-game")
+      return [...allHGames].sort(sort).slice(0, 12);
     if (activeTab === "hentai")
       return [...allHentai].sort(sort).slice(0, 12);
     return [];
@@ -3232,6 +3437,18 @@ export default function Modify() {
   const seriesItemsForGame = (
     cgmf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === cgmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForHGame = (
+    chgf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === chgf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -4082,6 +4299,21 @@ export default function Modify() {
                 uhc={uhc}
                 allFranchises={allFranchises}
                 seriesItemsForHComic={seriesItemsForHComic}
+                editingItem={editingItem}
+                ribbonSection={null}
+                sources={sources}
+              />
+            )}
+
+            {/* ── H-GAME EDITOR ── (gated like the h-comic editor) */}
+            {editingType === "h-game" && (
+              <HGameModifyTab
+                franchiseCollections={franchiseCollections}
+                chgf={chgf}
+                uhg={uhg}
+                allFranchises={allFranchises}
+                allHGames={allHGames}
+                seriesItemsForHGame={seriesItemsForHGame}
                 editingItem={editingItem}
                 ribbonSection={null}
                 sources={sources}

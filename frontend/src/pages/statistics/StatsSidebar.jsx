@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { STATS_SECTIONS, STATS_SECTION_IDS } from "./sections";
 import { Eyebrow } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
+import { visibleByType } from "../../lib/gatedTypes";
 
 // Highlights whichever section is nearest the top of the viewport.
 //
@@ -57,6 +59,7 @@ function SectionLink({ id, label, active, indented }) {
 
 export default function StatsSidebar() {
   const active = useActiveSection(STATS_SECTION_IDS);
+  const auth = useAuth();
 
   return (
     // Hidden on narrow screens, where the page is one column and the sidebar
@@ -74,7 +77,7 @@ export default function StatsSidebar() {
               label={section.label}
               active={active === section.id}
             />
-            {section.children?.map((child) => (
+            {visibleByType(auth, section.children || [], (c) => c.gatedType).map((child) => (
               <SectionLink
                 key={child.id}
                 id={child.id}

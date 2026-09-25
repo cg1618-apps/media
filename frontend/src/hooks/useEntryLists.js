@@ -24,9 +24,11 @@ export const MEDIA_LIST_TYPES = [
   "novel",
   "comic",
   "game",
-  // Gated. Each is only fetched by a tab that reads it - its own tab; for a
-  // session that cannot see the type the server answers [] anyway.
+  // Gated. Only fetched by a tab that reads them - the type's own tab, and
+  // fav3x3 for h-game; for a session that cannot see the type the server
+  // answers [] anyway.
   "h-comic",
+  "h-game",
   "hentai",
 ];
 

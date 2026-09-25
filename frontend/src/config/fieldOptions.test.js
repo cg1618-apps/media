@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import {
   AIRING_STATUSES,
   CONSTANTS_FALLBACK,
+  FRANCHISE_TYPES,
   MEDIA_TYPES,
   OPTION_CATEGORIES,
   PERSON_ROLES,
@@ -73,6 +74,21 @@ describe("admin-form vocabularies served from /api/constants", () => {
     applyConstants({ person_role: ["director", "sound_director"] });
     expect(PERSON_ROLES).toBe(before);
     expect(PERSON_ROLES).toEqual(["director", "sound_director"]);
+  });
+
+  it("carries the h-game type, its franchise type and its vocabularies", () => {
+    expect(MEDIA_TYPES).toContain("h-game");
+    expect(FRANCHISE_TYPES).toContain("H-Game");
+    for (const key of [
+      "h_game_playstyle",
+      "h_game_language_availability",
+      "h_game_audio_availability",
+      "h_game_h_presentation",
+      "h_game_platform",
+    ]) {
+      expect(CONSTANTS_FALLBACK[key], key).toBeDefined();
+    }
+    expect(CONSTANTS_FALLBACK.h_game_platform).toEqual(["Steam", "DLsite", "Nintendo", "Other"]);
   });
 
   it("uses the hyphenated media type keys, not person-role scopes", () => {
@@ -156,6 +172,8 @@ describe("person field sources", () => {
     // Eleven before games; director|game and composer|game are the two the
     // ninth media type adds, illustrator, author and club the three the
     // gated h-comic type adds, and director|hentai the one hentai adds.
+    // H-game adds none: its one credit, the developer, is a studio row, not
+    // a person.
     const keys = PERSON_SOURCES.map((s) => `${s.role}|${s.scope}`);
     expect(new Set(keys).size).toBe(17);
     expect(keys).toHaveLength(17);

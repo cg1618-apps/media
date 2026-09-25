@@ -36,6 +36,7 @@ const TYPE_ORDER = [
   // The server leaves a gated type's entries out for a session that cannot
   // see it, so no group is drawn for one.
   "h-comic",
+  "h-game",
 ];
 
 function typeLabel(key) {

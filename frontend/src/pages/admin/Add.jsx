@@ -9,10 +9,12 @@ import {
   buildCreditsPayload,
   gameFieldsPayload,
   hComicFieldsPayload,
+  hGameFieldsPayload,
   hentaiFieldsPayload,
 } from "../../utils/media";
 import { clearedForRegion } from "../../lib/hComicRegion";
 import { hComicSourceFields } from "../../lib/hComicForm";
+import { hGameSourceFields } from "../../lib/hGameForm";
 import { hentaiSourceFields } from "../../lib/hentaiForm";
 import {
   requiredLabelsForFranchiseType,
@@ -64,6 +66,10 @@ import HComicAddTab, {
   H_COMIC_FRANCHISE_TYPE,
   defaultHComic,
 } from "../add-tabs/HComicAddTab";
+import HGameAddTab, {
+  H_GAME_FRANCHISE_TYPE,
+  defaultHGame,
+} from "../add-tabs/HGameAddTab";
 import HentaiAddTab, {
   HENTAI_FRANCHISE_TYPE,
   defaultHentai,
@@ -109,6 +115,7 @@ export default function Add() {
   const allNovels = lists.novel;
   const allComics = lists.comic;
   const allGames = lists.game;
+  const allHGames = lists["h-game"];
   // Every submit handler appends its newly created row to the list it came
   // from, so the picker offers it without a refetch.
   const setAllAnime = (v) => setList("anime", v);
@@ -124,6 +131,7 @@ export default function Add() {
   const setAllComics = (v) => setList("comic", v);
   const setAllGames = (v) => setList("game", v);
   const setAllHComics = (v) => setList("h-comic", v);
+  const setAllHGames = (v) => setList("h-game", v);
   const setAllHentai = (v) => setList("hentai", v);
   const [sources, setSources] = useState({ options: [], studios: [], people: {} });
   // Admin-configured form defaults, keyed by media type. {} = use the built-ins.
@@ -197,6 +205,7 @@ export default function Add() {
   const [cmf, setCmf] = useState(defaultComic());
   const [gmf, setGmf] = useState(defaultGame());
   const [hcf, setHcf] = useState(defaultHComic());
+  const [hgf, setHgf] = useState(defaultHGame());
   const [htf, setHtf] = useState(defaultHentai());
   // Quote is not a media entry, so like System Options it keeps its own
   // form state instead of going through the media form factories.
@@ -254,6 +263,7 @@ export default function Add() {
   const ucm = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
   const ugm = (k, v) => setGmf((p) => ({ ...p, [k]: v }));
   const uhc = (k, v) => setHcf((p) => ({ ...p, [k]: v }));
+  const uhg = (k, v) => setHgf((p) => ({ ...p, [k]: v }));
   const uht = (k, v) => setHtf((p) => ({ ...p, [k]: v }));
 
   // A blank form for `type` with the admin's configured defaults applied.
@@ -392,6 +402,7 @@ export default function Add() {
       setCmf(resolveDefaults("comic", fd));
       setGmf(resolveDefaults("game", fd));
       setHcf(resolveDefaults("h-comic", fd));
+      setHgf(resolveDefaults("h-game", fd));
       setHtf(resolveDefaults("hentai", fd));
       setColf(resolveDefaults("collection", fd));
       setFf(resolveDefaults("franchise", fd));
@@ -644,6 +655,16 @@ export default function Add() {
     }));
     showToast("success", `Linked to IGDB: ${game.name || game.id}`);
   };
+  // The h-game tab's picker, the same shape over its own name column.
+  const applyHGameAutofill = (game) => {
+    setHgf((p) => ({
+      ...p,
+      igdb_id: game.id ?? p.igdb_id,
+      igdb_link: game.url || p.igdb_link,
+      h_game_name_en: p.h_game_name_en || game.name || "",
+    }));
+    showToast("success", `Linked to IGDB: ${game.name || game.id}`);
+  };
 
   const applyTvShowAutofill = makeApply(
     setTvf,
@@ -670,6 +691,7 @@ export default function Add() {
       else if (activeTab === "comic") await submitComic();
       else if (activeTab === "game") await submitGame();
       else if (activeTab === "h-comic") await submitHComic();
+      else if (activeTab === "h-game") await submitHGame();
       else if (activeTab === "hentai") await submitHentai();
       else if (activeTab === "quote") await submitQuote();
       else if (activeTab === "meme") await submitMeme();
@@ -2793,6 +2815,135 @@ export default function Add() {
     setAllHComics((prev) => [...prev, created]);
   }
 
+  async function submitHGame() {
+    if (!hgf.h_game_name_cn && !hgf.h_game_name_en) {
+      showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+    if (!hgf.franchise_id && !hgf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
+
+    // An h-game only ever sits in an H-Game franchise (the server refuses
+    // any other), so a new one is created with that type - and with the
+    // h-game label, which the server attaches on create.
+    let franchiseId = hgf.franchise_id;
+    if (!franchiseId && hgf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: H_GAME_FRANCHISE_TYPE,
+          onConfirm: (expectation, remark) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation, remark });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_cn: hgf.h_game_name_cn || null,
+          franchise_name_en: hgf.h_game_name_en || null,
+          franchise_name_roman: hgf.h_game_name_roman || null,
+          franchise_name_jp: hgf.h_game_name_jp || null,
+          franchise_name_alt: hgf.h_game_name_alt || null,
+          franchise_type: H_GAME_FRANCHISE_TYPE,
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = hgf.series_id;
+    if (!seriesId && hgf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: hgf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_cn: hgf.h_game_name_cn || null,
+          series_name_en: hgf.h_game_name_en || null,
+          series_name_alt: hgf.h_game_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    await ensureSourceValues(hGameSourceFields(hgf, splitTags));
+
+    const payload = {
+      ...hGameFieldsPayload(hgf),
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+    };
+
+    const res = await fetch(endpoints.resource("h-game").create(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Failed to create entry",
+      );
+      return;
+    }
+    const created = await res.json();
+    await attachPendingImage(
+      hgf.pending_image_id,
+      "h-game",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
+    await saveCredits("h-game", created.system_id, hgf);
+    window.scrollTo(0, 0);
+    showToast("success", "H-Game appended successfully.");
+    setLastAdded(getDisplayName(created, "h-game"));
+    setHgf(freshForm("h-game"));
+    setContentLabels([]);
+    setAllHGames((prev) => [...prev, created]);
+  }
+
   async function submitHentai() {
     if (!htf.hentai_name_cn && !htf.hentai_name_en) {
       showToast("error", "Please provide at least a CN or EN title.");
@@ -3048,6 +3199,18 @@ export default function Add() {
   const seriesItemsForHComic = (
     hcf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === hcf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForHGame = (
+    hgf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === hgf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -3323,6 +3486,20 @@ export default function Add() {
             allFranchises={allFranchises}
             seriesItemsForHComic={seriesItemsForHComic}
             sources={sources}
+          />
+        )}
+
+        {/* ═══ H-GAME TAB ═══ (gated like the h-comic tab) */}
+        {activeTab === "h-game" && (
+          <HGameAddTab
+            franchiseCollections={franchiseCollections}
+            hgf={hgf}
+            uhg={uhg}
+            allFranchises={allFranchises}
+            allHGames={allHGames}
+            seriesItemsForHGame={seriesItemsForHGame}
+            sources={sources}
+            applyHGameAutofill={applyHGameAutofill}
           />
         )}
 

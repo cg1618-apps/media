@@ -321,7 +321,14 @@ scope, owners `("h-game",)`, and **no** `owner_where` - every h-game takes it.
 The group order is `h_game.highlight_group_order`, written through the entry
 update and normalised exactly as h-comic's (`normalize_group_order`), without
 any region clear. The fields are not factored out of the two sections: this is
-only their second copy. The SPA does not render h-game yet.
+only their second copy.
+
+**On the h-game page** (`frontend/src/pages/detail/HGame.jsx`): the page's one
+`NotesProvider` - Game's composition, with 待辦 Todo in the Progress slip - is
+handed the entry row, `highlight_group_order` and the callback that PATCHes a
+new order, and the section renders exactly as on a KR h-comic: one group per
+female character, headers dragged or stepped, rows not movable. An h-game has
+no cast, so the `names` inputs offer no suggestions and take any name typed.
 
 **On the h-comic page** (`frontend/src/pages/detail/HComic.jsx`, `HComicNotes.jsx`):
 the detail page hands the notes page the entry row, the cast's character names

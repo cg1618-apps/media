@@ -7,27 +7,46 @@
 // the Modify page for a single dropdown.
 //
 // Kept out of MyTrackerCard deliberately - that component serves nine media
-// types and these four columns exist only on games. Same shape as
+// types and these columns exist only on games. Same shape as
 // NovelTrackerBlock, which is the precedent for per-type tracker UI.
+//
+// H-Game draws the same block over its own axes (H_GAME_COMPLETION_AXES): it
+// has no achievements or collectibles flag, and has All CG beside All
+// Endings instead - plus usefulness, the other personal answer about a
+// playthrough, which MyTrackerCard has no place for.
 import { useAuth } from "../../contexts/AuthContext";
 import { Chip, Eyebrow, Slip } from "../ui/primitives";
 import { SELECT_CLS } from "./MyTrackerCard";
 import {
   COMPLETION_LEVELS,
   GAME_COMPLETION_FLAGS,
+  H_COMIC_USEFULNESS,
 } from "../../config/fieldOptions";
 
 // Field key -> label and vocabulary. Completion Level is a ladder of depth and
 // the other three are independent axes, so the ladder leads and the axes
 // follow it in the order the Add form uses.
-const AXES = [
+export const GAME_COMPLETION_AXES = [
   ["completion_level", "Completion Level", COMPLETION_LEVELS],
   ["all_endings", "All Endings", GAME_COMPLETION_FLAGS],
   ["all_achievements", "All Achievements", GAME_COMPLETION_FLAGS],
   ["all_collected", "All Collected", GAME_COMPLETION_FLAGS],
 ];
 
-export default function GameCompletionBlock({ game, isAdmin, onChange }) {
+export const H_GAME_COMPLETION_AXES = [
+  ["completion_level", "Completion Level", COMPLETION_LEVELS],
+  ["all_endings", "All Endings", GAME_COMPLETION_FLAGS],
+  ["all_cg", "All CG", GAME_COMPLETION_FLAGS],
+  ["usefulness", "Usefulness", H_COMIC_USEFULNESS],
+];
+
+export default function GameCompletionBlock({
+  game,
+  isAdmin,
+  onChange,
+  axes = GAME_COMPLETION_AXES,
+  idPrefix = "game",
+}) {
   // A guest has no completion record, for the same reason they have no
   // tracker: every field here is one person's answer. Guarded in the component
   // rather than at the page, matching MyTrackerCard and NovelTrackerBlock.
@@ -37,14 +56,14 @@ export default function GameCompletionBlock({ game, isAdmin, onChange }) {
   return (
     <Slip title="Completion">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {AXES.map(([key, label, options]) => (
+        {axes.map(([key, label, options]) => (
           <div key={key} className="space-y-1.5">
-            <Eyebrow as="label" htmlFor={`game-${key}`} className="block">
+            <Eyebrow as="label" htmlFor={`${idPrefix}-${key}`} className="block">
               {label}
             </Eyebrow>
             {isAdmin ? (
               <select
-                id={`game-${key}`}
+                id={`${idPrefix}-${key}`}
                 value={game[key] || ""}
                 onChange={(e) =>
                   // "" is the select's unset option; the column's unrecorded

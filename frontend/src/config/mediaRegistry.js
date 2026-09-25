@@ -13,6 +13,7 @@ export const MEDIA_CONFIG = {
   // A gated type: registered like any other, drawn only where canSeeGatedType
   // (lib/gatedTypes.js) says the session may see it.
   "h-comic":     { statusField: "reading_status",  apiEndpoint: "/api/h-comic",     navPath: "/h-comic",      statusType: "read"  },
+  "h-game":      { statusField: "playing_status",  apiEndpoint: "/api/h-game",      navPath: "/h-game",       statusType: "play"  },
   hentai:        { statusField: "watching_status", apiEndpoint: "/api/hentai",      navPath: "/hentai",       statusType: "watch" },
   collection:    { statusField: null,              apiEndpoint: "/api/collection",  navPath: "/collection",   statusType: null    },
   franchise:     { statusField: null,              apiEndpoint: "/api/franchise",   navPath: "/franchise",    statusType: null    },
