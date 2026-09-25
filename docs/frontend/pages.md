@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -174,9 +174,24 @@ File `pages/public/Index.jsx`.
 out of the combined loading/error gate so a failure there never blanks the
 dashboard.
 
-**Card or list**: each division's `TypeFilterBar` carries a **View** toggle
-(Cards / List) at its right end. It is one setting for the whole dashboard —
-flipping it in any division changes all three — and it persists per browser in
+**Type filter and view**: one `TypeFilterBar` sits above the Watching
+division and is the sticky header for Watching, Reading and Playing together —
+it pins below the nav from where Watching starts to where Playing ends, and
+Announcements and Schedule above it keep their own sticky division headers.
+The three tracker division titles (Watching, Reading, Playing) do **not** pin;
+their sub-section headers (Active watching, Passive reading, …) pin below the
+bar, which reports its measured height so they stack under it.
+
+The bar's type filter is single-select over `MEDIA_TYPES` (All / Anime / TV
+Show / Cartoon / Manga / Novel / Comic / Game); clicking the active type again
+returns to All. Picking a type does two things: each section shows only that
+type's entries, and every division that cannot hold the type is **not
+rendered at all** (`DIVISION_TYPES`: Watching holds Anime · TV Show · Cartoon,
+Reading holds Manga · Novel · Comic, Playing holds Game). So picking Game
+leaves only Playing. The TOC drops the links of hidden divisions with them.
+
+**Card or list**: the same bar carries a **View** toggle (Cards / List) at its
+right end. It is one setting for the whole dashboard and it persists per browser in
 `localStorage` through `lib/dashboardView.js`, never server-side. In list view
 a section renders one `DashboardTable` holding every type it contains, instead
 of a grid of tiles grouped by type: Type is a column, so the per-type
@@ -188,15 +203,17 @@ The table scrolls sideways inside its own wrapper below ~640px so the page
 itself never does.
 
 **Layout** (an `xl:`-only sticky left TOC, `DashboardTOC`, tracks the active
-division with a `scrollY + 140` threshold):
+section with a threshold at the bottom of whatever sticky header covers it —
+the division header for Announcements and Schedule, the filter bar for the
+tracker divisions):
 
 | Anchor | Division | What it shows |
 |---|---|---|
 | `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only here; CRUD is on `/system`. |
 | `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted, entries sort by `HH:MM` then name. |
-| `#watching` | Watching (Anime · TV Show · Cartoon) | sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. A single-select type filter bar (`TypeFilterBar` over `MEDIA_TYPES`: All / Anime / TV Show / Cartoon / Manga / Novel / Comic / Game) sits under the division header; picking a type shows only it across ALL THREE of the Watching, Reading and Playing divisions and pins the bar as a sticky header below the division header (sub-section headers stack below it). |
-| `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. The same `TypeFilterBar` renders here bound to the same shared filter state as Watching. |
-| `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. A third `TypeFilterBar` renders under this header too, bound to the same single shared filter state as Watching and Reading; `MEDIA_TYPES` gained a **Game** option, so picking it empties Watching and Reading and leaves only this division populated. |
+| `#watching` | Watching (Anime · TV Show · Cartoon) | sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. Shown when no type is picked or the picked type is one of its three. |
+| `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
+| `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
 
 **Admin-only controls** (cards read `isAdmin`): a "Quick Edit" pencil
 (`/modify?id=…&type=…`; anime omits `type`) and −/input/+ progress steppers.

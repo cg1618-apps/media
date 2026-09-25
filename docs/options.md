@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-23
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -270,6 +270,7 @@ media types only.
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
+| `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game | guides | type (free text), name (CN), alt name, description, links |
 | `controls` | structured | 操作 Controls | game | guides | Fields: control (`title`), description (`content`), links |
 | `guide_notes` | text_links | 攻略筆記 Guide Notes | game | guides | |
 | `trivia` | text_links | 小知識 Trivia | game | guides | |
@@ -282,11 +283,13 @@ media types only.
 | `collectibles` | structured | 收集物 Collectibles | game | gear | type, name, variant, description, links, collect status (default `not collected`) |
 | `characters_guide` | structured | 角色 Characters | game | compendium | group, name, alias, description |
 | `enemies` | structured | 敵人 Enemies | game | compendium | tier, region, name, alias, description, beaten status (default `to beat`) |
+| `game_terms` | structured | 遊戲名詞 Game Terms | game | compendium | name (CN), alt name, description, links |
 | `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
 | `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), description, links |
 | `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
 | `endings` | structured | 結局 Endings | game | story | name, completion status, description, links |
 | `lore` | text_links | 世界觀&設定 Lore | game | story | |
+| `story_terms` | structured | 劇情名詞 Story Terms | game | story | name (CN), alt name, description, links |
 | `timeline` | text_links | 時間線 Timeline | game | story | |
 | `mysteries` | text_links | 未解之謎 Mysteries | game | story | |
 | `story_other` | text_links | 其他 Other | game | story | |
@@ -301,7 +304,7 @@ media types only.
 | `op` | music_track | OP | anime | music | kinds `MUSIC_TYPES`, default `normal`; statuses `MUSIC_STATUSES` |
 | `ed` | music_track | ED | anime | music | same as `op` |
 | `insert_songs` | episode_name_links | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES`; no kinds |
-| `ost` | music_track | OST | anime | music | same as `op` |
+| `ost` | structured | OST | anime | music | singleton; fields `type` (`MUSIC_TYPES`, default `normal`) and `status` (`MUSIC_STATUSES`) |
 | `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS` |
 | `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |

@@ -500,3 +500,45 @@ it("leaves a saved row's own status alone when editing it", async () => {
   // The default seeds a NEW row; an existing one reads back what it holds.
   expect(screen.getByLabelText("Collected")).toHaveValue("fully collected");
 });
+
+// Mirrors `ost`: one row per owner, of a type and a status.
+const OST = {
+  key: "ost",
+  shape: "structured",
+  label: "OST",
+  singleton: true,
+  require_any: [],
+  hierarchical: false,
+  fields: [
+    {
+      key: "type",
+      label: "Type",
+      type: "select",
+      column: "kind",
+      options: ["normal", "different version"],
+      default: "normal",
+    },
+    {
+      key: "status",
+      label: "Status",
+      type: "select",
+      column: "status",
+      options: ["Need", "Done"],
+    },
+  ],
+};
+
+it("offers Add on an empty singleton section", () => {
+  renderSection({ section: OST, notes: [] });
+  expect(screen.getByRole("button", { name: "Add" })).toBeInTheDocument();
+});
+
+it("offers no Add once a singleton section holds its one row", () => {
+  renderSection({
+    section: OST,
+    notes: [{ system_id: "n1", kind: "normal", status: "Need" }],
+  });
+  expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
+  // The row is still editable - that is how the one entry changes.
+  expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+});

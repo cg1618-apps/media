@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -190,7 +190,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   is five honest measurements rather than one dishonest one. There is no
   stepper in list view: a one-line row has nowhere to put a control without
   becoming a card again, so tracking stays in card view and on the entry
-  page. The mode is chosen in each division's type-filter bar, is one setting
+  page. The mode is chosen in the dashboard's one type-filter bar, is one setting
   for the whole dashboard, and persists per browser through
   `lib/dashboardView.js` (`cg1618:dashboard-view`) — never server-side.
   `MyTrackerCard` renders its −/input/+ stepper **only when the caller passes
@@ -300,7 +300,8 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   and the read view from `section.fields`, the spec the backend registry
   serves. A field naming a `column` is sent at the top level of the payload
   and one naming none inside `fields`, which `fromNote` and `toPayload` are
-  the only places to know. It also owns the two affordances the other shapes
+  the only places to know. A `singleton` section (`ost`) loses its Add
+  button once it holds its row, so that row changes by Edit. It also owns the two affordances the other shapes
   lack — up/down buttons calling `PATCH /api/notes/reorder`, and an inline
   `quick_edit` input that saves on blur without opening the row. For a
   `hierarchical` section it also draws the tree: an Add button per row opening

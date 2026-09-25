@@ -1,6 +1,6 @@
-// Dashboard type filter: one single-select filter shared by the Watching and
-// Reading divisions (rendered under both headers); filtering shows one type
-// only across the whole page and pins the bars as sticky headers.
+// Dashboard type filter: one single-select bar, pinned above the Watching,
+// Reading and Playing divisions together with the view toggle. Picking a type
+// shows only that type's entries and hides every division that cannot hold it.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -22,6 +22,8 @@ function respond(url) {
     return [{ system_id: "m1", manga_name_en: "Berserk", franchise_id: "f3", reading_status: "Active Reading" }];
   if (url.startsWith("/api/comic/"))
     return [{ system_id: "c1", comic_name_en: "Saga", franchise_id: "f4", reading_status: "Active Reading" }];
+  if (url.startsWith("/api/game/"))
+    return [{ system_id: "g1", game_name_en: "Hades", franchise_id: "f5", playing_status: "Active Playing" }];
   if (url.startsWith("/api/franchise/")) return [];
   return [];
 }
@@ -60,73 +62,93 @@ async function loaded() {
   await waitFor(() => expect(screen.getByText("Frieren")).toBeInTheDocument());
 }
 
-it("renders the combined type filter bar in both divisions", async () => {
+const DIVISIONS = ["watching", "reading", "playing"];
+
+function bar() {
+  return within(screen.getByTestId("dashboard-filter"));
+}
+
+function shownDivisions() {
+  return DIVISIONS.filter((id) => document.getElementById(id));
+}
+
+it("renders one filter bar, above the Watching division", async () => {
   mount();
   await loaded();
-  for (const barId of ["watching-filter", "reading-filter"]) {
-    const bar = within(screen.getByTestId(barId));
-    for (const label of [
-      "All",
-      "Anime",
-      "TV Show",
-      "Cartoon",
-      "Manga",
-      "Novel",
-      "Comic",
-      "Game",
-    ]) {
-      expect(bar.getByRole("button", { name: label })).toBeInTheDocument();
-    }
+  expect(screen.getAllByTestId("dashboard-filter")).toHaveLength(1);
+  for (const label of ["All", "Anime", "TV Show", "Cartoon", "Manga", "Novel", "Comic", "Game", "Cards", "List"]) {
+    expect(bar().getByRole("button", { name: label })).toBeInTheDocument();
   }
+  const filterBar = screen.getByTestId("dashboard-filter");
+  const watching = document.getElementById("watching");
+  expect(filterBar.compareDocumentPosition(watching) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
-it("picking a type filters both divisions to that type only", async () => {
+it("the bar is sticky and the division titles are not", async () => {
+  mount();
+  await loaded();
+  expect(screen.getByTestId("dashboard-filter").className).toMatch(/sticky/);
+  for (const title of ["Watching", "Reading", "Playing"]) {
+    const header = screen.getByRole("heading", { name: title }).parentElement.parentElement;
+    expect(header.className).not.toMatch(/sticky/);
+  }
+  // The sub-section headers stay pinned.
+  expect(
+    screen.getByRole("heading", { name: "Active watching" }).parentElement.className,
+  ).toMatch(/sticky/);
+});
+
+it("with no type picked every division is shown", async () => {
+  mount();
+  await loaded();
+  expect(shownDivisions()).toEqual(DIVISIONS);
+});
+
+it("picking a type filters entries and hides divisions that cannot hold it", async () => {
   const user = userEvent.setup();
   mount();
   await loaded();
-  expect(screen.getByText("Severance")).toBeInTheDocument();
-  expect(screen.getByText("Berserk")).toBeInTheDocument();
 
-  const watching = within(screen.getByTestId("watching-filter"));
-  await user.click(watching.getByRole("button", { name: "Anime" }));
+  await user.click(bar().getByRole("button", { name: "Anime" }));
   expect(screen.getByText("Frieren")).toBeInTheDocument();
   expect(screen.queryByText("Severance")).not.toBeInTheDocument();
-  expect(screen.queryByText("Berserk")).not.toBeInTheDocument();
+  expect(shownDivisions()).toEqual(["watching"]);
 
-  // Clicking the active type again returns to All
-  await user.click(watching.getByRole("button", { name: "Anime" }));
-  expect(screen.getByText("Severance")).toBeInTheDocument();
-  expect(screen.getByText("Berserk")).toBeInTheDocument();
+  await user.click(bar().getByRole("button", { name: "Comic" }));
+  expect(screen.getByText("Saga")).toBeInTheDocument();
+  expect(screen.queryByText("Berserk")).not.toBeInTheDocument();
+  expect(shownDivisions()).toEqual(["reading"]);
+
+  await user.click(bar().getByRole("button", { name: "Game" }));
+  expect(screen.getByText("Hades")).toBeInTheDocument();
+  expect(screen.queryByText("Frieren")).not.toBeInTheDocument();
+  expect(shownDivisions()).toEqual(["playing"]);
 });
 
-it("the two bars share one filter state", async () => {
+it("clicking the active type again, or All, restores every division", async () => {
   const user = userEvent.setup();
   mount();
   await loaded();
-  const reading = within(screen.getByTestId("reading-filter"));
-  await user.click(reading.getByRole("button", { name: "Comic" }));
-  expect(screen.getByText("Saga")).toBeInTheDocument();
-  expect(screen.queryByText("Berserk")).not.toBeInTheDocument();
-  expect(screen.queryByText("Frieren")).not.toBeInTheDocument();
-  // Clearing from the other bar restores everything
-  const watching = within(screen.getByTestId("watching-filter"));
-  await user.click(watching.getByRole("button", { name: "All" }));
+  await user.click(bar().getByRole("button", { name: "Game" }));
+  await user.click(bar().getByRole("button", { name: "Game" }));
+  expect(shownDivisions()).toEqual(DIVISIONS);
+
+  await user.click(bar().getByRole("button", { name: "Manga" }));
+  await user.click(bar().getByRole("button", { name: "All" }));
+  expect(shownDivisions()).toEqual(DIVISIONS);
   expect(screen.getByText("Frieren")).toBeInTheDocument();
   expect(screen.getByText("Berserk")).toBeInTheDocument();
 });
 
-it("both bars are sticky only while a filter is active", async () => {
+it("the contents sidebar drops the links of hidden divisions", async () => {
   const user = userEvent.setup();
   mount();
   await loaded();
-  const watchBar = screen.getByTestId("watching-filter");
-  const readBar = screen.getByTestId("reading-filter");
-  expect(watchBar.className).not.toMatch(/sticky/);
-  expect(readBar.className).not.toMatch(/sticky/);
-  await user.click(within(watchBar).getByRole("button", { name: "Manga" }));
-  expect(watchBar.className).toMatch(/sticky/);
-  expect(readBar.className).toMatch(/sticky/);
-  await user.click(within(readBar).getByRole("button", { name: "All" }));
-  expect(watchBar.className).not.toMatch(/sticky/);
-  expect(readBar.className).not.toMatch(/sticky/);
+  const toc = within(screen.getByRole("navigation", { name: "Contents" }));
+  expect(toc.getByRole("button", { name: "Watching" })).toBeInTheDocument();
+  await user.click(bar().getByRole("button", { name: "Game" }));
+  expect(toc.queryByRole("button", { name: "Watching" })).not.toBeInTheDocument();
+  expect(toc.queryByRole("button", { name: "Reading" })).not.toBeInTheDocument();
+  expect(toc.getByRole("button", { name: "Playing" })).toBeInTheDocument();
+  expect(toc.getByRole("button", { name: "Schedule" })).toBeInTheDocument();
 });

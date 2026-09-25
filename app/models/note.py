@@ -232,4 +232,14 @@ class Note(Base):
             postgresql_nulls_not_distinct=True,
             postgresql_where=text("section = 'remark'"),
         ),
+        # `ost` is one row per anime: a type and a status, not a list of
+        # songs. Catalog-scope and anime-only, so media_id is the whole owner.
+        # Mirrors revision o1s2tsingle3 - keep the name and the predicate
+        # identical.
+        Index(
+            "ix_note_one_ost_per_owner",
+            "media_id",
+            unique=True,
+            postgresql_where=text("section = 'ost'"),
+        ),
     )
