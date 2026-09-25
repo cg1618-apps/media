@@ -12,6 +12,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
+import ComicNotes from "../detail/ComicNotes";
 import {
   COMIC_TYPES,
   MANGA_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
@@ -428,6 +429,15 @@ export default function ComicModifyTab({
           placeholder="Private notes..."
         />
       </Field>
+      <SectionHeader icon="fa-book-open" title="Structured Notes" />
+      {/* `remark` is hidden here: the form's Remark field edits the same
+          singleton note row, and two editors for one row overwrite each
+          other on Save Changes. */}
+      <ComicNotes
+        comic={editingItem ?? {}}
+        isAdmin={true}
+        hideSections={["remark"]}
+      />
     </>
   );
 }

@@ -456,7 +456,7 @@ holds — a franchise, a series or an entry; see
 - **Game tab.** `GameModifyTab.jsx` renders `GameAddTab`'s exported
   `GameLineageFields` and `GameFormBody` rather than keeping its own copy, so
   the two tabs cannot drift; the only differences are the ribbon section Modify
-  puts above the form and `excludeGameId`, which drops the row being edited from
+  puts above the form, the Structured Notes below it, and `excludeGameId`, which drops the row being edited from
   its own Base Game picker. This is a deliberate divergence from the **comic**
   pair, which still keeps two near-identical files. The Modify tab has **no IGDB
   search box** — identification happens once, on Add — and it saves with
@@ -482,6 +482,12 @@ holds — a franchise, a series or an entry; see
   arrive through `loadCreditsIntoForm`; a new franchise typed there is created
   as `Hentai`. It saves with `PATCH /api/hentai/{id}`, then credits and
   labels, without enrichment.
+- **Structured Notes.** Every media type's tab ends with the entry's notes
+  page (`<Type>Notes`). On the Comic, Game, H-Comic, H-Game and Hentai tabs it
+  sits below the form body, with the whole open row as the owner, so the KR-only 亮點 Highlights appears on a KR h-comic alone.
+  `remark` is hidden there, as on every other type's tab: the form's Remark
+  field writes the same singleton row. Highlights groups show in their stored
+  order; reordering them is the detail page's.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
 - **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
