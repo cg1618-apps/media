@@ -1,10 +1,10 @@
 # Media Relations
 
-Last verified: 2026-09-12
+Last verified: 2026-09-25
 
 ## What this is for
 
-A media relation is a typed link between two entries — "this anime is the Sequel of that one", "this movie is the Adaptation of that manga" — that can cross any of the seven media tables and any franchise. Relations are curated by hand on the admin `/relations` canvas, read on every detail page's "Related Entries" card, and drawn read-only on the collection, franchise and series hubs. Nothing derives them automatically. This document describes the table, the vocabulary, the write and read rules, the API, the canvas and the Sheets round trip, citing the code that implements each piece; where an older doc (`../frontend/pages.md`, `docs/api.md`, `../business-rules.md`, `../data-model.md`) disagrees with this one, the code and this file are current.
+A media relation is a typed link between two entries — "this anime is the Sequel of that one", "this movie is the Adaptation of that manga" — that can cross any of the seven media tables and any franchise. Relations are curated by hand on the admin `/relations` canvas, read on every detail page's "Related Entries" card, and drawn read-only on the collection, franchise and series hubs. Nothing derives them automatically; one value is derived *from* them - an h-comic's served `animation_status`, from `hentai -adaptation-> h-comic` rows ([../entry-types.md](../entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy)). This document describes the table, the vocabulary, the write and read rules, the API, the canvas and the Sheets round trip, citing the code that implements each piece; where an older doc (`../frontend/pages.md`, `docs/api.md`, `../business-rules.md`, `../data-model.md`) disagrees with this one, the code and this file are current.
 
 Every relation is a `media_relation` row. There are no `prequel_id` / `sequel_id` / `alternative` columns on the entry tables and nothing derives relations automatically - both were deliberately retired, and a relation exists because somebody entered it.
 

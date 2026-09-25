@@ -60,6 +60,7 @@ MEDIA_TABLES: dict[str, MediaRef] = {
     "comic": MediaRef("comic", "Comic", models.Comic, "/comic"),
     "game": MediaRef("game", "Game", models.Game, "/game"),
     "h-comic": MediaRef("h-comic", "H-Comic", models.HComic, "/h-comic"),
+    "hentai": MediaRef("hentai", "Hentai", models.Hentai, "/hentai"),
     "h-game": MediaRef("h-game", "H-Game", models.HGame, "/h-game"),
 }
 

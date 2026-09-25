@@ -472,6 +472,7 @@ def test_me_names_h_comic_for_unrestricted(admin_client):
     assert admin_client.get("/api/auth/me").json()["visible_gated_types"] == [
         "h-comic",
         "h-game",
+        "hentai",
     ]
 
 

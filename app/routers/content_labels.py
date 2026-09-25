@@ -387,7 +387,7 @@ def replace_franchise_labels(
     """
     _resolve_franchise(db, franchise_id, actor)
     # A franchise of a gated type keeps that type's label, for the same
-    # reason (H-Comic keeps h-comic).
+    # reason (H-Comic keeps h-comic, Hentai keeps hentai).
     refuse_label_removal_on_franchise(db, franchise_id, payload.label_keys)
     return _replace_labels(
         db,

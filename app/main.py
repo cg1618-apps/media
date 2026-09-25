@@ -43,6 +43,7 @@ from app.routers import (
     h_comic,
     h_game,
     health,
+    hentai,
     images,
     manga,
     me_list,
@@ -128,8 +129,8 @@ async def lifespan(app: FastAPI):
         # should find both seeds in one place. Idempotent for the same reason
         # ensure_rbac_seed is.
         ensure_access_mode_seed(db)
-        # The system label every gated type requires (h-comic), AFTER the
-        # modes so each can be granted to `unrestricted` - and to nothing
+        # The system labels the gated types require (h-comic, hentai), AFTER
+        # the modes so each can be granted to `unrestricted` - and to nothing
         # else, which ensure_access_mode_seed guarantees on every later boot
         # too. Found by key: a row an admin created by hand is adopted.
         ensure_system_labels(db)
@@ -265,6 +266,7 @@ app.include_router(novel.router)
 app.include_router(comic.router)
 app.include_router(game.router)
 app.include_router(h_comic.router)
+app.include_router(hentai.router)
 app.include_router(h_game.router)
 app.include_router(watch_order.router)
 app.include_router(media_relation.router)

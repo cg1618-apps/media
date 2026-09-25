@@ -82,7 +82,7 @@ def test_super_may_read_the_vocabulary(super_client, nsfw_label):
     res = super_client.get("/api/content-labels/")
     assert res.status_code == 200, res.text
     # The gated types' system labels exist in every database.
-    assert [row["key"] for row in res.json()] == ["h-comic", "h-game", "nsfw"]
+    assert [row["key"] for row in res.json()] == ["h-comic", "hentai", "h-game", "nsfw"]
 
 
 def test_super_may_not_mint_a_label(super_client, nsfw_label):

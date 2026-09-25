@@ -82,7 +82,7 @@ class UserMediaList(Base):
     page_fin = Column(Integer, nullable=True)             # h-comic, JP
     # One of constants.H_COMIC_USEFULNESS. Personal for the reason my_rating
     # is: it says how useful the work was to this reader.
-    usefulness = Column(String, nullable=True)            # h-comic
+    usefulness = Column(String, nullable=True)            # h-comic, hentai
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

@@ -194,6 +194,48 @@ def autofill_anime_from_mal(
         logger.error("MAL Autofill failed for Anime ID %s (MAL %s): %s", anime.system_id, mal_id, e)
 
 
+def autofill_hentai_from_mal(hentai, db: Session = None) -> None:
+    """
+    Fetches Tenrai data for a single hentai entry. Does not commit - caller is
+    responsible.
+
+    Three things and nothing else - airing_status, release_date and the cover
+    - each under anime's rule: the two columns are fill-only, the cover is
+    downloaded only when the entry has none. Tenrai serves Rx titles through
+    the same anime endpoint and mapper.
+    """
+    mal_id = hentai.mal_id
+    if not mal_id:
+        return
+
+    try:
+        raw_data = fetch_tenrai_anime_data(mal_id)
+        if not raw_data:
+            return
+
+        j_data = map_tenrai_to_anime_data(raw_data)
+
+        if hentai.airing_status is None:
+            hentai.airing_status = j_data.get("airing_status")
+        if hentai.release_date is None:
+            hentai.release_date = j_data.get("release_date")
+
+        if not hentai.cover_image_file and j_data.get("cover_image_url"):
+            key = download_cover_image(
+                j_data.get("cover_image_url"), "hentai", str(hentai.system_id)
+            )
+            if key:
+                hentai.cover_image_file = key
+
+    except Exception as e:
+        logger.error(
+            "MAL Autofill failed for Hentai ID %s (MAL %s): %s",
+            hentai.system_id,
+            mal_id,
+            e,
+        )
+
+
 def autofill_anime_movie_from_mal(
     anime_movie: AnimeMovies,
     force_replace_ratings: bool = True,

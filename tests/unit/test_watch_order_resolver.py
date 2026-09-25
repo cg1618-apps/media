@@ -186,6 +186,7 @@ class TestMediaTypeMap:
             "comic",
             "game",
             "h-comic",
+            "hentai",
             "h-game",
         }
 
