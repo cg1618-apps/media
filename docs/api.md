@@ -1631,7 +1631,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/fill/novel`       | Fill missing metadata for all novels from Tenrai. Streams SSE progress.       |
 | `POST` | `/fill/comic`       | Runs options extraction for all comics. No external call — comics are manual-entry. Streams SSE progress. |
 | `POST` | `/fill/h-comic`     | Nothing is eligible - there is no external API - so it only runs `run_sync_h_comic` (region clears over the whole table) and `run_sync_gated_labels` (every gated type's label on every entry and franchise). Streams SSE progress. Not part of Fill All. |
-| `POST` | `/fill/h-game`      | Game's Fill on the h-game table: IGDB (columns, the `studio` credit, `game_genre` / `game_theme`) and Steam (prices, achievements), then `run_sync_h_game`. Streams SSE progress. Part of Fill All. |
+| `POST` | `/fill/h-game`      | Game's Fill on the h-game table: IGDB (columns, the `studio` credit, `game_genre` / `game_theme`) and Steam (prices, achievements), then `run_sync_game` and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/studio`      | Fill missing logo, MAL link, founding date, Japanese name and website for every studio that has a MAL id, from Tenrai's producers endpoint. Fill-only; there is no `/replace/studio`. Streams SSE progress. |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
@@ -1656,7 +1656,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/replace/comic/{entry_id}`             | Runs the Replace write hook for a single comic entry. Fetches nothing — comics are manual-entry, so there is no external record to reconcile against; it exists only so the write is logged like every other type's. Returns JSON. |
 | `POST` | `/replace/h-comic/{entry_id}`           | The write hook for one h-comic: fetches nothing, runs `run_sync_h_comic` and `run_sync_gated_labels`. Returns JSON. There is no bulk `/replace/h-comic`, and h-comic is not part of Replace All. |
 | `POST` | `/replace/h-game`                       | Steam Replace for every h-game with a `steam_appid` or `steam_link`, as for game. Streams SSE progress. Part of Replace All. |
-| `POST` | `/replace/h-game/{entry_id}`            | Steam Replace for one h-game, then `run_sync_h_game`. Returns JSON. |
+| `POST` | `/replace/h-game/{entry_id}`            | Steam Replace for one h-game, then `run_sync_game` and `run_sync_gated_labels`. Returns JSON. |
 | `POST` | `/replace/all`                          | Replace all + auto-backup on completion. Streams SSE progress.                       |
 
 **Single replace error mapping.** A single-entry Replace returns the pipeline's status dict; when `status == "error"` the router raises the HTTP code the dict names in `status_code` (404 for a missing entry) and falls back to **400** otherwise, instead of answering 200 with an error body.
