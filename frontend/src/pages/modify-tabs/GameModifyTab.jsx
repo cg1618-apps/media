@@ -2,10 +2,11 @@
 //
 // The comic pair keeps two near-identical copies of the same fields; this one
 // does not. GameAddTab exports its field body and lineage pickers, so the two
-// tabs share one definition and cannot drift — the only real difference is
-// the ribbon section Modify renders above the form.
+// tabs share one definition and cannot drift — Modify adds the ribbon section
+// above the form and the entry's Structured Notes below it.
 import { SectionHeader } from "../../components/forms/FormField";
 import { GameFormBody, GameLineageFields } from "../add-tabs/GameAddTab";
+import GameNotes from "../detail/GameNotes";
 
 export default function GameModifyTab({
   franchiseCollections,
@@ -37,6 +38,15 @@ export default function GameModifyTab({
         excludeGameId={editingItem?.system_id}
         sources={sources}
         ownerId={editingItem?.system_id}
+      />
+      <SectionHeader icon="fa-book-open" title="Structured Notes" />
+      {/* `remark` is hidden here: the form's Remark field edits the same
+          singleton note row, and two editors for one row overwrite each
+          other on Save Changes. */}
+      <GameNotes
+        game={editingItem ?? {}}
+        isAdmin={true}
+        hideSections={["remark"]}
       />
     </>
   );
