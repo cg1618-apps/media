@@ -47,12 +47,13 @@ def patched(monkeypatch):
 
 
 class TestSelection:
-    def test_only_games_carrying_a_steam_id_are_selected(self, db_session):
+    def test_only_games_carrying_an_external_id_are_selected(self, db_session):
+        """IGDB-only games are selected too - test_game_replace_igdb.py."""
         linked = make_game(db_session, steam_appid=1245620)
         by_link = make_game(
             db_session, steam_link="https://store.steampowered.com/app/570/"
         )
-        make_game(db_session, igdb_id=119133)  # IGDB only: not Steam's business
+        make_game(db_session)  # no source at all
 
         selected = PIPELINES["game"].replace_select(db_session)
         # str(g.system_id): the query returns rows outside `linked`/`by_link`'s
