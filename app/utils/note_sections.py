@@ -224,7 +224,7 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # The world the story happens IN, split out of 劇情 so that card holds only
     # what happens and to whom. After 劇情列表 rather than between the two,
     # because 劇情 and 劇情列表 are one story told twice and read as a pair.
-    NoteGroup(key="story_setting", label="劇情設定 Story Setting", icon="fa-earth-asia"),
+    NoteGroup(key="worldbuilding", label="世界觀 Worldbuilding", icon="fa-earth-asia"),
     # NOT "進度 Progress": Game.jsx already renders a <Slip title="Progress">
     # (playtime and achievements) on the same page, and two cards with one name
     # is the `resources` / `builds_and_mods` collision again.
@@ -1116,7 +1116,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # The game's own vocabulary - mechanics, currencies, jargon - as a
         # glossary. Its story counterpart is 劇情名詞 Story Terms: a word the
         # PLOT introduces is looked up while reading the story, not while
-        # playing, so it sits in 劇情設定 Story Setting.
+        # playing, so it sits in 世界觀 Worldbuilding.
         key="game_terms",
         shape=SHAPE_STRUCTURED,
         label="遊戲名詞 Game Terms",
@@ -1128,8 +1128,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # --- 劇情 Story -------------------------------------------------------
     # What happens, as opposed to what it means - 解析 Analysis, two cards up,
     # holds the second. Four strands: the main plot, the side stories, the
-    # characters' arcs and how it ends. The world they happen in is 劇情設定
-    # Story Setting. This card is a wall of spoilers and the site has no
+    # characters' arcs and how it ends. The world they happen in is 世界觀
+    # Worldbuilding. This card is a wall of spoilers and the site has no
     # spoiler gate; the collapsible card is all today's UI offers.
     NoteSection(
         # Structured rather than episode_text so a beat can carry the video or
@@ -1209,27 +1209,27 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # its parent's business. Neither is worth refusing, and a row with
     # neither is nothing.
     *_story_list_sections(),
-    # --- 劇情設定 Story Setting --------------------------------------------
+    # --- 世界觀 Worldbuilding --------------------------------------------
     # The world, its words, its chronology and its open questions - what the
     # plot stands on rather than what it does.
     NoteSection(
         key="lore",
         shape=SHAPE_TEXT_LINKS,
-        label="世界觀&設定 Lore",
+        label="設定 Lore",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="story_setting",
+        group="worldbuilding",
     ),
     NoteSection(
         # The story's own vocabulary - places, factions, events, invented
-        # words - beside the lore it names. 世界觀&設定 is prose about the
+        # words - beside the lore it names. 設定 is prose about the
         # world; this is the index of its terms.
         key="story_terms",
         shape=SHAPE_STRUCTURED,
         label="劇情名詞 Story Terms",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="story_setting",
+        group="worldbuilding",
         fields=_term_fields(),
     ),
     NoteSection(
@@ -1241,7 +1241,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="時間線 Timeline",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="story_setting",
+        group="worldbuilding",
     ),
     NoteSection(
         key="mysteries",
@@ -1249,7 +1249,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="未解之謎 Mysteries",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="story_setting",
+        group="worldbuilding",
     ),
     NoteSection(
         # The overflow that keeps a stray story observation out of Analysis.
@@ -1259,7 +1259,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="其他 Other",
         owners=("game",),
         scope=SCOPE_CATALOG,
-        group="story_setting",
+        group="worldbuilding",
     ),
     # --- 待辦 Todo --------------------------------------------------------
     # Four sections rather than one section with a kind, because ordering is
