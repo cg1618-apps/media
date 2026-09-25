@@ -64,9 +64,14 @@ through it, and one credited only on hentai is hidden with them.
   to `unrestricted` only.
 - **The label already exists on the home database**, created by hand, carried
   by `unrestricted` alone, and attached to **one `anime` row** (Redo of
-  Healer). Find-or-create by key adopts that row rather than duplicating it,
-  and the anime row is not touched. Whether that anime keeps the label is the
-  owner's call, not this feature's.
+  Healer). Find-or-create by key adopts that row rather than duplicating it.
+- **The migration removes the `hentai` label from every entry that is not a
+  hentai** (the owner's decision for Redo of Healer). The label now means the
+  type, so the step is written against the rule rather than the one title, and
+  it runs on every database the migration reaches. Its downgrade does not put
+  the labels back: which rows carried them is not recorded anywhere to restore
+  from. Nothing refuses the label on another type afterwards, the same as
+  `h-comic` today.
 - Every hentai entry carries it on every write path, attached server-side in
   the registry hooks; a request that would remove it is refused (422), as for
   h-comic.
