@@ -150,6 +150,32 @@ def test_a_dlc_is_linked_to_a_base_game_already_in_the_database(
     assert dlc.base_game_id == base.system_id
 
 
+def test_a_base_game_is_never_given_igdbs_parent(db_session, patched, monkeypatch):
+    """
+    IGDB sets parent_game on a remaster or an edition too - Spider-Man
+    Remastered names Spider-Man - but a Base Game with a parent violates
+    ck_games_base_no_parent, and the failed flush rolls back the whole fill,
+    cover included. The parent row in the database is what makes this bite;
+    the DLC test above is its mirror.
+    """
+    make_game(db_session, game_name_en="Marvel's Spider-Man", igdb_id=19565)
+    monkeypatch.setattr(
+        autofill_module,
+        "map_igdb_to_game_data",
+        lambda raw: dict(MAPPED, parent_igdb_id=19565),
+    )
+    remaster = make_game(
+        db_session,
+        game_name_en="Marvel's Spider-Man Remastered",
+        igdb_id=138949,
+        game_type="Base Game",
+    )
+    autofill_game_from_igdb(remaster, db_session)
+    db_session.flush()
+    assert remaster.base_game_id is None
+    assert remaster.cover_image_file == "stored.jpg"
+
+
 def test_an_unknown_parent_leaves_base_game_id_null(db_session, patched, monkeypatch):
     monkeypatch.setattr(
         autofill_module,
