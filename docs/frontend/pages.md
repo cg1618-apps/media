@@ -781,7 +781,10 @@ Might Watch / Dropped with a `RatingDistributionBlock`), **Next Season**
 (Watch When Airs / Plan to Watch / Might Watch / Other) and **All Seasons**
 (year × WIN/SPR/SUM/FAL table linking `/seasonal/{id}`). Detail loads
 `/api/seasonal/{id}`, `/api/anime/?airing_season={id}`, `/api/franchise/`,
-with prev/next season arrows. Both render `DashboardCard`s with the same
+with prev/next season arrows, a `RatingDistributionBlock`, and sections
+Completed / Watching / Watch When Airs / Plan to Watch / Might Watch /
+Dropped. The hero's **Planned** figure is `entry_planned`, which still counts
+both of the two planned statuses together. Both render `DashboardCard`s with the same
 optimistic `PATCH /api/anime/{id} { ep_fin }`. **Admin-only**: a "Seasonal
 Rating" select → `PATCH /api/seasonal/{id} { my_rating }`, plus the hint to
 set the current season under Admin → System Config when none is set.
