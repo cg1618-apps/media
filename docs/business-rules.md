@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-23
+Last verified: 2026-09-25
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -438,6 +438,7 @@ in `app/utils/utils.py`.
 | Manga       | `serialization_status, release_date, end_date, mal_rating, mal_rank, cover_image_file`                                     | When `serialization_status == "完結"`, also missing if **both** `vol_total` and `ch_total` are `None`. One missing total alone does not trigger a fetch.                                                                                                                                 |
 | Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
 | Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `publisher` credit — Comic Vine's publisher resolves to a `publisher` entity, not a tag. Imprint, continuity, era and events and `end_date` are manual and never required — Comic Vine does not model them.                                                          |
+| Hentai      | `airing_status, release_date, cover_image_file` (`HENTAI_FIELDS_TO_FILL`)                                                 | The spec additionally requires `mal_id`. These are the only three things Tenrai fills on a hentai, so nothing else can make one eligible. |
 | Studio      | `mal_link, founded_date, name_jp, website_url, logo_file`                                                                 | The only non-media type Fill covers. The spec additionally requires `mal_id` to be set — a studio with no MAL id has no source to fill from, however empty it is. Pasting the producer URL into `mal_link` is enough: `apply_extract_mal_id_studio` derives the id before eligibility is checked (section 2), on Fill and on every studio write. `my_rating`, `country` and `defunct_date` are absent on purpose: MAL's producer record reports none of them, so listing them would leave every studio permanently missing. |
 | Game        | `igdb_link, release_date, cover_image_file, hltb_main, hltb_main_extra, hltb_completionist`                                | Two independent sources, ORed rather than gated together: the IGDB clause above requires `igdb_id` set; the Steam clause is separate and ignores this column list entirely — `has_missing_values_game_steam(e)` is true when `steam_appid` is set and Steam has written **nothing at all** yet (`metacritic_score`, `price_original_us` and `achievements_total` all `None`). Deliberately not folded into the column list above: a free game has no price, an obscure one no Metacritic score, and many have no achievements, so testing those individually would leave such an entry eligible forever. `steam_appid` itself is written by IGDB, not typed in or picked directly — pasting a `store.steampowered.com/app/<id>` link into `steam_link` and running `apply_extract_steam_appid` (section 2) is the only hand-typed path onto it. Refreshing columns Steam already filled is Replace's job, not Fill's — see [external-apis.md](external-apis.md#steam). |
 
@@ -572,9 +573,10 @@ bulk Replace:
 | Manga       | extract MAL id → autofill (ratings forced) → manga post-processing                                                                                    |
 | Novel       | extract MAL id → autofill (ratings forced)                                                                                                            |
 | Comic       | nothing — no replace function; the write hook only re-syncs system options                                                                           |
+| Hentai      | extract MAL id → `autofill_hentai_from_mal` (airing status, release date, cover; all fill-only) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
 
-The `bulk` parameter is accepted by movie/tv/cartoon/manga/novel for signature
-parity and ignored. Fill-only vs overwrite semantics of the autofill functions
+The `bulk` parameter is accepted by movie/tv/cartoon/manga/novel/hentai for
+signature parity and ignored. Fill-only vs overwrite semantics of the autofill functions
 are in `docs/external-apis.md`.
 
 ---
@@ -603,6 +605,7 @@ b.get_all_names()` is non-empty (case-insensitive, every name column).
 | `manga`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
 | `novel`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
 | `comic`           | with a franchise                       | `(franchise_id, series_id, is_main_entry)`                                  | shared name **or** same non-null `comicvine_id` (two unfilled rows sharing NULL is not a match)         |
+| `hentai`          | with a franchise                       | `(franchise_id, series_id, series_number)` - one entry is one episode, and a series' episodes share its name | shared name |
 | `system_options`  | all options                            | `(category lower, value lower)`                                             | always — catches `Netflix` vs `netflix`, which the exact UNIQUE cannot                                  |
 | `entities`        | persons, studios (scanned separately)  | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: all four of `name_en` / `name_cn` / `name_jp` / `name_alt`, for a person as for a studio |
 
@@ -744,7 +747,8 @@ cells.
 
 1. A UUID (anything non-string and truthy) passes through.
 2. A non-empty string names the franchise: looked up case-insensitively
-   (`ilike`) across all five franchise name columns.
+   (`ilike`) across all five franchise name columns, **among the franchises of
+   the entry's own family** (below).
 3. A blank cell falls back to the entry's own titles (`en, cn, roman, jp, alt`,
    stripped), looked up the same way.
 4. Nothing found and at least one name available → a franchise is **created**
@@ -761,6 +765,31 @@ cells.
 | novel                            | `Novel`                       |
 | comic                            | `Comic`                       |
 | game                             | `Game`                        |
+| h-comic                          | `H-Comic` (labelled `h-comic`) |
+| hentai                           | `Hentai` (labelled `hentai`)  |
+
+**Families** (`FRANCHISE_FAMILY_FOR_TYPE`, `app/utils/constants.py`). `H-Comic`
+and `Hentai` are the `h-comic` family; every other franchise type, and an
+untyped franchise, is `mainstream`. An entry's family is the family of the
+type it would stamp. The lookup in steps 2 and 3 matches only franchises
+whose type list names a type of that family and none of another family's
+(`_segregation`), so a gated entry never attaches to a mainstream franchise
+and a mainstream entry never lands under one whose gated label would hide it;
+an h-comic and its hentai adaptation resolve to the same franchise. A series
+is exempt: it names its parent whatever the family. Three rules close the
+other ways in:
+
+- a franchise whose type list spans two families is refused (422) by the
+  franchise endpoints (`check_franchise_type_family`);
+- a franchise retyped into another family than an entry it holds is refused
+  (422) the same way (`check_franchise_entries_family`);
+- an entry of any type written with a `franchise_id` of another family is
+  refused (422) by the router factory, on create, update and the tracker
+  PATCH body (`check_entry_franchise_family`).
+
+A franchise gets the content label of each gated type its type list names -
+on auto-create here, and on every franchise write
+(`app/services/domain/gated_labels.py`).
 
 Note `"Anime"` is not in the `FRANCHISE_TYPES` dropdown tuple (which offers
 `ACG`, `Anime Movie`, …), so an auto-created anime franchise is invisible to the
@@ -838,6 +867,22 @@ reachable through a chain, marked `derived: true`, `system_id: null`, with
 
 **Visibility.** For a non-root viewer, any edge whose far end or `via`
 intermediate the viewer may not see is **removed**, not blanked.
+
+---
+
+### A derived h-comic animation status
+
+The one place a relation feeds a column's served value: a JP h-comic with
+`adaptation` relations **from** hentai entries (`hentai -adaptation-> h-comic`)
+serves `animation_status` `Animated` if any of those hentai has
+`airing_status` `Airing` or `Finished Airing`, otherwise `Announced`, with
+`animation_status_source = "derived"`. With none it serves the stored
+hand-set value (`"manual"`). The reverse direction and other kinds do not
+count. Derived at read time, one query per page
+(`derived_animation_statuses`), and never written: the column keeps the
+hand-set value, so removing the relation restores it. While derived, a write
+of the derived or stored value changes nothing and any other value is 422
+(`write_animation_status`).
 
 ---
 

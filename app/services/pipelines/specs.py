@@ -18,6 +18,7 @@ from app.models import (
     Comic,
     Game,
     HComic,
+    Hentai,
     HGame,
     Manga,
     Movies,
@@ -33,6 +34,7 @@ from app.services.calculation import (
     run_sync_game,
     run_sync_gated_labels,
     run_sync_h_comic,
+    run_sync_hentai,
     run_sync_manga,
     run_sync_novel,
     run_sync_tv_show,
@@ -51,6 +53,7 @@ from app.services.domain import (
     apply_single_replace_anime_movie,
     apply_single_replace_cartoon,
     apply_single_replace_game,
+    apply_single_replace_hentai,
     apply_single_replace_manga,
     apply_single_replace_movie,
     apply_single_replace_novel,
@@ -62,6 +65,7 @@ from app.services.domain import (
     autofill_from_anilist,
     autofill_game_from_igdb,
     autofill_game_from_steam,
+    autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
@@ -77,6 +81,7 @@ from app.services.domain import (
     has_missing_values_comic,
     has_missing_values_game,
     has_missing_values_game_steam,
+    has_missing_values_hentai,
     has_missing_values_manga,
     has_missing_values_movie,
     has_missing_values_novel,
@@ -369,6 +374,29 @@ PIPELINES: dict[str, PipelineSpec] = {
         replace=None,
         single_after=(run_sync_h_comic, run_sync_gated_labels),
         in_replace_all=False,
+    ),
+    # Tenrai, like anime minus AniList, for three things only: airing status,
+    # release date and the cover, all fill-only (autofill_hentai_from_mal).
+    # Every run and the single-entry hook end in the hentai sync and the gated
+    # label sync, which keeps the label on.
+    "hentai": PipelineSpec(
+        key="hentai", label="Hentai", model=Hentai,
+        extract_id=apply_extract_mal_id_anime,
+        fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_hentai(e),
+        fill=lambda db, e: autofill_hentai_from_mal(e, db=db),
+        fill_sleep=MAL_PAUSE,
+        fill_after=(
+            ("Syncing system options...", run_sync_hentai),
+            ("Syncing gated labels...", run_sync_gated_labels),
+        ),
+        replace_select=_linked(Hentai, Hentai.mal_id, Hentai.mal_link),
+        replace=lambda db, e, bulk: apply_single_replace_hentai(db, e, bulk=bulk),
+        replace_sleep=MAL_PAUSE,
+        replace_after=(
+            ("Syncing system options...", run_sync_hentai),
+            ("Syncing gated labels...", run_sync_gated_labels),
+        ),
+        single_after=(run_sync_hentai, run_sync_gated_labels),
     ),
     # Game's spec on the h-game table: the same two sources, gates, pacing
     # and Replace. The autofills write only the columns and tags the

@@ -39,6 +39,7 @@ from app.services.domain import (
     resolve_game_parent_hierarchy,
     resolve_h_comic_parent_hierarchy,
     resolve_h_game_parent_hierarchy,
+    resolve_hentai_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
@@ -52,10 +53,15 @@ from app.services.domain.h_comic import (
     h_comic_progress_hook_list,
     mark_h_comic_catalog,
     mark_h_comic_list,
+    write_animation_status,
 )
 from app.services.domain.h_game import (
     h_game_progress_hook,
     h_game_progress_hook_list,
+)
+from app.services.domain.hentai import (
+    hentai_progress_hook,
+    hentai_progress_hook_list,
 )
 from app.services.domain.sources import media_sources_writer
 from app.services.pipelines import (
@@ -64,6 +70,7 @@ from app.services.pipelines import (
     execute_replace_single_game,
     execute_replace_single_h_comic,
     execute_replace_single_h_game,
+    execute_replace_single_hentai,
     execute_replace_single_manga,
     execute_replace_single_movie,
     execute_replace_single_novel,
@@ -100,8 +107,10 @@ class MediaTypeSpec:
     mark_completed_list: Optional[Callable] = None
     write_hook: Optional[Callable] = None   # async (db, id_str, action_type, log_action), after commit
     pre_commit_hook: Optional[Callable] = None  # (db, entry) inside the create/update transaction
-    # Payload key -> writer(db, entry, value), popped before the model is
-    # built because the value is not a column. Only novel uses this.
+    # Payload key -> writer(db, entry, value, viewer), popped before the
+    # model is built because the value is not a column (sources, novel's
+    # units, game's copies) or because its write must see the stored value
+    # (h-comic's animation_status).
     nested_collections: Optional[dict] = None
     # (db, entry) -> None, called in create, update AND patch, after columns
     # and nested collections are applied. Distinct from pre_commit_hook,
@@ -387,12 +396,52 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         # Fetches nothing: there is no external API. It re-runs the h-comic
         # sync, which is the net under the two hooks below.
         write_hook=execute_replace_single_h_comic,
-        nested_collections={"sources": media_sources_writer("h-comic")},
+        nested_collections={
+            "sources": media_sources_writer("h-comic"),
+            # Not a collection: a column whose write must see the stored
+            # value, because a derived animation status keeps it
+            # (h_comic.write_animation_status).
+            "animation_status": write_animation_status,
+        },
         # Called on create, update AND the tracker PATCH: validates the h-comic
         # vocabularies (PATCH has no schema), clears the columns the region
         # does not use, and keeps the `h-comic` label on the entry.
         progress_hook=h_comic_progress_hook,
         progress_hook_list=h_comic_progress_hook_list,
+    ),
+    "hentai": MediaTypeSpec(
+        key="hentai",
+        owner_type="hentai",
+        label="Hentai",
+        route="hentai",
+        model=models.Hentai,
+        create_schema=schemas.HentaiCreate,
+        update_schema=schemas.HentaiUpdate,
+        response_schema=schemas.HentaiResponse,
+        status_field="watching_status",
+        list_filters=(
+            "franchise_id", "series_id", "watching_status", "airing_status",
+            "source_material",
+        ),
+        hierarchy_names={"en": "hentai_name_en", "cn": "hentai_name_cn",
+                         "roman": "hentai_name_roman", "jp": "hentai_name_jp",
+                         "alt": "hentai_name_alt"},
+        search_fields=("hentai_name_cn", "hentai_name_en", "hentai_name_roman",
+                       "hentai_name_jp", "hentai_name_alt"),
+        resolve_hierarchy=resolve_hentai_parent_hierarchy,
+        # Movie's rule: one entry is one episode, and finishing it means it
+        # has aired.
+        mark_completed=mark_movie_catalog,
+        mark_completed_list=mark_movie_list,
+        # The Tenrai fetch (airing status, release date, cover; fill-only),
+        # then the hentai and gated-label syncs - the net under the hook below.
+        write_hook=execute_replace_single_hentai,
+        nested_collections={"sources": media_sources_writer("hentai")},
+        # Called on create, update AND the tracker PATCH: validates the hentai
+        # vocabularies (PATCH has no schema) and keeps the `hentai` label on
+        # the entry. The franchise family is the router factory's check.
+        progress_hook=hentai_progress_hook,
+        progress_hook_list=hentai_progress_hook_list,
     ),
     "h_game": MediaTypeSpec(
         key="h_game",

@@ -116,7 +116,7 @@ Endpoint-level detail (parameters, bodies) is in `api.md`.
 
 ## The media-type registry and router factory
 
-All eleven media types share one router shape. What differs per type is declared
+All twelve media types share one router shape. What differs per type is declared
 once in `app/registry.py` as a frozen `MediaTypeSpec`; `app/routers/_factory.py`
 (`make_media_router(spec)`) turns it into an `APIRouter`. Anime and anime
 movie are ordinary registry entries, not hand-written routers

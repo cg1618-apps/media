@@ -116,10 +116,10 @@ def test_normal_still_hides_that_label(db_session, mode, orphan_label):
     system = {
         row.system_id
         for row in db_session.query(models.ContentLabel).filter(
-            models.ContentLabel.key.in_(("h-comic", "h-game"))
+            models.ContentLabel.key.in_(("h-comic", "h-game", "hentai"))
         )
     }
-    assert len(system) == 2
+    assert len(system) == 3
     assert set(hidden) == {orphan_label.system_id} | system
 
 

@@ -224,3 +224,33 @@ def test_a_catalogue_editor_who_cannot_see_h_comic_is_not_told_it_exists(
 def test_unrestricted_is_told_about_h_comic(admin_client):
     body = admin_client.get("/api/constants/external-apis").json()
     assert "h-comic" in {e["key"] for e in body["media"]}
+
+
+def test_a_catalogue_editor_who_cannot_see_hentai_is_not_told_it_exists(
+    catalog_writer, db_session
+):
+    """
+    The refusal for the second gated type. The `hentai` label exists (seeded
+    session-wide) and the editor's mode carries no label at all - asserted,
+    so the narrowing has a hidden type to act on.
+    """
+    from app import models
+
+    assert db_session.query(models.ContentLabel).filter_by(key="hentai").count() == 1
+    narrow = catalog_writer()
+    keys = {e["key"] for e in narrow.get("/api/constants/external-apis").json()["media"]}
+    assert "hentai" not in keys
+    assert {"anime", "game", "studio"} <= keys
+
+
+def test_unrestricted_is_told_about_hentai_and_its_three_tenrai_fields(admin_client):
+    """The mirror, and what the row says: three fill-only writes from Tenrai."""
+    body = admin_client.get("/api/constants/external-apis").json()
+    hentai = next(e for e in body["media"] if e["key"] == "hentai")
+    tenrai = next(s for s in hentai["sources"] if s["source"] == "tenrai")
+    written = {w["field"]: w["rule"] for w in tenrai["writes"] if w["rule"] != "never"}
+    assert written == {
+        "airing_status": "fill-only",
+        "release_date": "fill-only",
+        "cover_image_file": "if-empty",
+    }

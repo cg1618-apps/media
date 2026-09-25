@@ -84,8 +84,8 @@ def test_engine():
     # starts with no labels; carry_label_in_wide_modes() tops it up.
     ensure_access_mode_seed(seeding)
     seeding.commit()
-    # The system label every gated type requires (h-comic). The lifespan
-    # seeds them too, on its own connection; seeding them here first,
+    # The system labels the gated types require (h-comic, hentai). The
+    # lifespan seeds them too, on its own connection; seeding them here first,
     # committed, keeps the lifespan's copy to a SELECT for the same reason as
     # the modes above. They exist in every test from here on, as they do on
     # every real database - so a narrow mode is never vacuously narrow on

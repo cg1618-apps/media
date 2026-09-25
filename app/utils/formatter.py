@@ -1008,6 +1008,49 @@ def parse_h_comic_from_sheet(raw: dict) -> dict:
     return parsed
 
 
+def parse_hentai_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Hentai sheet into typed data ready for
+    the Database.
+
+    franchise_id and series_id may each be a UUID or a raw string name, like
+    every entry tab. The credit and tag columns carry their own keys as
+    headers - the type is new, so none has a legacy header - and Pull applies
+    them through replace_credits / replace_tags once the row exists. Pull runs
+    enforce_gated_label_invariants after the tab lands, which re-attaches the
+    hentai label.
+    """
+    parsed = {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "hentai_name_en": parse_from_sheet(raw.get("hentai_name_en"), str),
+        "hentai_name_cn": parse_from_sheet(raw.get("hentai_name_cn"), str),
+        "hentai_name_roman": parse_from_sheet(raw.get("hentai_name_roman"), str),
+        "hentai_name_jp": parse_from_sheet(raw.get("hentai_name_jp"), str),
+        "hentai_name_alt": parse_from_sheet(raw.get("hentai_name_alt"), str),
+        "source_material": parse_from_sheet(raw.get("source_material"), str),
+        "originality": parse_from_sheet(raw.get("originality"), str),
+        "series_number": parse_from_sheet(raw.get("series_number"), int),
+        "airing_status": parse_from_sheet(raw.get("airing_status"), str),
+        "release_date": release_date.normalize(
+            parse_from_sheet(raw.get("release_date"), str)
+        ),
+        "mal_id": parse_from_sheet(raw.get("mal_id"), int),
+        "mal_link": parse_from_sheet(raw.get("mal_link"), str),
+        "studio": parse_from_sheet(raw.get("studio"), str),
+        "director": parse_from_sheet(raw.get("director"), str),
+        "h_genre_plot": parse_from_sheet(raw.get("h_genre_plot"), str),
+        "h_genre_appearance": parse_from_sheet(raw.get("h_genre_appearance"), str),
+        "h_genre_relation": parse_from_sheet(raw.get("h_genre_relation"), str),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
+
+
 def _choice_list_from_sheet(val: Any, column: str) -> Optional[list]:
     """
     One h-game multi-choice cell: a JSON list (what Backup writes) or a
