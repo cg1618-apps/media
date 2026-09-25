@@ -1,12 +1,15 @@
 """POST /api/auth/access-mode - changing the active access mode mid-session.
 
-THE FIRST TEST IS THE ONE THAT MATTERS. A reissued cookie must carry the
-ORIGINAL token's `exp`. If switching minted a fresh 24-hour token, toggling
-safe -> normal -> safe would be an unlimited session-extension oracle, and the
-flat 24-hour lifetime - which has no refresh flow and no revocation - would
-stop meaning anything. It is invisible to manual testing and to every form of
-checking except decoding both tokens and comparing. It is written first on
-purpose: the happy path passing is what makes people stop looking.
+THE FIRST TEST IS THE ONE THAT MATTERS. Switching must leave the login
+token's `exp` where it was. If switching minted a fresh month-long login,
+toggling safe -> normal -> safe would be an unlimited session-extension
+oracle, and the flat lifetime - which has no refresh flow and no revocation -
+would stop meaning anything. It is invisible to manual testing and to every
+form of checking except decoding the token and comparing. It is written first
+on purpose: the happy path passing is what makes people stop looking.
+
+The switched-to mode itself lives in a separate, temporary cookie; that half
+is test_mode_override_expiry.py.
 """
 
 import jwt
@@ -28,9 +31,9 @@ def _claims(client):
     """Decode the cookie the client is currently holding.
 
     The value is `Bearer <jwt>`, and because it contains a space the server
-    sends it QUOTED - so a reissued cookie reads as '"Bearer ey..."' while the
-    one a fixture set by hand does not. Strip both, or the assertion that
-    matters fails on a padding error instead of on the expiry.
+    sends it QUOTED - so a cookie the server set reads as '"Bearer ey..."'
+    while the one a fixture set by hand does not. Strip both, or the assertion
+    that matters fails on a padding error instead of on the expiry.
     """
     raw = client.cookies["access_token"].strip('"')
     if raw.startswith("Bearer "):
@@ -156,7 +159,7 @@ def test_widening_with_the_right_password_succeeds(
 def test_widening_with_the_right_password_still_keeps_the_expiry(
     mode_client, mode, admin_user, grant_mode, nsfw_label
 ):
-    """Re-authenticating proves who you are; it does not buy a new 24 hours."""
+    """Re-authenticating proves who you are; it does not buy a new month."""
     grant_mode(admin_user, MODE_BORDERLINE)
     c = mode_client(MODE_NORMAL)
     before = _claims(c)["exp"]

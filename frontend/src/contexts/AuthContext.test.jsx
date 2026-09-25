@@ -1,7 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { hardNavigate } from "../lib/hardNavigate";
 import { AuthProvider, useAuth } from "./AuthContext";
+
+vi.mock("../lib/hardNavigate", () => ({ hardNavigate: vi.fn() }));
 
 function Probe() {
   const { has, isAdmin, role, loading } = useAuth();
@@ -191,5 +194,77 @@ describe("useAuth().visibleGatedTypes", () => {
       </AuthProvider>,
     );
     await waitFor(() => expect(screen.getByTestId("gated")).toHaveTextContent("none"));
+  });
+});
+
+describe("a switched-to access mode that expires", () => {
+  // The server returns the session to the account's default mode when the
+  // override ends. Everything on screen was fetched in the old mode, so the
+  // page reloads just after that moment rather than keep showing it.
+  function meWithMode(expiresAt) {
+    mockMe({
+      is_admin: true,
+      username: "admin",
+      role: "admin",
+      is_root: true,
+      permissions: [],
+      mode: { id: "m1", key: "unrestricted", expires_at: expiresAt },
+      modes: [],
+    });
+  }
+
+  async function renderSignedIn() {
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("role")).toHaveTextContent("admin"),
+    );
+  }
+
+  beforeEach(() => {
+    hardNavigate.mockClear();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reloads the page just after the override ends", async () => {
+    meWithMode(new Date(Date.now() + 60_000).toISOString());
+    await renderSignedIn();
+
+    vi.advanceTimersByTime(59_000);
+    expect(hardNavigate).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(3_000);
+    expect(hardNavigate).toHaveBeenCalledTimes(1);
+    expect(hardNavigate).toHaveBeenCalledWith(
+      window.location.pathname + window.location.search,
+    );
+  });
+
+  it("waits out the floor when the deadline has already passed here", async () => {
+    // This device's clock is ahead of the server's: without a floor the
+    // reload would find the override still live and reload again at once.
+    meWithMode(new Date(Date.now() - 10_000).toISOString());
+    await renderSignedIn();
+
+    vi.advanceTimersByTime(4_000);
+    expect(hardNavigate).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(2_000);
+    expect(hardNavigate).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reload a session already in its default mode", async () => {
+    meWithMode(null);
+    await renderSignedIn();
+
+    vi.advanceTimersByTime(24 * 60 * 60 * 1000);
+    expect(hardNavigate).not.toHaveBeenCalled();
   });
 });
