@@ -1960,7 +1960,7 @@ One mode an account holds.
 | `system_id` | UUID | no | uuid4 | PK |
 | `user_id` | UUID | no | | FK `users.id` CASCADE |
 | `mode_id` | UUID | no | | FK `access_mode.system_id` CASCADE |
-| `is_default` | Boolean | no | `false` | Where a fresh login lands |
+| `is_default` | Boolean | no | `false` | The mode a session is in unless it has switched (a switch lasts at most an hour) |
 | `created_at` | DateTime | yes | now | |
 
 UNIQUE `(user_id, mode_id)`, plus `ix_one_default_mode_per_user` — partial
