@@ -220,7 +220,10 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # "items" should not have to work out which namespace a bare key means -
     # the same reason `analysis_group` is not `analysis`.
     NoteGroup(key="gear", label="物品 Items & Gear", icon="fa-sack-xmark"),
-    NoteGroup(key="compendium", label="圖鑑 Compendium", icon="fa-dragon"),
+    # The key stays `compendium` though the card now holds glossaries too: keys
+    # are what code and tests name, and the label is the only part a reader
+    # sees.
+    NoteGroup(key="compendium", label="圖鑑與名詞 Compendium & Terms", icon="fa-dragon"),
     # 劇情 is what HAPPENS; `analysis_group` above is what it MEANS. Keeping
     # them apart is why `story_other` exists - a stray observation lands there
     # rather than drifting into Analysis.
@@ -431,26 +434,26 @@ def _named_thing_fields(
     )
 
 
-def _term_fields(typed: bool = False, links: bool = False) -> tuple["NoteField", ...]:
+def _term_fields(typed: bool = False) -> tuple["NoteField", ...]:
     """
-    The shape the three glossary sections share: a term's Chinese name, what
+    The shape the four glossary sections share: a term's Chinese name, what
     else it is called, and what it means.
 
-    遊戲名詞 Game Terms, 劇情名詞 Story Terms and 玩法系統 Gameplay Systems
-    differ only in whether a row carries a type. A glossary term needs none;
-    a gameplay system does, because "game mode", "gacha" and "upgrade system"
-    are different KINDS of system in a way two glossary terms are not. The type
-    is free text for the reason `_named_thing_fields` gives: the vocabulary is
-    the game's, so a closed list would be wrong by the second game.
+    遊戲名詞 Game Terms, 玩家術語 Player Terms, 劇情名詞 Story Terms and 玩法系統
+    Gameplay Systems differ only in whether a row carries a type. A glossary
+    term needs none; a gameplay system does, because "game mode", "gacha" and
+    "upgrade system" are different KINDS of system in a way two glossary terms
+    are not. The type is free text for the reason `_named_thing_fields` gives:
+    the vocabulary is the game's, so a closed list would be wrong by the
+    second game.
 
     The Chinese name is the row's name, so it is the `title` column - the one
     a structured row is headed by. The alternative name follows the entry
     tables' `*_name_alt` in both key and meaning: an English, Japanese or
     in-game spelling, whichever the game uses.
 
-    Only 玩法系統 carries links. A glossary term is a definition, looked up
-    rather than sourced; a gameplay system is a mechanic somebody else's
-    write-up explains better than a line here does.
+    None carries links. Each is looked up rather than sourced, and a write-up
+    worth keeping belongs in 攻略資源 Guide Resources.
     """
     return (
         *(
@@ -465,11 +468,6 @@ def _term_fields(typed: bool = False, links: bool = False) -> tuple["NoteField",
             label="Description",
             type=FIELD_TEXTAREA,
             column="content",
-        ),
-        *(
-            (NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),)
-            if links
-            else ()
         ),
     )
 
@@ -876,7 +874,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="guides",
-        fields=_term_fields(typed=True, links=True),
+        fields=_term_fields(typed=True),
     ),
     NoteSection(
         # The first structured section, and the smallest: a control is the
@@ -1106,11 +1104,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="gear",
         fields=_named_thing_fields(variant=True, collected=True),
     ),
-    # --- 圖鑑 Compendium --------------------------------------------------
-    # Who you meet, and the words the game uses. 結局 Endings is a story
-    # OUTCOME rather than a guide topic, so it sits in 劇情 Story - which
-    # leaves this card cleanly about the cast, the bestiary and the game's
-    # glossary.
+    # --- 圖鑑與名詞 Compendium & Terms ------------------------------------
+    # Who you meet, and the words you meet: the game's own and the players'.
+    # 結局 Endings is a story OUTCOME rather than a guide topic, so it sits in
+    # 劇情 Story - which leaves this card cleanly about the cast, the bestiary
+    # and the two glossaries.
     NoteSection(
         # NOT `characters`: a `character` table and a /character/:id page
         # already exist, and a bare `characters` note section would read as
@@ -1180,6 +1178,20 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="game_terms",
         shape=SHAPE_STRUCTURED,
         label="遊戲名詞 Game Terms",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="compendium",
+        fields=_term_fields(),
+    ),
+    NoteSection(
+        # The players' vocabulary rather than the game's: community slang,
+        # abbreviations and memes ("cheese", "pity", "i-frames") that no menu
+        # in the game uses. Beside 遊戲名詞 because both are looked up while
+        # playing; separate because a reader who meets a word on a forum
+        # wants the list the forum's words are in.
+        key="player_terms",
+        shape=SHAPE_STRUCTURED,
+        label="玩家術語 Player Terms",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="compendium",

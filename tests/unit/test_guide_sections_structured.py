@@ -28,8 +28,8 @@ GUIDE_CARDS = {
     # What to get. Three lists differing in what a row IS, not in what is
     # known about it - which is why they share one spec.
     "gear": ["weapons_and_gear", "items", "collectibles"],
-    # Who you meet.
-    "compendium": ["characters_guide", "enemies", "game_terms"],
+    # Who you meet, and the words you meet: the game's own and the players'.
+    "compendium": ["characters_guide", "enemies", "game_terms", "player_terms"],
     # Things outside the game itself, rendered beside the site-wide Resources
     # card rather than with the 攻略 run.
     "tools": ["mods_and_tools", "guide_resources"],
@@ -201,29 +201,36 @@ def test_enemies_carry_a_tier_a_region_and_a_closed_beaten_status():
     assert _field("enemies", "beaten").options == ("to beat", "beaten", "cheesed", "skip")
 
 
-def test_the_three_glossary_sections_share_one_spec():
+def test_the_glossary_sections_share_one_spec():
     """
-    遊戲名詞, 劇情名詞 and 玩法系統 are one shape: a term in Chinese, what
-    else it is called, and what it means. Only 玩法系統 adds a type, because
-    "game mode", "gacha" and "upgrade system" are different KINDS of system
-    in a way two glossary terms are not - and links, because a mechanic is
-    something a write-up explains, where a glossary term is only looked up.
+    遊戲名詞, 玩家術語, 劇情名詞 and 玩法系統 are one shape: a term in Chinese,
+    what else it is called, and what it means. Only 玩法系統 adds a type,
+    because "game mode", "gacha" and "upgrade system" are different KINDS of
+    system in a way two glossary terms are not. None carries links: each is
+    looked up rather than sourced.
     """
-    for key in ("game_terms", "story_terms"):
+    for key in ("game_terms", "player_terms", "story_terms"):
         assert _keys(key) == ["name_cn", "name_alt", "description"], key
-    assert _keys("gameplay_systems") == [
-        "type",
-        "name_cn",
-        "name_alt",
-        "description",
-        "links",
-    ]
-    for key in ("game_terms", "story_terms", "gameplay_systems"):
+    assert _keys("gameplay_systems") == ["type", "name_cn", "name_alt", "description"]
+    for key in ("game_terms", "player_terms", "story_terms", "gameplay_systems"):
         # The Chinese name is the row's name, so it is the `title` column and
         # heads the row; the alternative name is a key in `fields`.
         assert _field(key, "name_cn").column == "title", key
         assert _field(key, "name_alt").column is None, key
         assert _field(key, "description").column == "content", key
+
+
+def test_player_terms_is_a_game_only_catalogue_section_after_game_terms():
+    section = ns.section_by_key("player_terms")
+    assert section.label == "玩家術語 Player Terms"
+    assert section.group == "compendium"
+    assert section.owners == ns.GAME_OWNERS
+    assert section.scope == ns.SCOPE_CATALOG
+
+
+def test_the_compendium_card_is_named_for_its_terms_too():
+    group = next(g for g in ns.NOTE_GROUPS if g.key == "compendium")
+    assert group.label == "圖鑑與名詞 Compendium & Terms"
 
 
 def test_story_terms_is_a_game_only_catalogue_section_in_the_worldbuilding_card():
