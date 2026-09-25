@@ -21,6 +21,7 @@ export default function Statistics() {
     allGame,
     allHComic,
     allHGame,
+    allHentai,
     fxRates,
     seasonals,
     currentSeason,
@@ -87,6 +88,7 @@ export default function Statistics() {
             allComic={allComic}
             allHComic={allHComic}
             allHGame={allHGame}
+            allHentai={allHentai}
             seasonals={seasonals}
             currentSeason={currentSeason}
           />

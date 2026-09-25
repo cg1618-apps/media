@@ -496,6 +496,43 @@ export const defaultHGame = () => ({
   remark: "",
 });
 
+// The gated hentai type. One entry is one episode, so there is no episode
+// count. The credit and tag keys are the role and tag-field keys themselves,
+// as h-comic's are (payloads.js CREDITS_FIELD_MAP). `mal_id` is not typed in:
+// the write hook derives it from `mal_link`.
+export const defaultHentai = () => ({
+  hentai_name_cn: "",
+  hentai_name_en: "",
+  hentai_name_alt: "",
+  hentai_name_roman: "",
+  hentai_name_jp: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  source_material: "",
+  originality: "",
+  series_number: "",
+  airing_status: "Not Yet Aired",
+  release_date: "",
+  mal_id: "",
+  mal_link: "",
+  watching_status: "Might Watch",
+  my_rating: "",
+  usefulness: "",
+  studio: "",
+  director: "",
+  h_genre_plot: "",
+  h_genre_appearance: "",
+  h_genre_relation: "",
+  sources: [],
+  watch_next: false,
+  to_rewatch: false,
+  cover_image_file: "",
+  pending_image_id: null,
+  remark: "",
+});
+
 export const defaultCollection = () => ({
   collection_name_en: "",
   collection_name_cn: "",
@@ -622,6 +659,7 @@ export const FORM_FACTORIES = {
   game: defaultGame,
   "h-comic": defaultHComic,
   "h-game": defaultHGame,
+  hentai: defaultHentai,
   collection: defaultCollection,
   franchise: defaultFranchise,
   series: defaultSeries,

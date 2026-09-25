@@ -128,6 +128,10 @@ export default function usePlanData(reloadKey = 0) {
     ...LIST_OPTIONS,
     enabled: canSeeGatedType(auth, "h-game"),
   });
+  const hentaiQuery = useMediaList("hentai", {
+    ...LIST_OPTIONS,
+    enabled: canSeeGatedType(auth, "hentai"),
+  });
 
   // Not a media type - plan_next has no MEDIA_CONFIG entry, so this is a plain
   // useQuery under its own key: the media-list cache writers
@@ -152,6 +156,7 @@ export default function usePlanData(reloadKey = 0) {
   const allGames = gameQuery.data || [];
   const allHComics = hComicQuery.data || [];
   const allHGames = hGameQuery.data || [];
+  const allHentai = hentaiQuery.data || [];
   const planNextRows = planNextQuery.data || [];
 
   const franchiseMap = useMemo(
@@ -215,6 +220,7 @@ export default function usePlanData(reloadKey = 0) {
       game: allGames,
       "h-comic": allHComics,
       "h-game": allHGames,
+      hentai: allHentai,
     }),
     [
       allAnime,
@@ -228,6 +234,7 @@ export default function usePlanData(reloadKey = 0) {
       allGames,
       allHComics,
       allHGames,
+      allHentai,
     ],
   );
 
@@ -274,6 +281,7 @@ export default function usePlanData(reloadKey = 0) {
     gameQuery,
     hComicQuery,
     hGameQuery,
+    hentaiQuery,
     seriesQuery,
     comicQuery,
     planNextQuery,

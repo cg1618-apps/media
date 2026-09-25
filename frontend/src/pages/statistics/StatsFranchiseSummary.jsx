@@ -159,6 +159,8 @@ export default function StatsFranchiseSummary({
   // The same for h-game. Only its nullness is read: the card counts H-Game
   // franchises, as the Game card counts game franchises.
   allHGame = null,
+  // The same for hentai, rated per entry as h-comic is.
+  allHentai = null,
   seasonals,
   currentSeason,
 }) {
@@ -220,6 +222,7 @@ export default function StatsFranchiseSummary({
     computeRatingRows(allComic);
   // Per entry, like comics: an h-comic franchise is rarely rated on its own.
   const hComicRating = allHComic ? computeRatingRows(allHComic) : null;
+  const hentaiRating = allHentai ? computeRatingRows(allHentai) : null;
   const hGameRating = allHGame
     ? computeRatingRows(
         franchises.filter((f) => parseTypes(f.franchise_type).includes("H-Game")),
@@ -321,6 +324,14 @@ export default function StatsFranchiseSummary({
               subtitle="H-Game franchises"
               rows={hGameRating.rows}
               total={hGameRating.ratedCount}
+            />
+          )}
+          {hentaiRating && (
+            <RatingDistributionCard
+              title="My rating"
+              subtitle="All hentai"
+              rows={hentaiRating.rows}
+              total={hentaiRating.ratedCount}
             />
           )}
         </div>

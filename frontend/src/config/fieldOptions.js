@@ -214,6 +214,7 @@ export const FRANCHISE_TYPES = [
   // visibleFranchiseTypes (lib/gatedTypes.js) for the first paint too.
   "H-Comic",
   "H-Game",
+  "Hentai",
 ];
 
 export const FRANCHISE_EXPECTATIONS = ["Highest", "High", "Medium", "Low"];
@@ -254,6 +255,11 @@ export const H_GAME_LANGUAGE_AVAILABILITY = ["官方中文", "中文補丁", "�
 export const H_GAME_AUDIO_AVAILABILITY = ["一般對話", "H場景"];
 export const H_GAME_H_PRESENTATIONS = ["靜圖", "動圖", "2D動畫", "3D動畫", "互動"];
 export const H_GAME_PLATFORMS = ["Steam", "DLsite", "Nintendo", "Other"];
+
+// The hentai vocabulary of its own (HENTAI_SOURCE_MATERIALS). A hentai also
+// reads H_COMIC_ORIGINALITY and H_COMIC_USEFULNESS above, served for it as
+// for h-comic, and anime's AIRING_STATUSES. Gated the same way.
+export const HENTAI_SOURCE_MATERIALS = ["Original", "Manga", "Novel"];
 
 export const MUSIC_STATUSES = ["Need", "Pending", "Done"];
 
@@ -300,6 +306,7 @@ export const MEDIA_TYPES = [
   // that renders this list, so the first paint does not name them either.
   "h-comic",
   "h-game",
+  "hentai",
 ];
 
 // Tier 2 CATEGORY NAMES (OPTION_CATEGORIES in app/utils/credit_roles.py), not
@@ -371,6 +378,7 @@ export const CONSTANTS_FALLBACK = {
   h_game_audio_availability: H_GAME_AUDIO_AVAILABILITY,
   h_game_h_presentation: H_GAME_H_PRESENTATIONS,
   h_game_platform: H_GAME_PLATFORMS,
+  hentai_source_material: HENTAI_SOURCE_MATERIALS,
   day_of_week: WEEKDAYS,
   music_status: MUSIC_STATUSES,
   seiyuu_status: SEIYUU_STATUSES,

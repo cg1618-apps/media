@@ -10,10 +10,12 @@ import {
   gameFieldsPayload,
   hComicFieldsPayload,
   hGameFieldsPayload,
+  hentaiFieldsPayload,
 } from "../../utils/media";
 import { clearedForRegion } from "../../lib/hComicRegion";
 import { hComicSourceFields } from "../../lib/hComicForm";
 import { hGameSourceFields } from "../../lib/hGameForm";
+import { hentaiSourceFields } from "../../lib/hentaiForm";
 import {
   requiredLabelsForFranchiseType,
   requiredLabelsForType,
@@ -68,6 +70,10 @@ import HGameAddTab, {
   H_GAME_FRANCHISE_TYPE,
   defaultHGame,
 } from "../add-tabs/HGameAddTab";
+import HentaiAddTab, {
+  HENTAI_FRANCHISE_TYPE,
+  defaultHentai,
+} from "../add-tabs/HentaiAddTab";
 import CartoonAddTab, { defaultCartoon } from "../add-tabs/CartoonAddTab";
 import TvShowAddTab, { defaultTvShow } from "../add-tabs/TvShowAddTab";
 import MovieAddTab, { defaultMovie } from "../add-tabs/MovieAddTab";
@@ -126,6 +132,7 @@ export default function Add() {
   const setAllGames = (v) => setList("game", v);
   const setAllHComics = (v) => setList("h-comic", v);
   const setAllHGames = (v) => setList("h-game", v);
+  const setAllHentai = (v) => setList("hentai", v);
   const [sources, setSources] = useState({ options: [], studios: [], people: {} });
   // Admin-configured form defaults, keyed by media type. {} = use the built-ins.
   const [formDefaults, setFormDefaults] = useState({});
@@ -199,6 +206,7 @@ export default function Add() {
   const [gmf, setGmf] = useState(defaultGame());
   const [hcf, setHcf] = useState(defaultHComic());
   const [hgf, setHgf] = useState(defaultHGame());
+  const [htf, setHtf] = useState(defaultHentai());
   // Quote is not a media entry, so like System Options it keeps its own
   // form state instead of going through the media form factories.
   const [qf, setQf] = useState(emptyQuote({ media_type: "", entry_id: null }));
@@ -256,6 +264,7 @@ export default function Add() {
   const ugm = (k, v) => setGmf((p) => ({ ...p, [k]: v }));
   const uhc = (k, v) => setHcf((p) => ({ ...p, [k]: v }));
   const uhg = (k, v) => setHgf((p) => ({ ...p, [k]: v }));
+  const uht = (k, v) => setHtf((p) => ({ ...p, [k]: v }));
 
   // A blank form for `type` with the admin's configured defaults applied.
   const freshForm = (type) => resolveDefaults(type, formDefaults);
@@ -394,6 +403,7 @@ export default function Add() {
       setGmf(resolveDefaults("game", fd));
       setHcf(resolveDefaults("h-comic", fd));
       setHgf(resolveDefaults("h-game", fd));
+      setHtf(resolveDefaults("hentai", fd));
       setColf(resolveDefaults("collection", fd));
       setFf(resolveDefaults("franchise", fd));
       setSf(resolveDefaults("series", fd));
@@ -682,6 +692,7 @@ export default function Add() {
       else if (activeTab === "game") await submitGame();
       else if (activeTab === "h-comic") await submitHComic();
       else if (activeTab === "h-game") await submitHGame();
+      else if (activeTab === "hentai") await submitHentai();
       else if (activeTab === "quote") await submitQuote();
       else if (activeTab === "meme") await submitMeme();
       else if (activeTab === "options") await submitOptions();
@@ -2933,6 +2944,135 @@ export default function Add() {
     setAllHGames((prev) => [...prev, created]);
   }
 
+  async function submitHentai() {
+    if (!htf.hentai_name_cn && !htf.hentai_name_en) {
+      showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+    if (!htf.franchise_id && !htf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
+
+    // A hentai sits only in a franchise of the h-comic family (the server
+    // refuses any other), so a new one is created with the Hentai type - and
+    // with the hentai label, which the server attaches on create.
+    let franchiseId = htf.franchise_id;
+    if (!franchiseId && htf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: HENTAI_FRANCHISE_TYPE,
+          onConfirm: (expectation, remark) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation, remark });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_cn: htf.hentai_name_cn || null,
+          franchise_name_en: htf.hentai_name_en || null,
+          franchise_name_roman: htf.hentai_name_roman || null,
+          franchise_name_jp: htf.hentai_name_jp || null,
+          franchise_name_alt: htf.hentai_name_alt || null,
+          franchise_type: HENTAI_FRANCHISE_TYPE,
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = htf.series_id;
+    if (!seriesId && htf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: htf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_cn: htf.hentai_name_cn || null,
+          series_name_en: htf.hentai_name_en || null,
+          series_name_alt: htf.hentai_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    await ensureSourceValues(hentaiSourceFields(htf, splitTags));
+
+    const payload = {
+      ...hentaiFieldsPayload(htf),
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+    };
+
+    const res = await fetch(endpoints.resource("hentai").create(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Failed to create entry",
+      );
+      return;
+    }
+    const created = await res.json();
+    await attachPendingImage(
+      htf.pending_image_id,
+      "hentai",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
+    await saveCredits("hentai", created.system_id, htf);
+    window.scrollTo(0, 0);
+    showToast("success", "Hentai appended successfully.");
+    setLastAdded(getDisplayName(created, "hentai"));
+    setHtf(freshForm("hentai"));
+    setContentLabels([]);
+    setAllHentai((prev) => [...prev, created]);
+  }
+
   // franchise system_id -> the name of the collection it belongs to, so every
   // tab with a franchise picker can name the wider grouping.
   const franchiseCollections = Object.fromEntries(
@@ -3071,6 +3211,18 @@ export default function Add() {
   const seriesItemsForHGame = (
     hgf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === hgf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForHentai = (
+    htf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === htf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -3348,6 +3500,18 @@ export default function Add() {
             seriesItemsForHGame={seriesItemsForHGame}
             sources={sources}
             applyHGameAutofill={applyHGameAutofill}
+          />
+        )}
+
+        {/* ═══ HENTAI TAB ═══ (gated like h-comic's) */}
+        {activeTab === "hentai" && (
+          <HentaiAddTab
+            franchiseCollections={franchiseCollections}
+            htf={htf}
+            uht={uht}
+            allFranchises={allFranchises}
+            seriesItemsForHentai={seriesItemsForHentai}
+            sources={sources}
           />
         )}
 

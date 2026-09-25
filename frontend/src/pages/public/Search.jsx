@@ -36,6 +36,7 @@ export const SCOPE_LABELS = {
   // the type (read as empty below), and NavSearch never offers the scope.
   "h-comic": "H-Comic",
   "h-game": "H-Game",
+  hentai: "Hentai",
   seasonal: "Seasonal",
   person: "Person",
   studio: "Studio",
@@ -142,6 +143,7 @@ export default function Search() {
   const [matchedGames, setMatchedGames] = useState([]);
   const [matchedHComics, setMatchedHComics] = useState([]);
   const [matchedHGames, setMatchedHGames] = useState([]);
+  const [matchedHentai, setMatchedHentai] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
   const [matchedCollections, setMatchedCollections] = useState([]);
   const [matchedPeople, setMatchedPeople] = useState([]);
@@ -183,6 +185,7 @@ export default function Search() {
       setMatchedGames([]);
       setMatchedHComics([]);
       setMatchedHGames([]);
+      setMatchedHentai([]);
       setMatchedPeople([]);
       setMatchedStudios([]);
       setMatchedPublishers([]);
@@ -206,6 +209,7 @@ export default function Search() {
     setMatchedGames(results.game ?? []);
     setMatchedHComics(results["h-comic"] ?? []);
     setMatchedHGames(results["h-game"] ?? []);
+    setMatchedHentai(results.hentai ?? []);
     setMatchedPeople(results.person ?? []);
     setMatchedStudios(results.studio ?? []);
     setMatchedPublishers(results.publisher ?? []);
@@ -274,6 +278,12 @@ export default function Search() {
     );
   }, []);
 
+  const handleHentaiUpdated = useCallback((updated) => {
+    setMatchedHentai((prev) =>
+      prev.map((h) => (h.system_id === updated.system_id ? updated : h)),
+    );
+  }, []);
+
   const handleHComicUpdated = useCallback((updated) => {
     setMatchedHComics((prev) =>
       prev.map((h) => (h.system_id === updated.system_id ? updated : h)),
@@ -295,6 +305,7 @@ export default function Search() {
   const showGame = scope === "all" || scope === "game";
   const showHComic = scope === "all" || scope === "h-comic";
   const showHGame = scope === "all" || scope === "h-game";
+  const showHentai = scope === "all" || scope === "hentai";
   const showPerson = scope === "all" || scope === "person";
   const showStudio = scope === "all" || scope === "studio";
   const showPublisher = scope === "all" || scope === "publisher";
@@ -346,6 +357,7 @@ export default function Search() {
     showGame && ["games", matchedGames.length],
     showHComic && ["h-comics", matchedHComics.length],
     showHGame && ["h-games", matchedHGames.length],
+    showHentai && ["hentai", matchedHentai.length],
     showPerson && ["people", matchedPeople.length],
     showStudio && ["studios", matchedStudios.length],
     showPublisher && ["publishers", matchedPublishers.length],
@@ -835,6 +847,33 @@ export default function Search() {
                   type="h-game"
                   data={g}
                   onUpdated={handleHGameUpdated}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Hentai */}
+        {showHentai && matchedHentai.length > 0 && (
+          <div>
+            <div
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
+              style={{ top: sectionHeaderTop }}
+            >
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Hentai
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {matchedHentai.length} results
+              </span>
+            </div>
+            <div className={GRID_CLS}>
+              {matchedHentai.map((h) => (
+                <MediaCard
+                  key={h.system_id}
+                  type="hentai"
+                  data={h}
+                  onUpdated={handleHentaiUpdated}
                 />
               ))}
             </div>

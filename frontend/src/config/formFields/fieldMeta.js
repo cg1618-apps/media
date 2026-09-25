@@ -46,6 +46,7 @@ import {
   H_COMIC_USEFULNESS,
   H_GAME_LANGUAGE_AVAILABILITY,
   H_GAME_PLAYSTYLES,
+  HENTAI_SOURCE_MATERIALS,
   NOVEL_TYPES,
   PART_NUMS,
   PLAYING_STATUSES,
@@ -60,6 +61,7 @@ import {
 } from "../fieldOptions";
 import { WEEKDAYS } from "../weekdays";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
+import { HENTAI_SOURCES } from "../../lib/hentaiForm";
 
 // The display_name_field choice a studio, person and character all share. ""
 // is the unset state, which falls through en -> cn -> jp -> alt; see
@@ -1300,6 +1302,69 @@ export const TYPE_FIELD_META = {
     sources: { showAccess: false },
   },
 
+  // One entry is one episode: no progress fields. The credit and genre
+  // sources are lib/hentaiForm.js's, so the defaults page suggests from the
+  // same lists the form does.
+  hentai: {
+    hentai_name_cn: { label: "Name (CN)", group: "Names" },
+    hentai_name_en: { label: "Name (EN)", group: "Names" },
+    hentai_name_alt: { label: "Name (Alt)", group: "Names" },
+    hentai_name_roman: { label: "Name (Romaji)", group: "Names" },
+    hentai_name_jp: { label: "Name (JP)", group: "Names" },
+    source_material: {
+      label: "Source Material",
+      control: "select",
+      options: HENTAI_SOURCE_MATERIALS,
+      group: "Classification",
+    },
+    originality: {
+      label: "Originality",
+      control: "select",
+      options: H_COMIC_ORIGINALITY,
+      group: "Classification",
+    },
+    // A position in one series - nothing sensible to default it to.
+    series_number: {
+      label: "Series Number",
+      control: "number",
+      group: "Classification",
+      defaultable: false,
+    },
+    usefulness: {
+      label: "Usefulness",
+      control: "select",
+      options: H_COMIC_USEFULNESS,
+      group: "Status",
+    },
+    director: {
+      label: "Director",
+      control: "tags",
+      source: HENTAI_SOURCES.director,
+      group: "Credits",
+    },
+    h_genre_plot: {
+      label: "Genre Plot",
+      control: "tags",
+      source: HENTAI_SOURCES.h_genre_plot,
+      group: "Classification",
+    },
+    h_genre_appearance: {
+      label: "Genre Appearance",
+      control: "tags",
+      source: HENTAI_SOURCES.h_genre_appearance,
+      group: "Classification",
+    },
+    h_genre_relation: {
+      label: "Genre Relation",
+      control: "tags",
+      source: HENTAI_SOURCES.h_genre_relation,
+      group: "Classification",
+    },
+    // Derived from mal_link by the write hook; the form never shows it.
+    mal_id: { hidden: true },
+    mal_link: { autofillable: false },
+  },
+
   collection: {
     collection_name_en: { label: "Name (EN)", group: "Names" },
     collection_name_cn: { label: "Name (CN)", group: "Names" },
@@ -1655,6 +1720,18 @@ export const BUILTIN_AUTOFILL = {
     "base_game_id",
     "release_status",
     "playstyle",
+    "studio",
+  ],
+  hentai: [
+    "hentai_name_cn",
+    "hentai_name_en",
+    "hentai_name_alt",
+    "hentai_name_roman",
+    "hentai_name_jp",
+    "franchise_id",
+    "series_id",
+    "source_material",
+    "originality",
     "studio",
   ],
   franchise: [],

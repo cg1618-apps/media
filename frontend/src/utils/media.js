@@ -37,4 +37,5 @@ export {
   gameFieldsPayload,
   hComicFieldsPayload,
   hGameFieldsPayload,
+  hentaiFieldsPayload,
 } from "../lib/payloads";

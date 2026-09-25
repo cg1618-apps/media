@@ -66,6 +66,25 @@ describe("displayPersonName", () => {
   });
 });
 
+describe("hentai names", () => {
+  it("resolves the display name CN -> EN -> Alt -> roman -> JP, as the server does", () => {
+    expect(getDisplayName({ hentai_name_cn: "C", hentai_name_en: "E" }, "hentai")).toBe("C");
+    expect(getDisplayName({ hentai_name_alt: "A", hentai_name_roman: "R" }, "hentai")).toBe("A");
+    expect(getDisplayName({ hentai_name_jp: "J", hentai_name_roman: "R" }, "hentai")).toBe("R");
+    expect(getDisplayName({ hentai_name_jp: "J" }, "hentai")).toBe("J");
+  });
+
+  it("shows all five names on the naming card", () => {
+    expect(getNamingFields({}, "hentai").map((f) => f.label)).toEqual([
+      "Chinese",
+      "English",
+      "Roman",
+      "Japanese",
+      "Alternative",
+    ]);
+  });
+});
+
 describe("h-comic names", () => {
   it("resolves the display name CN -> EN -> Alt -> JP -> KR, as the server does", () => {
     expect(getDisplayName({ h_comic_name_en: "E", h_comic_name_kr: "K" }, "h-comic")).toBe("E");

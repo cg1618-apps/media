@@ -49,6 +49,7 @@ const TYPE_LABELS = {
   // Gated: each offered as a filter only to a session that can see its type.
   "h-comic": "H-Comic",
   "h-game": "H-Game",
+  hentai: "Hentai",
 };
 
 function ItemRow({

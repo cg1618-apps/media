@@ -44,6 +44,11 @@ export default function useStatisticsData() {
     ...LIST_OPTIONS,
     enabled: canSeeHGame,
   });
+  const canSeeHentai = canSeeGatedType(auth, "hentai");
+  const hentaiQuery = useMediaList("hentai", {
+    ...LIST_OPTIONS,
+    enabled: canSeeHentai,
+  });
   const seasonalQuery = useApiQuery(["api", "seasonal"], "/api/seasonal/");
   const currentSeasonQuery = useApiQuery(
     ["api", "seasonal", "current-season"],
@@ -66,6 +71,7 @@ export default function useStatisticsData() {
   const allGame = gameQuery.data || [];
   const allHComic = canSeeHComic ? hComicQuery.data || [] : null;
   const allHGame = canSeeHGame ? hGameQuery.data || [] : null;
+  const allHentai = canSeeHentai ? hentaiQuery.data || [] : null;
   const fxRates = fxRatesQuery.data || null;
 
   const franchiseMap = useMemo(
@@ -89,6 +95,7 @@ export default function useStatisticsData() {
       ...allGame.map((entry) => ({ ...entry, _type: "game" })),
       ...(allHComic || []).map((entry) => ({ ...entry, _type: "h_comic" })),
       ...(allHGame || []).map((entry) => ({ ...entry, _type: "h_game" })),
+      ...(allHentai || []).map((entry) => ({ ...entry, _type: "hentai" })),
     ],
     [
       allAnime,
@@ -102,6 +109,7 @@ export default function useStatisticsData() {
       allGame,
       allHComic,
       allHGame,
+      allHentai,
     ],
   );
 
@@ -143,6 +151,7 @@ export default function useStatisticsData() {
     gameQuery,
     hComicQuery,
     hGameQuery,
+    hentaiQuery,
     seasonalQuery,
     currentSeasonQuery,
     fxRatesQuery,
@@ -163,6 +172,7 @@ export default function useStatisticsData() {
     allGame,
     allHComic,
     allHGame,
+    allHentai,
     fxRates,
     seasonals,
     currentSeason: currentSeasonQuery.data?.current_season || null,

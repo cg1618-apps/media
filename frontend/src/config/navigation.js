@@ -166,6 +166,15 @@ export const NAV_SECTIONS = [
         matches: ["/h-game"],
         gatedType: "h-game",
       },
+      // Gated on hentai the same way. Anime's icon, as H-Comic takes manga's
+      // and H-Game game's.
+      {
+        label: "Hentai",
+        icon: "fas fa-tv",
+        to: "/library/hentai",
+        matches: ["/hentai"],
+        gatedType: "hentai",
+      },
     ],
   },
   {

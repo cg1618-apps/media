@@ -136,6 +136,19 @@ const CREDITS_FIELD_MAP = {
       h_genre_relation: "h_genre_relation",
     },
   },
+  // anime's two credits and h-comic's three genre fields, each under its own
+  // role or tag key.
+  hentai: {
+    credits: {
+      studio: "studio",
+      director: "director",
+    },
+    tags: {
+      h_genre_plot: "h_genre_plot",
+      h_genre_appearance: "h_genre_appearance",
+      h_genre_relation: "h_genre_relation",
+    },
+  },
 };
 
 // Form fields that hold an array value directly (comic.events, via its
@@ -232,15 +245,7 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
     length_min: amf.length_min !== "" ? parseInt(amf.length_min) : null,
     mal_id: amf.mal_id !== "" ? parseInt(amf.mal_id) : null,
     mal_link: amf.mal_link || null,
-    sources: (amf.sources || [])
-      .filter((s) => (s.name || "").trim())
-      .map((s) => ({
-        kind: s.kind || "access",
-        bucket: s.bucket || "other",
-        name: s.name.trim(),
-        url: (s.url || "").trim() || null,
-        available: s.available ?? null,
-      })),
+    sources: sourcesPayload(amf.sources),
     watch_next: amf.watch_next ?? null,
     to_rewatch: amf.to_rewatch ?? false,
     cover_image_file: amf.cover_image_file || null,
@@ -289,15 +294,7 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     is_main_entry: af.is_main_entry || null,
     mal_id: af.mal_id !== "" ? parseInt(af.mal_id) : null,
     mal_link: af.mal_link || null,
-    sources: (af.sources || [])
-      .filter((s) => (s.name || "").trim())
-      .map((s) => ({
-        kind: s.kind || "access",
-        bucket: s.bucket || "other",
-        name: s.name.trim(),
-        url: (s.url || "").trim() || null,
-        available: s.available ?? null,
-      })),
+    sources: sourcesPayload(af.sources),
     seiyuu: af.seiyuu || null,
     watch_next: af.watch_next ?? null,
     cover_image_file: af.cover_image_file || null,
@@ -373,15 +370,7 @@ export function gameFieldsPayload(f) {
     igdb_link: f.igdb_link || null,
     steam_appid: int(f.steam_appid),
     steam_link: f.steam_link || null,
-    sources: (f.sources || [])
-      .filter((s) => (s.name || "").trim())
-      .map((s) => ({
-        kind: s.kind || "access",
-        bucket: s.bucket || "other",
-        name: s.name.trim(),
-        url: (s.url || "").trim() || null,
-        available: s.available ?? null,
-      })),
+    sources: sourcesPayload(f.sources),
     copies: (f.copies || [])
       .filter((c) => c.storefront || c.ownership || c.copy_format)
       .map((c, i) => ({
@@ -419,6 +408,10 @@ export function gameFieldsPayload(f) {
  * never sent from here, and a save leaves it alone.
  */
 export function hComicFieldsPayload(f) {
+  // A derived animation status (a hentai adapts this h-comic) is not the
+  // form's to write: the server refuses (422) any value but the served one,
+  // so it is left out and the stored hand-set value stays as it is.
+  const derived = f.animation_status_source === "derived";
   return {
     region: f.region || null,
     h_comic_name_cn: f.h_comic_name_cn || null,
@@ -427,7 +420,7 @@ export function hComicFieldsPayload(f) {
     h_comic_name_jp: f.h_comic_name_jp || null,
     h_comic_name_kr: f.h_comic_name_kr || null,
     originality: f.originality || null,
-    animation_status: f.animation_status || null,
+    ...(derived ? {} : { animation_status: f.animation_status || null }),
     series_number: int(f.series_number),
     serialization_status: f.serialization_status || null,
     page_total: int(f.page_total),
@@ -440,15 +433,7 @@ export function hComicFieldsPayload(f) {
     usefulness: f.usefulness || null,
     page_fin: int(f.page_fin) ?? 0,
     ch_fin: int(f.ch_fin) ?? 0,
-    sources: (f.sources || [])
-      .filter((s) => (s.name || "").trim())
-      .map((s) => ({
-        kind: s.kind || "access",
-        bucket: s.bucket || "other",
-        name: s.name.trim(),
-        url: (s.url || "").trim() || null,
-        available: s.available ?? null,
-      })),
+    sources: sourcesPayload(f.sources),
     read_next: f.read_next ?? false,
     to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
@@ -460,9 +445,9 @@ export function hComicFieldsPayload(f) {
 // H-Game
 // ---------------------------------------------------------------------------
 
-// The copy rows and source rows, shaped exactly as gameFieldsPayload sends
-// them: h-game shares game's purchase records (game_copy) and its sources
-// contract.
+// The source rows as every entry body sends them (SourceWrite[]): nameless
+// rows dropped, blanks nulled. h-game also shares game's purchase records
+// (game_copy), shaped by copiesPayload below.
 function sourcesPayload(rows) {
   return (rows || [])
     .filter((s) => (s.name || "").trim())
@@ -565,6 +550,44 @@ export function hGameFieldsPayload(f) {
     copies: copiesPayload(f.copies),
     play_next: f.play_next ?? false,
     to_replay: f.to_replay ?? false,
+    cover_image_file: f.cover_image_file || null,
+    remark: f.remark || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Hentai
+// ---------------------------------------------------------------------------
+
+/**
+ * The scalar half of a hentai's create/update body - everything but the
+ * franchise and series ids, which the caller resolves (and may have just
+ * created) first.
+ *
+ * One entry is one episode, so there is no progress to send. `mal_link` is
+ * the MAL key's source of truth: the write hook derives `mal_id` from it, so
+ * the id travels only beside a link, and clearing the link clears the id.
+ */
+export function hentaiFieldsPayload(f) {
+  return {
+    hentai_name_cn: f.hentai_name_cn || null,
+    hentai_name_en: f.hentai_name_en || null,
+    hentai_name_alt: f.hentai_name_alt || null,
+    hentai_name_roman: f.hentai_name_roman || null,
+    hentai_name_jp: f.hentai_name_jp || null,
+    source_material: f.source_material || null,
+    originality: f.originality || null,
+    series_number: int(f.series_number),
+    airing_status: f.airing_status || null,
+    release_date: f.release_date || null,
+    mal_link: f.mal_link || null,
+    mal_id: f.mal_link ? int(f.mal_id) : null,
+    watching_status: f.watching_status || "Might Watch",
+    my_rating: f.my_rating || null,
+    usefulness: f.usefulness || null,
+    sources: sourcesPayload(f.sources),
+    watch_next: f.watch_next ?? false,
+    to_rewatch: f.to_rewatch ?? false,
     cover_image_file: f.cover_image_file || null,
     remark: f.remark || null,
   };
