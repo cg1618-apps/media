@@ -573,7 +573,7 @@ bulk Replace:
 | Manga       | extract MAL id → autofill (ratings forced) → manga post-processing                                                                                    |
 | Novel       | extract MAL id → autofill (ratings forced)                                                                                                            |
 | Comic       | nothing — no replace function; the write hook only re-syncs system options                                                                           |
-| Hentai      | extract MAL id → `autofill_hentai_from_mal` (airing status, release date, cover; all fill-only) → `run_sync_hentai` as the spec's after step (the label) |
+| Hentai      | extract MAL id → `autofill_hentai_from_mal` (airing status, release date, cover; all fill-only) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
 
 The `bulk` parameter is accepted by movie/tv/cartoon/manga/novel/hentai for
 signature parity and ignored. Fill-only vs overwrite semantics of the autofill functions
@@ -776,13 +776,16 @@ whose type list names a type of that family and none of another family's
 (`_segregation`), so a gated entry never attaches to a mainstream franchise
 and a mainstream entry never lands under one whose gated label would hide it;
 an h-comic and its hentai adaptation resolve to the same franchise. A series
-is exempt: it names its parent whatever the family. Two rules close the other
-ways in:
+is exempt: it names its parent whatever the family. Three rules close the
+other ways in:
 
 - a franchise whose type list spans two families is refused (422) by the
   franchise endpoints (`check_franchise_type_family`);
-- an h-comic or hentai written with a `franchise_id` of another family is
-  refused (422) by its write hook (`check_entry_franchise_family`).
+- a franchise retyped into another family than an entry it holds is refused
+  (422) the same way (`check_franchise_entries_family`);
+- an entry of any type written with a `franchise_id` of another family is
+  refused (422) by the router factory, on create, update and the tracker
+  PATCH body (`check_entry_franchise_family`).
 
 A franchise gets the content label of each gated type its type list names -
 on auto-create here, and on every franchise write

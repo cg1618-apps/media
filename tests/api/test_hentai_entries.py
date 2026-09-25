@@ -230,8 +230,11 @@ def test_a_guest_does_not_find_it_in_the_list(client, labelled_hentai):
 
 
 def test_a_guest_does_not_find_it_in_search(client, labelled_hentai):
+    """Not an empty bucket but no bucket: an empty key would still say the
+    type exists."""
     body = client.get("/api/search/", params={"q": "Zvornik"}).json()
-    assert body["results"]["hentai"] == []
+    assert "hentai" not in body["results"]
+    assert "manga" in body["results"]
 
 
 def test_unrestricted_sees_it_everywhere(admin_client, labelled_hentai):

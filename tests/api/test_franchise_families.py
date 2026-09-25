@@ -1,11 +1,12 @@
 """
-Franchise families (FRANCHISE_FAMILY_FOR_TYPE): which franchise types may
-share one franchise.
+Franchise families as hentai uses them: H-Comic and Hentai are one family
+(FRANCHISE_FAMILY_FOR_TYPE), so an h-comic and its hentai adaptation may share
+a franchise, and a franchise carries the label of each gated type in its type
+list.
 
-H-Comic and Hentai are one family, so an h-comic and its hentai adaptation
-may share a franchise; every unlisted type is "mainstream"; a franchise whose
-types span two families is refused. A franchise carries the label of each
-gated type in its type list.
+The family mechanism itself - every write path, both directions, retyping a
+franchise with entries - is tests/api/test_franchise_family.py. This file
+keeps only what the second gated type adds.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
@@ -59,10 +60,31 @@ def test_update_and_patch_refuse_a_type_spanning_two_families(
     assert row.franchise_type == "ACG"
 
 
-def test_one_family_across_two_types_is_accepted(admin_client):
-    """The mirror: two mainstream types, and the two h-comic-family types."""
-    assert _create(admin_client, "ACG, Anime", name="Zvornik Main").status_code == 200
+def test_the_two_h_comic_family_types_are_one_family(admin_client):
+    """The mirror of the refusals above."""
     assert _create(admin_client, "H-Comic, Hentai", name="Zvornik Gated").status_code == 200
+
+
+@pytest.mark.parametrize("method", ["put", "patch"])
+def test_a_franchise_holding_a_hentai_cannot_become_mainstream(
+    admin_client, db_session, method
+):
+    created = _create(admin_client, "Hentai").json()
+    entry = admin_client.post(
+        "/api/hentai/",
+        json={"hentai_name_cn": "Zvornik Held", "franchise_id": created["system_id"]},
+    )
+    assert entry.status_code == 201, entry.text
+
+    response = getattr(admin_client, method)(
+        f"{ROUTE}/{created['system_id']}", json={"franchise_type": "ACG"}
+    )
+    assert response.status_code == 422, response.text
+    # Within the family it may be retyped: the refusal is about the family.
+    response = getattr(admin_client, method)(
+        f"{ROUTE}/{created['system_id']}", json={"franchise_type": "H-Comic, Hentai"}
+    )
+    assert response.status_code == 200, response.text
 
 
 # ---------------------------------------------------------------------------

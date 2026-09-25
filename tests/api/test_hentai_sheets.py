@@ -104,11 +104,12 @@ def test_a_label_tab_restore_repairs_a_missing_label(monkeypatch, db_session):
 
 
 def test_calculate_repairs_a_missing_label(db_session):
-    from app.services.calculation import run_sync_hentai
+    """The generic pass covers hentai by its REQUIRED_LABEL_FOR_TYPE entry."""
+    from app.services.calculation import run_sync_gated_labels
 
     entry = models.Hentai(hentai_name_cn="Zvornik Calculated")
     db_session.add(entry)
     db_session.flush()
     assert label_keys_for_entry(db_session, entry.system_id) == []
-    run_sync_hentai(db_session)
+    run_sync_gated_labels(db_session)
     assert label_keys_for_entry(db_session, entry.system_id) == ["hentai"]

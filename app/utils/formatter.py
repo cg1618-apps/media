@@ -1013,7 +1013,7 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
     every entry tab. The credit and tag columns carry their own keys as
     headers - the type is new, so none has a legacy header - and Pull applies
     them through replace_credits / replace_tags once the row exists. Pull runs
-    enforce_hentai_invariants after the tab lands, which re-attaches the
+    enforce_gated_label_invariants after the tab lands, which re-attaches the
     hentai label.
     """
     parsed = {

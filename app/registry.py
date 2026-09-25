@@ -419,13 +419,13 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         # has aired.
         mark_completed=mark_movie_catalog,
         mark_completed_list=mark_movie_list,
-        # Fetches nothing: there is no external API. It re-runs the hentai
-        # sync, which is the net under the hook below.
+        # The Tenrai fetch (airing status, release date, cover; fill-only),
+        # then the hentai and gated-label syncs - the net under the hook below.
         write_hook=execute_replace_single_hentai,
         nested_collections={"sources": media_sources_writer("hentai")},
         # Called on create, update AND the tracker PATCH: validates the hentai
-        # vocabularies (PATCH has no schema), keeps a franchise named by id in
-        # the h-comic family, and keeps the `hentai` label on the entry.
+        # vocabularies (PATCH has no schema) and keeps the `hentai` label on
+        # the entry. The franchise family is the router factory's check.
         progress_hook=hentai_progress_hook,
         progress_hook_list=hentai_progress_hook_list,
     ),

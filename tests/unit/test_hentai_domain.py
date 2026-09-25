@@ -20,10 +20,6 @@ def test_the_label_key_is_the_one_the_gated_type_requires():
     assert hentai.LABEL_KEY in gated_labels.SYSTEM_LABELS
 
 
-def test_every_required_label_has_a_system_label_row_to_seed():
-    assert set(gated_types.REQUIRED_LABEL_FOR_TYPE.values()) <= set(gated_labels.SYSTEM_LABELS)
-
-
 @pytest.mark.parametrize(
     "check,good,bad",
     [

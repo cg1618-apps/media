@@ -372,20 +372,26 @@ PIPELINES: dict[str, PipelineSpec] = {
     ),
     # Tenrai, like anime minus AniList, for three things only: airing status,
     # release date and the cover, all fill-only (autofill_hentai_from_mal).
-    # Every run and the single-entry hook end in the hentai sync, which keeps
-    # the label on.
+    # Every run and the single-entry hook end in the hentai sync and the gated
+    # label sync, which keeps the label on.
     "hentai": PipelineSpec(
         key="hentai", label="Hentai", model=Hentai,
         extract_id=apply_extract_mal_id_anime,
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_hentai(e),
         fill=lambda db, e: autofill_hentai_from_mal(e, db=db),
         fill_sleep=MAL_PAUSE,
-        fill_after=(("Syncing hentai invariants...", run_sync_hentai),),
+        fill_after=(
+            ("Syncing system options...", run_sync_hentai),
+            ("Syncing gated labels...", run_sync_gated_labels),
+        ),
         replace_select=_linked(Hentai, Hentai.mal_id, Hentai.mal_link),
         replace=lambda db, e, bulk: apply_single_replace_hentai(db, e, bulk=bulk),
         replace_sleep=MAL_PAUSE,
-        replace_after=(("Syncing hentai invariants...", run_sync_hentai),),
-        single_after=(run_sync_hentai,),
+        replace_after=(
+            ("Syncing system options...", run_sync_hentai),
+            ("Syncing gated labels...", run_sync_gated_labels),
+        ),
+        single_after=(run_sync_hentai, run_sync_gated_labels),
     ),
     "studio": PipelineSpec(
         key="studio", label="Studio", model=Studio,

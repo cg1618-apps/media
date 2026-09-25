@@ -10,18 +10,22 @@ One invariant, and one place that keeps it:
             refused (422). The mechanics are shared by every gated type and
             live in app/services/domain/gated_labels.py.
 
-Beside it, the vocabulary columns are checked on every write, and a franchise
-named by id must be of the h-comic family (FRANCHISE_FAMILY_FOR_TYPE), which a
-hentai shares with the h-comic it adapts.
+Beside it, the vocabulary columns are checked on every write. The franchise
+family - a hentai sits only in a franchise of the h-comic family
+(FRANCHISE_FAMILY_FOR_TYPE), which it shares with the h-comic it adapts - is
+the router factory's check, run for every media type.
 
 The write paths that reach them:
 
   form create / update, tracker PATCH   the registry's progress hooks
                                         (app/registry.py), which the router
                                         factory calls on all three
-  Pull, sheet restore                   enforce_hentai_invariants, run after
-                                        the Hentai, Franchise and label tabs
-  Calculate                             run_sync_hentai, the same function
+  Pull, sheet restore                   gated_labels.
+                                        enforce_gated_label_invariants, run
+                                        after the Hentai, Franchise and label
+                                        tabs
+  Calculate                             run_sync_gated_labels, the same
+                                        function
 
 The invariant is idempotent, so running it twice is always safe.
 """
@@ -31,15 +35,12 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app import models
 from app.services.domain import gated_labels
-from app.services.domain.hierarchy import check_entry_franchise_family
 from app.utils.constants import (
     H_COMIC_ORIGINALITY,
     H_COMIC_USEFULNESS,
     HENTAI_SOURCE_MATERIALS,
     AiringStatus,
-    FranchiseType,
 )
 
 MEDIA_TYPE = "hentai"
@@ -93,7 +94,7 @@ def check_usefulness(value) -> Optional[str]:
 def hentai_progress_hook(db: Session, entry) -> None:
     """
     The catalogue half of every form and tracker write: validate, keep the
-    franchise in the family, keep the label on.
+    label on.
 
     Raised as a 422 here because the tracker PATCH has no request schema to
     validate against - the dict body reaches the model unchecked, so this is
@@ -103,9 +104,6 @@ def hentai_progress_hook(db: Session, entry) -> None:
         entry.source_material = check_source_material(entry.source_material)
         entry.originality = check_originality(entry.originality)
         entry.airing_status = check_airing_status(entry.airing_status)
-        check_entry_franchise_family(
-            db, getattr(entry, "franchise_id", None), MEDIA_TYPE
-        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     if entry.system_id is not None:
@@ -119,25 +117,3 @@ def hentai_progress_hook_list(row, entry) -> None:
         row.usefulness = check_usefulness(row.usefulness)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-
-
-# ---------------------------------------------------------------------------
-# The paths that bypass the router: Pull, sheet restore, Calculate
-# ---------------------------------------------------------------------------
-
-
-def enforce_hentai_invariants(db: Session) -> dict:
-    """
-    Re-attach every missing label, on entries and on Hentai franchises.
-    Idempotent.
-
-    A Pull writes rows straight to the tables, so the hook never ran. Does
-    not commit - the caller owns the transaction.
-    """
-    entries = db.query(models.Hentai).all()
-    for entry in entries:
-        gated_labels.ensure_entry_label(db, entry.system_id, LABEL_KEY)
-    for franchise in gated_labels.franchises_of_type(db, FranchiseType.HENTAI.value):
-        gated_labels.ensure_franchise_labels(db, franchise)
-    db.flush()
-    return {"entries": len(entries)}

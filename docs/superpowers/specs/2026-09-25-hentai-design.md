@@ -36,7 +36,7 @@ between the sessions before either wrote code.
 | I4 | Derivation and visibility | Derived from every adapting hentai, whatever the viewer can see: the status is a fact about the h-comic. |
 | I5 | Completing a hentai | Movie's rule: status `Completed`, `airing_status` becomes `Finished Airing`. |
 | I6 | Personal fields | `watching_status` (`WatchStatus`), `my_rating`, `usefulness`; plan flags `watch_next` / `to_rewatch`, entry scope only. |
-| I7 | The family check on `franchise_id` | Applied by the two gated types' write hooks, not to mainstream types; a mainstream entry is still kept out of gated franchises by the resolver. |
+| I7 | The family check on `franchise_id` | **Superseded.** First applied by the two gated types' write hooks only. `fix/gated-type-gaps` (#72) moved it into the router factory, which runs `check_entry_franchise_family` for **every** media type on create, update and the tracker PATCH body, before anything is written - so a mainstream entry named into a gated franchise by id is refused too, and hentai's hook no longer carries its own check. |
 | I8 | The migration and mode grants | Besides removing the label from non-hentai entries, it removes any grant of `hentai` to a mode other than `unrestricted`. Neither is restored on downgrade; the label row is kept on downgrade because it may predate the revision. |
 
 ## The table: `hentai`
@@ -74,9 +74,11 @@ through it, and one credited only on hentai is hidden with them.
 
 ## The content label
 
-- Key `hentai`, ensured by the migration and by the lifespan seed, the way
-  `ensure_label` does it for `h-comic`: find by key, create if missing, grant
-  to `unrestricted` only.
+- Key `hentai`, ensured by the migration and by the lifespan seed through
+  the shared `gated_labels` module (#73): a `REQUIRED_LABEL_FOR_TYPE` entry
+  and a `SYSTEM_LABELS` row, find by key, create if missing, grant to
+  `unrestricted` only. Pull and Calculate re-attach it through the generic
+  `enforce_gated_label_invariants`; hentai has no label code of its own.
 - **The label already exists on the home database**, created by hand, carried
   by `unrestricted` alone, and attached to **one `anime` row** (Redo of
   Healer). Find-or-create by key adopts that row rather than duplicating it.
@@ -95,8 +97,8 @@ through it, and one credited only on hentai is hidden with them.
 
 ## Franchises: families (shared with h-game)
 
-Today the resolver keeps `H-Comic` apart with a special case. It becomes a
-mapping, in `app/utils/constants.py` beside `FRANCHISE_TYPES`:
+The family mechanism exists on `dev` (#72); hentai joins it by one map entry
+in `app/utils/constants.py`:
 
 ```python
 FRANCHISE_FAMILY_FOR_TYPE: dict[str, str] = {
@@ -104,20 +106,26 @@ FRANCHISE_FAMILY_FOR_TYPE: dict[str, str] = {
     "Hentai": "h-comic",
     # "H-Game": "h-game"  - added by feat/h-game
 }
-# any type not listed is family "mainstream"
+MAINSTREAM_FAMILY = "mainstream"  # any type not listed
 ```
 
 - A franchise's family is the family of its types. **A franchise whose types
-  span two families is refused (422)** on create and update.
+  span two families is refused (422)** on create, update and patch
+  (`franchise.py`'s `_check_type_family` -> `check_franchise_type_family`),
+  and so is retyping a franchise into another family than an entry it holds
+  (`check_franchise_entries_family`). `"H-Comic, Hentai"` is one family.
 - An entry's family is the family of its auto-created franchise type
-  (`FRANCHISE_TYPE_FOR[owner]`): `hentai` stamps `Hentai`.
+  (`FRANCHISE_TYPE_FOR[owner]`, `entry_family`): `hentai` stamps `Hentai`.
 - The name resolver matches an entry only against franchises of its own
-  family, so a hentai named after an h-comic attaches to that h-comic's
-  franchise, and never to a mainstream one.
-- A hentai written with a `franchise_id` of another family is refused (422).
-- A franchise carries the label of each gated type it holds: `H-Comic` brings
-  `h-comic`, `Hentai` brings `hentai`. One holding both carries both.
-- Series are not segregated, as today: a series names its parent.
+  family (`_segregation`), so a hentai named after an h-comic attaches to that
+  h-comic's franchise, and never to a mainstream one.
+- An entry of any type written with a `franchise_id` of another family is
+  refused (422) by the router factory (`check_entry_franchise_family`) - see
+  I7.
+- A franchise carries the label of each gated type it holds
+  (`gated_labels.ensure_franchise_labels`): `H-Comic` brings `h-comic`,
+  `Hentai` brings `hentai`. One holding both carries both.
+- Series are not segregated: a series names its parent.
 
 ## h-comic `animation_status`, derived
 
@@ -145,7 +153,8 @@ The `adaptation` relation kind already exists (`app/utils/relation_kinds.py`).
 - Pipelines: `PIPELINES["hentai"]` is anime's Tenrai spec minus AniList,
   with MAL pacing: Fill, bulk Replace and the single-entry write hook fetch
   `airing_status`, `release_date` and the cover (D11), then `run_sync_hentai`
-  keeps the label on every entry and every `Hentai` franchise. In Fill All and
+  (system options) and `run_sync_gated_labels`, which keeps the label on every
+  entry and every `Hentai` franchise. In Fill All and
   Replace All. Sheets tab `Hentai`.
 - Duplicates: `franchise_id`, `series_id`, `series_number`.
 - Watch orders: `hentai` joins `WHOLE_ONLY_TYPES`.
