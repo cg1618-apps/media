@@ -6,6 +6,7 @@ import {
   creditsResponseToForm,
   gameFieldsPayload,
   hComicFieldsPayload,
+  hGameFieldsPayload,
 } from "./payloads";
 
 describe("source rows in the payload", () => {
@@ -197,5 +198,94 @@ describe("h-comic payloads", () => {
       { kind: "access", bucket: "other", name: "Site", url: null, available: null },
     ]);
     expect("highlight_group_order" in body).toBe(false);
+  });
+});
+
+describe("h-game payloads", () => {
+  it("sends the developer credit and the five tag fields under their own keys", () => {
+    const body = buildCreditsPayload("h-game", {
+      studio: "Studio A",
+      game_genre: "RPG, Puzzle",
+      game_theme: "",
+      h_genre_plot: "x",
+      h_genre_appearance: undefined,
+      h_genre_relation: "y",
+      // Game-only fields an h-game form never holds are not read.
+      publisher: "P",
+      director: "D",
+    });
+    expect(body.credits).toEqual({ studio: ["Studio A"] });
+    expect(body.tags).toEqual({
+      game_genre: ["RPG", "Puzzle"],
+      game_theme: [],
+      h_genre_plot: ["x"],
+      h_genre_relation: ["y"],
+    });
+  });
+
+  it("keeps an unrecorded list null and an empty one []", () => {
+    const body = hGameFieldsPayload({
+      audio_availability: null,
+      h_presentation: [],
+      platform: undefined,
+    });
+    expect(body.audio_availability).toBeNull();
+    expect(body.h_presentation).toEqual([]);
+    expect(body.platform).toBeNull();
+  });
+
+  it("sends a list in vocabulary order", () => {
+    const body = hGameFieldsPayload({
+      platform: ["Other", "Steam"],
+      h_presentation: ["互動", "靜圖"],
+      audio_availability: ["H場景", "一般對話"],
+    });
+    expect(body.platform).toEqual(["Steam", "Other"]);
+    expect(body.h_presentation).toEqual(["靜圖", "互動"]);
+    expect(body.audio_availability).toEqual(["一般對話", "H場景"]);
+  });
+
+  it("builds the entry body in h_game's columns, not game's", () => {
+    const body = hGameFieldsPayload({
+      h_game_name_cn: "名",
+      playstyle: "ADV",
+      game_type: "Base Game",
+      base_game_id: "some-id",
+      all_cg: "Yes",
+      animation_availability: "false",
+      steam_progress_sync: "",
+      language_availability: "官方中文",
+      usefulness: "實用",
+      achievements_total: "40",
+      dlsite_link_jp: "https://www.dlsite.com/x",
+      dlsite_link_tw: "",
+      copies: [{ storefront: "DLsite", price_paid: "12.5" }, {}],
+    });
+    expect(body.h_game_name_cn).toBe("名");
+    expect(body.playstyle).toBe("ADV");
+    // ck_h_game_base_no_parent: a Base Game carries no parent.
+    expect(body.base_game_id).toBeNull();
+    expect(body.all_cg).toBe("Yes");
+    expect(body.animation_availability).toBe(false);
+    expect(body.steam_progress_sync).toBeNull();
+    expect(body.language_availability).toBe("官方中文");
+    expect(body.usefulness).toBe("實用");
+    expect(body.achievements_total).toBe(40);
+    expect(body.dlsite_link_jp).toBe("https://www.dlsite.com/x");
+    expect(body.dlsite_link_tw).toBeNull();
+    expect(body.playing_status).toBe("Might Play");
+    // The purchase records are Game's: an empty row is dropped.
+    expect(body.copies).toHaveLength(1);
+    expect(body.copies[0]).toMatchObject({ storefront: "DLsite", price_paid: 12.5, position: 1 });
+    for (const gameOnly of [
+      "hours_played",
+      "metacritic_score",
+      "all_achievements",
+      "all_collected",
+      "game_name_cn",
+      "highlight_group_order",
+    ]) {
+      expect(gameOnly in body).toBe(false);
+    }
   });
 });

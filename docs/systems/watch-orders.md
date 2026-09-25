@@ -1,6 +1,6 @@
 # Watch Orders
 
-Last verified: 2026-09-12
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -102,6 +102,7 @@ The same entry may appear in several items of one list (a split run). A **dangli
 | comic | `#` (issue) | yes |
 | manga, novel | `Ch` | **no** — `WHOLE_ONLY_TYPES` |
 | movie, anime-movie | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES` |
+| h-comic, h-game | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES`; each offered in the editor's type filter only to a session that can see it |
 | unknown / null | `Ep` | yes (nothing is lost for an unrecognised type) |
 
 `rangeLabel` renders "Ep 1-10", "Ep 5", "Ch 1-40", "# 1-12", "Ep 5+" or "Ep up to 10". A stored range on a whole-only type is still displayed; the editor just hides the inputs rather than clearing data. The backend does not validate ranges against the type. Anime steps also get `ep_special` resolved (the episode number a special sits at; 0 is a real value).

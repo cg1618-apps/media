@@ -35,6 +35,11 @@ describe("resource() endpoints (derived from MEDIA_CONFIG)", () => {
     expect(resource("game").list()).toBe("/api/game/");
   });
 
+  it("derives the gated h-game resource from MEDIA_CONFIG", () => {
+    expect(resource("h-game").list()).toBe("/api/h-game/");
+    expect(resource("h-game").patch("X")).toBe("/api/h-game/X");
+  });
+
   it("derives the gated h-comic resource from MEDIA_CONFIG", () => {
     expect(resource("h-comic").list()).toBe("/api/h-comic/");
     expect(resource("h-comic").complete("X")).toBe("/api/h-comic/X/complete");
@@ -102,6 +107,9 @@ describe("named endpoint groups", () => {
   it("game", () => {
     expect(endpoints.game.searchIgdb("elden")).toBe(
       "/api/game/search-igdb?q=elden&limit=10",
+    );
+    expect(endpoints.hGame.searchIgdb("some title")).toBe(
+      "/api/h-game/search-igdb?q=some%20title&limit=10",
     );
     expect(endpoints.game.searchIgdb("elden ring", 5)).toBe(
       "/api/game/search-igdb?q=elden%20ring&limit=5",

@@ -20,6 +20,7 @@ export default function Statistics() {
     allComic,
     allGame,
     allHComic,
+    allHGame,
     fxRates,
     seasonals,
     currentSeason,
@@ -65,7 +66,11 @@ export default function Statistics() {
             <StatsFavoriteGrids
               franchises={franchises}
               series={series}
-              entriesByType={{ movie: allMovies, game: allGame }}
+              entriesByType={{
+                movie: allMovies,
+                game: allGame,
+                "h-game": allHGame || [],
+              }}
               allEntriesByFranchise={allEntriesByFranchise}
               allEntriesBySeries={allEntriesBySeries}
             />
@@ -81,6 +86,7 @@ export default function Statistics() {
             allNovel={allNovel}
             allComic={allComic}
             allHComic={allHComic}
+            allHGame={allHGame}
             seasonals={seasonals}
             currentSeason={currentSeason}
           />

@@ -31,12 +31,18 @@ export default function useStatisticsData() {
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const gameQuery = useMediaList("game", LIST_OPTIONS);
-  // Gated: asked for only by a session that can see the type, and handed on
-  // as null otherwise so the page draws no h-comic block at all.
-  const canSeeHComic = canSeeGatedType(useAuth(), "h-comic");
+  // Gated: each asked for only by a session that can see its type, and
+  // handed on as null otherwise so the page draws no block of it at all.
+  const auth = useAuth();
+  const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const hComicQuery = useMediaList("h-comic", {
     ...LIST_OPTIONS,
     enabled: canSeeHComic,
+  });
+  const canSeeHGame = canSeeGatedType(auth, "h-game");
+  const hGameQuery = useMediaList("h-game", {
+    ...LIST_OPTIONS,
+    enabled: canSeeHGame,
   });
   const seasonalQuery = useApiQuery(["api", "seasonal"], "/api/seasonal/");
   const currentSeasonQuery = useApiQuery(
@@ -59,6 +65,7 @@ export default function useStatisticsData() {
   const allComic = comicQuery.data || [];
   const allGame = gameQuery.data || [];
   const allHComic = canSeeHComic ? hComicQuery.data || [] : null;
+  const allHGame = canSeeHGame ? hGameQuery.data || [] : null;
   const fxRates = fxRatesQuery.data || null;
 
   const franchiseMap = useMemo(
@@ -81,6 +88,7 @@ export default function useStatisticsData() {
       ...allComic.map((entry) => ({ ...entry, _type: "comic" })),
       ...allGame.map((entry) => ({ ...entry, _type: "game" })),
       ...(allHComic || []).map((entry) => ({ ...entry, _type: "h_comic" })),
+      ...(allHGame || []).map((entry) => ({ ...entry, _type: "h_game" })),
     ],
     [
       allAnime,
@@ -93,6 +101,7 @@ export default function useStatisticsData() {
       allComic,
       allGame,
       allHComic,
+      allHGame,
     ],
   );
 
@@ -133,6 +142,7 @@ export default function useStatisticsData() {
     comicQuery,
     gameQuery,
     hComicQuery,
+    hGameQuery,
     seasonalQuery,
     currentSeasonQuery,
     fxRatesQuery,
@@ -152,6 +162,7 @@ export default function useStatisticsData() {
     allComic,
     allGame,
     allHComic,
+    allHGame,
     fxRates,
     seasonals,
     currentSeason: currentSeasonQuery.data?.current_season || null,

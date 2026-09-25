@@ -113,6 +113,14 @@ export const NAV_SECTIONS = [
             matches: ["/h-comic"],
             gatedType: "h-comic",
           },
+          // Gated on h-game the same way.
+          {
+            label: "H-Game",
+            icon: "fas fa-gamepad",
+            to: "/library/h-game",
+            matches: ["/h-game"],
+            gatedType: "h-game",
+          },
           {
             label: "Seiyuu",
             icon: "fas fa-microphone",

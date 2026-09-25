@@ -59,6 +59,13 @@ export const ADMIN_TABS = [
     icon: "fa-book",
     label: "H-Comic Entry",
   },
+  // Gated the same way, on h-game.
+  {
+    key: "h-game",
+    group: "entries",
+    icon: "fa-gamepad",
+    label: "H-Game Entry",
+  },
   {
     key: "collection",
     group: "structure",

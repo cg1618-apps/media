@@ -171,6 +171,29 @@ describe("Nav gated types", () => {
       "/library/h-comic",
     );
   });
+
+  it("offers no H-Game link to a session that sees only h-comic", async () => {
+    const user = userEvent.setup();
+    auth.isAdmin = true;
+    auth.visibleGatedTypes = ["h-comic"];
+    renderNav("/");
+    await user.click(tab("library"));
+    const panel = document.querySelector("[data-nav-panel]");
+    expect(within(panel).getByRole("link", { name: /h-comic/i })).toBeInTheDocument();
+    expect(within(panel).queryByRole("link", { name: /h-game/i })).toBeNull();
+  });
+
+  it("offers the H-Game link once /api/auth/me names h-game", async () => {
+    const user = userEvent.setup();
+    auth.visibleGatedTypes = ["h-comic", "h-game"];
+    renderNav("/");
+    await user.click(tab("library"));
+    const panel = document.querySelector("[data-nav-panel]");
+    expect(within(panel).getByRole("link", { name: /h-game/i })).toHaveAttribute(
+      "href",
+      "/library/h-game",
+    );
+  });
 });
 
 describe("Nav admin gating", () => {

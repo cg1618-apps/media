@@ -52,7 +52,7 @@ function SourceRow({ tag, children, muted = false }) {
 
 // Media types whose sources are things you read rather than watch.
 const READING_TYPES = new Set(["manga", "novel", "comic", "h-comic"]);
-const PLAYING_TYPES = new Set(["game"]);
+const PLAYING_TYPES = new Set(["game", "h-game"]);
 
 export function accessHeading(mediaType) {
   if (PLAYING_TYPES.has(mediaType)) return "Where to Play";
@@ -104,6 +104,8 @@ export default function SourcesCard({
   openLibraryLink,
   igdbLink,
   steamLink,
+  dlsiteLinkJp,
+  dlsiteLinkTw,
   originalSource,
   exclusiveSource,
   serializationPlatform,
@@ -118,9 +120,13 @@ export default function SourcesCard({
     Boolean,
   );
 
+  // The storefront links are column-backed rather than source rows: Steam on
+  // games and h-games, and an h-game's two DLsite pages.
+  const hasStorefront = Boolean(steamLink || dlsiteLinkJp || dlsiteLinkTw);
+
   const hasAny =
     accessRows.length > 0 ||
-    Boolean(steamLink) ||
+    hasStorefront ||
     referenceRows.length > 0 ||
     Boolean(malLink) ||
     Boolean(imdbLink) ||
@@ -148,7 +154,7 @@ export default function SourcesCard({
           ))}
         </div>
       )}
-      {(accessRows.length > 0 || steamLink) && (
+      {(accessRows.length > 0 || hasStorefront) && (
         <section aria-label={accessHeading(mediaType)}>
           <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
             {accessHeading(mediaType)}
@@ -163,6 +169,18 @@ export default function SourcesCard({
           {steamLink && (
             <SourceLink href={steamLink} tag="Steam">
               Steam store page
+            </SourceLink>
+          )}
+          {/* An h-game's DLsite pages, the same kind of thing as the Steam
+              link and drawn beside it (h_game.dlsite_link_jp / _tw). */}
+          {dlsiteLinkJp && (
+            <SourceLink href={dlsiteLinkJp} tag="DLsite">
+              DLsite (JP)
+            </SourceLink>
+          )}
+          {dlsiteLinkTw && (
+            <SourceLink href={dlsiteLinkTw} tag="DLsite">
+              DLsite (TW)
             </SourceLink>
           )}
         </section>
