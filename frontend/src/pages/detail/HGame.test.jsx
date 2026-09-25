@@ -65,6 +65,7 @@ const ENTRY = {
   dlsite_link_tw: null,
   audio_availability: [],
   h_presentation: null,
+  art_style: ["2D", "Live2D"],
   platform: ["Steam", "DLsite"],
   highlight_group_order: ["Ahri", "Bora"],
 };

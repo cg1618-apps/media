@@ -92,9 +92,10 @@ describe("HGameAddTab", () => {
     expect(latest.platform).toEqual([]);
     await user.click(within(platform).getByRole("button", { name: "DLsite" }));
     expect(latest.platform).toEqual(["DLsite"]);
-    // The other two lists were never touched.
+    // The other lists were never touched.
     expect(latest.audio_availability).toBeNull();
     expect(latest.h_presentation).toBeNull();
+    expect(latest.art_style).toBeNull();
   });
 
   it("offers only H-Game franchises", async () => {

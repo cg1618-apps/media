@@ -430,7 +430,7 @@ export const defaultHComic = () => ({
 
 // The gated h-game type: Game's form minus the columns h_game does not have
 // (hours_played, the two Metacritic figures, all_achievements, all_collected,
-// and every credit but the developer), plus its own. The three multi-choice
+// and every credit but the developer), plus its own. The four multi-choice
 // fields start as null - "not recorded" - which is distinct from [] ("none of
 // these"); ChoiceChips edits them. The credit and tag keys are the role and
 // tag-field keys themselves (payloads.js CREDITS_FIELD_MAP).
@@ -472,6 +472,7 @@ export const defaultHGame = () => ({
   language_availability: "",
   audio_availability: null,
   h_presentation: null,
+  art_style: null,
   platform: null,
   my_rating: "",
   usefulness: "",

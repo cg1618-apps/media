@@ -31,6 +31,7 @@ import {
   GAME_RELEASE_STATUSES,
   GAME_TYPES,
   H_COMIC_USEFULNESS,
+  H_GAME_ART_STYLES,
   H_GAME_AUDIO_AVAILABILITY,
   H_GAME_H_PRESENTATIONS,
   H_GAME_LANGUAGE_AVAILABILITY,
@@ -235,7 +236,7 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
       </div>
 
       {/* The fixed vocabularies. Language and animation are one answer each;
-          the other three are sets, where None and Unknown are two different
+          the other four are sets, where None and Unknown are two different
           answers (ChoiceChips). Platform is where it is sold, set by hand -
           not Game's hardware Platform tag, and never filled from IGDB. */}
       <SectionHeader icon="fa-layer-group" title="Content" />
@@ -245,6 +246,7 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
       </div>
       {choices("audio_availability", "Audio", H_GAME_AUDIO_AVAILABILITY, "Which parts are voiced")}
       {choices("h_presentation", "H 演出形式", H_GAME_H_PRESENTATIONS)}
+      {choices("art_style", "Art Style", H_GAME_ART_STYLES, "What the game looks like")}
       {choices("platform", "Platform", H_GAME_PLATFORMS, "Where it is sold")}
 
       <SectionHeader icon="fa-star" title="Rating" />

@@ -1134,6 +1134,7 @@ def parse_h_game_from_sheet(raw: dict) -> dict:
         "h_presentation": _choice_list_from_sheet(
             raw.get("h_presentation"), "h_presentation"
         ),
+        "art_style": _choice_list_from_sheet(raw.get("art_style"), "art_style"),
         "platform": _choice_list_from_sheet(raw.get("platform"), "platform"),
         "igdb_id": parse_from_sheet(raw.get("igdb_id"), int),
         "igdb_link": parse_from_sheet(raw.get("igdb_link"), str),

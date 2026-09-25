@@ -361,6 +361,18 @@ H_GAME_AUDIO_AVAILABILITY: tuple[str, ...] = ("一般對話", "H場景")
 # H 演出形式 - how the H scenes are presented. Multi-choice.
 H_GAME_H_PRESENTATIONS: tuple[str, ...] = ("靜圖", "動圖", "2D動畫", "3D動畫", "互動")
 
+# What the game looks like - independent of H_GAME_H_PRESENTATIONS, which is
+# how the H scenes are delivered. Multi-choice.
+H_GAME_ART_STYLES: tuple[str, ...] = (
+    "2D",
+    "2.5D",
+    "3D",
+    "Pixel",
+    "Live2D",
+    "Live-action-like",
+    "Live-action",
+)
+
 # Where it is sold. Multi-choice, hand-set, never filled from IGDB - not
 # Game's game_platform tag field, which names hardware.
 H_GAME_PLATFORMS: tuple[str, ...] = ("Steam", "DLsite", "Nintendo", "Other")

@@ -466,7 +466,10 @@ export default function HGame() {
                     { label: "Audio", value: choiceText(hGame.audio_availability) },
                     { label: "H 演出形式", value: choiceText(hGame.h_presentation) },
                   ],
-                  { label: "Platform", value: choiceText(hGame.platform) },
+                  [
+                    { label: "Art Style", value: choiceText(hGame.art_style) },
+                    { label: "Platform", value: choiceText(hGame.platform) },
+                  ],
                   [
                     { label: "Release Status", value: hGame.release_status },
                     { label: "Release Date", value: hGame.release_date },

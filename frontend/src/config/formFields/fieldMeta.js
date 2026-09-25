@@ -1088,7 +1088,7 @@ export const TYPE_FIELD_META = {
   },
 
   // Game's presentation for the columns the two share, plus h-game's own.
-  // The three multi-choice lists have no default (their unset state is null,
+  // The four multi-choice lists have no default (their unset state is null,
   // "not recorded"), so /defaults offers none - inferControl says so too.
   "h-game": {
     h_game_name_cn: { label: "Name (CN)", group: "Names" },
@@ -1135,6 +1135,12 @@ export const TYPE_FIELD_META = {
     },
     h_presentation: {
       label: "H 演出形式",
+      control: "none",
+      defaultable: false,
+      group: "Classification",
+    },
+    art_style: {
+      label: "Art Style",
       control: "none",
       defaultable: false,
       group: "Classification",

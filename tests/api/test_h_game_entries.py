@@ -84,6 +84,7 @@ def test_an_entry_round_trips(admin_client):
         audio_availability=["H場景", "一般對話"],
         animation_availability=True,
         h_presentation=["互動", "靜圖"],
+        art_style=["Live2D", "2D"],
         platform=["DLsite", "Steam"],
         igdb_link="https://www.igdb.com/games/x",
         dlsite_link_jp="https://www.dlsite.com/maniax/work/=/product_id/RJ1.html",
@@ -99,6 +100,7 @@ def test_an_entry_round_trips(admin_client):
     # Kept in vocabulary order, whatever order they were ticked in.
     assert fetched["audio_availability"] == ["一般對話", "H場景"]
     assert fetched["h_presentation"] == ["靜圖", "互動"]
+    assert fetched["art_style"] == ["2D", "Live2D"]
     assert fetched["platform"] == ["Steam", "DLsite"]
     assert fetched["dlsite_link_tw"].endswith("RJ1.html")
     assert fetched["playing_status"] == "Might Play"
@@ -126,6 +128,7 @@ def test_a_list_is_deduplicated_and_empty_is_an_answer(admin_client):
         ("language_availability", "English"),
         ("audio_availability", ["Moaning"]),
         ("h_presentation", ["VR"]),
+        ("art_style", ["HD"]),
         ("platform", ["PlayStation"]),
         ("platform", "Steam"),
         ("usefulness", "very"),
