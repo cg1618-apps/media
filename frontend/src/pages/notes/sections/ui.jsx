@@ -219,6 +219,56 @@ export function LinksEditor({ links, onChange }) {
   );
 }
 
+// --- The entry cap --------------------------------------------------------
+
+// How many rows a section shows before the rest fold behind "Show all". Three
+// keeps a page of sections scannable; the count badge on the card already says
+// how many there are in all.
+export const VISIBLE_ENTRIES = 3;
+
+// The rows a section draws: all of them when unfolded, otherwise the first
+// VISIBLE_ENTRIES plus any row `keep` pins - the row being edited, so folding
+// the section never throws away a half-written form. A pinned row keeps its
+// place in the list rather than jumping to the end.
+export function capEntries(items, expanded, keep) {
+  if (expanded || items.length <= VISIBLE_ENTRIES) return items;
+  return items.filter((item, i) => i < VISIBLE_ENTRIES || (keep ? keep(item) : false));
+}
+
+// The fold state for one list of rows. `visible` is what to draw, `toggle` is
+// the props for ShowAllToggle, and `expand` is for a caller that moves a row
+// past the cap and so has to unfold the list, or the row would vanish.
+//
+// Starts folded, and stays however the reader left it: rows arriving or going
+// do not reset it.
+export function useEntryCap(items, { keep } = {}) {
+  const [expanded, setExpanded] = useState(false);
+  return {
+    visible: capEntries(items, expanded, keep),
+    toggle: {
+      total: items.length,
+      expanded,
+      onToggle: () => setExpanded(!expanded),
+    },
+    expand: () => setExpanded(true),
+  };
+}
+
+// The control under a capped list. Draws nothing when the list fits.
+export function ShowAllToggle({ total, expanded, onToggle }) {
+  if (total <= VISIBLE_ENTRIES) return null;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
+    >
+      {expanded ? "Show less" : `Show all (${total})`}
+    </button>
+  );
+}
+
 export const EmptyHint = () => (
   <p className="text-xs text-text-faint">No entries.</p>
 );

@@ -338,6 +338,12 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   provider passes both in from the owner page; `NotesContext` also drops a
   section whose `owner_where` the owner row fails (`ownerMatches`).
   `NotesTemplate`'s `SHAPES` map covers all nine stored shapes.
+  Every list section shows its first three rows and folds the rest behind
+  "Show all (N)" - `useEntryCap` and `ShowAllToggle` in `ui.jsx`, one hook
+  and one control shared by all of them rather than a copy per shape. The row
+  being edited and the draft row are never folded away; `StructuredSection`
+  caps top-level rows, or each group of a grouped section. The rules are in
+  `docs/systems/notes.md`.
 
 ## The access-mode admin pages (`pages/admin/`)
 

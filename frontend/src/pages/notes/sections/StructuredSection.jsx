@@ -34,11 +34,15 @@ import {
   MoveButtons,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
+  VISIBLE_ENTRIES,
   brandTagCls,
+  capEntries,
   draftCls,
   inputCls,
   rowCls,
   tagCls,
+  useEntryCap,
 } from "./ui";
 
 const isBlank = (v) =>
@@ -513,6 +517,12 @@ function buildTree(notes, hierarchical) {
 // rows inside a group have no handle - their order is sort_index, and it does
 // not matter. A row filed under two names is drawn under both, and editing it
 // opens the form only where the edit was started.
+//
+// The entry cap applies per GROUP, not per section: each group shows its first
+// VISIBLE_ENTRIES rows and folds the rest behind its own toggle, and every
+// group header stays on screen. The headers are what a reader scans and what
+// drags, and a header folded out of sight could be neither found nor dropped
+// on.
 function GroupedRows({
   section,
   notes,
@@ -531,6 +541,9 @@ function GroupedRows({
   // order it was saved over, so a fresh `groupOrder` from the page wins
   // without an effect having to reset anything.
   const [pending, setPending] = useState(null);
+  // The groups unfolded past the cap, by name (the nameless group by a key no
+  // name can take, since a name is trimmed text and never empty).
+  const [unfolded, setUnfolded] = useState(() => new Set());
   const order =
     pending && pending.base === groupOrder ? pending.order : groupOrder || [];
 
@@ -556,6 +569,19 @@ function GroupedRows({
     <div className="space-y-3">
       {groups.map((group, gi) => {
         const movable = canMove && group.name !== null;
+        const foldKey = group.name ?? "";
+        const expanded = unfolded.has(foldKey);
+        const rows = capEntries(
+          group.notes,
+          expanded,
+          (n) => editKey === `${group.name}|${n.system_id}`,
+        );
+        const toggleFold = () =>
+          setUnfolded((prev) => {
+            const next = new Set(prev);
+            if (!next.delete(foldKey)) next.add(foldKey);
+            return next;
+          });
         const dragProps = movable
           ? {
               draggable: true,
@@ -613,7 +639,7 @@ function GroupedRows({
               <span className="flex-1 border-t border-dotted border-border-strong/60" />
             </div>
             <div className="ml-3 pl-3 border-l border-border space-y-2">
-              {group.notes.map((n) => {
+              {rows.map((n) => {
                 const key = `${group.name}|${n.system_id}`;
                 if (editKey === key) {
                   return (
@@ -655,6 +681,11 @@ function GroupedRows({
                   </div>
                 );
               })}
+              <ShowAllToggle
+                total={group.notes.length}
+                expanded={expanded}
+                onToggle={toggleFold}
+              />
             </div>
           </section>
         );
@@ -707,6 +738,17 @@ export default function StructuredSection({
 
   const tree = buildTree(notes, section.hierarchical);
 
+  // The entry cap counts top-level rows only; a shown row shows all of its
+  // children. A row stays on screen while it, or anything under it, is being
+  // edited or is having a child drafted under it.
+  const holds = (node, id) =>
+    node.note.system_id === id || node.children.some((c) => holds(c, id));
+  const cap = useEntryCap(tree, {
+    keep: (node) =>
+      (editId !== null && holds(node, editId)) ||
+      (addingUnder && holds(node, addingUnder)),
+  });
+
   // A move swaps two SIBLINGS, and then the whole section is renumbered in
   // tree order.
   //
@@ -724,6 +766,8 @@ export default function StructuredSection({
     const siblings = parent ? parent.children : tree;
     const j = i + delta;
     if (j < 0 || j >= siblings.length || !onReorder) return;
+    // A top-level row moved past the cap would fold out of sight.
+    if (!parent && j >= VISIBLE_ENTRIES) cap.expand();
 
     const swapped = [...siblings];
     [swapped[i], swapped[j]] = [swapped[j], swapped[i]];
@@ -748,8 +792,12 @@ export default function StructuredSection({
     </div>
   );
 
+  // `i` is the row's place among ALL its siblings, not among the ones drawn,
+  // so the arrows and the move they make are right while the section is
+  // folded.
   const renderNodes = (siblings, depth, parent = null) =>
-    siblings.map((node, i) => {
+    (depth === 0 ? cap.visible : siblings).map((node) => {
+      const i = siblings.indexOf(node);
       const n = node.note;
       const editing = editId === n.system_id;
       return (
@@ -860,6 +908,7 @@ export default function StructuredSection({
       onAdd={openDraft}
     >
       {renderNodes(tree, 0)}
+      <ShowAllToggle {...cap.toggle} />
       {addingUnder === null && renderDraft()}
       {!notes.length && addingUnder === false && <EmptyHint />}
     </SectionCard>

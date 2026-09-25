@@ -19,11 +19,13 @@ import {
   LinksEditor,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
   brandTagCls,
   draftCls,
   inputCls,
   rowCls,
   tagCls,
+  useEntryCap,
 } from "./ui";
 
 const empty = () => ({
@@ -109,6 +111,9 @@ export default function EpisodeNameLinksSection({
   const [draft, setDraft] = useState(empty());
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState(empty());
+  const cap = useEntryCap(notes, {
+    keep: (row) => row.system_id === editId,
+  });
 
   // A song with no episode is just a song: where it plays is what makes it a
   // note. Mirrors validate_note_payload so the reader sees an inert Save
@@ -135,7 +140,7 @@ export default function EpisodeNameLinksSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {notes.map((n) => (
+      {cap.visible.map((n) => (
         <div
           key={n.system_id}
           className={rowCls}
@@ -190,6 +195,7 @@ export default function EpisodeNameLinksSection({
           )}
         </div>
       ))}
+      <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>
           <EpisodeNameLinksForm
