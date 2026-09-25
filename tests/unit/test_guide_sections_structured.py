@@ -66,7 +66,7 @@ def test_the_cards_read_in_this_order_on_the_page():
         "builds",
         "gear",
         "compendium",
-        # After the 劇情, 劇情列表, 劇情設定 and 待辦 cards: what it holds is not part of
+        # After the 劇情, 劇情列表, 世界觀 and 待辦 cards: what it holds is not part of
         # the guide, so it sits beside the site-wide Resources card.
         "tools",
     ]
@@ -226,9 +226,9 @@ def test_the_three_glossary_sections_share_one_spec():
         assert _field(key, "description").column == "content", key
 
 
-def test_story_terms_is_a_game_only_catalogue_section_in_the_setting_card():
+def test_story_terms_is_a_game_only_catalogue_section_in_the_worldbuilding_card():
     section = ns.section_by_key("story_terms")
-    assert section.group == "story_setting"
+    assert section.group == "worldbuilding"
     assert section.owners == ("game",)
     assert section.scope == ns.SCOPE_CATALOG
 
