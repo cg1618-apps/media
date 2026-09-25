@@ -140,6 +140,7 @@ export const LABELLABLE_TABS = [
   "comic",
   "game",
   "h-comic",
+  "h-game",
   "franchise",
 ];
 

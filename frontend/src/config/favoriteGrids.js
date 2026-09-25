@@ -21,6 +21,11 @@
 //
 // `forType` picks which of a group's covers to show (see getCoverForSlot).
 // null means "any entry under it", which is what the ACG grid wants.
+//
+// `gatedType` marks a grid that holds only a gated media type's rows. It is
+// drawn - on the statistics page, in its sidebar and in the admin editor -
+// only for a session that can see that type: visibleFavoriteGrids below.
+import { canSeeGatedType } from "../lib/gatedTypes";
 
 export const FAVORITE_GRIDS = [
   {
@@ -96,4 +101,28 @@ export const FAVORITE_GRIDS = [
     title: "Favourite games",
     short: "Game entries",
   },
+  {
+    id: "h-game-franchises",
+    key: "H-Game",
+    tier: "franchise",
+    title: "Favourite h-game franchises",
+    short: "H-Game",
+    forType: "H-Game",
+    gatedType: "h-game",
+  },
+  {
+    id: "h-game-entries",
+    key: "H-Game",
+    tier: "entry",
+    entryType: "h-game",
+    title: "Favourite h-games",
+    short: "H-Game entries",
+    gatedType: "h-game",
+  },
 ];
+
+/** The grids this session may see: every ungated one, and a gated one only
+ * when its type is visible (lib/gatedTypes.js). */
+export function visibleFavoriteGrids(auth, grids = FAVORITE_GRIDS) {
+  return grids.filter((grid) => !grid.gatedType || canSeeGatedType(auth, grid.gatedType));
+}

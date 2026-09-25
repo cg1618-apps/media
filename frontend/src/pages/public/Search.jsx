@@ -32,9 +32,10 @@ export const SCOPE_LABELS = {
   novel: "Novel",
   comic: "Comic",
   game: "Game",
-  // Gated. The server's bucket is empty for a session that cannot see the
-  // type, and NavSearch never offers the scope to one.
+  // Gated. The server leaves the bucket out for a session that cannot see
+  // the type (read as empty below), and NavSearch never offers the scope.
   "h-comic": "H-Comic",
+  "h-game": "H-Game",
   seasonal: "Seasonal",
   person: "Person",
   studio: "Studio",
@@ -140,6 +141,7 @@ export default function Search() {
   const [matchedComics, setMatchedComics] = useState([]);
   const [matchedGames, setMatchedGames] = useState([]);
   const [matchedHComics, setMatchedHComics] = useState([]);
+  const [matchedHGames, setMatchedHGames] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
   const [matchedCollections, setMatchedCollections] = useState([]);
   const [matchedPeople, setMatchedPeople] = useState([]);
@@ -180,6 +182,7 @@ export default function Search() {
       setMatchedComics([]);
       setMatchedGames([]);
       setMatchedHComics([]);
+      setMatchedHGames([]);
       setMatchedPeople([]);
       setMatchedStudios([]);
       setMatchedPublishers([]);
@@ -202,6 +205,7 @@ export default function Search() {
     setMatchedComics(results.comic ?? []);
     setMatchedGames(results.game ?? []);
     setMatchedHComics(results["h-comic"] ?? []);
+    setMatchedHGames(results["h-game"] ?? []);
     setMatchedPeople(results.person ?? []);
     setMatchedStudios(results.studio ?? []);
     setMatchedPublishers(results.publisher ?? []);
@@ -264,6 +268,12 @@ export default function Search() {
     );
   }, []);
 
+  const handleHGameUpdated = useCallback((updated) => {
+    setMatchedHGames((prev) =>
+      prev.map((g) => (g.system_id === updated.system_id ? updated : g)),
+    );
+  }, []);
+
   const handleHComicUpdated = useCallback((updated) => {
     setMatchedHComics((prev) =>
       prev.map((h) => (h.system_id === updated.system_id ? updated : h)),
@@ -284,6 +294,7 @@ export default function Search() {
   const showComic = scope === "all" || scope === "comic";
   const showGame = scope === "all" || scope === "game";
   const showHComic = scope === "all" || scope === "h-comic";
+  const showHGame = scope === "all" || scope === "h-game";
   const showPerson = scope === "all" || scope === "person";
   const showStudio = scope === "all" || scope === "studio";
   const showPublisher = scope === "all" || scope === "publisher";
@@ -334,6 +345,7 @@ export default function Search() {
     showComic && ["comics", matchedComics.length],
     showGame && ["games", matchedGames.length],
     showHComic && ["h-comics", matchedHComics.length],
+    showHGame && ["h-games", matchedHGames.length],
     showPerson && ["people", matchedPeople.length],
     showStudio && ["studios", matchedStudios.length],
     showPublisher && ["publishers", matchedPublishers.length],
@@ -796,6 +808,33 @@ export default function Search() {
                   type="h-comic"
                   data={h}
                   onUpdated={handleHComicUpdated}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* H-Game */}
+        {showHGame && matchedHGames.length > 0 && (
+          <div>
+            <div
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
+              style={{ top: sectionHeaderTop }}
+            >
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                H-Game
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {matchedHGames.length} results
+              </span>
+            </div>
+            <div className={GRID_CLS}>
+              {matchedHGames.map((g) => (
+                <MediaCard
+                  key={g.system_id}
+                  type="h-game"
+                  data={g}
+                  onUpdated={handleHGameUpdated}
                 />
               ))}
             </div>

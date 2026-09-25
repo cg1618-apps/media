@@ -46,8 +46,9 @@ const TYPE_LABELS = {
   manga: "Manga",
   novel: "Novel",
   comic: "Comic",
-  // Gated: offered as a filter only to a session that can see the type.
+  // Gated: each offered as a filter only to a session that can see its type.
   "h-comic": "H-Comic",
+  "h-game": "H-Game",
 };
 
 function ItemRow({

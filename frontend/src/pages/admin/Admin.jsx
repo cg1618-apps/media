@@ -1442,7 +1442,9 @@ function DuplicatesModal({ results, onClose }) {
 
 export default function Admin() {
   const { showToast } = useToast();
-  const canSeeHComic = canSeeGatedType(useAuth(), "h-comic");
+  const auth = useAuth();
+  const canSeeHComic = canSeeGatedType(auth, "h-comic");
+  const canSeeHGame = canSeeGatedType(auth, "h-game");
 
   // Season config
   const [currentSeason, setCurrentSeason] = useState("Loading...");
@@ -2029,6 +2031,11 @@ export default function Admin() {
                 ...(canSeeHComic
                   ? [{ label: "H-Comic", url: "/api/data-control/fill/h-comic" }]
                   : []),
+                // Game's IGDB and Steam fill over the h-game table, in Fill
+                // All like Game. Gated like every other h-game surface.
+                ...(canSeeHGame
+                  ? [{ label: "H-Game", url: "/api/data-control/fill/h-game" }]
+                  : []),
                 // The only non-media type here: a studio fills its logo and
                 // founding facts from MAL's producer record. Replace has no
                 // Studio row to match - see PipelineSpec.fill_only.
@@ -2065,6 +2072,10 @@ export default function Admin() {
                 // drifts) and then Steam: the live prices, the Metacritic
                 // score, and this collection's own playtime.
                 { label: "Game", url: "/api/data-control/replace/game" },
+                // Game's Steam Replace, limited to the columns h_game has.
+                ...(canSeeHGame
+                  ? [{ label: "H-Game", url: "/api/data-control/replace/h-game" }]
+                  : []),
               ]}
               streamRunning={streamRunning === "replace"}
               onStart={(url) => startStream(url, "replace")}

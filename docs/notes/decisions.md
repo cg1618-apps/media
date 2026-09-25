@@ -2094,6 +2094,24 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   registry edit. `h_game_highlights` copies `h_comic_highlights`' fields -
   the second copy, so not factored out yet - with the locator labelled
   "Route / Scene" and no `owner_where`.
+- **A franchise family of its own.** `FRANCHISE_FAMILY_FOR_TYPE` maps
+  `H-Game` to `h-game`, apart from the `h-comic` family H-Comic and Hentai
+  share: an h-game never sits in a franchise with an adult comic or anime,
+  by the owner's choice.
+- **DLsite is two plain links, not an id and not JSONB.** Nothing fetches
+  DLsite, so an id would be decoration; the JP and TW stores are exactly two
+  fixed slots, so two columns sit beside `steam_link` and `igdb_link` in
+  the Sources card, the forms and the sheet, where a JSONB object would
+  put two links in one cell.
+- **Game Spend stays games only.** The copies table is shared, but the
+  statistic reads the `game` list's copies, so an h-game purchase never
+  reaches a page a narrow session can open.
+- **A multi-choice field is chips, with None and Unknown as chips too.**
+  `ChoiceChips` sets `[]` from None and `null` from Unknown, so the
+  difference the column keeps is one the form can express.
+- **Usefulness sits in the completion block**, beside Completion Level, All
+  Endings and All CG, because the shared tracker card has no per-type slot.
+- **Its nav row is under Restricted**, with H-Comic's, not in the Library.
 
 ### Game Replace runs IGDB as well as Steam (2026-09-25)
 

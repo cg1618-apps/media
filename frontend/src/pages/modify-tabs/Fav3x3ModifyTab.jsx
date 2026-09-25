@@ -14,7 +14,8 @@ import {
   favoriteSearchNames,
   slotIn,
 } from "../../utils/statsUtils";
-import { FAVORITE_GRIDS } from "../../config/favoriteGrids";
+import { visibleFavoriteGrids } from "../../config/favoriteGrids";
+import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -403,6 +404,12 @@ function GridEditor({
 export default function Fav3x3ModifyTab({ lists, setList }) {
   const { showToast } = useToast();
   const [savingByGrid, setSavingByGrid] = useState({});
+  // The two h-game grids only for a session that can see the gated type.
+  const visibleGatedTypes = useAuth()?.visibleGatedTypes;
+  const grids = useMemo(
+    () => visibleFavoriteGrids({ visibleGatedTypes }),
+    [visibleGatedTypes],
+  );
 
   // Covers come from the entries hanging off a group, so both indexes are
   // built once here and shared by every grid.
@@ -420,6 +427,7 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
       ...(lists.novel || []).map((e) => ({ ...e, _type: "novel" })),
       ...(lists.comic || []).map((e) => ({ ...e, _type: "comic" })),
       ...(lists.game || []).map((e) => ({ ...e, _type: "game" })),
+      ...(lists["h-game"] || []).map((e) => ({ ...e, _type: "h_game" })),
     ];
     const group = (field) => {
       const grouped = {};
@@ -436,7 +444,7 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
   const optionsByGrid = useMemo(
     () =>
       Object.fromEntries(
-        FAVORITE_GRIDS.map((grid) => [
+        grids.map((grid) => [
           grid.id,
           favoriteOptions(grid, {
             franchises: lists.franchise,
@@ -446,7 +454,7 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
           }),
         ]),
       ),
-    [lists, bySeries],
+    [grids, lists, bySeries],
   );
 
   // What is saved, per grid, read back off the lists. The draft starts as a
@@ -454,12 +462,12 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
   const originalByGrid = useMemo(
     () =>
       Object.fromEntries(
-        FAVORITE_GRIDS.map((grid) => [
+        grids.map((grid) => [
           grid.id,
           computeOriginal(optionsByGrid[grid.id], grid),
         ]),
       ),
-    [optionsByGrid],
+    [grids, optionsByGrid],
   );
 
   const [drafts, setDrafts] = useState(originalByGrid);
@@ -467,13 +475,13 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
   const isDirtyByGrid = useMemo(
     () =>
       Object.fromEntries(
-        FAVORITE_GRIDS.map((grid) => [
+        grids.map((grid) => [
           grid.id,
           JSON.stringify(drafts[grid.id] || {}) !==
             JSON.stringify(originalByGrid[grid.id] || {}),
         ]),
       ),
-    [drafts, originalByGrid],
+    [grids, drafts, originalByGrid],
   );
 
   const handleSlotChange = useCallback((grid, slot, rowId) => {
@@ -563,7 +571,7 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
 
   return (
     <div className="space-y-6">
-      {FAVORITE_GRIDS.map((grid) => (
+      {grids.map((grid) => (
         <GridEditor
           key={grid.id}
           grid={grid}

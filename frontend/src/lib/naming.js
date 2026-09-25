@@ -10,14 +10,22 @@ export function cleanString(str) {
     .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
 }
 
+// The type key -> name-column prefix, for the types whose key is not their
+// prefix. h-comic has a chain of its own below; h-game follows the generic
+// one, CN -> EN -> Alt -> Roman -> JP, which is HGameResponse.display_name's.
+const NAME_PREFIX = {
+  "anime-movie": "anime_movie",
+  "tv-show": "tv",
+  "h-game": "h_game",
+};
+
+function namePrefix(type) {
+  return NAME_PREFIX[type] || type;
+}
+
 export function getDisplayName(item, type) {
   if (!item) return "";
-  const prefix =
-    type === "anime-movie"
-      ? "anime_movie"
-      : type === "tv-show"
-        ? "tv"
-        : type;
+  const prefix = namePrefix(type);
   if (type === "series") {
     return (
       item.series_name_cn ||
@@ -85,12 +93,7 @@ export function getNamingFields(item, type) {
 
 export function getSortName(item, type) {
   if (!item) return "";
-  const prefix =
-    type === "anime-movie"
-      ? "anime_movie"
-      : type === "tv-show"
-        ? "tv"
-        : type;
+  const prefix = namePrefix(type);
   if (type === "series") {
     return (
       item.series_name_en || item.series_name_cn || item.series_name_alt || ""

@@ -1,5 +1,11 @@
 // Build request payloads from anime / anime-movie form state.
 
+import {
+  H_GAME_AUDIO_AVAILABILITY,
+  H_GAME_H_PRESENTATIONS,
+  H_GAME_PLATFORMS,
+} from "../config/fieldOptions";
+
 // Which form fields feed the credits endpoint for each media type, and what
 // credit role / tag field key they map to there. Mirrors
 // app/utils/credit_roles.py (CREDIT_ROLES, TAG_FIELDS) - keep the two in
@@ -111,6 +117,20 @@ const CREDITS_FIELD_MAP = {
     },
     tags: {
       original_source: "original_source",
+      h_genre_plot: "h_genre_plot",
+      h_genre_appearance: "h_genre_appearance",
+      h_genre_relation: "h_genre_relation",
+    },
+  },
+  // Also new: the developer is its one credit, and it shares game's genre and
+  // theme vocabularies and h-comic's three adult genre ones.
+  "h-game": {
+    credits: {
+      studio: "studio",
+    },
+    tags: {
+      game_genre: "game_genre",
+      game_theme: "game_theme",
       h_genre_plot: "h_genre_plot",
       h_genre_appearance: "h_genre_appearance",
       h_genre_relation: "h_genre_relation",
@@ -431,6 +451,120 @@ export function hComicFieldsPayload(f) {
       })),
     read_next: f.read_next ?? false,
     to_reread: f.to_reread ?? false,
+    cover_image_file: f.cover_image_file || null,
+    remark: f.remark || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// H-Game
+// ---------------------------------------------------------------------------
+
+// The copy rows and source rows, shaped exactly as gameFieldsPayload sends
+// them: h-game shares game's purchase records (game_copy) and its sources
+// contract.
+function sourcesPayload(rows) {
+  return (rows || [])
+    .filter((s) => (s.name || "").trim())
+    .map((s) => ({
+      kind: s.kind || "access",
+      bucket: s.bucket || "other",
+      name: s.name.trim(),
+      url: (s.url || "").trim() || null,
+      available: s.available ?? null,
+    }));
+}
+
+function copiesPayload(rows) {
+  return (rows || [])
+    .filter((c) => c.storefront || c.ownership || c.copy_format)
+    .map((c, i) => ({
+      ...(c.system_id ? { system_id: c.system_id } : {}),
+      storefront: c.storefront || null,
+      ownership: c.ownership || null,
+      copy_format: c.copy_format || null,
+      acquisition: c.acquisition || null,
+      price_paid: num(c.price_paid),
+      price_currency: c.price_currency || null,
+      acquired_date: c.acquired_date || null,
+      remark: c.remark || null,
+      position: i + 1,
+    }));
+}
+
+/**
+ * A multi-choice list as the h-game schemas take it: null is "not recorded"
+ * and travels as null; a list travels as a list, [] included ("none of
+ * these"), in vocabulary order when one is given. The server de-duplicates
+ * and orders again, so this is only so the request says what will be stored.
+ */
+export function choiceList(value, vocabulary) {
+  if (value == null) return null;
+  const held = new Set(Array.isArray(value) ? value : [value]);
+  if (!vocabulary) return [...held];
+  return [
+    ...vocabulary.filter((v) => held.has(v)),
+    ...[...held].filter((v) => !vocabulary.includes(v)),
+  ];
+}
+
+/**
+ * The scalar half of an h-game's create/update body - everything but the
+ * franchise and series ids, which the caller resolves (and may have just
+ * created) first.
+ *
+ * Game's shape for the columns the two share, minus the ones h_game lacks.
+ * `highlight_group_order` is not in the form - the detail page's drag writes
+ * it - so it is never sent from here, and a save leaves it alone.
+ */
+export function hGameFieldsPayload(f) {
+  return {
+    h_game_name_cn: f.h_game_name_cn || null,
+    h_game_name_en: f.h_game_name_en || null,
+    h_game_name_roman: f.h_game_name_roman || null,
+    h_game_name_jp: f.h_game_name_jp || null,
+    h_game_name_alt: f.h_game_name_alt || null,
+    series_number: int(f.series_number),
+    playstyle: f.playstyle || null,
+    game_type: f.game_type || null,
+    // ck_h_game_base_no_parent: a Base Game may never carry one.
+    base_game_id: f.game_type === "Base Game" ? null : f.base_game_id || null,
+    completion_level: f.completion_level || null,
+    all_endings: f.all_endings || null,
+    all_cg: f.all_cg || null,
+    steam_progress_sync: tri(f.steam_progress_sync),
+    achievements_earned: int(f.achievements_earned),
+    achievements_total: int(f.achievements_total),
+    release_status: f.release_status || null,
+    release_date: f.release_date || null,
+    current_patch: f.current_patch || null,
+    hltb_main: num(f.hltb_main),
+    hltb_main_extra: num(f.hltb_main_extra),
+    hltb_completionist: num(f.hltb_completionist),
+    price_original_us: num(f.price_original_us),
+    price_original_jp: num(f.price_original_jp),
+    price_original_tw: num(f.price_original_tw),
+    price_current_us: num(f.price_current_us),
+    price_current_jp: num(f.price_current_jp),
+    price_current_tw: num(f.price_current_tw),
+    language_availability: f.language_availability || null,
+    audio_availability: choiceList(f.audio_availability, H_GAME_AUDIO_AVAILABILITY),
+    animation_availability: tri(f.animation_availability),
+    h_presentation: choiceList(f.h_presentation, H_GAME_H_PRESENTATIONS),
+    platform: choiceList(f.platform, H_GAME_PLATFORMS),
+    playing_status: f.playing_status || "Might Play",
+    my_rating: f.my_rating || null,
+    usefulness: f.usefulness || null,
+    igdb_id: int(f.igdb_id),
+    igdb_link: f.igdb_link || null,
+    steam_appid: int(f.steam_appid),
+    steam_link: f.steam_link || null,
+    dlsite_link_jp: f.dlsite_link_jp || null,
+    dlsite_link_tw: f.dlsite_link_tw || null,
+    sources: sourcesPayload(f.sources),
+    copies: copiesPayload(f.copies),
+    play_next: f.play_next ?? false,
+    to_replay: f.to_replay ?? false,
     cover_image_file: f.cover_image_file || null,
     remark: f.remark || null,
   };

@@ -56,8 +56,11 @@ function igdbCover(game) {
  * Identifies the game against IGDB before it is saved. `onPick` receives the
  * raw IGDB object; turning it into form fields is the page's job, so this
  * widget never touches the form state itself.
+ *
+ * `searchUrl(q, limit)` names the endpoint: game's by default, and the h-game
+ * tab passes its own, which answers the same way.
  */
-export function IgdbSearchBox({ onPick }) {
+export function IgdbSearchBox({ onPick, searchUrl = endpoints.game.searchIgdb }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
@@ -77,7 +80,7 @@ export function IgdbSearchBox({ onPick }) {
     setLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(endpoints.game.searchIgdb(term, 10), {
+        const res = await fetch(searchUrl(term, 10), {
           credentials: "include",
         });
         const data = res.ok ? await res.json() : [];
@@ -92,7 +95,7 @@ export function IgdbSearchBox({ onPick }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, searchUrl]);
 
   // Clicking anywhere else closes the dropdown, as the comic picker does.
   useEffect(() => {
