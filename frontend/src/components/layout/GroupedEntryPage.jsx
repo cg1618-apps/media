@@ -36,6 +36,7 @@ export const MEDIA_TYPE_FILTERS = [
   // Gated: callers render this list through visibleByType.
   { value: "h-comic", label: "H-Comic" },
   { value: "h-game", label: "H-Game" },
+  { value: "hentai", label: "Hentai" },
 ];
 
 // A tag on a row. Colour never names a category, so every tone but `brand`

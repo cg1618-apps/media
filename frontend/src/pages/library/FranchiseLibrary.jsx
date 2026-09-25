@@ -35,6 +35,7 @@ function getFilterCategories(franchise, animeSet, mangaSet) {
   if (types.includes("Comic")) cats.push("Comic");
   if (types.includes("H-Comic")) cats.push("H-Comic");
   if (types.includes("H-Game")) cats.push("H-Game");
+  if (types.includes("Hentai")) cats.push("Hentai");
   if (cats.length === 0) cats.push("Other");
   return cats;
 }
@@ -59,6 +60,7 @@ const ENTRY_SOURCES = [
   // load effect), so a narrower one never asks.
   ["h-comic", "/api/h-comic/"],
   ["h-game", "/api/h-game/"],
+  ["hentai", "/api/hentai/"],
 ];
 
 // Breakpoints below which a column collapses, matching libraryColumns.jsx.
@@ -216,6 +218,7 @@ export default function FranchiseLibrary() {
   const authLoading = Boolean(auth?.loading);
   const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const canSeeHGame = canSeeGatedType(auth, "h-game");
+  const canSeeHentai = canSeeGatedType(auth, "hentai");
   const [allFranchises, setAllFranchises] = useState([]);
   const [allEntriesDict, setAllEntriesDict] = useState({});
   const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
@@ -234,7 +237,11 @@ export default function FranchiseLibrary() {
     // Wait for /api/auth/me: which entry lists to fetch depends on which
     // gated types this session may see.
     if (authLoading) return;
-    const visible = { "h-comic": canSeeHComic, "h-game": canSeeHGame };
+    const visible = {
+      "h-comic": canSeeHComic,
+      "h-game": canSeeHGame,
+      hentai: canSeeHentai,
+    };
     const sources = ENTRY_SOURCES.filter(([type]) => visible[type] ?? true);
     async function load() {
       try {
@@ -282,7 +289,7 @@ export default function FranchiseLibrary() {
       }
     }
     load();
-  }, [authLoading, canSeeHComic, canSeeHGame]);
+  }, [authLoading, canSeeHComic, canSeeHGame, canSeeHentai]);
 
   function toggleFilter(value) {
     setFilters((prev) => {
@@ -481,6 +488,7 @@ export default function FranchiseLibrary() {
                 <FilterTag value="Comic" label="Comic" />
                 {canSeeHComic && <FilterTag value="H-Comic" label="H-Comic" />}
                 {canSeeHGame && <FilterTag value="H-Game" label="H-Game" />}
+                {canSeeHentai && <FilterTag value="Hentai" label="Hentai" />}
                 <FilterTag value="Other" label="Other" />
               </div>
               {activeFilterCount > 0 && (

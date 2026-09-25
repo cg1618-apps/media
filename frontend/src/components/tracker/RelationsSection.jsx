@@ -32,8 +32,16 @@ const rowKey = (row) =>
   row.system_id ||
   `${row.relation_type}:${row.other.media_type}:${row.other.entry_id}`;
 
-export default function RelationsSection({ mediaType, entryId }) {
+// `onRows`, when given, is handed every row this card loads, so a page that
+// needs to know about one relation (the h-comic page names the hentai its
+// derived animation status comes from) reads it from here rather than asking
+// the server a second time.
+export default function RelationsSection({ mediaType, entryId, onRows }) {
   const [rows, setRows] = useState([]);
+
+  useEffect(() => {
+    onRows?.(rows);
+  }, [rows, onRows]);
 
   useEffect(() => {
     if (!mediaType || !entryId) return;

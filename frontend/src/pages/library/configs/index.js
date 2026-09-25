@@ -11,6 +11,7 @@ import comic from "./comic";
 import game from "./game";
 import hComic from "./hComic";
 import hGame from "./hGame";
+import hentai from "./hentai";
 
 export const LIBRARY_CONFIGS = {
   anime,
@@ -27,4 +28,5 @@ export const LIBRARY_CONFIGS = {
   "h-comic": hComic,
   // Gated the same way, behind its own static route.
   "h-game": hGame,
+  hentai,
 };

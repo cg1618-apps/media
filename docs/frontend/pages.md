@@ -38,10 +38,12 @@ are a large share of the bundle and never needed on first paint.
 | `/library/character` | `CharacterLibrary` — `library/CharacterLibrary.jsx` (matched before `/library/:type`) | lazy |
 | `/library/h-comic` | `Library type="h-comic"` — same file, declared on its own inside `<ProtectedRoute gatedType="h-comic">` (matched before `/library/:type`) | eager, **gated** |
 | `/library/h-game` | `Library type="h-game"` — the same, inside `<ProtectedRoute gatedType="h-game">` | eager, **gated** |
+| `/library/hentai` | `Library type="hentai"` — the same, inside `<ProtectedRoute gatedType="hentai">` | eager, **gated** |
 | `/library/:type` | `Library` — `library/Library.jsx` (anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game; anything else redirects to `/under-development`) | eager |
 | `/anime/:system_id` … `/game/:system_id` | `detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx` (`/movie`), `TV.jsx` (`/tv-show`), `Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx`, `Game.jsx` | eager |
 | `/h-comic/:system_id` | `detail/HComic.jsx`, inside `<ProtectedRoute gatedType="h-comic">` | eager, **gated** |
 | `/h-game/:system_id` | `detail/HGame.jsx`, inside `<ProtectedRoute gatedType="h-game">` | eager, **gated** |
+| `/hentai/:system_id` | `detail/Hentai.jsx`, inside `<ProtectedRoute gatedType="hentai">` | eager, **gated** |
 | `/collection/:system_id` | `detail/Collection.jsx` → `CollectionPage.jsx` | eager |
 | `/franchise/:system_id` | `detail/Franchise.jsx` → `FranchisePage.jsx` | eager |
 | `/series/:system_id` | `detail/Series.jsx` → `SeriesPage.jsx` | eager |
@@ -61,8 +63,9 @@ are a large share of the bundle and never needed on first paint.
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
 
 **Gated routes.** The two h-comic routes sit inside
-`<ProtectedRoute gatedType="h-comic">`, and the two h-game routes inside
-`<ProtectedRoute gatedType="h-game">`; each asks `canSeeGatedType`
+`<ProtectedRoute gatedType="h-comic">`, the two h-game routes inside
+`<ProtectedRoute gatedType="h-game">`, and the two hentai routes inside
+`<ProtectedRoute gatedType="hentai">`; each asks `canSeeGatedType`
 (`lib/gatedTypes.js`) for its own type - the question its nav row asks too. A signed-in session
 that cannot see the type is sent to `/`, as for a path that does not exist; a
 signed-out visitor is sent to log in, since an account may bring a mode that
@@ -81,7 +84,7 @@ about styling.
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
 | `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`), Seiyuu `/library/seiyuu` · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
-| `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
+| `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions` |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults` |
@@ -127,13 +130,13 @@ repeats all of it, indicator first.
 debounces 250 ms, discards stale responses by request id, and calls
 `GET /api/search/?q=…&limit=20[&scope=…]`. Scopes: all, collection, franchise,
 series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game,
-h-comic and h-game (each offered only to a session that can see the type), seasonal, person,
+h-comic, h-game and hentai (each offered only to a session that can see the type), seasonal, person,
 studio, publisher. With scope `all`, `TYPE_QUOTAS`
 (collection 3, franchise 3, series 3, anime 10, anime-movie 3, movie 3,
 tv-show 3, cartoon 5, manga 5, novel 5, comic 5, game 5, h-comic 5, h-game 5,
-seasonal 3, person 2, studio 2, publisher 2) act as first-pass
+hentai 5, seasonal 3, person 2, studio 2, publisher 2) act as first-pass
 floors that `mergeBuckets` fills in
-order then round-robins up to `MAX_RESULTS = 20` (the quotas sum to 72, so
+order then round-robins up to `MAX_RESULTS = 20` (the quotas sum to 77, so
 they never all fill). The server leaves a gated type's bucket out altogether
 for a session that cannot see the type, and a missing bucket reads as empty. Person, studio and publisher come last and smallest on
 purpose: a query is usually about a title, so a name match on a credited
@@ -242,9 +245,10 @@ Cards cap at the total and toast "Cannot exceed total episodes/volumes/…".
 File `pages/public/Search.jsx`. Reads `?q` and `?scope` (default `all`).
 `useApiQuery(["api","search"], "/api/search/", { params: { q, scope }, enabled: hasQuery })`
 → effective key `["api","search",{q,scope}]`. The response is
-`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, game, person, studio, publisher}`
+`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, game, "h-comic", "h-game", hentai, person, studio, publisher}`
 plus `related_franchises` (the franchises of the matched anime — used as
-filter pills, not name matches). Results are copied into local state so a
+filter pills, not name matches); the three gated buckets are left out for a
+session that cannot see the type and read as `[]`. Results are copied into local state so a
 card's `onUpdated` can replace a row without a refetch.
 
 Layout: sticky header "Search Results for “q”" + scope pill + a count line
@@ -256,7 +260,8 @@ only when the scope allows and the bucket is non-empty: **Collections**
 `franchise_id`), **Franchises** (`TierCard` labelled "{franchise_type}
 Franchise"), **Series**, **Anime** (sub-grouped TV / ONA, Movies, Other by
 `airing_type`), **Anime Movies**, **Movies**, **TV Shows**, **Cartoons**,
-**Manga**, **Novel**, **Comic**, **Game** — all `MediaCard` grids — and last
+**Manga**, **Novel**, **Comic**, **Game**, **H-Comic**, **H-Game**,
+**Hentai** — all `MediaCard` grids — and last
 **People**, **Studios** and **Publishers**, `PersonCard` / `StudioCard` /
 `PublisherCard` grids (`components/cards/StaffCard.jsx`, the same cards the
 three libraries use) linking to `/person/:id`, `/studio/:id` and
@@ -273,20 +278,26 @@ Admin-only behaviour comes from `MediaCard` itself.
 ### Library — `/library/:type`
 
 Files `pages/library/Library.jsx`, `pages/library/configs/index.js` +
-`configs/{anime,animeMovie,movie,tvShow,cartoon,manga,novel,comic,game,hComic,hGame}.jsx`,
+`configs/{anime,animeMovie,movie,tvShow,cartoon,manga,novel,comic,game,hComic,hGame,hentai}.jsx`,
 `components/layout/LibraryLayout.jsx`, `components/layout/libraryColumns.jsx`,
 `hooks/useLibraryState.js`.
 
 One page, one config per type. The type is the route's `:type`, or the
-`type` prop of the two routes that name it - `/library/h-comic` and
-`/library/h-game`, declared separately so their gates run first. The h-comic
+`type` prop of the three routes that name it - `/library/h-comic`,
+`/library/h-game` and `/library/hentai`, declared separately so their gates
+run first. The h-comic
 config filters by region,
 reading status, serialization status, originality, animation status and
 usefulness, and its Progress column reads in the region's unit (pages on JP,
 chapters on KR). The h-game config is Game's without playtime or Metacritic:
 it filters by type, play status, play style, language, platform (an entry
 matches when its list holds a chosen value), ownership, release status and
-usefulness, and its columns add style, language and achievements. `Library.jsx` looks up `LIBRARY_CONFIGS[type]`,
+usefulness, and its columns add style, language and achievements. The
+hentai config has no progress column - one entry is one episode: it filters
+by watch status, airing status, source material, originality and usefulness,
+sorts by title, release date and my rating, and its columns are franchise,
+title, source, airing status, usefulness, my rating, the watch button and
+the watch-next / to-rewatch flags. `Library.jsx` looks up `LIBRARY_CONFIGS[type]`,
 runs `useMediaList(type, LIST_OPTIONS)`, `useMediaList("franchise")` and
 (when `config.usesSeries`) `useMediaList("series")`, and hands everything to
 `LibraryLayout`. `useLibraryState` holds search text, sort, grid/table view,
@@ -303,7 +314,7 @@ movie, manga or novel library sorted by either AniList figure shows the
 AniList score on every card instead of the MAL one. Both AniList sorts point
 at `anilist_rating` — a card has one score slot, and a popularity rank is
 not the number worth reading in it. A sort that names nothing leaves the card
-on its default, which is what the five types with no AniList figure do.
+on its default, which is what the eight types with no AniList figure do.
 
 Filter types: `set` (static `options`), `set-dynamic` (options derived from
 the data), `set-grouped` (group labels mapped through `WATCHING_STATUS_GROUP`
@@ -330,7 +341,7 @@ plan-flag checkboxes (`planFlagColumn`) are disabled for guests.
 | comic | yes | comicType: set-dynamic · readingStatus · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`), my, read, to_reread |
 | game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) · ownership: set-dynamic · releaseStatus: set-dynamic | title (CN-first), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my, play (`playButtonColumn`), to_replay |
 
-All default to the `title` sort. `Library.test.jsx` pins the nine config
+All default to the `title` sort. `Library.test.jsx` pins the twelve config
 keys, requires more than three table columns and a `my_rating` sort per
 config, and checks the unknown-type redirect. Search strings cover every name
 field of the entry plus franchise/series names, release date/season (anime
@@ -362,8 +373,8 @@ with member count.
 File `pages/library/FranchiseLibrary.jsx`. Raw `fetch` of `/api/franchise/`,
 `/api/collection/` and **every** entry list the session may see, each
 `?limit=2000`, driven by the `ENTRY_SOURCES` table at the top of the file
-rather than by positional bindings - the gated `h-comic` and `h-game` lists
-each only for a session that can see its type, which is why the load waits
+rather than by positional bindings - the gated `h-comic`, `h-game` and
+`hentai` lists each only for a session that can see its type, which is why the load waits
 for `/api/auth/me`. The
 full set is a requirement, not a preference:
 `getFranchiseCover()` falls back to the placeholder silently for any entry
@@ -371,7 +382,7 @@ type the caller leaves out, and the table's Entries column counts whatever
 `ENTRY_SOURCES` lists, so a gap there undercounts it.
 
 Filter panel "Type": Anime, Manga, Novel, Anime Movie, Movie, TV, Cartoon,
-Comic, H-Comic, H-Game (each drawn only for a session that can see the type), Other
+Comic, H-Comic, H-Game, Hentai (each drawn only for a session that can see the type), Other
 (Anime/Manga only count when the type is ACG *and* the franchise actually has
 such entries) — **there is no Game category**, so a Game-only franchise files
 under "Other". Sort
@@ -575,11 +586,11 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 
 | | FranchisePage | SeriesPage | CollectionPage |
 |---|---|---|---|
-| Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, **game** lists `?franchise_id=`, **h-comic** only when `franchise_type` includes `H-Comic`, and **h-game** only when it includes `H-Game`; `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, novel, comic `?series_id=`, **game** included (no anime-movie — they have no series), **h-comic** in its own effect, only for a session that can see the type, and **h-game** likewise, and only once the parent franchise has loaded and its `franchise_type` includes `H-Game`; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
+| Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, **game** lists `?franchise_id=`, **h-comic** and **hentai** only when `franchise_type` names a type of the h-comic family (`H-Comic` or `Hentai`, `inFranchiseFamily`), and **h-game** only when it includes `H-Game`; `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, novel, comic `?series_id=`, **game** included (no anime-movie — they have no series), **h-comic** in its own effect, only for a session that can see the type, **h-game** likewise, and only once the parent franchise has loaded and its `franchise_type` includes `H-Game`, and **hentai** likewise, only under a parent franchise of the h-comic family; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
 | Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation", parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
 | Admin controls | Overall Rating select, Expectation select, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), rewatch `PlanKindToggles` | Overall Rating, Expectation, rewatch `PlanKindToggles scope="series"` (no size groups at series level) | Overall Rating, Expectation |
 | Remark | textarea (admin editable, guest disabled, shown when admin or non-empty), "Show all" opens `RemarkModal`; saved on blur / modal close via PATCH `{ remark }` | same | same |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic** and **H-Game** (each by `series_number`, then release date), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Watch Order, Relations, Notes | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic and Hentai tabs each allowed by either type of the h-comic family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Watch Order, Relations, Notes | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
@@ -719,6 +730,14 @@ never carries a seiyuu); the series number beside the series link on JP. The
 admin toolbar has Quick edit and Mark completed and **no Autofill**: h-comic
 has no external API, so its write hook fetches nothing.
 
+A JP entry's **Animation Status** is hand-set or derived, as
+`animation_status_source` says (`lib/hComicAnimation.js`). While a hentai
+adapts the entry the server serves a derived status, and the Information card
+shows it with **Derived from** and a link to each adapting hentai
+(`adaptingHentai`). The names come from `RelationsSection`'s own rows, handed
+up through its `onRows` prop, so naming them costs no request; until the rows
+arrive the note reads "a linked hentai adaptation".
+
 `HComicNotes.jsx` hands the notes page the entry row (so the KR-only
 Highlights section is dropped on a JP entry), the cast's names (suggested in
 the Highlights `names` inputs) and `highlight_group_order` with a callback that
@@ -727,7 +746,7 @@ two under both; dragging a group header - or its arrows - saves the whole new
 order, and the rows inside a group are not movable
 ([systems/notes.md](../systems/notes.md#h-comic-highlights-h_comic_highlights)).
 
-**H-Game** (`pages/detail/HGame.jsx`) is the other gated type's page, routed
+**H-Game** (`pages/detail/HGame.jsx`) is the second gated type's page, routed
 the same way. It is Game's page for what `h_game` holds: one `NotesProvider`
 around the page, `MyTrackerCard` (playing status, rating, To Replay), a
 Progress and Todo slip, the Prices card, the read-only Copies slip
@@ -750,11 +769,27 @@ exactly as on H-Comic; an h-game has no cast, so the Highlights `names` inputs
 take free text with no suggestions
 ([systems/notes.md](../systems/notes.md#h-game-highlights-h_game_highlights)).
 
+**Hentai** (`pages/detail/Hentai.jsx`) is the third gated type's page, routed
+the same way. One entry is one episode, so it is laid out like Movie, with no
+episode counter: a local `HentaiTrackerBlock` (watching status, rating,
+**usefulness**, Watch next, To rewatch), `CommunityCard`, `NamingCard`, and
+three cards - **Information** (Source Material, Originality, Airing Status,
+Release Date), **Credits** (Studio via `studioValue`, Director) and
+**Genres** (Genre Plot / Appearance / Relation). The spine reads "Hentai" and
+the source material; the series number sits beside the series link. The left
+column carries `SourcesCard` with `malLink` and `RelationsSection`. The admin
+toolbar has Quick edit, Mark completed and **Autofill & update**, the
+single-entry Tenrai fetch (`replaceSingle("hentai")`: airing status, release
+date and cover, each only where blank). A Remarks slip appears only when a
+remark exists, and `HentaiNotes.jsx` is the plain wrapper - the type has no
+notes section of its own - with the `remark` section hidden exactly then.
+
 `MarkAiringModal` is not used by any detail page; only `MediaCard` opens it.
 
 **Notes.** Each `pages/detail/*Notes.jsx` is a one-liner around
 `NotesTemplate` with `ownerType` = `anime | anime-movie | cartoon | collection
-| comic | franchise | h-comic | manga | movie | novel | series | tv-show`
+| comic | franchise | h-comic | hentai | manga | movie | novel | series |
+tv-show`
 (`HComicNotes` also passes `owner`, `nameSuggestions`, `groupOrder` and
 `onGroupOrderChange`). `NotesProvider`
 (`pages/notes/NotesContext.jsx`) fetches `/api/notes/sections?owner_type=` and
@@ -829,8 +864,8 @@ Files `pages/public/Statistics.jsx`, `pages/statistics/useStatisticsData.js`,
 `pages/public/Completions.jsx`, `components/charts/BarChart.jsx`.
 
 `useStatisticsData` runs `useMediaList` for franchise, series and every
-entry type the session may see (`h-comic` and `h-game` each only when
-visible, and handed on as `null` otherwise) plus `useApiQuery(["api","seasonal"], "/api/seasonal/")` and
+entry type the session may see (`h-comic`, `h-game` and `hentai` each only
+when visible, and handed on as `null` otherwise) plus `useApiQuery(["api","seasonal"], "/api/seasonal/")` and
 `useApiQuery(["api","seasonal","current-season"], "/api/seasonal/current-season")`.
 
 `StatsSidebar.jsx` is a sticky in-page table of contents down the left, built
@@ -851,11 +886,11 @@ anime franchise; MAL rating and **AniList score** over all anime; seasonal
 per season; my rating over all manga / novels / anime movies / movies /
 **comics**; and my rating per TV show / cartoon / **game** franchise - plus a
 thirteenth, my rating over all **h-comics**, and a fourteenth, my rating per
-**H-Game** franchise (as Game's card counts game franchises), each only for a
-session that can see its type (`useStatisticsData` hands `allHComic` /
-`allHGame: null` to anyone else). Game Spend reads the `game` list only, so
-an h-game's copies never reach it. Comics
-and h-comics are counted per entry rather than per franchise, because a comic
+**H-Game** franchise (as Game's card counts game franchises), and a fifteenth,
+my rating over all **hentai**, each only for a session that can see its type
+(`useStatisticsData` hands `allHComic` / `allHGame` / `allHentai: null` to
+anyone else). Game Spend reads the `game` list only, so an h-game's copies
+never reach it. Comics, h-comics and hentai are counted per entry rather than per franchise, because a comic
 franchise is usually one long-running title. `computeScoreRows` puts a numeric column into
 a bucket ladder, and `ANILIST_BUCKETS` is `MAL_BUCKETS` scaled by ten and
 rounded — AniList's `averageScore` is an integer 0–100 against MAL's 0–10, so
@@ -897,11 +932,14 @@ one tab per type with paged sub-groups (anime by airing type, anime movie by
 studio bucket, movie/TV Disney/Marvel/other, cartoon by network, manga by
 region, novel by region, comic dynamic, game by `completion_level` on the
 closed ladder with the unrecorded ones last, h-comic by region, h-game by
-`completion_level` as game with usefulness shown per row - each gated type's
-tab and list only for a session that can see it) using `COMPLETED_STATUSES`. The
+`completion_level` as game with usefulness shown per row, hentai by
+`source_material` (Original, Manga, Novel, the unrecorded ones last) with
+usefulness shown per row - each gated type's tab and list only for a session that can see it) using `COMPLETED_STATUSES`. The
 game tab filters on `playing_status === "Completed"` plus a `completed_at`:
 the completion **level** is a separate axis shown per row, so a Main Story
-finish still counts as finished. No admin
+finish still counts as finished. The hentai tab is drawn by a local
+`GroupedCompletions` component - titled groups of ten a page, the shape the
+other tabs draw by hand. No admin
 controls on either page.
 
 ### FutureReleases — `/future-releases`
@@ -924,17 +962,17 @@ by that date, so a full date precedes a bare year. Cards are `MediaCard` with
 
 Files `pages/public/Plan.jsx`, `pages/plan/usePlanData.js`, `PlanWatchNext.jsx`,
 `PlanToRewatch.jsx`, `PlanToWatchFuture.jsx`, `PlanNextCard.jsx`.
-`usePlanData` runs a `useMediaList` for franchise, series and each of the eleven
-entry types (`h-comic` and `h-game` each enabled only for a session that can see it)
+`usePlanData` runs a `useMediaList` for franchise, series and each of the twelve
+entry types (`h-comic`, `h-game` and `hentai` each enabled only for a session that can see it)
 and `useQuery({ queryKey: ["plan-next"], queryFn: () => fetchJson("/api/plan-next/") })`
 — deliberately not a media-list key. Rows are decorated with a `bucket`
 (`utils/planNext.js` `entryBucket`) and a cover for franchise/series scopes.
 Sections: **Watch Next** (`PLAN_TABS`, `kind === "next"`, grouped by
 `SIZE_GROUPS` with manga's empties under "其他"; the **Game** tab has no
 `SIZE_GROUPS` entry at all and renders one ungrouped list, deliberately, since
-every existing bucket keys off a count and a game would key off hours; **H-Comic**
-and **H-Game** are ungrouped the same way and each drawn only for a session that can see the type), **To Rewatch**
-(`REWATCH_TABS`, scopes Franchise → Series → Entries via `scopesFor`; h-comic at entry scope only, h-game at all three as game),
+every existing bucket keys off a count and a game would key off hours; **H-Comic**,
+**H-Game** and **Hentai** are ungrouped the same way and each drawn only for a session that can see the type; hentai is queued at entry scope only), **To Rewatch**
+(`REWATCH_TABS`, scopes Franchise → Series → Entries via `scopesFor`; h-comic and hentai at entry scope only, h-game at all three as game),
 **Plan to Watch for Future Releases** (Watch When Airs / Plan to Watch,
 grouped by year, `MediaCard variant="future"`; an update bumps `reloadKey`
 which invalidates `["media-list"]` and `["plan-next"]`). Toggling plan flags
@@ -948,7 +986,7 @@ Files `pages/public/Quotes.jsx`, `Memes.jsx`, shell
 `media_type`, `is_general`, `is_favorite`, `needs_review` (admin-only
 toggle), `search_query`. Memes: `useApiQuery(["memes-grouped"], "/api/meme/grouped", { params })`
 with `owner_type`, `is_favorite`, `search_query`. The Quotes media-type
-filter offers H-Comic and H-Game only to a session that can see each type. Both group rows under an
+filter offers H-Comic, H-Game and Hentai only to a session that can see each type. Both group rows under an
 owner card (cover or tier icon; "Unlinked / deleted owner" when missing).
 Row actions: copy text/image for everyone; **admin-only** favourite toggle,
 edit (`QuoteForm` / `MemeForm`, PATCH `/api/quote/{id}` / `/api/meme/{id}`)
@@ -972,7 +1010,7 @@ lost it once `/library/seiyuu` shipped.
 ## Known rough edges (as of this commit)
 
 - Cover resolution: FranchisePage, SeriesPage and `FranchiseLibrary` pass every
-  entry list, so `getFranchiseCover()` gets the full nine it requires. The
+  entry list, so `getFranchiseCover()` gets the full set it requires. The
   remaining gaps are `usePlanData.allEntriesByFranchise`, which still skips
   comics, and `CollectionLibrary` and `CollectionPage`, which fetch eight entry
   lists and so can never draw a collection cover from a game.

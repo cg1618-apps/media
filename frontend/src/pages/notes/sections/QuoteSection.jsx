@@ -21,10 +21,12 @@ import {
   LinkPill,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
   brandTagCls,
   draftCls,
   rowCls,
   tagCls,
+  useEntryCap,
 } from "./ui";
 
 export default function QuoteSection({
@@ -57,6 +59,9 @@ export default function QuoteSection({
   const [draft, setDraft] = useState(emptyQuote());
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState(emptyQuote());
+  const cap = useEntryCap(items, {
+    keep: (row) => row.system_id === editId,
+  });
   const [busy, setBusy] = useState(false);
 
   // The Quote page reads a different cache key, so both are invalidated.
@@ -135,7 +140,7 @@ export default function QuoteSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {items.map((item) => {
+      {cap.visible.map((item) => {
         const imageUrl = getQuoteImageUrl(item.image_file);
         return (
           <div
@@ -215,6 +220,7 @@ export default function QuoteSection({
           </div>
         );
       })}
+      <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>
           <QuoteForm val={draft} setVal={setDraft} />

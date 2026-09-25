@@ -40,6 +40,11 @@ describe("resource() endpoints (derived from MEDIA_CONFIG)", () => {
     expect(resource("h-game").patch("X")).toBe("/api/h-game/X");
   });
 
+  it("derives the gated hentai resource from MEDIA_CONFIG", () => {
+    expect(resource("hentai").list()).toBe("/api/hentai/");
+    expect(resource("hentai").complete("X")).toBe("/api/hentai/X/complete");
+  });
+
   it("derives the gated h-comic resource from MEDIA_CONFIG", () => {
     expect(resource("h-comic").list()).toBe("/api/h-comic/");
     expect(resource("h-comic").complete("X")).toBe("/api/h-comic/X/complete");

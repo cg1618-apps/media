@@ -104,7 +104,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `guides` | 攻略 Guides | `fa-map` — game and h-game only: beginner, gameplay systems, controls, guide notes, trivia. The way in, not the content |
 | `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game and h-game only: stats, skills, builds, team composition |
 | `gear` | 物品 Items & Gear | `fa-sack-xmark` — game and h-game only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
-| `compendium` | 圖鑑 Compendium | `fa-dragon` — game and h-game only: characters, enemies, game terms |
+| `compendium` | 圖鑑與名詞 Compendium & Terms | `fa-dragon` — game and h-game only: characters, enemies, game terms, player terms |
 | `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game and h-game only: mods and tools, guide resources. Renders beside the site-wide Resources card, not with the 攻略 run |
 | `story` | 劇情 Story | `fa-book-open` — game and h-game only: main plot, side stories, character arcs, endings. What happens |
 | `story_list` | 劇情列表 Story List | `fa-list-ol` — game and h-game only, 4 **hierarchical** strands |
@@ -127,8 +127,8 @@ is a section wearing a second header.
 
 **結局 Endings is in 劇情 Story, not 攻略.** It sat among the guide sections
 while it had nowhere better, and an ending is what the story *does* rather
-than a guide topic — so it is the last of 劇情's four strands, and 圖鑑 is
-cleanly about the cast, the bestiary and the game's glossary.
+than a guide topic — so it is the last of 劇情's four strands, and 圖鑑與名詞 is
+cleanly about the cast, the bestiary and the two glossaries.
 
 **劇情 is what happens; 世界觀 is the world it happens in.** 劇情 holds the
 four strands of the plot — main plot, side stories, character arcs, endings.
@@ -139,16 +139,18 @@ than between the two, because 劇情 and 劇情列表 are one story told twice a
 read as a pair.
 
 **The game's vocabulary is split by where it is looked up.** 遊戲名詞 Game
-Terms (mechanics, currencies, jargon) is in 圖鑑, read while playing; 劇情名詞
+Terms (mechanics, currencies, jargon) and 玩家術語 Player Terms (the
+community's slang and abbreviations, which no menu in the game uses) are in
+圖鑑與名詞, read while playing; 劇情名詞
 Story Terms (places, factions, invented words the plot introduces) is in
 世界觀, beside the Lore it names, read while following the story. 玩法系統 Gameplay
 Systems — modes, enhancement and upgrade systems, the pull system, stages,
 style of play — is in 攻略, straight after 新手 Beginner: Beginner is the
-advice, this is the inventory of what the advice is about. All three share
+advice, this is the inventory of what the advice is about. All four share
 one spec, `_term_fields`: Chinese name (`title`), alternative name
 (`fields.name_alt`, named after the entry tables' `*_name_alt`), description.
-玩法系統 adds a free-text type (`kind`) and links; the two glossaries take no
-links, because a term is a definition to look up, not something to source.
+玩法系統 adds a free-text type (`kind`). None takes links: each is looked up,
+not sourced, and a write-up worth keeping belongs in 攻略資源 Guide Resources.
 
 **A section's group can differ per owner.** `groups_by_owner` overrides
 `group` for named owner types, the same way `labels` and `kinds_by_owner`
@@ -251,6 +253,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `characters_guide` | 角色 Characters | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `enemies` | 敵人 Enemies | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `game_terms` | 遊戲名詞 Game Terms | **structured** | compendium | game, h-game | — | — | — | no | no | no |
+| `player_terms` | 玩家術語 Player Terms | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `main_plot` | 主線劇情 Main Plot | **structured** | story | game, h-game | — | — | *(on its `chapter` field)* | no | no | no |
 | `side_plot` | 支線劇情 Side Stories | **structured** | story | game, h-game | — | — | *(on its `chapter` field)* | no | no | no |
 | `character_arcs` | 角色劇情 Character Arcs | text_links | story | game, h-game | — | — | — | no | no | no |
@@ -548,6 +551,7 @@ once when both are used.
 | The **Notes card** holds the flat sections and **renders only when ≥1 flat section is visible** (`flat.length > 0`). A comic with `remark` hidden has no flat section, so no empty headed card. | JSX near the bottom. |
 | Each group renders as its own `GroupCard` *beside* Notes (Music is a peer of Notes, not inside it). Standalone sections (`resources`, `questions`) render lifted out with no wrapper — every shape component already draws its own `SectionCard`. | Same. |
 | **Collapse-when-empty**: `GroupCard` starts collapsed when `count === 0` (`useCollapsed` in `sections/ui.jsx`); the user can toggle it. Notes card wears the same chrome but `showCount={false}`. External sections report their row count via `onCount`; while any is still `null` the card counts as unknown and stays open. | `blockCount`, `reporterFor`. |
+| **Entry cap**: a section shows its first **three** rows (`VISIBLE_ENTRIES`) and folds the rest behind a mono "Show all (N)" / "Show less" text button under the list; a section of three rows or fewer has no button. It starts folded on every page load and is per section, per page - nothing is stored. It never hides what is being written: the row being edited stays on screen when the section folds (in its own place in the list), and the draft row renders after the list, outside the cap. Every list shape, `QuoteSection` and `MemeSection` included, gets it from `useEntryCap` + `ShowAllToggle` in `sections/ui.jsx`; the singleton `remark` textarea is not a list and has none. `StructuredSection` applies it two ways, below. | `useEntryCap`, `capEntries`, `ShowAllToggle`. |
 | `hideSections` — the second scoped exception — lets an embedding page suppress sections it renders itself. Detail pages pass `hideSections={entry.remark ? ["remark"] : []}` (e.g. `frontend/src/pages/detail/Comic.jsx`, `Cartoon.jsx`, `AnimeMovie.jsx`) because they keep a dedicated remark editor writing the *same* singleton row; two editors on one row means the form's stale state would revert or delete what was typed in the notes box. | `visibleSections` memo. |
 | Errors from any card show in one banner above all cards (a group card is a sibling of Notes, so an error must not report inside the wrong one). | `error` state. |
 
@@ -561,13 +565,13 @@ once when both are used.
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
 | `NameLinksSection.jsx` | name_links | title, links |
 | `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, reorderable in the form). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
-| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns the up/down reorder buttons (`PATCH /api/notes/reorder`), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): the group headers are draggable and carry arrows, the rows are not movable. |
+| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns the up/down reorder buttons (`PATCH /api/notes/reorder`), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): the group headers are draggable and carry arrows, the rows are not movable. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; its arrows move a row by its place among all its siblings, so they are right while folded, and a move that carries a top-level row past the third place unfolds the section so the row does not vanish. A grouped section is capped **per group**, each group with its own toggle, and every group header stays on screen: the headers are what a reader scans and what drags, and a folded-away header could be neither found nor dropped on. |
 | `NamesInput.jsx` | — | the `names` input: chosen names as removable tags, a combobox suggesting `nameSuggestions` filtered by what is typed, any other text accepted |
 | `groupedRows.js` | — | pure: `groupNotes` (one group per name, a row under every name it carries, stored order first then first appearance, a trailing unnamed group only when a row names nobody), `movedGroupOrder`, `namesOf` |
 | `EpisodeNameLinksSection.jsx` | episode_name_links | locator, title, content, links, status |
 | `MusicTrackSection.jsx` | music_track | title, kind (starts on `default_kind`), status, link, content |
 | `QuoteSection.jsx` / `MemeSection.jsx` | external | adapt the long-lived quote/meme components; report counts |
-| `ui.jsx` | — | `GroupCard`, `SectionCard`, `ItemActions`, `useCollapsed`, shared classes |
+| `ui.jsx` | — | `GroupCard`, `SectionCard`, `ItemActions`, `useCollapsed`, the entry cap (`VISIBLE_ENTRIES`, `capEntries`, `useEntryCap`, `ShowAllToggle`), shared classes |
 
 ### Remark as a note
 

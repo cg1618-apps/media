@@ -22,14 +22,16 @@ const TYPE_LABELS = {
   comic: "Comic",
   "h-comic": "H-Comic",
   "h-game": "H-Game",
+  hentai: "Hentai",
 };
 
 // Types a step always covers whole, so an admin is never offered a from/to.
-// A movie is one sitting; manga and novels are stepped through as a unit here
-// rather than by chapter; an h-game step names the work, never a range of it,
-// as the backend's watch-order resolver has it. Anything not listed -
-// including a null media_type - keeps the inputs, so an unrecognised type
-// loses no control.
+// A movie is one sitting, and so is a hentai (one entry is one episode);
+// manga and novels are stepped through as a unit here rather than by
+// chapter; an h-game step names the work, never a range of it, as the
+// backend's watch-order resolver has it. Anything not listed - including a
+// null media_type - keeps the inputs, so an unrecognised type loses no
+// control.
 const WHOLE_ONLY_TYPES = new Set([
   "movie",
   "anime-movie",
@@ -37,6 +39,7 @@ const WHOLE_ONLY_TYPES = new Set([
   "novel",
   "h-comic",
   "h-game",
+  "hentai",
 ]);
 
 export const supportsEpisodeRange = (mediaType) =>

@@ -27,6 +27,7 @@ import Comic from "./pages/detail/Comic";
 import Game from "./pages/detail/Game";
 import HComic from "./pages/detail/HComic";
 import HGame from "./pages/detail/HGame";
+import Hentai from "./pages/detail/Hentai";
 
 
 import CollectionLibrary from "./pages/library/CollectionLibrary";
@@ -152,6 +153,17 @@ export default function App() {
                   <Route
                     path="/h-game/:publicId/:slug?"
                     element={<HGame />}
+                  />
+                </Route>
+                {/* The gated hentai type, guarded the same way. */}
+                <Route element={<ProtectedRoute gatedType="hentai" />}>
+                  <Route
+                    path="/library/hentai"
+                    element={<Library type="hentai" />}
+                  />
+                  <Route
+                    path="/hentai/:publicId/:slug?"
+                    element={<Hentai />}
                   />
                 </Route>
                 <Route path="/library/:type" element={<Library />} />

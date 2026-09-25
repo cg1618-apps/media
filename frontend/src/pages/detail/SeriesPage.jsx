@@ -5,7 +5,7 @@ import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
-import { canSeeGatedType } from "../../lib/gatedTypes";
+import { canSeeGatedType, inFranchiseFamily } from "../../lib/gatedTypes";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
@@ -105,6 +105,7 @@ export default function SeriesPage() {
   // cannot see the type, so only a session that can asks for its h-comics.
   const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const canSeeHGame = canSeeGatedType(auth, "h-game");
+  const canSeeHentai = canSeeGatedType(auth, "hentai");
   const { showToast } = useToast();
 
   // ── data ──────────────────────────────────────────────────────────────────
@@ -120,6 +121,7 @@ export default function SeriesPage() {
   const [gameList, setGameList] = useState([]);
   const [hComicList, setHComicList] = useState([]);
   const [hGameList, setHGameList] = useState([]);
+  const [hentaiList, setHentaiList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -339,6 +341,26 @@ export default function SeriesPage() {
     };
   }, [canSeeHGame, seriesId, parentHoldsHGames]);
 
+  // The series' hentai, the same way - only under a franchise of the h-comic
+  // family, the one kind that can hold them.
+  const parentHoldsHentai = inFranchiseFamily(parentFranchise?.franchise_type, "h-comic");
+  useEffect(() => {
+    if (!canSeeHentai || !seriesId || !parentHoldsHentai) return undefined;
+    let cancelled = false;
+    fetch(
+      buildUrl(endpoints.resource("hentai").list(), { series_id: seriesId }),
+      { credentials: "include" },
+    )
+      .then(asList)
+      .then((list) => {
+        if (!cancelled) setHentaiList(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [canSeeHentai, seriesId, parentHoldsHentai]);
+
   // Media types this series actually holds entries for. PlanKindToggles
   // further filters this down to what rewatch allows at series scope (movie,
   // tv-show, novel, comic - anime and cartoon rewatch at franchise scope only).
@@ -354,6 +376,7 @@ export default function SeriesPage() {
     if (gameList.length) list.push("game");
     if (hComicList.length) list.push("h-comic");
     if (hGameList.length) list.push("h-game");
+    if (hentaiList.length) list.push("hentai");
     return list;
   }, [
     animeList,
@@ -366,6 +389,7 @@ export default function SeriesPage() {
     gameList,
     hComicList,
     hGameList,
+    hentaiList,
   ]);
 
   const seriesApplicableRewatchTypes = useMemo(
@@ -386,6 +410,7 @@ export default function SeriesPage() {
       gameList.length && "Game",
       hComicList.length && "H-Comic",
       hGameList.length && "H-Game",
+      hentaiList.length && "Hentai",
       movieList.length && "Movies",
       tvShowList.length && "TV Shows",
       cartoonList.length && "Cartoons",
@@ -399,6 +424,7 @@ export default function SeriesPage() {
     gameList,
     hComicList,
     hGameList,
+    hentaiList,
     movieList,
     tvShowList,
     cartoonList,
@@ -465,6 +491,12 @@ export default function SeriesPage() {
   const handleHGameUpdated = useCallback(
     (u) =>
       setHGameList((p) => p.map((g) => (g.system_id === u.system_id ? u : g))),
+    [],
+  );
+
+  const handleHentaiUpdated = useCallback(
+    (u) =>
+      setHentaiList((p) => p.map((h) => (h.system_id === u.system_id ? u : h))),
     [],
   );
 
@@ -970,6 +1002,7 @@ export default function SeriesPage() {
       Game: gameList.length,
       "H-Comic": hComicList.length,
       "H-Game": hGameList.length,
+      Hentai: hentaiList.length,
     };
     return map[tab] ?? 0;
   }
@@ -1001,6 +1034,7 @@ export default function SeriesPage() {
     ...gameList,
     ...hComicList,
     ...hGameList,
+    ...hentaiList,
   ];
   const coverUrl = getSeriesCover(series, allEntries);
 
@@ -1672,6 +1706,31 @@ export default function SeriesPage() {
                   data={g}
                   isAdmin={isAdmin}
                   onUpdated={handleHGameUpdated}
+                />
+              ))}
+          </div>
+        </Section>
+      )}
+
+      {/* ── Hentai tab content ──────────────────────────────────────────── */}
+      {activeTab === "Hentai" && hentaiList.length > 0 && (
+        <Section title="Hentai" subtitle="In series order" count={hentaiList.length}>
+          <div className={GRID_CLS}>
+            {[...hentaiList]
+              .sort(
+                (a, b) =>
+                  (a.series_number ?? Infinity) - (b.series_number ?? Infinity) ||
+                  String(a.release_date || "").localeCompare(
+                    String(b.release_date || ""),
+                  ),
+              )
+              .map((h) => (
+                <MediaCard
+                  key={h.system_id}
+                  type="hentai"
+                  data={h}
+                  isAdmin={isAdmin}
+                  onUpdated={handleHentaiUpdated}
                 />
               ))}
           </div>

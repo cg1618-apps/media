@@ -16,6 +16,7 @@ import {
   COMPLETED_STATUSES,
 } from "../../utils/media";
 import { getFranchiseCover, withMediaType } from "../../lib/covers";
+import { inFranchiseFamily } from "../../lib/gatedTypes";
 import {
   HubLoading,
   HubError,
@@ -122,6 +123,7 @@ export default function FranchisePage() {
   const [gameList, setGameList] = useState([]);
   const [hComicList, setHComicList] = useState([]);
   const [hGameList, setHGameList] = useState([]);
+  const [hentaiList, setHentaiList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -232,14 +234,26 @@ export default function FranchisePage() {
         if (!fRes.ok) throw new Error("Franchise not found");
         const franchiseData = await fRes.json();
         const resolvedId = franchiseData.system_id;
-        // Only an H-Comic franchise holds h-comics (an h-comic never sits in
-        // any other), and a session that cannot see the gated type never
-        // reaches one - so the list is asked for only where it can exist.
-        const hComicFetch = parseTypes(franchiseData.franchise_type).includes(
-          "H-Comic",
-        )
+        // Only a franchise of the h-comic family (H-Comic, Hentai) holds
+        // h-comics and hentai - an entry of either never sits in any other,
+        // and the two may share one - and a session that cannot see a gated
+        // type never reaches one. So each list is asked for only where it
+        // can exist.
+        const inHComicFamily = inFranchiseFamily(
+          franchiseData.franchise_type,
+          "h-comic",
+        );
+        const hComicFetch = inHComicFamily
           ? fetch(
               buildUrl(endpoints.resource("h-comic").list(), {
+                franchise_id: resolvedId,
+              }),
+              { credentials: "include" },
+            ).then((r) => (r.ok ? r.json() : []))
+          : Promise.resolve([]);
+        const hentaiFetch = inHComicFamily
+          ? fetch(
+              buildUrl(endpoints.resource("hentai").list(), {
                 franchise_id: resolvedId,
               }),
               { credentials: "include" },
@@ -317,6 +331,7 @@ export default function FranchisePage() {
         ]);
         const hc = await hComicFetch;
         const hg = await hGameFetch;
+        const ht = await hentaiFetch;
         if (cancelled) return;
         setFranchise(franchiseData);
         setSeriesList(s);
@@ -331,6 +346,7 @@ export default function FranchisePage() {
         setGameList(gm);
         setHComicList(hc);
         setHGameList(hg);
+        setHentaiList(ht);
         setPlannedTypes(
           new Set(
             pn
@@ -387,7 +403,14 @@ export default function FranchisePage() {
   const hasCartoon = useMemo(() => types.includes("Cartoon"), [types]);
   const hasComic = useMemo(() => types.includes("Comic"), [types]);
   const hasGame = useMemo(() => types.includes("Game"), [types]);
-  const hasHComic = useMemo(() => types.includes("H-Comic"), [types]);
+  // The h-comic family: an h-comic or a hentai may sit in a franchise of
+  // either type, so each tab asks the family rather than its own type.
+  const inHComicFamily = useMemo(
+    () => inFranchiseFamily(franchise?.franchise_type, "h-comic"),
+    [franchise?.franchise_type],
+  );
+  const hasHComic = inHComicFamily;
+  const hasHentai = inHComicFamily;
   const hasHGame = useMemo(() => types.includes("H-Game"), [types]);
 
   // Media types this franchise carries a size bucket for, restricted to
@@ -420,6 +443,7 @@ export default function FranchisePage() {
     if (gameList.length) list.push("game");
     if (hComicList.length) list.push("h-comic");
     if (hGameList.length) list.push("h-game");
+    if (hentaiList.length) list.push("hentai");
     return list;
   }, [
     animeList,
@@ -433,6 +457,7 @@ export default function FranchisePage() {
     gameList,
     hComicList,
     hGameList,
+    hentaiList,
   ]);
 
   const franchiseApplicableRewatchTypes = useMemo(
@@ -454,6 +479,7 @@ export default function FranchisePage() {
       hasGame && gameList.length && "Game",
       hasHComic && hComicList.length && "H-Comic",
       hasHGame && hGameList.length && "H-Game",
+      hasHentai && hentaiList.length && "Hentai",
       hasMovie && movieList.length && "Movies",
       hasTV && tvShowList.length && "TV Shows",
       hasCartoon && cartoonList.length && "Cartoons",
@@ -467,6 +493,7 @@ export default function FranchisePage() {
     hasGame,
     hasHComic,
     hasHGame,
+    hasHentai,
     hasAnimeMovie,
     hasMovie,
     hasTV,
@@ -479,6 +506,7 @@ export default function FranchisePage() {
     gameList,
     hComicList,
     hGameList,
+    hentaiList,
     movieList,
     tvShowList,
     cartoonList,
@@ -553,6 +581,11 @@ export default function FranchisePage() {
   const handleHGameUpdated = useCallback(
     (u) =>
       setHGameList((p) => p.map((g) => (g.system_id === u.system_id ? u : g))),
+    [],
+  );
+  const handleHentaiUpdated = useCallback(
+    (u) =>
+      setHentaiList((p) => p.map((h) => (h.system_id === u.system_id ? u : h))),
     [],
   );
 
@@ -1260,6 +1293,7 @@ export default function FranchisePage() {
     ...withMediaType(gameList, "game"),
     ...withMediaType(hComicList, "h-comic"),
     ...withMediaType(hGameList, "h-game"),
+    ...withMediaType(hentaiList, "hentai"),
   ];
   const coverUrl = getFranchiseCover(
     franchise,
@@ -2158,6 +2192,30 @@ export default function FranchisePage() {
                   type="h-comic"
                   data={h}
                   onUpdated={handleHComicUpdated}
+                />
+              ))}
+          </div>
+        </Section>
+      )}
+
+      {/* ── Hentai tab content ──────────────────────────────── */}
+      {activeTab === "Hentai" && hentaiList.length > 0 && (
+        <Section title="Hentai" subtitle="One entry per episode" count={hentaiList.length}>
+          <div className={GRID_CLS}>
+            {[...hentaiList]
+              .sort(
+                (a, b) =>
+                  (a.series_number ?? Infinity) - (b.series_number ?? Infinity) ||
+                  String(a.release_date || "").localeCompare(
+                    String(b.release_date || ""),
+                  ),
+              )
+              .map((h) => (
+                <MediaCard
+                  key={h.system_id}
+                  type="hentai"
+                  data={h}
+                  onUpdated={handleHentaiUpdated}
                 />
               ))}
           </div>

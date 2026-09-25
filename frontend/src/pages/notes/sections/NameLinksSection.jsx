@@ -9,8 +9,10 @@ import {
   LinksEditor,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
   draftCls,
   inputCls,
+  useEntryCap,
 } from "./ui";
 
 const empty = () => ({ title: "", links: [""] });
@@ -54,6 +56,9 @@ export default function NameLinksSection({
   const [draft, setDraft] = useState(empty());
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState(empty());
+  const cap = useEntryCap(notes, {
+    keep: (row) => row.system_id === editId,
+  });
 
   // A bookmark with neither a name nor a link is nothing.
   const invalid = (val) =>
@@ -79,7 +84,7 @@ export default function NameLinksSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {notes.map((n) => (
+      {cap.visible.map((n) => (
         <div key={n.system_id} className="flex gap-2 items-center group">
           <span className="text-xs text-text-faint shrink-0">•</span>
           <div className="flex-1 min-w-0">
@@ -113,6 +118,7 @@ export default function NameLinksSection({
           )}
         </div>
       ))}
+      <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>
           <NameLinksForm val={draft} setVal={setDraft} />

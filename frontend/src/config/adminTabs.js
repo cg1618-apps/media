@@ -51,7 +51,7 @@ export const ADMIN_TABS = [
     icon: "fa-gamepad",
     label: "Game Entry",
   },
-  // Gated: AdminTabBar drops it for a session that cannot see h-comic, so
+  // Gated: AdminTabBar drops each for a session that cannot see its type, so
   // Add, Modify, Delete and Form Defaults all offer it or none of them do.
   {
     key: "h-comic",
@@ -65,6 +65,12 @@ export const ADMIN_TABS = [
     group: "entries",
     icon: "fa-gamepad",
     label: "H-Game Entry",
+  },
+  {
+    key: "hentai",
+    group: "entries",
+    icon: "fa-tv",
+    label: "Hentai Entry",
   },
   {
     key: "collection",

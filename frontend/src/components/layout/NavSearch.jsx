@@ -30,6 +30,7 @@ const SCOPES = [
   // reads as empty below.
   { key: "h-comic", label: "H-Comic" },
   { key: "h-game", label: "H-Game" },
+  { key: "hentai", label: "Hentai" },
   { key: "seasonal", label: "Seasonal" },
   { key: "person", label: "Person" },
   { key: "studio", label: "Studio" },
@@ -52,6 +53,7 @@ const TYPE_LABEL = {
   game: "GAME",
   "h-comic": "H-COMIC",
   "h-game": "H-GAME",
+  hentai: "HENTAI",
   seasonal: "SEASON",
   person: "PERSON",
   studio: "STUDIO",
@@ -72,6 +74,7 @@ const DETAIL_TYPES = new Set([
   "game",
   "h-comic",
   "h-game",
+  "hentai",
   "anime-movie",
   "movie",
   "tv-show",
@@ -185,6 +188,7 @@ export default function NavSearch() {
         ["game", 5],
         ["h-comic", 5],
         ["h-game", 5],
+        ["hentai", 5],
         ["seasonal", 3],
         // Last, and smallest: a query is usually about a title, so staff rows
         // take the slots the media buckets left behind rather than claiming

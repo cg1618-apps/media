@@ -1,7 +1,7 @@
 // Frontend: search every media table at once.
 //
 // A relation is bound to no tier, so its far endpoint may live in any of the
-// eleven tables and in any franchise. /api/search searches them all in one
+// twelve tables and in any franchise. /api/search searches them all in one
 // request, so this hook debounces the keystrokes and flattens the buckets it
 // gets back.
 import { useEffect, useState } from "react";
@@ -24,6 +24,7 @@ const ENTRY_TYPES = [
   // see it; a missing bucket reads as empty.
   "h-comic",
   "h-game",
+  "hentai",
 ];
 
 const MIN_QUERY = 2;

@@ -115,4 +115,21 @@ describe("QuoteSection", () => {
     await waitFor(() => expect(fetchJson).toHaveBeenCalled());
     expect(attachUploadedImage).not.toHaveBeenCalled();
   });
+
+  it("shows the first three quotes and folds the rest", async () => {
+    const user = userEvent.setup();
+    fetchJson.mockResolvedValue(
+      Array.from({ length: 5 }, (_, i) => ({
+        system_id: `quote-${i + 1}`,
+        text: `line ${i + 1}`,
+      })),
+    );
+
+    renderSection();
+
+    const toggle = await screen.findByRole("button", { name: "Show all (5)" });
+    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(3);
+    await user.click(toggle);
+    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(5);
+  });
 });

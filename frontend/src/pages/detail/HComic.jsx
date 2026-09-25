@@ -9,7 +9,7 @@
 // place in its series; a KR one counts chapters, says how far it trails the
 // official source, credits an author and an official source, and has the
 // 亮點 Highlights notes section.
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
@@ -39,6 +39,7 @@ import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useToast } from "../../hooks/useToast";
 import { entityPath } from "../../lib/entityPath";
+import { adaptingHentai, isDerivedAnimationStatus } from "../../lib/hComicAnimation";
 import { progressFor, showsField } from "../../lib/hComicRegion";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HComicNotes from "./HComicNotes";
@@ -58,6 +59,35 @@ const stepBtnCls =
   "w-8 h-8 shrink-0 text-text-muted hover:text-text hover:bg-surface-2 transition flex items-center justify-center disabled:opacity-40";
 const counterInputCls =
   "text-text w-12 text-right bg-transparent border-b border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60";
+
+// A derived animation status, and the hentai it comes from. The names are
+// the relation card's own rows (RelationsSection onRows), so naming them
+// costs no request of its own; until they arrive the note says where the
+// value comes from without naming it.
+function DerivedAnimationStatus({ hComic, adaptations }) {
+  return (
+    <>
+      {hComic.animation_status}
+      <span className="block text-xs text-text-muted mt-0.5">
+        Derived from{" "}
+        {adaptations.length === 0
+          ? "a linked hentai adaptation"
+          : adaptations.map((other, i) => (
+              <Fragment key={other.entry_id}>
+                {i > 0 && ", "}
+                {other.nav_path ? (
+                  <Link to={other.nav_path} className={lineageLinkCls}>
+                    {other.display_name}
+                  </Link>
+                ) : (
+                  other.display_name
+                )}
+              </Fragment>
+            ))}
+      </span>
+    </>
+  );
+}
 
 function CastSection({ cast }) {
   if (!cast || cast.length === 0) return null;
@@ -280,6 +310,8 @@ export default function HComic() {
   const { showToast } = useToast();
 
   const [hComic, setHComic] = useState(null);
+  const [adaptations, setAdaptations] = useState([]);
+  const handleRelationRows = useCallback((rows) => setAdaptations(adaptingHentai(rows)), []);
 
   const itemQuery = useMediaItem("h-comic", publicId);
   useCanonicalPath("h-comic", itemQuery.data);
@@ -476,7 +508,11 @@ export default function HComic() {
             originalSource={shows("original_source") ? hComic.original_source : null}
           />
 
-          <RelationsSection mediaType="h-comic" entryId={hComic.system_id} />
+          <RelationsSection
+            mediaType="h-comic"
+            entryId={hComic.system_id}
+            onRows={handleRelationRows}
+          />
         </div>
 
         {/* ========== RIGHT COLUMN ========== */}
@@ -535,7 +571,14 @@ export default function HComic() {
                   ? [
                       [
                         { label: "Originality", value: hComic.originality },
-                        { label: "Animation Status", value: hComic.animation_status },
+                        {
+                          label: "Animation Status",
+                          value: isDerivedAnimationStatus(hComic) ? (
+                            <DerivedAnimationStatus hComic={hComic} adaptations={adaptations} />
+                          ) : (
+                            hComic.animation_status
+                          ),
+                        },
                       ],
                       [
                         { label: "Series Number", value: num(hComic.series_number) },

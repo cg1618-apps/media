@@ -23,9 +23,136 @@ const COMPLETION_TABS = [
   // Gated: offered through visibleByType only.
   { key: "h-comic", label: "H-Comic" },
   { key: "h-game", label: "H-Game" },
+  { key: "hentai", label: "Hentai" },
 ];
 import { Button, Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import { entityPath } from "../../lib/entityPath";
+
+const PAGE_SIZE = 10;
+
+/**
+ * One tab's completions, in titled groups of ten a page: the shape every tab
+ * below draws by hand. `groups` is `[{ key, label, items }]`, empty groups
+ * already dropped; `pages` and `setPages` hold the page each group is on.
+ * `extra(entry)` is the optional muted cell before the rating.
+ */
+function GroupedCompletions({ type, groups, pages, setPages, franchiseMap, extra }) {
+  return (
+    <div className="space-y-8">
+      {groups.map(({ key, label, items }) => {
+        const page = pages[key] ?? 0;
+        const totalPages = Math.ceil(items.length / PAGE_SIZE);
+        const pageItems = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+        const setPage = (p) => setPages((prev) => ({ ...prev, [key]: p }));
+
+        return (
+          <div key={key}>
+            <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
+              <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                {label}
+              </h3>
+              <span className="font-mono text-[11px] text-text-faint tabular-nums">
+                {items.length}
+              </span>
+            </div>
+            <div className="bg-surface border border-border">
+              {pageItems.map((entry, idx) => {
+                const franchise = franchiseMap[String(entry.franchise_id)];
+                const name = getDisplayName(entry, type);
+                const dateStr = new Date(entry.completed_at).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                });
+                const path = entityPath(type, entry);
+                const Wrapper = path ? Link : "div";
+                const cell = extra?.(entry);
+                return (
+                  <Wrapper
+                    key={entry.system_id}
+                    {...(path ? { to: path } : {})}
+                    className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
+                      idx < pageItems.length - 1 ? "border-b border-border" : ""
+                    }`}
+                  >
+                    <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
+                      {page * PAGE_SIZE + idx + 1}
+                    </span>
+                    <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
+                      <img
+                        loading="lazy"
+                        src={getCoverUrl(entry.cover_image_file)}
+                        alt={name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = FALLBACK_SVG;
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display text-base leading-tight text-text truncate">
+                        {name}
+                      </p>
+                      {franchise && (
+                        <p className="font-mono text-[11px] text-text-faint truncate">
+                          {getDisplayName(franchise, "franchise")}
+                        </p>
+                      )}
+                    </div>
+                    {cell && (
+                      <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
+                        {cell}
+                      </span>
+                    )}
+                    <RatingStamp rating={entry.my_rating} />
+                    <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
+                      {dateStr}
+                    </span>
+                  </Wrapper>
+                );
+              })}
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-3 px-1">
+                <Button size="sm" onClick={() => setPage(page - 1)} disabled={page === 0}>
+                  Previous
+                </Button>
+                <span className="font-mono text-[11px] text-text-faint">
+                  Page {page + 1} of {totalPages}
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= totalPages - 1}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// A hentai's completions, grouped by what it adapts (HENTAI_SOURCE_MATERIALS),
+// with the unrecorded ones last.
+const HENTAI_SOURCE_GROUPS = ["Original", "Manga", "Novel"];
+
+function hentaiCompletionGroups(allHentai) {
+  const completed = (allHentai || [])
+    .filter((h) => COMPLETED_STATUSES.includes(h.watching_status) && h.completed_at)
+    .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
+  const bySource = {};
+  for (const h of completed) {
+    const key = HENTAI_SOURCE_GROUPS.includes(h.source_material) ? h.source_material : "Unrecorded";
+    (bySource[key] ||= []).push(h);
+  }
+  return [...HENTAI_SOURCE_GROUPS, "Unrecorded"]
+    .filter((key) => bySource[key]?.length)
+    .map((key) => ({ key, label: key, items: bySource[key] }));
+}
 
 export default function StatsCompletions({
   allAnime,
@@ -39,6 +166,7 @@ export default function StatsCompletions({
   allGame,
   allHComic,
   allHGame,
+  allHentai,
   franchiseMap,
 }) {
   const tabs = visibleByType(useAuth(), COMPLETION_TABS);
@@ -65,6 +193,7 @@ export default function StatsCompletions({
   const [gameCompletionPages, setGameCompletionPages] = useState({});
   const [hComicCompletionPages, setHComicCompletionPages] = useState({});
   const [hGameCompletionPages, setHGameCompletionPages] = useState({});
+  const [hentaiCompletionPages, setHentaiCompletionPages] = useState({});
 
   return (
     <section>
@@ -1860,6 +1989,29 @@ export default function StatsCompletions({
           );
         })()}
 
+      {/* Hentai tab - gated like the two above. */}
+      {completionsTab === "hentai" &&
+        (() => {
+          const groups = hentaiCompletionGroups(allHentai);
+          if (groups.length === 0) {
+            return (
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">No hentai completions recorded yet.</p>
+              </div>
+            );
+          }
+          return (
+            <GroupedCompletions
+              type="hentai"
+              groups={groups}
+              pages={hentaiCompletionPages}
+              setPages={setHentaiCompletionPages}
+              franchiseMap={franchiseMap}
+              extra={(h) => h.usefulness}
+            />
+          );
+        })()}
+
       {/* Under-development tabs */}
       {![
         "anime",
@@ -1873,6 +2025,7 @@ export default function StatsCompletions({
         "game",
         "h-comic",
         "h-game",
+        "hentai",
       ].includes(completionsTab) && (
         <div className="border border-dashed border-border-strong px-4 py-10 text-center">
           <Eyebrow className="mb-1">Under development</Eyebrow>

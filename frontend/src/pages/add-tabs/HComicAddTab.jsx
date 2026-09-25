@@ -9,9 +9,8 @@
 // an author and an official source on KR - so until a region is chosen only
 // the fields both regions share are offered.
 import CastEditor from "../../components/forms/CastEditor";
-import ComboBox from "../../components/forms/ComboBox";
+import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import {
-  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -31,13 +30,14 @@ import {
   MY_RATINGS,
   READING_STATUSES,
 } from "../../config/fieldOptions";
+import { isDerivedAnimationStatus } from "../../lib/hComicAnimation";
 import { showsField } from "../../lib/hComicRegion";
-import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
+import { getSourceValues } from "../../utils/media";
 
 export { defaultHComic } from "../../config/formFactories";
 
-// The one franchise type an h-comic may sit in (spec D9): the server refuses
-// any other, so the picker offers no other.
+// The franchise type a new h-comic franchise is created with. The picker
+// offers the whole h-comic family (FamilyLineageFields).
 export const H_COMIC_FRANCHISE_TYPE = "H-Comic";
 
 function Options({ values }) {
@@ -148,7 +148,25 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         {select("serialization_status", "Serialization Status", MANGA_SERIALIZATION_STATUSES)}
         {shows("originality") && select("originality", "Originality", H_COMIC_ORIGINALITY)}
         {shows("animation_status") &&
-          select("animation_status", "Animation Status", H_COMIC_ANIMATION_STATUSES)}
+          (isDerivedAnimationStatus(f) ? (
+            // Derived while a hentai adapts this h-comic: the server refuses
+            // any other value, and the payload leaves it out
+            // (hComicFieldsPayload), so it is shown, not offered.
+            <Field
+              label="Animation Status"
+              hint="Derived from a linked hentai adaptation - remove the relation to set it by hand"
+            >
+              <input
+                className={inputCls}
+                aria-label="Animation Status"
+                value={f.animation_status || ""}
+                readOnly
+                disabled
+              />
+            </Field>
+          ) : (
+            select("animation_status", "Animation Status", H_COMIC_ANIMATION_STATUSES)
+          ))}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Genre Plot">
@@ -307,7 +325,11 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
   );
 }
 
-/** The franchise and series pickers, shared by both h-comic tabs. */
+/**
+ * The franchise and series pickers, shared by both h-comic tabs. The h-comic
+ * family's franchises only - H-Comic, and Hentai, which an h-comic may share
+ * with its adaptation.
+ */
 export function HComicLineageFields({
   f,
   u,
@@ -316,71 +338,15 @@ export function HComicLineageFields({
   franchiseCollections,
 }) {
   return (
-    <>
-      <Field label="Franchise" hint="H-Comic franchises only">
-        <ComboBox
-          items={allFranchises
-            .filter((fr) => parseTypes(fr.franchise_type).includes(H_COMIC_FRANCHISE_TYPE))
-            .map((fr) => ({
-              id: fr.system_id,
-              label: getDisplayName(fr, "franchise"),
-              searchText: [
-                fr.franchise_name_en,
-                fr.franchise_name_cn,
-                fr.franchise_name_roman,
-                fr.franchise_name_jp,
-                fr.franchise_name_alt,
-              ]
-                .filter(Boolean)
-                .join(" "),
-            }))}
-          selectedId={f.franchise_id}
-          inputText={f.franchise_text}
-          onSelect={(id, label) => {
-            u("franchise_id", id);
-            u("franchise_text", label);
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          onType={(t) => {
-            u("franchise_text", t);
-            u("franchise_id", null);
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          onClear={() => {
-            u("franchise_id", null);
-            u("franchise_text", "");
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          placeholder="Search or type new franchise..."
-          allowNew
-        />
-        <CollectionNote franchiseId={f.franchise_id} franchiseCollections={franchiseCollections} />
-      </Field>
-      <Field label="Series">
-        <ComboBox
-          items={seriesItemsForHComic}
-          selectedId={f.series_id}
-          inputText={f.series_text}
-          onSelect={(id, label) => {
-            u("series_id", id);
-            u("series_text", label);
-          }}
-          onType={(t) => {
-            u("series_text", t);
-            u("series_id", null);
-          }}
-          onClear={() => {
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          placeholder="Search or type new series..."
-          allowNew
-        />
-      </Field>
-    </>
+    <FamilyLineageFields
+      f={f}
+      u={u}
+      family="h-comic"
+      hint="H-Comic and Hentai franchises only"
+      allFranchises={allFranchises}
+      seriesItems={seriesItemsForHComic}
+      franchiseCollections={franchiseCollections}
+    />
   );
 }
 

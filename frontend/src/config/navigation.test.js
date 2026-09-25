@@ -342,7 +342,7 @@ describe("the Restricted section", () => {
     const keys = NAV_SECTIONS.map((s) => s.key);
     expect(keys.indexOf("restricted")).toBe(keys.indexOf("library") + 1);
     const items = sectionItems(restricted());
-    expect(items.map((i) => i.label)).toEqual(["H-Comic", "H-Game"]);
+    expect(items.map((i) => i.label)).toEqual(["H-Comic", "H-Game", "Hentai"]);
     for (const item of items) expect(item.gatedType).toBeTruthy();
   });
 
@@ -421,5 +421,44 @@ describe("the gated h-game row", () => {
     expect(activeItem("/h-game/3/some-title").item).toBe(item);
     // /game/... is not /h-game/...: the Game row keeps its own pages.
     expect(activeItem("/game/3/some-title").item).not.toBe(item);
+  });
+});
+
+describe("the gated hentai row", () => {
+  const holdsEverything = () => true;
+  const restrictedRoutes = (canSeeType) =>
+    visibleSections(NAV_SECTIONS, holdsEverything, canSeeType)
+      .filter((s) => s.key === "restricted")
+      .flatMap((s) => sectionItems(s).map((i) => i.to));
+
+  it("sits after H-Game", () => {
+    const labels = sectionItems(NAV_SECTIONS.find((s) => s.key === "restricted")).map(
+      (i) => i.label,
+    );
+    expect(labels.indexOf("Hentai")).toBe(labels.indexOf("H-Game") + 1);
+  });
+
+  it("is hidden from a session that cannot see it, whatever else it may see", () => {
+    // The two other gated types visible, so the list the gate reads is not
+    // empty: a green here proves the hentai row itself was refused.
+    const routes = restrictedRoutes((type) => type === "h-comic" || type === "h-game");
+    expect(routes).toContain("/library/h-comic");
+    expect(routes).toContain("/library/h-game");
+    expect(routes).not.toContain("/library/hentai");
+  });
+
+  it("is shown to a session that can", () => {
+    expect(restrictedRoutes((type) => type === "hentai")).toEqual(["/library/hentai"]);
+  });
+
+  it("names the gated type App.jsx's guard asks for, and owns its detail pages", () => {
+    const item = sectionItems(NAV_SECTIONS.find((s) => s.key === "restricted")).find(
+      (i) => i.to === "/library/hentai",
+    );
+    expect(item.gatedType).toBe("hentai");
+    expect(activeItem("/hentai/3/some-title").item).toBe(item);
+    expect(activeSectionKey("/hentai/3")).toBe("restricted");
+    // /anime/... is not /hentai/...: the Anime row keeps its own pages.
+    expect(activeItem("/anime/3/some-title").item).not.toBe(item);
   });
 });
