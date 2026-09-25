@@ -540,7 +540,8 @@ export default function AnimeModifyTab({
             value={af.exclusive_source}
             onChange={(v) => ua("exclusive_source", v)}
             placeholder="Select exclusive platform..."
-            limit={1}
+            limit={null}
+            max={1}
           />
         </Field>
       </div>

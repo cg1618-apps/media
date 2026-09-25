@@ -79,6 +79,24 @@ export function useDetachImage() {
   });
 }
 
+// Takes an owner's image away entirely - attachment, mirror column and the
+// file downloaded for it - so the owner has no image and the next Replace
+// downloads a fresh one. Keyed on the owner, because a downloaded cover may
+// have no attachment to detach (see clear_owner_image in app/routers/images.py).
+export function useClearOwnerImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ownerType, ownerId, role = "cover" }) =>
+      fetchJson(endpoints.images.clearOwner(ownerType, ownerId, role), {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["images"] });
+    },
+  });
+}
+
 // Unused-only by design: the manager page never offers `force`. To remove an
 // attached image, detach it first (useDetachImage) - two deliberate steps.
 export function useDeleteImage() {

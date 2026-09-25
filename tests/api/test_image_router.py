@@ -477,3 +477,215 @@ def test_download_missing_covers_skips_an_uploaded_image(
     db_session.refresh(sample_anime)
     assert sample_anime.cover_image_file == image["storage_key"]
     assert result["skipped_uploads"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# Clearing an owner's image - DELETE /api/images/owners/{type}/{id}/{role}
+#
+# An owner's cover can live in three places: an attachment (to an uploaded or
+# a backfilled downloaded image), the mirror column, and the file downloaded
+# for it at covers/<owner_type>/<id>.jpg. A cover downloaded after the library
+# existed has no image row at all. Clearing has to empty all three, or the
+# leftover file comes back - as the old title's picture - on the next download
+# or the next Set Cover Image Fields.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def covers_dir(tmp_path, monkeypatch):
+    """
+    Downloaded covers under the same tmp root the library already uses, so a
+    backfilled row's `covers/...` storage key and image_manager agree on where
+    the file is.
+    """
+    from app.services.integrations import image_manager
+
+    root = tmp_path / "covers"
+    monkeypatch.setattr(image_manager, "COVER_DIR", str(root))
+    return root
+
+
+def _downloaded_file(covers_dir, owner_type, owner_id, payload=b"old title"):
+    folder = covers_dir / owner_type
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{owner_id}.jpg"
+    path.write_bytes(payload)
+    return path
+
+
+def _backfilled_image(db_session, owner_type, owner_id, attach_to=None):
+    """An image row the way c1image0002 made one: downloaded, entry-keyed."""
+    key = f"{owner_type}/{owner_id}.jpg"
+    image = models.Image(
+        storage_key=f"covers/{key}",
+        checksum=f"legacy:{key}",
+        uploaded_by=None,
+    )
+    db_session.add(image)
+    db_session.flush()
+    for other_type, other_id in [(owner_type, owner_id)] + (attach_to or []):
+        db_session.add(
+            models.ImageAttachment(
+                image_id=image.system_id,
+                owner_type=other_type,
+                owner_id=other_id,
+                role="cover",
+                position=0,
+            )
+        )
+    db_session.flush()
+    return image
+
+
+def _clear(client, owner_type, owner_id, role="cover"):
+    return client.delete(f"/api/images/owners/{owner_type}/{owner_id}/{role}")
+
+
+def test_clear_removes_a_download_that_has_no_image_row(
+    admin_client, db_session, sample_anime, covers_dir
+):
+    path = _downloaded_file(covers_dir, "anime", sample_anime.system_id)
+    sample_anime.cover_image_file = f"anime/{sample_anime.system_id}.jpg"
+    db_session.flush()
+
+    response = _clear(admin_client, "anime", sample_anime.system_id)
+
+    assert response.status_code == 204
+    db_session.refresh(sample_anime)
+    assert sample_anime.cover_image_file is None
+    assert not path.exists()
+
+
+def test_clear_deletes_a_backfilled_download_with_its_row_and_file(
+    admin_client, db_session, sample_anime, covers_dir
+):
+    path = _downloaded_file(covers_dir, "anime", sample_anime.system_id)
+    _backfilled_image(db_session, "anime", sample_anime.system_id)
+    sample_anime.cover_image_file = f"anime/{sample_anime.system_id}.jpg"
+    db_session.flush()
+
+    response = _clear(admin_client, "anime", sample_anime.system_id)
+
+    assert response.status_code == 204
+    db_session.refresh(sample_anime)
+    assert sample_anime.cover_image_file is None
+    assert db_session.query(models.ImageAttachment).count() == 0
+    # Not left behind as an "unused" library image aliasing the next download.
+    assert db_session.query(models.Image).count() == 0
+    assert not path.exists()
+
+
+def test_clear_keeps_an_uploaded_image_in_the_library(
+    admin_client, db_session, sample_anime, covers_dir, tmp_path
+):
+    image = _upload(admin_client).json()
+    admin_client.post(
+        f"/api/images/{image['system_id']}/attach",
+        json={
+            "owner_type": "anime",
+            "owner_id": str(sample_anime.system_id),
+            "role": "cover",
+        },
+    )
+
+    response = _clear(admin_client, "anime", sample_anime.system_id)
+
+    assert response.status_code == 204
+    db_session.refresh(sample_anime)
+    assert sample_anime.cover_image_file is None
+    assert db_session.query(models.ImageAttachment).count() == 0
+    assert db_session.query(models.Image).count() == 1
+    assert (tmp_path / image["storage_key"]).exists()
+
+
+def test_clear_keeps_a_download_still_attached_to_another_owner(
+    admin_client, db_session, sample_anime, covers_dir
+):
+    # A backfilled image chosen from the library for a second entry: its file
+    # is this entry's download, but the other entry still shows it.
+    other = uuid.uuid4()
+    path = _downloaded_file(covers_dir, "anime", sample_anime.system_id)
+    _backfilled_image(
+        db_session, "anime", sample_anime.system_id, attach_to=[("anime", other)]
+    )
+
+    response = _clear(admin_client, "anime", sample_anime.system_id)
+
+    assert response.status_code == 204
+    assert db_session.query(models.Image).count() == 1
+    remaining = db_session.query(models.ImageAttachment).one()
+    assert remaining.owner_id == other
+    assert path.exists()
+
+
+def test_clear_is_a_no_op_on_an_owner_with_no_image(
+    admin_client, db_session, sample_anime, covers_dir
+):
+    response = _clear(admin_client, "anime", sample_anime.system_id)
+
+    assert response.status_code == 204
+    db_session.refresh(sample_anime)
+    assert sample_anime.cover_image_file is None
+
+
+def test_clear_rejects_an_unknown_owner_type(admin_client, sample_anime):
+    assert _clear(admin_client, "animes", sample_anime.system_id).status_code == 400
+
+
+def test_clear_requires_manage_catalog(client, sample_anime):
+    assert _clear(client, "anime", sample_anime.system_id).status_code == 401
+
+
+# Same pair as attach: one writer blind to the label, one holding it, both
+# against the same labelled entry - so the 404 is the gate and not something
+# incidental. nsfw_label (through hidden_anime) is what gives it something to
+# refuse.
+
+def test_clear_404s_for_a_writer_who_cannot_see_the_entry(
+    db_session, client, catalog_writer, hidden_anime, covers_dir  # noqa: F811
+):
+    hidden_anime.cover_image_file = f"anime/{hidden_anime.system_id}.jpg"
+    path = _downloaded_file(covers_dir, "anime", hidden_anime.system_id)
+    db_session.flush()
+    writer = catalog_writer(username="blindclearer", label_keys=())
+
+    response = _clear(writer, "anime", hidden_anime.system_id)
+
+    assert response.status_code == 404
+    db_session.refresh(hidden_anime)
+    assert hidden_anime.cover_image_file is not None
+    assert path.exists()
+
+
+def test_clear_succeeds_for_a_writer_who_holds_the_label(
+    db_session, client, catalog_writer, hidden_anime, covers_dir  # noqa: F811
+):
+    hidden_anime.cover_image_file = f"anime/{hidden_anime.system_id}.jpg"
+    path = _downloaded_file(covers_dir, "anime", hidden_anime.system_id)
+    db_session.flush()
+    writer = catalog_writer(username="seeingclearer", label_keys=("nsfw",))
+
+    response = _clear(writer, "anime", hidden_anime.system_id)
+
+    assert response.status_code == 204
+    db_session.refresh(hidden_anime)
+    assert hidden_anime.cover_image_file is None
+    assert not path.exists()
+
+
+def test_detaching_a_backfilled_download_deletes_it(
+    admin_client, db_session, sample_anime, covers_dir
+):
+    # Detach leaves an UPLOAD in the library (test above). A download goes:
+    # kept, it would alias the entry's next download, and deleting it from
+    # the library later would delete that live cover.
+    path = _downloaded_file(covers_dir, "anime", sample_anime.system_id)
+    image = _backfilled_image(db_session, "anime", sample_anime.system_id)
+    attachment = db_session.query(models.ImageAttachment).one()
+
+    response = admin_client.delete(
+        f"/api/images/{image.system_id}/attach/{attachment.system_id}"
+    )
+
+    assert response.status_code == 204
+    assert db_session.query(models.Image).count() == 0
+    assert not path.exists()

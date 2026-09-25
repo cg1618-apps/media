@@ -254,7 +254,7 @@ can only hold URLs and `text_links` has no title, so neither could say
 | `guides` | 攻略 Guides |
 | `builds` | 養成&流派 Builds & Growth |
 | `gear` | 物品 Items & Gear |
-| `compendium` | 圖鑑 Compendium |
+| `compendium` | 圖鑑與名詞 Compendium & Terms |
 | `story` | 劇情 Story |
 | `story_list` | 劇情列表 Story List |
 | `worldbuilding` | 世界觀 Worldbuilding |
@@ -290,7 +290,7 @@ h-game too, under game's labels, placeholders and groups.
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
 | `beginner` | text_links | 新手 Beginner | game, h-game | guides | |
-| `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description, links |
+| `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description |
 | `controls` | structured | 操作 Controls | game, h-game | guides | Fields: control (`title`), description (`content`), links |
 | `guide_notes` | text_links | 攻略筆記 Guide Notes | game, h-game | guides | |
 | `trivia` | text_links | 小知識 Trivia | game, h-game | guides | |
@@ -304,6 +304,7 @@ h-game too, under game's labels, placeholders and groups.
 | `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group, name, alias, description |
 | `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`) |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
+| `player_terms` | structured | 玩家術語 Player Terms | game, h-game | compendium | name (CN), alt name, description |
 | `main_plot` | structured | 主線劇情 Main Plot | game, h-game | story | chapter (`locator`, optional), description, links |
 | `side_plot` | structured | 支線劇情 Side Stories | game, h-game | story | chapter (`locator`, optional), description, links |
 | `character_arcs` | text_links | 角色劇情 Character Arcs | game, h-game | story | |

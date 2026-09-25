@@ -86,4 +86,21 @@ describe("MemeSection", () => {
     );
     expect(showToast).not.toHaveBeenCalledWith("error", expect.anything());
   });
+
+  it("shows the first three memes and folds the rest", async () => {
+    const user = userEvent.setup();
+    fetchJson.mockResolvedValue(
+      Array.from({ length: 5 }, (_, i) => ({
+        system_id: `meme-${i + 1}`,
+        text: `line ${i + 1}`,
+      })),
+    );
+
+    renderSection();
+
+    const toggle = await screen.findByRole("button", { name: "Show all (5)" });
+    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(3);
+    await user.click(toggle);
+    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(5);
+  });
 });

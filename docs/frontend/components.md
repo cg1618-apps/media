@@ -235,7 +235,10 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   An `available === false` row still renders (muted, no link) — that state
   means "known not to be there", not "hide this row".
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
-  `MultiSelect`, `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
+  `MultiSelect` (two caps that read alike: `limit` is how many options the
+  dropdown *shows* — `null` for all — and `max` is how many values can be
+  *selected*, a pick past it replacing the oldest; single-value tag fields
+  such as `exclusive_source` pass `limit={null} max={1}`), `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `OptionCategorySelect`,
   `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
   it takes `owner={{kind, mediaType?, id}}` and reads and writes an entry's or
@@ -283,9 +286,16 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   saved, so attach is silently skipped in that one case — the upload still
   succeeds and hands back a storage key for the form to persist on save; once
   an `ownerId` exists, an attach failure (an unsupported owner type, or the
-  content-label 404) is surfaced rather than swallowed. Used today in
-  `QuoteForm` and `MemeForm`; the entry, staff and character forms still take
-  `cover_image_file`/`photo_file`/`logo_file` as a plain text input).
+  content-label 404) is surfaced rather than swallowed. **Remove** is the
+  inverse, with the same split: given an `ownerId` it clears the owner's image
+  on the server at once (`DELETE /api/images/owners/{type}/{id}/{role}` —
+  attachment, mirror column and the file downloaded for the owner) and only
+  then empties the form, so the next Replace downloads a fresh cover; without
+  one it only empties the form. A downloaded cover's URL belongs to the owner,
+  not the picture, and the browser holds it for a day, so when a removed cover
+  is replaced the picker refetches it with `cache: "reload"` and versions its
+  preview URL. Used by every entry Add/Modify tab, the person, character,
+  publisher and studio forms, `QuoteForm` and `MemeForm`).
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
   `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
@@ -338,6 +348,12 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   provider passes both in from the owner page; `NotesContext` also drops a
   section whose `owner_where` the owner row fails (`ownerMatches`).
   `NotesTemplate`'s `SHAPES` map covers all nine stored shapes.
+  Every list section shows its first three rows and folds the rest behind
+  "Show all (N)" - `useEntryCap` and `ShowAllToggle` in `ui.jsx`, one hook
+  and one control shared by all of them rather than a copy per shape. The row
+  being edited and the draft row are never folded away; `StructuredSection`
+  caps top-level rows, or each group of a grouped section. The rules are in
+  `docs/systems/notes.md`.
 
 ## The access-mode admin pages (`pages/admin/`)
 

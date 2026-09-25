@@ -9,12 +9,16 @@ import { useState, useRef, useEffect } from "react";
 //   placeholder: string
 //   limit: number | null      — max entries to show in the dropdown (default 10;
 //                                pass null to show every available option)
+//   max: number | null        — max values that can be SELECTED (default
+//                                unlimited); picking one more replaces the
+//                                oldest, so max=1 behaves as a single select
 export default function MultiSelect({
   options = [],
   value = "",
   onChange,
   placeholder = "Select...",
   limit = 10,
+  max = null,
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -53,7 +57,8 @@ export default function MultiSelect({
     : cap(available);
 
   function addValue(val) {
-    const next = [...selected, val];
+    const added = [...selected, val];
+    const next = max == null ? added : added.slice(-max);
     onChange(next.join(", "));
     setQuery("");
     inputRef.current?.focus();

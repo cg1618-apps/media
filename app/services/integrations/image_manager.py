@@ -85,6 +85,41 @@ def cover_image_exists(owner_type: str, system_id: str) -> bool:
         return False
 
 
+def is_own_download(current_key: Optional[str], owner_type: str, system_id: str) -> bool:
+    """
+    Whether `current_key` names the file downloaded FOR this owner.
+
+    Two spellings mean the same file: `<owner_type>/<id>.jpg`, which a download
+    writes, and `covers/<owner_type>/<id>.jpg`, which is the storage key of a
+    backfilled `image` row and lands in the column when that row is attached.
+    Anything else - a `library/` upload, another entry's download - is not
+    this owner's and must never be overwritten by one of its downloads.
+    """
+    if not current_key:
+        return False
+    key = cover_key(owner_type, str(system_id))
+    return current_key in (key, f"covers/{key}")
+
+
+def cover_needs_download(
+    current_key: Optional[str], owner_type: str, system_id: str
+) -> bool:
+    """
+    Whether an autofill should download a cover for this owner.
+
+    True when the owner has no cover, and also when its cover is its OWN
+    download whose file is not on this machine - a reference to a file that
+    is gone shows nothing anywhere, and the external API can supply it again.
+    An upload is never re-fetched: nothing can supply its bytes, and replacing
+    its reference would lose it (see `bulk_download_missing_covers`).
+    """
+    if not current_key:
+        return True
+    return is_own_download(current_key, owner_type, system_id) and not (
+        cover_image_exists(owner_type, system_id)
+    )
+
+
 def download_cover_image(
     image_url: str, owner_type: str, system_id: str
 ) -> Optional[str]:
@@ -92,10 +127,15 @@ def download_cover_image(
     Downloads an image from a remote URL and saves it to disk, returning the
     storage key to record on the row.
 
-    Logic Flow:
-    1. Check if the image already exists (skip download if found).
-    2. Download the raw bytes via HTTP.
-    3. Write it into the owner's folder.
+    ALWAYS fetches, overwriting whatever file is already at the owner's key.
+    Callers download only when the owner needs a cover (`cover_needs_download`),
+    so a file already sitting there is a leftover - typically the cover of the
+    external id the entry pointed at before, cleared from the entry and now
+    stale. Returning it instead of fetching is how an entry whose MAL id
+    changed kept the old title's cover.
+
+    The write goes to a temporary file first and is renamed into place, so a
+    failed download never leaves a half-written cover behind.
     """
     if not image_url or not system_id:
         return None
@@ -105,8 +145,6 @@ def download_cover_image(
     try:
         filepath = _local_path(key)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        if os.path.exists(filepath):
-            return key
 
         # MAL's image CDN requires a User-Agent to prevent 403 Forbidden errors
         headers = {
@@ -115,8 +153,10 @@ def download_cover_image(
         response = requests.get(image_url, headers=headers, timeout=15)
         response.raise_for_status()
 
-        with open(filepath, "wb") as f:
+        partial = f"{filepath}.part"
+        with open(partial, "wb") as f:
             f.write(response.content)
+        os.replace(partial, filepath)
         logger.info("Cover image saved: %s", key)
 
         return key

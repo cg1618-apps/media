@@ -22,7 +22,7 @@ from app import models
 from app.config import settings
 from app.dependencies import get_db
 from app.schemas.image import AttachmentIn, AttachmentOut, ImageListOut, ImageOut
-from app.services.integrations import image_library
+from app.services.integrations import image_library, image_manager
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, require_manage_catalog, viewer_user_id
 from app.services.rbac.shared_visibility import (
@@ -111,6 +111,57 @@ def mirror_to_owner_column(db, owner_type, owner_id, role, storage_key):
     row = db.get(model, owner_id)
     if row is not None:
         setattr(row, column, storage_key)
+
+
+def _require_reachable_owner(db, viewer, owner_type, owner_id) -> None:
+    """
+    400 on an owner type no image can belong to; 404 on an owner the caller
+    cannot see.
+
+    The permission gate is NOT sufficient on its own. manage.catalog says
+    nothing about WHICH entries a writer may reach, so a media owner is checked
+    against entry_visible and 404s exactly as a missing entry does - writes
+    follow reads. An entity owner (staff, character, publisher, studio) is a
+    shared record and is checked against shared_record_visible the same way.
+    """
+    if owner_type not in ATTACHABLE_OWNERS:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown owner type: {owner_type}"
+        )
+    if owner_type in MEDIA_TABLES:
+        if not entry_visible(db, viewer, owner_type, owner_id):
+            raise HTTPException(status_code=404, detail="Entry not found.")
+    elif owner_type in ENTITY_OWNER_MODELS:
+        model = ENTITY_OWNER_MODELS[owner_type]
+        if not shared_record_visible(db, viewer, model, owner_id):
+            raise HTTPException(status_code=404, detail="Entry not found.")
+
+
+def _drop_if_unused_download(db, image) -> Optional[tuple[str, str]]:
+    """
+    Delete a DOWNLOADED image once nothing is attached to it, returning the
+    file keys to remove after the commit.
+
+    An uploaded image stays in the library when its last use goes: that is
+    what the library is for. A downloaded one cannot be reused safely - its
+    file is `covers/<owner_type>/<id>.jpg`, keyed on the owner it was fetched
+    for, so the next download for that owner overwrites it in place. Left in
+    the library it becomes an "unused" image that aliases the owner's live
+    cover, and deleting it from there deletes that cover.
+    """
+    if image is None or image.uploaded_by is not None:
+        return None
+    db.flush()
+    still_used = (
+        db.query(models.ImageAttachment)
+        .filter(models.ImageAttachment.image_id == image.system_id)
+        .first()
+    )
+    if still_used is not None:
+        return None
+    keys = (image.storage_key, image.thumb_key)
+    db.delete(image)
+    return keys
 
 
 def _read_capped(upload: UploadFile) -> bytes:
@@ -300,12 +351,7 @@ def attach_image(
     """
     Point an owner at this image. Idempotent per (owner, role): re-attaching
     replaces, so "change the cover" is one call and never leaves two rows.
-
-    The permission gate is NOT sufficient on its own. manage.catalog says
-    nothing about WHICH entries a writer may reach, so a media owner is checked
-    against entry_visible and 404s exactly as a missing entry does - writes
-    follow reads. An entity owner (staff, character, publisher, studio) is a
-    shared record and is checked against shared_record_visible the same way.
+    Who may reach which owner is `_require_reachable_owner`'s question.
     """
     if payload.owner_type not in ATTACHABLE_OWNERS:
         raise HTTPException(
@@ -316,13 +362,7 @@ def attach_image(
     if image is None:
         raise HTTPException(status_code=404, detail="Image not found.")
 
-    if payload.owner_type in MEDIA_TABLES:
-        if not entry_visible(db, admin, payload.owner_type, payload.owner_id):
-            raise HTTPException(status_code=404, detail="Entry not found.")
-    elif payload.owner_type in ENTITY_OWNER_MODELS:
-        model = ENTITY_OWNER_MODELS[payload.owner_type]
-        if not shared_record_visible(db, admin, model, payload.owner_id):
-            raise HTTPException(status_code=404, detail="Entry not found.")
+    _require_reachable_owner(db, admin, payload.owner_type, payload.owner_id)
 
     existing = (
         db.query(models.ImageAttachment)
@@ -367,7 +407,10 @@ def detach_image(
     db: Session = Depends(get_db),
     admin: Viewer = Depends(require_manage_catalog),
 ):
-    """Unlink, leaving the file in the library for reuse."""
+    """
+    Unlink. An uploaded image stays in the library for reuse; a downloaded one
+    goes with its last attachment (`_drop_if_unused_download`).
+    """
     attachment = db.get(models.ImageAttachment, attachment_id)
     if attachment is None or attachment.image_id != image_id:
         raise HTTPException(status_code=404, detail="Attachment not found.")
@@ -376,8 +419,88 @@ def detach_image(
         db, attachment.owner_type, attachment.owner_id, attachment.role, None
     )
 
+    image = db.get(models.Image, image_id)
     db.delete(attachment)
+    dropped = _drop_if_unused_download(db, image)
     db.commit()
+    if dropped:
+        image_library.delete_file(*dropped)
+    return Response(status_code=204)
+
+
+@router.delete(
+    "/owners/{owner_type}/{owner_id}/{role}",
+    status_code=204,
+    summary="Clear an owner's image",
+)
+def clear_owner_image(
+    owner_type: str,
+    owner_id: UUID,
+    role: str,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Take the owner's image away, so it has none - the Remove button on an
+    entry's cover.
+
+    Keyed on the OWNER rather than on an attachment, because an owner's image
+    need not have one: a cover downloaded after the library was introduced is
+    only a file and the mirror column, with no `image` row at all. All three
+    places an owner's image can live are cleared:
+
+      * the attachment, if there is one - an uploaded image stays in the
+        library, a downloaded one is deleted (`_drop_if_unused_download`);
+      * the mirror column (`cover_image_file` and friends);
+      * the file downloaded for this owner, `covers/<owner_type>/<id>.jpg`,
+        unless an image row attached somewhere else still points at it.
+
+    The file matters as much as the column. Left on disk, Set Cover Image
+    Fields would stamp it straight back onto the cleared column, and it is the
+    old title's picture - clearing is what you do before pointing an entry at
+    a different external id, and the next Replace downloads that id's cover.
+
+    Idempotent: clearing an owner with no image is a 204 that does nothing.
+    """
+    _require_reachable_owner(db, admin, owner_type, owner_id)
+
+    to_delete: list[tuple[str, str]] = []
+
+    attachment = (
+        db.query(models.ImageAttachment)
+        .filter(
+            models.ImageAttachment.owner_type == owner_type,
+            models.ImageAttachment.owner_id == owner_id,
+            models.ImageAttachment.role == role,
+            models.ImageAttachment.position == 0,
+        )
+        .first()
+    )
+    if attachment is not None:
+        image = db.get(models.Image, attachment.image_id)
+        db.delete(attachment)
+        dropped = _drop_if_unused_download(db, image)
+        if dropped:
+            to_delete.append(dropped)
+
+    mirror_to_owner_column(db, owner_type, owner_id, role, None)
+
+    delete_own_download = False
+    if role == "cover" and owner_type in image_manager.COVER_OWNERS:
+        key = image_manager.cover_key(owner_type, str(owner_id))
+        db.flush()
+        delete_own_download = (
+            db.query(models.Image)
+            .filter(models.Image.storage_key == f"covers/{key}")
+            .first()
+            is None
+        )
+
+    db.commit()
+    for keys in to_delete:
+        image_library.delete_file(*keys)
+    if delete_own_download:
+        image_manager.delete_cover_image(owner_type, str(owner_id))
     return Response(status_code=204)
 
 

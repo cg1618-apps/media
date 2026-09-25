@@ -14,9 +14,11 @@ import {
   LinkPill,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
   draftCls,
   inputCls,
   tagCls,
+  useEntryCap,
 } from "./ui";
 
 const emptyItem = () => ({ type: "text", value: "", label: "" });
@@ -201,6 +203,9 @@ export default function NameEntriesSection({
   const [draft, setDraft] = useState(empty());
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState(empty());
+  const cap = useEntryCap(notes, {
+    keep: (row) => row.system_id === editId,
+  });
 
   // Matches the server rule: a named list with neither a name nor a single
   // entry is nothing.
@@ -227,7 +232,7 @@ export default function NameEntriesSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {notes.map((n) => (
+      {cap.visible.map((n) => (
         <div key={n.system_id} className="flex gap-2 items-start group">
           <span className="text-xs text-text-faint shrink-0 pt-0.5">•</span>
           <div className="flex-1 min-w-0">
@@ -284,6 +289,7 @@ export default function NameEntriesSection({
           )}
         </div>
       ))}
+      <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>
           <NameEntriesForm section={section} val={draft} setVal={setDraft} />

@@ -10,10 +10,12 @@ import {
   LinksEditor,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
   brandTagCls,
   draftCls,
   inputCls,
   rowCls,
+  useEntryCap,
 } from "./ui";
 
 const empty = () => ({ locator: "", content: "", links: [""] });
@@ -74,6 +76,9 @@ export default function TextLinksSection({
   const [draft, setDraft] = useState(empty());
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState(empty());
+  const cap = useEntryCap(notes, {
+    keep: (row) => row.system_id === editId,
+  });
 
   // An empty row is never worth storing, and some sections demand a body.
   const invalid = (val) => {
@@ -105,7 +110,7 @@ export default function TextLinksSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {notes.map((n) => (
+      {cap.visible.map((n) => (
         <div
           key={n.system_id}
           className={rowCls}
@@ -151,6 +156,7 @@ export default function TextLinksSection({
           )}
         </div>
       ))}
+      <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>
           <TextLinksForm val={draft} setVal={setDraft} section={section} />
