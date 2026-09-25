@@ -432,6 +432,7 @@ through it. Every h-comic surface goes through one of them, never a literal
 | Nav row (Library → ACG → H-Comic) | `gatedType: "h-comic"` on the item in `config/navigation.js`; `visibleSections(sections, has, canSeeType)` drops it. Both permission surfaces ask the same helper, and `navigation.test.js` pins the pair |
 | Add / Modify / Delete / Form Defaults tab | `AdminTabBar` filters every tab list through `visibleByType` |
 | Nav search scope, Plan tabs, Completions tabs, Quotes filter, image owner-type filter, watch-order type filter, Control Center Fill button, `PersonSubTabBar` Club tab | `visibleByType` / `canSeeGatedType` at the list |
+| Options scope picker (`ScopePicker`, both Options tabs) | `visibleMediaTypes` over the list it is handed, so the `MEDIA_TYPES` fallback drawn before `/api/constants` answers does not name a hidden gated type either |
 | Lists fetched only when visible | `usePlanData`, `Completions`, `useStatisticsData` (the h-comic rating card), `SeriesPage` and `FranchiseLibrary` (which waits for `/api/auth/me`) |
 | Club membership on the person page | `ClubMembership` renders, and fetches, nothing for a narrow session |
 

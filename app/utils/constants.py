@@ -202,6 +202,17 @@ FRANCHISE_TYPES: tuple[str, ...] = (
     "H-Comic",
 )
 
+# Franchise FAMILIES: which franchise types may share one franchise, and which
+# franchise an entry may sit in. A type not listed here is MAINSTREAM_FAMILY.
+# A franchise whose types span two families is refused, and an entry sits only
+# in a franchise of its own family - matched by name or named by id
+# (app/services/domain/hierarchy.py). Keyed on the franchise type, so a gated
+# media type joins by naming its franchise type here.
+FRANCHISE_FAMILY_FOR_TYPE: dict[str, str] = {
+    "H-Comic": "h-comic",
+}
+MAINSTREAM_FAMILY = "mainstream"
+
 ANIME_AIRING_TYPES: tuple[str, ...] = (
     "TV",
     "Movie",
