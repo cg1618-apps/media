@@ -78,6 +78,7 @@ from app.utils.formatter import (
     parse_from_sheet,
     parse_row_to_dict,
 )
+from app.utils.note_sections import section_by_key
 
 logger = logging.getLogger(__name__)
 
@@ -1412,17 +1413,23 @@ def execute_pull_specific(
         # remark after a backup mints another. So retarget such a row at the
         # remark row the owner already has and update it in place, keeping the
         # local system_id (popped from the payload so it is not overwritten).
-        if tab_name == "Note" and clean_header_dict.get("section") == "remark":
+        #
+        # Every singleton section takes the same path. `ost` is the other one
+        # (ix_note_one_ost_per_owner), and a backup from before it became one
+        # row holds two per anime - so the second folds onto the first here
+        # instead of failing the tab.
+        singleton = section_by_key(clean_header_dict.get("section") or "")
+        if tab_name == "Note" and singleton and singleton.singleton:
             rk_owner = _note_owner_filters(clean_header_dict)
             if rk_owner:
-                local_remark = (
+                local_row = (
                     db.query(Note)
-                    .filter(*rk_owner, Note.section == "remark")
+                    .filter(*rk_owner, Note.section == singleton.key)
                     .first()
                 )
-                if local_remark is not None:
+                if local_row is not None:
                     clean_header_dict.pop(pk_field, None)
-                    pk_value = local_remark.system_id
+                    pk_value = local_row.system_id
 
         # Resolve the target row BEFORE sanitizing. The defaults below exist to
         # make an INSERT valid, so applying them to an UPDATE would overwrite a

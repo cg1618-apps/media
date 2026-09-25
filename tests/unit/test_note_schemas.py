@@ -400,6 +400,42 @@ def test_the_music_track_insert_section_is_no_longer_a_section():
         validate_note_payload(_payload(section="insert", content="anything"))
 
 
+# --- ost: one structured row of type and status ----------------------------
+
+
+def _ost(**kw):
+    base = dict(section="ost", kind="normal", status="Need", content=None)
+    base.update(kw)
+    return _payload(**base)
+
+
+def test_ost_row_with_a_status_passes():
+    validate_note_payload(_ost())
+
+
+def test_ost_row_with_only_the_default_type_is_empty():
+    # The type is prefilled, so the status is what makes the row say anything.
+    with pytest.raises(ValueError, match="is empty"):
+        validate_note_payload(_ost(status=None))
+
+
+def test_ost_row_takes_no_song_name_link_or_remark():
+    for extra in (
+        dict(title="紅蓮華"),
+        dict(links=["https://youtu.be/a"]),
+        dict(content="anything"),
+    ):
+        with pytest.raises(ValueError, match="takes no"):
+            validate_note_payload(_ost(**extra))
+
+
+def test_ost_row_rejects_an_unknown_status_or_type():
+    with pytest.raises(ValueError):
+        validate_note_payload(_ost(status="Someday"))
+    with pytest.raises(ValueError):
+        validate_note_payload(_ost(kind="acoustic"))
+
+
 # --- music_track shape ----------------------------------------------------
 
 
@@ -453,7 +489,7 @@ def test_a_non_music_section_takes_no_status():
 
 
 def test_section_out_carries_the_group_and_both_dropdowns():
-    out = section_out(section_by_key("ost"), "anime")
+    out = section_out(section_by_key("op"), "anime")
     assert out.group == "music"
     assert out.group_label == "音樂 Music"
     assert out.group_icon == "fa-music"

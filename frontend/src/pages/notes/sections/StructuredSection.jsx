@@ -817,10 +817,16 @@ export default function StructuredSection({
       );
     });
 
-  const openDraft = () => {
-    setDraft(emptyDraft(section));
-    setAddingUnder(null);
-  };
+  // A singleton section (`ost`) holds one row per owner, so once it has that
+  // row the way to change it is Edit, and Add goes. The backend refuses a
+  // second row either way; this keeps the button from offering one.
+  const openDraft =
+    section.singleton && notes.length
+      ? null
+      : () => {
+          setDraft(emptyDraft(section));
+          setAddingUnder(null);
+        };
 
   if (section.group_by && !section.hierarchical) {
     return (

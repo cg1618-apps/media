@@ -1336,15 +1336,34 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
+        # Not a list of songs like OP and ED: an anime has ONE OST entry,
+        # saying which cut and how far tracking it has got, and nothing else -
+        # no song name, link or remark. Structured rather than music_track
+        # because that shape always carries those three columns.
         key="ost",
-        shape=SHAPE_MUSIC_TRACK,
+        shape=SHAPE_STRUCTURED,
         label="OST",
         owners=("anime",),
         scope=SCOPE_CATALOG,
         group="music",
-        kinds=MUSIC_TYPES,
-        default_kind="normal",
-        statuses=MUSIC_STATUSES,
+        singleton=True,
+        fields=(
+            NoteField(
+                key="type",
+                label="Type",
+                type=FIELD_SELECT,
+                column="kind",
+                options=MUSIC_TYPES,
+                default="normal",
+            ),
+            NoteField(
+                key="status",
+                label="Status",
+                type=FIELD_SELECT,
+                column="status",
+                options=MUSIC_STATUSES,
+            ),
+        ),
     ),
     NoteSection(
         key="op_ed_changes",
