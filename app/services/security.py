@@ -88,13 +88,12 @@ def create_access_token(
     Includes an 'exp' (expiration) claim. If no specific expires_delta is provided,
     the token defaults to the global ACCESS_TOKEN_EXPIRE_MINUTES configuration.
 
-    `expires_at` is used VERBATIM and takes precedence over both. It exists for
-    one caller and one reason: a request that REISSUES a live session's token -
-    the access-mode switch - must preserve the original deadline. Without it,
-    toggling between two modes would mint a fresh month-long token each time and
-    become an unlimited session-extension oracle, which matters here because
-    the lifetime is flat with no refresh flow and no revocation. Anything else
-    that reissues a token in future must pass this too.
+    `expires_at` is used VERBATIM and takes precedence over both. The
+    access-mode switch uses it so an override never outlives the login it
+    belongs to. Anything that reissues a login token in future must pass the
+    original deadline here: the lifetime is flat with no refresh flow and no
+    revocation, so a reissue that minted a fresh month would be an unlimited
+    session-extension oracle.
     """
     to_encode = data.copy()
 

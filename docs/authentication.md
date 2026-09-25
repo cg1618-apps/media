@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-09-21
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -126,9 +126,15 @@ The `role` claim is **vestigial**. Nothing reads it for authorization: the serve
 | `HttpOnly` | true | `document.cookie` cannot read it; XSS cannot exfiltrate the token |
 | `SameSite` | `Lax` | Sent on same-site navigation and fetches; not on cross-site POSTs |
 | `Secure` | `not settings.is_development` | Follows `APP_ENV`, not the request scheme: behind a tunnel the scheme is only trustworthy when proxy headers are configured correctly, and a missing header would produce an insecure cookie over HTTPS silently - the failure the flag exists to prevent. Django's `SESSION_COOKIE_SECURE` and Rails' `config.force_ssl` are per-environment settings for the same reason. Read per request rather than at import, so a test can move it. |
-| `max_age` | 86400 s | Matches the JWT expiry |
+| `max_age` | `ACCESS_TOKEN_EXPIRE_MINUTES` × 60 | Matches the JWT expiry |
 
 The browser sends it automatically; the SPA always fetches with `credentials: "include"`.
+
+A second cookie, `access_mode`, holds a switched-to access mode. It is a
+browser-session cookie with the same `HttpOnly`, `SameSite` and `Secure` flags,
+its token expires an hour after the switch, and login and logout both clear
+it. It does not identify anyone - without `access_token` it is ignored. See
+[authorization.md](authorization.md#switching-mid-session-post-apiauthaccess-mode).
 
 ## `GET /api/auth/me`
 

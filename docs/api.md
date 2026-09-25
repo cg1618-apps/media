@@ -1888,8 +1888,12 @@ Now also returns:
   "is_root": false,
   "permissions": ["media_type.anime", "field_group.sources_other", ...],
   "visible_gated_types": [],
-  "mode": { "id": "…uuid…", "key": "safe" } }
+  "mode": { "id": "…uuid…", "key": "safe", "expires_at": null } }
 ```
+
+**`mode.expires_at`** is when a switched-to mode ends and the session returns
+to the account's default mode (ISO 8601, UTC), or `null` while it is already
+in the default. `AuthContext` reloads the page just after it.
 
 **`visible_gated_types`** is the sorted list of gated media types this session
 may see (`gated_types.visible_gated_types`): `["h-comic", "h-game"]` for a
@@ -1936,19 +1940,23 @@ Change the active access mode without logging out.
 
 | Answer | When |
 |---|---|
-| **200** + a reissued cookie | narrowing, or widening with the right password |
+| **200** + the `access_mode` cookie set or cleared | narrowing, or widening with the right password |
 | **401** `{detail, requires_password: true}` | widening with no password, so the SPA prompts rather than guessing |
 | **401** | widening with the wrong password |
 | **404** | a mode this account does not hold, *and* a mode that does not exist - identical answers, because which modes exist is not the caller's business. Deliberately **not** flagged `requires_password`: it is not a password problem, and saying so would invite a prompt that cannot help |
 | **401** | a guest: no account, nothing to switch between |
 
-**The reissued cookie keeps the ORIGINAL `exp`, and its `max_age` is the
-REMAINING seconds.** Minting a fresh month-long token on each switch would make
-toggling between two modes an unlimited session-extension oracle, and the
-lifetime is flat with no refresh flow and no revocation - so that would be the
-whole session policy defeated by a control whose purpose is to make sessions
-safer. The `max_age` floor stops a switch resurrecting an already-expired
-token, which is the same oracle in miniature.
+**A switched-to mode is temporary.** Switching to any mode other than the
+account's default sets the `access_mode` cookie: a browser-session cookie (no
+`max_age`, so closing the browser drops it) holding a signed token that expires
+`ACCESS_MODE_OVERRIDE_MINUTES` (60) after the switch, and never after the login
+does. Switching to the default clears it. Either way out, the session is back
+in the default mode.
+
+**The login cookie is not reissued.** A switch cannot extend the session:
+minting a fresh month-long login on each switch would make toggling between two
+modes an unlimited session-extension oracle, and the lifetime is flat with no
+refresh flow and no revocation.
 
 ### `/api/access-modes` — admin (`admin.authz`)
 
