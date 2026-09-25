@@ -14,12 +14,14 @@ import {
   writeDashboardView,
 } from "../../lib/dashboardView";
 import WeeklySchedule from "../../components/tracker/WeeklySchedule";
+import ComingNext from "../../components/tracker/ComingNext";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import AnnouncementBoard from "../../components/info/AnnouncementBoard";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { endpoints } from "../../api/endpoints";
 import { Eyebrow } from "../../components/ui/primitives";
+import { parseSeason, seasonAfter, seasonOfDate } from "../../lib/comingNext";
 
 const RATING_WEIGHT = {
   S: 0,
@@ -145,6 +147,7 @@ const TOC_ITEMS = [
   { id: "schedule", label: "Schedule", level: 1 },
   { id: "schedule-watch", label: "My Watch", level: 2 },
   { id: "schedule-broadcast", label: "Broadcast", level: 2 },
+  { id: "schedule-coming", label: "Coming next", level: 2 },
   { id: "watching", label: "Watching", level: 1 },
   { id: "watching-active", label: "Active", level: 2 },
   { id: "watching-passive", label: "Passive", level: 2 },
@@ -175,7 +178,7 @@ function stickyOffset(id) {
   return navH + (id.includes("-") ? divH + 24 : 8);
 }
 
-function DashboardTOC({ activeId, typeFilter }) {
+function DashboardTOC({ activeId, typeFilter, showComingNext }) {
   const scrollTo = (id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -186,6 +189,7 @@ function DashboardTOC({ activeId, typeFilter }) {
 
   // A division the type filter hides has no anchor to scroll to.
   const items = TOC_ITEMS.filter(({ id }) => {
+    if (id === "schedule-coming" && !showComingNext) return false;
     const division = id.split("-")[0];
     return !(division in DIVISION_TYPES) || divisionShown(division, typeFilter);
   });
@@ -524,7 +528,7 @@ function PlayingSection({
 }
 
 export default function Index() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const animeQuery = useMediaList("anime", LIST_OPTIONS);
@@ -535,6 +539,24 @@ export default function Index() {
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const gameQuery = useMediaList("game", LIST_OPTIONS);
+  // Coming Next reads the viewer's own statuses, so it is drawn only for a
+  // signed-in member, and its two extra lists and the current season are
+  // fetched only then. Like announcements, they stay out of the combined
+  // loading/error state: a slow movie list must not hold up the dashboard.
+  const showComingNext = has("self.list");
+  const animeMovieQuery = useMediaList("anime-movie", {
+    ...LIST_OPTIONS,
+    enabled: showComingNext,
+  });
+  const movieQuery = useMediaList("movie", {
+    ...LIST_OPTIONS,
+    enabled: showComingNext,
+  });
+  const currentSeasonQuery = useApiQuery(
+    ["current-season"],
+    endpoints.seasonal.currentSeason(),
+    { enabled: showComingNext },
+  );
   // Announcements are intentionally kept out of the combined loading/error state
   // below — a failed board must never block the rest of the dashboard.
   const announcementQuery = useApiQuery(
@@ -598,6 +620,7 @@ export default function Index() {
       "schedule",
       "schedule-watch",
       "schedule-broadcast",
+      "schedule-coming",
       "watching",
       "watching-active",
       "watching-passive",
@@ -812,6 +835,20 @@ export default function Index() {
     (item) => item.airing_status === "Airing" && item.my_watch_day,
   );
 
+  // The admin-set current season, or the calendar's while none is set.
+  const comingSeason = seasonAfter(
+    parseSeason(currentSeasonQuery.data?.current_season) ||
+      seasonOfDate(new Date()),
+  );
+  const comingLists = {
+    anime: animeData,
+    "anime-movie": animeMovieQuery.data || [],
+    movie: movieQuery.data || [],
+    "tv-show": tvData,
+    cartoon: cartoonData,
+    game: gameData,
+  };
+
   // _ui_type is a display label ("TV Show"); getSortName wants the slug.
   const sortSlug = (item) =>
     item._ui_type === "TV Show" ? "tv-show" : (item._ui_type || "").toLowerCase();
@@ -895,7 +932,11 @@ export default function Index() {
       <div className="flex gap-8">
         {/* TOC Sidebar — visible on xl+ screens */}
         <aside className="hidden xl:block w-48 shrink-0">
-          <DashboardTOC activeId={activeSection} typeFilter={typeFilter} />
+          <DashboardTOC
+            activeId={activeSection}
+            typeFilter={typeFilter}
+            showComingNext={showComingNext}
+          />
         </aside>
 
         {/* Main Content */}
@@ -957,6 +998,13 @@ export default function Index() {
                 collapsible
                 defaultCollapsed
               />
+              {showComingNext && (
+                <ComingNext
+                  id="schedule-coming"
+                  lists={comingLists}
+                  season={comingSeason}
+                />
+              )}
             </div>
           </div>
 
