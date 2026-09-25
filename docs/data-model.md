@@ -714,7 +714,7 @@ CHECK, matching `games`; they are checked on every write path
 | `language_availability` | String | yes | | H_GAME_LANGUAGE_AVAILABILITY (官方中文 / 中文補丁 / 無中文) |
 | `audio_availability` | JSONB | yes | | A list over H_GAME_AUDIO_AVAILABILITY (一般對話 / H場景), in vocabulary order. `[]` is "none", null "unknown" |
 | `animation_availability` | Boolean | yes | | Null is "unknown" |
-| `h_presentation` | JSONB | yes | | A list over H_GAME_H_PRESENTATIONS (靜圖 / 動圖 / 2D動畫 / 3D動畫 / 互動) |
+| `h_presentation` | JSONB | yes | | A list over H_GAME_H_PRESENTATIONS (靜圖 / 動圖 / 2D動畫 / 3D動畫 / 3D模型 / 互動) |
 | `art_style` | JSONB | yes | | A list over H_GAME_ART_STYLES (2D / 2.5D / 3D / Pixel / Live2D / Live-action-like / Live-action): what the game looks like, independent of `h_presentation` |
 | `platform` | JSONB | yes | | A list over H_GAME_PLATFORMS (Steam / DLsite / Nintendo / Other). Hand-set, never filled |
 | `igdb_id` / `igdb_link` | Integer / String | yes | | As on `games` |

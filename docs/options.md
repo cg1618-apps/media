@@ -125,7 +125,7 @@ type it serves is seeable.
 | `H_GAME_PLAYSTYLES` | `ADV`, `RPG`, `SLG`, `Other` | `h_game.playstyle`, single choice | `h_game_playstyle` |
 | `H_GAME_LANGUAGE_AVAILABILITY` | `官方中文`, `中文補丁`, `無中文` | `h_game.language_availability`, single choice | `h_game_language_availability` |
 | `H_GAME_AUDIO_AVAILABILITY` | `一般對話`, `H場景` | `h_game.audio_availability`, a JSONB list kept in this order | `h_game_audio_availability` |
-| `H_GAME_H_PRESENTATIONS` | `靜圖`, `動圖`, `2D動畫`, `3D動畫`, `互動` | `h_game.h_presentation` (H 演出形式), a JSONB list kept in this order | `h_game_h_presentation` |
+| `H_GAME_H_PRESENTATIONS` | `靜圖`, `動圖`, `2D動畫`, `3D動畫`, `3D模型`, `互動` | `h_game.h_presentation` (H 演出形式), a JSONB list kept in this order | `h_game_h_presentation` |
 | `H_GAME_ART_STYLES` | `2D`, `2.5D`, `3D`, `Pixel`, `Live2D`, `Live-action-like`, `Live-action` | `h_game.art_style`, a JSONB list kept in this order. What the game looks like, independent of `h_presentation` | `h_game_art_style` |
 | `H_GAME_PLATFORMS` | `Steam`, `DLsite`, `Nintendo`, `Other` | `h_game.platform`, a JSONB list kept in this order; hand-set, never filled from IGDB, and unrelated to the `game_platform` tag field | `h_game_platform` |
 

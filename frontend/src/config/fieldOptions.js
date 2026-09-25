@@ -253,7 +253,7 @@ export const H_COMIC_USEFULNESS = ["非常實用", "實用", "特定情況實用
 export const H_GAME_PLAYSTYLES = ["ADV", "RPG", "SLG", "Other"];
 export const H_GAME_LANGUAGE_AVAILABILITY = ["官方中文", "中文補丁", "無中文"];
 export const H_GAME_AUDIO_AVAILABILITY = ["一般對話", "H場景"];
-export const H_GAME_H_PRESENTATIONS = ["靜圖", "動圖", "2D動畫", "3D動畫", "互動"];
+export const H_GAME_H_PRESENTATIONS = ["靜圖", "動圖", "2D動畫", "3D動畫", "3D模型", "互動"];
 export const H_GAME_ART_STYLES = [
   "2D",
   "2.5D",

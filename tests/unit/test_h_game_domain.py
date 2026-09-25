@@ -28,7 +28,7 @@ def test_the_vocabularies():
     assert H_GAME_PLAYSTYLES == ("ADV", "RPG", "SLG", "Other")
     assert H_GAME_LANGUAGE_AVAILABILITY == ("官方中文", "中文補丁", "無中文")
     assert H_GAME_AUDIO_AVAILABILITY == ("一般對話", "H場景")
-    assert H_GAME_H_PRESENTATIONS == ("靜圖", "動圖", "2D動畫", "3D動畫", "互動")
+    assert H_GAME_H_PRESENTATIONS == ("靜圖", "動圖", "2D動畫", "3D動畫", "3D模型", "互動")
     assert H_GAME_PLATFORMS == ("Steam", "DLsite", "Nintendo", "Other")
     assert H_GAME_ART_STYLES == (
         "2D",
@@ -57,6 +57,7 @@ def test_the_label_is_pinned_to_the_registry():
 def test_a_list_is_kept_in_vocabulary_order_once():
     assert h_game.check_platform(["Other", "Steam", "Other"]) == ["Steam", "Other"]
     assert h_game.check_h_presentation(["互動", "靜圖"]) == ["靜圖", "互動"]
+    assert h_game.check_h_presentation(["互動", "3D模型"]) == ["3D模型", "互動"]
     assert h_game.check_art_style(["Live-action", "2D", "2D"]) == ["2D", "Live-action"]
 
 

@@ -359,7 +359,7 @@ H_GAME_LANGUAGE_AVAILABILITY: tuple[str, ...] = ("官方中文", "中文補丁",
 H_GAME_AUDIO_AVAILABILITY: tuple[str, ...] = ("一般對話", "H場景")
 
 # H 演出形式 - how the H scenes are presented. Multi-choice.
-H_GAME_H_PRESENTATIONS: tuple[str, ...] = ("靜圖", "動圖", "2D動畫", "3D動畫", "互動")
+H_GAME_H_PRESENTATIONS: tuple[str, ...] = ("靜圖", "動圖", "2D動畫", "3D動畫", "3D模型", "互動")
 
 # What the game looks like - independent of H_GAME_H_PRESENTATIONS, which is
 # how the H scenes are delivered. Multi-choice.
