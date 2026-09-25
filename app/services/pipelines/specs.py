@@ -337,9 +337,13 @@ PIPELINES: dict[str, PipelineSpec] = {
         # ~200 requests/5 minutes: stop when the window is gone rather than
         # block, the same bargain Comic Vine makes with its hourly quota.
         budget=steam_store_rate_limiter.has_capacity,
-        # Game's first Replace. Steam only - the current prices and the
-        # Metacritic score drift, and nothing in an IGDB record does.
-        replace_select=_linked(Game, Game.steam_appid, Game.steam_link),
+        # Both sources, as Fill: IGDB fill-only, then Steam, whose current
+        # prices and Metacritic score are what Replace overwrites. An entry
+        # linked to either source is selected; the Steam budget gates every
+        # entry, since IGDB can hand Steam an appid mid-run.
+        replace_select=_linked(
+            Game, Game.steam_appid, Game.steam_link, Game.igdb_id, Game.igdb_link
+        ),
         replace=lambda db, e, bulk: apply_single_replace_game(db, e, bulk=bulk),
         replace_sleep=STEAM_PAUSE,
         replace_after=(("Syncing system options...", run_sync_game),),
@@ -367,7 +371,7 @@ PIPELINES: dict[str, PipelineSpec] = {
         in_replace_all=False,
     ),
     # Game's spec on the h-game table: the same two sources, gates, pacing
-    # and Steam Replace. The autofills write only the columns and tags the
+    # and Replace. The autofills write only the columns and tags the
     # table has (autofill.py). In Fill All and Replace All, as Game is.
     "h-game": PipelineSpec(
         key="h-game", label="H-Game", model=HGame,
@@ -385,7 +389,9 @@ PIPELINES: dict[str, PipelineSpec] = {
             ("Syncing gated labels...", run_sync_gated_labels),
         ),
         budget=steam_store_rate_limiter.has_capacity,
-        replace_select=_linked(HGame, HGame.steam_appid, HGame.steam_link),
+        replace_select=_linked(
+            HGame, HGame.steam_appid, HGame.steam_link, HGame.igdb_id, HGame.igdb_link
+        ),
         replace=lambda db, e, bulk: apply_single_replace_game(db, e, bulk=bulk),
         replace_sleep=STEAM_PAUSE,
         replace_after=(

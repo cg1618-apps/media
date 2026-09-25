@@ -2009,3 +2009,27 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   registry edit. `h_game_highlights` copies `h_comic_highlights`' fields -
   the second copy, so not factored out yet - with the locator labelled
   "Route / Scene" and no `owner_where`.
+
+### Game Replace runs IGDB as well as Steam (2026-09-25)
+
+- **Owner's decision: Autofill and Replace run both sources** on `game` and
+  `h-game`, in Fill's order — IGDB, then Steam. Steam-only Replace had been
+  justified by "nothing in an IGDB record drifts", which is true, but it meant
+  the detail page's Autofill button could not finish an entry that had only
+  an IGDB link: Steam keys off the appid that only IGDB supplies.
+- **IGDB stays fill-only under Replace.** That is what every other type's
+  Replace does with its source: the MAL Replace runs the same fill-only
+  autofill and overwrites only the scores and ranks, which drift. IGDB has no
+  drifting column, so its half of Replace only fills gaps. Overwriting would
+  have rewritten hand-shortened names, curated tags and chosen covers for no
+  new information.
+- **The write hook keeps running the whole Replace.** Every other type with a
+  source fetches it on save (movie, TV show and cartoon pay TMDB/OMDb, manga
+  and novel pay Tenrai), and a game saved with a fresh IGDB link should be
+  filled then, not on the next run. The cost is up to two IGDB requests per
+  save of a linked game, well inside IGDB's 4/second limiter. The corollary
+  is shared with every fill-only field: clearing IGDB-supplied tags or credits
+  on an entry that still carries its `igdb_id` refills them on save.
+- **Bulk Replace selects IGDB-only entries too**, and the Steam budget still
+  gates every entry: IGDB can hand Steam an appid mid-entry, so an IGDB-only
+  row is not exempt from the storefront window.

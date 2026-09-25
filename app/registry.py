@@ -353,8 +353,8 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed=mark_game_catalog,
         mark_completed_list=mark_game_list,
         extra_filters=_game_ownership,
-        # Nothing external is fetched yet, so this only re-runs the shared
-        # post-write step; the name exists from Task 9's pipeline spec.
+        # The single Replace - IGDB, then Steam - so a pasted link is filled
+        # on save, as every other type's write hook fetches its source.
         write_hook=execute_replace_single_game,
         nested_collections={
             "copies": write_game_copies,
@@ -417,7 +417,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed=mark_game_catalog,
         mark_completed_list=mark_game_list,
         extra_filters=_ownership_filter(models.HGame),
-        # Game's Steam Replace, then the h-game sync.
+        # Game's Replace (IGDB, then Steam), then the h-game sync.
         write_hook=execute_replace_single_h_game,
         nested_collections={
             "copies": write_game_copies,
