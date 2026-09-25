@@ -38,6 +38,7 @@ const SPINE_LABEL = {
   comic: "Comic",
   game: "Game",
   "h-comic": "H-Comic",
+  hentai: "Hentai",
 };
 
 // The statuses the future variant's select offers, per status axis. A game
@@ -288,6 +289,18 @@ function LibraryMeta({ type, data, scoreField }) {
         <span className="truncate pr-1">{yearRange(data)}</span>
         {data.serialization_status && (
           <span className="shrink-0">{data.serialization_status}</span>
+        )}
+      </MetaLine>
+    );
+  }
+
+  // One entry is one episode: when it came out and whether it has aired.
+  if (type === "hentai") {
+    return (
+      <MetaLine className="mb-1">
+        <span className="truncate pr-1">{releaseYear(data.release_date) || "?"}</span>
+        {data.airing_status && (
+          <span className="shrink-0 truncate">{data.airing_status}</span>
         )}
       </MetaLine>
     );

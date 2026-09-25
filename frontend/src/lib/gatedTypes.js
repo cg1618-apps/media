@@ -3,7 +3,7 @@
 //
 // A gated type is a media type whose every entry carries a required content
 // label (REQUIRED_LABEL_FOR_TYPE in app/services/rbac/gated_types.py) - today
-// only `h-comic`. A session whose access mode lacks that label is not told
+// `h-comic` and `hentai`. A session whose access mode lacks that label is not told
 // the type exists: the server withholds its entries, its vocabularies and its
 // constants, and `/api/auth/me` names in `visible_gated_types` only the gated
 // types the session MAY see.
@@ -16,14 +16,39 @@
 
 // Every gated media type the frontend knows how to render. A type that is not
 // listed here is ungated and always visible.
-export const GATED_TYPES = Object.freeze(["h-comic"]);
+export const GATED_TYPES = Object.freeze(["h-comic", "hentai"]);
 
 // Franchise types stamped only for a gated media type (FRANCHISE_TYPE_FOR on
 // the backend). A franchise-type picker offers one only when its media type
 // is visible.
-export const GATED_FRANCHISE_TYPES = Object.freeze({ "H-Comic": "h-comic" });
+export const GATED_FRANCHISE_TYPES = Object.freeze({
+  "H-Comic": "h-comic",
+  Hentai: "hentai",
+});
 
 const GATED = new Set(GATED_TYPES);
+
+// Franchise FAMILIES (FRANCHISE_FAMILY_FOR_TYPE in app/utils/constants.py):
+// which franchise types may share one franchise. An h-comic and its hentai
+// adaptation share one the way a manga and its anime do, so H-Comic and
+// Hentai are one family; a type not listed is mainstream. The server refuses
+// an entry written into a franchise of another family, so a gated type's
+// franchise picker offers only its own family's franchises.
+export const FRANCHISE_FAMILY_FOR_TYPE = Object.freeze({
+  "H-Comic": "h-comic",
+  Hentai: "h-comic",
+});
+
+/**
+ * True when a franchise whose `franchise_type` is this comma-joined list
+ * ("H-Comic, Hentai") belongs to `family`.
+ */
+export function inFranchiseFamily(franchiseType, family) {
+  return String(franchiseType || "")
+    .split(",")
+    .map((t) => t.trim())
+    .some((t) => FRANCHISE_FAMILY_FOR_TYPE[t] === family);
+}
 
 /** True when `type` is one of the gated media types. */
 export function isGatedType(type) {
@@ -72,7 +97,10 @@ export function visibleFranchiseTypes(auth, franchiseTypes) {
 // of its franchise type; the content-label endpoints refuse (422) a new set
 // that drops it. So the label pickers lock it on, and the savers add it back
 // rather than let a save the admin never touched fail.
-export const REQUIRED_LABEL_FOR_TYPE = Object.freeze({ "h-comic": "h-comic" });
+export const REQUIRED_LABEL_FOR_TYPE = Object.freeze({
+  "h-comic": "h-comic",
+  hentai: "hentai",
+});
 
 /** The labels an entry of `mediaType` must carry: [] for an ungated type. */
 export function requiredLabelsForType(mediaType) {

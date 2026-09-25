@@ -18,6 +18,7 @@ const LABELS = {
   comic: "Comic",
   game: "Game",
   "h-comic": "H-Comic",
+  hentai: "Hentai",
 };
 
 // Read types say "reread"; play types say "replay"; watch types say

@@ -16,7 +16,7 @@ export default function AdminTabBar({
   onSelect,
   renderBadge,
 }) {
-  // A gated media type's tab (h-comic) is drawn only for a session that may
+  // A gated media type's tab (h-comic, hentai) is drawn only for a session that may
   // see the type - the one place all four admin pages ask, so they agree.
   const tabs = visibleByType(useAuth(), allTabs);
   const [activeGroup, setActiveGroup] = useState(() =>

@@ -11,9 +11,11 @@ import {
   creditsResponseToForm,
   gameFieldsPayload,
   hComicFieldsPayload,
+  hentaiFieldsPayload,
 } from "../../utils/media";
 import { clearedForRegion } from "../../lib/hComicRegion";
 import { hComicSourceFields } from "../../lib/hComicForm";
+import { hentaiSourceFields } from "../../lib/hentaiForm";
 import {
   requiredLabelsForFranchiseType,
   requiredLabelsForType,
@@ -40,6 +42,8 @@ import ComicModifyTab from "../modify-tabs/ComicModifyTab";
 import GameModifyTab from "../modify-tabs/GameModifyTab";
 import HComicModifyTab from "../modify-tabs/HComicModifyTab";
 import { H_COMIC_FRANCHISE_TYPE } from "../add-tabs/HComicAddTab";
+import HentaiModifyTab from "../modify-tabs/HentaiModifyTab";
+import { HENTAI_FRANCHISE_TYPE } from "../add-tabs/HentaiAddTab";
 import CartoonModifyTab from "../modify-tabs/CartoonModifyTab";
 import TvShowModifyTab from "../modify-tabs/TvShowModifyTab";
 import MovieModifyTab from "../modify-tabs/MovieModifyTab";
@@ -259,6 +263,7 @@ export default function Modify() {
   const allComics = lists.comic;
   const allGames = lists.game;
   const allHComics = lists["h-comic"];
+  const allHentai = lists.hentai;
   // Creating a franchise or series inline, or saving an entry, writes the new
   // row back into the list it came from so the pickers see it without a
   // refetch.
@@ -275,6 +280,7 @@ export default function Modify() {
   const setAllComics = (v) => setList("comic", v);
   const setAllGames = (v) => setList("game", v);
   const setAllHComics = (v) => setList("h-comic", v);
+  const setAllHentai = (v) => setList("hentai", v);
   const [sources, setSources] = useState({ options: [], studios: [], people: {} });
   // The page paints as soon as the pickers have their vocabularies. Waiting
   // for entry lists too is what made this page slow to first paint.
@@ -320,6 +326,7 @@ export default function Modify() {
   const [ccmf, setCcmf] = useState({});
   const [cgmf, setCgmf] = useState({});
   const [chcf, setChcf] = useState({});
+  const [chtf, setChtf] = useState({});
   const [optValue, setOptValue] = useState("");
   const [optScopes, setOptScopes] = useState([]);
   const [optUsages, setOptUsages] = useState([]);
@@ -442,6 +449,7 @@ export default function Modify() {
   const ucm = (k, v) => setCcmf((p) => ({ ...p, [k]: v }));
   const ugm = (k, v) => setCgmf((p) => ({ ...p, [k]: v }));
   const uhc = (k, v) => setChcf((p) => ({ ...p, [k]: v }));
+  const uht = (k, v) => setChtf((p) => ({ ...p, [k]: v }));
 
   // Merges an entry's cast (fetched by the useCasting call above) into
   // whichever form is currently open, exactly once per opened entry - a
@@ -882,6 +890,9 @@ export default function Modify() {
       series_text: s ? getDisplayName(s, "series") : "",
       originality: h.originality || "",
       animation_status: h.animation_status || "",
+      // "derived" while a hentai adapts this h-comic: the form then shows the
+      // status read-only and the payload leaves it out (hComicFieldsPayload).
+      animation_status_source: h.animation_status_source ?? null,
       series_number: h.series_number ?? "",
       serialization_status: h.serialization_status || "",
       page_total: h.page_total ?? "",
@@ -897,6 +908,41 @@ export default function Modify() {
       sources: h.sources || [],
       read_next: h.read_next ?? false,
       to_reread: h.to_reread ?? false,
+      cover_image_file: h.cover_image_file || "",
+      remark: h.remark || "",
+    };
+  }
+
+  // Every column as its form string. The credit and genre fields arrive
+  // through loadCreditsIntoForm, as for every other type.
+  function hentaiToForm(h, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === h.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === h.series_id,
+    );
+    return {
+      hentai_name_cn: h.hentai_name_cn || "",
+      hentai_name_en: h.hentai_name_en || "",
+      hentai_name_alt: h.hentai_name_alt || "",
+      hentai_name_roman: h.hentai_name_roman || "",
+      hentai_name_jp: h.hentai_name_jp || "",
+      franchise_id: h.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: h.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      source_material: h.source_material || "",
+      originality: h.originality || "",
+      series_number: h.series_number ?? "",
+      airing_status: h.airing_status || "",
+      release_date: h.release_date ?? "",
+      mal_id: h.mal_id ?? "",
+      mal_link: h.mal_link || "",
+      watching_status: h.watching_status || md("hentai").watching_status,
+      my_rating: h.my_rating || "",
+      usefulness: h.usefulness || "",
+      sources: h.sources || [],
+      watch_next: h.watch_next ?? false,
+      to_rewatch: h.to_rewatch ?? false,
       cover_image_file: h.cover_image_file || "",
       remark: h.remark || "",
     };
@@ -944,6 +990,9 @@ export default function Modify() {
     } else if (type === "h-comic") {
       setChcf(hComicToForm(item, franchises, series));
       loadCreditsIntoForm("h-comic", item.system_id, setChcf);
+    } else if (type === "hentai") {
+      setChtf(hentaiToForm(item, franchises, series));
+      loadCreditsIntoForm("hentai", item.system_id, setChtf);
     } else if (type === "options") {
       setOptValue(item.value || "");
       setOptScopes(item.scopes ?? []);
@@ -982,6 +1031,7 @@ export default function Modify() {
       else if (editingType === "comic") await saveComic();
       else if (editingType === "game") await saveGame();
       else if (editingType === "h-comic") await saveHComic();
+      else if (editingType === "hentai") await saveHentai();
       else if (editingType === "options") await saveOption();
     } catch (e) {
       showToast("error", e?.message || "Request failed");
@@ -2523,6 +2573,117 @@ export default function Modify() {
     showToast("success", "Update successful.");
   }
 
+  async function saveHentai() {
+    let franchiseId = chtf.franchise_id;
+    if (!franchiseId && (chtf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: HENTAI_FRANCHISE_TYPE,
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_cn: chtf.hentai_name_cn || null,
+          franchise_name_en: chtf.hentai_name_en || null,
+          franchise_name_roman: chtf.hentai_name_roman || null,
+          franchise_name_jp: chtf.hentai_name_jp || null,
+          franchise_name_alt: chtf.hentai_name_alt || null,
+          franchise_type: HENTAI_FRANCHISE_TYPE,
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = chtf.series_id;
+    if (!seriesId && (chtf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: chtf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_cn: chtf.hentai_name_cn || null,
+          series_name_en: chtf.hentai_name_en || null,
+          series_name_alt: chtf.hentai_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    await ensureSourceValues(hentaiSourceFields(chtf, splitTags));
+
+    const payload = {
+      ...hentaiFieldsPayload(chtf),
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+    };
+    const res = await fetch(endpoints.resource("hentai").patch(editingItem.system_id), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("hentai", updated.system_id, chtf);
+    setAllHentai((prev) =>
+      prev.map((h) => (h.system_id === updated.system_id ? updated : h)),
+    );
+    setEditingItem(updated);
+    setChtf(hentaiToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("hentai", updated.system_id, setChtf);
+    window.scrollTo(0, 0);
+    showToast("success", "Update successful.");
+  }
+
   function getItemLabel(item, type) {
     if (type === "anime")
       return item.anime_name_cn || item.anime_name_en || "Unknown";
@@ -2582,6 +2743,7 @@ export default function Modify() {
         "Unknown"
       );
     if (type === "h-comic") return getDisplayName(item, "h-comic");
+    if (type === "hentai") return getDisplayName(item, "hentai");
     if (type === "options") return `${item.category}: ${item.value}`;
     return "Unknown";
   }
@@ -2725,6 +2887,18 @@ export default function Modify() {
           ].some((name) => name && cleanString(name).includes(q)),
         )
         .slice(0, 10);
+    if (activeTab === "hentai")
+      return allHentai
+        .filter((h) =>
+          [
+            h.hentai_name_cn,
+            h.hentai_name_en,
+            h.hentai_name_alt,
+            h.hentai_name_roman,
+            h.hentai_name_jp,
+          ].some((name) => name && cleanString(name).includes(q)),
+        )
+        .slice(0, 10);
     return sources.options
       .filter(
         (o) =>
@@ -2755,6 +2929,8 @@ export default function Modify() {
     if (activeTab === "game") return [...allGames].sort(sort).slice(0, 12);
     if (activeTab === "h-comic")
       return [...allHComics].sort(sort).slice(0, 12);
+    if (activeTab === "hentai")
+      return [...allHentai].sort(sort).slice(0, 12);
     return [];
   })();
 
@@ -3068,6 +3244,18 @@ export default function Modify() {
   const seriesItemsForHComic = (
     chcf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === chcf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForHentai = (
+    chtf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === chtf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -3894,6 +4082,20 @@ export default function Modify() {
                 uhc={uhc}
                 allFranchises={allFranchises}
                 seriesItemsForHComic={seriesItemsForHComic}
+                editingItem={editingItem}
+                ribbonSection={null}
+                sources={sources}
+              />
+            )}
+
+            {/* ── HENTAI EDITOR ── (gated like h-comic's) */}
+            {editingType === "hentai" && (
+              <HentaiModifyTab
+                franchiseCollections={franchiseCollections}
+                chtf={chtf}
+                uht={uht}
+                allFranchises={allFranchises}
+                seriesItemsForHentai={seriesItemsForHentai}
                 editingItem={editingItem}
                 ribbonSection={null}
                 sources={sources}

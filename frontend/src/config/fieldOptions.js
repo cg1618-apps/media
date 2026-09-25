@@ -209,10 +209,12 @@ export const FRANCHISE_TYPES = [
   "Comic",
   "Novel",
   "Game",
-  // Only the gated h-comic type's franchises. /api/constants omits it for a
-  // session that cannot see h-comic; pickers filter the fallback through
-  // visibleFranchiseTypes (lib/gatedTypes.js) for the first paint too.
+  // Only the gated types' franchises (H-Comic for h-comic, Hentai for
+  // hentai). /api/constants omits each for a session that cannot see its
+  // type; pickers filter the fallback through visibleFranchiseTypes
+  // (lib/gatedTypes.js) for the first paint too.
   "H-Comic",
+  "Hentai",
 ];
 
 export const FRANCHISE_EXPECTATIONS = ["Highest", "High", "Medium", "Low"];
@@ -242,6 +244,11 @@ export const H_COMIC_REGIONS = ["JP", "KR"];
 export const H_COMIC_ORIGINALITY = ["原創", "同人"];
 export const H_COMIC_ANIMATION_STATUSES = ["Not Animated", "Announced", "Animated"];
 export const H_COMIC_USEFULNESS = ["非常實用", "實用", "特定情況實用", "不實用"];
+
+// The hentai vocabulary of its own (HENTAI_SOURCE_MATERIALS). A hentai also
+// reads H_COMIC_ORIGINALITY and H_COMIC_USEFULNESS above, served for it as
+// for h-comic, and anime's AIRING_STATUSES. Gated the same way.
+export const HENTAI_SOURCE_MATERIALS = ["Original", "Manga", "Novel"];
 
 export const MUSIC_STATUSES = ["Need", "Pending", "Done"];
 
@@ -287,6 +294,7 @@ export const MEDIA_TYPES = [
   // filtered through visibleMediaTypes by ScopePicker, the one component
   // that renders this list, so the first paint does not name it either.
   "h-comic",
+  "hentai",
 ];
 
 // Tier 2 CATEGORY NAMES (OPTION_CATEGORIES in app/utils/credit_roles.py), not
@@ -353,6 +361,7 @@ export const CONSTANTS_FALLBACK = {
   h_comic_originality: H_COMIC_ORIGINALITY,
   h_comic_animation_status: H_COMIC_ANIMATION_STATUSES,
   h_comic_usefulness: H_COMIC_USEFULNESS,
+  hentai_source_material: HENTAI_SOURCE_MATERIALS,
   day_of_week: WEEKDAYS,
   music_status: MUSIC_STATUSES,
   seiyuu_status: SEIYUU_STATUSES,

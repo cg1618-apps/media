@@ -25,9 +25,10 @@ const SCOPES = [
   { key: "novel", label: "Novel" },
   { key: "comic", label: "Comic" },
   { key: "game", label: "Game" },
-  // Gated: offered only through visibleByType. The server's `h-comic` bucket
-  // is empty for a session that cannot see the type in any case.
+  // Gated: offered only through visibleByType. The server gives no bucket
+  // for a gated type the session cannot see in any case.
   { key: "h-comic", label: "H-Comic" },
+  { key: "hentai", label: "Hentai" },
   { key: "seasonal", label: "Seasonal" },
   { key: "person", label: "Person" },
   { key: "studio", label: "Studio" },
@@ -49,6 +50,7 @@ const TYPE_LABEL = {
   comic: "COMIC",
   game: "GAME",
   "h-comic": "H-COMIC",
+  hentai: "HENTAI",
   seasonal: "SEASON",
   person: "PERSON",
   studio: "STUDIO",
@@ -68,6 +70,7 @@ const DETAIL_TYPES = new Set([
   "comic",
   "game",
   "h-comic",
+  "hentai",
   "anime-movie",
   "movie",
   "tv-show",
@@ -180,6 +183,7 @@ export default function NavSearch() {
         ["comic", 5],
         ["game", 5],
         ["h-comic", 5],
+        ["hentai", 5],
         ["seasonal", 3],
         // Last, and smallest: a query is usually about a title, so staff rows
         // take the slots the media buckets left behind rather than claiming

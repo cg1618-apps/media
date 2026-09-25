@@ -20,6 +20,7 @@ export const MEDIA_TYPE_COLORS = Object.fromEntries(
     "comic",
     "game",
     "h-comic",
+    "hentai",
   ].map((k) => [k, { chip: CHIP, dot: DOT }]),
 );
 

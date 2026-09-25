@@ -6,6 +6,7 @@ import {
   creditsResponseToForm,
   gameFieldsPayload,
   hComicFieldsPayload,
+  hentaiFieldsPayload,
 } from "./payloads";
 
 describe("source rows in the payload", () => {
@@ -197,5 +198,86 @@ describe("h-comic payloads", () => {
       { kind: "access", bucket: "other", name: "Site", url: null, available: null },
     ]);
     expect("highlight_group_order" in body).toBe(false);
+  });
+});
+
+// An h-comic's animation status is derived while a hentai adapts it, and the
+// server refuses (422) a different value then - so the form leaves it out.
+describe("h-comic animation_status", () => {
+  it("is sent while it is hand-set", () => {
+    const body = hComicFieldsPayload({
+      region: "JP",
+      animation_status: "Announced",
+      animation_status_source: "manual",
+    });
+    expect(body.animation_status).toBe("Announced");
+  });
+
+  it("is left out while it is derived", () => {
+    const body = hComicFieldsPayload({
+      region: "JP",
+      animation_status: "Animated",
+      animation_status_source: "derived",
+    });
+    expect("animation_status" in body).toBe(false);
+  });
+});
+
+describe("hentai", () => {
+  it("sends studio and director as credits and the three genres as tags", () => {
+    const payload = buildCreditsPayload("hentai", {
+      studio: "Pink Pineapple",
+      director: "A, B",
+      h_genre_plot: "X",
+      h_genre_appearance: "",
+      h_genre_relation: "Y, Z",
+    });
+    expect(payload.credits).toEqual({ studio: ["Pink Pineapple"], director: ["A", "B"] });
+    expect(payload.tags).toEqual({
+      h_genre_plot: ["X"],
+      h_genre_appearance: [],
+      h_genre_relation: ["Y", "Z"],
+    });
+  });
+
+  it("reads the same fields back out of a credits response", () => {
+    const form = creditsResponseToForm("hentai", {
+      credits: { studio: ["S"], director: [] },
+      tags: { h_genre_plot: ["P"] },
+    });
+    expect(form).toEqual({
+      studio: "S",
+      director: "",
+      h_genre_plot: "P",
+      h_genre_appearance: "",
+      h_genre_relation: "",
+    });
+  });
+
+  it("builds the entry body with no episode progress", () => {
+    const body = hentaiFieldsPayload({
+      hentai_name_cn: "C",
+      series_number: "2",
+      watching_status: "",
+      mal_link: "https://myanimelist.net/anime/1/x",
+      mal_id: "1",
+      sources: [{ name: " Site ", url: "" }],
+    });
+    expect(body.hentai_name_cn).toBe("C");
+    expect(body.series_number).toBe(2);
+    expect(body.watching_status).toBe("Might Watch");
+    expect(body.mal_id).toBe(1);
+    expect(body.sources).toEqual([
+      { kind: "access", bucket: "other", name: "Site", url: null, available: null },
+    ]);
+    for (const key of ["ep_total", "ep_fin", "reading_status"]) {
+      expect(key in body).toBe(false);
+    }
+  });
+
+  it("clears the MAL id with the link it is derived from", () => {
+    const body = hentaiFieldsPayload({ mal_link: "", mal_id: "5" });
+    expect(body.mal_link).toBeNull();
+    expect(body.mal_id).toBeNull();
   });
 });

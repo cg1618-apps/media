@@ -140,6 +140,7 @@ export const LABELLABLE_TABS = [
   "comic",
   "game",
   "h-comic",
+  "hentai",
   "franchise",
 ];
 
@@ -162,7 +163,8 @@ export async function saveEntryLabels(mediaType, entryId, labelKeys) {
 }
 
 // The same for a franchise. `franchiseType` is the franchise_type the save
-// just wrote: an H-Comic franchise carries the h-comic label.
+// just wrote: an H-Comic franchise carries the h-comic label, a Hentai one
+// the hentai label.
 export async function saveFranchiseLabels(franchiseId, labelKeys, franchiseType) {
   return saveLabels(
     endpoints.contentLabels.forFranchise(franchiseId),

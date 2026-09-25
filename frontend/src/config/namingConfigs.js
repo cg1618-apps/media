@@ -51,6 +51,14 @@ export const NAMING_CONFIGS = {
     "h_comic_name_kr",
     "h_comic_name_alt",
   ],
+  // anime's five, in anime's order.
+  hentai: [
+    "hentai_name_cn",
+    "hentai_name_en",
+    "hentai_name_roman",
+    "hentai_name_jp",
+    "hentai_name_alt",
+  ],
   collection: [
     "collection_name_cn",
     "collection_name_en",

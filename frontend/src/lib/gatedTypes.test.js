@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canSeeGatedType,
+  inFranchiseFamily,
   isGatedType,
   requiredLabelsForFranchiseType,
   requiredLabelsForType,
@@ -64,6 +65,49 @@ describe("the list filters", () => {
     const fts = ["ACG", "Game", "H-Comic"];
     expect(visibleFranchiseTypes(narrow, fts)).toEqual(["ACG", "Game"]);
     expect(visibleFranchiseTypes(unrestricted, fts)).toEqual(fts);
+  });
+});
+
+describe("hentai", () => {
+  // Two gated types, told apart: a session named for one is not thereby
+  // shown the other, so each has its own entry in visible_gated_types.
+  const hentaiOnly = { visibleGatedTypes: ["hentai"] };
+  const both = { visibleGatedTypes: ["h-comic", "hentai"] };
+
+  it("is gated, and shown only to a session the server named it for", () => {
+    expect(isGatedType("hentai")).toBe(true);
+    expect(canSeeGatedType(both, "hentai")).toBe(true);
+    expect(canSeeGatedType(narrow, "hentai")).toBe(false);
+    expect(canSeeGatedType(unrestricted, "hentai")).toBe(false);
+    expect(canSeeGatedType(hentaiOnly, "h-comic")).toBe(false);
+  });
+
+  it("drops the Hentai franchise type with its media type", () => {
+    const fts = ["ACG", "H-Comic", "Hentai"];
+    expect(visibleFranchiseTypes(narrow, fts)).toEqual(["ACG"]);
+    expect(visibleFranchiseTypes(hentaiOnly, fts)).toEqual(["ACG", "Hentai"]);
+    expect(visibleFranchiseTypes(both, fts)).toEqual(fts);
+  });
+
+  it("requires the hentai label, on the entry and on its franchise", () => {
+    expect(requiredLabelsForType("hentai")).toEqual(["hentai"]);
+    expect(requiredLabelsForFranchiseType("Hentai")).toEqual(["hentai"]);
+    // One family, one franchise: it carries both labels.
+    expect(requiredLabelsForFranchiseType("H-Comic, Hentai")).toEqual(["h-comic", "hentai"]);
+  });
+});
+
+describe("franchise families", () => {
+  it("puts H-Comic and Hentai franchises in one family", () => {
+    expect(inFranchiseFamily("H-Comic", "h-comic")).toBe(true);
+    expect(inFranchiseFamily("Hentai", "h-comic")).toBe(true);
+    expect(inFranchiseFamily("H-Comic, Hentai", "h-comic")).toBe(true);
+  });
+
+  it("leaves a mainstream franchise out of it", () => {
+    expect(inFranchiseFamily("ACG", "h-comic")).toBe(false);
+    expect(inFranchiseFamily("ACG, Game", "h-comic")).toBe(false);
+    expect(inFranchiseFamily(null, "h-comic")).toBe(false);
   });
 });
 
