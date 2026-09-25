@@ -526,20 +526,25 @@ set. `visible_label_ids` holds the labels this session may SEE —
 per-user read and write keys on, and it is why a guest sees no list at all —
 see [What a guest sees](#what-a-guest-sees).
 
-- Reads the `access_token` cookie, decodes the JWT (which carries `sub`, a
-  decorative `role` and a `mode` uuid), loads the user, takes `user.role_ref`
-  or the guest role, then resolves the access mode.
+- Reads the `access_token` cookie, decodes the JWT (which carries `sub` and a
+  decorative `role` and `mode`), loads the user, takes `user.role_ref` or the
+  guest role, then resolves the access mode.
+- **Which mode**: the `access_mode` cookie's mode if that cookie holds a live
+  override minted for this account, otherwise the account's `is_default` mode,
+  read from the database. The login token's `mode` claim is not read. An
+  override that is expired, badly signed or minted for another account counts
+  as no override. See [Switching mid-session](#switching-mid-session-post-apiauthaccess-mode).
 
 **Mode resolution, fail-closed** (`app/services/rbac/modes.py::resolve_mode`):
 
 ```
-token.mode  ->  still granted to this user?
+mode        ->  still granted to this user?
                   yes -> effective = mode's sets - this pair's denials
                   no  -> effective = EMPTY SET
 no token    ->  the `safe` mode by key, or EMPTY SET if it is missing
 ```
 
-The claim **names a choice, not a grant**: whether the account may still use
+An override **names a choice, not a grant**: whether the account may still use
 that mode is re-resolved from the database on every request, exactly as the
 role already is, so revoking a mode or ticking a denial takes effect on the
 viewer's next request even with a live cookie. It carries the mode's **uuid**
@@ -548,12 +553,15 @@ rather than its key, so renaming a mode does not invalidate live sessions.
 Three fallbacks that all go to the **empty set**, and each for a reason worth
 keeping:
 
-- A revoked mode does **not** fall back to the account's default. "Narrowest"
+- A revoked mode does **not** fall back to the account's default: an override
+  naming it resolves to nothing until it expires or is switched away from.
+  "Narrowest"
   is not well defined once modes are deliberately unordered, and falling back
   to `is_default` could *widen* a session — sitting in `safe` when an admin
   revokes `safe` would hand the viewer `unrestricted` with no password.
-- A signed-in caller with no usable claim does **not** inherit the guest
-  default. That mode is the anonymous policy, not this account's.
+- A signed-in account with no override and no default mode does **not**
+  inherit the guest default. That mode is the anonymous policy, not this
+  account's.
 - A missing `safe` mode gives a guest nothing, rather than everything. A
   misconfiguration must hide, not publish.
 - **Never raises.** Missing/garbage/expired cookie, deleted user, deleted role,
@@ -1228,8 +1236,8 @@ which is correct and indistinguishable from a broken invitation.
 
 ### Switching mid-session: `POST /api/auth/access-mode`
 
-Narrowing is instant; widening asks for the password again, so a
-browser left logged in at a narrow mode is actually narrow. The test is a set
+Narrowing is instant; widening asks for the password again, so nobody widens
+a session they merely find logged in. The test is a set
 comparison - modes are deliberately unordered, so "narrower" can only mean
 "its effective set is a subset of mine" - and it runs against **effective**
 sets, after denials.
@@ -1239,15 +1247,31 @@ endpoint enforces it with the **same function**, because the endpoint that
 enforces a rule must not be able to disagree with the payload that advertises
 it. The SPA never models the rule.
 
-**THE REISSUED COOKIE KEEPS THE ORIGINAL `exp`.** Minting a fresh month-long
-token on each switch would make toggling between two modes an unlimited
+**A SWITCHED-TO MODE IS TEMPORARY; THE DEFAULT IS NOT.** The login cookie
+says who is asking and lasts a month; it does not say which mode. Switching to
+anything but the account's default sets a second cookie, `access_mode`
+(`resolver.MODE_OVERRIDE_COOKIE`):
+
+| Property | Value | Why |
+|---|---|---|
+| lifetime in the browser | session cookie: no `max_age`, no `expires` | closing the browser drops it |
+| token `exp` | `ACCESS_MODE_OVERRIDE_MINUTES` (60) after the switch, capped at the login's `exp` | a browser that restores its session, or is never closed, still returns to the default |
+| token claims | `sub`, `mode` | an override minted for another account is ignored |
+| cleared by | switching to the default, login, logout | a new login always starts in the default |
+
+So a laptop switched to `unrestricted` and left alone is back in its default
+mode within the hour. This applies to narrowing as well as widening: a session
+switched below its default returns to the default when the override ends,
+without the password, because the default is what the account's own login
+already grants. `/api/auth/me` publishes the end as `mode.expires_at`, and
+`AuthContext` reloads the page just after, so nothing fetched in the old mode stays
+on screen.
+
+**The login cookie is not reissued by a switch.** Minting a fresh month-long
+login on each switch would make toggling between two modes an unlimited
 session-extension oracle, and the lifetime here is flat with no refresh flow
-and no revocation - so the entire session policy would be defeated by a
-control whose purpose is to make sessions safer. It is invisible to manual
-testing and to every form of checking except decoding both tokens and
-comparing. `create_access_token` takes an explicit `expires_at` for this, and
-the cookie's `max_age` is the REMAINING seconds so a switch cannot resurrect
-an already-expired token.
+and no revocation. `create_access_token` takes an explicit `expires_at` so the
+override can be capped at the login's.
 
 A mode the account does not hold answers **404**, identically to one that does
 not exist, and deliberately **not** flagged `requires_password`: it is not a

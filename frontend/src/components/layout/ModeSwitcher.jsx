@@ -1,8 +1,9 @@
 // Frontend: change which entries and fields this session can reach.
 //
 // An access mode is a ceiling on OBJECTS, chosen per session. Narrowing is
-// instant; widening asks for the password again, so a browser left logged in
-// at a narrow mode is actually narrow.
+// instant; widening asks for the password again. A switch is temporary: after
+// an hour, or when the browser closes, the session is back in the account's
+// default mode (AuthContext reloads the page when that happens).
 //
 // Three rules this control does not get to decide, all settled server-side:
 //
