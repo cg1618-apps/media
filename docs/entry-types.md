@@ -301,14 +301,14 @@ Sections whose `owners` is `ALL_OWNERS` (all ten types plus `series`, `franchise
 | `highlight_episodes` | | | | x (kinds) | x (kinds) | x (label `神回`, locator "Chapter(s)") | | | | | |
 | `highlight_passages` | | | | | | | x | | | | |
 | `highlight_moments` (label `神場景 Highlights`, locator "Chapter / Boss") | | | | | | | | | x | | |
-| 攻略 group — `beginner`, `guide_notes`, `trivia` (`text_links`), `controls` (`structured`) | | | | | | | | | x | | |
+| 攻略 group — `beginner`, `guide_notes`, `trivia` (`text_links`), `gameplay_systems`, `controls` (`structured`) | | | | | | | | | x | | |
 | 養成&流派 group — `stats_and_points`, `skills`, `builds_and_styles`, `team_composition` (`structured`) | | | | | | | | | x | | |
 | 物品 group — `weapons_and_gear`, `items`, `collectibles` (`structured`) | | | | | | | | | x | | |
-| 圖鑑 group — `characters_guide`, `enemies` (`structured`) | | | | | | | | | x | | |
+| 圖鑑 group — `characters_guide`, `enemies`, `game_terms` (`structured`) | | | | | | | | | x | | |
 | 資源&工具 group — `mods_and_tools`, `guide_resources` (`structured`) | | | | | | | | | x | | |
 | 劇情 group — `main_plot`, `side_plot` (`episode_text`, locator optional) | | | | | | | | | x | | |
 | 劇情列表 group — `story_list_main`, `story_list_side`, `story_list_character`, `story_list_event` (`structured`, nestable) | | | | | | | | | x | | |
-| 劇情 group — `character_arcs`, `lore`, `mysteries`, `story_other` (`text_links`), `timeline` (`text`) | | | | | | | | | x | | |
+| 劇情 group — `character_arcs`, `lore`, `mysteries`, `story_other` (`text_links`), `timeline` (`text`), `story_terms` (`structured`) | | | | | | | | | x | | |
 | 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`, personal scope) | | | | | | | | | x | | |
 | `cinematography` (`分鏡/演出/巧思`) | x | x | | x | x | x | | | | | series |
 | `craft` (`巧思`) | | | | | | | x | | | | |

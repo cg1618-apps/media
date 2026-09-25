@@ -502,6 +502,7 @@ CATALOG_KEYS = {
     "symmetry",
     # 攻略 Guides
     "beginner",
+    "gameplay_systems",
     "controls",
     "trivia",
     "guide_notes",
@@ -518,6 +519,7 @@ CATALOG_KEYS = {
     "weapons_and_gear",
     "characters_guide",
     "enemies",
+    "game_terms",
     "endings",
     "mods_and_tools",
     "guide_resources",
@@ -526,6 +528,7 @@ CATALOG_KEYS = {
     "side_plot",
     "character_arcs",
     "lore",
+    "story_terms",
     "timeline",
     "mysteries",
     "story_other",
@@ -567,7 +570,7 @@ def test_the_personal_sections_are_exactly_these_twelve():
     assert ns.PERSONAL_SECTIONS == PERSONAL_KEYS
 
 
-def test_the_catalog_sections_are_exactly_these_forty_six():
+def test_the_catalog_sections_are_exactly_these_forty_nine():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_CATALOG} == (
         CATALOG_KEYS
     )
@@ -576,7 +579,7 @@ def test_the_catalog_sections_are_exactly_these_forty_six():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 58
+    assert len(stored) == 61
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 

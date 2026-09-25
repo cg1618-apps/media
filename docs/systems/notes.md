@@ -101,12 +101,12 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | --- | --- | --- |
 | `reviews` | 評論 Reviews and Comments | `fa-comments` |
 | `analysis_group` | 解析 Analysis and Cinematography | `fa-clapperboard` (keyed `analysis_group` because a section already owns `analysis`) |
-| `guides` | 攻略 Guides | `fa-map` — game-only: beginner, controls, guide notes, trivia. The way in, not the content |
+| `guides` | 攻略 Guides | `fa-map` — game-only: beginner, gameplay systems, controls, guide notes, trivia. The way in, not the content |
 | `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game-only: stats, skills, builds, team composition |
 | `gear` | 物品 Items & Gear | `fa-sack-xmark` — game-only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
-| `compendium` | 圖鑑 Compendium | `fa-dragon` — game-only: characters, enemies |
+| `compendium` | 圖鑑 Compendium | `fa-dragon` — game-only: characters, enemies, game terms |
 | `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game-only: mods and tools, guide resources. Renders beside the site-wide Resources card, not with the 攻略 run |
-| `story` | 劇情 Story | `fa-book-open` — game-only, 8 sections |
+| `story` | 劇情 Story | `fa-book-open` — game-only, 9 sections |
 | `story_list` | 劇情列表 Story List | `fa-list-ol` — game-only, 4 **hierarchical** strands |
 | `todo` | 待辦 Todo | `fa-list-check` — game-only, 4 personal-scope buckets |
 | `music` | 音樂 Music | `fa-music` |
@@ -127,7 +127,18 @@ is a section wearing a second header.
 **結局 Endings is in 劇情 Story, not 攻略.** It sat among the guide sections
 while it had nowhere better, and an ending is what the story *does* rather
 than a guide topic — so it reads above 世界觀&設定 Lore, and 圖鑑 is cleanly
-about the cast and the bestiary.
+about the cast, the bestiary and the game's glossary.
+
+**The game's vocabulary is split by where it is looked up.** 遊戲名詞 Game
+Terms (mechanics, currencies, jargon) is in 圖鑑, read while playing; 劇情名詞
+Story Terms (places, factions, invented words the plot introduces) is in 劇情,
+beside the Lore it names, read while following the story. 玩法系統 Gameplay
+Systems — modes, enhancement and upgrade systems, the pull system, stages,
+style of play — is in 攻略, straight after 新手 Beginner: Beginner is the
+advice, this is the inventory of what the advice is about. All three share
+one spec, `_term_fields`: Chinese name (`title`), alternative name
+(`fields.name_alt`, named after the entry tables' `*_name_alt`), description,
+links; 玩法系統 adds a free-text type (`kind`).
 
 **A section's group can differ per owner.** `groups_by_owner` overrides
 `group` for named owner types, the same way `labels` and `kinds_by_owner`
@@ -215,6 +226,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `foreshadowing` | Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
+| `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game | — | — | — | no | no | no |
 | `controls` | 操作 Controls | **structured** | guides | game | — | — | — | no | no | no |
 | `guide_notes` | 攻略筆記 Guide Notes | text_links | guides | game | — | — | — | no | no | no |
 | `trivia` | 小知識 Trivia | text_links | guides | game | — | — | — | no | no | no |
@@ -227,11 +239,13 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `collectibles` | 收集物 Collectibles | **structured** | gear | game | — | — | — | no | no | no |
 | `characters_guide` | 角色 Characters | **structured** | compendium | game | — | — | — | no | no | no |
 | `enemies` | 敵人 Enemies | **structured** | compendium | game | — | — | — | no | no | no |
+| `game_terms` | 遊戲名詞 Game Terms | **structured** | compendium | game | — | — | — | no | no | no |
 | `main_plot` | 主線劇情 Main Plot | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
 | `side_plot` | 支線劇情 Side Stories | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
 | `character_arcs` | 角色劇情 Character Arcs | text_links | story | game | — | — | — | no | no | no |
 | `endings` | 結局 Endings | **structured** | story | game | — | — | — | no | no | no |
 | `lore` | 世界觀&設定 Lore | text_links | story | game | — | — | — | no | no | no |
+| `story_terms` | 劇情名詞 Story Terms | **structured** | story | game | — | — | — | no | no | no |
 | `timeline` | 時間線 Timeline | text_links | story | game | — | — | — | no | no | no |
 | `mysteries` | 未解之謎 Mysteries | text_links | story | game | — | — | — | no | no | no |
 | `story_other` | 其他 Other | text_links | story | game | — | — | — | no | no | no |
