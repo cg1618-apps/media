@@ -4,7 +4,14 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from app.schemas.link_fields import HComicLinkFields
 from app.schemas.release_date_field import release_date_validator
@@ -117,7 +124,22 @@ class HComicResponse(HComicBase, HComicLinkFields):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+    # "derived" when the served animation_status comes from adaptation
+    # relations to hentai entries, "manual" when it is the stored hand-set
+    # value, None on a KR entry (which has none) or on a path that did not
+    # attach it. Set by h_comic.attach_animation_status.
+    animation_status_source: Optional[str] = None
+    # The derived value itself, swapped into animation_status below and never
+    # served on its own.
+    animation_status_derived: Optional[str] = Field(default=None, exclude=True)
+
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def _serve_the_effective_animation_status(self):
+        if self.animation_status_derived is not None:
+            self.animation_status = self.animation_status_derived
+        return self
 
     @computed_field
     @property

@@ -373,6 +373,23 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 franchise_cn = _cn(f, "franchise")
                 franchise_type = getattr(f, "franchise_type", None)
 
+        elif entry_type == "Hentai":
+            # Anime's five names, so the _cn/_en helpers apply as for anime.
+            name_cn = _cn(entry, "hentai")
+            if _has_cn(entry, "hentai"):
+                name_en = _en(entry, "hentai")
+            if getattr(entry, "series_id", None):
+                s = db.query(Series).filter(Series.system_id == entry.series_id).first()
+                series_cn = _cn(s, "series")
+            if getattr(entry, "franchise_id", None):
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
+                franchise_cn = _cn(f, "franchise")
+                franchise_type = getattr(f, "franchise_type", None)
+
         elif entry_type == "H-Game":
             # Named through display_name, as H-Comic is: it already carries
             # the type's CN -> EN -> Alt -> Roman -> JP chain.

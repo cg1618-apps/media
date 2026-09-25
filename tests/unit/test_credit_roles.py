@@ -159,14 +159,26 @@ def test_h_comic_tag_fields():
         "h_genre_appearance",
         "h_genre_relation",
     }
-    # Shared by the gated types, h-comic and h-game.
+    # Shared by the gated types, h-comic, h-game and hentai.
     for key in ("h_genre_plot", "h_genre_appearance", "h_genre_relation"):
-        assert cr.TAG_FIELDS[key].media_types == ("h-comic", "h-game")
+        assert cr.TAG_FIELDS[key].media_types == ("h-comic", "h-game", "hentai")
+
+
+def test_hentai_credits_and_tags():
+    """Anime's studio and director, and the three shared H Genre fields."""
+    assert {r.key for r in cr.credit_roles_for("hentai")} == {"studio", "director"}
+    assert {f.key for f in cr.tag_fields_for("hentai")} == {
+        "h_genre_plot",
+        "h_genre_appearance",
+        "h_genre_relation",
+    }
 
 
 def test_h_game_credits_and_tag_fields():
     assert [r.key for r in cr.credit_roles_for("h-game")] == ["studio"]
-    assert cr.CREDIT_ROLES["studio"].media_types == ("anime", "anime-movie", "game", "h-game")
+    assert cr.CREDIT_ROLES["studio"].media_types == (
+        "anime", "anime-movie", "game", "h-game", "hentai"
+    )
     assert {f.key for f in cr.tag_fields_for("h-game")} == {
         "game_genre",
         "game_theme",
@@ -208,7 +220,9 @@ def test_manga_illustrator_uses_the_traditional_form():
 
 
 def test_legal_scopes_match_media_types():
-    assert cr.legal_scopes("director") == ("anime", "anime-movie", "movie", "game")
+    assert cr.legal_scopes("director") == (
+        "anime", "anime-movie", "movie", "game", "hentai",
+    )
     assert cr.legal_scopes("producer") == ("anime",)
     assert cr.legal_scopes("composer") == ("anime", "game")
     assert cr.legal_scopes("author") == ("manga", "novel", "comic", "h-comic")
@@ -254,14 +268,15 @@ def test_every_media_type_named_by_a_role_is_a_known_key():
             assert mt in MEDIA_TYPE_KEYS, f"{field.key}: {mt}"
 
 
-def test_director_credit_covers_four_media_types():
-    # Games joined the three it already covered: a game has a director in the
-    # same sense a film does.
+def test_director_credit_covers_five_media_types():
+    # A game has a director in the same sense a film does, and a hentai in
+    # the same sense an anime does.
     assert set(cr.CREDIT_ROLES["director"].media_types) == {
         "anime",
         "anime-movie",
         "movie",
         "game",
+        "hentai",
     }
 
 

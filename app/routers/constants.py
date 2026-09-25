@@ -21,6 +21,7 @@ from app.services.rbac.gated_types import (
     hidden_franchise_types,
     hidden_option_categories,
     hidden_person_roles,
+    only_for,
     unseeable_gated_types,
 )
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
@@ -45,23 +46,23 @@ def _values(enum_cls) -> list[str]:
     return [member.value for member in enum_cls]
 
 
-# Vocabularies that exist for one media type alone, keyed by that type. When
-# the type is gated and the viewer cannot see it, the key is left out of the
-# payload entirely - the session is not told the type exists.
-TYPE_ONLY_VOCABULARIES: dict[str, dict[str, tuple[str, ...]]] = {
-    "h-comic": {
-        "h_comic_region": c.H_COMIC_REGIONS,
-        "h_comic_originality": c.H_COMIC_ORIGINALITY,
-        "h_comic_animation_status": c.H_COMIC_ANIMATION_STATUSES,
-        "h_comic_usefulness": c.H_COMIC_USEFULNESS,
-    },
-    "h-game": {
-        "h_game_playstyle": c.H_GAME_PLAYSTYLES,
-        "h_game_language_availability": c.H_GAME_LANGUAGE_AVAILABILITY,
-        "h_game_audio_availability": c.H_GAME_AUDIO_AVAILABILITY,
-        "h_game_h_presentation": c.H_GAME_H_PRESENTATIONS,
-        "h_game_platform": c.H_GAME_PLATFORMS,
-    },
+# Vocabularies that exist for gated types alone: {payload key: (values, the
+# media types it serves)}. A key is left out of the payload entirely when
+# every type it serves is gated and hidden from the viewer - the session is
+# not told the types exist. hentai reuses h-comic's originality and
+# usefulness, and h-game its usefulness, so those are served while any type
+# they serve is seeable.
+TYPE_ONLY_VOCABULARIES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "h_comic_region": (c.H_COMIC_REGIONS, ("h-comic",)),
+    "h_comic_originality": (c.H_COMIC_ORIGINALITY, ("h-comic", "hentai")),
+    "h_comic_animation_status": (c.H_COMIC_ANIMATION_STATUSES, ("h-comic",)),
+    "h_comic_usefulness": (c.H_COMIC_USEFULNESS, ("h-comic", "h-game", "hentai")),
+    "hentai_source_material": (c.HENTAI_SOURCE_MATERIALS, ("hentai",)),
+    "h_game_playstyle": (c.H_GAME_PLAYSTYLES, ("h-game",)),
+    "h_game_language_availability": (c.H_GAME_LANGUAGE_AVAILABILITY, ("h-game",)),
+    "h_game_audio_availability": (c.H_GAME_AUDIO_AVAILABILITY, ("h-game",)),
+    "h_game_h_presentation": (c.H_GAME_H_PRESENTATIONS, ("h-game",)),
+    "h_game_platform": (c.H_GAME_PLATFORMS, ("h-game",)),
 }
 
 
@@ -95,9 +96,9 @@ def get_constants(
     categories = hidden_option_categories(hidden)
     payload["option_categories"] = _without(payload["option_categories"], categories)
     payload["tag_categories"] = _without(payload["tag_categories"], categories)
-    for media_type, vocabularies in TYPE_ONLY_VOCABULARIES.items():
-        if media_type not in hidden:
-            payload.update({key: list(values) for key, values in vocabularies.items()})
+    for key, (values, media_types) in TYPE_ONLY_VOCABULARIES.items():
+        if not only_for(media_types, hidden):
+            payload[key] = list(values)
     return payload
 
 

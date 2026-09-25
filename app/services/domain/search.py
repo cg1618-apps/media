@@ -23,6 +23,7 @@ from app import models, schemas
 from app.registry import MEDIA_REGISTRY
 from app.services.domain.content_labels import attach_franchise_content_labels
 from app.services.domain.credits import attach_link_fields
+from app.services.domain.h_comic import attach_animation_status
 from app.services.domain.plan_next import planned_entry_ids
 from app.services.rbac.enforcement import (
     apply_entry_visibility,
@@ -163,6 +164,8 @@ SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
     # After game. A gated type: search() leaves its bucket out altogether for
     # a session that cannot see it.
     _spec("h-comic", "h_comic", "h_comic_name_cn"),
+    # After h-comic, gated the same way by the hentai label.
+    _spec("hentai", "hentai", "hentai_name_cn"),
     # The second gated type, after the first; hidden the same way.
     _spec("h-game", "h_game", "h_game_name_cn"),
     SearchableType(
@@ -340,6 +343,7 @@ def _decorate(db: Session, viewer, spec: SearchableType, entries: list):
         for entry in entries:
             setattr(entry, field, entry.system_id in planned)
     attach_link_fields(db, spec.owner_type, entries)
+    attach_animation_status(db, spec.owner_type, entries)
     return gate(viewer, spec.owner_type, entries, spec.response_schema)
 
 

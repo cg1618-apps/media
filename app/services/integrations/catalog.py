@@ -881,6 +881,45 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
         ),
     ),
     Coverage(
+        key="hentai",
+        keyed_by="mal_id",
+        combination="single",
+        requests_per_entry="1 Tenrai",
+        note=(
+            "The same Tenrai anime record as Anime, read for three things only. "
+            "Every run and the single-entry hook end in the hentai sync, which "
+            "keeps the hentai label on."
+        ),
+        sources=(
+            SourceBlock(
+                source="tenrai",
+                writes=(
+                    Write("airing_status", "column", "fill-only"),
+                    Write(
+                        "release_date",
+                        "column",
+                        "fill-only",
+                        "precision taken from MAL's own aired string, never padded",
+                    ),
+                    Write("cover_image_file", "image", "if-empty"),
+                    Write(
+                        "mal_rating",
+                        "none",
+                        "never",
+                        "hentai takes airing status, release date and cover "
+                        "from Tenrai and nothing else",
+                    ),
+                    Write(
+                        "studio",
+                        "none",
+                        "never",
+                        "credited by hand; Tenrai's studios are not read here",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    Coverage(
         key="studio",
         keyed_by="mal_id",
         combination="single",
