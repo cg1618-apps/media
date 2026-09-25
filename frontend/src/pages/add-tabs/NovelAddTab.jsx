@@ -505,7 +505,8 @@ export default function NovelAddTab({
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "person",
-              role: "novel_author",
+              role: "author",
+              scope: "novel",
             })}
             value={nvf.author}
             onChange={(v) => unv("author", v)}
@@ -516,7 +517,8 @@ export default function NovelAddTab({
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "person",
-              role: "novel_illustrator",
+              role: "illustrator",
+              scope: "novel",
             })}
             value={nvf.illustrator}
             onChange={(v) => unv("illustrator", v)}

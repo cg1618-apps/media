@@ -55,8 +55,8 @@ const CREDITS_FIELD_MAP = {
   },
   manga: {
     credits: {
-      author_plot: "manga_author_plot",
-      author_draw: "manga_author_draw",
+      author_plot: "author",
+      author_draw: "illustrator",
       publisher_tw: "publisher",
     },
     tags: {
@@ -65,8 +65,8 @@ const CREDITS_FIELD_MAP = {
   },
   novel: {
     credits: {
-      author: "novel_author",
-      illustrator: "novel_illustrator",
+      author: "author",
+      illustrator: "illustrator",
       publisher_tw: "publisher",
     },
     tags: {
@@ -78,8 +78,8 @@ const CREDITS_FIELD_MAP = {
     // and `publisher_tw` - and keeps ONE publisher field, the credit. The
     // publisher_tw column was defined and never used (spec Decision C).
     credits: {
-      writer: "comic_writer",
-      artist: "comic_artist",
+      writer: "author",
+      artist: "illustrator",
       publisher: "publisher",
     },
     tags: {
