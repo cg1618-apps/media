@@ -55,6 +55,13 @@ TYPE_ONLY_VOCABULARIES: dict[str, dict[str, tuple[str, ...]]] = {
         "h_comic_animation_status": c.H_COMIC_ANIMATION_STATUSES,
         "h_comic_usefulness": c.H_COMIC_USEFULNESS,
     },
+    "h-game": {
+        "h_game_playstyle": c.H_GAME_PLAYSTYLES,
+        "h_game_language_availability": c.H_GAME_LANGUAGE_AVAILABILITY,
+        "h_game_audio_availability": c.H_GAME_AUDIO_AVAILABILITY,
+        "h_game_h_presentation": c.H_GAME_H_PRESENTATIONS,
+        "h_game_platform": c.H_GAME_PLATFORMS,
+    },
 }
 
 

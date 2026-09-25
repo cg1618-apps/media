@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-23
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -59,7 +59,7 @@ the stored value, tuple of keys for validation.
 
 | key | label | target | media types |
 |---|---|---|---|
-| `studio` | Studio | studio | anime, anime-movie, game |
+| `studio` | Studio | studio | anime, anime-movie, game, h-game (its only credit) |
 | `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
 | `director` | Director | person | anime, anime-movie, movie, game |
 | `producer` | Producer | person | anime |
@@ -152,16 +152,20 @@ that names a credit which does not exist.
 | `comic_continuity` | Continuity | Comic Continuity | comic |
 | `comic_era` | Era | Comic Era | comic |
 | `comic_event` | Events | Comic Event | comic |
-| `game_genre` / `game_theme` / `game_mode` / `combat_mode` / `game_platform` | Genre / Theme / Mode / Combat Mode / Platform | Game Genre / Game Theme / Game Mode / Combat Mode / Game Platform | game |
-| `h_genre_plot` | Genre Plot | H Genre Plot | h-comic |
-| `h_genre_appearance` | Genre Appearance | H Genre Appearance | h-comic |
-| `h_genre_relation` | Genre Relation | H Genre Relation | h-comic |
+| `game_genre` / `game_theme` | Genre / Theme | Game Genre / Game Theme | game, h-game |
+| `game_mode` / `combat_mode` / `game_platform` | Mode / Combat Mode / Platform | Game Mode / Combat Mode / Game Platform | game |
+| `h_genre_plot` | Genre Plot | H Genre Plot | h-comic, h-game |
+| `h_genre_appearance` | Genre Appearance | H Genre Appearance | h-comic, h-game |
+| `h_genre_relation` | Genre Relation | H Genre Relation | h-comic, h-game |
 
-The three h-comic genre vocabularies are admin-managed and exist for the gated
-type alone; a value used or scoped only there is hidden from a session that
-cannot see h-comic. No h-comic credit or tag has a legacy sheet header, so each
-travels under its own key (`illustrator`, `author`, `club`,
-`original_source`, `h_genre_*`).
+The three H genre vocabularies are admin-managed and shared by the gated
+types; they serve gated types alone, so a value is hidden from a session that
+can see none of them. `game_genre` and `game_theme` reach h-game as well as
+game, filled from IGDB the same way; because game is ungated, a value of
+theirs is hidden only through its uses, like any ordinary vocabulary. No
+h-comic or h-game credit or tag has a legacy sheet header, so each travels
+under its own key (`illustrator`, `author`, `club`, `original_source`,
+`studio`, `game_genre`, `game_theme`, `h_genre_*`).
 
 `FILTER_ONLY_CATEGORIES = ("Franchise for Filter", "Reference Source")` exists
 as a vocabulary but backs no field. **There is no `publisher_tw` or

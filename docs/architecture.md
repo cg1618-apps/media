@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-09-22
+Last verified: 2026-09-25
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -85,6 +85,9 @@ for the catch-all, which is last).
 | `note` | `/api/notes` | |
 | `novel` | `/api/novel` | factory |
 | `comic` | `/api/comic` | factory router nested in a prefix-less router that adds `GET /api/comic/search-comicvine` |
+| `game` | `/api/game` | factory router nested in a prefix-less router that adds `GET /api/game/search-igdb` |
+| `h_comic` | `/api/h-comic` | factory; a gated type |
+| `h_game` | `/api/h-game` | factory router nested in a prefix-less router that adds `GET /api/h-game/search-igdb`; a gated type |
 | `watch_order` | `/api/watch-order` | |
 | `media_relation` | `/api/media-relation` | |
 | `plan_next` | `/api/plan-next` | |
@@ -113,7 +116,7 @@ Endpoint-level detail (parameters, bodies) is in `api.md`.
 
 ## The media-type registry and router factory
 
-Eight media types share one router shape. What differs per type is declared
+All eleven media types share one router shape. What differs per type is declared
 once in `app/registry.py` as a frozen `MediaTypeSpec`; `app/routers/_factory.py`
 (`make_media_router(spec)`) turns it into an `APIRouter`. Anime and anime
 movie are ordinary registry entries, not hand-written routers

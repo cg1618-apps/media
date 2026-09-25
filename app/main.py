@@ -41,6 +41,7 @@ from app.routers import (
     fx_rates,
     game,
     h_comic,
+    h_game,
     health,
     images,
     manga,
@@ -264,6 +265,7 @@ app.include_router(novel.router)
 app.include_router(comic.router)
 app.include_router(game.router)
 app.include_router(h_comic.router)
+app.include_router(h_game.router)
 app.include_router(watch_order.router)
 app.include_router(media_relation.router)
 app.include_router(plan_next.router)

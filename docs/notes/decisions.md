@@ -1970,3 +1970,42 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
 - **Found by key.** `ensure_label` adopts a label row an admin made by hand
   with the same key instead of failing on the unique key or creating a twin;
   an adopted row keeps its own name and grants.
+
+### H-Game, the second gated type (spec: 2026-09-25 h-game-design)
+
+- **Its own table, Game's machinery.** `h_game` is to `games` what `h_comic`
+  is to `manga`: the IGDB and Steam fill, the purchase records, the DLC chain
+  and the game note sections are reused, the table is not. The two autofills
+  take the entry's model and owner type instead of being copied, and write a
+  column only when the table has it, so a column Game has and h_game lacks
+  (`hours_played`, the Metacritic pair) is skipped rather than set as a stray
+  attribute; a credit or tag whose scope lacks `h-game` (publisher, mode,
+  platform) is skipped the same way.
+- **Purchase records are shared, through `media`.** `game_copy.game_id`
+  points at `media.system_id` instead of `games.system_id`. Every entry
+  shares its id with its media row, so no value changed; the column kept its
+  name because the `Game Copy` sheet tab is headed by it. With the FK off
+  `games`, both `Game.copies` and `HGame.copies` spell out their join.
+- **Fixed vocabularies, checked on every path.** The five h-game vocabularies
+  live in `constants.py`, not in `system_option`: they are closed, and a
+  closed list the code checks is a constant. The write schemas and the
+  registry's progress hook (the tracker PATCH has no schema) refuse an
+  unknown value with a 422; the Sheets parser drops it and logs, because a
+  restore must not fail a tab over one hand-typed cell.
+- **A multi-choice list is stored in vocabulary order, and `[]` is an
+  answer.** Two ways of ticking the same boxes store the same list. An empty
+  list ("no voiced scenes", "none of these presentations") is kept and is
+  different from null ("not recorded"), the way `animation_availability`'s
+  null means unknown rather than no.
+- **No invariant pass of its own.** H-Game has no region and nothing derived,
+  so the label is the only thing a restore could break, and the pass every
+  gated type shares (`enforce_gated_label_invariants`) covers it. Its pipeline
+  spec runs `run_sync_game` and `run_sync_gated_labels`.
+- **Plans and watch orders as Game.** Plan-next scopes and the
+  `play_next` / `to_replay` flags mirror game's; a watch-order step names an
+  h-game whole.
+- **Game's note sections by default.** Every game section names
+  `GAME_OWNERS`, so the next one written for games reaches h-game without a
+  registry edit. `h_game_highlights` copies `h_comic_highlights`' fields -
+  the second copy, so not factored out yet - with the locator labelled
+  "Route / Scene" and no `owner_where`.

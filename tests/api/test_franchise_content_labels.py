@@ -81,8 +81,8 @@ def test_super_may_read_the_vocabulary(super_client, nsfw_label):
     """The picker's checkbox list. Non-empty, so a 200 means something."""
     res = super_client.get("/api/content-labels/")
     assert res.status_code == 200, res.text
-    # The system `h-comic` label exists in every database.
-    assert [row["key"] for row in res.json()] == ["h-comic", "nsfw"]
+    # The gated types' system labels exist in every database.
+    assert [row["key"] for row in res.json()] == ["h-comic", "h-game", "nsfw"]
 
 
 def test_super_may_not_mint_a_label(super_client, nsfw_label):

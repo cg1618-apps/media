@@ -51,6 +51,7 @@ VALID_MEDIA_TYPES = frozenset(
         "comic",
         "game",
         "h-comic",
+        "h-game",
         "collection",
         "franchise",
         "series",

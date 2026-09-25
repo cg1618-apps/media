@@ -163,6 +163,8 @@ SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
     # After game. A gated type: search() leaves its bucket out altogether for
     # a session that cannot see it.
     _spec("h-comic", "h_comic", "h_comic_name_cn"),
+    # The second gated type, after the first; hidden the same way.
+    _spec("h-game", "h_game", "h_game_name_cn"),
     SearchableType(
         key="seasonal",
         model=models.Seasonal,

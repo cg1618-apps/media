@@ -29,8 +29,10 @@ class GameCopy(Base):
     would mean six columns meaning nothing for the other eight media types.
 
     game_id is a real foreign key rather than the (media_type, entry_id) pair
-    the polymorphic tables use: because a DLC is a `games` row, one FK covers
-    game and DLC purchases identically.
+    the polymorphic tables use. It points at `media.system_id`, which every
+    entry shares with its detail row, so one FK covers game and h-game
+    purchases - and their DLCs, which are rows of the same tables - alike.
+    The column keeps its name because the Game Copy sheet tab is headed by it.
     """
 
     __tablename__ = "game_copy"
@@ -54,7 +56,7 @@ class GameCopy(Base):
     )
     game_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("games.system_id", ondelete="CASCADE"),
+        ForeignKey("media.system_id", ondelete="CASCADE"),
         nullable=False,
     )
 

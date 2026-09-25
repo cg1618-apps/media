@@ -112,9 +112,15 @@ def test_normal_still_hides_that_label(db_session, mode, orphan_label):
     because nothing was hidden from anyone - a green that proves the gate was
     asked, not that it answered."""
     hidden = hidden_label_ids(db_session, _viewer_in(db_session, mode(MODE_NORMAL)))
-    # The system `h-comic` label is hidden from normal too.
-    h_comic = db_session.query(models.ContentLabel).filter_by(key="h-comic").one()
-    assert set(hidden) == {orphan_label.system_id, h_comic.system_id}
+    # The gated types' system labels are hidden from normal too.
+    system = {
+        row.system_id
+        for row in db_session.query(models.ContentLabel).filter(
+            models.ContentLabel.key.in_(("h-comic", "h-game"))
+        )
+    }
+    assert len(system) == 2
+    assert set(hidden) == {orphan_label.system_id} | system
 
 
 def test_an_entry_carrying_that_label_stays_visible_in_unrestricted(

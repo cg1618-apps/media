@@ -159,8 +159,25 @@ def test_h_comic_tag_fields():
         "h_genre_appearance",
         "h_genre_relation",
     }
+    # Shared by the gated types, h-comic and h-game.
     for key in ("h_genre_plot", "h_genre_appearance", "h_genre_relation"):
-        assert cr.TAG_FIELDS[key].media_types == ("h-comic",)
+        assert cr.TAG_FIELDS[key].media_types == ("h-comic", "h-game")
+
+
+def test_h_game_credits_and_tag_fields():
+    assert [r.key for r in cr.credit_roles_for("h-game")] == ["studio"]
+    assert cr.CREDIT_ROLES["studio"].media_types == ("anime", "anime-movie", "game", "h-game")
+    assert {f.key for f in cr.tag_fields_for("h-game")} == {
+        "game_genre",
+        "game_theme",
+        "h_genre_plot",
+        "h_genre_appearance",
+        "h_genre_relation",
+    }
+    for key in ("game_genre", "game_theme"):
+        assert cr.TAG_FIELDS[key].media_types == ("game", "h-game")
+    for key in ("game_mode", "combat_mode", "game_platform"):
+        assert cr.TAG_FIELDS[key].media_types == ("game",)
 
 
 def test_unoverridden_labels_fall_back_to_the_role_label():
