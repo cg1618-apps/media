@@ -13,10 +13,18 @@
 // exactly what lands in system_option_scope.scope, and a person-role scope
 // (anime / non_anime) is a DIFFERENT vocabulary that must not be confused
 // with them.
+//
+// `mediaTypes` may be the MEDIA_TYPES fallback, which names every gated type
+// until /api/constants answers. The picker draws only the types this session
+// may see (visibleMediaTypes, lib/gatedTypes.js), so a session that cannot see
+// a gated type is not shown it on the first paint either.
+import { useAuth } from "../../contexts/AuthContext";
+import { visibleMediaTypes } from "../../lib/gatedTypes";
 import { Field } from "./FormField";
 
 export default function ScopePicker({ scopes, setScopes, mediaTypes }) {
   const selected = new Set(scopes || []);
+  const shown = visibleMediaTypes(useAuth(), mediaTypes);
 
   function toggle(key) {
     setScopes((prev) => {
@@ -34,7 +42,7 @@ export default function ScopePicker({ scopes, setScopes, mediaTypes }) {
       hint="Which media types offer this value. None selected = offered everywhere."
     >
       <div className="flex flex-wrap gap-1.5">
-        {mediaTypes.map((key) => (
+        {shown.map((key) => (
           <button
             key={key}
             type="button"

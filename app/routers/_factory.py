@@ -28,6 +28,7 @@ from app.services.domain import (
 from app.services.domain.content_labels import attach_content_labels
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.game_copies import attach_own_copies
+from app.services.domain.hierarchy import check_entry_franchise_family
 from app.services.domain.plan_next import (
     PLAN_FLAG_FIELDS,
     attach_plan_flag,
@@ -90,6 +91,17 @@ def make_media_router(spec) -> APIRouter:
         if not entry_visible(db, viewer, spec.owner_type, entry.system_id):
             raise HTTPException(status_code=404, detail=not_found)
         return entry
+
+    def _check_family(db: Session, franchise_id) -> None:
+        """
+        A franchise named by id must be of this type's family, both ways
+        (hierarchy.check_entry_franchise_family). Checked on the payload,
+        before anything is applied, so a refusal leaves the entry untouched.
+        """
+        try:
+            check_entry_franchise_family(db, franchise_id, spec.owner_type)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
 
     def _names(entry) -> dict:
         return {k: getattr(entry, col) for k, col in spec.hierarchy_names.items()}
@@ -289,6 +301,7 @@ def make_media_router(spec) -> APIRouter:
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         nested = _pop_nested(payload)
         payload, personal = split_list_payload(spec.owner_type, payload)
+        _check_family(db, payload.get("franchise_id"))
         entry = spec.model(**payload)
         entry.system_id = uuid.uuid4()
         _resolve_parents(db, entry)
@@ -342,6 +355,7 @@ def make_media_router(spec) -> APIRouter:
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         nested = _pop_nested(payload)
         payload, personal = split_list_payload(spec.owner_type, payload)
+        _check_family(db, payload.get("franchise_id"))
         for key, value in payload.items():
             setattr(entry, key, value)
         _write_nested(db, entry, nested, viewer)
@@ -385,6 +399,7 @@ def make_media_router(spec) -> APIRouter:
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         nested = _pop_nested(payload)
         payload, personal = split_list_payload(spec.owner_type, payload)
+        _check_family(db, payload.get("franchise_id"))
         apply_column_patch(entry, payload)
         _write_nested(db, entry, nested, viewer)
         _derive(db, entry)

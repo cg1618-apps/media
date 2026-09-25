@@ -172,24 +172,6 @@ def _validate_catalog(entry) -> None:
     entry.highlight_group_order = normalize_group_order(entry.highlight_group_order)
 
 
-def _require_h_comic_franchise(db: Session, entry) -> None:
-    """
-    An h-comic never sits in a mainstream franchise (D9).
-
-    The name resolver already refuses to match one; this catches the other
-    way in, a franchise named by id.
-    """
-    franchise_id = getattr(entry, "franchise_id", None)
-    if franchise_id is None:
-        return
-    franchise = db.get(models.Franchise, franchise_id)
-    if franchise is not None and not is_h_comic_franchise(franchise):
-        raise ValueError(
-            "An h-comic can only sit in a franchise of type "
-            f"'{FranchiseType.H_COMIC.value}'."
-        )
-
-
 def h_comic_progress_hook(db: Session, entry) -> None:
     """
     The catalogue half of every form and tracker write: validate, clear by
@@ -201,7 +183,6 @@ def h_comic_progress_hook(db: Session, entry) -> None:
     """
     try:
         _validate_catalog(entry)
-        _require_h_comic_franchise(db, entry)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     clear_h_comic_catalog(entry)
