@@ -9,11 +9,13 @@ import {
   ItemActions,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
   brandTagCls,
   draftCls,
   inputCls,
   rowCls,
   tagCls,
+  useEntryCap,
 } from "./ui";
 
 const empty = () => ({ locator: "", kind: "", content: "" });
@@ -81,6 +83,9 @@ export default function EpisodeTextSection({
   const [draft, setDraft] = useState(empty());
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState(empty());
+  const cap = useEntryCap(notes, {
+    keep: (row) => row.system_id === editId,
+  });
 
   // A locator alone is a legitimate note, and so is text alone - except where
   // the section is only about where it points, and then the locator is the one
@@ -114,7 +119,7 @@ export default function EpisodeTextSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {notes.map((n) => (
+      {cap.visible.map((n) => (
         <div
           key={n.system_id}
           className={rowCls}
@@ -161,6 +166,7 @@ export default function EpisodeTextSection({
           )}
         </div>
       ))}
+      <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>
           <EpisodeTextForm val={draft} setVal={setDraft} section={section} />

@@ -22,10 +22,12 @@ import {
   LinkPill,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
   brandTagCls,
   draftCls,
   rowCls,
   tagCls,
+  useEntryCap,
 } from "./ui";
 
 export default function MemeSection({
@@ -58,6 +60,9 @@ export default function MemeSection({
   const [draft, setDraft] = useState(emptyMeme());
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState(emptyMeme());
+  const cap = useEntryCap(items, {
+    keep: (row) => row.system_id === editId,
+  });
   const [busy, setBusy] = useState(false);
 
   // Creating a meme can create quotes too, so both caches are invalidated.
@@ -138,7 +143,7 @@ export default function MemeSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {items.map((item) => {
+      {cap.visible.map((item) => {
         const imageUrl = getQuoteImageUrl(item.image_file);
         return (
           <div
@@ -199,6 +204,7 @@ export default function MemeSection({
           </div>
         );
       })}
+      <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>
           <MemeForm
