@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-23
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -352,7 +352,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | everything else (incl. `Novel`, `Comic`, `Watch Order Item`) | no natural key — an id-less row always inserts |
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
-   - **Remark notes**: a `Note` row with `section == "remark"` is retargeted at the owner's existing remark row (the `ix_note_one_remark_per_owner` index allows only one), keeping the local `system_id`.
+   - **Singleton notes** (`remark`, `ost`): a `Note` row in a singleton section is retargeted at the owner's existing row in that section (`ix_note_one_remark_per_owner` and `ix_note_one_ost_per_owner` allow only one), keeping the local `system_id`. A sheet holding two `ost` rows for one anime therefore folds into one, the later row winning.
    - **The Note and Meme tabs carry four owner columns**, not an
      `owner_type` / `owner_id` pair: `media_id`, `collection_id`,
      `franchise_id` and `series_id`, exactly one set per row and a CHECK

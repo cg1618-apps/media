@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-23
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -301,7 +301,7 @@ media types only.
 | `op` | music_track | OP | anime | music | kinds `MUSIC_TYPES`, default `normal`; statuses `MUSIC_STATUSES` |
 | `ed` | music_track | ED | anime | music | same as `op` |
 | `insert_songs` | episode_name_links | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES`; no kinds |
-| `ost` | music_track | OST | anime | music | same as `op` |
+| `ost` | structured | OST | anime | music | singleton; fields `type` (`MUSIC_TYPES`, default `normal`) and `status` (`MUSIC_STATUSES`) |
 | `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS` |
 | `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |

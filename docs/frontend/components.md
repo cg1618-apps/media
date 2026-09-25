@@ -300,7 +300,8 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   and the read view from `section.fields`, the spec the backend registry
   serves. A field naming a `column` is sent at the top level of the payload
   and one naming none inside `fields`, which `fromNote` and `toPayload` are
-  the only places to know. It also owns the two affordances the other shapes
+  the only places to know. A `singleton` section (`ost`) loses its Add
+  button once it holds its row, so that row changes by Edit. It also owns the two affordances the other shapes
   lack — up/down buttons calling `PATCH /api/notes/reorder`, and an inline
   `quick_edit` input that saves on blur without opening the row. For a
   `hierarchical` section it also draws the tree: an Add button per row opening

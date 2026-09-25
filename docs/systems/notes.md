@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -38,6 +38,7 @@ Constraint and indexes (declared in `__table_args__`, so `create_all` test datab
 | `ck_note_one_owner` | CHECK `num_nonnulls(media_id, collection_id, franchise_id, series_id) = 1` | Exactly one owner, enforced by the database rather than by convention. |
 | `ix_note_owner_section` | `(media_id, collection_id, franchise_id, series_id, section)` | The only read path the notes page uses. |
 | `ix_note_one_remark_per_owner` | unique `(media_id, collection_id, franchise_id, series_id)` **NULLS NOT DISTINCT**, **WHERE `section = 'remark'`** | Load-bearing: the `remark` read side is a scalar subquery, so a second remark row would make *every read of that owner* raise "more than one row returned by a subquery". `NULLS NOT DISTINCT` is required — three of the four owner columns are always NULL, and Postgres would otherwise treat every row as unique and silently disable the index. Created by `alembic/versions/r1e2m3a4r5k6_remark_column_to_note.py`; name and predicate must stay identical. It is keyed per **owner**, not per owner-per-author, even though `remark` is a personal-scope section — see [Scope](#scope). |
+| `ix_note_one_ost_per_owner` | unique `(media_id)` **WHERE `section = 'ost'`** | `ost` is one row per anime. It is anime-only, so `media_id` is the whole owner. Created by `alembic/versions/o1s2tsingle3_ost_one_row_per_anime.py`, which also deleted the duplicate row every anime then held; name and predicate must stay identical. |
 
 Column declaration order is also the Google Sheets column order, because `format_model_for_sheet` in `app/utils/formatter.py` walks `__table__.columns`.
 
@@ -245,7 +246,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `op` | OP | music_track | music | anime | normal, different version, all inclusive version (default `normal`) | Need, Pending, Done | — | no | no | no |
 | `ed` | ED | music_track | music | anime | same as `op` | Need, Pending, Done | — | no | no | no |
 | `insert_songs` | 插入曲 Insert Song | episode_name_links | music | anime | — | Need, Pending, Done | "Episode(s), e.g. ep 3" | **yes** | no | no |
-| `ost` | OST | music_track | music | anime | same as `op` | Need, Pending, Done | — | no | no | no |
+| `ost` | OST | structured | music | anime | fields `type` (`kind`: normal, different version, all inclusive version; default `normal`) and `status` (`status`: Need, Pending, Done) | — | — | no | **yes** | no |
 | `op_ed_changes` | OP/ED 變動 | episode_text | music | anime, tv-show, cartoon | 變化OP, 變化ED, 無OP, 無ED, 特殊OP, 特殊ED | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `extended_episodes` | 加長 | episode_text | flat | anime, tv-show, cartoon | — | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, novel, series, franchise | — | — | — | no | no | anime, anime-movie, novel |
@@ -449,9 +450,19 @@ postponed. 備註列表 is `text_links` and personal-scope like 備註, and reac
 short note is game-shaped, and the two are read as a pair wherever 備註
 appears. A test asserts they share an `owners` tuple, not just a scope.
 
-Only 備註 is a singleton, and only 備註 is hidden by `hideSections` — the
-dedicated remark editors on the Add form, the Modify tabs and the detail pages
-write that one row and nothing else.
+Only 備註 is hidden by `hideSections` — the dedicated remark editors on the
+Add form, the Modify tabs and the detail pages write that one row and nothing
+else.
+
+### OST
+
+The other singleton. OP and ED are lists of songs; OST is **one entry per
+anime** with two fields — which cut (`type`, stored in `kind`) and how far
+tracking it has got (`status`) — and no song name, link or remark. It is
+`structured` rather than `music_track` because that shape always carries
+those three columns. `StructuredSection` drops its Add button once the row
+exists, so the entry is changed by Edit; the router refuses a second row
+regardless, and `ix_note_one_ost_per_owner` refuses it in the database.
 
 The notes page is three pieces:
 

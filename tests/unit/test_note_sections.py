@@ -34,9 +34,9 @@ def test_every_owner_is_a_real_owner_table():
             assert owner in OWNER_TABLES, f"{sec.key} names unknown owner {owner}"
 
 
-def test_only_remark_is_singleton():
+def test_only_remark_and_ost_are_singletons():
     singletons = [s.key for s in ns.NOTE_SECTIONS if s.singleton]
-    assert singletons == ["remark"]
+    assert singletons == ["remark", "ost"]
 
 
 def test_only_declared_sections_have_kinds():
@@ -45,7 +45,6 @@ def test_only_declared_sections_have_kinds():
         "highlights",
         "op",
         "ed",
-        "ost",
         "op_ed_changes",
     ]
     # `mods_and_tools` held Mod / Tool here until it became structured. A
@@ -60,7 +59,7 @@ def test_only_declared_sections_have_kinds():
     ] == [("Mod", "Tool")]
 
 
-MUSIC_SECTIONS = ("op", "ed", "ost")
+MUSIC_SECTIONS = ("op", "ed")
 
 
 def test_music_sections_are_music_track_shaped_and_anime_only():
@@ -81,12 +80,29 @@ def test_music_sections_offer_both_dropdowns_and_default_to_normal():
 
 
 def test_only_the_music_sections_carry_a_status():
-    # insert_songs tracks a song the same way OP, ED and OST do; its shape is
-    # the only difference. Nothing outside the music group has a status.
+    # insert_songs tracks a song the same way OP and ED do; its shape is the
+    # only difference. OST tracks one too, as a structured field rather than a
+    # section-level `statuses` - see the next test. Nothing outside the music
+    # group has a status.
     with_status = [s.key for s in ns.NOTE_SECTIONS if s.statuses]
-    assert with_status == ["op", "ed", "insert_songs", "ost"]
+    assert with_status == ["op", "ed", "insert_songs"]
     for key in with_status:
         assert ns.section_by_key(key).statuses == ns.MUSIC_STATUSES
+
+
+def test_ost_is_one_entry_of_type_and_status():
+    # Not a list of songs: an anime has one OST row, saying which cut and how
+    # far tracking it has got, and nothing else.
+    sec = ns.section_by_key("ost")
+    assert sec.shape == ns.SHAPE_STRUCTURED
+    assert sec.owners == ("anime",)
+    assert sec.group == "music"
+    assert sec.singleton is True
+    assert [(f.key, f.column, f.type, f.options) for f in sec.fields] == [
+        ("type", "kind", ns.FIELD_SELECT, ns.MUSIC_TYPES),
+        ("status", "status", ns.FIELD_SELECT, ns.MUSIC_STATUSES),
+    ]
+    assert sec.fields[0].default == "normal"
 
 
 def test_every_group_is_a_known_group():

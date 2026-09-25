@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-23
+Last verified: 2026-09-25
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1289,7 +1289,9 @@ returns; see [systems/notes.md](systems/notes.md#scope) and
 Indexes: `ix_note_owner_section` (the four owner columns + `section`) - the
 notes page's only read path; **`ix_note_one_remark_per_owner`** - partial
 UNIQUE over the four owner columns **plus `author_id`**, **NULLS NOT
-DISTINCT**, `WHERE section = 'remark'`.
+DISTINCT**, `WHERE section = 'remark'`; **`ix_note_one_ost_per_owner`** -
+partial UNIQUE over `media_id`, `WHERE section = 'ost'`, because OST is one
+entry per anime (and anime-only, so `media_id` is the whole owner).
 
 The second is keyed per owner **per author**, because `remark` is a
 personal-scope section: two accounts may each hold one on the same entry and
