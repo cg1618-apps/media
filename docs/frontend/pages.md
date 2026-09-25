@@ -618,8 +618,9 @@ Top to bottom:
 2. **Admin toolbar** (`isAdmin`): **Quick Edit** → `/modify?id={id}`;
    **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;
    **Autofill & Update** → `POST /api/data-control/replace/{type}/{id}`
-   with a spinner. On Game it re-fetches Steam only (appid, SteamDB link,
-   store figures), since IGDB carries nothing that drifts. Comic renders no
+   with a spinner. On Game and H-Game it runs both sources: IGDB, fill-only
+   (release date, times, credits, tags, cover, the Steam pair when the entry
+   has none), then Steam (SteamDB link, store figures, progress). Comic renders no
    Autofill button: the single Replace route exists for it, but Comic Vine
    carries no score or rank that drifts, which is also why comic is not in
    bulk Replace.

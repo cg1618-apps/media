@@ -477,19 +477,20 @@ Per type (verbatim from `specs.py`):
 the games backend as a spec that fetched nothing — registration demands one,
 because `MEDIA_TABLES` membership is asserted by `test_sheet_tabs` and by the
 data-control route builder, which generates `/api/data-control/fill/game` and
-`/replace/game/...` from the registry. Until IGDB landed (its own plan, right
-after) `fill_eligible` returned `False` for every row, so a Fill run reported
-"No entries need filling" rather than erroring. **That stub is gone**: Fill
-Game now calls `autofill_game_from_igdb`, then `autofill_game_from_steam`, and
-derives the SteamDB row in `post_process` (`game_post_processing`) rather than
-in `fill` — it fetches nothing, and post-processing runs over every entry in
-the run rather than only the queue, which is what lets it reach a game whose
-columns `fill_eligible` already considers complete. Games are
-in Fill All. **Game also gained a bulk Replace**, its first
-(`replace_select = _linked(Game, Game.steam_appid, Game.steam_link)`,
-`in_replace_all=True`): it runs the Steam half only, since nothing in an IGDB
-record drifts — the same reasoning that makes Studio `fill_only` stays true
-of IGDB's own half, and is now false of the type as a whole.
+`/replace/game/...` from the registry. Fill Game calls
+`autofill_game_from_igdb`, then `autofill_game_from_steam`, and derives the
+SteamDB row in `post_process` (`game_post_processing`) rather than in `fill` —
+it fetches nothing, and post-processing runs over every entry in the run
+rather than only the queue, which is what lets it reach a game whose columns
+`fill_eligible` already considers complete. Games are in Fill All. **Game's
+Replace runs both sources too** (`replace_select = _linked(Game,
+Game.steam_appid, Game.steam_link, Game.igdb_id, Game.igdb_link)`,
+`in_replace_all=True`): IGDB first and still fill-only — nothing in an IGDB
+record drifts, so Replace keeps what is set, as the MAL Replace keeps
+everything but its scores — then Steam, whose current prices and Metacritic
+score are what Replace overwrites. IGDB runs because it can supply the appid
+Steam keys off, so one Replace (or one press of the detail page's Autofill
+button) finishes an entry that carries only an IGDB link.
 
 **IGDB's half of Fill Game has no budget guard**, unlike Comic. IGDB's limit
 is 4 requests/second with no hourly quota, so the client's sliding-window
@@ -526,7 +527,7 @@ changes nothing else. Every run, and the single-entry write hook, ends in
 the `hentai` label on.
 
 **H-Game runs Game's pipeline on its own table.** `PIPELINES["h-game"]` has
-game's extractor, gates, pacing, budget, post-processing and Steam Replace;
+game's extractor, gates, pacing, budget, post-processing and Replace;
 `autofill_game_from_igdb` and `autofill_game_from_steam` take the entry's
 model and owner type, so they write the credits, tags and cover under
 `h-game`, skip a credit or tag whose scope lacks it (`publisher`,
@@ -548,13 +549,13 @@ h-games. It has no invariant pass of its own: `run_sync_gated_labels` follows
 ### 5.1 Bulk — `run_replace(spec, ...)` (SSE)
 
 0. If the spec has `pre_run`, it runs first — game's `_start_game_run` drops the cached Steam owned-games library so the run reads today's playtime rather than a stale in-memory copy (also wired ahead of Fill Game, for the same reason).
-1. `spec.replace_select(db)` picks the entries: for most types `_linked(Model, id_col, link_col)` — rows with `mal_id`/`mal_link` (anime, anime-movie, manga, novel, hentai), `imdb_id`/`imdb_link` (movie, tv-show), or `steam_appid`/`steam_link` (game, h-game) not null. Cartoon additionally requires `airing_type in ["Movie", "TV"]`. Comic and h-comic have `replace_select=None` — **no bulk Replace** for either.
+1. `spec.replace_select(db)` picks the entries: for most types `_linked(Model, id_col, link_col)` — rows with `mal_id`/`mal_link` (anime, anime-movie, manga, novel, hentai), `imdb_id`/`imdb_link` (movie, tv-show), or any of `steam_appid`/`steam_link`/`igdb_id`/`igdb_link` (game, h-game) not null. Cartoon additionally requires `airing_type in ["Movie", "TV"]`. Comic and h-comic have `replace_select=None` — **no bulk Replace** for either.
 2. Zero entries → logs `Success` with `rows_updated=0` and emits an `info` event `"No {type} entries found to replace"`.
 3. Per entry: connection check, progress event, `spec.replace(db, entry, bulk=True)` in a worker thread, commit; failure is rolled back and logged, the run continues; then `replace_sleep` (1 s for the four MAL types, 0 for TMDB/OMDb types, `STEAM_PAUSE` = 0.5 s for game and h-game).
 4. `replace_after` steps: same as the type's `fill_after` for anime (`derive_ep_previous_all_anime`, `run_sync_anime`), anime-movie, tv-show, cartoon, manga, novel; none for movie.
 5. Log `Replace` / `Replace {label}` / `Success`, `rows_updated` = replaced count.
 
-`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — Steam only; re-fetches `autofill_game_from_steam`, never `autofill_game_from_igdb`. It first re-derives `steam_appid` and the SteamDB `media_source` row (`derive_steamdb_source`), neither of which costs a request — so the link lands even on a run where the storefront is out of budget.
+`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — both sources, as Fill: it derives `igdb_id` and `steam_appid` from their links (`apply_extract_game_ids`), runs `autofill_game_from_igdb` (fill-only), derives the SteamDB `media_source` row (`derive_steamdb_source`), then runs `autofill_game_from_steam`. The SteamDB row costs no request and comes before the Steam fetch, so the link lands even on a run where the storefront is out of budget; it comes after IGDB, so an appid IGDB just supplied gets its row. In a bulk run the `budget` gate (the Steam limiter) is checked for every entry, IGDB-only ones included, because IGDB can hand Steam an appid mid-entry.
 
 **Replace All** (`execute_replace_all` → `run_all("Replace", REPLACE_ALL, ...)`) covers the ten types with `in_replace_all=True` — game, h-game and hentai included — (comic, h-comic and studio excluded), then Backup (`Auto`), one master row `Replace` / `Replace All`, same error handling as Fill All.
 
@@ -567,7 +568,7 @@ Returns a status dict, never raises. `action_specific` is `"Replace for single {
 3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic`, `run_sync_game`, `run_sync_h_comic` then `run_sync_gated_labels` (h-comic), `run_sync_game` then `run_sync_gated_labels` (h-game), `run_sync_hentai` then `run_sync_gated_labels` (hentai). Movie and TV Show have none. Comic has no `replace` at all, so its single hook only re-syncs system options; h-comic has none either, so its hook only runs those two syncs.
 4. Log `Replace` / `Success` with `rows_updated=1`; return `{"status": "success", "message": "Successfully updated {display_name}."}`. Any exception → rollback, log `Failed`, `status_code: 500`.
 
-**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel, comic, game, h-comic, h-game and hentai (`execute_replace_single_game` and `execute_replace_single_h_game` call `apply_single_replace_game`, so a game saved with a `steam_appid` picks up its Steam data immediately, not just on the next Replace run): the CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
+**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel, comic, game, h-comic, h-game and hentai (`execute_replace_single_game` and `execute_replace_single_h_game` call `apply_single_replace_game`, so a game saved with an IGDB or Steam link picks up both sources' data immediately, not just on the next Replace run — each save of a linked game costs up to two IGDB requests and three storefront requests, the same kind of per-save cost movie, TV show and cartoon pay to TMDB/OMDb): the CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
 
 The manual route `POST /replace/{key}/{entry_id}` calls the same function with `action_type="Manual"`, `log_action=False` — so a single Replace never writes a `DataControlLog` row, whichever way it is triggered.
 
@@ -814,7 +815,7 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | POST | `/fill/all` | — | SSE | Fill All (nine media types plus studio; no comic, no h-comic) then Auto Backup |
 | POST | `/replace/all` | — | SSE | Replace All (nine types; no comic, no h-comic) then Auto Backup |
 | POST | `/fill/{key}` | — | SSE | Fill one type (all thirteen keys, studio included) |
-| POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic` or `h-comic`** (`replace_select is None`) or `studio` (`fill_only`) — `game` is registered (Steam only) |
+| POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic` or `h-comic`** (`replace_select is None`) or `studio` (`fill_only`) — `game` and `h-game` are registered (IGDB, then Steam) |
 | POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 500 on failure | single Replace (the twelve media keys; **not registered for `studio`**) |
 | POST | `/backup` | — | JSON `{"status", "message"}`; 500 on failure | Backup every tab |
 | POST | `/pull` | — | JSON `{"status": "success", "details": {tab: processed}}`; 500 when any tab was unreadable or failed | Pull All |

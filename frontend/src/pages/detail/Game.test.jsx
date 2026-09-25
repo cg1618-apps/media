@@ -119,9 +119,9 @@ describe("GameCopiesSection", () => {
   });
 });
 
-// The admin toolbar's Replace: the single-entry Replace route has been
-// registered for game all along (Steam only - playtime, achievements and the
-// store figures drift), and the page is where an admin refreshes one entry.
+// The admin toolbar's Replace: the single-entry Replace route runs IGDB
+// (fill-only) then Steam (playtime, achievements and the store figures
+// drift), and the page is where an admin refreshes one entry.
 describe("Game detail page — Replace", () => {
   const GAME = {
     system_id: "g1",
