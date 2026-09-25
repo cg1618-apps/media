@@ -36,6 +36,7 @@ from app.services.rbac.enforcement import hidden_label_ids
 # to gated_labels.SYSTEM_LABELS.
 REQUIRED_LABEL_FOR_TYPE: dict[str, str] = {
     "h-comic": "h-comic",
+    "hentai": "hentai",
     "h-game": "h-game",
 }
 
@@ -130,8 +131,8 @@ def only_for(media_types, hidden: frozenset[str]) -> bool:
 def gated_tag_categories() -> dict[str, frozenset[str]]:
     """
     {option category: the media types it serves}, for every category whose
-    tag fields serve GATED types only - the h-comic genres, not the shared
-    Official Source vocabulary. Such a category is itself a connection of
+    tag fields serve GATED types only - the H Genre vocabularies h-comic and
+    hentai share, not the shared Official Source vocabulary. Such a category is itself a connection of
     every value in it (shared_visibility.py), so a value an admin creates with
     no scope row is still hidden with its type.
     """
@@ -169,7 +170,7 @@ def hidden_option_categories(hidden: frozenset[str]) -> frozenset[str]:
 
 
 def hidden_franchise_types(hidden: frozenset[str]) -> frozenset[str]:
-    """Franchise types stamped only for hidden gated types (H-Comic)."""
+    """Franchise types stamped only for hidden gated types (H-Comic, Hentai)."""
     from app.services.domain.hierarchy import FRANCHISE_TYPE_FOR
 
     served: dict[str, set[str]] = {}

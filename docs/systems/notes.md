@@ -13,7 +13,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | Column | Type | Notes |
 | --- | --- | --- |
 | `system_id` | UUID PK | Generated with `uuid.uuid4()`. |
-| `media_id` | UUID, indexed | FK `media.system_id` ON DELETE CASCADE. Set when the owner is any of the ten media types. |
+| `media_id` | UUID, indexed | FK `media.system_id` ON DELETE CASCADE. Set when the owner is any of the twelve media types. |
 | `collection_id` / `franchise_id` / `series_id` | UUID, indexed | FK to the matching tier table, ON DELETE CASCADE. Set when the owner is a grouping tier. |
 | `author_id` | UUID, indexed, **NOT NULL** | FK `users.id` ON DELETE CASCADE. Who wrote the row — always set, whatever the section's scope, because a catalogue note has an author too and that is the only provenance the catalogue has. Never read from the payload (`NoteBase` has no such field): the router stamps whoever is asking. |
 | `section` | String, indexed | Key of an entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`). |
@@ -213,7 +213,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 
 ### Section registry
 
-`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all fourteen owners (`ALL_OWNERS`); "Entries" = the eleven media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically — `h-comic` and `h-game` have `remark`, `remark_list`, `personal_reviews`, `public_reviews`, `resources`, `questions`, `memes` and the rest of the shared sections with no registry edit of its own.
+`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all fifteen owners (`ALL_OWNERS`); "Entries" = the twelve media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically — `h-comic` and `h-game` have `remark`, `remark_list`, `personal_reviews`, `public_reviews`, `resources`, `questions`, `memes` and the rest of the shared sections with no registry edit of its own.
 
 | Key | Label | Shape | Group / standalone | Owners | Kinds (`kind`) | Statuses | Locator placeholder | Locator req. | Singleton | Content req. |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

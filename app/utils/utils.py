@@ -67,6 +67,13 @@ STUDIO_FIELDS_TO_FILL = [
     "logo_file",
 ]
 
+# What Tenrai fills on a hentai - the owner's three, and nothing else.
+HENTAI_FIELDS_TO_FILL = [
+    "airing_status",
+    "release_date",
+    "cover_image_file",
+]
+
 ANIME_MOVIE_FIELDS_TO_FILL = [
     "airing_status",
     "release_date_jp",

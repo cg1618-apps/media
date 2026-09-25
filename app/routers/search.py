@@ -51,6 +51,7 @@ class SearchBuckets(BaseModel):
     h_comic: Optional[List[schemas.HComicResponse]] = Field(
         default=None, alias="h-comic"
     )
+    hentai: Optional[List[schemas.HentaiResponse]] = None
     h_game: Optional[List[schemas.HGameResponse]] = Field(
         default=None, alias="h-game"
     )

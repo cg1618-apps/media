@@ -45,6 +45,7 @@ RELEASE_PRIORITY: Dict[str, tuple] = {
     "comic": ("release_date",),
     "game": ("release_date",),
     "h-comic": ("release_date",),
+    "hentai": ("release_date",),
     "h-game": ("release_date",),
 }
 
@@ -63,6 +64,7 @@ DATE_COLUMNS: Dict[str, tuple] = {
     "comic": ("release_date", "end_date"),
     "games": ("release_date",),
     "h_comic": ("release_date", "end_date"),
+    "hentai": ("release_date",),
     "h_game": ("release_date",),
     "game_copy": ("acquired_date",),
     "studio": ("founded_date", "defunct_date"),

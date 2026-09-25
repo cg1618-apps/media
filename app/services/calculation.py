@@ -17,6 +17,7 @@ from app.models import (
     Comic,
     Game,
     HComic,
+    Hentai,
     HGame,
     ImageAttachment,
     Manga,
@@ -36,6 +37,7 @@ from app.services.domain import (
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
     autofill_game_from_igdb,
+    autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
@@ -260,6 +262,16 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
+        hentais = db.query(Hentai).join(Hentai.media_row).filter(Media.cover_image_file.isnot(None)).all()
+        for he in hentais:
+            if not cover_image_exists("hentai", str(he.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(he.system_id),
+                        "name": he.display_name or str(he.system_id),
+                        "entry_type": "hentai",
+                    }
+                )
         h_games = db.query(HGame).join(HGame.media_row).filter(Media.cover_image_file.isnot(None)).all()
         for hg in h_games:
             if not cover_image_exists("h-game", str(hg.system_id)):
@@ -283,6 +295,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
         + len(comics)
         + len(games)
         + len(h_comics)
+        + len(hentais)
         + len(h_games)
     )
     return {
@@ -463,6 +476,18 @@ def bulk_download_missing_covers(
     for _entry in _collect(h_comic_query, HComic, "h-comic"):
         total += 1
         skipped += 1
+    # Hentai re-fetches from Tenrai like an anime movie; one with no MAL id is
+    # counted and skipped.
+    hentai_query = db.query(Hentai).join(Hentai.media_row).filter(Media.cover_image_file.isnot(None))
+    for he in _collect(hentai_query, Hentai, "hentai"):
+        total += 1
+        if not he.mal_id:
+            skipped += 1
+            continue
+        he.cover_image_file = None
+        autofill_hentai_from_mal(he, db=db)
+        if he.cover_image_file:
+            downloaded += 1
 
     # IGDB, as for a game.
     h_game_query = db.query(HGame).join(HGame.media_row).filter(Media.cover_image_file.isnot(None))
@@ -549,6 +574,7 @@ def run_sync(db: Session) -> dict:
     run_sync_novel(db)
     run_sync_comic(db)
     run_sync_h_comic(db)
+    run_sync_hentai(db)
     run_sync_gated_labels(db)
     run_sync_size_groups(db)
     return {
@@ -659,6 +685,19 @@ def run_sync_h_comic(db: Session) -> dict:
     return {
         "status": "success",
         "message": f"H-Comic sync completed ({result['entries']} entries).",
+    }
+
+
+def run_sync_hentai(db: Session) -> dict:
+    """
+    Hentai has no invariant of its own beyond its label, which is
+    run_sync_gated_labels' - run_sync and the hentai pipeline spec run it
+    after this. What is left is the system options every type re-syncs.
+    """
+    extract_system_options(db)
+    return {
+        "status": "success",
+        "message": "Hentai sync completed.",
     }
 
 
