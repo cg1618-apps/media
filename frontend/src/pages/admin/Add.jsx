@@ -2215,11 +2215,11 @@ export default function Add() {
     // Auto-create missing entities for author, illustrator and the publisher
     await ensureSourceValues([
       {
-        source: { kind: "person", role: "novel_author" },
+        source: { kind: "person", role: "author", scope: "novel" },
         values: splitTags(nvf.author),
       },
       {
-        source: { kind: "person", role: "novel_illustrator" },
+        source: { kind: "person", role: "illustrator", scope: "novel" },
         values: splitTags(nvf.illustrator),
       },
       {
@@ -2420,11 +2420,11 @@ export default function Add() {
     // Auto-create missing entities for every comic credit/tag field.
     await ensureSourceValues([
       {
-        source: { kind: "person", role: "comic_writer" },
+        source: { kind: "person", role: "author", scope: "comic" },
         values: splitTags(cmf.writer),
       },
       {
-        source: { kind: "person", role: "comic_artist" },
+        source: { kind: "person", role: "illustrator", scope: "comic" },
         values: splitTags(cmf.artist),
       },
       {

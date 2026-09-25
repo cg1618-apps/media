@@ -371,3 +371,31 @@ describe("hentai", () => {
     expect(body.mal_id).toBeNull();
   });
 });
+
+// The person credits of manga, novel and comic are `author` and `illustrator`,
+// scoped by media type (CREDIT_ROLES in app/utils/credit_roles.py). The PUT
+// rejects any other key with a 400, and rejects the WHOLE body, so one retired
+// key costs every credit on the entry - the publisher included.
+describe("manga, novel and comic person credits", () => {
+  it.each([
+    ["manga", { author_plot: "A", author_draw: "B" }],
+    ["novel", { author: "A", illustrator: "B" }],
+    ["comic", { writer: "A", artist: "B" }],
+  ])("%s sends author and illustrator", (mediaType, form) => {
+    const payload = buildCreditsPayload(mediaType, form);
+    expect(payload.credits).toEqual({ author: ["A"], illustrator: ["B"] });
+  });
+
+  it.each([
+    ["manga", "author_plot", "author_draw"],
+    ["novel", "author", "illustrator"],
+    ["comic", "writer", "artist"],
+  ])("%s reads author and illustrator back out", (mediaType, a, i) => {
+    const form = creditsResponseToForm(mediaType, {
+      credits: { author: ["A"], illustrator: ["B"] },
+      tags: {},
+    });
+    expect(form[a]).toBe("A");
+    expect(form[i]).toBe("B");
+  });
+});
