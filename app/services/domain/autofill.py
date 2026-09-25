@@ -858,8 +858,17 @@ def autofill_game_from_igdb(game, db: Session) -> None:
         # link automatically. A parent not yet in the database leaves the
         # column null - the user can fill it in later, which is exactly why
         # base_game_id is nullable for a DLC.
+        #
+        # IGDB also sets parent_game on a remaster or an edition, which is
+        # entered as a Base Game - and a Base Game with a parent violates
+        # ck_games_base_no_parent. Adopting it anyway fails the flush, and the
+        # runner rolls back the whole fill, cover included, on every run.
         parent_igdb_id = g_data.get("parent_igdb_id")
-        if game.base_game_id is None and parent_igdb_id:
+        if (
+            game.base_game_id is None
+            and parent_igdb_id
+            and game.game_type != "Base Game"
+        ):
             parent = (
                 db.query(model)
                 .filter(
