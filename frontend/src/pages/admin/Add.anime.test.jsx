@@ -17,6 +17,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Add from "./Add";
+import * as notesApi from "../notes/api";
+
+vi.mock("../notes/api");
 
 const showToast = vi.fn();
 vi.mock("../../hooks/useToast", () => ({
@@ -73,6 +76,8 @@ function mockFetch(animeResponse) {
 beforeEach(() => {
   showToast.mockReset();
   attachUploadedImage.mockReset();
+  vi.mocked(notesApi.fetchSections).mockResolvedValue([]);
+  vi.mocked(notesApi.fetchNotes).mockResolvedValue([]);
 });
 
 function mount() {
@@ -155,6 +160,31 @@ describe("Add page — Anime tab image attach", () => {
       "success",
       expect.stringContaining("Entry appended"),
     );
+
+    vi.unstubAllGlobals();
+  });
+});
+
+// Notes hang off an entry's system_id, so the form cannot carry them; once the
+// entry exists the page shows that entry's notes, as the Modify tab does.
+describe("Add page — notes for the created entry", () => {
+  it("shows the new entry's notes only once it is saved", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch({ system_id: "anime-3", anime_name_en: "Test Anime" }),
+    );
+    const user = userEvent.setup();
+
+    mount();
+    await fillAnimeForm(user);
+    expect(screen.queryByText(/^Notes for/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /append entry/i }));
+
+    expect(
+      await screen.findByRole("region", { name: "Notes for Test Anime" }),
+    ).toBeInTheDocument();
+    expect(notesApi.fetchNotes).toHaveBeenCalledWith("anime", "anime-3");
 
     vi.unstubAllGlobals();
   });
