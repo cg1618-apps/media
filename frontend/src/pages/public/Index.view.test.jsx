@@ -1,5 +1,5 @@
 // Dashboard card/list view: one mode for the whole page, remembered in this
-// browser, with every division's bar able to change it.
+// browser, and changed from the one bar above the tracker divisions.
 //
 // The load-bearing case here is the Progress column. It is the one column
 // four media types share, and they do not measure the same thing - an anime
@@ -98,7 +98,7 @@ it("starts in card view, with no table on the page", async () => {
   mount();
   await loaded();
   expect(screen.queryAllByRole("table")).toHaveLength(0);
-  const bar = within(screen.getByTestId("watching-filter"));
+  const bar = within(screen.getByTestId("dashboard-filter"));
   expect(bar.getByRole("button", { name: "Cards" })).toHaveAttribute("aria-pressed", "true");
   expect(bar.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "false");
 });
@@ -108,7 +108,7 @@ it("switching to list renders tables with the five columns and remembers the cho
   mount();
   await loaded();
 
-  await user.click(within(screen.getByTestId("watching-filter")).getByRole("button", { name: "List" }));
+  await user.click(within(screen.getByTestId("dashboard-filter")).getByRole("button", { name: "List" }));
 
   const tables = screen.getAllByRole("table");
   expect(tables.length).toBeGreaterThan(0);
@@ -119,18 +119,15 @@ it("switching to list renders tables with the five columns and remembers the cho
   expect(localStorage.getItem(DASHBOARD_VIEW_KEY)).toBe("list");
 });
 
-it("the mode is one setting: flipping it in one division changes the others", async () => {
+it("the mode is one setting for every division", async () => {
   const user = userEvent.setup();
   mount();
   await loaded();
 
-  await user.click(within(screen.getByTestId("reading-filter")).getByRole("button", { name: "List" }));
-
-  for (const barId of ["watching-filter", "reading-filter"]) {
-    const bar = within(screen.getByTestId(barId));
-    expect(bar.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true");
-    expect(bar.getByRole("button", { name: "Cards" })).toHaveAttribute("aria-pressed", "false");
-  }
+  const bar = within(screen.getByTestId("dashboard-filter"));
+  await user.click(bar.getByRole("button", { name: "List" }));
+  expect(bar.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true");
+  expect(bar.getByRole("button", { name: "Cards" })).toHaveAttribute("aria-pressed", "false");
   // Both divisions' entries are now rows, not cards.
   expect(rowFor("Frieren")).not.toBeNull();
   expect(rowFor("Berserk")).not.toBeNull();
@@ -154,7 +151,7 @@ it("each row reports progress in its own media type's unit", async () => {
   const user = userEvent.setup();
   mount();
   await loaded();
-  await user.click(within(screen.getByTestId("watching-filter")).getByRole("button", { name: "List" }));
+  await user.click(within(screen.getByTestId("dashboard-filter")).getByRole("button", { name: "List" }));
 
   // An anime counts episodes and a manga counts chapters. If the Progress
   // column ever derives its unit from one shared branch, one of these two
@@ -167,7 +164,7 @@ it("a row carries the entry's type, status and rating", async () => {
   const user = userEvent.setup();
   mount();
   await loaded();
-  await user.click(within(screen.getByTestId("watching-filter")).getByRole("button", { name: "List" }));
+  await user.click(within(screen.getByTestId("dashboard-filter")).getByRole("button", { name: "List" }));
 
   const row = within(rowFor("Frieren"));
   expect(row.getByText("Anime")).toBeInTheDocument();
@@ -179,7 +176,7 @@ it("a title in list view still links to its entry", async () => {
   const user = userEvent.setup();
   mount();
   await loaded();
-  await user.click(within(screen.getByTestId("watching-filter")).getByRole("button", { name: "List" }));
+  await user.click(within(screen.getByTestId("dashboard-filter")).getByRole("button", { name: "List" }));
 
   expect(within(rowFor("Frieren")).getByRole("link", { name: "Frieren" })).toHaveAttribute(
     "href",
