@@ -287,6 +287,13 @@ export const endpoints = {
       `/api/game/search-igdb?q=${encodeURIComponent(q)}&limit=${limit}`,
   },
 
+  // The gated h-game type's copy of the same picker endpoint. Its CRUD is
+  // resource("h-game").
+  hGame: {
+    searchIgdb: (q, limit = 10) =>
+      `/api/h-game/search-igdb?q=${encodeURIComponent(q)}&limit=${limit}`,
+  },
+
   dataControl: {
     fill: (type) => `/api/data-control/fill/${type}`,
     fillAll: () => "/api/data-control/fill/all",

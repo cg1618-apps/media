@@ -209,10 +209,11 @@ export const FRANCHISE_TYPES = [
   "Comic",
   "Novel",
   "Game",
-  // Only the gated h-comic type's franchises. /api/constants omits it for a
-  // session that cannot see h-comic; pickers filter the fallback through
+  // Only the gated types' franchises. /api/constants omits each for a
+  // session that cannot see its type; pickers filter the fallback through
   // visibleFranchiseTypes (lib/gatedTypes.js) for the first paint too.
   "H-Comic",
+  "H-Game",
 ];
 
 export const FRANCHISE_EXPECTATIONS = ["Highest", "High", "Medium", "Low"];
@@ -242,6 +243,17 @@ export const H_COMIC_REGIONS = ["JP", "KR"];
 export const H_COMIC_ORIGINALITY = ["原創", "同人"];
 export const H_COMIC_ANIMATION_STATUSES = ["Not Animated", "Announced", "Animated"];
 export const H_COMIC_USEFULNESS = ["非常實用", "實用", "特定情況實用", "不實用"];
+
+// The h-game vocabularies (app/utils/constants.py), served the same way: only
+// to a session that can see the gated type. Fixed vocabularies, not system
+// options. The last three are multi-choice: the entry holds a list over the
+// vocabulary, [] for "none of these" and null for "not recorded". An h-game's
+// usefulness is H_COMIC_USEFULNESS.
+export const H_GAME_PLAYSTYLES = ["ADV", "RPG", "SLG", "Other"];
+export const H_GAME_LANGUAGE_AVAILABILITY = ["官方中文", "中文補丁", "無中文"];
+export const H_GAME_AUDIO_AVAILABILITY = ["一般對話", "H場景"];
+export const H_GAME_H_PRESENTATIONS = ["靜圖", "動圖", "2D動畫", "3D動畫", "互動"];
+export const H_GAME_PLATFORMS = ["Steam", "DLsite", "Nintendo", "Other"];
 
 export const MUSIC_STATUSES = ["Need", "Pending", "Done"];
 
@@ -283,10 +295,11 @@ export const MEDIA_TYPES = [
   "novel",
   "comic",
   "game",
-  // Gated: omitted by /api/constants for a session that cannot see it, and
+  // Gated: omitted by /api/constants for a session that cannot see them, and
   // filtered through visibleMediaTypes by ScopePicker, the one component
-  // that renders this list, so the first paint does not name it either.
+  // that renders this list, so the first paint does not name them either.
   "h-comic",
+  "h-game",
 ];
 
 // Tier 2 CATEGORY NAMES (OPTION_CATEGORIES in app/utils/credit_roles.py), not
@@ -353,6 +366,11 @@ export const CONSTANTS_FALLBACK = {
   h_comic_originality: H_COMIC_ORIGINALITY,
   h_comic_animation_status: H_COMIC_ANIMATION_STATUSES,
   h_comic_usefulness: H_COMIC_USEFULNESS,
+  h_game_playstyle: H_GAME_PLAYSTYLES,
+  h_game_language_availability: H_GAME_LANGUAGE_AVAILABILITY,
+  h_game_audio_availability: H_GAME_AUDIO_AVAILABILITY,
+  h_game_h_presentation: H_GAME_H_PRESENTATIONS,
+  h_game_platform: H_GAME_PLATFORMS,
   day_of_week: WEEKDAYS,
   music_status: MUSIC_STATUSES,
   seiyuu_status: SEIYUU_STATUSES,

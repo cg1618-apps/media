@@ -26,6 +26,7 @@ import Novel from "./pages/detail/Novel";
 import Comic from "./pages/detail/Comic";
 import Game from "./pages/detail/Game";
 import HComic from "./pages/detail/HComic";
+import HGame from "./pages/detail/HGame";
 
 
 import CollectionLibrary from "./pages/library/CollectionLibrary";
@@ -140,6 +141,17 @@ export default function App() {
                   <Route
                     path="/h-comic/:publicId/:slug?"
                     element={<HComic />}
+                  />
+                </Route>
+                {/* The gated h-game type, guarded the same way. */}
+                <Route element={<ProtectedRoute gatedType="h-game" />}>
+                  <Route
+                    path="/library/h-game"
+                    element={<Library type="h-game" />}
+                  />
+                  <Route
+                    path="/h-game/:publicId/:slug?"
+                    element={<HGame />}
                   />
                 </Route>
                 <Route path="/library/:type" element={<Library />} />

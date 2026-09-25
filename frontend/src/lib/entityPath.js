@@ -13,11 +13,12 @@
 const MAX_SLUG_LENGTH = 60;
 
 // Route type -> name-column prefix. Mirrors getDisplayName in ./naming.js;
-// only anime-movie, tv-show and h-comic are irregular.
+// only anime-movie, tv-show, h-comic and h-game are irregular.
 function namePrefix(type) {
   if (type === "anime-movie") return "anime_movie";
   if (type === "tv-show") return "tv";
   if (type === "h-comic") return "h_comic";
+  if (type === "h-game") return "h_game";
   return type;
 }
 

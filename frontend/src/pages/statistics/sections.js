@@ -10,10 +10,12 @@ export const STATS_SECTIONS = [
     id: "favourites",
     label: "Favourites",
     // Nine grids is too many to find by scrolling, so each one is its own
-    // sidebar target.
+    // sidebar target. A gated grid's link carries its type, and the sidebar
+    // drops it for a session that cannot see the type.
     children: FAVORITE_GRIDS.map((grid) => ({
       id: grid.id,
       label: grid.short,
+      gatedType: grid.gatedType,
     })),
   },
   { id: "rating-distribution", label: "Rating distribution" },

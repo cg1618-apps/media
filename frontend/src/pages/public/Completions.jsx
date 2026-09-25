@@ -19,10 +19,15 @@ export default function Completions() {
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const gameQuery = useMediaList("game", LIST_OPTIONS);
-  // Gated: fetched only for a session that can see the type.
+  // Gated: each fetched only for a session that can see its type.
+  const auth = useAuth();
   const hComicQuery = useMediaList("h-comic", {
     ...LIST_OPTIONS,
-    enabled: canSeeGatedType(useAuth(), "h-comic"),
+    enabled: canSeeGatedType(auth, "h-comic"),
+  });
+  const hGameQuery = useMediaList("h-game", {
+    ...LIST_OPTIONS,
+    enabled: canSeeGatedType(auth, "h-game"),
   });
   const queries = [
     franchiseQuery,
@@ -36,6 +41,7 @@ export default function Completions() {
     novelQuery,
     comicQuery,
     hComicQuery,
+    hGameQuery,
   ];
   const firstError = queries.find((query) => query.error)?.error;
   const isLoading = queries.some((query) => query.isLoading);
@@ -78,6 +84,7 @@ export default function Completions() {
         allComic={comicQuery.data || []}
         allGame={gameQuery.data || []}
         allHComic={hComicQuery.data || []}
+        allHGame={hGameQuery.data || []}
         franchiseMap={franchiseMap}
       />
     </div>
