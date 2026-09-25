@@ -70,7 +70,15 @@ describe("NAV_SECTIONS", () => {
       "Publisher",
       "Person",
       "Character",
+      "Seiyuu",
     ]);
+  });
+
+  it("lists Seiyuu with the entities, not under ACG", () => {
+    const library = NAV_SECTIONS.find((s) => s.key === "library");
+    const acg = library.columns.find((c) => c.heading === "ACG");
+    expect(acg.items.map((i) => i.label)).not.toContain("Seiyuu");
+    expect(activeItem("/library/seiyuu").item.label).toBe("Seiyuu");
   });
 
   it("lists Game in the ACG column - ACG is anime, comic and games", () => {
@@ -320,39 +328,67 @@ describe("the two permission surfaces agree", () => {
   });
 });
 
-describe("the gated h-comic row", () => {
+describe("the Restricted section", () => {
   const holdsEverything = () => true;
-  const libraryRoutes = (canSeeType) =>
+  const restricted = () => NAV_SECTIONS.find((s) => s.key === "restricted");
+  const sectionRoutes = (key, canSeeType) =>
     visibleSections(NAV_SECTIONS, holdsEverything, canSeeType)
-      .filter((s) => s.key === "library")
+      .filter((s) => s.key === key)
       .flatMap((s) => sectionItems(s).map((i) => i.to));
+  const visibleKeys = (canSeeType) =>
+    visibleSections(NAV_SECTIONS, holdsEverything, canSeeType).map((s) => s.key);
 
-  it("is hidden from a session that cannot see the gated type", () => {
-    // Even from a viewer holding every permission: the gate is the mode's
-    // label, not a capability, so a root account in `safe` does not see it.
-    const routes = libraryRoutes((type) => type !== "h-comic");
-    expect(routes).not.toContain("/library/h-comic");
-    // Nothing else in the library went with it.
-    expect(routes).toContain("/library/manga");
-    expect(routes).toContain("/library/game");
+  it("sits right after Library and holds only gated rows", () => {
+    const keys = NAV_SECTIONS.map((s) => s.key);
+    expect(keys.indexOf("restricted")).toBe(keys.indexOf("library") + 1);
+    const items = sectionItems(restricted());
+    expect(items.map((i) => i.label)).toEqual(["H-Comic"]);
+    for (const item of items) expect(item.gatedType).toBeTruthy();
   });
 
-  it("is hidden when the caller does not answer the gated question", () => {
-    expect(libraryRoutes(undefined)).not.toContain("/library/h-comic");
+  it("no longer lists H-Comic in the Library", () => {
+    const libraryRoutes = sectionItems(
+      NAV_SECTIONS.find((s) => s.key === "library"),
+    ).map((i) => i.to);
+    expect(libraryRoutes).not.toContain("/library/h-comic");
   });
 
-  it("is shown to a session that can", () => {
-    expect(libraryRoutes((type) => type === "h-comic")).toContain(
+  it("is shown, with H-Comic, to a session that can see h-comic", () => {
+    // The mirror of the next case, over the same NAV_SECTIONS, so a green
+    // there proves the gate dropped the tab and not its absence from the data.
+    expect(visibleKeys((type) => type === "h-comic")).toContain("restricted");
+    expect(sectionRoutes("restricted", (type) => type === "h-comic")).toEqual([
       "/library/h-comic",
-    );
+    ]);
+  });
+
+  it("is dropped entirely for a session that can see no gated type", () => {
+    // The h-comic row is defined (asserted above), so this bites: even a
+    // viewer holding every permission loses the tab, because the gate is the
+    // mode's label, not a capability.
+    expect(sectionItems(restricted()).some((i) => i.gatedType === "h-comic")).toBe(true);
+    expect(visibleKeys(() => false)).not.toContain("restricted");
+    expect(visibleKeys(undefined)).not.toContain("restricted");
+    // Nothing in the library went with it.
+    expect(sectionRoutes("library", () => false)).toContain("/library/manga");
+    expect(sectionRoutes("library", () => false)).toContain("/library/game");
+  });
+
+  it("lights up on h-comic paths, not Library", () => {
+    expect(activeSectionKey("/library/h-comic")).toBe("restricted");
+    expect(activeSectionKey("/h-comic/3")).toBe("restricted");
+    expect(activeSectionKey("/h-comic/3/some-title")).toBe("restricted");
+    // The neighbours h-comic could be mistaken for stay in the Library.
+    expect(activeSectionKey("/library/comic")).toBe("library");
+    expect(activeSectionKey("/library/manga")).toBe("library");
   });
 
   it("names the same gated type App.jsx's route guard asks for", () => {
     // App.jsx wraps /library/h-comic and /h-comic/:publicId in
     // <ProtectedRoute gatedType="h-comic" />; this is the nav half.
-    const item = sectionItems(
-      NAV_SECTIONS.find((s) => s.key === "library"),
-    ).find((i) => i.to === "/library/h-comic");
+    const item = sectionItems(restricted()).find(
+      (i) => i.to === "/library/h-comic",
+    );
     expect(item.gatedType).toBe("h-comic");
     expect(activeItem("/h-comic/3/some-title").item).toBe(item);
   });

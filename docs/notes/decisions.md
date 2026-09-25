@@ -1971,6 +1971,35 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   with the same key instead of failing on the unique key or creating a twin;
   an adopted row keeps its own name and grants.
 
+### A switched-to access mode lasts an hour, or until the browser closes (2026-09-25)
+
+- **The problem.** The active mode lived in the login token's `mode` claim, and
+  the login lasts 30 days in a persistent cookie. A laptop switched to
+  `unrestricted`, closed, and reopened the next day was still `unrestricted`,
+  although its default was `borderline`. The widening password protects the act
+  of switching up; nothing protected a device left switched up.
+- **Two cookies.** The login cookie says who is asking; `access_mode` says which
+  mode they switched to. Every request with no live override resolves the
+  account's default from the database, and the login token's `mode` claim is
+  no longer read - which is also what moves every cookie minted before this
+  change back to its default on deploy.
+- **Both limits, not either.** A browser-session cookie alone fails in a browser
+  that restores its session on startup, and in one that is never closed. A
+  timer alone would survive closing the browser for up to an hour. The override
+  is a session cookie whose token expires 60 minutes after the switch
+  (`ACCESS_MODE_OVERRIDE_MINUTES`), capped at the login's own expiry.
+- **Fixed, not sliding.** The hour runs from the switch, not from the last
+  request, so a session left open on a page that polls does not stay wide.
+- **Narrowing expires too.** A session switched below its default returns to
+  the default without the password. Accepted: the default is what the
+  account's own login already grants, so returning to it is not a new grant,
+  and a rule that kept narrow overrides but expired wide ones would need an
+  ordering of modes, which they deliberately do not have.
+- **A revoked override still resolves to nothing**, not to the default, until
+  it expires - the fail-closed rule for revoked modes is unchanged.
+- **The switch no longer reissues the login cookie**, so the
+  session-extension concern that made it preserve `exp` has no surface left.
+
 ### H-Game, the second gated type (spec: 2026-09-25 h-game-design)
 
 - **Its own table, Game's machinery.** `h_game` is to `games` what `h_comic`

@@ -5,7 +5,7 @@ Uses JWTs stored in HTTP-Only cookies to protect against XSS attacks.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -24,7 +24,11 @@ from app.services.rbac.modes import (
     switch_requires_password,
 )
 from app.services.rbac.permissions import PERM_MANAGE_CATALOG
-from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
+from app.services.rbac.resolver import (
+    GUEST_FALLBACK,
+    MODE_OVERRIDE_COOKIE,
+    resolve_viewer,
+)
 from app.services.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
@@ -62,14 +66,9 @@ def login_for_access_token(
 
     # 3. Create the JWT token payload
     #
-    # `mode` names a CHOICE, not a grant: whether this account may still use
-    # the mode is re-resolved from the database on every request, the same way
-    # the decorative `role` claim above is. It carries the mode's uuid rather
-    # than its key so that renaming a mode does not invalidate live sessions.
-    #
-    # An account with no default mode mints an empty claim, which resolves to
-    # the empty object set - the correct answer for an account nobody has
-    # granted a mode, not a case to special-case around.
+    # `mode` is decorative, like `role`: resolve_viewer does not read it. A
+    # session is in the account's default mode, read from the database on
+    # every request, unless the access_mode cookie holds a live override.
     token_data = {
         "sub": user.username,
         "role": user.role,
@@ -95,9 +94,21 @@ def login_for_access_token(
         # test can move the setting.
         secure=not settings.is_development,
     )
+    # A new login starts in the default mode, whoever was signed in before.
+    _clear_mode_override(response)
 
     logger.info("Successful login for user: %s", user.username)
     return {"message": "Successfully logged in", "role": user.role}
+
+
+def _clear_mode_override(response: Response) -> None:
+    response.delete_cookie(
+        key=MODE_OVERRIDE_COOKIE,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=not settings.is_development,
+    )
 
 
 def _user_for(db: Session, viewer):
@@ -174,6 +185,14 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         "mode": {
             "id": str(viewer.mode_id) if viewer.mode_id else None,
             "key": viewer.mode_key,
+            # When the session returns to the account's default mode; None
+            # while it is already there. The SPA reloads at this moment so
+            # what is on screen does not outlive the mode it was fetched in.
+            "expires_at": (
+                viewer.mode_expires_at.isoformat()
+                if viewer.mode_expires_at
+                else None
+            ),
         },
         # What the switcher needs: which modes are available, and what each
         # would COST. `requires_password` is the subset test from decision 3,
@@ -203,17 +222,17 @@ def switch_access_mode(
     Change which objects this session may reach, without logging out.
 
     Narrowing is instant; widening asks for the password again (decision 3),
-    so a browser left logged in at a narrow mode is actually narrow. The test
+    so nobody widens a session they merely find logged in. The test
     is a set comparison and it is the SAME function /api/auth/me uses to
     advertise the cost - the endpoint that ENFORCES the rule must not be able
     to disagree with the payload that ADVERTISES it.
 
-    THE REISSUED COOKIE KEEPS THE ORIGINAL `exp`. Minting a fresh month-long
-    token here would make toggling between two modes an unlimited
-    session-extension oracle, and the lifetime is flat with no refresh flow
-    and no revocation, so that would be the whole of it. The cookie's max_age
-    is the REMAINING seconds for the same reason - a switch must not resurrect
-    a token that has already expired.
+    A SWITCHED-TO MODE IS TEMPORARY. Switching to anything but the account's
+    default sets the access_mode cookie: a browser-session cookie (no
+    max_age, so closing the browser drops it) holding a token that expires
+    settings.access_mode_override_minutes from now, and never after the login
+    does. Switching to the default clears it. The login cookie is not
+    reissued, so switching cannot extend a session.
     """
     viewer = resolve_viewer(request, db)
     user = _user_for(db, viewer)
@@ -262,21 +281,30 @@ def switch_access_mode(
                 },
             )
 
-    claims = viewer.token_payload or {}
-    expires_at = datetime.fromtimestamp(claims["exp"], tz=timezone.utc)
-    token = create_access_token(
-        {"sub": user.username, "role": user.role, "mode": str(payload.mode_id)},
-        expires_at=expires_at,
-    )
-    remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds())
-    response.set_cookie(
-        key="access_token",
-        value=f"Bearer {token}",
-        httponly=True,
-        max_age=max(remaining, 0),
-        samesite="lax",
-        secure=not settings.is_development,
-    )
+    if payload.mode_id == default_mode_id(db, user):
+        _clear_mode_override(response)
+    else:
+        login_expires_at = datetime.fromtimestamp(
+            (viewer.token_payload or {})["exp"], tz=timezone.utc
+        )
+        expires_at = min(
+            datetime.now(timezone.utc)
+            + timedelta(minutes=settings.access_mode_override_minutes),
+            login_expires_at,
+        )
+        token = create_access_token(
+            {"sub": user.username, "mode": str(payload.mode_id)},
+            expires_at=expires_at,
+        )
+        # No max_age and no expires: a browser-session cookie. The token's
+        # own `exp` is what ends it in a browser that restores its session.
+        response.set_cookie(
+            key=MODE_OVERRIDE_COOKIE,
+            value=token,
+            httponly=True,
+            samesite="lax",
+            secure=not settings.is_development,
+        )
     return {"mode": {"id": str(target.mode_id), "key": target.mode_key}}
 
 
@@ -285,4 +313,5 @@ def logout_user():
     """Clears the HttpOnly access token cookie to properly log out the admin."""
     response = JSONResponse(content={"message": "Successfully logged out"})
     response.delete_cookie(key="access_token", path="/", httponly=True, samesite="lax")
+    _clear_mode_override(response)
     return response
