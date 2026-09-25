@@ -124,6 +124,19 @@ entries that do exist.
 (`config/formFactories.js`) merged with the admin's saved defaults
 (`hooks/useFormDefaults.js`, `/api/form-defaults/<type>`).
 
+**Notes for the entry just added (every media tab).** Notes hang off an
+entry's `system_id`, so the form cannot hold them before the entry exists.
+Once a media submit succeeds, the page keeps the created row beside the
+"Added" banner and renders `add-tabs/AddedEntryNotes.jsx` under it: the same
+`NotesTemplate` the Modify tabs embed, pointed at the new entry, so every
+section that type has is listed and each saves on its own. It hides nothing,
+`remark` included — the form has already reset to a blank entry, so its Remark
+field no longer edits this row. For h-comic and h-game the created row feeds
+`owner_where` and the 亮點 Highlights group order, which a header drag saves
+with a `PATCH`. The panel shows only on the tab the entry was added from, is
+replaced by the next media add, and goes when the banner is dismissed or a
+non-media row (collection, person, …) is added.
+
 **Autofill search box (anime, anime movie, movie, TV show, cartoon, manga,
 novel, comic).** Typing filters that tab's list client-side; picking a row
 copies its fields into the form (`lib/autofill.js`, driven by

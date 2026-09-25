@@ -81,6 +81,7 @@ import AnimeMovieAddTab, {
   defaultAnimeMovie,
 } from "../add-tabs/AnimeMovieAddTab";
 import AnimeAddTab, { defaultAnime } from "../add-tabs/AnimeAddTab";
+import AddedEntryNotes from "../add-tabs/AddedEntryNotes";
 import {
   autofillFields,
   fetchFormDefaults,
@@ -144,7 +145,16 @@ export default function Add() {
   const [contentLabels, setContentLabels] = useState([]);
   const [activeTab, setActiveTab] = useState("anime");
   const [submitting, setSubmitting] = useState(false);
-  const [lastAdded, setLastAdded] = useState(null);
+  const [lastAdded, setLastAddedName] = useState(null);
+  // The media entry behind the "Added" banner, as { ownerType, entry }, so the
+  // page can show that entry's notes. Every banner change clears it, and only
+  // a media create handler sets it again, right after - so a collection or a
+  // person added since never leaves a stale entry's notes on screen.
+  const [lastCreated, setLastCreated] = useState(null);
+  const setLastAdded = (name) => {
+    setLastAddedName(name);
+    setLastCreated(null);
+  };
 
   // Auto-fill search
   const [fillQuery, setFillQuery] = useState("");
@@ -868,6 +878,7 @@ export default function Add() {
     else showToast("warning", "Entry appended successfully. Enrichment failed - run Replace later.");
     setLastAdded(created.anime_name_en || created.anime_name_cn || "New Entry");
     setAf(freshForm("anime"));
+    setLastCreated({ ownerType: "anime", entry: created });
     setContentLabels([]);
     setAllAnime((prev) => [...prev, created]);
   }
@@ -1467,6 +1478,7 @@ export default function Add() {
         "New Anime Movie",
     );
     setAmf(freshForm("anime-movie"));
+    setLastCreated({ ownerType: "anime-movie", entry: created });
     setContentLabels([]);
     setAllAnimeMovies((prev) => [...prev, created]);
   }
@@ -1633,6 +1645,7 @@ export default function Add() {
     showToast("success", "Movie appended successfully.");
     setLastAdded(created.movie_name_en || created.movie_name_cn || "New Movie");
     setMf(freshForm("movie"));
+    setLastCreated({ ownerType: "movie", entry: created });
     setContentLabels([]);
     setAllMovies((prev) => [...prev, created]);
   }
@@ -1802,6 +1815,7 @@ export default function Add() {
     showToast("success", "TV Show appended successfully.");
     setLastAdded(created.tv_name_cn || created.tv_name_en || "New TV Show");
     setTvf(freshForm("tv-show"));
+    setLastCreated({ ownerType: "tv-show", entry: created });
     setContentLabels([]);
     setAllTvShows((prev) => [...prev, created]);
   }
@@ -1955,6 +1969,7 @@ export default function Add() {
       created.cartoon_name_cn || created.cartoon_name_en || "New Cartoon",
     );
     setCf(freshForm("cartoon"));
+    setLastCreated({ ownerType: "cartoon", entry: created });
     setContentLabels([]);
     setAllCartoons((prev) => [...prev, created]);
   }
@@ -2121,6 +2136,7 @@ export default function Add() {
     showToast("success", "Manga appended successfully.");
     setLastAdded(created.manga_name_cn || created.manga_name_en || "New Manga");
     setMgf(freshForm("manga"));
+    setLastCreated({ ownerType: "manga", entry: created });
     setContentLabels([]);
     setAllMangas((prev) => [...prev, created]);
   }
@@ -2328,6 +2344,7 @@ export default function Add() {
     showToast("success", "Novel appended successfully.");
     setLastAdded(created.novel_name_cn || created.novel_name_en || "New Novel");
     setNvf(freshForm("novel"));
+    setLastCreated({ ownerType: "novel", entry: created });
     setContentLabels([]);
     setAllNovels((prev) => [...prev, created]);
   }
@@ -2510,6 +2527,7 @@ export default function Add() {
     showToast("success", "Comic appended successfully.");
     setLastAdded(created.comic_name_en || created.comic_name_cn || "New Comic");
     setCmf(freshForm("comic"));
+    setLastCreated({ ownerType: "comic", entry: created });
     setContentLabels([]);
     setAllComics((prev) => [...prev, created]);
   }
@@ -2674,6 +2692,7 @@ export default function Add() {
     showToast("success", "Game appended successfully.");
     setLastAdded(created.game_name_cn || created.game_name_en || "New Game");
     setGmf(freshForm("game"));
+    setLastCreated({ ownerType: "game", entry: created });
     setContentLabels([]);
     setAllGames((prev) => [...prev, created]);
   }
@@ -2811,6 +2830,7 @@ export default function Add() {
     showToast("success", "H-Comic appended successfully.");
     setLastAdded(getDisplayName(created, "h-comic"));
     setHcf(freshForm("h-comic"));
+    setLastCreated({ ownerType: "h-comic", entry: created });
     setContentLabels([]);
     setAllHComics((prev) => [...prev, created]);
   }
@@ -2940,6 +2960,7 @@ export default function Add() {
     showToast("success", "H-Game appended successfully.");
     setLastAdded(getDisplayName(created, "h-game"));
     setHgf(freshForm("h-game"));
+    setLastCreated({ ownerType: "h-game", entry: created });
     setContentLabels([]);
     setAllHGames((prev) => [...prev, created]);
   }
@@ -3069,6 +3090,7 @@ export default function Add() {
     showToast("success", "Hentai appended successfully.");
     setLastAdded(getDisplayName(created, "hentai"));
     setHtf(freshForm("hentai"));
+    setLastCreated({ ownerType: "hentai", entry: created });
     setContentLabels([]);
     setAllHentai((prev) => [...prev, created]);
   }
@@ -3291,6 +3313,16 @@ export default function Add() {
             <i className="fas fa-times text-xs"></i>
           </button>
         </div>
+      )}
+
+      {/* The just-created entry's notes, on its own tab only - they belong to
+          that entry, not to whatever the next tab is adding. */}
+      {lastCreated && lastCreated.ownerType === activeTab && (
+        <AddedEntryNotes
+          ownerType={lastCreated.ownerType}
+          entry={lastCreated.entry}
+          name={lastAdded}
+        />
       )}
 
       {/* Tabs */}
