@@ -15,7 +15,7 @@ watched, and explicit rows cannot be narrowed by anything - the reconcile only
 adds.
 
 Revision ID: n1d2plscope3
-Revises: h2g3a4m5e6t7
+Revises: h2e3n4t5a6i7
 """
 
 from typing import Sequence, Union
@@ -24,7 +24,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "n1d2plscope3"
-down_revision: Union[str, Sequence[str], None] = "h2g3a4m5e6t7"
+down_revision: Union[str, Sequence[str], None] = "h2e3n4t5a6i7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
