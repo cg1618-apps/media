@@ -104,7 +104,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `guides` | 攻略 Guides | `fa-map` — game and h-game only: beginner, gameplay systems, controls, guide notes, trivia. The way in, not the content |
 | `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game and h-game only: stats, skills, builds, team composition |
 | `gear` | 物品 Items & Gear | `fa-sack-xmark` — game and h-game only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
-| `compendium` | 圖鑑 Compendium | `fa-dragon` — game and h-game only: characters, enemies, game terms |
+| `compendium` | 圖鑑與名詞 Compendium & Terms | `fa-dragon` — game and h-game only: characters, enemies, game terms, player terms |
 | `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game and h-game only: mods and tools, guide resources. Renders beside the site-wide Resources card, not with the 攻略 run |
 | `story` | 劇情 Story | `fa-book-open` — game and h-game only: main plot, side stories, character arcs, endings. What happens |
 | `story_list` | 劇情列表 Story List | `fa-list-ol` — game and h-game only, 4 **hierarchical** strands |
@@ -127,8 +127,8 @@ is a section wearing a second header.
 
 **結局 Endings is in 劇情 Story, not 攻略.** It sat among the guide sections
 while it had nowhere better, and an ending is what the story *does* rather
-than a guide topic — so it is the last of 劇情's four strands, and 圖鑑 is
-cleanly about the cast, the bestiary and the game's glossary.
+than a guide topic — so it is the last of 劇情's four strands, and 圖鑑與名詞 is
+cleanly about the cast, the bestiary and the two glossaries.
 
 **劇情 is what happens; 世界觀 is the world it happens in.** 劇情 holds the
 four strands of the plot — main plot, side stories, character arcs, endings.
@@ -139,16 +139,18 @@ than between the two, because 劇情 and 劇情列表 are one story told twice a
 read as a pair.
 
 **The game's vocabulary is split by where it is looked up.** 遊戲名詞 Game
-Terms (mechanics, currencies, jargon) is in 圖鑑, read while playing; 劇情名詞
+Terms (mechanics, currencies, jargon) and 玩家術語 Player Terms (the
+community's slang and abbreviations, which no menu in the game uses) are in
+圖鑑與名詞, read while playing; 劇情名詞
 Story Terms (places, factions, invented words the plot introduces) is in
 世界觀, beside the Lore it names, read while following the story. 玩法系統 Gameplay
 Systems — modes, enhancement and upgrade systems, the pull system, stages,
 style of play — is in 攻略, straight after 新手 Beginner: Beginner is the
-advice, this is the inventory of what the advice is about. All three share
+advice, this is the inventory of what the advice is about. All four share
 one spec, `_term_fields`: Chinese name (`title`), alternative name
 (`fields.name_alt`, named after the entry tables' `*_name_alt`), description.
-玩法系統 adds a free-text type (`kind`) and links; the two glossaries take no
-links, because a term is a definition to look up, not something to source.
+玩法系統 adds a free-text type (`kind`). None takes links: each is looked up,
+not sourced, and a write-up worth keeping belongs in 攻略資源 Guide Resources.
 
 **A section's group can differ per owner.** `groups_by_owner` overrides
 `group` for named owner types, the same way `labels` and `kinds_by_owner`
@@ -251,6 +253,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `characters_guide` | 角色 Characters | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `enemies` | 敵人 Enemies | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `game_terms` | 遊戲名詞 Game Terms | **structured** | compendium | game, h-game | — | — | — | no | no | no |
+| `player_terms` | 玩家術語 Player Terms | **structured** | compendium | game, h-game | — | — | — | no | no | no |
 | `main_plot` | 主線劇情 Main Plot | **structured** | story | game, h-game | — | — | *(on its `chapter` field)* | no | no | no |
 | `side_plot` | 支線劇情 Side Stories | **structured** | story | game, h-game | — | — | *(on its `chapter` field)* | no | no | no |
 | `character_arcs` | 角色劇情 Character Arcs | text_links | story | game, h-game | — | — | — | no | no | no |

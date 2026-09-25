@@ -2182,3 +2182,22 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
 - **Bulk Replace selects IGDB-only entries too**, and the Steam budget still
   gates every entry: IGDB can hand Steam an appid mid-entry, so an IGDB-only
   row is not exempt from the storefront window.
+
+### 玩法系統 loses its links; 圖鑑 becomes 圖鑑與名詞 (2026-09-25)
+
+- **Owner's decision: 玩法系統 Gameplay Systems takes no links.** It had kept
+  them on the reasoning that a mechanic is something a write-up explains
+  better than a line does. It is looked up like the glossaries it shares
+  `_term_fields` with, and a write-up worth keeping is a 攻略資源 Guide
+  Resources row.
+- **Existing links move into the description rather than being cleared**
+  (`g3s4ysnolink`). A row keeping URLs in a column no field claims would 422
+  on its first edit, and clearing them would lose them. The revision is
+  `irreversible`: after an edit, an appended URL cannot be told from a typed
+  one.
+- **玩家術語 Player Terms is its own section, beside 遊戲名詞 Game Terms.**
+  The game's vocabulary and the community's are both looked up while playing,
+  which puts them in one card, but a word met on a forum is looked for in the
+  list of the forum's words. The card is relabelled 圖鑑與名詞 Compendium &
+  Terms; its key stays `compendium`, because the key is what code and tests
+  name and only the label reaches a reader.
