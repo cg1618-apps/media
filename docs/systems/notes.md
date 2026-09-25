@@ -500,7 +500,8 @@ appears. A test asserts they share an `owners` tuple, not just a scope.
 
 Only 備註 is hidden by `hideSections` — the dedicated remark editors on the
 Add form, the Modify tabs and the detail pages write that one row and nothing
-else.
+else. The Add page's panel for a just-created entry hides nothing: by then the
+form has reset to a blank entry, so its Remark field no longer edits that row.
 
 ### OST
 
