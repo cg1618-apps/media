@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-23
+Last verified: 2026-09-25
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -896,7 +896,11 @@ The regular types run `execute_replace_single_<type>` after commit instead
 `system_option_scope (option_id, scope=media_type)` row for any pair that does
 not exist. **Purely additive** (Ruling R27): a reconcile may widen where a
 value is offered but never narrows it. Tags whose field is not in `TAG_FIELDS`
-or whose option no longer exists are skipped. Called by every `run_sync_<type>`
+or whose option no longer exists are skipped, and so are tags on an option
+with **no scope rows at all**: an unscoped value is already offered on every
+media type, so its first scope row would narrow it to that one type - a TV
+show naming Netflix as its original source would take Netflix out of the anime
+Main Sources picker. Called by every `run_sync_<type>`
 wrapper, so a Fill or Replace of any type triggers a full scan.
 
 ---
