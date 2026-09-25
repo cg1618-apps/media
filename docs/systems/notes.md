@@ -106,8 +106,9 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `gear` | 物品 Items & Gear | `fa-sack-xmark` — game-only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
 | `compendium` | 圖鑑 Compendium | `fa-dragon` — game-only: characters, enemies, game terms |
 | `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game-only: mods and tools, guide resources. Renders beside the site-wide Resources card, not with the 攻略 run |
-| `story` | 劇情 Story | `fa-book-open` — game-only, 9 sections |
+| `story` | 劇情 Story | `fa-book-open` — game-only: main plot, side stories, character arcs, endings. What happens |
 | `story_list` | 劇情列表 Story List | `fa-list-ol` — game-only, 4 **hierarchical** strands |
+| `story_setting` | 劇情設定 Story Setting | `fa-earth-asia` — game-only: lore, story terms, timeline, mysteries, other. The world it happens in |
 | `todo` | 待辦 Todo | `fa-list-check` — game-only, 4 personal-scope buckets |
 | `music` | 音樂 Music | `fa-music` |
 | `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` |
@@ -126,19 +127,28 @@ is a section wearing a second header.
 
 **結局 Endings is in 劇情 Story, not 攻略.** It sat among the guide sections
 while it had nowhere better, and an ending is what the story *does* rather
-than a guide topic — so it reads above 世界觀&設定 Lore, and 圖鑑 is cleanly
-about the cast, the bestiary and the game's glossary.
+than a guide topic — so it is the last of 劇情's four strands, and 圖鑑 is
+cleanly about the cast, the bestiary and the game's glossary.
+
+**劇情 is what happens; 劇情設定 is the world it happens in.** 劇情 holds the
+four strands of the plot — main plot, side stories, character arcs, endings.
+劇情設定 Story Setting holds what the plot stands on: 世界觀&設定 Lore,
+劇情名詞 Story Terms, 時間線 Timeline, 未解之謎 Mysteries, and 其他 Other,
+the overflow for a stray story observation. It renders after 劇情列表 rather
+than between the two, because 劇情 and 劇情列表 are one story told twice and
+read as a pair.
 
 **The game's vocabulary is split by where it is looked up.** 遊戲名詞 Game
 Terms (mechanics, currencies, jargon) is in 圖鑑, read while playing; 劇情名詞
-Story Terms (places, factions, invented words the plot introduces) is in 劇情,
-beside the Lore it names, read while following the story. 玩法系統 Gameplay
+Story Terms (places, factions, invented words the plot introduces) is in
+劇情設定, beside the Lore it names, read while following the story. 玩法系統 Gameplay
 Systems — modes, enhancement and upgrade systems, the pull system, stages,
 style of play — is in 攻略, straight after 新手 Beginner: Beginner is the
 advice, this is the inventory of what the advice is about. All three share
 one spec, `_term_fields`: Chinese name (`title`), alternative name
-(`fields.name_alt`, named after the entry tables' `*_name_alt`), description,
-links; 玩法系統 adds a free-text type (`kind`).
+(`fields.name_alt`, named after the entry tables' `*_name_alt`), description.
+玩法系統 adds a free-text type (`kind`) and links; the two glossaries take no
+links, because a term is a definition to look up, not something to source.
 
 **A section's group can differ per owner.** `groups_by_owner` overrides
 `group` for named owner types, the same way `labels` and `kinds_by_owner`
@@ -156,7 +166,7 @@ is read *with* the opinions rather than apart from them. So for `game` it is
 the last subsection of 評論 Reviews, and `analysis_group` is not rendered for
 games at all.
 
-**Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情 → 待辦 → 音樂 → 名言/梗 → Resources → Questions.
+**Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情 → 劇情列表 → 劇情設定 → 待辦 → 音樂 → 名言/梗 → Resources → Questions.
 
 ### 劇情列表 Story List, and nesting
 
@@ -244,15 +254,15 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `side_plot` | 支線劇情 Side Stories | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
 | `character_arcs` | 角色劇情 Character Arcs | text_links | story | game | — | — | — | no | no | no |
 | `endings` | 結局 Endings | **structured** | story | game | — | — | — | no | no | no |
-| `lore` | 世界觀&設定 Lore | text_links | story | game | — | — | — | no | no | no |
-| `story_terms` | 劇情名詞 Story Terms | **structured** | story | game | — | — | — | no | no | no |
-| `timeline` | 時間線 Timeline | text_links | story | game | — | — | — | no | no | no |
-| `mysteries` | 未解之謎 Mysteries | text_links | story | game | — | — | — | no | no | no |
-| `story_other` | 其他 Other | text_links | story | game | — | — | — | no | no | no |
 | `story_list_main` | 主線 Main | **structured** | story_list | game | — | — | — | no | no | no |
 | `story_list_side` | 支線 Side | **structured** | story_list | game | — | — | — | no | no | no |
 | `story_list_character` | 角色 Character | **structured** | story_list | game | — | — | — | no | no | no |
 | `story_list_event` | 事件 Event | **structured** | story_list | game | — | — | — | no | no | no |
+| `lore` | 世界觀&設定 Lore | text_links | story_setting | game | — | — | — | no | no | no |
+| `story_terms` | 劇情名詞 Story Terms | **structured** | story_setting | game | — | — | — | no | no | no |
+| `timeline` | 時間線 Timeline | text_links | story_setting | game | — | — | — | no | no | no |
+| `mysteries` | 未解之謎 Mysteries | text_links | story_setting | game | — | — | — | no | no | no |
+| `story_other` | 其他 Other | text_links | story_setting | game | — | — | — | no | no | no |
 | `todo_now` | 現在進行 Doing now | text_links | todo | game | — | — | — | no | no | no |
 | `todo_next` | 接下來 To do next | text_links | todo | game | — | — | — | no | no | no |
 | `todo_later` | 未來 To do in the future | text_links | todo | game | — | — | — | no | no | no |

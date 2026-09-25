@@ -240,6 +240,7 @@ can only hold URLs and `text_links` has no title, so neither could say
 | `compendium` | 圖鑑 Compendium |
 | `story` | 劇情 Story |
 | `story_list` | 劇情列表 Story List |
+| `story_setting` | 劇情設定 Story Setting |
 | `todo` | 待辦 Todo (rendered inside the game page's Progress slip) |
 | `music` | 音樂 Music |
 | `tools` | 資源&工具 Tools & Resources |
@@ -283,20 +284,20 @@ media types only.
 | `collectibles` | structured | 收集物 Collectibles | game | gear | type, name, variant, description, links, collect status (default `not collected`) |
 | `characters_guide` | structured | 角色 Characters | game | compendium | group, name, alias, description |
 | `enemies` | structured | 敵人 Enemies | game | compendium | tier, region, name, alias, description, beaten status (default `to beat`) |
-| `game_terms` | structured | 遊戲名詞 Game Terms | game | compendium | name (CN), alt name, description, links |
+| `game_terms` | structured | 遊戲名詞 Game Terms | game | compendium | name (CN), alt name, description |
 | `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
 | `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), description, links |
 | `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
 | `endings` | structured | 結局 Endings | game | story | name, completion status, description, links |
-| `lore` | text_links | 世界觀&設定 Lore | game | story | |
-| `story_terms` | structured | 劇情名詞 Story Terms | game | story | name (CN), alt name, description, links |
-| `timeline` | text_links | 時間線 Timeline | game | story | |
-| `mysteries` | text_links | 未解之謎 Mysteries | game | story | |
-| `story_other` | text_links | 其他 Other | game | story | |
 | `story_list_main` | structured | 主線 Main | game | story_list | order, name, description, links; nestable |
 | `story_list_side` | structured | 支線 Side | game | story_list | order, name, description, links; nestable |
 | `story_list_character` | structured | 角色 Character | game | story_list | order, name, description, links; nestable |
 | `story_list_event` | structured | 事件 Event | game | story_list | order, name, description, links; nestable |
+| `lore` | text_links | 世界觀&設定 Lore | game | story_setting | |
+| `story_terms` | structured | 劇情名詞 Story Terms | game | story_setting | name (CN), alt name, description |
+| `timeline` | text_links | 時間線 Timeline | game | story_setting | |
+| `mysteries` | text_links | 未解之謎 Mysteries | game | story_setting | |
+| `story_other` | text_links | 其他 Other | game | story_setting | |
 | `todo_now` | text_links | 現在進行 Doing now | game | todo | personal scope |
 | `todo_next` | text_links | 接下來 To do next | game | todo | personal scope |
 | `todo_later` | text_links | 未來 To do in the future | game | todo | personal scope |
