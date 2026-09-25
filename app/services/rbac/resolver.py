@@ -10,6 +10,7 @@ public read routes, which must stay public.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.dependencies import ALGORITHM, SECRET_KEY, get_db
 from app.services.rbac import cache
-from app.services.rbac.modes import resolve_mode
+from app.services.rbac.modes import default_mode_id, resolve_mode
 from app.services.rbac.permissions import (
     FAMILY_SELF,
     PERM_ADMIN_AUTHZ,
@@ -30,6 +31,13 @@ from app.services.rbac.permissions import (
 )
 
 GUEST_ROLE = "guest"
+
+# The cookie holding a switched-to access mode. The login cookie says WHO is
+# asking and lasts a month; this one says which mode they chose, and is a
+# browser-session cookie holding a token that expires
+# settings.access_mode_override_minutes after the switch. With no live
+# override the session is in the account's default mode.
+MODE_OVERRIDE_COOKIE = "access_mode"
 
 
 @dataclass(frozen=True)
@@ -67,6 +75,9 @@ class Viewer:
     # the complement; do not invert this.
     visible_label_ids: frozenset[UUID] = frozenset()
     field_groups: frozenset[str] = frozenset()
+    # When the active mode stops applying and the session returns to the
+    # account's default. None when the session is already in the default.
+    mode_expires_at: Optional[datetime] = None
 
     def has(self, permission: str) -> bool:
         """
@@ -116,6 +127,27 @@ def _decode(request: Request) -> Optional[dict[str, Any]]:
         return jwt.decode(token.split(" ")[1], SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.PyJWTError:
         return None
+
+
+def _mode_override(request: Request, username: str) -> Optional[dict[str, Any]]:
+    """
+    The live access-mode override for this account, or None.
+
+    Expired, badly signed, or minted for another account all read as no
+    override, and the session falls back to the account's default. That
+    fallback is the point of the override being temporary; it is not the
+    revoked-mode case, which resolve_mode still answers with the empty set.
+    """
+    token = request.cookies.get(MODE_OVERRIDE_COOKIE)
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.PyJWTError:
+        return None
+    if payload.get("sub") != username or _mode_claim(payload) is None:
+        return None
+    return payload
 
 
 def _mode_claim(payload: Optional[dict[str, Any]]) -> Optional[UUID]:
@@ -168,7 +200,21 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
         if role is None:
             return GUEST_FALLBACK
 
-        mode = resolve_mode(db, user, _mode_claim(payload))
+        # The login token's own `mode` claim is NOT read. It records the
+        # default at login time, and a cookie minted before overrides existed
+        # carries whatever mode was last switched to, for up to a month.
+        mode_id = None
+        mode_expires_at = None
+        if user is not None:
+            override = _mode_override(request, user.username)
+            if override is not None:
+                mode_id = _mode_claim(override)
+                mode_expires_at = datetime.fromtimestamp(
+                    override["exp"], tz=timezone.utc
+                )
+            else:
+                mode_id = default_mode_id(db, user)
+        mode = resolve_mode(db, user, mode_id)
 
         return Viewer(
             username=user.username if user else None,
@@ -182,6 +228,7 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
             mode_key=mode.mode_key,
             visible_label_ids=mode.label_ids,
             field_groups=mode.field_groups,
+            mode_expires_at=mode_expires_at,
         )
     except Exception:
         # A viewer we cannot resolve sees what an anonymous stranger sees.
