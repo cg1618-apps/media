@@ -124,6 +124,7 @@ function RowPickerModal({
                     <div className="relative rounded-t-xl overflow-hidden bg-surface-2">
                       <div className="aspect-[3/4]">
                         <img
+                          loading="lazy"
                           src={coverFor(row)}
                           alt={name}
                           className="w-full h-full object-cover"
@@ -178,6 +179,7 @@ function SlotCard({ slot, name, coverUrl, onOpen }) {
       <div className="relative rounded-xl overflow-hidden border border-border shadow-sm bg-surface-2 group-hover:border-brand transition-colors">
         <div className="aspect-[3/4]">
           <img
+            loading="lazy"
             src={coverUrl}
             alt={name || ""}
             className="w-full h-full object-cover"
@@ -254,6 +256,7 @@ function RankListItem({
         <>
           <div className="w-7 h-9 rounded overflow-hidden shrink-0 border border-border">
             <img
+              loading="lazy"
               src={coverUrl}
               alt=""
               className="w-full h-full object-cover"

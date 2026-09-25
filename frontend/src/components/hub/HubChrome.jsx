@@ -110,6 +110,7 @@ export function HeroCover({ src, spine, id, rating, done, total, pct }) {
         />
         <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
           <img
+            loading="lazy"
             src={src}
             alt="Cover"
             className="w-full h-full object-cover"

@@ -162,6 +162,7 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
           {imageUrl && (
             <div className="mt-2">
               <img
+                loading="lazy"
                 src={imageUrl}
                 alt=""
                 className="max-h-56 border border-border"

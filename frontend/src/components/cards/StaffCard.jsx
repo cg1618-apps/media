@@ -40,6 +40,7 @@ function StaffCard({ to, label, name, imageFile, imageAlt, creditCount }) {
           style={{ aspectRatio: "2/3" }}
         >
           <img
+            loading="lazy"
             src={coverUrl}
             alt={imageAlt}
             className="w-full h-full object-cover"

@@ -1,7 +1,7 @@
 # Setting up the self-hosted production box
 
-Last verified: 2026-09-19 (steps 1-17 followed end to end; the box it produced
-is serving `media.cg1618.com`)
+Last verified: 2026-09-24 (steps 1-17 followed end to end on 2026-09-19, step 11
+on 2026-09-24; the box it produced is serving `media.cg1618.com`)
 
 Everything from an unopened used mini PC to a machine serving the application
 over HTTPS, written for someone who has never installed Linux: every screen,
@@ -703,8 +703,10 @@ has a failed unit teaches you to skim past the command you would use to find a
 real one.
 
 `optional: true` does not disable the interface. It means boot need not block
-on it; a cable plugged in later still gets configured, so there is nothing to
-undo in [step 11](#step-11--once-the-cable-is-in-if-setup-used-wifi).
+on it, and a cable plugged in later still gets configured. It is right only
+while the cable is absent: once the cable is the connection, it comes off again
+in [step 11](#step-11--once-the-cable-is-in-if-setup-used-wifi), or boot is left
+with no interface to wait for.
 
 #### Step 10 — Give it a fixed address on the router
 
@@ -727,7 +729,7 @@ place to look, and no chance of a clash with the router's own pool.
 
 #### Step 11 — Once the cable is in, if setup used WiFi
 
-Two things to do at that point, neither of which is automatic:
+Four things to do at that point, none of which is automatic:
 
 - **Set the DHCP reservation on the Ethernet MAC, not the WiFi one** — they are
   different addresses, so a reservation made over WiFi stops applying the moment
@@ -739,6 +741,13 @@ Two things to do at that point, neither of which is automatic:
   `sudo netplan apply`. A machine quietly holding two routes onto the network is
   a machine whose address is hard to explain a year later — and it leaves the
   WiFi password on disk for no reason.
+- **Take `optional: true` off `eno1`**, in the same edit. With the WiFi gone
+  every remaining interface is optional, so netplan generates no wait at all:
+  `network-online.target` is reached at once, Docker starts before DHCP has
+  answered, and `cloudflared` restarts on failed DNS until it resolves. After
+  `sudo netplan generate`, the drop-in in
+  `/run/systemd/generator.late/systemd-networkd-wait-online.service.d/10-netplan.conf`
+  should end with `ExecStart=… --any --dns -o routable -i eno1`.
 - **Delete `/etc/modprobe.d/iwlwifi.conf`**, the power-save override added in
   [step 8](#step-8--housekeeping). It does nothing once the radio is unused, but
   a stray module option outlives the reason it was written.
@@ -1067,8 +1076,8 @@ Healthchecks check, which stays grey and unmonitored until its first ping:
 **Two timers are deliberately left disabled**, each until its precondition is
 met:
 
-- **`media-covers.timer`** — its first run uploads 283 MB over a metered phone
-  hotspot, a cost worth spending on purpose rather than at whatever hour a
+- **`media-covers.timer`** — its first run uploads 283 MB through the same
+  upload the tunnel serves the site on, a cost worth spending on purpose rather than at whatever hour a
   timer happens to fire. Run the sync by hand once, then enable it.
 - **`media-verify.timer`** — the weekly drill restores the newest dump in R2
   and cannot pass while the bucket holds none. Its scheduled Wednesday 04:40 run
@@ -1152,10 +1161,10 @@ count came back correct. An untested rollback procedure is a guess.
 - [ ] Power cut, network outage and reboot each recovered with nobody present.
 - [ ] A rollback has actually been rehearsed, not just written down.
 
-**Two things are deliberately open here**, and both wait on hardware rather than
-work: the DHCP reservation ([step 10](#step-10--give-it-a-fixed-address-on-the-router))
-is impossible on a phone hotspot, and the cable handover
-([step 11](#step-11--once-the-cable-is-in-if-setup-used-wifi)) waits on a cable.
+**One thing is deliberately open here**: the DHCP reservation
+([step 10](#step-10--give-it-a-fixed-address-on-the-router)), which needs admin
+on whichever router hands the box its address — on the home network that is the
+router above the one the laptop uses.
 
 ### When something goes wrong
 

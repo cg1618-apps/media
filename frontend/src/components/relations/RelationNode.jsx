@@ -92,6 +92,7 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
         </div>
       ) : (
         <img
+          loading="lazy"
           src={getCoverUrl(cover_image_file)}
           alt=""
           className="h-12 w-9 shrink-0 rounded-md object-cover"

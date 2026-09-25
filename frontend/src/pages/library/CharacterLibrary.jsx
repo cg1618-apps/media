@@ -207,6 +207,7 @@ function CharacterCard({ character }) {
           style={{ aspectRatio: "2/3" }}
         >
           <img
+            loading="lazy"
             src={coverUrl}
             alt="Photo"
             className="w-full h-full object-cover"

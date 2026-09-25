@@ -365,6 +365,7 @@ export default function CastEditor({ mediaType, value, onChange }) {
           <div className="flex items-center gap-1 shrink-0 w-32">
             {row.photo_file ? (
               <img
+                loading="lazy"
                 src={getCoverUrl(row.photo_file)}
                 alt=""
                 className="w-8 h-8 rounded object-cover shrink-0"

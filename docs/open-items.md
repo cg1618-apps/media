@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-09-23
+Last verified: 2026-09-24
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -57,14 +57,14 @@ the command silently discarded before the fix.
 
 | Item | Why it is stuck |
 |---|---|
-| A DHCP reservation for the box | A phone hotspot offers none. The address is whatever DHCP hands out, and `ssh` failing is how you learn it moved |
-| The cable handover | No Ethernet yet. When it arrives, the reservation moves to the Ethernet MAC, the `wifis:` block leaves the netplan file, and the `iwlwifi` power-save override goes with it |
+| A DHCP reservation for the box | Its cable is bridged past the home router, so its address comes from the router above it, which needs that router's admin — or the cable moved onto the home router's own network. Until then the address is whatever DHCP hands out, and `ssh` failing is how you learn it moved |
 | An idle power reading for the box | No meter |
 
 ## The two machines and the backup sheet
 
-The sheet holds exactly one version of the data, so these are about the company
-machine being behind. Arrival procedure is
+The sheet holds exactly one version of the data. The company machine migrated
+on 2026-09-24 and its database is at head, so what is left here is about the
+**sheet** rather than about that machine being behind. Arrival procedure is
 [switching-environments.md](switching-environments.md).
 
 **The backup sheet predates the notes rework, so a Pull from it would undo
@@ -79,24 +79,35 @@ Neither failure is loud. The rows restore, the page loads, and it shows up one
 edit later.
 
 Closed by running **Backup** from the machine holding the newer data, which
-rewrites every tab in the current shape. Until then, the company machine's
-arrival procedure ends in the step that would do the damage.
+rewrites every tab in the current shape. Until then, neither machine may Pull:
+the company machine's arrival on 2026-09-24 deliberately stopped one step short
+of it, so that database is its own 2,081 rows rather than the sheet's.
 
-**The company machine still files rows under `admin`.** The home database moved
-every row to `cg1618` under `o1a1ownerflag`; the company database has neither
-the migration nor the move. Arriving there, the order matters: `git pull`, then
+**The company machine's owner flag is applied; whether every row followed is
+unverified.** That database is now at head, it has the
+`users.is_installation_owner` column, and `cg1618` holds the flag while `admin`
+does not — so the earlier claim that it had "neither the migration nor the
+move" is no longer true of it. What is not established is the *move*: its
+`user_access_mode` rows still split 4 and 4 between `admin` and `cg1618`, and
+nothing here says whether that is the correct end state (both accounts
+legitimately holding four modes) or residue. Compare against home before
+concluding either.
+
+The ordering still matters for any future arrival: `git pull`, then
 `alembic upgrade head`, then Pull All. The migration picks the first non-root
 account and the sheet carries the flag, so the two agree either way — but run
 out of order, a restore files under whichever account that database's fallback
 names.
 
-**The company machine can still erase the sheet.** The Backup guard that refuses
-to overwrite a populated sheet with an empty database landed in two commits, and
-the first is not enough on its own: it probed `worksheet.get("A2:A2")` for
-truthiness, and gspread answers an empty cell with `[[]]`, so it refused every
+**Both machines now hold the full Backup guard.** It refuses to overwrite a
+populated sheet with an empty database, and it landed in two commits: the first
+is not enough on its own, because it probed `worksheet.get("A2:A2")` for
+truthiness and gspread answers an empty cell with `[[]]`, so it refused every
 Backup on an installation with a legitimately empty tab. The second commit makes
-it usable. That machine has neither. **`git pull` there before running Backup**,
-not after.
+it usable. The company machine had neither while it was on the pre-migration
+tree; its migration on 2026-09-24 was a fresh clone at `dev`, so it has both —
+`sheets.py` asks `any(any(cell for cell in row) for row in ...)`, which is the
+second form. Kept here because it is the other half of the item below.
 
 **Who emptied the backup sheet is unknown**, and only the owner can close it.
 Eliminated with evidence rather than recollection: the test suite (every test
@@ -105,6 +116,8 @@ autouse guard), the other sessions of that day, every database on the home
 machine, and the stale codex worktree. What remains is a Backup run on the
 company machine against a freshly-migrated-but-empty database — which would
 blank every tab and be invisible from home — or a manual clear in the browser.
+That machine can no longer produce the first of those: it holds the working
+guard, and its database is populated rather than fresh.
 
 **`Note`, `Meme` and `Quote` carry `author_id` as a raw uuid, so authorship does
 not round-trip.** Each installation mints its own `admin`, and the `Users` tab's
@@ -166,8 +179,9 @@ Fixing it is one mechanical commit, `ruff format .` plus the `--check` step in
 CI, and it needs both halves: without the CI step it silently drifts again, and
 the missing step is the actual defect. What makes it awkward is not the work
 but the timing — a whole-repo reformat conflicts with every open branch on
-every machine, including the company machine's unmigrated `anime_site` tree. So
-it lands when nothing else is in flight, and not before.
+every machine. That is one tree fewer than it was: the company machine's
+unmigrated `anime_site` tree was deleted on 2026-09-24. So it lands when
+nothing else is in flight, and not before.
 
 ## Frontend
 

@@ -137,3 +137,22 @@ def test_a_path_that_does_not_name_a_cover_is_refused(client, path):
     no caller-supplied text reaches os.path.join and traversal has nothing to
     traverse. Anything that is not an owner type plus a uuid.jpg is a miss."""
     assert client.get(path).status_code in (404, 422)
+
+
+def test_a_served_cover_is_cached_by_the_browser_for_a_day_and_never_shared(
+    catalog_writer, sample_anime, cover_on_disk
+):
+    """Every cover crosses the box's upload, so the browser keeps it a day and
+    revalidates by ETag after that. It stays PRIVATE: the response depends on
+    who is asking, and a shared cache would hand a narrowed session a cover
+    the gate withholds - so Cloudflare must never be allowed to keep one."""
+    url = cover_on_disk("anime", sample_anime.system_id)
+    session = catalog_writer()
+
+    first = session.get(url)
+    assert first.status_code == 200
+    assert first.headers["cache-control"] == "private, max-age=86400"
+
+    again = session.get(url, headers={"If-None-Match": first.headers["etag"]})
+    assert again.status_code == 304
+    assert again.headers["cache-control"] == "private, max-age=86400"

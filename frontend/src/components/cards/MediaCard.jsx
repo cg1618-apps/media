@@ -126,6 +126,7 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
               title="Watch on Bahamut"
             >
               <img
+                loading="lazy"
                 src="https://i2.bahamut.com.tw/anime/logo.svg"
                 className="h-3 opacity-90"
                 alt="Baha"
@@ -137,6 +138,7 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
               title="Available on Bahamut (no link)"
             >
               <img
+                loading="lazy"
                 src="https://i2.bahamut.com.tw/anime/logo.svg"
                 className="h-3 opacity-30 grayscale"
                 alt="Baha"
@@ -204,6 +206,7 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
           title="Available on Bahamut"
         >
           <img
+            loading="lazy"
             src="https://i2.bahamut.com.tw/anime/logo.svg"
             className="h-3 opacity-90"
             alt="Baha"

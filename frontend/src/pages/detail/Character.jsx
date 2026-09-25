@@ -139,6 +139,7 @@ export default function Character() {
               style={{ aspectRatio: "2/3" }}
             >
               <img
+                loading="lazy"
                 src={photoUrl}
                 alt={`${name} photo`}
                 className="w-full h-full object-cover"
@@ -246,6 +247,7 @@ function CastingCard({ entry, navPath }) {
       style={{ aspectRatio: "2/3" }}
     >
       <img
+        loading="lazy"
         src={getCoverUrl(entry.cover_image_file)}
         alt=""
         className="w-full h-full object-cover"
