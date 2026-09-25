@@ -394,8 +394,10 @@ anything to fix).
 here sends it — removing an image that is still in use is a decision made at
 the place that uses it (detach there first), not a blanket "delete anyway"
 from the library. Each tile's **Detach** button removes one attachment
-(`DELETE /api/images/{id}/attach/{attachment_id}`) and leaves the file in the
-library; **Delete** is disabled until every attachment is gone.
+(`DELETE /api/images/{id}/attach/{attachment_id}`); an uploaded image stays in
+the library, a downloaded one goes with its last attachment (see
+[api.md](../api.md#images--apiimages)). **Delete** is disabled until every
+attachment is gone.
 
 ## /modify (`Modify.jsx`)
 

@@ -15,6 +15,13 @@
 // failure the caller needs to see, not a no-op. The upload still succeeds and
 // the key is still handed to onChange either way, so the reference is never
 // lost even when the attach itself did not go through.
+//
+// Remove is the inverse, and follows the same split. With an ownerId it clears
+// the owner's image on the server straight away (useClearOwnerImage) - the
+// attachment, the mirror column and the file downloaded for it - so the next
+// Replace downloads the cover of whatever external id the entry points at
+// now. Without one there is nothing on the server yet, and Remove only empties
+// the form.
 import { useEffect, useRef, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
@@ -22,7 +29,12 @@ import { endpoints } from "../../api/endpoints";
 import { visibleImageOwnerTypeGroups } from "../../config/imageOwnerTypes";
 import { useAuth } from "../../contexts/AuthContext";
 import { getCoverUrl } from "../../lib/covers";
-import { useAttachImage, useImages, useUploadImage } from "../../hooks/useImages";
+import {
+  useAttachImage,
+  useClearOwnerImage,
+  useImages,
+  useUploadImage,
+} from "../../hooks/useImages";
 import { Button, Chip } from "../ui/primitives";
 
 const PAGE_SIZE = 60;
@@ -52,8 +64,27 @@ export default function ImagePicker({
   const inputRef = useRef(null);
   const upload = useUploadImage();
   const attach = useAttachImage();
+  const clear = useClearOwnerImage();
 
-  const busy = upload.isPending || attach.isPending;
+  // A downloaded cover's url is the owner's, not the picture's
+  // (/api/covers/<type>/<id>.jpg), and the browser holds it for a day - so the
+  // cover downloaded after a Remove would preview as the one just removed.
+  // Once a removed cover is replaced, the cached copy is refetched (which also
+  // refreshes it for every other page) and the preview url is versioned.
+  const removed = useRef(false);
+  const [previewVersion, setPreviewVersion] = useState(0);
+  useEffect(() => {
+    if (!value || !removed.current) return;
+    removed.current = false;
+    fetch(getCoverUrl(value), { cache: "reload", credentials: "include" })
+      .catch(() => {})
+      .finally(() => setPreviewVersion((v) => v + 1));
+  }, [value]);
+  const previewUrl = previewVersion
+    ? `${getCoverUrl(value)}?v=${previewVersion}`
+    : getCoverUrl(value);
+
+  const busy = upload.isPending || attach.isPending || clear.isPending;
 
   // Returns an attach-failure message, or null when attach was skipped
   // (no ownerId yet) or succeeded.
@@ -83,6 +114,20 @@ export default function ImagePicker({
     }
   }
 
+  async function removeImage() {
+    setError(null);
+    if (ownerId) {
+      try {
+        await clear.mutateAsync({ ownerType, ownerId, role });
+      } catch (err) {
+        setError(err.message || "Removing the image failed.");
+        return;
+      }
+    }
+    removed.current = true;
+    onChange("", null);
+  }
+
   async function chooseFromLibrary(image) {
     setLibraryOpen(false);
     setError(null);
@@ -96,7 +141,7 @@ export default function ImagePicker({
       {value && (
         <img
           loading="lazy"
-          src={getCoverUrl(value)}
+          src={previewUrl}
           alt="Current image"
           className="max-h-40 rounded-lg border border-border"
           onError={(e) => {
@@ -128,6 +173,23 @@ export default function ImagePicker({
         >
           Choose from library
         </Button>
+
+        {value && (
+          <Button
+            type="button"
+            kind="outline"
+            size="sm"
+            disabled={busy}
+            onClick={removeImage}
+            title={
+              ownerId
+                ? "Take this image off the entry now. Saving afterwards downloads a fresh cover from the entry's external id."
+                : undefined
+            }
+          >
+            Remove
+          </Button>
+        )}
       </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}

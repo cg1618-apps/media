@@ -286,9 +286,16 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   saved, so attach is silently skipped in that one case — the upload still
   succeeds and hands back a storage key for the form to persist on save; once
   an `ownerId` exists, an attach failure (an unsupported owner type, or the
-  content-label 404) is surfaced rather than swallowed. Used today in
-  `QuoteForm` and `MemeForm`; the entry, staff and character forms still take
-  `cover_image_file`/`photo_file`/`logo_file` as a plain text input).
+  content-label 404) is surfaced rather than swallowed. **Remove** is the
+  inverse, with the same split: given an `ownerId` it clears the owner's image
+  on the server at once (`DELETE /api/images/owners/{type}/{id}/{role}` —
+  attachment, mirror column and the file downloaded for the owner) and only
+  then empties the form, so the next Replace downloads a fresh cover; without
+  one it only empties the form. A downloaded cover's URL belongs to the owner,
+  not the picture, and the browser holds it for a day, so when a removed cover
+  is replaced the picker refetches it with `cache: "reload"` and versions its
+  preview URL. Used by every entry Add/Modify tab, the person, character,
+  publisher and studio forms, `QuoteForm` and `MemeForm`).
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
   `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
