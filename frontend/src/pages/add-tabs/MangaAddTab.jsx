@@ -405,7 +405,8 @@ export default function MangaAddTab({
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "person",
-              role: "manga_author",
+              role: "author",
+              scope: "manga",
             })}
             value={mgf.author_plot}
             onChange={(v) => umg("author_plot", v)}
@@ -416,7 +417,8 @@ export default function MangaAddTab({
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "person",
-              role: "manga_author",
+              role: "illustrator",
+              scope: "manga",
             })}
             value={mgf.author_draw}
             onChange={(v) => umg("author_draw", v)}

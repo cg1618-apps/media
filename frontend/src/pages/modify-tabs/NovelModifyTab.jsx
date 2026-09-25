@@ -394,7 +394,8 @@ export default function NovelModifyTab({
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "person",
-              role: "novel_author",
+              role: "author",
+              scope: "novel",
             })}
             value={cnvf.author || ""}
             onChange={(v) => unv("author", v)}
@@ -405,7 +406,8 @@ export default function NovelModifyTab({
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "person",
-              role: "novel_illustrator",
+              role: "illustrator",
+              scope: "novel",
             })}
             value={cnvf.illustrator || ""}
             onChange={(v) => unv("illustrator", v)}
