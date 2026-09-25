@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.dependencies import get_db
+from app.registry import MEDIA_REGISTRY
 from app.services.domain.user_list import (
     DEFAULT_STATUS,
     LIST_FIELD_DEFAULTS,
@@ -84,6 +85,25 @@ def _media_or_404(
     if not entry_visible(db, viewer, media.media_type, media.system_id):
         raise HTTPException(status_code=404, detail="Entry not found")
     return media
+
+
+def _run_list_hook(db: Session, row, media: models.Media) -> None:
+    """
+    The type's progress_hook_list, as the entry endpoints run it after a list
+    payload (_factory._write_list). This path writes the same row, so it
+    owes the same checks: h-comic's usefulness vocabulary and region
+    clears, novel's arc derivation. The hook reads the detail row, not the
+    `media` supertable row.
+    """
+    spec = next(
+        (s for s in MEDIA_REGISTRY.values() if s.owner_type == media.media_type),
+        None,
+    )
+    if spec is None or spec.progress_hook_list is None:
+        return
+    entry = db.get(spec.model, media.system_id)
+    if entry is not None:
+        spec.progress_hook_list(row, entry)
 
 
 def _caller_id(viewer: Viewer) -> UUID:
@@ -166,6 +186,7 @@ def write_my_list_row(
 
     row = ensure_list_row(db, user_id, media_id, media.media_type)
     apply_list_payload(row, payload, media.media_type)
+    _run_list_hook(db, row, media)
     db.commit()
     db.refresh(row)
 

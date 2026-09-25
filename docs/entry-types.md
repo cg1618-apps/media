@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -29,14 +29,26 @@ Two lists exist on purpose (see the comment above `FRANCHISE_TYPES` in `app/util
 
 A franchise may carry a comma-separated list of types; duplicate detection buckets it under each one.
 
-`H-Comic` is kept apart in both directions. Every franchise whose type list
-includes it carries the `h-comic` content label (attached on auto-create and
-whenever a franchise is created or updated with that type), and the name
-resolver matches an h-comic only against `H-Comic` franchises and every other
-media type only against franchises that are not - so an h-comic named "Fate"
-never attaches to the mainstream Fate franchise. An h-comic written with a
-`franchise_id` whose type lacks `H-Comic` is refused (422). A series is not
-segregated: it names its parent whatever that parent's type.
+Franchise types fall into **families** (`FRANCHISE_FAMILY_FOR_TYPE` in
+`app/utils/constants.py`): `H-Comic` is the `h-comic` family, and every type
+not listed there is `mainstream`. Families are kept apart in both directions:
+
+- **A franchise spans one family.** A `franchise_type` mixing two
+  (`"ACG, H-Comic"`) is refused (422) on create, update and patch, and so is
+  retyping a franchise into another family than an entry it holds.
+- **An entry sits in a franchise of its own family.** The name resolver
+  matches an entry only against franchises of its family - so an h-comic named
+  "Fate" never attaches to the mainstream Fate franchise, and a manga named
+  "Fate" never attaches to an `H-Comic` one. A `franchise_id` naming a
+  franchise of another family is refused (422) on create and update for
+  every media type, and in a tracker PATCH body too, although PATCH does not
+  otherwise write `franchise_id` (`check_entry_franchise_family`,
+  `app/services/domain/hierarchy.py`).
+
+Every franchise whose type list includes `H-Comic` also carries the `h-comic`
+content label (attached on auto-create and whenever a franchise is created or
+updated with that type). A series is not segregated: it names its parent
+whatever that parent's type.
 
 ### Auto-created franchise type per media (`FRANCHISE_TYPE_FOR`, `app/services/domain/hierarchy.py`)
 
@@ -85,7 +97,7 @@ All ten have their own router under `app/routers/` and a detail page in `fronten
 | the reader's `page_fin` (`user_media_list`) | ✓ | cleared |
 | the reader's `ch_fin` (`user_media_list`) | cleared | ✓ |
 
-The clears run in the registry's `progress_hook` / `progress_hook_list`, which the router factory calls on create, update and the tracker PATCH; Pull and Calculate run `enforce_h_comic_invariants` over the whole table instead ([data-actions.md](data-actions.md)). An entry with no region clears nothing. Only a KR entry takes the `h_comic_highlights` notes section.
+The clears run in the registry's `progress_hook` / `progress_hook_list`, which the router factory calls on create, update and the tracker PATCH; Pull and Calculate run `enforce_h_comic_invariants` over the whole table instead (and `enforce_gated_label_invariants` for the label) ([data-actions.md](data-actions.md)). An entry with no region clears nothing. Only a KR entry takes the `h_comic_highlights` notes section.
 
 ### Novel unit structure (`novel_unit`, `NOVEL_UNIT_KINDS_BY_TYPE`)
 
@@ -259,13 +271,13 @@ Buckets are stored on franchise and series as two JSONB maps keyed by media type
 | Fill eligible when | `mal_id` set and missing values | `mal_id` set and missing values | missing values | missing values | `airing_type` in `{"Movie", "TV"}` and missing values | `mal_id` set and missing values | `mal_link` set and missing MAL values, **or** `mal_link` unset and `openlibrary_id` set and missing Open Library values | `comicvine_id` set and missing values | `igdb_id` set and missing IGDB values, **or** `steam_appid` set and Steam has written nothing yet | never (no external API) |
 | Fill function | `autofill_anime_from_mal` | `autofill_anime_movie_from_mal` | `autofill_movie_from_imdb` | `autofill_tv_show_from_imdb` | `autofill_cartoon_from_imdb` | `autofill_manga_from_mal` | `autofill_novel_from_mal` / `autofill_novel_from_openlibrary` (routed on `mal_link`) | `autofill_comic_from_comicvine` | `autofill_game_from_igdb` then `autofill_game_from_steam` | none |
 | Pause between calls | `MAL_PAUSE` (1 s) | 1 s | none | none | none | 1 s | 1 s | `COMICVINE_PAUSE` (1 s) + hourly budget | `STEAM_PAUSE` (0.5 s) + Steam storefront budget | none |
-| After Fill | derive `ep_previous`, `run_sync_anime` | `run_sync_anime_movie` | — | `run_sync_tv_show` | `run_sync_cartoon` | `run_sync_manga` | `run_sync_novel` | `run_sync_comic` | `run_sync_game` | `run_sync_h_comic` |
+| After Fill | derive `ep_previous`, `run_sync_anime` | `run_sync_anime_movie` | — | `run_sync_tv_show` | `run_sync_cartoon` | `run_sync_manga` | `run_sync_novel` | `run_sync_comic` | `run_sync_game` | `run_sync_h_comic`, `run_sync_gated_labels` |
 | Bulk Replace selects | rows with `mal_id` or `mal_link` | rows with `mal_id` or `mal_link` | rows with `imdb_id` or `imdb_link` | rows with `imdb_id` or `imdb_link` | TV/Movie rows with `imdb_id` or `imdb_link` | rows with `mal_id` or `mal_link` | rows with `mal_id` or `mal_link` | **no bulk Replace** (`replace=None`) | rows with `steam_appid` or `steam_link` (Steam half only) | **no bulk Replace** |
 | In Fill All / Replace All | yes / yes | yes / yes | yes / yes | yes / yes | yes / yes | yes / yes | yes / yes | **no / no** (`in_fill_all=False`, `in_replace_all=False`) | yes / yes | **no / no** |
 
 `PIPELINES["game"]` shipped with this backend as a spec that fetched nothing - registration demands one, since `MEDIA_TABLES` membership is asserted by `test_sheet_tabs` and by the data-control route builder - and gained its IGDB Fill immediately afterwards, in its own plan. **Game now has a bulk Replace**, its first: IGDB still carries no score or rank that drifts, so Replace runs `autofill_game_from_steam` only, re-fetching the live prices, the Metacritic score and this collection's own playtime. See [external-apis.md](external-apis.md#steam) for the full mapping, the request budget, and the `steam_progress_sync` lock.
 
-`PIPELINES["h-comic"]` fetches nothing: Fill finds nothing eligible, and the single-entry write hook only runs `run_sync_h_comic`, which clears each region's unused columns and keeps the `h-comic` label on every entry and every `H-Comic` franchise.
+`PIPELINES["h-comic"]` fetches nothing: Fill finds nothing eligible, and the single-entry write hook only runs `run_sync_h_comic`, which clears each region's unused columns, and `run_sync_gated_labels`, which keeps the `h-comic` label on every entry and every `H-Comic` franchise.
 
 End-to-end pipeline behaviour: [data-actions.md](data-actions.md); the external services: [external-apis.md](external-apis.md).
 

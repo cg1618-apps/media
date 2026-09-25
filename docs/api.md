@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -117,6 +117,13 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `PUT`    | `/{system_id}` | Admin  | Full update of a franchise. Body: `FranchiseUpdate`.                                                                                                                          |
 | `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                                                                                                                |
 | `DELETE` | `/{system_id}` | Admin  | Delete a franchise. Linked series, anime, movies, TV shows, cartoons, manga, and novels `franchise_id` are set to `NULL` via DB constraint cascade. Logs to `deleted_record`. |
+
+**Franchise families.** A `franchise_type` whose types span two families
+(`FRANCHISE_FAMILY_FOR_TYPE`, see
+[entry-types.md](entry-types.md)) is **422** on `POST`, `PUT` and `PATCH` -
+`"ACG, H-Comic"` mixes mainstream and h-comic. So is a `PUT` or `PATCH` that
+retypes a franchise into another family than an entry it already holds.
+Both are checked before anything is written.
 
 **Response model:** `FranchiseResponse`
 
@@ -387,7 +394,7 @@ with no additions. There is no external API, so the write hook fetches nothing.
 | -------- | ---------------------- | ------ | ----------- |
 | `GET`    | `/`                    | Public | List. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `region`, `search_query` (matched against all five name columns). |
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
-| `POST`   | `/`                    | Admin  | Create. Body: `HComicCreate`; **`region` is required** (`JP` / `KR`). Auto-runs `execute_replace_single_h_comic`, which fetches nothing and runs `run_sync_h_comic`. |
+| `POST`   | `/`                    | Admin  | Create. Body: `HComicCreate`; **`region` is required** (`JP` / `KR`). Auto-runs `execute_replace_single_h_comic`, which fetches nothing and runs `run_sync_h_comic` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HComicUpdate`. `region` may be omitted, but not sent as `null` (422). Same write hook. |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The h-comic vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `reading_status = "Completed"`; `serialization_status` becomes `完結` unless it is `腰斬`; the region's counter reaches its total (`page_fin = page_total` on JP, `ch_fin = ch_total` on KR). |
@@ -404,7 +411,8 @@ with no additions. There is no external API, so the write hook fetches nothing.
 against their vocabularies ([options.md](options.md)) - a blank string reads as
 `null`, anything else unknown is 422.
 
-**Every write keeps two invariants** (`app/services/domain/h_comic.py`):
+**Every write keeps two invariants** (`app/services/domain/h_comic.py` for the
+region, `app/services/domain/gated_labels.py` for the label):
 
 - **Region.** The columns the region does not use are cleared whatever the
   payload says - on KR `originality`, `animation_status`, `series_number`,
@@ -414,7 +422,12 @@ against their vocabularies ([options.md](options.md)) - a blank string reads as
 
 **Franchise.** An h-comic auto-resolves only into a franchise whose type
 includes `H-Comic` (and auto-creates one of that type, labelled). A
-`franchise_id` naming a franchise without that type is **422**.
+`franchise_id` naming a franchise of another family is **422** - and so, the
+other way round, is a mainstream entry's `franchise_id` naming an `H-Comic`
+franchise. The check is the factory's, for every media type, on `POST` and
+`PUT` (see [entry-types.md](entry-types.md)). `PATCH` does not move an entry -
+`franchise_id` is on `media`, not the entry's table, so it is skipped - but a
+foreign `franchise_id` in a PATCH body is refused all the same.
 
 **`highlight_group_order`** is the order of the KR highlight groups (see
 [systems/notes.md](systems/notes.md#h-comic-highlights-h_comic_highlights)):
@@ -876,9 +889,12 @@ Sorting in SQL rather than after the fact means an exact match cannot be cut by
 }
 ```
 
-Every bucket key is always present, empty for the types the scope did not ask
-about - and `h-comic` is empty for every session that cannot see the gated
-type. Rows carry the same response schema as that type's own list endpoint —
+Every bucket key this session may see is present, empty for the types the
+scope did not ask about. A gated type the session cannot see has **no key at
+all** - not an empty bucket, which would still say the type exists - whatever
+the scope and whether or not `q` is empty. So `h-comic` is present only in a
+mode carrying the `h-comic` label. The SPA reads every bucket as
+`results[type] ?? []`. Rows carry the same response schema as that type's own list endpoint —
 plan flags, link fields, RBAC visibility, and field gating all included.
 
 **People, studios and publishers.** `person`, `studio` and `publisher` are
@@ -1546,7 +1562,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/fill/manga`       | Fill missing metadata for all manga from Tenrai. Streams SSE progress.        |
 | `POST` | `/fill/novel`       | Fill missing metadata for all novels from Tenrai. Streams SSE progress.       |
 | `POST` | `/fill/comic`       | Runs options extraction for all comics. No external call — comics are manual-entry. Streams SSE progress. |
-| `POST` | `/fill/h-comic`     | Nothing is eligible - there is no external API - so it only runs `run_sync_h_comic` (region clears and the `h-comic` label, over the whole table). Streams SSE progress. Not part of Fill All. |
+| `POST` | `/fill/h-comic`     | Nothing is eligible - there is no external API - so it only runs `run_sync_h_comic` (region clears over the whole table) and `run_sync_gated_labels` (every gated type's label on every entry and franchise). Streams SSE progress. Not part of Fill All. |
 | `POST` | `/fill/studio`      | Fill missing logo, MAL link, founding date, Japanese name and website for every studio that has a MAL id, from Tenrai's producers endpoint. Fill-only; there is no `/replace/studio`. Streams SSE progress. |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
@@ -1569,7 +1585,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/replace/novel`                        | Replace metadata for all novels that have a MAL ID. Streams SSE progress.            |
 | `POST` | `/replace/novel/{entry_id}`             | Replace metadata for a single novel entry by UUID. Returns JSON.                     |
 | `POST` | `/replace/comic/{entry_id}`             | Runs the Replace write hook for a single comic entry. Fetches nothing — comics are manual-entry, so there is no external record to reconcile against; it exists only so the write is logged like every other type's. Returns JSON. |
-| `POST` | `/replace/h-comic/{entry_id}`           | The write hook for one h-comic: fetches nothing, runs `run_sync_h_comic`. Returns JSON. There is no bulk `/replace/h-comic`, and h-comic is not part of Replace All. |
+| `POST` | `/replace/h-comic/{entry_id}`           | The write hook for one h-comic: fetches nothing, runs `run_sync_h_comic` and `run_sync_gated_labels`. Returns JSON. There is no bulk `/replace/h-comic`, and h-comic is not part of Replace All. |
 | `POST` | `/replace/all`                          | Replace all + auto-backup on completion. Streams SSE progress.                       |
 
 **Single replace error mapping.** A single-entry Replace returns the pipeline's status dict; when `status == "error"` the router raises the HTTP code the dict names in `status_code` (404 for a missing entry) and falls back to **400** otherwise, instead of answering 200 with an error body.
@@ -1696,7 +1712,7 @@ which keys a type owns.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/me/list/{media_id}` | The caller's row. Never creates one: an entry they have never touched reads back the type's default status and `null` for the rest, the same values `attach_list_fields` puts on an untouched entry. 404 on an unknown `media_id`. |
-| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. |
+| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a novel's arc cursor is derived. |
 
 Neither route takes a user id, so there is no shape of request that writes
 somebody else's list. Catalogue writes are unaffected and stay behind

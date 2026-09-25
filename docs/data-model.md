@@ -1757,8 +1757,9 @@ resolution is a union. Kept out of
 
 One row is a **system label**: `h-comic`, the label the gated h-comic type
 requires. It is created by its migration and by the lifespan seed
-(`ensure_label` in `app/services/domain/h_comic.py`), granted to
-`unrestricted` alone, and refused deletion (409) by the label API.
+(`ensure_system_labels` in `app/services/domain/gated_labels.py`, which finds
+it by key), granted to `unrestricted` alone, and refused deletion (409) by the
+label API.
 
 ### `media_content_label`
 

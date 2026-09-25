@@ -221,6 +221,10 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # outline entry are read at different times and neither reads well as the
     # other.
     NoteGroup(key="story_list", label="劇情列表 Story List", icon="fa-list-ol"),
+    # The world the story happens IN, split out of 劇情 so that card holds only
+    # what happens and to whom. After 劇情列表 rather than between the two,
+    # because 劇情 and 劇情列表 are one story told twice and read as a pair.
+    NoteGroup(key="worldbuilding", label="世界觀 Worldbuilding", icon="fa-earth-asia"),
     # NOT "進度 Progress": Game.jsx already renders a <Slip title="Progress">
     # (playtime and achievements) on the same page, and two cards with one name
     # is the `resources` / `builds_and_mods` collision again.
@@ -416,7 +420,7 @@ def _named_thing_fields(
     )
 
 
-def _term_fields(typed: bool = False) -> tuple["NoteField", ...]:
+def _term_fields(typed: bool = False, links: bool = False) -> tuple["NoteField", ...]:
     """
     The shape the three glossary sections share: a term's Chinese name, what
     else it is called, and what it means.
@@ -433,9 +437,9 @@ def _term_fields(typed: bool = False) -> tuple["NoteField", ...]:
     tables' `*_name_alt` in both key and meaning: an English, Japanese or
     in-game spelling, whichever the game uses.
 
-    Links are optional and present on all three: 劇情名詞 sits in 劇情 Story,
-    where every section can cite a source, and the three staying one spec is
-    worth more than a field one of them may leave empty.
+    Only 玩法系統 carries links. A glossary term is a definition, looked up
+    rather than sourced; a gameplay system is a mechanic somebody else's
+    write-up explains better than a line here does.
     """
     return (
         *(
@@ -451,7 +455,11 @@ def _term_fields(typed: bool = False) -> tuple["NoteField", ...]:
             type=FIELD_TEXTAREA,
             column="content",
         ),
-        NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        *(
+            (NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),)
+            if links
+            else ()
+        ),
     )
 
 
@@ -808,7 +816,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="guides",
-        fields=_term_fields(typed=True),
+        fields=_term_fields(typed=True, links=True),
     ),
     NoteSection(
         # The first structured section, and the smallest: a control is the
@@ -1039,10 +1047,10 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         fields=_named_thing_fields(variant=True, collected=True),
     ),
     # --- 圖鑑 Compendium --------------------------------------------------
-    # Who you meet, and the words the game uses. 結局 Endings was here while it had nowhere better; it is a
-    # story OUTCOME rather than a guide topic, so it sits in 劇情 Story now,
-    # above 世界觀&設定 - which leaves this card cleanly about the cast, the
-    # bestiary and the game's glossary.
+    # Who you meet, and the words the game uses. 結局 Endings is a story
+    # OUTCOME rather than a guide topic, so it sits in 劇情 Story - which
+    # leaves this card cleanly about the cast, the bestiary and the game's
+    # glossary.
     NoteSection(
         # NOT `characters`: a `character` table and a /character/:id page
         # already exist, and a bare `characters` note section would read as
@@ -1108,7 +1116,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # The game's own vocabulary - mechanics, currencies, jargon - as a
         # glossary. Its story counterpart is 劇情名詞 Story Terms: a word the
         # PLOT introduces is looked up while reading the story, not while
-        # playing, so it sits with the story.
+        # playing, so it sits in 世界觀 Worldbuilding.
         key="game_terms",
         shape=SHAPE_STRUCTURED,
         label="遊戲名詞 Game Terms",
@@ -1119,7 +1127,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     # --- 劇情 Story -------------------------------------------------------
     # What happens, as opposed to what it means - 解析 Analysis, two cards up,
-    # holds the second. This card is a wall of spoilers and the site has no
+    # holds the second. Four strands: the main plot, the side stories, the
+    # characters' arcs and how it ends. The world they happen in is 世界觀
+    # Worldbuilding. This card is a wall of spoilers and the site has no
     # spoiler gate; the collapsible card is all today's UI offers.
     NoteSection(
         # Structured rather than episode_text so a beat can carry the video or
@@ -1181,54 +1191,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
         ),
     ),
-    NoteSection(
-        key="lore",
-        shape=SHAPE_TEXT_LINKS,
-        label="世界觀&設定 Lore",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="story",
-    ),
-    NoteSection(
-        # The story's own vocabulary - places, factions, events, invented
-        # words - beside the lore it names. 世界觀&設定 is prose about the
-        # world; this is the index of its terms.
-        key="story_terms",
-        shape=SHAPE_STRUCTURED,
-        label="劇情名詞 Story Terms",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="story",
-        fields=_term_fields(),
-    ),
-    NoteSection(
-        # One ordered list of dated events. It was plain `text` on the
-        # reasoning that a row wanting a link would mean it should have been
-        # text_links - which is exactly what happened, so it is.
-        key="timeline",
-        shape=SHAPE_TEXT_LINKS,
-        label="時間線 Timeline",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="story",
-    ),
-    NoteSection(
-        key="mysteries",
-        shape=SHAPE_TEXT_LINKS,
-        label="未解之謎 Mysteries",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="story",
-    ),
-    NoteSection(
-        # The overflow that keeps a stray story observation out of Analysis.
-        key="story_other",
-        shape=SHAPE_TEXT_LINKS,
-        label="其他 Other",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        group="story",
-    ),
     # --- 劇情列表 Story List ----------------------------------------------
     # Four sections rather than one with a kind, for the reason the 待辦
     # buckets below are four: `sort_index` orders rows within one
@@ -1247,6 +1209,58 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # its parent's business. Neither is worth refusing, and a row with
     # neither is nothing.
     *_story_list_sections(),
+    # --- 世界觀 Worldbuilding --------------------------------------------
+    # The world, its words, its chronology and its open questions - what the
+    # plot stands on rather than what it does.
+    NoteSection(
+        key="lore",
+        shape=SHAPE_TEXT_LINKS,
+        label="設定 Lore",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="worldbuilding",
+    ),
+    NoteSection(
+        # The story's own vocabulary - places, factions, events, invented
+        # words - beside the lore it names. 設定 is prose about the
+        # world; this is the index of its terms.
+        key="story_terms",
+        shape=SHAPE_STRUCTURED,
+        label="劇情名詞 Story Terms",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="worldbuilding",
+        fields=_term_fields(),
+    ),
+    NoteSection(
+        # One ordered list of dated events. It was plain `text` on the
+        # reasoning that a row wanting a link would mean it should have been
+        # text_links - which is exactly what happened, so it is.
+        key="timeline",
+        shape=SHAPE_TEXT_LINKS,
+        label="時間線 Timeline",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="worldbuilding",
+    ),
+    NoteSection(
+        key="mysteries",
+        shape=SHAPE_TEXT_LINKS,
+        label="未解之謎 Mysteries",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="worldbuilding",
+    ),
+    NoteSection(
+        # The overflow that keeps a stray story observation out of Analysis.
+        # Here rather than in 劇情, which holds exactly its four strands.
+        key="story_other",
+        shape=SHAPE_TEXT_LINKS,
+        label="其他 Other",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="worldbuilding",
+    ),
     # --- 待辦 Todo --------------------------------------------------------
     # Four sections rather than one section with a kind, because ordering is
     # PER SECTION: sort_index orders rows within one (owner, section) pair and

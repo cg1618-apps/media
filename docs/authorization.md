@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -753,18 +753,31 @@ The label is a **system label**, and nothing about it is left to an admin,
 because a missing label means a public entry:
 
 - **Created** by migration `h1c2o3m4i5c6` and by the lifespan seed
-  (`ensure_label` in `app/services/domain/h_comic.py`), granted to
-  `unrestricted` only. `DELETE /api/content-labels/{id}` refuses it (409).
+  (`ensure_system_labels` in `app/services/domain/gated_labels.py`, which
+  finds the label by key and so adopts a row an admin made by hand), granted
+  to `unrestricted` only. `DELETE /api/content-labels/{id}` refuses it (409).
 - **Stamped on every h-comic entry on every write path**: the registry's
   `progress_hook` on create, update and the tracker PATCH; and
-  `enforce_h_comic_invariants` after Pull restores the H-Comic, User Media
-  List, Franchise or any label tab, and in Calculate (`run_sync_h_comic`).
+  `enforce_gated_label_invariants` after Pull restores the H-Comic, Franchise
+  or any label tab, and in Calculate (`run_sync_gated_labels`).
 - **Stamped on every franchise whose type includes `H-Comic`**: when the
   resolver auto-creates one, when a franchise is created, updated or patched
   with that type, and by the same invariant pass.
 - **Never removable**: a label replace on an h-comic entry or an `H-Comic`
   franchise whose new set lacks `h-comic` is refused with 422 before anything
-  is deleted.
+  is deleted (`refuse_label_removal_on_entry` /
+  `refuse_label_removal_on_franchise`).
+- **Kept in its own franchises, both ways.** A mainstream entry under an
+  `H-Comic` franchise would be hidden by that franchise's label, and an
+  h-comic under a mainstream franchise would put a gated work in a public
+  group. `FRANCHISE_FAMILY_FOR_TYPE` sorts franchise types into families and
+  every write path keeps an entry in its own
+  ([entry-types.md](entry-types.md)).
+
+The label handling lives in `app/services/domain/gated_labels.py` and is driven by
+`REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` alone: a further gated
+type adds its map entry and its row in `gated_labels.SYSTEM_LABELS`, and every
+bullet above applies to it.
 
 With the label on every entry, the ordinary gates hide the type everywhere
 `enforcement.py` reaches, and the shared-record rule above hides everything
@@ -791,6 +804,7 @@ a second gated type needs no edit to them:
 | `GET /api/notes/sections?owner_type=h-comic` | the whole answer: 400, as for an unknown owner type. No other owner type lists `h_comic_highlights` |
 | `GET /api/auth/me` | the type from `visible_gated_types` |
 | `GET /api/constants/external-apis` | the type's row in `media` |
+| `GET /api/search` | the type's bucket key from `results` - absent, not empty |
 
 The mirror is `unrestricted`, which is told everything. The SPA adds nothing
 to this list - it draws what the server tells it - but it does leave the
@@ -1350,7 +1364,9 @@ matters is enforced server-side.
 | `tests/api/test_field_gating.py` | link and source stripping; the narrowest viewer there is still gets credits, both timestamps and `system_id`; and a probe group stands the columns flavour up so the copy-not-setattr rule stays tested with no real column group left |
 | `tests/api/test_cover_images_are_gated.py` | a hidden entry's cover 404s and the same file 200s for an admin, the lying-folder case, and that `/static/covers/` no longer answers. The written file and `nsfw_label` are load-bearing: a missing file 404s too, and an empty label set makes every refusal vacuous |
 | `tests/api/test_shared_record_visibility.py` | the shared-record rule: a person, seiyuu, character, studio, publisher or vocabulary value connected only to label-hidden entries is hidden, one visible connection keeps it visible with the hidden one omitted, no connections stays visible, a type gap hides nothing; series under a hidden franchise; entity photos; notes on a hidden series; and scope connections through a gated type registered for the test (`manga` pointed at `nsfw`), independent of h-comic. Every refusal pairs with `admin_client` seeing the same record |
-| `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` carries the label after a re-seed, `visible_gated_types`, H-Comic franchises labelled and segregated from mainstream ones |
+| `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` carries the label after a re-seed, `visible_gated_types`, no `h-comic` search bucket for a narrow session, `PUT /api/me/list` running the list hook, H-Comic franchises labelled and segregated from mainstream ones |
+| `tests/api/test_franchise_family.py` | franchise families: a `franchise_id` of another family refused on create, `PUT` and `PATCH`, in both directions, a franchise type spanning two families refused, a franchise holding mainstream entries not retyped into the gated family - each with its accepted mirror |
+| `tests/unit/test_search_gated_buckets.py` | every gated type's `SearchBuckets` field defaults to absent, so a new gated type cannot put its key back |
 | `tests/api/test_h_comic_shared_records.py` | people in every h-comic role, a club with no credit, characters and vocabulary values connected only to h-comic are hidden; club membership filters hidden members and reveals nobody |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |

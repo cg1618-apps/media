@@ -14,28 +14,32 @@ Two invariants, and one place that keeps them:
             franchise whose type includes `H-Comic` carries it too. A missing
             label means a PUBLIC entry, so this is never left to the admin: it
             is attached server-side, and a request that would take it off is
-            refused (422).
+            refused (422). The mechanics are shared by every gated type and
+            live in app/services/domain/gated_labels.py.
 
 The write paths that reach them:
 
   form create / update, tracker PATCH   the registry's progress hooks
                                         (app/registry.py), which the router
                                         factory calls on all three
-  Pull, sheet restore                   enforce_h_comic_invariants, run after
-                                        the H-Comic, User Media List,
-                                        Franchise and label tabs
-  Calculate                             run_sync_h_comic, the same function
+  Pull, sheet restore                   enforce_h_comic_invariants (variant),
+                                        run after the H-Comic and User Media
+                                        List tabs; gated_labels.
+                                        enforce_gated_label_invariants (label)
+  Calculate                             run_sync_h_comic and
+                                        run_sync_gated_labels, the same two
 
 Both invariants are idempotent, so running them twice is always safe.
 """
 
 import logging
-from typing import Iterable, Optional
+from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app import models
+from app.services.domain import gated_labels
 from app.utils.constants import (
     H_COMIC_ANIMATION_STATUSES,
     H_COMIC_ORIGINALITY,
@@ -54,11 +58,6 @@ MEDIA_TYPE = "h-comic"
 # gated_types.REQUIRED_LABEL_FOR_TYPE so this module does not have to import
 # the rbac layer at module scope; a unit test pins the two together.
 LABEL_KEY = "h-comic"
-LABEL_NAME = "H-Comic"
-LABEL_DESCRIPTION = (
-    "Adult comics. Carried by every h-comic entry and every H-Comic "
-    "franchise; seen in the unrestricted mode only."
-)
 
 # Catalogue columns only one region uses, keyed by the region that CLEARS
 # them.
@@ -172,24 +171,6 @@ def _validate_catalog(entry) -> None:
     entry.highlight_group_order = normalize_group_order(entry.highlight_group_order)
 
 
-def _require_h_comic_franchise(db: Session, entry) -> None:
-    """
-    An h-comic never sits in a mainstream franchise (D9).
-
-    The name resolver already refuses to match one; this catches the other
-    way in, a franchise named by id.
-    """
-    franchise_id = getattr(entry, "franchise_id", None)
-    if franchise_id is None:
-        return
-    franchise = db.get(models.Franchise, franchise_id)
-    if franchise is not None and not is_h_comic_franchise(franchise):
-        raise ValueError(
-            "An h-comic can only sit in a franchise of type "
-            f"'{FranchiseType.H_COMIC.value}'."
-        )
-
-
 def h_comic_progress_hook(db: Session, entry) -> None:
     """
     The catalogue half of every form and tracker write: validate, clear by
@@ -201,13 +182,12 @@ def h_comic_progress_hook(db: Session, entry) -> None:
     """
     try:
         _validate_catalog(entry)
-        _require_h_comic_franchise(db, entry)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     clear_h_comic_catalog(entry)
     if entry.system_id is not None:
         db.flush()
-        ensure_entry_label(db, entry.system_id)
+        gated_labels.ensure_entry_label(db, entry.system_id, LABEL_KEY)
 
 
 def h_comic_progress_hook_list(row, entry) -> None:
@@ -255,133 +235,6 @@ def is_h_comic_franchise(franchise) -> bool:
     return FranchiseType.H_COMIC.value in franchise_types(franchise)
 
 
-def ensure_label(db: Session) -> models.ContentLabel:
-    """
-    The `h-comic` content label, created if it is missing. Idempotent.
-
-    Called from the lifespan as well as named by the migration, for the
-    reason seed_modes.py gives: API tests build the schema with create_all and
-    never run Alembic. It is granted to `unrestricted` and to no other mode -
-    exactly what creating a label through the API does, and the mode whose
-    sets are derived would carry it without the row anyway.
-    """
-    label = (
-        db.query(models.ContentLabel)
-        .filter(models.ContentLabel.key == LABEL_KEY)
-        .first()
-    )
-    if label is not None:
-        return label
-    label = models.ContentLabel(
-        key=LABEL_KEY,
-        label=LABEL_NAME,
-        description=LABEL_DESCRIPTION,
-        sort_order=0,
-    )
-    db.add(label)
-    db.flush()
-
-    from app.services.rbac.seed_modes import MODE_UNRESTRICTED
-
-    unrestricted = (
-        db.query(models.AccessMode)
-        .filter(models.AccessMode.key == MODE_UNRESTRICTED)
-        .first()
-    )
-    if unrestricted is not None:
-        db.add(
-            models.AccessModeLabel(
-                mode_id=unrestricted.system_id, label_id=label.system_id
-            )
-        )
-        db.flush()
-    from app.services.rbac import cache
-
-    cache.bump()
-    return label
-
-
-def ensure_entry_label(db: Session, entry_id) -> None:
-    """Attach the label to one entry unless it already carries it."""
-    label = ensure_label(db)
-    exists = (
-        db.query(models.MediaContentLabel.system_id)
-        .filter(
-            models.MediaContentLabel.media_id == entry_id,
-            models.MediaContentLabel.label_id == label.system_id,
-        )
-        .first()
-    )
-    if exists is None:
-        db.add(
-            models.MediaContentLabel(
-                media_id=entry_id, label_id=label.system_id, position=0
-            )
-        )
-        db.flush()
-
-
-def ensure_franchise_label(db: Session, franchise) -> None:
-    """Attach the label to a franchise whose type includes H-Comic."""
-    if franchise is None or not is_h_comic_franchise(franchise):
-        return
-    label = ensure_label(db)
-    exists = (
-        db.query(models.FranchiseContentLabel.system_id)
-        .filter(
-            models.FranchiseContentLabel.franchise_id == franchise.system_id,
-            models.FranchiseContentLabel.label_id == label.system_id,
-        )
-        .first()
-    )
-    if exists is None:
-        db.add(
-            models.FranchiseContentLabel(
-                franchise_id=franchise.system_id,
-                label_id=label.system_id,
-                position=0,
-            )
-        )
-        db.flush()
-
-
-def refuse_label_removal_on_entry(
-    db: Session, media_type: str, entry_id, wanted_keys: Iterable[str]
-) -> None:
-    """
-    422 when a whole-set replace of an h-comic entry's labels would drop the
-    required label. Called by the content-label endpoints before they delete
-    anything.
-    """
-    if media_type != MEDIA_TYPE:
-        return
-    if LABEL_KEY not in set(wanted_keys):
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Every h-comic carries the '{LABEL_KEY}' label; it cannot be "
-                "removed."
-            ),
-        )
-
-
-def refuse_label_removal_on_franchise(
-    db: Session, franchise_id, wanted_keys: Iterable[str]
-) -> None:
-    """The same refusal for a franchise whose type includes H-Comic."""
-    franchise = db.get(models.Franchise, franchise_id)
-    if franchise is None or not is_h_comic_franchise(franchise):
-        return
-    if LABEL_KEY not in set(wanted_keys):
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Every {FranchiseType.H_COMIC.value} franchise carries the "
-                f"'{LABEL_KEY}' label; it cannot be removed."
-            ),
-        )
-
-
 # ---------------------------------------------------------------------------
 # The paths that bypass the router: Pull, sheet restore, Calculate
 # ---------------------------------------------------------------------------
@@ -389,19 +242,19 @@ def refuse_label_removal_on_franchise(
 
 def enforce_h_comic_invariants(db: Session) -> dict:
     """
-    Re-establish both invariants over the whole table. Idempotent.
+    Re-establish the variant rule over the whole table. Idempotent.
 
     A Pull writes rows straight to the tables, so neither hook ran: this
-    clears by region, re-attaches every missing label (entries and H-Comic
-    franchises), and clears the reader counters on every list row of an
-    h-comic. Does not commit - the caller owns the transaction.
+    clears by region and clears the reader counters on every list row of an
+    h-comic. The label half is gated_labels.enforce_gated_label_invariants,
+    which every caller of this runs as well. Does not commit - the caller
+    owns the transaction.
     """
     entries = db.query(models.HComic).all()
     by_id = {entry.system_id: entry for entry in entries}
     for entry in entries:
         clear_h_comic_catalog(entry)
         entry.highlight_group_order = _safe_group_order(entry)
-        ensure_entry_label(db, entry.system_id)
 
     if by_id:
         rows = (
@@ -411,11 +264,6 @@ def enforce_h_comic_invariants(db: Session) -> dict:
         )
         for row in rows:
             clear_h_comic_list(row, by_id[row.media_id])
-
-    for franchise in db.query(models.Franchise).filter(
-        models.Franchise.franchise_type.ilike(f"%{FranchiseType.H_COMIC.value}%")
-    ):
-        ensure_franchise_label(db, franchise)
     db.flush()
     return {"entries": len(entries)}
 

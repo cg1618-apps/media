@@ -49,6 +49,7 @@ from app.services.domain import (
     sync_seasonal_counts,
     tv_show_post_processing,
 )
+from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import enforce_h_comic_invariants
 from app.services.domain.plan_next import derive_size_groups
 from app.services.domain.user_list import installation_owner_id, list_row
@@ -523,6 +524,7 @@ def run_sync(db: Session) -> dict:
     run_sync_novel(db)
     run_sync_comic(db)
     run_sync_h_comic(db)
+    run_sync_gated_labels(db)
     run_sync_size_groups(db)
     return {
         "status": "success",
@@ -619,10 +621,12 @@ def run_sync_comic(db: Session) -> dict:
 
 def run_sync_h_comic(db: Session) -> dict:
     """
-    Re-establish the h-comic invariants over the whole table: the region's
-    unused columns cleared, and the label on every entry and every H-Comic
-    franchise. A Sheets restore writes rows without going through the router,
-    so this is the net under it - the same reason run_sync_novel re-derives.
+    Re-establish the h-comic variant rule over the whole table: the region's
+    unused columns cleared, on the entries and on the reader's counters. A
+    Sheets restore writes rows without going through the router, so this is
+    the net under it - the same reason run_sync_novel re-derives. The label
+    is run_sync_gated_labels', which run_sync and the h-comic pipeline spec
+    run after this.
     """
     extract_system_options(db)
     result = enforce_h_comic_invariants(db)
@@ -630,6 +634,20 @@ def run_sync_h_comic(db: Session) -> dict:
     return {
         "status": "success",
         "message": f"H-Comic sync completed ({result['entries']} entries).",
+    }
+
+
+def run_sync_gated_labels(db: Session) -> dict:
+    """
+    Every gated type's label on every entry of the type and every franchise
+    of its franchise type (app/services/domain/gated_labels.py). Driven by
+    REQUIRED_LABEL_FOR_TYPE, so a new gated type is covered by its map entry.
+    """
+    counts = enforce_gated_label_invariants(db)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Gated label sync completed ({sum(counts.values())} entries).",
     }
 
 

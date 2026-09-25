@@ -37,7 +37,7 @@ def test_the_group_exists_and_renders_below_story():
     # in first-appearance order - so the group label is not what puts this
     # card below 劇情. Where its first section sits is.
     order = [s.key for s in ns.NOTE_SECTIONS]
-    assert order.index("story_list_main") > order.index("story_other")
+    assert order.index("story_list_main") > order.index("endings")
     assert order.index("story_list_event") < order.index("todo_now")
 
 
@@ -149,18 +149,16 @@ def test_a_plot_beat_still_needs_no_chapter():
     assert ns.section_by_key("main_plot").locator_required is False
 
 
-def test_endings_belong_to_the_story_above_the_lore():
+def test_endings_are_the_last_strand_of_the_story():
     """
-    結局 Endings sat in 攻略 Guides while it had nowhere better - it was filed
-    with the 圖鑑 sections by elimination rather than because it belonged
-    there. An ending is what the story DOES, so it reads beside 未解之謎 and
-    above 世界觀&設定.
+    An ending is what the story DOES rather than a guide topic, so it belongs
+    to 劇情 Story, as the strand after the character arcs.
     """
     section = ns.section_by_key("endings")
     assert section.group == "story"
 
     keys = [s.key for s in ns.NOTE_SECTIONS if s.group == "story"]
-    assert keys.index("endings") == keys.index("lore") - 1
+    assert keys[-1] == "endings"
 
 
 def test_endings_carry_a_completion_status():
