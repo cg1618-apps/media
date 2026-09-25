@@ -1464,8 +1464,15 @@ An uploaded file (`image`) and what it is being used for (`image_attachment`)
 — a two-table library on the Rails ActiveStorage / Django shape: one row per
 stored file, joined polymorphically to whatever uses it. This is the source
 of truth for an uploaded image; `cover_image_file` and the entity photo/logo
-columns above are kept written-through by the attach/detach endpoints so
-every existing reader of those columns is unaffected.
+columns above are kept written-through by the attach, detach and clear
+endpoints so every existing reader of those columns is unaffected.
+
+A **downloaded** image (`uploaded_by` NULL) is not library content in the same
+sense: its file is keyed on the owner it was downloaded for, and the next
+download for that owner overwrites it in place. So it lives only as long as an
+attachment does - detaching or clearing its last use deletes the row and the
+file - and a cover downloaded after the backfill has no `image` row at all,
+only the file and the mirror column.
 
 ### `image`
 

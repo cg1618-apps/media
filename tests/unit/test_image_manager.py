@@ -79,21 +79,45 @@ def test_download_writes_into_the_owner_folder_and_returns_the_key(
     assert (local_covers / "anime" / "id1.jpg").read_bytes() == b"jpegbytes"
 
 
-def test_download_skips_when_the_owner_scoped_file_already_exists(
+def test_download_overwrites_a_file_already_at_the_owner_key(
     local_covers, monkeypatch
 ):
-    (local_covers / "staff").mkdir(parents=True)
-    (local_covers / "staff" / "id1.jpg").write_bytes(b"old")
+    """
+    A file already there is a leftover, never the answer.
 
-    def explode(*a, **k):
-        raise AssertionError("must not re-download an existing cover")
-
-    monkeypatch.setattr(image_manager.requests, "get", explode)
-
-    assert (
-        image_manager.download_cover_image("http://x/y.jpg", "staff", "id1")
-        == "staff/id1.jpg"
+    Autofill downloads only when the entry has no cover, so a file at its key
+    is the cover of whatever external id the entry pointed at before. Returning
+    it instead of fetching is how an anime whose MAL id changed kept the old
+    title's cover.
+    """
+    (local_covers / "anime").mkdir(parents=True)
+    (local_covers / "anime" / "id1.jpg").write_bytes(b"old title")
+    monkeypatch.setattr(
+        image_manager.requests,
+        "get",
+        lambda *a, **k: SimpleNamespace(
+            content=b"new title", raise_for_status=lambda: None
+        ),
     )
+
+    key = image_manager.download_cover_image("http://x/new.jpg", "anime", "id1")
+
+    assert key == "anime/id1.jpg"
+    assert (local_covers / "anime" / "id1.jpg").read_bytes() == b"new title"
+
+
+def test_a_failed_download_leaves_the_existing_file_alone(local_covers, monkeypatch):
+    (local_covers / "anime").mkdir(parents=True)
+    (local_covers / "anime" / "id1.jpg").write_bytes(b"kept")
+
+    def refuse(*a, **k):
+        raise image_manager.requests.ConnectionError("offline")
+
+    monkeypatch.setattr(image_manager.requests, "get", refuse)
+
+    assert image_manager.download_cover_image("http://x/y.jpg", "anime", "id1") is None
+    assert (local_covers / "anime" / "id1.jpg").read_bytes() == b"kept"
+    assert list((local_covers / "anime").iterdir()) == [local_covers / "anime" / "id1.jpg"]
 
 
 def test_download_ignores_a_stray_flat_file_of_the_same_id(local_covers, monkeypatch):
@@ -109,6 +133,46 @@ def test_download_ignores_a_stray_flat_file_of_the_same_id(local_covers, monkeyp
     image_manager.download_cover_image("http://x/y.jpg", "anime", "id1")
 
     assert (local_covers / "anime" / "id1.jpg").read_bytes() == b"fresh"
+
+
+# --------------------------------------------------------------------------
+# cover_needs_download
+#
+# The one question every autofill asks before downloading. Uploads are the
+# case that must say False: nothing can supply their bytes again, so a missing
+# upload is left missing rather than replaced by an API's picture.
+# --------------------------------------------------------------------------
+
+
+def test_an_owner_with_no_cover_needs_one(local_covers):
+    assert image_manager.cover_needs_download(None, "anime", "id1") is True
+    assert image_manager.cover_needs_download("", "anime", "id1") is True
+
+
+def test_an_own_download_that_is_on_disk_does_not(local_covers):
+    (local_covers / "anime").mkdir(parents=True)
+    (local_covers / "anime" / "id1.jpg").write_bytes(b"x")
+
+    assert image_manager.cover_needs_download("anime/id1.jpg", "anime", "id1") is False
+
+
+@pytest.mark.parametrize("key", ["anime/id1.jpg", "covers/anime/id1.jpg"])
+def test_an_own_download_whose_file_is_gone_needs_one(local_covers, key):
+    """Both spellings of the owner's own file - the column's and a backfilled row's."""
+    assert image_manager.cover_needs_download(key, "anime", "id1") is True
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "library/0123abcd.jpg",  # an upload, possibly on the other machine
+        "anime/someone-else.jpg",  # another entry's download
+        "covers/anime/someone-else.jpg",
+        "anime-movie/id1.jpg",  # the same id under another owner is another file
+    ],
+)
+def test_a_cover_that_is_not_the_owners_download_is_never_replaced(local_covers, key):
+    assert image_manager.cover_needs_download(key, "anime", "id1") is False
 
 
 # --------------------------------------------------------------------------

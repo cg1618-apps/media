@@ -20,7 +20,10 @@ from app.services.domain.credits import credit_names, replace_credits, replace_t
 from app.services.integrations.anilist import anilist_record
 from app.services.integrations.comicvine import fetch_comicvine_volume
 from app.services.integrations.igdb import fetch_igdb_game, fetch_igdb_time_to_beat
-from app.services.integrations.image_manager import download_cover_image
+from app.services.integrations.image_manager import (
+    cover_needs_download,
+    download_cover_image,
+)
 from app.services.integrations.imdb import fetch_imdb_data
 from app.services.integrations.openlibrary import fetch_openlibrary_work
 from app.services.integrations.steam import (
@@ -183,7 +186,10 @@ def autofill_anime_from_mal(
             )
 
         # Conditionally Download Cover Image
-        if not anime.cover_image_file and j_data.get("cover_image_url"):
+        if (
+            cover_needs_download(anime.cover_image_file, "anime", str(anime.system_id))
+            and j_data.get("cover_image_url")
+        ):
             key = download_cover_image(
                 j_data.get("cover_image_url"), "anime", str(anime.system_id)
             )
@@ -220,7 +226,13 @@ def autofill_hentai_from_mal(hentai, db: Session = None) -> None:
         if hentai.release_date is None:
             hentai.release_date = j_data.get("release_date")
 
-        if not hentai.cover_image_file and j_data.get("cover_image_url"):
+        if (
+
+            cover_needs_download(hentai.cover_image_file, "hentai", str(hentai.system_id))
+
+            and j_data.get("cover_image_url")
+
+        ):
             key = download_cover_image(
                 j_data.get("cover_image_url"), "hentai", str(hentai.system_id)
             )
@@ -268,7 +280,13 @@ def autofill_anime_movie_from_mal(
             raw_rank = j_data.get("mal_rank")
             anime_movie.mal_rank = str(raw_rank) if raw_rank else anime_movie.mal_rank
 
-        if not anime_movie.cover_image_file and j_data.get("cover_image_url"):
+        if (
+
+            cover_needs_download(anime_movie.cover_image_file, "anime-movie", str(anime_movie.system_id))
+
+            and j_data.get("cover_image_url")
+
+        ):
             key = download_cover_image(
                 j_data.get("cover_image_url"), "anime-movie", str(anime_movie.system_id)
             )
@@ -321,7 +339,13 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
             raw_rank = j_data.get("mal_rank")
             manga.mal_rank = str(raw_rank) if raw_rank else manga.mal_rank
 
-        if not manga.cover_image_file and j_data.get("cover_image_url"):
+        if (
+
+            cover_needs_download(manga.cover_image_file, "manga", str(manga.system_id))
+
+            and j_data.get("cover_image_url")
+
+        ):
             key = download_cover_image(
                 j_data.get("cover_image_url"), "manga", str(manga.system_id)
             )
@@ -369,7 +393,13 @@ def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) ->
             raw_rank = j_data.get("mal_rank")
             novel.mal_rank = str(raw_rank) if raw_rank else novel.mal_rank
 
-        if not novel.cover_image_file and j_data.get("cover_image_url"):
+        if (
+
+            cover_needs_download(novel.cover_image_file, "novel", str(novel.system_id))
+
+            and j_data.get("cover_image_url")
+
+        ):
             key = download_cover_image(
                 j_data.get("cover_image_url"), "novel", str(novel.system_id)
             )
@@ -415,7 +445,13 @@ def autofill_novel_from_openlibrary(novel: Novel, db: Session) -> None:
                 db, "novel", novel.system_id, "author", split_names(ol_data.get("author"))
             )
 
-        if not novel.cover_image_file and ol_data.get("cover_image_url"):
+        if (
+
+            cover_needs_download(novel.cover_image_file, "novel", str(novel.system_id))
+
+            and ol_data.get("cover_image_url")
+
+        ):
             key = download_cover_image(
                 ol_data.get("cover_image_url"), "novel", str(novel.system_id)
             )
@@ -477,7 +513,10 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
                     pass
 
         # Download cover image if missing
-        if movie.cover_image_file is None and mapped.get("cover_image_url"):
+        if (
+            cover_needs_download(movie.cover_image_file, "movie", str(movie.system_id))
+            and mapped.get("cover_image_url")
+        ):
             key = download_cover_image(
                 mapped["cover_image_url"], "movie", str(movie.system_id)
             )
@@ -537,7 +576,10 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
                 tv_show.airing_status = derived_status
 
         # Download cover image if missing
-        if tv_show.cover_image_file is None and mapped.get("cover_image_url"):
+        if (
+            cover_needs_download(tv_show.cover_image_file, "tv-show", str(tv_show.system_id))
+            and mapped.get("cover_image_url")
+        ):
             key = download_cover_image(
                 mapped["cover_image_url"], "tv-show", str(tv_show.system_id)
             )
@@ -593,7 +635,13 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
                     except (ValueError, TypeError):
                         pass
 
-            if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
+            if (
+
+                cover_needs_download(cartoon.cover_image_file, "cartoon", str(cartoon.system_id))
+
+                and mapped.get("cover_image_url")
+
+            ):
                 key = download_cover_image(
                     mapped["cover_image_url"], "cartoon", str(cartoon.system_id)
                 )
@@ -628,7 +676,13 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
                 if derived_status is not None:
                     cartoon.airing_status = derived_status
 
-            if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
+            if (
+
+                cover_needs_download(cartoon.cover_image_file, "cartoon", str(cartoon.system_id))
+
+                and mapped.get("cover_image_url")
+
+            ):
                 key = download_cover_image(
                     mapped["cover_image_url"], "cartoon", str(cartoon.system_id)
                 )
@@ -681,7 +735,13 @@ def autofill_comic_from_comicvine(comic: Comic, db: Session) -> None:
                 db, "comic", comic.system_id, "publisher", split_names(cv_data.get("publisher"))
             )
 
-        if not comic.cover_image_file and cv_data.get("cover_image_url"):
+        if (
+
+            cover_needs_download(comic.cover_image_file, "comic", str(comic.system_id))
+
+            and cv_data.get("cover_image_url")
+
+        ):
             key = download_cover_image(
                 cv_data.get("cover_image_url"), "comic", str(comic.system_id)
             )
@@ -725,7 +785,10 @@ def autofill_studio_from_mal(studio: Studio) -> None:
                 setattr(studio, column, j_data[column])
 
         # Last, so a download failure cannot cost us the cheap columns above.
-        if not studio.logo_file and j_data.get("logo_url"):
+        if (
+            cover_needs_download(studio.logo_file, "studio", str(studio.system_id))
+            and j_data.get("logo_url")
+        ):
             key = download_cover_image(
                 j_data.get("logo_url"), "studio", str(studio.system_id)
             )
@@ -880,7 +943,10 @@ def autofill_game_from_igdb(game, db: Session) -> None:
                 game.base_game_id = parent.system_id
 
         # Last, so a download failure cannot cost us the cheap columns above.
-        if not game.cover_image_file and g_data.get("cover_image_url"):
+        if (
+            cover_needs_download(game.cover_image_file, owner_type, str(game.system_id))
+            and g_data.get("cover_image_url")
+        ):
             key = download_cover_image(
                 g_data.get("cover_image_url"), owner_type, str(game.system_id)
             )

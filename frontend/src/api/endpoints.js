@@ -126,6 +126,8 @@ export const endpoints = {
       `/api/images/${imageId}/attach/${attachmentId}`,
     remove: (imageId, force = false) =>
       `/api/images/${imageId}${force ? "?force=true" : ""}`,
+    clearOwner: (ownerType, ownerId, role = "cover") =>
+      `/api/images/owners/${ownerType}/${ownerId}/${role}`,
   },
 
   // Watch orders don't fit the resource() CRUD shape: lists and their items
