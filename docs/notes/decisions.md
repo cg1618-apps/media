@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -1945,3 +1945,28 @@ them.
   registry features the structured notes component renders without naming
   the section, like every other structured field: the next section wanting
   groups or free-text names is a registry edit.
+
+### Gated-type labels in one module (2026-09-25)
+
+The label machinery h-comic introduced - the system label found or created by
+key, stamping it on entries and franchises, refusing its removal, and the
+Pull/Calculate pass that re-attaches it - moved out of
+`app/services/domain/h_comic.py` into `app/services/domain/gated_labels.py`,
+driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
+`h-comic` key.
+
+- **Why now.** A second and a third gated type were being written in
+  parallel. Each would otherwise have copied h-comic's label code under its
+  own name, and a missed copy is a public adult entry, not a cosmetic bug. One
+  module keyed on the map means a new gated type needs its map entry and its
+  `SYSTEM_LABELS` row, and nothing else, to get every label rule.
+- **The invariant pass was split, not moved whole.** `enforce_h_comic_invariants`
+  kept the region clears, which are h-comic's own; the label half became
+  `enforce_gated_label_invariants`, run by Pull after the tabs in
+  `GATED_LABEL_INVARIANT_TABS` (derived from the map) and by Calculate as
+  `run_sync_gated_labels`. The h-comic pass no longer runs after the
+  Franchise and label tabs, which cannot break the region rule, and the label
+  pass does not run after `User Media List`, which cannot remove a label.
+- **Found by key.** `ensure_label` adopts a label row an admin made by hand
+  with the same key instead of failing on the unique key or creating a twin;
+  an adopted row keeps its own name and grants.
