@@ -101,9 +101,11 @@ class MediaTypeSpec:
     # and nested collections are applied. Distinct from pre_commit_hook,
     # which patch deliberately does not call. Only novel uses this.
     progress_hook: Optional[Callable] = None
-    # (row, entry) -> None, run after a list payload is applied. Only novel
-    # uses it; it is the per-user twin of progress_hook, and it has to run
-    # after the payload so it sees the reader's NEW cursor.
+    # (row, entry) -> None, run after a list payload is applied, on every path
+    # that writes one: the entry endpoints and PUT /api/me/list. Novel derives
+    # its arc cursor here; h-comic checks usefulness and clears by region. It
+    # is the per-user twin of progress_hook, and it has to run after the
+    # payload so it sees the reader's NEW cursor.
     progress_hook_list: Optional[Callable] = None
     has_series: bool = True                     # anime_movies carries no series_id column
     # (query, query_params) -> query, for filters that are not plain equality.

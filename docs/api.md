@@ -118,6 +118,13 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                                                                                                                |
 | `DELETE` | `/{system_id}` | Admin  | Delete a franchise. Linked series, anime, movies, TV shows, cartoons, manga, and novels `franchise_id` are set to `NULL` via DB constraint cascade. Logs to `deleted_record`. |
 
+**Franchise families.** A `franchise_type` whose types span two families
+(`FRANCHISE_FAMILY_FOR_TYPE`, see
+[entry-types.md](entry-types.md)) is **422** on `POST`, `PUT` and `PATCH` -
+`"ACG, H-Comic"` mixes mainstream and h-comic. So is a `PUT` or `PATCH` that
+retypes a franchise into another family than an entry it already holds.
+Both are checked before anything is written.
+
 **Response model:** `FranchiseResponse`
 
 ---
@@ -415,7 +422,12 @@ region, `app/services/domain/gated_labels.py` for the label):
 
 **Franchise.** An h-comic auto-resolves only into a franchise whose type
 includes `H-Comic` (and auto-creates one of that type, labelled). A
-`franchise_id` naming a franchise without that type is **422**.
+`franchise_id` naming a franchise of another family is **422** - and so, the
+other way round, is a mainstream entry's `franchise_id` naming an `H-Comic`
+franchise. The check is the factory's, for every media type, on `POST` and
+`PUT` (see [entry-types.md](entry-types.md)). `PATCH` does not move an entry -
+`franchise_id` is on `media`, not the entry's table, so it is skipped - but a
+foreign `franchise_id` in a PATCH body is refused all the same.
 
 **`highlight_group_order`** is the order of the KR highlight groups (see
 [systems/notes.md](systems/notes.md#h-comic-highlights-h_comic_highlights)):
@@ -877,9 +889,12 @@ Sorting in SQL rather than after the fact means an exact match cannot be cut by
 }
 ```
 
-Every bucket key is always present, empty for the types the scope did not ask
-about - and `h-comic` is empty for every session that cannot see the gated
-type. Rows carry the same response schema as that type's own list endpoint —
+Every bucket key this session may see is present, empty for the types the
+scope did not ask about. A gated type the session cannot see has **no key at
+all** - not an empty bucket, which would still say the type exists - whatever
+the scope and whether or not `q` is empty. So `h-comic` is present only in a
+mode carrying the `h-comic` label. The SPA reads every bucket as
+`results[type] ?? []`. Rows carry the same response schema as that type's own list endpoint —
 plan flags, link fields, RBAC visibility, and field gating all included.
 
 **People, studios and publishers.** `person`, `studio` and `publisher` are
@@ -1697,7 +1712,7 @@ which keys a type owns.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/me/list/{media_id}` | The caller's row. Never creates one: an entry they have never touched reads back the type's default status and `null` for the rest, the same values `attach_list_fields` puts on an untouched entry. 404 on an unknown `media_id`. |
-| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. |
+| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a novel's arc cursor is derived. |
 
 Neither route takes a user id, so there is no shape of request that writes
 somebody else's list. Catalogue writes are unaffected and stay behind

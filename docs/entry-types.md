@@ -29,14 +29,26 @@ Two lists exist on purpose (see the comment above `FRANCHISE_TYPES` in `app/util
 
 A franchise may carry a comma-separated list of types; duplicate detection buckets it under each one.
 
-`H-Comic` is kept apart in both directions. Every franchise whose type list
-includes it carries the `h-comic` content label (attached on auto-create and
-whenever a franchise is created or updated with that type), and the name
-resolver matches an h-comic only against `H-Comic` franchises and every other
-media type only against franchises that are not - so an h-comic named "Fate"
-never attaches to the mainstream Fate franchise. An h-comic written with a
-`franchise_id` whose type lacks `H-Comic` is refused (422). A series is not
-segregated: it names its parent whatever that parent's type.
+Franchise types fall into **families** (`FRANCHISE_FAMILY_FOR_TYPE` in
+`app/utils/constants.py`): `H-Comic` is the `h-comic` family, and every type
+not listed there is `mainstream`. Families are kept apart in both directions:
+
+- **A franchise spans one family.** A `franchise_type` mixing two
+  (`"ACG, H-Comic"`) is refused (422) on create, update and patch, and so is
+  retyping a franchise into another family than an entry it holds.
+- **An entry sits in a franchise of its own family.** The name resolver
+  matches an entry only against franchises of its family - so an h-comic named
+  "Fate" never attaches to the mainstream Fate franchise, and a manga named
+  "Fate" never attaches to an `H-Comic` one. A `franchise_id` naming a
+  franchise of another family is refused (422) on create and update for
+  every media type, and in a tracker PATCH body too, although PATCH does not
+  otherwise write `franchise_id` (`check_entry_franchise_family`,
+  `app/services/domain/hierarchy.py`).
+
+Every franchise whose type list includes `H-Comic` also carries the `h-comic`
+content label (attached on auto-create and whenever a franchise is created or
+updated with that type). A series is not segregated: it names its parent
+whatever that parent's type.
 
 ### Auto-created franchise type per media (`FRANCHISE_TYPE_FOR`, `app/services/domain/hierarchy.py`)
 
