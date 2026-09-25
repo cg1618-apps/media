@@ -302,7 +302,8 @@ export default function MangaModifyTab({
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "person",
-              role: "manga_author",
+              role: "author",
+              scope: "manga",
             })}
             value={cmgf.author_plot}
             onChange={(v) => umg("author_plot", v)}
@@ -313,7 +314,8 @@ export default function MangaModifyTab({
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "person",
-              role: "manga_author",
+              role: "illustrator",
+              scope: "manga",
             })}
             value={cmgf.author_draw}
             onChange={(v) => umg("author_draw", v)}

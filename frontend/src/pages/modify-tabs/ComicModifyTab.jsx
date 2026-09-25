@@ -282,7 +282,8 @@ export default function ComicModifyTab({
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "person",
-              role: "comic_writer",
+              role: "author",
+              scope: "comic",
             })}
             value={ccmf.writer || ""}
             onChange={(v) => ucm("writer", v)}
@@ -293,7 +294,8 @@ export default function ComicModifyTab({
           <MultiSelect
             options={getSourceValues(sources, {
               kind: "person",
-              role: "comic_artist",
+              role: "illustrator",
+              scope: "comic",
             })}
             value={ccmf.artist || ""}
             onChange={(v) => ucm("artist", v)}
