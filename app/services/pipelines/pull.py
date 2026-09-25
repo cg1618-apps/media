@@ -36,6 +36,7 @@ from app.services.domain import (
     resolve_comic_parent_hierarchy,
     resolve_game_parent_hierarchy,
     resolve_h_comic_parent_hierarchy,
+    resolve_h_game_parent_hierarchy,
     resolve_hentai_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
@@ -1009,6 +1010,21 @@ def execute_pull_specific(
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_hentai_parent_hierarchy(db, fid, sid, name_fields)
             )
+        # H-Game uses resolve_h_game_parent_hierarchy, which matches and
+        # auto-creates ONLY franchises of the h-game family (and labels them)
+        elif tab_name == "H-Game" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("h_game_name_en"),
+                "cn": clean_header_dict.get("h_game_name_cn"),
+                "roman": clean_header_dict.get("h_game_name_roman"),
+                "jp": clean_header_dict.get("h_game_name_jp"),
+                "alt": clean_header_dict.get("h_game_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_h_game_parent_hierarchy(db, fid, sid, name_fields)
+            )
         # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
         elif tab_name == "Movies" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
@@ -1517,7 +1533,7 @@ def execute_pull_specific(
             # question from confining the pipelines.
             if tab_name in (
                 "Anime", "Movies", "Anime Movie", "TV Shows", "Cartoons",
-                "Game", "Manga", "H-Comic", "Hentai",
+                "Game", "Manga", "H-Comic", "Hentai", "H-Game",
             ):
                 if clean_header_dict.get("created_at") is None:
                     clean_header_dict["created_at"] = get_taipei_now()

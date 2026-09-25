@@ -239,13 +239,17 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Novel Unit", models.NovelUnit, f.parse_novel_unit_from_sheet),
     SheetTab("Comic", models.Comic, f.parse_comic_from_sheet, "comic", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     SheetTab("Game", models.Game, f.parse_game_from_sheet, "game", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
-    # After Game: game_id is a real FK, so the parent rows must exist first.
+    # After Game. game_id is a real FK onto `media` - a copy may belong to a
+    # game or an h-game - so the Media tab is what must exist first; the
+    # entry tab only has to have landed for a copy to name a restored entry.
     SheetTab("Game Copy", models.GameCopy, f.parse_game_copy_from_sheet),
     # The gated type. Its rows travel like every entry tab - the sheet is
     # private - and Pull re-attaches the h-comic label after the tab lands.
     SheetTab("H-Comic", models.HComic, f.parse_h_comic_from_sheet, "h-comic", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     # The second gated type, the same way: Pull re-attaches the hentai label.
     SheetTab("Hentai", models.Hentai, f.parse_hentai_from_sheet, "hentai", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
+    # The second gated type, the same way; Pull re-attaches the h-game label.
+    SheetTab("H-Game", models.HGame, f.parse_h_game_from_sheet, "h-game", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     # Personal list rows. After every media tab: media_id resolves through
     # media_type + public_id, and user_id through username, so both must
     # already be restored. Backup drops the three database-local ids and

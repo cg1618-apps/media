@@ -45,7 +45,7 @@ def hentai_id(admin_client, db_session):
 
 @pytest.fixture
 def h_comic_only(mode_client, db_session):
-    """A signed-in session that sees h-comic but not hentai."""
+    """A signed-in session that sees h-comic but not hentai (nor h-game)."""
     user = models.User(
         id=uuid.uuid4(),
         username="hentai_partial",
@@ -56,7 +56,7 @@ def h_comic_only(mode_client, db_session):
     db_session.flush()
     for key in ("h-comic", "hentai"):
         assert db_session.query(models.ContentLabel).filter_by(key=key).count() == 1
-    return mode_client("unrestricted", user=user, denials=("hentai",))
+    return mode_client("unrestricted", user=user, denials=("hentai", "h-game"))
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ def test_studio_and_director_reach_hentai_and_nothing_hentai_only_is_new():
     assert "hentai" in CREDIT_ROLES["studio"].media_types
     assert "hentai" in CREDIT_ROLES["director"].media_types
     for key in ("h_genre_plot", "h_genre_appearance", "h_genre_relation"):
-        assert TAG_FIELDS[key].media_types == ("h-comic", "hentai")
+        assert TAG_FIELDS[key].media_types == ("h-comic", "h-game", "hentai")
     # No role and no vocabulary exists for hentai alone.
     assert not [r for r in CREDIT_ROLES.values() if r.media_types == ("hentai",)]
     assert not [f for f in TAG_FIELDS.values() if f.media_types == ("hentai",)]
@@ -134,10 +134,10 @@ def test_the_h_genre_categories_are_gated_by_both_types():
 
     served = gated_tag_categories()
     for category in ("H Genre Plot", "H Genre Appearance", "H Genre Relation"):
-        assert served[category] == frozenset({"h-comic", "hentai"})
-    # Hidden only when both types are.
-    assert "H Genre Plot" not in hidden_option_categories(frozenset({"hentai"}))
-    assert "H Genre Plot" in hidden_option_categories(frozenset({"hentai", "h-comic"}))
+        assert served[category] == frozenset({"h-comic", "h-game", "hentai"})
+    # Hidden only when every type it serves is.
+    assert "H Genre Plot" not in hidden_option_categories(frozenset({"hentai", "h-game"}))
+    assert "H Genre Plot" in hidden_option_categories(frozenset({"hentai", "h-comic", "h-game"}))
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ from app.models import (
     Game,
     HComic,
     Hentai,
+    HGame,
     Manga,
     Movies,
     Novel,
@@ -392,6 +393,34 @@ PIPELINES: dict[str, PipelineSpec] = {
             ("Syncing gated labels...", run_sync_gated_labels),
         ),
         single_after=(run_sync_hentai, run_sync_gated_labels),
+    ),
+    # Game's spec on the h-game table: the same two sources, gates, pacing
+    # and Steam Replace. The autofills write only the columns and tags the
+    # table has (autofill.py). In Fill All and Replace All, as Game is.
+    "h-game": PipelineSpec(
+        key="h-game", label="H-Game", model=HGame,
+        extract_id=apply_extract_game_ids,
+        fill_eligible=lambda db, e: (
+            (e.igdb_id is not None and has_missing_values_game(e))
+            or has_missing_values_game_steam(e)
+        ),
+        fill=_fill_game,
+        post_process=game_post_processing,
+        pre_run=_start_game_run,
+        fill_sleep=STEAM_PAUSE,
+        fill_after=(
+            ("Syncing system options...", run_sync_game),
+            ("Syncing gated labels...", run_sync_gated_labels),
+        ),
+        budget=steam_store_rate_limiter.has_capacity,
+        replace_select=_linked(HGame, HGame.steam_appid, HGame.steam_link),
+        replace=lambda db, e, bulk: apply_single_replace_game(db, e, bulk=bulk),
+        replace_sleep=STEAM_PAUSE,
+        replace_after=(
+            ("Syncing system options...", run_sync_game),
+            ("Syncing gated labels...", run_sync_gated_labels),
+        ),
+        single_after=(run_sync_game, run_sync_gated_labels),
     ),
     "studio": PipelineSpec(
         key="studio", label="Studio", model=Studio,

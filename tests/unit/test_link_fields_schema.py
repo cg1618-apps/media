@@ -26,6 +26,7 @@ RESPONSE_SCHEMAS = {
     "game": schemas.GameResponse,
     "h-comic": schemas.HComicResponse,
     "hentai": schemas.HentaiResponse,
+    "h-game": schemas.HGameResponse,
 }
 
 CREATE_SCHEMAS = {
@@ -40,6 +41,7 @@ CREATE_SCHEMAS = {
     "game": schemas.GameCreate,
     "h-comic": schemas.HComicCreate,
     "hentai": schemas.HentaiCreate,
+    "h-game": schemas.HGameCreate,
 }
 
 

@@ -381,6 +381,16 @@ a developer would be wrong.
 
 ### Autofill — `autofill_game_from_igdb`
 
+**One function for game and h-game.** It takes a `Game` or an `HGame` row and
+works out the owner type from the model (`MEDIA_TYPE_FOR_MODEL`): credits,
+tags and the cover are written under that type, a credit role or tag field
+whose scope does not include it is skipped - an h-game takes the `studio`
+credit and the `game_genre` / `game_theme` tags, never `publisher`,
+`game_mode` or `game_platform` - and the DLC parent is looked up in the
+entry's own table. `autofill_game_from_steam` is shared the same way and
+writes a column only when the entry's table has it, so an h-game gets prices
+and achievements but never `hours_played` or a Metacritic score.
+
 **Fill-only throughout**, and the whole body sits in one
 `try: … except Exception as e: logger.error(...)` — the same swallow-and-log
 every other autofill does, with the same consequence noted under
@@ -688,6 +698,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
 | `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`); in Fill All; bulk Replace runs the Steam half only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
+| `h-game` | as game | game's two autofills on the `h_game` table, writing only what it has (above); in Fill All; bulk Replace runs the Steam half only. `/api/h-game/search-igdb` is game's picker. DLsite is linked, never fetched | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch), Steam |
 
 Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page touch local disk and, for missing covers, the autofill functions again.
 

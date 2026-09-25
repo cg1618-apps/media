@@ -11,6 +11,7 @@ from app.models import (
     Comic,
     HComic,
     Hentai,
+    HGame,
     Manga,
     Movies,
     Note,
@@ -177,5 +178,15 @@ def find_all_remarks(db: Session, author_id=None) -> dict:
                 "remark": e.remark,
             }
             for e in _query(Hentai)
+        ],
+        "h_game": [
+            {
+                "system_id": str(e.system_id),
+                "h_game_name_cn": e.h_game_name_cn,
+                "h_game_name_en": e.h_game_name_en,
+                "playing_status": getattr(e, "playing_status", None),
+                "remark": e.remark,
+            }
+            for e in _query(HGame)
         ],
     }

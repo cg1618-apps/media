@@ -42,6 +42,8 @@ execute_replace_single_game = _single("game")
 execute_replace_single_h_comic = _single("h-comic")
 # Tenrai's three fields, then the hentai sync that keeps the label on.
 execute_replace_single_hentai = _single("hentai")
+# Game's Steam Replace, on the h-game table.
+execute_replace_single_h_game = _single("h-game")
 
 execute_replace_anime = _bulk("anime")
 execute_replace_anime_movie = _bulk("anime-movie")
@@ -52,6 +54,7 @@ execute_replace_manga = _bulk("manga")
 execute_replace_novel = _bulk("novel")
 execute_replace_game = _bulk("game")
 execute_replace_hentai = _bulk("hentai")
+execute_replace_h_game = _bulk("h-game")
 
 
 async def execute_replace_all(db: Session, request: Request, action_type: str = "Manual"):

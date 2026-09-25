@@ -112,14 +112,14 @@ def test_normal_still_hides_that_label(db_session, mode, orphan_label):
     because nothing was hidden from anyone - a green that proves the gate was
     asked, not that it answered."""
     hidden = hidden_label_ids(db_session, _viewer_in(db_session, mode(MODE_NORMAL)))
-    # The system `h-comic` and `hentai` labels are hidden from normal too.
+    # The gated types' system labels are hidden from normal too.
     system = {
         row.system_id
         for row in db_session.query(models.ContentLabel).filter(
-            models.ContentLabel.key.in_(["h-comic", "hentai"])
+            models.ContentLabel.key.in_(("h-comic", "h-game", "hentai"))
         )
     }
-    assert len(system) == 2
+    assert len(system) == 3
     assert set(hidden) == {orphan_label.system_id} | system
 
 

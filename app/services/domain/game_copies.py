@@ -16,6 +16,10 @@ from app.models import GameCopy
 from app.services.domain.user_list import acting_user_id
 from app.services.rbac.permissions import PERM_SELF_LIST
 
+# The media types whose entries carry purchase records. game_copy.game_id
+# points at media.system_id, so one table serves both.
+COPY_OWNER_TYPES: frozenset[str] = frozenset({"game", "h-game"})
+
 
 def write_game_copies(db, entry, copies, viewer=None) -> None:
     """
@@ -125,7 +129,7 @@ def derive_game_ownership(entry) -> Optional[str]:
 
 def attach_own_copies(db, owner_type: str, entries, user_id) -> None:
     """
-    Narrow each game's `copies` to the acting user's own rows.
+    Narrow each game's or h-game's `copies` to the acting user's own rows.
 
     A copy is a purchase record, not a fact about the game, so the
     relationship holds every account's rows and the response must not. The
@@ -144,7 +148,7 @@ def attach_own_copies(db, owner_type: str, entries, user_id) -> None:
     A viewer with no account (`user_id` None) owns nothing, so every game
     comes back with an empty list rather than with somebody else's purchases.
     """
-    if owner_type != "game":
+    if owner_type not in COPY_OWNER_TYPES:
         return
     rows = entries if isinstance(entries, list) else [entries]
     if not rows:

@@ -10,6 +10,10 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+# The h-game vocabularies, and the lenient list rule a restore uses, imported
+# for the same reason as GAME_COMPLETION_FLAGS below.
+from app.services.domain.h_game import CHOICE_LISTS, SINGLE_CHOICES, lenient_choice_list
+
 # Imported rather than duplicated so the Sheets tab and the API agree on what
 # the three rungs are.
 from app.services.domain.watch_order import normalize_importance
@@ -1036,6 +1040,112 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "studio": parse_from_sheet(raw.get("studio"), str),
         "director": parse_from_sheet(raw.get("director"), str),
+        "h_genre_plot": parse_from_sheet(raw.get("h_genre_plot"), str),
+        "h_genre_appearance": parse_from_sheet(raw.get("h_genre_appearance"), str),
+        "h_genre_relation": parse_from_sheet(raw.get("h_genre_relation"), str),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
+
+
+def _choice_list_from_sheet(val: Any, column: str) -> Optional[list]:
+    """
+    One h-game multi-choice cell: a JSON list (what Backup writes) or a
+    comma-separated string (what a hand edit writes). Values outside the
+    vocabulary are dropped and logged, never stored and never fatal to the
+    tab; the kept ones come back in vocabulary order.
+    """
+    if val is None or not str(val).strip():
+        return None
+    raw = str(val).strip()
+    if raw.startswith("["):
+        parsed = _safe_json(raw)
+        if parsed is None:
+            return None
+        raw = parsed
+    allowed, label = CHOICE_LISTS[column]
+    return lenient_choice_list(raw, allowed, label)
+
+
+def _single_choice_from_sheet(val: Any, column: str) -> Optional[str]:
+    """One h-game single-choice cell; a value outside the vocabulary is None."""
+    value = parse_from_sheet(val, str)
+    allowed, _label = SINGLE_CHOICES[column]
+    return value if value in allowed else None
+
+
+def parse_h_game_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the H-Game sheet into typed data ready for
+    the Database.
+
+    franchise_id, series_id and base_game_id may each be a UUID or a raw
+    string name, as on the Game tab. The credit and tag columns carry their
+    own keys as headers - the type is new, so none has a legacy header - and
+    Pull applies them through replace_credits / replace_tags once the row
+    exists. The fixed-choice fields keep only values inside their
+    vocabularies; Pull re-attaches the h-game label after the tab lands.
+    """
+    parsed = {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "h_game_name_en": parse_from_sheet(raw.get("h_game_name_en"), str),
+        "h_game_name_cn": parse_from_sheet(raw.get("h_game_name_cn"), str),
+        "h_game_name_jp": parse_from_sheet(raw.get("h_game_name_jp"), str),
+        "h_game_name_roman": parse_from_sheet(raw.get("h_game_name_roman"), str),
+        "h_game_name_alt": parse_from_sheet(raw.get("h_game_name_alt"), str),
+        "series_number": parse_from_sheet(raw.get("series_number"), int),
+        "playstyle": _single_choice_from_sheet(raw.get("playstyle"), "playstyle"),
+        "game_type": parse_from_sheet(raw.get("game_type"), str),
+        "base_game_id": parse_from_sheet(raw.get("base_game_id"), UUID),
+        "release_status": parse_from_sheet(raw.get("release_status"), str),
+        "release_date": release_date.normalize(
+            parse_from_sheet(raw.get("release_date"), str)
+        ),
+        "current_patch": parse_from_sheet(raw.get("current_patch"), str),
+        "completion_level": parse_from_sheet(raw.get("completion_level"), str),
+        "all_endings": parse_completion_flag(raw.get("all_endings")),
+        "all_cg": parse_completion_flag(raw.get("all_cg")),
+        "steam_progress_sync": parse_from_sheet(raw.get("steam_progress_sync"), bool),
+        "achievements_earned": parse_from_sheet(raw.get("achievements_earned"), int),
+        "achievements_total": parse_from_sheet(raw.get("achievements_total"), int),
+        "hltb_main": parse_from_sheet(raw.get("hltb_main"), float),
+        "hltb_main_extra": parse_from_sheet(raw.get("hltb_main_extra"), float),
+        "hltb_completionist": parse_from_sheet(raw.get("hltb_completionist"), float),
+        "price_original_us": parse_from_sheet(raw.get("price_original_us"), Decimal),
+        "price_original_jp": parse_from_sheet(raw.get("price_original_jp"), Decimal),
+        "price_original_tw": parse_from_sheet(raw.get("price_original_tw"), Decimal),
+        "price_current_us": parse_from_sheet(raw.get("price_current_us"), Decimal),
+        "price_current_jp": parse_from_sheet(raw.get("price_current_jp"), Decimal),
+        "price_current_tw": parse_from_sheet(raw.get("price_current_tw"), Decimal),
+        "language_availability": _single_choice_from_sheet(
+            raw.get("language_availability"), "language_availability"
+        ),
+        "audio_availability": _choice_list_from_sheet(
+            raw.get("audio_availability"), "audio_availability"
+        ),
+        "animation_availability": parse_from_sheet(
+            raw.get("animation_availability"), bool
+        ),
+        "h_presentation": _choice_list_from_sheet(
+            raw.get("h_presentation"), "h_presentation"
+        ),
+        "platform": _choice_list_from_sheet(raw.get("platform"), "platform"),
+        "igdb_id": parse_from_sheet(raw.get("igdb_id"), int),
+        "igdb_link": parse_from_sheet(raw.get("igdb_link"), str),
+        "steam_appid": parse_from_sheet(raw.get("steam_appid"), int),
+        "steam_link": parse_from_sheet(raw.get("steam_link"), str),
+        "dlsite_link_jp": parse_from_sheet(raw.get("dlsite_link_jp"), str),
+        "dlsite_link_tw": parse_from_sheet(raw.get("dlsite_link_tw"), str),
+        "highlight_group_order": _safe_json(raw.get("highlight_group_order")),
+        "type_slots": _safe_json(raw.get("type_slots")),
+        "studio": parse_from_sheet(raw.get("studio"), str),
+        "game_genre": parse_from_sheet(raw.get("game_genre"), str),
+        "game_theme": parse_from_sheet(raw.get("game_theme"), str),
         "h_genre_plot": parse_from_sheet(raw.get("h_genre_plot"), str),
         "h_genre_appearance": parse_from_sheet(raw.get("h_genre_appearance"), str),
         "h_genre_relation": parse_from_sheet(raw.get("h_genre_relation"), str),

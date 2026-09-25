@@ -31,7 +31,7 @@ A frozen copy of the label row, not an import of the seed: a migration that
 imports app code breaks the day a later revision changes it.
 
 Revision ID: h2e3n4t5a6i7
-Revises: o1s2tsingle3
+Revises: h2g3a4m5e6t7
 Create Date: 2026-09-25 00:00:00.000000
 
 """
@@ -44,7 +44,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateSequence, DropSequence
 
 revision: str = "h2e3n4t5a6i7"
-down_revision: Union[str, Sequence[str], None] = "o1s2tsingle3"
+down_revision: Union[str, Sequence[str], None] = "h2g3a4m5e6t7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

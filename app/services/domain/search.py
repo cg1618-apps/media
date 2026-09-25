@@ -166,6 +166,8 @@ SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
     _spec("h-comic", "h_comic", "h_comic_name_cn"),
     # After h-comic, gated the same way by the hentai label.
     _spec("hentai", "hentai", "hentai_name_cn"),
+    # The second gated type, after the first; hidden the same way.
+    _spec("h-game", "h_game", "h_game_name_cn"),
     SearchableType(
         key="seasonal",
         model=models.Seasonal,

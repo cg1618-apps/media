@@ -187,6 +187,7 @@ class TestMediaTypeMap:
             "game",
             "h-comic",
             "hentai",
+            "h-game",
         }
 
     def test_every_slug_maps_to_a_model(self):

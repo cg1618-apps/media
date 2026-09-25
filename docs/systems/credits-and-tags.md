@@ -59,7 +59,7 @@ the stored value, tuple of keys for validation.
 
 | key | label | target | media types |
 |---|---|---|---|
-| `studio` | Studio | studio | anime, anime-movie, game, hentai |
+| `studio` | Studio | studio | anime, anime-movie, game, h-game (its only credit), hentai |
 | `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
 | `director` | Director | person | anime, anime-movie, movie, game, hentai |
 | `producer` | Producer | person | anime |
@@ -152,17 +152,21 @@ that names a credit which does not exist.
 | `comic_continuity` | Continuity | Comic Continuity | comic |
 | `comic_era` | Era | Comic Era | comic |
 | `comic_event` | Events | Comic Event | comic |
-| `game_genre` / `game_theme` / `game_mode` / `combat_mode` / `game_platform` | Genre / Theme / Mode / Combat Mode / Platform | Game Genre / Game Theme / Game Mode / Combat Mode / Game Platform | game |
-| `h_genre_plot` | Genre Plot | H Genre Plot | h-comic, hentai |
-| `h_genre_appearance` | Genre Appearance | H Genre Appearance | h-comic, hentai |
-| `h_genre_relation` | Genre Relation | H Genre Relation | h-comic, hentai |
+| `game_genre` / `game_theme` | Genre / Theme | Game Genre / Game Theme | game, h-game |
+| `game_mode` / `combat_mode` / `game_platform` | Mode / Combat Mode / Platform | Game Mode / Combat Mode / Game Platform | game |
+| `h_genre_plot` | Genre Plot | H Genre Plot | h-comic, h-game, hentai |
+| `h_genre_appearance` | Genre Appearance | H Genre Appearance | h-comic, h-game, hentai |
+| `h_genre_relation` | Genre Relation | H Genre Relation | h-comic, h-game, hentai |
 
-The three H Genre vocabularies are admin-managed and shared by the two gated
-types, h-comic and hentai - one vocabulary per axis, not one per type; a value
-used or scoped only there is hidden from a session that can see neither. No
-h-comic or hentai credit or tag has a legacy sheet header, so each travels
-under its own key (`illustrator`, `author`, `club`, `original_source`,
-`studio`, `director`, `h_genre_*`).
+The three H genre vocabularies are admin-managed and shared by the gated
+types - one vocabulary per axis, not one per type; they serve gated types
+alone, so a value is hidden from a session that can see none of them.
+`game_genre` and `game_theme` reach h-game as well as game, filled from IGDB
+the same way; because game is ungated, a value of theirs is hidden only
+through its uses, like any ordinary vocabulary. No h-comic, h-game or hentai
+credit or tag has a legacy sheet header, so each travels under its own key
+(`illustrator`, `author`, `club`, `original_source`, `studio`, `director`,
+`game_genre`, `game_theme`, `h_genre_*`).
 
 **Hentai shares anime's studio and director.** Both roles gain the `hentai`
 scope rather than a hentai-only role, so a studio credited on a mainstream

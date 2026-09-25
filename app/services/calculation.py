@@ -18,6 +18,7 @@ from app.models import (
     Game,
     HComic,
     Hentai,
+    HGame,
     ImageAttachment,
     Manga,
     Media,
@@ -271,6 +272,16 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                         "entry_type": "hentai",
                     }
                 )
+        h_games = db.query(HGame).join(HGame.media_row).filter(Media.cover_image_file.isnot(None)).all()
+        for hg in h_games:
+            if not cover_image_exists("h-game", str(hg.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(hg.system_id),
+                        "name": hg.display_name or str(hg.system_id),
+                        "entry_type": "h-game",
+                    }
+                )
 
     total_checked = len(animes) + (
         0
@@ -285,6 +296,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
         + len(games)
         + len(h_comics)
         + len(hentais)
+        + len(h_games)
     )
     return {
         "status": "success",
@@ -476,6 +488,18 @@ def bulk_download_missing_covers(
         autofill_hentai_from_mal(he, db=db)
         if he.cover_image_file:
             downloaded += 1
+
+    # IGDB, as for a game.
+    h_game_query = db.query(HGame).join(HGame.media_row).filter(Media.cover_image_file.isnot(None))
+    for h_game in _collect(h_game_query, HGame, "h-game"):
+        total += 1
+        if h_game.igdb_id:
+            h_game.cover_image_file = None
+            autofill_game_from_igdb(h_game, db)
+            if h_game.cover_image_file:
+                downloaded += 1
+        else:
+            skipped += 1
 
     if total:
         db.commit()

@@ -64,6 +64,7 @@ class TestMediaTables:
             "game",
             "h-comic",
             "hentai",
+            "h-game",
         }
 
     def test_uses_hyphenated_spelling(self):

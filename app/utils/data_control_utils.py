@@ -390,6 +390,23 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 franchise_cn = _cn(f, "franchise")
                 franchise_type = getattr(f, "franchise_type", None)
 
+        elif entry_type == "H-Game":
+            # Named through display_name, as H-Comic is: it already carries
+            # the type's CN -> EN -> Alt -> Roman -> JP chain.
+            name_cn = entry.display_name or None
+            name_en = getattr(entry, "h_game_name_en", None)
+            if getattr(entry, "series_id", None):
+                s = db.query(Series).filter(Series.system_id == entry.series_id).first()
+                series_cn = _cn(s, "series")
+            if getattr(entry, "franchise_id", None):
+                f = (
+                    db.query(Franchise)
+                    .filter(Franchise.system_id == entry.franchise_id)
+                    .first()
+                )
+                franchise_cn = _cn(f, "franchise")
+                franchise_type = getattr(f, "franchise_type", None)
+
         deleted_log = DeletedRecord(
             type=entry_type,
             name_cn=name_cn,

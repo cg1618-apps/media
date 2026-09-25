@@ -52,6 +52,7 @@ VALID_MEDIA_TYPES = frozenset(
         "game",
         "h-comic",
         "hentai",
+        "h-game",
         "collection",
         "franchise",
         "series",

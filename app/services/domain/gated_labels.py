@@ -50,6 +50,11 @@ SYSTEM_LABELS: dict[str, tuple[str, str]] = {
         "Adult anime. Carried by every hentai entry and every Hentai "
         "franchise; seen in the unrestricted mode only.",
     ),
+    "h-game": (
+        "H-Game",
+        "Adult games. Carried by every h-game entry and every H-Game "
+        "franchise; seen in the unrestricted mode only.",
+    ),
 }
 
 

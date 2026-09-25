@@ -32,6 +32,7 @@ execute_fill_comic = _bind("comic")
 execute_fill_game = _bind("game")
 execute_fill_h_comic = _bind("h-comic")
 execute_fill_hentai = _bind("hentai")
+execute_fill_h_game = _bind("h-game")
 execute_fill_studio = _bind("studio")
 
 

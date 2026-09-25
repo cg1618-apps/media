@@ -173,8 +173,11 @@ class Game(Base, NameFallbackMixin):
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
+    # game_copy.game_id points at media.system_id, not at this table - the
+    # copies are shared with h_game - so the join is spelled out.
     copies = relationship(
         "GameCopy",
+        primaryjoin="Game.system_id == foreign(GameCopy.game_id)",
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="GameCopy.position",

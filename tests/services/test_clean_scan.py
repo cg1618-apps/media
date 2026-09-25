@@ -30,6 +30,7 @@ def test_clean_tabs_are_the_fifteen_in_scope():
         "Game",
         "H-Comic",
         "Hentai",
+        "H-Game",
     )
 
 

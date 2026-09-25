@@ -50,13 +50,19 @@ def _values(enum_cls) -> list[str]:
 # media types it serves)}. A key is left out of the payload entirely when
 # every type it serves is gated and hidden from the viewer - the session is
 # not told the types exist. hentai reuses h-comic's originality and
-# usefulness, so those two are served while either type is seeable.
+# usefulness, and h-game its usefulness, so those are served while any type
+# they serve is seeable.
 TYPE_ONLY_VOCABULARIES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "h_comic_region": (c.H_COMIC_REGIONS, ("h-comic",)),
     "h_comic_originality": (c.H_COMIC_ORIGINALITY, ("h-comic", "hentai")),
     "h_comic_animation_status": (c.H_COMIC_ANIMATION_STATUSES, ("h-comic",)),
-    "h_comic_usefulness": (c.H_COMIC_USEFULNESS, ("h-comic", "hentai")),
+    "h_comic_usefulness": (c.H_COMIC_USEFULNESS, ("h-comic", "h-game", "hentai")),
     "hentai_source_material": (c.HENTAI_SOURCE_MATERIALS, ("hentai",)),
+    "h_game_playstyle": (c.H_GAME_PLAYSTYLES, ("h-game",)),
+    "h_game_language_availability": (c.H_GAME_LANGUAGE_AVAILABILITY, ("h-game",)),
+    "h_game_audio_availability": (c.H_GAME_AUDIO_AVAILABILITY, ("h-game",)),
+    "h_game_h_presentation": (c.H_GAME_H_PRESENTATIONS, ("h-game",)),
+    "h_game_platform": (c.H_GAME_PLATFORMS, ("h-game",)),
 }
 
 

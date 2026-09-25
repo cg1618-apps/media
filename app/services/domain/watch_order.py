@@ -23,6 +23,7 @@ from app.models import (
     Game,
     HComic,
     Hentai,
+    HGame,
     Manga,
     Media,
     Movies,
@@ -50,6 +51,8 @@ MEDIA_TYPE_MODELS = {
     "h-comic": HComic,
     # Whole-only too: one entry is one episode.
     "hentai": Hentai,
+    # Whole-only, like game.
+    "h-game": HGame,
 }
 
 # Per type: which column holds the progress status, and which holds the unit
@@ -67,6 +70,7 @@ _STATUS_FIELDS = {
     "game": "playing_status",
     "h-comic": "reading_status",
     "hentai": "watching_status",
+    "h-game": "playing_status",
 }
 
 _TOTAL_FIELDS = {

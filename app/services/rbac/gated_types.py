@@ -37,6 +37,7 @@ from app.services.rbac.enforcement import hidden_label_ids
 REQUIRED_LABEL_FOR_TYPE: dict[str, str] = {
     "h-comic": "h-comic",
     "hentai": "hentai",
+    "h-game": "h-game",
 }
 
 

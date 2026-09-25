@@ -99,6 +99,17 @@ SCOPE_PERSONAL = "personal"  # one set per user
 ENTRY_OWNERS = MEDIA_TYPE_KEYS
 ALL_OWNERS = tuple(OWNER_TYPE_KEYS)
 
+# The owners every game-shaped section serves: game, and h-game, which reuses
+# game's notes wholesale. A section written for games names this rather than
+# ("game",), so a future game section reaches h-game by default; the per-owner
+# maps below (labels, placeholders, groups) are built over it the same way.
+GAME_OWNERS: tuple[str, ...] = ("game", "h-game")
+
+
+def _for_game_owners(value) -> dict:
+    """One per-owner override, given to every game owner alike."""
+    return {owner: value for owner in GAME_OWNERS}
+
 # Sections every owner shares, spelled out per section below rather than
 # composed, so one section's applicability is readable in one place.
 _SERIES_AND_UP = ("series", "franchise")
@@ -321,8 +332,8 @@ class NoteSection:
     # The key of a `names` field the read view groups rows by: one group per
     # name, and a row naming two appears under both. Display-only - rows are
     # stored and ordered exactly as in any structured section. The order of
-    # the GROUPS is the owner entry's, not this registry's (for h-comic,
-    # `h_comic.highlight_group_order`). Checked at import.
+    # the GROUPS is the owner entry's, not this registry's (for h-comic and
+    # h-game, `highlight_group_order` on the entry). Checked at import.
     group_by: str | None = None
     # Owner-entry columns this section is limited to: {column: allowed
     # values}. The note router refuses (422) a row on an owner whose column
@@ -511,7 +522,7 @@ def _story_list_sections() -> tuple["NoteSection", ...]:
             key=key,
             shape=SHAPE_STRUCTURED,
             label=label,
-            owners=("game",),
+            owners=GAME_OWNERS,
             scope=SCOPE_CATALOG,
             group="story_list",
             hierarchical=True,
@@ -614,13 +625,13 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         locator_required=True,
         shape=SHAPE_TEXT_LINKS,
         label="各集評論 Episode Comments",
-        owners=("anime", "tv-show", "cartoon", "game"),
+        owners=("anime", "tv-show", "cartoon") + GAME_OWNERS,
         scope=SCOPE_PERSONAL,
         # A game is cut into chapters or parts rather than episodes, but the
         # section is the same one: a comment on one segment of the work.
-        labels={"game": "各章評論 Part Reviews"},
+        labels=_for_game_owners("各章評論 Part Reviews"),
         locator_placeholder="Episode, e.g. ep 1",
-        locator_placeholders={"game": "Chapter / Part, e.g. Ch 3"},
+        locator_placeholders=_for_game_owners("Chapter / Part, e.g. Ch 3"),
         group="reviews",
     ),
     NoteSection(
@@ -661,7 +672,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         locator_required=True,
         shape=SHAPE_EPISODE_TEXT,
         label="神場景 Highlights",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         locator_placeholder="Chapter / Boss, e.g. Ch 3",
     ),
@@ -714,6 +725,55 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         ),
     ),
     NoteSection(
+        # An h-game's standout scenes, grouped by the female characters in
+        # them: h_comic_highlights' fields, located by route and scene rather
+        # than by chapter. Every h-game takes it, so there is no owner_where.
+        # The group order is h_game.highlight_group_order, written through the
+        # entry update. Only the second copy of these fields, so they are not
+        # factored out.
+        key="h_game_highlights",
+        shape=SHAPE_STRUCTURED,
+        label="亮點 Highlights",
+        owners=("h-game",),
+        scope=SCOPE_CATALOG,
+        group_by="female_characters",
+        fields=(
+            NoteField(
+                key="female_characters",
+                label="Female Characters",
+                type=FIELD_NAMES,
+                required=True,
+            ),
+            NoteField(
+                key="male_characters",
+                label="Male Characters",
+                type=FIELD_NAMES,
+            ),
+            NoteField(
+                key="route_scene",
+                label="Route / Scene",
+                column="locator",
+                placeholder="Route / Scene, e.g. Route A, scene 3",
+            ),
+            NoteField(key="location", label="Location"),
+            # A `kind`-backed field with no options is free text.
+            NoteField(key="label", label="Label", column="kind"),
+            NoteField(
+                key="usefulness",
+                label="Usefulness",
+                type=FIELD_SELECT,
+                column="status",
+                options=H_COMIC_USEFULNESS,
+            ),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+        ),
+    ),
+    NoteSection(
         key="analysis",
         shape=SHAPE_TEXT_LINKS,
         label="解析 Analysis",
@@ -724,7 +784,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # of its own - see `groups_by_owner`. It is the only section of
         # `analysis_group` a game has, so that card disappears for games
         # rather than being left holding one thing.
-        groups_by_owner={"game": "reviews"},
+        groups_by_owner=_for_game_owners("reviews"),
     ),
     NoteSection(
         key="cinematography",
@@ -800,7 +860,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="beginner",
         shape=SHAPE_TEXT_LINKS,
         label="新手 Beginner",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="guides",
     ),
@@ -813,7 +873,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="gameplay_systems",
         shape=SHAPE_STRUCTURED,
         label="玩法系統 Gameplay Systems",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="guides",
         fields=_term_fields(typed=True, links=True),
@@ -826,7 +886,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="controls",
         shape=SHAPE_STRUCTURED,
         label="操作 Controls",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="guides",
         fields=(
@@ -855,7 +915,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="guide_notes",
         shape=SHAPE_TEXT_LINKS,
         label="攻略筆記 Guide Notes",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="guides",
     ),
@@ -863,7 +923,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="trivia",
         shape=SHAPE_TEXT_LINKS,
         label="小知識 Trivia",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="guides",
     ),
@@ -879,7 +939,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="stats_and_points",
         shape=SHAPE_STRUCTURED,
         label="屬性&配點 Stats & Points",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="builds",
         fields=(
@@ -903,7 +963,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="skills",
         shape=SHAPE_STRUCTURED,
         label="技能 Skills",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="builds",
         fields=_named_thing_fields(),
@@ -916,7 +976,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="builds_and_styles",
         shape=SHAPE_STRUCTURED,
         label="配裝&流派 Builds & Styles",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="builds",
         fields=(
@@ -991,7 +1051,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="team_composition",
         shape=SHAPE_STRUCTURED,
         label="隊伍組成 Team Composition",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="builds",
         fields=(
@@ -1023,7 +1083,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="weapons_and_gear",
         shape=SHAPE_STRUCTURED,
         label="武器&裝備 Weapons & Gear",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="gear",
         fields=_named_thing_fields(variant=True, collected=True),
@@ -1032,7 +1092,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="items",
         shape=SHAPE_STRUCTURED,
         label="道具 Items",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="gear",
         fields=_named_thing_fields(variant=True, collected=True),
@@ -1041,7 +1101,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="collectibles",
         shape=SHAPE_STRUCTURED,
         label="收集物 Collectibles",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="gear",
         fields=_named_thing_fields(variant=True, collected=True),
@@ -1061,7 +1121,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="characters_guide",
         shape=SHAPE_STRUCTURED,
         label="角色 Characters",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="compendium",
         fields=(
@@ -1082,7 +1142,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="enemies",
         shape=SHAPE_STRUCTURED,
         label="敵人 Enemies",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="compendium",
         fields=(
@@ -1120,7 +1180,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="game_terms",
         shape=SHAPE_STRUCTURED,
         label="遊戲名詞 Game Terms",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="compendium",
         fields=_term_fields(),
@@ -1141,7 +1201,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="main_plot",
         shape=SHAPE_STRUCTURED,
         label="主線劇情 Main Plot",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="story",
         fields=_plot_fields(),
@@ -1150,7 +1210,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="side_plot",
         shape=SHAPE_STRUCTURED,
         label="支線劇情 Side Stories",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="story",
         fields=_plot_fields(),
@@ -1159,7 +1219,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="character_arcs",
         shape=SHAPE_TEXT_LINKS,
         label="角色劇情 Character Arcs",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="story",
     ),
@@ -1170,7 +1230,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="endings",
         shape=SHAPE_STRUCTURED,
         label="結局 Endings",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="story",
         fields=(
@@ -1216,7 +1276,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="lore",
         shape=SHAPE_TEXT_LINKS,
         label="設定 Lore",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="worldbuilding",
     ),
@@ -1227,7 +1287,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="story_terms",
         shape=SHAPE_STRUCTURED,
         label="劇情名詞 Story Terms",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="worldbuilding",
         fields=_term_fields(),
@@ -1239,7 +1299,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="timeline",
         shape=SHAPE_TEXT_LINKS,
         label="時間線 Timeline",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="worldbuilding",
     ),
@@ -1247,7 +1307,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="mysteries",
         shape=SHAPE_TEXT_LINKS,
         label="未解之謎 Mysteries",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="worldbuilding",
     ),
@@ -1257,7 +1317,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="story_other",
         shape=SHAPE_TEXT_LINKS,
         label="其他 Other",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="worldbuilding",
     ),
@@ -1275,7 +1335,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="todo_now",
         shape=SHAPE_TEXT_LINKS,
         label="現在進行 Doing now",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_PERSONAL,
         group="todo",
     ),
@@ -1283,7 +1343,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="todo_next",
         shape=SHAPE_TEXT_LINKS,
         label="接下來 To do next",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_PERSONAL,
         group="todo",
     ),
@@ -1291,7 +1351,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="todo_later",
         shape=SHAPE_TEXT_LINKS,
         label="未來 To do in the future",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_PERSONAL,
         group="todo",
     ),
@@ -1299,7 +1359,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="todo_maybe",
         shape=SHAPE_TEXT_LINKS,
         label="可能 Might do",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_PERSONAL,
         group="todo",
     ),
@@ -1425,7 +1485,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="mods_and_tools",
         shape=SHAPE_STRUCTURED,
         label="模組&工具 Mods & Tools",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="tools",
         fields=(
@@ -1473,7 +1533,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="guide_resources",
         shape=SHAPE_STRUCTURED,
         label="攻略資源 Guide Resources",
-        owners=("game",),
+        owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="tools",
         fields=(

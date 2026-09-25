@@ -76,6 +76,13 @@ from app.schemas.h_comic import (
     HComicSheetSync,
     HComicUpdate,
 )
+from app.schemas.h_game import (
+    HGameBase,
+    HGameCreate,
+    HGameResponse,
+    HGameSheetSync,
+    HGameUpdate,
+)
 from app.schemas.hentai import (
     HentaiBase,
     HentaiCreate,
@@ -370,6 +377,11 @@ __all__ = [
     "HentaiUpdate",
     "HentaiResponse",
     "HentaiSheetSync",
+    "HGameBase",
+    "HGameCreate",
+    "HGameUpdate",
+    "HGameResponse",
+    "HGameSheetSync",
     "MovieBase",
     "MovieCreate",
     "MovieUpdate",

@@ -283,6 +283,7 @@ def test_only_unrestricted_carries_the_hentai_label(db_session, labelled_hentai)
 def test_me_names_both_gated_types_for_unrestricted(admin_client):
     assert admin_client.get("/api/auth/me").json()["visible_gated_types"] == [
         "h-comic",
+        "h-game",
         "hentai",
     ]
 
