@@ -401,6 +401,10 @@ yet permanently "needs filling", re-requested on every single run.
 in the database (matched on `igdb_id`, excluding the row itself), Fill sets
 `base_game_id` and the DLC links itself up. A parent not yet entered leaves the
 column null, which is exactly why `base_game_id` is nullable even for a DLC.
+IGDB sets `parent_game` on a remaster or an edition too (Spider-Man Remastered
+names Spider-Man), so the parent is adopted only when the entry's `game_type`
+is not `Base Game`: a Base Game with a parent violates `ck_games_base_no_parent`,
+and the failed flush would roll back the entry's whole fill, cover included.
 
 **IGDB itself still has no bulk Replace path of its own** — nothing in an IGDB
 record drifts, the same reasoning that makes Studio `fill_only`. What changed
