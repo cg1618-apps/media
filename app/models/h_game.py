@@ -33,8 +33,8 @@ class HGame(Base, NameFallbackMixin):
 
     Game columns it does not keep: hours_played, the two Metacritic figures,
     all_achievements and all_collected. Its own: playstyle, all_cg, the
-    language / audio / animation / H-presentation / platform fields and the
-    two DLsite links. The fixed-choice fields carry vocabularies from
+    language / audio / animation / H-presentation / art style / platform
+    fields and the two DLsite links. The fixed-choice fields carry vocabularies from
     app/utils/constants.py and, as on Game, no CHECK constraint; the
     multi-choice ones are JSONB lists validated on every write path
     (app/services/domain/h_game.py).
@@ -145,6 +145,9 @@ class HGame(Base, NameFallbackMixin):
     animation_availability = Column(Boolean, nullable=True)
     # A list over H_GAME_H_PRESENTATIONS, in vocabulary order.
     h_presentation = Column(JSONB, nullable=True)
+    # A list over H_GAME_ART_STYLES, in vocabulary order: what the game looks
+    # like, independent of h_presentation.
+    art_style = Column(JSONB, nullable=True)
     # A list over H_GAME_PLATFORMS, in vocabulary order. Hand-set, never
     # filled from IGDB, and not Game's game_platform tag field.
     platform = Column(JSONB, nullable=True)

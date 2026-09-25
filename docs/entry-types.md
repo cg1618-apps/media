@@ -156,7 +156,8 @@ The fixed-choice fields carry closed vocabularies from `app/utils/constants.py`
 | `playstyle` | single | `H_GAME_PLAYSTYLES`: `ADV`, `RPG`, `SLG`, `Other` |
 | `language_availability` | single | `H_GAME_LANGUAGE_AVAILABILITY`: `官方中文`, `中文補丁`, `無中文` |
 | `audio_availability` | JSONB list | `H_GAME_AUDIO_AVAILABILITY`: `一般對話`, `H場景` |
-| `h_presentation` (H 演出形式) | JSONB list | `H_GAME_H_PRESENTATIONS`: `靜圖`, `動圖`, `2D動畫`, `3D動畫`, `互動` |
+| `h_presentation` (H 演出形式) | JSONB list | `H_GAME_H_PRESENTATIONS`: `靜圖`, `動圖`, `2D動畫`, `3D動畫`, `3D模型`, `互動` |
+| `art_style` | JSONB list | `H_GAME_ART_STYLES`: `2D`, `2.5D`, `3D`, `Pixel`, `Live2D`, `Live-action-like`, `Live-action` - what the game looks like; `h_presentation` is how the H scenes are delivered, and the two are recorded independently |
 | `platform` | JSONB list | `H_GAME_PLATFORMS`: `Steam`, `DLsite`, `Nintendo`, `Other` - hand-set, never filled from IGDB, and not Game's `game_platform` tag field |
 | `animation_availability` | boolean | null is "unknown" |
 | `all_cg` | string | `GAME_COMPLETION_FLAGS`, as Game's `all_endings` |

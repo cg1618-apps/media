@@ -240,8 +240,10 @@ describe("h-game payloads", () => {
       platform: ["Other", "Steam"],
       h_presentation: ["互動", "靜圖"],
       audio_availability: ["H場景", "一般對話"],
+      art_style: ["Live-action", "2D", "Live2D"],
     });
     expect(body.platform).toEqual(["Steam", "Other"]);
+    expect(body.art_style).toEqual(["2D", "Live2D", "Live-action"]);
     expect(body.h_presentation).toEqual(["靜圖", "互動"]);
     expect(body.audio_availability).toEqual(["一般對話", "H場景"]);
   });

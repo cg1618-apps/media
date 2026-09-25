@@ -89,6 +89,7 @@ def test_the_constants_omit_h_game_for_a_narrow_session(client, db_session):
         "h_game_language_availability",
         "h_game_audio_availability",
         "h_game_h_presentation",
+        "h_game_art_style",
         "h_game_platform",
     ):
         assert key not in body
@@ -101,6 +102,7 @@ def test_the_constants_name_h_game_for_unrestricted(admin_client):
     assert "H-Game" in body["franchise_type"]
     assert body["h_game_playstyle"] == ["ADV", "RPG", "SLG", "Other"]
     assert body["h_game_platform"] == ["Steam", "DLsite", "Nintendo", "Other"]
+    assert body["h_game_art_style"][0] == "2D"
 
 
 def test_the_external_api_catalogue_omits_h_game_for_a_narrow_editor(

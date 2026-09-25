@@ -221,7 +221,8 @@ header, so each travels under its own key, and `highlight_group_order`
 travels as JSON text. `H-Game` follows `H-Comic`, the same way: its credit and
 tag columns (`studio`, `game_genre`, `game_theme`, `h_genre_plot`,
 `h_genre_appearance`, `h_genre_relation`) travel under their own keys, and its
-three list fields (`audio_availability`, `h_presentation`, `platform`) as JSON
+four list fields (`audio_availability`, `h_presentation`, `art_style`,
+`platform`) as JSON
 text. The parser also reads a comma-separated cell for a list, keeps only
 values inside the field's vocabulary (logging the rest, never failing the tab)
 and orders them as the vocabulary does; a single-choice cell outside its

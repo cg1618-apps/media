@@ -62,6 +62,7 @@ TYPE_ONLY_VOCABULARIES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "h_game_language_availability": (c.H_GAME_LANGUAGE_AVAILABILITY, ("h-game",)),
     "h_game_audio_availability": (c.H_GAME_AUDIO_AVAILABILITY, ("h-game",)),
     "h_game_h_presentation": (c.H_GAME_H_PRESENTATIONS, ("h-game",)),
+    "h_game_art_style": (c.H_GAME_ART_STYLES, ("h-game",)),
     "h_game_platform": (c.H_GAME_PLATFORMS, ("h-game",)),
 }
 

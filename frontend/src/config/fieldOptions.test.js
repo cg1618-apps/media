@@ -84,6 +84,7 @@ describe("admin-form vocabularies served from /api/constants", () => {
       "h_game_language_availability",
       "h_game_audio_availability",
       "h_game_h_presentation",
+      "h_game_art_style",
       "h_game_platform",
     ]) {
       expect(CONSTANTS_FALLBACK[key], key).toBeDefined();

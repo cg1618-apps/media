@@ -608,7 +608,7 @@ by any field.
 `h-comic` is present here for a session that can see it; its Add form has no
 "copy an existing entry" search either, so its auto-fill ticks drive nothing
 yet. `h-game` is present the same way and for Game's reason (its box searches
-IGDB); its three multi-choice lists offer no default, since their unset state
+IGDB); its four multi-choice lists offer no default, since their unset state
 is `null`, "not recorded". `hentai` is present the same way; its Add form has
 no copy search either, so its auto-fill ticks drive nothing yet; its
 `mal_id` is hidden (the write hook derives it from the link) and `mal_link`
