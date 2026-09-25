@@ -20,7 +20,7 @@ between the sessions before either wrote code.
 | D4 | Adaptation type | A column saying whether it is adapted from a manga or a novel, or original. Named `source_material`. |
 | D5 | Franchise | A new franchise type `Hentai`. **An h-comic and its hentai adaptation may share one franchise**, as anime and manga do. |
 | D6 | Genres | **The three h-comic genre vocabularies, shared** across h-comic, hentai and h-game. No hentai-specific vocabulary. (shared with h-game) |
-| D7 | Notes | **The KR h-comic highlights section, without the locator field.** One entry is one episode, so an episode locator carries nothing. |
+| D7 | Notes | **No section of its own.** Hentai gets the sections every entry has (remarks, comments, ...) and nothing type-specific. |
 | D8 | h-comic `animation_status` | **Derived from an adaptation relation to a hentai when one exists; hand-set otherwise.** |
 | D9 | h-comic usefulness | No change - it already exists on both regions. |
 | D10 | h-game | Stays separate: never shares a franchise with h-comic or hentai. |
@@ -40,7 +40,6 @@ The common entry columns (franchise, series, cover, remarks, ...) come from the
 | `series_number` | Integer | Position in its series |
 | `airing_status` | String | anime's `AiringStatus` vocabulary |
 | `release_date` | String | ISO CHECK `ck_hentai_release_date_iso` |
-| `highlight_group_order` | JSONB | Order of the highlight groups, as on h-comic |
 | `created_at` / `updated_at` | DateTime | |
 
 ### Stored elsewhere
@@ -53,7 +52,6 @@ The common entry columns (franchise, series, cover, remarks, ...) come from the
 | studio | `media_credit`, role `studio` - its scope gains `hentai` |
 | director | `media_credit`, role `director` - its scope gains `hentai` |
 | genres | `media_tag`, fields `h_genre_plot` / `h_genre_appearance` / `h_genre_relation` - their scopes gain `hentai` |
-| characters | `character_casting`, as for every ACG type; the highlights group by them |
 
 Studio and director are shared with mainstream anime. The shared-record rule
 already covers that: a studio credited on a mainstream anime stays visible
@@ -101,28 +99,6 @@ FRANCHISE_FAMILY_FOR_TYPE: dict[str, str] = {
   `h-comic`, `Hentai` brings `hentai`. One holding both carries both.
 - Series are not segregated, as today: a series names its parent.
 
-## Notes: `hentai_highlights`
-
-A sibling of `h_comic_highlights`, not an extension of it - similar sections
-are kept distinct on purpose (`app/utils/note_sections.py`), and it keeps
-h-comic's KR-only `owner_where` out of hentai.
-
-| Field | Type | Stored in |
-|---|---|---|
-| `female_characters` | names | `fields.female_characters` - **required**, the grouping key |
-| `male_characters` | names | `fields.male_characters` |
-| `location` | text | `fields.location` |
-| `label` | text | `kind` |
-| `usefulness` | select, `H_COMIC_USEFULNESS` | `status` |
-| `description` | textarea | `content` |
-
-No locator. Group order is `hentai.highlight_group_order`, read and written
-whole through the entry update, exactly as h-comic's.
-
-`h_game_highlights` will be a third sibling. **Whichever of the two branches
-merges into `dev` second factors the fields around the locator into one
-shared definition**; the first copies them. (shared with h-game)
-
 ## h-comic `animation_status`, derived
 
 The `adaptation` relation kind already exists (`app/utils/relation_kinds.py`).
@@ -150,15 +126,14 @@ The `adaptation` relation kind already exists (`app/utils/relation_kinds.py`).
   the label on every entry and every `Hentai` franchise. Sheets tab `Hentai`.
 - Duplicates: `franchise_id`, `series_id`, `series_number`.
 - Watch orders: `hentai` joins `WHOLE_ONLY_TYPES`.
-- Frontend: library config, detail page, add and modify tabs, notes page, nav
-  row - all behind the gated-type check, as h-comic's.
+- Frontend: library config, detail page, add and modify tabs, nav row - all behind the gated-type check, as h-comic's.
 - Docs: every page h-comic touched, and `docs/notes/decisions.md` for D1, D5
   and D8.
 
 ## Delivery
 
 Two pull requests into `dev`, as h-comic had: **backend** (migration, model,
-label, families, notes section, derived status, pipelines, tests, docs), then
+label, families, derived status, pipelines, tests, docs), then
 **frontend**. The visibility groundwork h-comic needed already exists.
 
 Collision points with `feat/h-game`: `REQUIRED_LABEL_FOR_TYPE`, the three
