@@ -65,7 +65,7 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     # one studio's anime and game credits across two vocabularies.
     # h-game's only credit (its developer), filled from IGDB as game's is.
     "studio": CreditRole(
-        "studio", "Studio", "studio", ("anime", "anime-movie", "game", "h-game")
+        "studio", "Studio", "studio", ("anime", "anime-movie", "game", "h-game", "hentai")
     ),
     # One role for every company that puts a work in front of a reader: a
     # games publisher, a TW licensor, a comic's original publisher. The LABEL
@@ -76,7 +76,8 @@ CREDIT_ROLES: dict[str, CreditRole] = {
         ("anime", "anime-movie", "manga", "novel", "comic", "game"),
     ),
     "director": CreditRole(
-        "director", "Director", "person", ("anime", "anime-movie", "movie", "game")
+        "director", "Director", "person",
+        ("anime", "anime-movie", "movie", "game", "hentai"),
     ),
     "producer": CreditRole("producer", "Producer", "person", ("anime",)),
     "composer": CreditRole(
@@ -217,19 +218,19 @@ TAG_FIELDS: dict[str, TagField] = {
     "game_platform": TagField(
         "game_platform", "Platform", "Game Platform", ("game",)
     ),
-    # The three adult genre vocabularies, shared by the gated types. They
-    # serve gated types alone, so every value is hidden from a session that
-    # can see none of them (shared_visibility.py).
+    # The three adult genre vocabularies, shared by the gated types h-comic,
+    # h-game and hentai. They serve gated types alone, so every value is
+    # hidden from a session that can see none of them (shared_visibility.py).
     "h_genre_plot": TagField(
-        "h_genre_plot", "Genre Plot", "H Genre Plot", ("h-comic", "h-game")
+        "h_genre_plot", "Genre Plot", "H Genre Plot", ("h-comic", "h-game", "hentai")
     ),
     "h_genre_appearance": TagField(
         "h_genre_appearance", "Genre Appearance", "H Genre Appearance",
-        ("h-comic", "h-game"),
+        ("h-comic", "h-game", "hentai"),
     ),
     "h_genre_relation": TagField(
         "h_genre_relation", "Genre Relation", "H Genre Relation",
-        ("h-comic", "h-game"),
+        ("h-comic", "h-game", "hentai"),
     ),
 }
 

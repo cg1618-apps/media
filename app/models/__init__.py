@@ -28,6 +28,7 @@ from app.models.game import Game
 from app.models.game_copy import GameCopy
 from app.models.h_comic import HComic
 from app.models.h_game import HGame
+from app.models.hentai import Hentai
 from app.models.image import Image, ImageAttachment
 from app.models.manga import Manga
 from app.models.media import Media
@@ -94,6 +95,7 @@ __all__ = [
     "Game",
     "GameCopy",
     "HComic",
+    "Hentai",
     "HGame",
     "Image",
     "ImageAttachment",
@@ -179,6 +181,7 @@ for _model in (
     Comic,
     Game,
     HComic,
+    Hentai,
     HGame,
     Series,
     Franchise,
@@ -227,6 +230,7 @@ _MEDIA_TYPES = (
     (Comic, "comic"),
     (Game, "game"),
     (HComic, "h-comic"),
+    (Hentai, "hentai"),
     (HGame, "h-game"),
 )
 

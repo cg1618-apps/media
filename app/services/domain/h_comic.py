@@ -30,6 +30,10 @@ The write paths that reach them:
                                         run_sync_gated_labels, the same two
 
 Both invariants are idempotent, so running them twice is always safe.
+
+`animation_status` is also DERIVED at read time when the entry has adaptation
+relations to hentai entries (attach_animation_status) - read, never written,
+so removing the relation restores the hand-set value.
 """
 
 import logging
@@ -47,6 +51,7 @@ from app.utils.constants import (
     H_COMIC_REGION_KR,
     H_COMIC_REGIONS,
     H_COMIC_USEFULNESS,
+    AiringStatus,
     FranchiseType,
     ReadStatus,
 )
@@ -233,6 +238,120 @@ def franchise_types(franchise) -> list[str]:
 
 def is_h_comic_franchise(franchise) -> bool:
     return FranchiseType.H_COMIC.value in franchise_types(franchise)
+
+
+# ---------------------------------------------------------------------------
+# animation_status, derived from adaptation relations to hentai entries
+# ---------------------------------------------------------------------------
+#
+# The relation reads `from` is the Adaptation of `to` (relation_kinds.py), so
+# a hentai adapting an h-comic is the row
+#     from_type 'hentai' -adaptation-> to_type 'h-comic'.
+# Only that direction counts: a row the other way round says the h-comic
+# adapts the hentai, which is not an animation of it.
+
+ANIMATION_ANNOUNCED = "Announced"
+ANIMATION_ANIMATED = "Animated"
+SOURCE_DERIVED = "derived"
+SOURCE_MANUAL = "manual"
+_AIRED = frozenset({AiringStatus.AIRING.value, AiringStatus.FINISHED_AIRING.value})
+
+
+def derived_animation_statuses(db: Session, h_comic_ids) -> dict:
+    """
+    {h-comic id: derived animation status} for every id with at least one
+    adaptation relation from a hentai entry. One query for the whole set.
+
+    `Animated` when any adapting hentai has aired (Airing or Finished
+    Airing), otherwise `Announced`. A relation whose hentai no longer exists
+    is ignored, as the read side ignores a missing endpoint.
+    """
+    ids = [i for i in h_comic_ids if i is not None]
+    if not ids:
+        return {}
+    rows = (
+        db.query(models.MediaRelation.to_id, models.Hentai.airing_status)
+        .join(models.Hentai, models.Hentai.system_id == models.MediaRelation.from_id)
+        .filter(
+            models.MediaRelation.relation_type == "adaptation",
+            models.MediaRelation.from_type == "hentai",
+            models.MediaRelation.to_type == MEDIA_TYPE,
+            models.MediaRelation.to_id.in_(ids),
+        )
+        .all()
+    )
+    out: dict = {}
+    for h_comic_id, airing_status in rows:
+        if airing_status in _AIRED:
+            out[h_comic_id] = ANIMATION_ANIMATED
+        else:
+            out.setdefault(h_comic_id, ANIMATION_ANNOUNCED)
+    return out
+
+
+def attach_animation_status(db: Session, owner_type: str, entries) -> None:
+    """
+    Set each h-comic's read-time animation status. No-op for other types.
+
+    Plain attributes, never the column: `animation_status_derived` holds the
+    derived value (None when there is none) and `animation_status_source`
+    says which one the response serves. HComicResponse swaps the derived
+    value in. Writing the column instead would flush the derived value over
+    the hand-set one on the next autoflush.
+
+    A KR entry has no animation status at all (REGION_CLEARS), so it is
+    neither derived nor manual.
+    """
+    if owner_type != MEDIA_TYPE:
+        return
+    rows = entries if isinstance(entries, list) else [entries]
+    if not rows:
+        return
+    derived = derived_animation_statuses(db, [e.system_id for e in rows])
+    for entry in rows:
+        if getattr(entry, "region", None) == H_COMIC_REGION_KR:
+            entry.animation_status_derived = None
+            entry.animation_status_source = None
+            continue
+        value = derived.get(entry.system_id)
+        entry.animation_status_derived = value
+        entry.animation_status_source = SOURCE_DERIVED if value else SOURCE_MANUAL
+
+
+def write_animation_status(db: Session, entry, value, viewer=None) -> None:
+    """
+    The writer for `animation_status` on every form and tracker write. It is
+    a nested-collection writer (app/registry.py) rather than a plain column
+    set so that it sees the STORED value: the key is lifted out of the
+    payload before the columns are applied, and nothing between there and
+    here can flush a new value over the old one.
+
+    With no derived status the value is stored, as for any column. While the
+    status is derived, the column keeps the hand-set value: a write naming
+    the derived value (the form sending back what it was served) or the
+    stored one changes nothing, and a write naming any other value is
+    refused (422), because it could not take effect while the relation
+    stands.
+    """
+    derived = None
+    # A KR entry has no animation status to derive (the hook clears it).
+    if entry.system_id is not None and getattr(entry, "region", None) != H_COMIC_REGION_KR:
+        with db.no_autoflush:
+            derived = derived_animation_statuses(db, [entry.system_id]).get(
+                entry.system_id
+            )
+    if derived is None:
+        entry.animation_status = value
+        return
+    if value in (derived, entry.animation_status):
+        return
+    raise HTTPException(
+        status_code=422,
+        detail=(
+            "animation_status is derived from an adaptation relation to a "
+            f"hentai ('{derived}'); remove the relation to set it by hand."
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------

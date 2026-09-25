@@ -63,6 +63,7 @@ class TestMediaTables:
             "comic",
             "game",
             "h-comic",
+            "hentai",
             "h-game",
         }
 
