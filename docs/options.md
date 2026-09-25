@@ -240,7 +240,7 @@ can only hold URLs and `text_links` has no title, so neither could say
 | `compendium` | 圖鑑 Compendium |
 | `story` | 劇情 Story |
 | `story_list` | 劇情列表 Story List |
-| `story_setting` | 劇情設定 Story Setting |
+| `worldbuilding` | 世界觀 Worldbuilding |
 | `todo` | 待辦 Todo (rendered inside the game page's Progress slip) |
 | `music` | 音樂 Music |
 | `tools` | 資源&工具 Tools & Resources |
@@ -293,11 +293,11 @@ media types only.
 | `story_list_side` | structured | 支線 Side | game | story_list | order, name, description, links; nestable |
 | `story_list_character` | structured | 角色 Character | game | story_list | order, name, description, links; nestable |
 | `story_list_event` | structured | 事件 Event | game | story_list | order, name, description, links; nestable |
-| `lore` | text_links | 世界觀&設定 Lore | game | story_setting | |
-| `story_terms` | structured | 劇情名詞 Story Terms | game | story_setting | name (CN), alt name, description |
-| `timeline` | text_links | 時間線 Timeline | game | story_setting | |
-| `mysteries` | text_links | 未解之謎 Mysteries | game | story_setting | |
-| `story_other` | text_links | 其他 Other | game | story_setting | |
+| `lore` | text_links | 設定 Lore | game | worldbuilding | |
+| `story_terms` | structured | 劇情名詞 Story Terms | game | worldbuilding | name (CN), alt name, description |
+| `timeline` | text_links | 時間線 Timeline | game | worldbuilding | |
+| `mysteries` | text_links | 未解之謎 Mysteries | game | worldbuilding | |
+| `story_other` | text_links | 其他 Other | game | worldbuilding | |
 | `todo_now` | text_links | 現在進行 Doing now | game | todo | personal scope |
 | `todo_next` | text_links | 接下來 To do next | game | todo | personal scope |
 | `todo_later` | text_links | 未來 To do in the future | game | todo | personal scope |

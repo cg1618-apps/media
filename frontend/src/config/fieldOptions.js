@@ -284,7 +284,8 @@ export const MEDIA_TYPES = [
   "comic",
   "game",
   // Gated: omitted by /api/constants for a session that cannot see it, and
-  // filtered through visibleMediaTypes wherever this list is rendered.
+  // filtered through visibleMediaTypes by ScopePicker, the one component
+  // that renders this list, so the first paint does not name it either.
   "h-comic",
 ];
 

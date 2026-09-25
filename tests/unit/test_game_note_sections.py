@@ -61,7 +61,7 @@ def test_the_groups_exist_in_order():
         "story_list",
         # The world the story happens in. After 劇情列表 so the two tellings
         # of the story stay a pair.
-        "story_setting",
+        "worldbuilding",
         "todo",
         "music",
         # Renders near the end, beside the site-wide Resources card.
@@ -74,12 +74,12 @@ def test_the_story_group_holds_the_four_plot_strands_in_order():
     assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story"] == STORY_KEYS
 
 
-def test_the_story_setting_group_holds_five_sections_in_order():
-    keys = [s.key for s in ns.NOTE_SECTIONS if s.group == "story_setting"]
+def test_the_worldbuilding_group_holds_five_sections_in_order():
+    keys = [s.key for s in ns.NOTE_SECTIONS if s.group == "worldbuilding"]
     assert keys == STORY_SETTING_KEYS
 
 
-def test_the_story_setting_card_renders_after_the_story_list():
+def test_the_worldbuilding_card_renders_after_the_story_list():
     # Card order is registry position, so this pins where the card lands.
     order = [s.key for s in ns.NOTE_SECTIONS]
     assert order.index("lore") > order.index("story_list_event")
