@@ -390,7 +390,8 @@ export default function AnimeMovieAddTab({
             value={amf.exclusive_source}
             onChange={(v) => uam("exclusive_source", v)}
             placeholder="Select exclusive platform..."
-            limit={1}
+            limit={null}
+            max={1}
           />
         </Field>
       </div>

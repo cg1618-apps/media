@@ -235,7 +235,10 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   An `available === false` row still renders (muted, no link) — that state
   means "known not to be there", not "hide this row".
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
-  `MultiSelect`, `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
+  `MultiSelect` (two caps that read alike: `limit` is how many options the
+  dropdown *shows* — `null` for all — and `max` is how many values can be
+  *selected*, a pick past it replacing the oldest; single-value tag fields
+  such as `exclusive_source` pass `limit={null} max={1}`), `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `OptionCategorySelect`,
   `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
   it takes `owner={{kind, mediaType?, id}}` and reads and writes an entry's or
