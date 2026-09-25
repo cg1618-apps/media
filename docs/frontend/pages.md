@@ -810,10 +810,10 @@ notes section of its own - with the `remark` section hidden exactly then.
 
 **Notes.** Each `pages/detail/*Notes.jsx` is a one-liner around
 `NotesTemplate` with `ownerType` = `anime | anime-movie | cartoon | collection
-| comic | franchise | h-comic | hentai | manga | movie | novel | series |
-tv-show`
+| comic | franchise | game | h-comic | h-game | hentai | manga | movie |
+novel | series | tv-show`
 (`HComicNotes` also passes `owner`, `nameSuggestions`, `groupOrder` and
-`onGroupOrderChange`). `NotesProvider`
+`onGroupOrderChange`; `HGameNotes` the same less `nameSuggestions`). `NotesProvider`
 (`pages/notes/NotesContext.jsx`) fetches `/api/notes/sections?owner_type=` and
 `/api/notes?owner_type=&owner_id=` (cancellable) and owns the mutations;
 `NotesBlocks` renders a "Notes" card for ungrouped sections plus one card per
@@ -825,7 +825,8 @@ game-only sections did. Group cards render in registry first-appearance order,
 so a group's position is decided by where its first section sits in
 `NOTE_SECTIONS`.
 
-**Game has no `*Notes.jsx` wrapper**: it composes the three pieces itself, so
+**Game.jsx and HGame.jsx use no `*Notes.jsx` wrapper** (`GameNotes` and
+`HGameNotes` are the Modify tabs'): each composes the three pieces itself, so
 that 待辦 Todo renders inside its Progress slip (`NotesGroup groupKey="todo"`)
 while everything else renders at the bottom (`NotesBlocks hideGroups={["todo"]}`),
 from one provider and one fetch. `hideSections` and `hideGroups` are the only
