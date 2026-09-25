@@ -34,6 +34,32 @@ export function releaseYear(value) {
   return parseInt(String(value).slice(0, 4), 10) || 0;
 }
 
+// Which release columns represent an entry, most preferred first. Mirrors
+// RELEASE_PRIORITY; keyed by the hyphenated media-type slug, as there.
+const RELEASE_PRIORITY = {
+  anime: ["release_date"],
+  "anime-movie": ["release_date_jp", "release_date_tw"],
+  movie: ["release_date_tw", "release_date_usa"],
+  "tv-show": ["release_date"],
+  cartoon: ["release_date"],
+  manga: ["release_date"],
+  novel: ["release_date"],
+  comic: ["release_date"],
+  game: ["release_date"],
+  "h-comic": ["release_date"],
+  hentai: ["release_date"],
+  "h-game": ["release_date"],
+};
+
+// The entry's most meaningful release date, or null. Mirrors
+// primary_release_value.
+export function primaryReleaseValue(mediaType, entry) {
+  for (const column of RELEASE_PRIORITY[mediaType] || []) {
+    if (entry[column]) return entry[column];
+  }
+  return null;
+}
+
 // A numeric sort score, year * 10000 + month * 100 + day. Missing precision
 // resolves to the FIRST of the period, matching release_date.sort_key on the
 // backend, so a bare "2020" sorts level with "2020-01-01". Undated values

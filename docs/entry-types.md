@@ -307,7 +307,7 @@ Status values themselves are listed in [options.md](options.md). The frontend `M
 | API base (`MEDIA_CONFIG.apiEndpoint`) | `/api/anime` | `/api/anime-movie` | `/api/movies` | `/api/tv-shows` | `/api/cartoon` | `/api/manga` | `/api/novel` | `/api/comic` | `/api/game` | `/api/h-comic` | `/api/h-game` | `/api/hentai` |
 | Dashboard card on `/` (`Index.jsx`) | `DashboardCard` | none | none | `DashboardCard` | `DashboardCard` | `DashboardCard` (reading section) | `NovelDashboardCard` | `ComicDashboardCard` | none | none | none | none |
 
-`/library/:type` is one page (`frontend/src/pages/library/Library.jsx`) that picks a config from `LIBRARY_CONFIGS` (`frontend/src/pages/library/configs/index.js`), which has twelve keys; `/library/h-comic`, `/library/h-game` and `/library/hentai` are each declared on their own route, behind their gates, and render the same page. The dashboard loads `anime`, `franchise`, `tv-show`, `cartoon`, `manga`, `novel` and `comic` lists; movies and anime movies never appear on it.
+`/library/:type` is one page (`frontend/src/pages/library/Library.jsx`) that picks a config from `LIBRARY_CONFIGS` (`frontend/src/pages/library/configs/index.js`), which has twelve keys; `/library/h-comic`, `/library/h-game` and `/library/hentai` are each declared on their own route, behind their gates, and render the same page. The dashboard loads `anime`, `franchise`, `tv-show`, `cartoon`, `manga`, `novel`, `comic` and `game` lists, plus `anime-movie` and `movie` for a signed-in member; those two have no card and appear only in the Coming Next block under the weekly schedule.
 
 ### Plan-next, rewatch, size buckets (`app/utils/plan_next_kinds.py`)
 

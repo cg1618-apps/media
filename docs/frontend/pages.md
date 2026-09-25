@@ -177,9 +177,11 @@ File `pages/public/Index.jsx`.
 
 **Data**: `useMediaList` for `anime`, `franchise`, `tv-show`, `cartoon`,
 `manga`, `novel`, `comic`, `game` (all `LIST_OPTIONS`) and
-`useApiQuery(["announcements"], "/api/announcements/")`. Announcements are kept
-out of the combined loading/error gate so a failure there never blanks the
-dashboard.
+`useApiQuery(["announcements"], "/api/announcements/")`. For a viewer holding
+`self.list` it also loads `anime-movie` and `movie` and
+`/api/seasonal/current-season`, which only Coming Next reads. Announcements and
+those three are kept out of the combined loading/error gate so a failure there
+never blanks the dashboard.
 
 **Type filter and view**: one `TypeFilterBar` sits above the Watching
 division and is the sticky header for Watching, Reading and Playing together —
@@ -217,10 +219,30 @@ tracker divisions):
 | Anchor | Division | What it shows |
 |---|---|---|
 | `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only here; CRUD is on `/system`. |
-| `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted, entries sort by `HH:MM` then name. |
+| `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted, entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. |
 | `#watching` | Watching (Anime · TV Show · Cartoon) | sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
+
+**Coming Next** shows what the viewer is waiting on or has planned for the
+**next season** — the season after the admin-set current season
+(`system_configs.current_season`), or after the calendar's current season while
+none is set. It has two sub-sections, each grouped by media type (Anime, Anime
+Movie, Movie, TV Show, Cartoon, Game; a type with nothing is omitted) and
+sorted by release date:
+
+- **Watch when airs** — `Watch When Airs`, and `Play When Released` for games.
+- **Planned to** — `Plan to Watch`, and `Plan to Play` for games.
+
+An entry's season is its `release_season` plus the year of its `release_date`
+for anime, and for every other type the calendar quarter of its primary
+release date (`primaryReleaseValue` in `lib/releaseDate.js`, mirroring
+`RELEASE_PRIORITY`: anime movies prefer the Japanese date, movies the Taiwan
+one). A date with only a year has no season, so that entry is left out.
+Reading types have no "when released" status and are not included; gated
+types are not shown on the dashboard. The selection lives in
+`lib/comingNext.js`. Guests never see the section: statuses are the viewer's
+own, so a guest's would always be empty.
 
 **Admin-only controls** (cards read `isAdmin`): a "Quick Edit" pencil
 (`/modify?id=…&type=…`; anime omits `type`) and −/input/+ progress steppers.
