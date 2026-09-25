@@ -2113,6 +2113,26 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   Endings and All CG, because the shared tracker card has no per-type slot.
 - **Its nav row is under Restricted**, with H-Comic's, not in the Library.
 
+### The scope reconcile leaves unscoped options alone (2026-09-25)
+
+- **What happened.** Netflix and Disney+ were left with no scope rows when the
+  media-sources work cleared their TV-only scoping, so they were offered on
+  every type. Calculate's `extract_system_options` then gave them `tv-show`
+  and `cartoon` rows, because TV shows and cartoons name them in
+  `original_source`. On a value with no rows, the first row narrows rather than
+  widens, so both dropped out of the anime, anime-movie and movie Main Sources
+  pickers. Ruling R27 had banned exactly this for `replace_tags`; the reconcile
+  kept doing it, because "additive" was read as "never deletes a row".
+- **The fix.** The reconcile now skips any option with no scope rows. A new
+  value typed into a tag field therefore stays offered everywhere until an
+  admin scopes it, which is what "scopes are admin data" already said.
+- **Explicit scopes, not unscoped again.** Migration `n1d2plscope3` gives both
+  values rows for anime, anime-movie, movie, tv-show and cartoon. Clearing them
+  would also offer them on manga, novel and comic, which are read rather than
+  watched. Explicit rows cannot be narrowed by the reconcile, since it only
+  adds. Its downgrade is a no-op: nothing shows which rows were there before,
+  and the older code is just as happy to offer the values more widely.
+
 ### Game Replace runs IGDB as well as Steam (2026-09-25)
 
 - **Owner's decision: Autofill and Replace run both sources** on `game` and

@@ -252,7 +252,8 @@ Sheets restore — so a Tenrai name and a hand-typed name land on the same row.
 
 Purely additive reconcile: for every `media_tag` whose field is in `TAG_FIELDS`,
 ensure a `system_option_scope (option_id, media_type)` row exists. Never removes
-a scope. Reads existing pairs once into a set — reading them through a
+a scope, and never gives an unscoped option its first one - no rows means
+offered on every type, so that row would narrow it. Reads existing pairs once into a set — reading them through a
 relationship collection instead goes stale mid-run, adds duplicates and 500s
 the first Calculate after a restore. Called by the backfill and by Calculate
 All.

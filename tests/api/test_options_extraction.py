@@ -35,20 +35,46 @@ def test_extraction_records_the_scope_a_value_is_used_in(db_session):
     replace_tags(db_session, show.system_id, "original_source", ["Netflix"])
     db_session.commit()
 
-    # replace_tags already writes the scope row for the type it was called
-    # with. Delete it so the extraction pass under test is what recreates it,
-    # not a leftover from setup.
+    # Scoped somewhere else first: an unscoped value is already offered on
+    # tv-show, and the pass leaves it alone (see the test below).
     opt = db_session.query(models.SystemOption).filter_by(
         category="Platform", value="Netflix"
     ).one()
-    db_session.query(models.SystemOptionScope).filter_by(
-        option_id=opt.system_id
-    ).delete()
+    db_session.add(models.SystemOptionScope(option_id=opt.system_id, scope="cartoon"))
     db_session.commit()
 
     extract_system_options(db_session)
     db_session.refresh(opt)
-    assert [s.scope for s in opt.scopes] == ["tv-show"]
+    assert sorted(s.scope for s in opt.scopes) == ["cartoon", "tv-show"]
+
+
+def test_extraction_leaves_an_unscoped_value_unscoped(db_session):
+    """
+    No scope rows means offered on EVERY media type, so the first scope row
+    narrows rather than widens. Stamping `tv-show` onto an unscoped Netflix
+    because one TV show named it as its original source took Netflix out of
+    the anime and anime-movie Main Sources pickers.
+
+    The mirror case is test_extraction_records_the_scope_a_value_is_used_in:
+    the same tag on a value that IS scoped gains the row, so a green here
+    proves the unscoped check did the skipping, not an empty tag scan.
+    """
+    show = models.TVShows(tv_name_cn="B")
+    db_session.add(show)
+    db_session.commit()
+    from app.services.domain.credits import replace_tags
+
+    replace_tags(db_session, show.system_id, "original_source", ["Netflix"])
+    db_session.commit()
+    opt = db_session.query(models.SystemOption).filter_by(
+        category="Platform", value="Netflix"
+    ).one()
+    assert opt.scopes == []
+
+    report = extract_system_options(db_session)
+    assert "Added 0" in report["message"]
+    db_session.refresh(opt)
+    assert opt.scopes == []
 
 
 def test_the_old_tv_official_source_category_is_never_written(db_session):
@@ -87,13 +113,16 @@ def test_extraction_actually_recreates_a_deleted_scope_row(db_session):
     db_session.query(models.SystemOptionScope).filter_by(
         option_id=opt.system_id
     ).delete()
+    # Scoped elsewhere, so the value is not offered on anime until the pass
+    # adds the row. Left with no scope rows it would be offered everywhere
+    # and the pass would rightly add nothing.
+    db_session.add(models.SystemOptionScope(option_id=opt.system_id, scope="comic"))
     db_session.commit()
-    assert opt.scopes == []
 
     report = extract_system_options(db_session)
     assert "Added 1" in report["message"]
     db_session.refresh(opt)
-    assert [s.scope for s in opt.scopes] == ["anime"]
+    assert sorted(s.scope for s in opt.scopes) == ["anime", "comic"]
 
 
 def test_two_entries_sharing_one_option_do_not_duplicate_the_scope_row(db_session):
@@ -127,6 +156,7 @@ def test_two_entries_sharing_one_option_do_not_duplicate_the_scope_row(db_sessio
     db_session.query(models.SystemOptionScope).filter_by(
         option_id=opt.system_id
     ).delete()
+    db_session.add(models.SystemOptionScope(option_id=opt.system_id, scope="comic"))
     db_session.commit()
 
     # Must not raise, and must add exactly one row for the shared pair.

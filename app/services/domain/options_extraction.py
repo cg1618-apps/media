@@ -9,9 +9,9 @@ dropdown read. There is now one map - credit_roles.TAG_FIELDS - and one pass
 over it, so that class of drift cannot recur.
 
 Since media_tag holds a foreign key, a tag row cannot name a value that does
-not exist. What this pass still does is make sure every referenced value
-carries a scope row for the media type referencing it, so scoped dropdowns
-offer it.
+not exist. What this pass still does is make sure every referenced value that
+is scoped at all carries a scope row for the media type referencing it, so
+scoped dropdowns offer it. An unscoped value is offered everywhere already.
 """
 
 import logging
@@ -30,7 +30,11 @@ def extract_system_options(db: Session) -> dict:
 
     Purely ADDITIVE, and deliberately so (Ruling R27): a value's scopes are
     admin-managed data, so a reconcile pass may widen what a value is offered
-    in but must never narrow it. Nothing here removes a scope row.
+    in but must never narrow it. Nothing here removes a scope row, and nothing
+    here gives an UNSCOPED option its first one: no rows means offered on every
+    media type, so a first row narrows it to one. Stamping `tv-show` onto an
+    unscoped Netflix, because TV shows name it as their original source, is
+    what took Netflix out of the anime Main Sources picker.
 
     The already-present pairs are read ONCE into a local set rather than
     re-read from `option.scopes` per tag. That relationship is loaded on first
@@ -48,6 +52,7 @@ def extract_system_options(db: Session) -> dict:
     known_options = {
         option_id for (option_id,) in db.query(models.SystemOption.system_id).all()
     }
+    scoped_options = {option_id for option_id, _ in existing}
 
     added = 0
     # The scope is the tagged entry's media type, which lives on the joined
@@ -61,6 +66,8 @@ def extract_system_options(db: Session) -> dict:
         if TAG_FIELDS.get(tag.field) is None:
             continue
         if tag.option_id not in known_options:
+            continue
+        if tag.option_id not in scoped_options:
             continue
         pair = (tag.option_id, media_type)
         if pair in existing:

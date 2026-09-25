@@ -794,7 +794,9 @@ only automated pass that touches scopes is `extract_system_options`
 (`app/services/domain/options_extraction.py`), and it is **purely additive**:
 it walks every `media_tag`, and for each `(option_id, media_type)` pair with no
 scope row it inserts one. It never removes a row, skips tags whose `field` is
-not in `TAG_FIELDS` or whose option no longer exists, and reads the existing
+not in `TAG_FIELDS` or whose option no longer exists, skips any option with no
+scope rows at all - unscoped already means every media type, so a first row
+would narrow it - and reads the existing
 pairs once up front so two entries sharing a genre cannot insert a duplicate.
 It runs at the end of every `run_sync_<type>` in `app/services/calculation.py`
 (so Calculate All calls it seven times) and after credit backfill.
