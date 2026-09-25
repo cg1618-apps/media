@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -753,18 +753,25 @@ The label is a **system label**, and nothing about it is left to an admin,
 because a missing label means a public entry:
 
 - **Created** by migration `h1c2o3m4i5c6` and by the lifespan seed
-  (`ensure_label` in `app/services/domain/h_comic.py`), granted to
-  `unrestricted` only. `DELETE /api/content-labels/{id}` refuses it (409).
+  (`ensure_system_labels` in `app/services/domain/gated_labels.py`, which
+  finds the label by key and so adopts a row an admin made by hand), granted
+  to `unrestricted` only. `DELETE /api/content-labels/{id}` refuses it (409).
 - **Stamped on every h-comic entry on every write path**: the registry's
   `progress_hook` on create, update and the tracker PATCH; and
-  `enforce_h_comic_invariants` after Pull restores the H-Comic, User Media
-  List, Franchise or any label tab, and in Calculate (`run_sync_h_comic`).
+  `enforce_gated_label_invariants` after Pull restores the H-Comic, Franchise
+  or any label tab, and in Calculate (`run_sync_gated_labels`).
 - **Stamped on every franchise whose type includes `H-Comic`**: when the
   resolver auto-creates one, when a franchise is created, updated or patched
   with that type, and by the same invariant pass.
 - **Never removable**: a label replace on an h-comic entry or an `H-Comic`
   franchise whose new set lacks `h-comic` is refused with 422 before anything
-  is deleted.
+  is deleted (`refuse_label_removal_on_entry` /
+  `refuse_label_removal_on_franchise`).
+
+All of this lives in `app/services/domain/gated_labels.py` and is driven by
+`REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` alone: a further gated
+type adds its map entry and its row in `gated_labels.SYSTEM_LABELS`, and every
+bullet above applies to it.
 
 With the label on every entry, the ordinary gates hide the type everywhere
 `enforcement.py` reaches, and the shared-record rule above hides everything

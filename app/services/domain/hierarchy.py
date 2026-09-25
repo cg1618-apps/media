@@ -139,12 +139,12 @@ def resolve_franchise(db: Session, franchise_id: Any, names: Dict[str, Any], med
     )
     db.add(created)
     db.flush()
-    if created.franchise_type == FranchiseType.H_COMIC:
-        # Imported here: h_comic imports models, and this module is loaded
-        # while app.services.domain is still initialising.
-        from app.services.domain.h_comic import ensure_franchise_label
+    # A gated type's franchise carries its label from birth; a no-op for
+    # every other type. Imported here: this module is loaded while
+    # app.services.domain is still initialising.
+    from app.services.domain.gated_labels import ensure_franchise_labels
 
-        ensure_franchise_label(db, created)
+    ensure_franchise_labels(db, created)
     logger.info("Auto-created missing Franchise for %s: %s", label, created.system_id)
     return created.system_id
 

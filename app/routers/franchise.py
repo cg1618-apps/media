@@ -18,7 +18,7 @@ from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import attach_remark, pop_remark, upsert_remark
 from app.services.domain.content_labels import attach_franchise_content_labels
-from app.services.domain.h_comic import ensure_franchise_label
+from app.services.domain.gated_labels import ensure_franchise_labels
 from app.services.rbac.enforcement import (
     apply_franchise_visibility,
     franchise_visible,
@@ -136,10 +136,10 @@ def create_franchise(
 
         db.add(new_franchise)
         db.flush()
-        # A franchise whose type includes H-Comic carries the h-comic label
-        # from its first write - otherwise it is public until someone labels
-        # it by hand.
-        ensure_franchise_label(db, new_franchise)
+        # A franchise whose type names a gated type's franchise type (H-Comic)
+        # carries that type's label from its first write - otherwise it is
+        # public until someone labels it by hand.
+        ensure_franchise_labels(db, new_franchise)
         db.commit()
         db.refresh(new_franchise)
 
@@ -189,8 +189,8 @@ def update_franchise(
         )
 
     db_franchise.updated_at = get_taipei_now()
-    # A type that GAINS H-Comic gains the label with it.
-    ensure_franchise_label(db, db_franchise)
+    # A type that GAINS a gated franchise type (H-Comic) gains its label.
+    ensure_franchise_labels(db, db_franchise)
     db.commit()
     db.refresh(db_franchise)
 
@@ -226,8 +226,8 @@ def patch_franchise(
         )
 
     db_franchise.updated_at = get_taipei_now()
-    # A type that GAINS H-Comic gains the label with it.
-    ensure_franchise_label(db, db_franchise)
+    # A type that GAINS a gated franchise type (H-Comic) gains its label.
+    ensure_franchise_labels(db, db_franchise)
     db.commit()
     db.refresh(db_franchise)
 
