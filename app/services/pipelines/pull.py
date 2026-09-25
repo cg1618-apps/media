@@ -51,8 +51,8 @@ from app.services.domain.credits import (
     replace_credits,
     replace_tags,
 )
+from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import enforce_h_comic_invariants
-from app.services.domain.hentai import enforce_hentai_invariants
 from app.services.domain.user_list import installation_owner_id
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
@@ -68,6 +68,7 @@ from app.services.pipelines.tabs import (
 from app.services.pipelines.tabs import (
     MEDIA_TYPE_FOR_TAB as _MEDIA_TYPE_FOR_TAB,
 )
+from app.services.rbac.gated_types import REQUIRED_LABEL_FOR_TYPE
 from app.services.security import UNUSABLE_PASSWORD_HASH
 from app.utils.credit_roles import (
     CREDIT_ROLES,
@@ -99,25 +100,23 @@ _FINDERS = {
 MEDIA_TYPE_FOR_TAB = _MEDIA_TYPE_FOR_TAB
 
 
-# Tabs after which the h-comic invariants are re-established (see
-# app/services/domain/h_comic.py). Every tab that writes an h-comic row, a
-# reader's counter on one, a franchise type, or a content label assignment.
-H_COMIC_INVARIANT_TABS: frozenset[str] = frozenset(
-    {
-        "H-Comic",
-        "User Media List",
-        "Franchise",
-        "Content Label",
-        "Media Content Label",
-        "Franchise Content Label",
-    }
-)
+# Tabs after which the h-comic variant rule is re-established (see
+# app/services/domain/h_comic.py): every tab that writes an h-comic row or a
+# reader's counter on one.
+H_COMIC_INVARIANT_TABS: frozenset[str] = frozenset({"H-Comic", "User Media List"})
 
-# Tabs after which the hentai label is re-attached (app/services/domain/
-# hentai.py): the entries, the franchise types, and the label assignments.
-HENTAI_INVARIANT_TABS: frozenset[str] = frozenset(
+# Tabs after which every gated type's label is re-attached (see
+# app/services/domain/gated_labels.py): each gated type's entry tab, the
+# franchise types, and the label tabs a sheet could have restored without a
+# required label. Derived from REQUIRED_LABEL_FOR_TYPE, so a new gated type's
+# tab joins by being registered.
+GATED_LABEL_INVARIANT_TABS: frozenset[str] = frozenset(
     {
-        "Hentai",
+        tab
+        for tab, media_type in _MEDIA_TYPE_FOR_TAB.items()
+        if media_type in REQUIRED_LABEL_FOR_TYPE
+    }
+    | {
         "Franchise",
         "Content Label",
         "Media Content Label",
@@ -1672,18 +1671,17 @@ def execute_pull_specific(
     resync_public_id_sequence(db, Model)
     db.commit()
 
-    # A restore writes rows straight to the tables, so neither h-comic hook
-    # ran. Re-establish both invariants - the region's unused columns cleared,
-    # the h-comic label on every entry and every H-Comic franchise - after
-    # every tab that can break one: the entries themselves, the list rows
-    # holding their counters, the franchises, and the label tabs a sheet
-    # could have restored without the required label.
+    # A restore writes rows straight to the tables, so no write hook ran.
+    # Re-establish the h-comic variant rule - the region's unused columns
+    # cleared - after the entries and the list rows holding their counters.
     if tab_name in H_COMIC_INVARIANT_TABS:
         enforce_h_comic_invariants(db)
         db.commit()
-    # The same net for the hentai label.
-    if tab_name in HENTAI_INVARIANT_TABS:
-        enforce_hentai_invariants(db)
+    # And every gated type's label on every entry and every franchise of its
+    # franchise type, after every tab that can break it: the entries, the
+    # franchises, and the label tabs.
+    if tab_name in GATED_LABEL_INVARIANT_TABS:
+        enforce_gated_label_invariants(db)
         db.commit()
 
     logger.info("Successfully pulled and upserted %s records from '%s'.", processed, tab_name)

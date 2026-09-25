@@ -19,14 +19,20 @@ STORY_KEYS = [
     "main_plot",
     "side_plot",
     "character_arcs",
-    # An ending is a story OUTCOME rather than a guide topic. It sat in 攻略
-    # while it had nowhere better; above 世界觀&設定 is where it reads.
+    # An ending is a story OUTCOME rather than a guide topic, so it is the
+    # last strand of the plot rather than a 攻略 section.
     "endings",
+]
+
+# The world the plot happens in, split out of 劇情 so that card holds only
+# what happens and to whom.
+STORY_SETTING_KEYS = [
     "lore",
     # A glossary of the story's own vocabulary, beside the lore it names.
     "story_terms",
     "timeline",
     "mysteries",
+    # The overflow for a stray story observation.
     "story_other",
 ]
 
@@ -53,6 +59,9 @@ def test_the_groups_exist_in_order():
         # 劇情 is the story as prose; 劇情列表 is the same story as a
         # structure. Adjacent on purpose, and separate on purpose.
         "story_list",
+        # The world the story happens in. After 劇情列表 so the two tellings
+        # of the story stay a pair.
+        "worldbuilding",
         "todo",
         "music",
         # Renders near the end, beside the site-wide Resources card.
@@ -61,8 +70,20 @@ def test_the_groups_exist_in_order():
     ]
 
 
-def test_the_story_group_holds_nine_sections_in_order():
+def test_the_story_group_holds_the_four_plot_strands_in_order():
     assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story"] == STORY_KEYS
+
+
+def test_the_worldbuilding_group_holds_five_sections_in_order():
+    keys = [s.key for s in ns.NOTE_SECTIONS if s.group == "worldbuilding"]
+    assert keys == STORY_SETTING_KEYS
+
+
+def test_the_worldbuilding_card_renders_after_the_story_list():
+    # Card order is registry position, so this pins where the card lands.
+    order = [s.key for s in ns.NOTE_SECTIONS]
+    assert order.index("lore") > order.index("story_list_event")
+    assert order.index("story_other") < order.index("todo_now")
 
 
 def test_the_todo_group_holds_four_buckets_in_order():

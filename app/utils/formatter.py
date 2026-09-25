@@ -962,7 +962,8 @@ def parse_h_comic_from_sheet(raw: dict) -> dict:
 
     The region's unused columns are NOT cleared here: a parser only types what
     the sheet says. Pull runs enforce_h_comic_invariants after the tab lands,
-    which clears them and re-attaches the h-comic label.
+    which clears them, and enforce_gated_label_invariants, which re-attaches
+    the h-comic label.
     """
     parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),

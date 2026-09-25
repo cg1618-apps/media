@@ -32,6 +32,7 @@ from app.services.rbac.enforcement import (
     filter_visible_pairs,
 )
 from app.services.rbac.field_gate import gate
+from app.services.rbac.gated_types import unseeable_gated_types
 from app.services.rbac.resolver import viewer_user_id
 from app.services.rbac.shared_visibility import CONNECTIONS, apply_shared_visibility
 from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS
@@ -160,8 +161,8 @@ SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
     _spec("comic", "comic", "comic_name_en"),
     # Games rank below every other ungated type.
     _spec("game", "game", "game_name_cn"),
-    # After game. Its entries carry the h-comic label, so a session that
-    # cannot see the type gets this bucket back empty, like any hidden entry.
+    # After game. A gated type: search() leaves its bucket out altogether for
+    # a session that cannot see it.
     _spec("h-comic", "h_comic", "h_comic_name_cn"),
     # After h-comic, gated the same way by the hentai label.
     _spec("hentai", "hentai", "hentai_name_cn"),
@@ -367,17 +368,22 @@ def search(db: Session, viewer, query: str, scope: str = "all", limit: int = 500
     """
     Search every type (or the one named by `scope`) for `query`.
 
-    Returns (buckets, related_franchises). Buckets always carry a key for every
-    searchable type, empty for the ones this scope did not ask about, so the
-    caller never has to test for a missing key.
+    Returns (buckets, related_franchises). Buckets carry a key for every
+    searchable type this viewer may see, empty for the ones this scope did not
+    ask about. A gated type the viewer cannot see has NO key: an empty bucket
+    would still say the type exists (gated_types.py).
     """
-    buckets: dict[str, list] = {spec.key: [] for spec in SEARCHABLE_TYPES}
+    hidden = unseeable_gated_types(db, viewer)
+    searchable = tuple(spec for spec in SEARCHABLE_TYPES if spec.key not in hidden)
+    buckets: dict[str, list] = {spec.key: [] for spec in searchable}
     q_clean = clean_string(query)
     if not q_clean:
         return buckets, []
 
     active = (
-        SEARCHABLE_TYPES if scope == "all" else (SEARCHABLE_BY_KEY[scope],)
+        searchable
+        if scope == "all"
+        else tuple(spec for spec in searchable if spec.key == scope)
     )
     raw: dict[str, list] = {}
     for spec in active:

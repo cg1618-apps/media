@@ -22,10 +22,12 @@ The write paths that reach them:
   form create / update, tracker PATCH   the registry's progress hooks
                                         (app/registry.py), which the router
                                         factory calls on all three
-  Pull, sheet restore                   enforce_h_comic_invariants, run after
-                                        the H-Comic, User Media List,
-                                        Franchise and label tabs
-  Calculate                             run_sync_h_comic, the same function
+  Pull, sheet restore                   enforce_h_comic_invariants (variant),
+                                        run after the H-Comic and User Media
+                                        List tabs; gated_labels.
+                                        enforce_gated_label_invariants (label)
+  Calculate                             run_sync_h_comic and
+                                        run_sync_gated_labels, the same two
 
 Both invariants are idempotent, so running them twice is always safe.
 
@@ -42,10 +44,6 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.services.domain import gated_labels
-from app.services.domain.hierarchy import (
-    check_entry_franchise_family,
-    franchise_type_tokens,
-)
 from app.utils.constants import (
     H_COMIC_ANIMATION_STATUSES,
     H_COMIC_ORIGINALITY,
@@ -178,17 +176,6 @@ def _validate_catalog(entry) -> None:
     entry.highlight_group_order = normalize_group_order(entry.highlight_group_order)
 
 
-def _require_h_comic_franchise(db: Session, entry) -> None:
-    """
-    An h-comic never sits in a franchise of another family (D9): only one
-    whose types are all of the h-comic family, which a Hentai franchise is.
-
-    The name resolver already refuses to match one; this catches the other
-    way in, a franchise named by id.
-    """
-    check_entry_franchise_family(db, getattr(entry, "franchise_id", None), MEDIA_TYPE)
-
-
 def h_comic_progress_hook(db: Session, entry) -> None:
     """
     The catalogue half of every form and tracker write: validate, clear by
@@ -200,13 +187,12 @@ def h_comic_progress_hook(db: Session, entry) -> None:
     """
     try:
         _validate_catalog(entry)
-        _require_h_comic_franchise(db, entry)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     clear_h_comic_catalog(entry)
     if entry.system_id is not None:
         db.flush()
-        ensure_entry_label(db, entry.system_id)
+        gated_labels.ensure_entry_label(db, entry.system_id, LABEL_KEY)
 
 
 def h_comic_progress_hook_list(row, entry) -> None:
@@ -246,27 +232,12 @@ def mark_h_comic_list(row, entry) -> None:
 
 def franchise_types(franchise) -> list[str]:
     """A franchise's comma-separated type list, as tokens."""
-    return franchise_type_tokens(getattr(franchise, "franchise_type", None))
+    raw = (getattr(franchise, "franchise_type", None) or "").strip()
+    return [t.strip() for t in raw.split(",") if t.strip()]
 
 
 def is_h_comic_franchise(franchise) -> bool:
     return FranchiseType.H_COMIC.value in franchise_types(franchise)
-
-
-def ensure_label(db: Session) -> models.ContentLabel:
-    """The `h-comic` content label, created if it is missing. Idempotent."""
-    return gated_labels.ensure_label(db, LABEL_KEY)
-
-
-def ensure_entry_label(db: Session, entry_id) -> None:
-    """Attach the label to one entry unless it already carries it."""
-    gated_labels.ensure_entry_label(db, entry_id, LABEL_KEY)
-
-
-def ensure_franchise_label(db: Session, franchise) -> None:
-    """Attach every gated label a franchise's types require - `h-comic` for
-    H-Comic among them."""
-    gated_labels.ensure_franchise_labels(db, franchise)
 
 
 # ---------------------------------------------------------------------------
@@ -390,19 +361,19 @@ def write_animation_status(db: Session, entry, value, viewer=None) -> None:
 
 def enforce_h_comic_invariants(db: Session) -> dict:
     """
-    Re-establish both invariants over the whole table. Idempotent.
+    Re-establish the variant rule over the whole table. Idempotent.
 
     A Pull writes rows straight to the tables, so neither hook ran: this
-    clears by region, re-attaches every missing label (entries and H-Comic
-    franchises), and clears the reader counters on every list row of an
-    h-comic. Does not commit - the caller owns the transaction.
+    clears by region and clears the reader counters on every list row of an
+    h-comic. The label half is gated_labels.enforce_gated_label_invariants,
+    which every caller of this runs as well. Does not commit - the caller
+    owns the transaction.
     """
     entries = db.query(models.HComic).all()
     by_id = {entry.system_id: entry for entry in entries}
     for entry in entries:
         clear_h_comic_catalog(entry)
         entry.highlight_group_order = _safe_group_order(entry)
-        ensure_entry_label(db, entry.system_id)
 
     if by_id:
         rows = (
@@ -412,9 +383,6 @@ def enforce_h_comic_invariants(db: Session) -> dict:
         )
         for row in rows:
             clear_h_comic_list(row, by_id[row.media_id])
-
-    for franchise in gated_labels.franchises_of_type(db, FranchiseType.H_COMIC.value):
-        ensure_franchise_label(db, franchise)
     db.flush()
     return {"entries": len(entries)}
 

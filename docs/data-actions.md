@@ -387,21 +387,23 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
        while one person writes them; these three tabs need a `username`
        column, the way `Plan Next` has one, before a second author matters.
 
-   - **After the tab commits**, when the tab is one of `HENTAI_INVARIANT_TABS`
-     (`Hentai`, `Franchise`, `Content Label`, `Media Content Label`,
-     `Franchise Content Label`), `enforce_hentai_invariants` re-attaches the
-     `hentai` label to every hentai and every `Hentai` franchise and commits,
-     for the same reason as h-comic's pass below.
-   - **After the tab commits**, when the tab is one of `H_COMIC_INVARIANT_TABS`
-     (`H-Comic`, `User Media List`, `Franchise`, `Content Label`,
-     `Media Content Label`, `Franchise Content Label`), `enforce_h_comic_invariants`
-     runs over the whole h-comic table and commits: each entry's unused region
-     columns are cleared (and a `highlight_group_order` that is not a list of
-     names is dropped), every reader's unused counter is cleared, and the
-     `h-comic` label is re-attached to every entry and every `H-Comic`
-     franchise. A restore writes rows straight to the tables, so neither the
-     region rule nor the label would otherwise hold for it; a hand-edited sheet
-     that dropped a label cannot make an h-comic public.
+   - **After the tab commits**, two passes, each over the whole table and each
+     committed. A restore writes rows straight to the tables, so neither the
+     region rule nor the label would otherwise hold for it.
+     - When the tab is one of `H_COMIC_INVARIANT_TABS` (`H-Comic`,
+       `User Media List`), `enforce_h_comic_invariants`: each h-comic's unused
+       region columns are cleared (and a `highlight_group_order` that is not a
+       list of names is dropped), and every reader's unused counter is cleared.
+     - When the tab is one of `GATED_LABEL_INVARIANT_TABS` - every gated
+       type's entry tab (`H-Comic`, `Hentai`), `Franchise`, `Content Label`,
+       `Media Content Label` and `Franchise Content Label` -
+       `enforce_gated_label_invariants` (`app/services/domain/gated_labels.py`):
+       every gated type's label is re-attached to every entry of the type and
+       every franchise of its franchise type (`h-comic` on every h-comic and
+       every `H-Comic` franchise, `hentai` on every hentai and every `Hentai`
+       franchise). A hand-edited sheet that dropped a label cannot make a
+       gated entry public. The set is derived from `REQUIRED_LABEL_FOR_TYPE`,
+       so a new gated type's tab joins it by being registered.
 
 ### 3.2 Pull All — `execute_pull_all(db, action_type)`
 
@@ -450,8 +452,8 @@ Per type (verbatim from `specs.py`):
 | `novel` | Two branches: `mal_link` set and `has_missing_values_novel`; **or** `mal_link` unset, `openlibrary_id` set, and `has_missing_values_novel_openlibrary(db, e)` | `autofill_novel_from_mal(e, force_replace_ratings=True)` then `autofill_from_anilist(e, MANGA, db)` when `mal_link` is set, else `autofill_novel_from_openlibrary(e, db)` alone | 1 s | — | `"Syncing system options..."` → `run_sync_novel` | — |
 | `comic` | `comicvine_id` set and `has_missing_values_comic(db, e)` | `autofill_comic_from_comicvine(e, db)` | `COMICVINE_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_comic` | `comicvine_rate_limiter.has_capacity` |
 | `game` | `igdb_id` set and `has_missing_values_game(e)`, **or** `has_missing_values_game_steam(e)` | `autofill_game_from_igdb(e, db)` then `autofill_game_from_steam(e, db)` | `STEAM_PAUSE` = 0.5 s | — | `"Syncing system options..."` → `run_sync_game` | `steam_store_rate_limiter.has_capacity` |
-| `h-comic` | never - there is no external API | none | 0 | — | `"Syncing h-comic invariants..."` → `run_sync_h_comic` | — |
-| `hentai` | `mal_id` set and `has_missing_values_hentai` (`airing_status`, `release_date` or the cover blank) | `autofill_hentai_from_mal(e, db=db)` - no AniList | `MAL_PAUSE` = 1 s | — | `"Syncing hentai invariants..."` → `run_sync_hentai` | — |
+| `h-comic` | never - there is no external API | none | 0 | — | `"Syncing h-comic invariants..."` → `run_sync_h_comic`, `"Syncing gated labels..."` → `run_sync_gated_labels` | — |
+| `hentai` | `mal_id` set and `has_missing_values_hentai` (`airing_status`, `release_date` or the cover blank) | `autofill_hentai_from_mal(e, db=db)` - no AniList | `MAL_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_hentai`, `"Syncing gated labels..."` → `run_sync_gated_labels` | — |
 | `studio` | `mal_id` set and `has_missing_values_studio` | `autofill_studio_from_mal(e)` | `MAL_PAUSE` = 1 s | — | — | — |
 
 `extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie, hentai), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic), `apply_extract_game_ids` (game — runs both `apply_extract_igdb_id`, from `igdb_link`, and `apply_extract_steam_appid`, from `steam_link`, unconditionally, since a game can carry an IGDB link, a Steam link, or both; a `www.igdb.com` **slug** URL or a `steamcommunity.com` hub link carries no id and leaves any existing one untouched, mirroring `extract_comicvine_id`'s rejection of issue URLs). `apply_extract_mal_id_studio` (studio — a producer URL is `myanimelist.net/anime/producer/<id>/<slug>`, which needs its own pattern; see [external-apis.md](external-apis.md#tenrai-myanimelist)).
@@ -499,8 +501,8 @@ tighter than IGDB's. See [external-apis.md](external-apis.md#igdb) and
 **H-Comic has a spec and no source.** `PIPELINES["h-comic"]` exists for the
 routes the pipeline page builds from the registry and for the single-entry
 write hook; `fill_eligible` is always `False`, there is no `replace`, and it is
-out of Fill All and Replace All. What it does run is `run_sync_h_comic` - after
-a Fill, and as the write hook's `single_after`.
+out of Fill All and Replace All. What it does run is `run_sync_h_comic` and
+`run_sync_gated_labels` - after a Fill, and as the write hook's `single_after`.
 
 **Hentai reads Tenrai for three things.** `PIPELINES["hentai"]` is anime's
 spec minus AniList: `fetch_tenrai_anime_data` and `map_tenrai_to_anime_data`,
@@ -509,7 +511,8 @@ which serve Rx titles like any other, and only `airing_status`,
 has none) are written - no names, studio, scores or AniList. Because nothing
 it writes is overwritten, its bulk Replace completes what is blank and
 changes nothing else. Every run, and the single-entry write hook, ends in
-`run_sync_hentai`, which keeps the `hentai` label on.
+`run_sync_hentai` (system options) and `run_sync_gated_labels`, which keeps
+the `hentai` label on.
 
 **Comic Vine budget stop**: the limiter allows 200 requests per rolling hour. Before each comic, `has_capacity()` is checked; when it is `False` the loop breaks instead of blocking, and the remaining count is reported in the final message. The run still logs `Success`.
 
@@ -540,7 +543,7 @@ Returns a status dict, never raises. `action_specific` is `"Replace for single {
 
 1. Look up `spec.model.system_id == entry_id`; missing → logs `Failed` (`"{label} not found 404"`) and returns `status_code: 404`.
 2. If the spec has `replace`, run it with `bulk=False` in a worker thread; commit.
-3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic`, `run_sync_game`, `run_sync_h_comic`, `run_sync_hentai`. Movie and TV Show have none. Comic has no `replace` at all, so its single hook only re-syncs system options; h-comic has none either, so its hook only runs `run_sync_h_comic`.
+3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic`, `run_sync_game`, `run_sync_h_comic` then `run_sync_gated_labels` (h-comic), `run_sync_hentai` then `run_sync_gated_labels` (hentai). Movie and TV Show have none. Comic has no `replace` at all, so its single hook only re-syncs system options; h-comic has none either, so its hook only runs those two syncs.
 4. Log `Replace` / `Success` with `rows_updated=1`; return `{"status": "success", "message": "Successfully updated {display_name}."}`. Any exception → rollback, log `Failed`, `status_code: 500`.
 
 **Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel, comic, game, h-comic and hentai (`execute_replace_single_game` now calls `apply_single_replace_game`, so a game saved with a `steam_appid` picks up its Steam data immediately, not just on the next Replace run): the CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
@@ -557,7 +560,7 @@ The manual route `POST /replace/{key}/{entry_id}` calls the same function with `
 |---|---|---|
 | 1 | `run_post_processing` | `anime_post_processing` for every Anime, `anime_movie_post_processing` for every AnimeMovies, `tv_show_post_processing` for every TVShows, `cartoon_post_processing` for every Cartoon, `manga_post_processing` for every Manga; commit after each type. (Movies, Novel and Comic have no post-processing.) |
 | 2 | `run_derive_ep_previous` | `derive_ep_previous_all_anime(db)` — anime is the only type with a franchise-wide derived field left |
-| 3 | `run_sync` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears and the `h-comic` label over the whole table - and a commit), `run_sync_hentai` (`extract_system_options`, then `enforce_hentai_invariants` - the `hentai` label - and a commit), then `run_sync_size_groups` (`derive_size_groups` + commit) |
+| 3 | `run_sync` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears over the whole table - and a commit), `run_sync_hentai` (just `extract_system_options`), `run_sync_gated_labels` (`enforce_gated_label_invariants` - every gated type's label on every entry of the type and every franchise of its franchise type - and a commit), then `run_sync_size_groups` (`derive_size_groups` + commit) |
 | 4 | `bulk_check_cover_image(db)` | runs the cover check; its result is discarded |
 | 5 | log | `Calculate` / `Calculate All` / `Manual` / `Success` |
 

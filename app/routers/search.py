@@ -12,7 +12,7 @@ from enum import Enum
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_serializer
 from sqlalchemy.orm import Session
 
 from app import schemas
@@ -45,8 +45,13 @@ class SearchBuckets(BaseModel):
     novel: List[schemas.NovelResponse] = []
     comic: List[schemas.ComicResponse] = []
     game: List[schemas.GameResponse] = []
-    h_comic: List[schemas.HComicResponse] = Field(default=[], alias="h-comic")
-    hentai: List[schemas.HentaiResponse] = []
+    # A gated type's bucket defaults to None, not [], and _drop_absent leaves
+    # a None bucket out of the response: search() gives no key for a gated
+    # type the viewer cannot see, and the response must not put one back.
+    h_comic: Optional[List[schemas.HComicResponse]] = Field(
+        default=None, alias="h-comic"
+    )
+    hentai: Optional[List[schemas.HentaiResponse]] = None
     seasonal: List[schemas.SeasonalResponse] = []
     # Staff. Ranked below the media buckets by the frontend, and characters are
     # deliberately not here - see services/domain/search.py.
@@ -59,6 +64,12 @@ class SearchBuckets(BaseModel):
     # equal to the media type, so the client can index buckets by type with no
     # translation table; populate_by_name lets this side build it by field name.
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
+
+    @model_serializer(mode="wrap")
+    def _drop_absent(self, handler):
+        """Leave out a bucket that is None - a hidden gated type's. Top level
+        only: a null field on an entry inside a bucket is still sent."""
+        return {key: rows for key, rows in handler(self).items() if rows is not None}
 
 
 class SearchResponse(BaseModel):

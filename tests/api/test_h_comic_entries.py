@@ -241,6 +241,40 @@ def test_the_personal_counters_follow_the_region(admin_client, db_session, admin
     assert row.ch_fin == 4
 
 
+def test_my_list_put_checks_usefulness(admin_client, mode_client, plain_member):
+    """/api/me/list writes the same row the tracker does, so it runs the same
+    per-type list hook. A member, not the admin: root holds no list rows."""
+    body = _create(admin_client, region="JP")
+    member = mode_client("unrestricted", user=plain_member)
+    url = f"/api/me/list/{body['system_id']}"
+    response = member.put(url, json={"usefulness": "bogus"})
+    assert response.status_code == 422, response.text
+    # The mirror: a value from the vocabulary is accepted on the same path.
+    response = member.put(url, json={"usefulness": "實用"})
+    assert response.status_code == 200, response.text
+    assert response.json()["usefulness"] == "實用"
+
+
+def test_my_list_put_clears_the_counter_the_region_does_not_use(
+    admin_client, mode_client, plain_member, db_session
+):
+    body = _create(admin_client, region="JP")
+    member = mode_client("unrestricted", user=plain_member)
+    response = member.put(
+        f"/api/me/list/{body['system_id']}", json={"page_fin": 7, "ch_fin": 3}
+    )
+    assert response.status_code == 200, response.text
+    # The stored row, not the response: _serialize reads a cleared counter
+    # back as the list default, 0.
+    row = (
+        db_session.query(models.UserMediaList)
+        .filter_by(user_id=plain_member.id, media_id=uuid.UUID(body["system_id"]))
+        .one()
+    )
+    assert row.page_fin == 7
+    assert row.ch_fin is None
+
+
 def test_complete_fills_the_region_counter(admin_client, db_session, admin_user):
     body = _create(admin_client, region="KR", ch_total=12)
     response = admin_client.post(f"{ROUTE}/{body['system_id']}/complete")
@@ -329,8 +363,11 @@ def test_a_guest_does_not_find_it_in_the_list(client, labelled_h_comic):
 
 
 def test_a_guest_does_not_find_it_in_search(client, labelled_h_comic):
+    """Not an empty bucket but no bucket: an empty key would still say the
+    type exists."""
     body = client.get("/api/search/", params={"q": "Zvornik"}).json()
-    assert body["results"]["h-comic"] == []
+    assert "h-comic" not in body["results"]
+    assert "manga" in body["results"]
 
 
 def test_unrestricted_sees_it_everywhere(admin_client, labelled_h_comic):
@@ -356,6 +393,29 @@ def test_the_unrestricted_mode_sees_it(mode_client, plain_member, labelled_h_com
     """The mirror, through the same mode-client path as the refusals."""
     viewer = mode_client("unrestricted", user=plain_member)
     assert viewer.get(f"{ROUTE}/{labelled_h_comic['public_id']}").status_code == 200
+
+
+@pytest.mark.parametrize("q", ["Zvornik", ""])
+def test_a_narrow_mode_gets_no_search_bucket_for_the_type(
+    mode_client, plain_member, labelled_h_comic, q
+):
+    """With a match and without one: an empty query returns early, and must
+    not bring the key back."""
+    viewer = mode_client("borderline", user=plain_member)
+    results = viewer.get("/api/search/", params={"q": q}).json()["results"]
+    assert "h-comic" not in results
+    assert "manga" in results
+
+
+def test_the_unrestricted_mode_gets_the_search_bucket(
+    mode_client, plain_member, labelled_h_comic
+):
+    """The mirror of the narrow-mode refusal, through the same path."""
+    viewer = mode_client("unrestricted", user=plain_member)
+    results = viewer.get("/api/search/", params={"q": "Zvornik"}).json()["results"]
+    assert [e["system_id"] for e in results["h-comic"]] == [
+        labelled_h_comic["system_id"]
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -495,8 +555,8 @@ def test_a_franchise_gaining_the_type_gains_the_label(admin_client, db_session):
     franchise_id = uuid.UUID(created["system_id"])
     assert label_keys_for_franchise(db_session, franchise_id) == []
 
-    # H-Comic alone: "ACG, H-Comic" would span two families and is refused
-    # (tests/api/test_franchise_families.py).
+    # To H-Comic alone: "ACG, H-Comic" spans two families and is refused
+    # (test_franchise_family.py).
     response = admin_client.patch(
         f"/api/franchise/{franchise_id}", json={"franchise_type": "H-Comic"}
     )

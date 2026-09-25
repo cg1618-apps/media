@@ -758,26 +758,37 @@ every gated type (`app/services/domain/gated_labels.py`):
 
 - **Created** by its type's migration (`h1c2o3m4i5c6` for `h-comic`,
   `h2e3n4t5a6i7` for `hentai`) and by the lifespan seed
-  (`ensure_system_labels`), **found by key** - a `hentai` label an admin had
-  made by hand is adopted, not duplicated - and granted to `unrestricted`
-  only. `DELETE /api/content-labels/{id}` refuses it (409).
+  (`ensure_system_labels` in `app/services/domain/gated_labels.py`, which
+  finds the label by key and so adopts a row an admin made by hand - a
+  `hentai` label made by hand is adopted, not duplicated), granted to
+  `unrestricted` only. `DELETE /api/content-labels/{id}` refuses it (409).
 - **The `hentai` label means the type.** Its migration removed it from every
   entry that is not a hentai, and removed any grant to a mode other than
   `unrestricted`; neither is restored by the downgrade. Nothing refuses
   either label on another type's entry afterwards.
 - **Stamped on every entry of its type on every write path**: the registry's
-  `progress_hook` on create, update and the tracker PATCH; and the type's
-  invariant pass (`enforce_h_comic_invariants`, `enforce_hentai_invariants`)
-  after Pull restores the type's tab, Franchise or any label tab (h-comic's
-  also after User Media List), and in Calculate (`run_sync_h_comic`,
-  `run_sync_hentai`).
+  `progress_hook` on create, update and the tracker PATCH; and
+  `enforce_gated_label_invariants` after Pull restores the type's tab,
+  Franchise or any label tab, and in Calculate (`run_sync_gated_labels`).
 - **Stamped on every franchise whose type list names the type's franchise
   type** (`H-Comic` -> `h-comic`, `Hentai` -> `hentai`; a franchise holding
   both carries both): when the resolver auto-creates one, when a franchise is
   created, updated or patched with that type, and by the same invariant pass.
 - **Never removable**: a label replace on a gated entry, or on a franchise
   whose types require it, whose new set lacks the required label is refused
-  with 422 before anything is deleted.
+  with 422 before anything is deleted (`refuse_label_removal_on_entry` /
+  `refuse_label_removal_on_franchise`).
+- **Kept in its own franchises, both ways.** A mainstream entry under an
+  h-comic-family franchise would be hidden by that franchise's label, and a
+  gated entry under a mainstream franchise would put a gated work in a public
+  group. `FRANCHISE_FAMILY_FOR_TYPE` sorts franchise types into families -
+  `H-Comic` and `Hentai` are one - and every write path keeps an entry in its
+  own ([entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy)).
+
+The label handling lives in `app/services/domain/gated_labels.py` and is driven by
+`REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` alone: a further gated
+type adds its map entry and its row in `gated_labels.SYSTEM_LABELS`, and every
+bullet above applies to it.
 
 With the label on every entry, the ordinary gates hide the type everywhere
 `enforcement.py` reaches, and the shared-record rule above hides everything
@@ -804,6 +815,7 @@ a second gated type needs no edit to them:
 | `GET /api/notes/sections?owner_type=h-comic` (or `hentai`) | the whole answer: 400, as for an unknown owner type. No other owner type lists `h_comic_highlights` |
 | `GET /api/auth/me` | the type from `visible_gated_types` |
 | `GET /api/constants/external-apis` | the type's row in `media` |
+| `GET /api/search` | the type's bucket key from `results` - absent, not empty |
 
 The mirror is `unrestricted`, which is told everything. The SPA adds nothing
 to this list - it draws what the server tells it - but it does leave the
@@ -1364,11 +1376,13 @@ matters is enforced server-side.
 | `tests/api/test_field_gating.py` | link and source stripping; the narrowest viewer there is still gets credits, both timestamps and `system_id`; and a probe group stands the columns flavour up so the copy-not-setattr rule stays tested with no real column group left |
 | `tests/api/test_cover_images_are_gated.py` | a hidden entry's cover 404s and the same file 200s for an admin, the lying-folder case, and that `/static/covers/` no longer answers. The written file and `nsfw_label` are load-bearing: a missing file 404s too, and an empty label set makes every refusal vacuous |
 | `tests/api/test_shared_record_visibility.py` | the shared-record rule: a person, seiyuu, character, studio, publisher or vocabulary value connected only to label-hidden entries is hidden, one visible connection keeps it visible with the hidden one omitted, no connections stays visible, a type gap hides nothing; series under a hidden franchise; entity photos; notes on a hidden series; and scope connections through a gated type registered for the test (`manga` pointed at `nsfw`), independent of h-comic. Every refusal pairs with `admin_client` seeing the same record |
-| `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` carries the label after a re-seed, `visible_gated_types`, H-Comic franchises labelled and segregated from mainstream ones |
+| `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` carries the label after a re-seed, `visible_gated_types`, no `h-comic` search bucket for a narrow session, `PUT /api/me/list` running the list hook, H-Comic franchises labelled and segregated from mainstream ones |
 | `tests/api/test_hentai_entries.py` | hentai: the same set as h-comic's - label stamped, refused removal and deletion, narrow modes 404 while `unrestricted` sees it, only `unrestricted` carries the label - plus its franchise family |
 | `tests/api/test_hentai_shared_records.py` | a studio or director credited only on hentai is hidden, one also on an anime is not; an H Genre value used only by hentai is hidden; `/api/constants` for a session seeing neither gated type and for one seeing h-comic only (`unrestricted` with `hentai` denied, both labels present) |
 | `tests/api/test_hentai_label_migration.py` | the hentai revision's own `settle_label`: the label leaves an anime and stays on a hentai, adopted not duplicated, granted to `unrestricted` alone |
-| `tests/api/test_franchise_families.py` | mixed-family franchise types refused on every write path, one family accepted; both gated labels on an `H-Comic, Hentai` franchise and neither removable |
+| `tests/api/test_franchise_family.py` | franchise families: a `franchise_id` of another family refused on create, `PUT` and `PATCH`, in both directions, a franchise type spanning two families refused, a franchise holding mainstream entries not retyped into the gated family - each with its accepted mirror |
+| `tests/api/test_franchise_families.py` | what hentai adds to the families: `"ACG, Hentai"` refused on every write path and `"H-Comic, Hentai"` accepted, a franchise holding a hentai not retyped mainstream, both gated labels on an `H-Comic, Hentai` franchise and neither removable, an h-comic and its hentai resolving to one franchise |
+| `tests/unit/test_search_gated_buckets.py` | every gated type's `SearchBuckets` field defaults to absent, so a new gated type cannot put its key back |
 | `tests/api/test_h_comic_shared_records.py` | people in every h-comic role, a club with no credit, characters and vocabulary values connected only to h-comic are hidden; club membership filters hidden members and reveals nobody |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |

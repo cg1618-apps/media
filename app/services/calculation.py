@@ -51,8 +51,8 @@ from app.services.domain import (
     sync_seasonal_counts,
     tv_show_post_processing,
 )
+from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import enforce_h_comic_invariants
-from app.services.domain.hentai import enforce_hentai_invariants
 from app.services.domain.plan_next import derive_size_groups
 from app.services.domain.user_list import installation_owner_id, list_row
 from app.services.integrations.image_library import uploaded_image_ids
@@ -551,6 +551,7 @@ def run_sync(db: Session) -> dict:
     run_sync_comic(db)
     run_sync_h_comic(db)
     run_sync_hentai(db)
+    run_sync_gated_labels(db)
     run_sync_size_groups(db)
     return {
         "status": "success",
@@ -647,10 +648,12 @@ def run_sync_comic(db: Session) -> dict:
 
 def run_sync_h_comic(db: Session) -> dict:
     """
-    Re-establish the h-comic invariants over the whole table: the region's
-    unused columns cleared, and the label on every entry and every H-Comic
-    franchise. A Sheets restore writes rows without going through the router,
-    so this is the net under it - the same reason run_sync_novel re-derives.
+    Re-establish the h-comic variant rule over the whole table: the region's
+    unused columns cleared, on the entries and on the reader's counters. A
+    Sheets restore writes rows without going through the router, so this is
+    the net under it - the same reason run_sync_novel re-derives. The label
+    is run_sync_gated_labels', which run_sync and the h-comic pipeline spec
+    run after this.
     """
     extract_system_options(db)
     result = enforce_h_comic_invariants(db)
@@ -663,16 +666,28 @@ def run_sync_h_comic(db: Session) -> dict:
 
 def run_sync_hentai(db: Session) -> dict:
     """
-    Re-establish the hentai invariant over the whole table: the label on
-    every entry and every Hentai franchise. A Sheets restore writes rows
-    without going through the router, so this is the net under it.
+    Hentai has no invariant of its own beyond its label, which is
+    run_sync_gated_labels' - run_sync and the hentai pipeline spec run it
+    after this. What is left is the system options every type re-syncs.
     """
     extract_system_options(db)
-    result = enforce_hentai_invariants(db)
+    return {
+        "status": "success",
+        "message": "Hentai sync completed.",
+    }
+
+
+def run_sync_gated_labels(db: Session) -> dict:
+    """
+    Every gated type's label on every entry of the type and every franchise
+    of its franchise type (app/services/domain/gated_labels.py). Driven by
+    REQUIRED_LABEL_FOR_TYPE, so a new gated type is covered by its map entry.
+    """
+    counts = enforce_gated_label_invariants(db)
     db.commit()
     return {
         "status": "success",
-        "message": f"Hentai sync completed ({result['entries']} entries).",
+        "message": f"Gated label sync completed ({sum(counts.values())} entries).",
     }
 
 

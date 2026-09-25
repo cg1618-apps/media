@@ -208,10 +208,11 @@ FRANCHISE_TYPES: tuple[str, ...] = (
 )
 
 # Franchise FAMILIES: which franchise types may share one franchise, and which
-# franchises an entry's name may match. A type not listed here is family
-# "mainstream". A franchise whose types span two families is refused, and the
-# hierarchy resolver matches an entry only against franchises of its own
-# family (app/services/domain/hierarchy.py). An h-comic and its hentai
+# franchise an entry may sit in. A type not listed here is MAINSTREAM_FAMILY.
+# A franchise whose types span two families is refused, and an entry sits only
+# in a franchise of its own family - matched by name or named by id
+# (app/services/domain/hierarchy.py). Keyed on the franchise type, so a gated
+# media type joins by naming its franchise type here. An h-comic and its hentai
 # adaptation share a franchise the way a manga and its anime do.
 FRANCHISE_FAMILY_FOR_TYPE: dict[str, str] = {
     "H-Comic": "h-comic",
