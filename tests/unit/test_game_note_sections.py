@@ -23,6 +23,8 @@ STORY_KEYS = [
     # while it had nowhere better; above 世界觀&設定 is where it reads.
     "endings",
     "lore",
+    # A glossary of the story's own vocabulary, beside the lore it names.
+    "story_terms",
     "timeline",
     "mysteries",
     "story_other",
@@ -59,7 +61,7 @@ def test_the_groups_exist_in_order():
     ]
 
 
-def test_the_story_group_holds_eight_sections_in_order():
+def test_the_story_group_holds_nine_sections_in_order():
     assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story"] == STORY_KEYS
 
 

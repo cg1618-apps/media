@@ -416,6 +416,45 @@ def _named_thing_fields(
     )
 
 
+def _term_fields(typed: bool = False) -> tuple["NoteField", ...]:
+    """
+    The shape the three glossary sections share: a term's Chinese name, what
+    else it is called, and what it means.
+
+    遊戲名詞 Game Terms, 劇情名詞 Story Terms and 玩法系統 Gameplay Systems
+    differ only in whether a row carries a type. A glossary term needs none;
+    a gameplay system does, because "game mode", "gacha" and "upgrade system"
+    are different KINDS of system in a way two glossary terms are not. The type
+    is free text for the reason `_named_thing_fields` gives: the vocabulary is
+    the game's, so a closed list would be wrong by the second game.
+
+    The Chinese name is the row's name, so it is the `title` column - the one
+    a structured row is headed by. The alternative name follows the entry
+    tables' `*_name_alt` in both key and meaning: an English, Japanese or
+    in-game spelling, whichever the game uses.
+
+    Links are optional and present on all three: 劇情名詞 sits in 劇情 Story,
+    where every section can cite a source, and the three staying one spec is
+    worth more than a field one of them may leave empty.
+    """
+    return (
+        *(
+            (NoteField(key="type", label="Type", type=FIELD_SELECT, column="kind"),)
+            if typed
+            else ()
+        ),
+        NoteField(key="name_cn", label="Name (CN)", column="title"),
+        NoteField(key="name_alt", label="Alt Name"),
+        NoteField(
+            key="description",
+            label="Description",
+            type=FIELD_TEXTAREA,
+            column="content",
+        ),
+        NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+    )
+
+
 # A standout episode, a standout moment inside one, and a standout arc across
 # several. Shared by the two episode-shaped highlight sections so they cannot
 # drift apart.
@@ -758,6 +797,20 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="guides",
     ),
     NoteSection(
+        # What there is to play: the modes, the enhancement and upgrade
+        # systems, the pull system, the stages to clear, the style of play.
+        # Straight after 新手 Beginner because it is the other half of the way
+        # in - Beginner is advice, this is the inventory of what the advice is
+        # about. The type says which kind of system a row is.
+        key="gameplay_systems",
+        shape=SHAPE_STRUCTURED,
+        label="玩法系統 Gameplay Systems",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+        fields=_term_fields(typed=True),
+    ),
+    NoteSection(
         # The first structured section, and the smallest: a control is the
         # button or stick a line of advice is ABOUT, so it reads as a name
         # rather than as the first words of the description. Optional, because
@@ -986,10 +1039,10 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         fields=_named_thing_fields(variant=True, collected=True),
     ),
     # --- 圖鑑 Compendium --------------------------------------------------
-    # Who you meet. 結局 Endings was here while it had nowhere better; it is a
+    # Who you meet, and the words the game uses. 結局 Endings was here while it had nowhere better; it is a
     # story OUTCOME rather than a guide topic, so it sits in 劇情 Story now,
-    # above 世界觀&設定 - which leaves this card cleanly about the cast and
-    # the bestiary.
+    # above 世界觀&設定 - which leaves this card cleanly about the cast, the
+    # bestiary and the game's glossary.
     NoteSection(
         # NOT `characters`: a `character` table and a /character/:id page
         # already exist, and a bare `characters` note section would read as
@@ -1050,6 +1103,19 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 default="to beat",
             ),
         ),
+    ),
+    NoteSection(
+        # The game's own vocabulary - mechanics, currencies, jargon - as a
+        # glossary. Its story counterpart is 劇情名詞 Story Terms: a word the
+        # PLOT introduces is looked up while reading the story, not while
+        # playing, so it sits with the story.
+        key="game_terms",
+        shape=SHAPE_STRUCTURED,
+        label="遊戲名詞 Game Terms",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="compendium",
+        fields=_term_fields(),
     ),
     # --- 劇情 Story -------------------------------------------------------
     # What happens, as opposed to what it means - 解析 Analysis, two cards up,
@@ -1122,6 +1188,18 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="story",
+    ),
+    NoteSection(
+        # The story's own vocabulary - places, factions, events, invented
+        # words - beside the lore it names. 世界觀&設定 is prose about the
+        # world; this is the index of its terms.
+        key="story_terms",
+        shape=SHAPE_STRUCTURED,
+        label="劇情名詞 Story Terms",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+        fields=_term_fields(),
     ),
     NoteSection(
         # One ordered list of dated events. It was plain `text` on the

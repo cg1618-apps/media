@@ -17,7 +17,7 @@ from app.utils import note_sections as ns
 # being filed by elimination.
 GUIDE_CARDS = {
     # How it plays and what is worth knowing: the way in, not the content.
-    "guides": ["beginner", "controls", "guide_notes", "trivia"],
+    "guides": ["beginner", "gameplay_systems", "controls", "guide_notes", "trivia"],
     # How to build, in the order the decisions are made.
     "builds": [
         "stats_and_points",
@@ -29,7 +29,7 @@ GUIDE_CARDS = {
     # known about it - which is why they share one spec.
     "gear": ["weapons_and_gear", "items", "collectibles"],
     # Who you meet.
-    "compendium": ["characters_guide", "enemies"],
+    "compendium": ["characters_guide", "enemies", "game_terms"],
     # Things outside the game itself, rendered beside the site-wide Resources
     # card rather than with the 攻略 run.
     "tools": ["mods_and_tools", "guide_resources"],
@@ -201,6 +201,38 @@ def test_enemies_carry_a_tier_a_region_and_a_closed_beaten_status():
     assert _field("enemies", "beaten").options == ("to beat", "beaten", "cheesed", "skip")
 
 
+def test_the_three_glossary_sections_share_one_spec():
+    """
+    遊戲名詞, 劇情名詞 and 玩法系統 are one shape: a term in Chinese, what
+    else it is called, what it means, and where that is sourced - links, which
+    劇情名詞 must have to sit in 劇情 Story. Only 玩法系統 adds a type, because
+    "game mode", "gacha" and "upgrade system" are different KINDS of system
+    in a way two glossary terms are not.
+    """
+    for key in ("game_terms", "story_terms"):
+        assert _keys(key) == ["name_cn", "name_alt", "description", "links"], key
+    assert _keys("gameplay_systems") == [
+        "type",
+        "name_cn",
+        "name_alt",
+        "description",
+        "links",
+    ]
+    for key in ("game_terms", "story_terms", "gameplay_systems"):
+        # The Chinese name is the row's name, so it is the `title` column and
+        # heads the row; the alternative name is a key in `fields`.
+        assert _field(key, "name_cn").column == "title", key
+        assert _field(key, "name_alt").column is None, key
+        assert _field(key, "description").column == "content", key
+
+
+def test_story_terms_is_a_game_only_catalogue_section_in_the_story_card():
+    section = ns.section_by_key("story_terms")
+    assert section.group == "story"
+    assert section.owners == ("game",)
+    assert section.scope == ns.SCOPE_CATALOG
+
+
 def test_mods_keep_their_type_and_gain_a_developer_and_a_status():
     assert _keys("mods_and_tools") == [
         "type",
@@ -230,6 +262,7 @@ def test_the_open_vocabularies_declare_no_options():
         ("characters_guide", "group"),
         ("skills", "type"),
         ("collectibles", "type"),
+        ("gameplay_systems", "type"),
     ):
         field = _field(section_key, field_key)
         assert field.type == ns.FIELD_SELECT, (section_key, field_key)
