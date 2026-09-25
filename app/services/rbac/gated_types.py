@@ -28,11 +28,14 @@ from app import models
 from app.services.rbac.enforcement import hidden_label_ids
 
 # media-type key -> content-label key. The label is a system label: created
-# by its migration and by the lifespan seed (h_comic.ensure_label), attached
-# to every entry of the type on every write path, and granted to no mode but
-# `unrestricted` - see ensure_access_mode_seed, which keeps it off the other
-# all-labels mode.
-REQUIRED_LABEL_FOR_TYPE: dict[str, str] = {"h-comic": "h-comic"}
+# by its migration and by the lifespan seed (gated_labels.ensure_label),
+# attached to every entry of the type on every write path, and granted to no
+# mode but `unrestricted` - see ensure_access_mode_seed, which keeps it off the
+# other all-labels mode.
+REQUIRED_LABEL_FOR_TYPE: dict[str, str] = {
+    "h-comic": "h-comic",
+    "hentai": "hentai",
+}
 
 
 def required_label_keys() -> frozenset[str]:
@@ -125,8 +128,8 @@ def only_for(media_types, hidden: frozenset[str]) -> bool:
 def gated_tag_categories() -> dict[str, frozenset[str]]:
     """
     {option category: the media types it serves}, for every category whose
-    tag fields serve GATED types only - the h-comic genres, not the shared
-    Official Source vocabulary. Such a category is itself a connection of
+    tag fields serve GATED types only - the H Genre vocabularies h-comic and
+    hentai share, not the shared Official Source vocabulary. Such a category is itself a connection of
     every value in it (shared_visibility.py), so a value an admin creates with
     no scope row is still hidden with its type.
     """
@@ -164,7 +167,7 @@ def hidden_option_categories(hidden: frozenset[str]) -> frozenset[str]:
 
 
 def hidden_franchise_types(hidden: frozenset[str]) -> frozenset[str]:
-    """Franchise types stamped only for hidden gated types (H-Comic)."""
+    """Franchise types stamped only for hidden gated types (H-Comic, Hentai)."""
     from app.services.domain.hierarchy import FRANCHISE_TYPE_FOR
 
     served: dict[str, set[str]] = {}

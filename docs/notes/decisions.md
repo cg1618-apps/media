@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -1945,3 +1945,53 @@ them.
   registry features the structured notes component renders without naming
   the section, like every other structured field: the next section wanting
   groups or free-text names is a registry edit.
+
+### Hentai, the second gated type (spec: 2026-09-25 hentai-design)
+
+- **Its own table, not an `anime` row with a label (D1).** Its fields are
+  h-comic's more than anime's - source material, originality, a series
+  number, usefulness - and none of anime's episode, season, broadcast or
+  AniList machinery applies to one episode of adult anime. A label on an
+  anime row would also have left the type ungated: a label an admin can
+  remove is not a type.
+- **Franchise families instead of a second special case (D5).** h-comic was
+  kept apart from the mainstream by one hard-coded franchise type. Hentai
+  needs the opposite as well as the same: apart from the mainstream, but
+  sharing a franchise with the h-comic it adapts, as anime shares one with
+  its manga. So the rule became data: `FRANCHISE_FAMILY_FOR_TYPE` maps
+  `H-Comic` and `Hentai` to one family, every unlisted type is mainstream, a
+  franchise spanning two families is refused, and the resolver matches within
+  the entry's family. It is written for any number of families - h-game adds
+  its own - and one franchise carries the label of each gated type it holds,
+  which is what keeps an h-comic-and-hentai franchise hidden from a session
+  that sees only one of them.
+- **h-comic's `animation_status` is derived at read time, not written
+  (D8).** The alternative - writing the derived value whenever a relation or
+  an airing status changes - needs a recompute on every relation write,
+  every hentai write and every Pull, and it overwrites the hand-set value, so
+  removing the relation would leave a stale one. Deriving on read needs
+  neither, keeps the hand-set value for the day the relation goes, and costs
+  one query per page. Only `hentai -adaptation-> h-comic` counts, read from
+  the relation's own direction ("the hentai is the Adaptation of the
+  h-comic"). While derived, a write of any other value is refused (422)
+  rather than silently ignored: an ignored write looks saved and is not. A
+  write of the derived value itself - the form sending back what it was
+  served - is accepted and stores nothing, which is why the write goes
+  through a nested-collection writer that sees the stored value before any
+  flush can replace it.
+- **Studio, director and the H Genre vocabularies are shared, not copied
+  (D6).** A studio that makes both is one studio row; the shared-record rule
+  already hides one credited only on hentai. The H Genre categories serve
+  both gated types, so they are hidden only from a session that sees
+  neither, and `/api/constants` serves a vocabulary while any type it serves
+  is seeable.
+- **The hand-made `hentai` label is adopted, and leaves every non-hentai
+  entry.** The label existed on the home database, on one anime. Find-or-
+  create by key keeps that row; the migration then removes the label from
+  every entry that is not a hentai, and from every mode but `unrestricted`,
+  because the label now means the type. Which rows carried it is recorded
+  nowhere, so the downgrade does not restore them.
+- **Tenrai fills three fields (D11).** The owner asked for airing status,
+  release date and cover, and nothing else - not names, studio or scores.
+  Tenrai serves Rx titles from the same anime endpoint, so the pipeline is
+  anime's minus AniList, under anime's fill-only rules.

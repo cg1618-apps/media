@@ -18,7 +18,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [The hierarchy](#the-hierarchy)
 - [Conventions shared by every table](#conventions-shared-by-every-table)
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
-- [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy, h_comic
+- [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy, h_comic, hentai
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
 - [Personal data](#personal-data): user_media_list, user_novel_unit_rating
 - [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_casting, media_credit, media_tag
@@ -87,7 +87,7 @@ deleting a group leaves its members in place and simply ungrouped.
   `role_permission`, `data_control_logs`, `deleted_record`, `person_role`),
   `users.id` (UUID, named `id`), and `seasonal`, whose primary key is the pair
   `(user_id, seasonal)` - one row per user per season string.
-- **Public id.** Every entity with a detail page - the ten media tables plus
+- **Public id.** Every entity with a detail page - the eleven media tables plus
   `collection`, `franchise`, `series`, `person`, `studio`, `publisher`,
   `character` and `watch_order_list`, eighteen in all - also carries
   `public_id INTEGER NOT NULL UNIQUE`, fed by a per-table sequence
@@ -178,7 +178,7 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `franchise_type` | String | yes | | One of FRANCHISE_TYPES / `FranchiseType` (the two lists differ - see [options.md](options.md#franchise-type)). May hold a comma-separated list; duplicate detection buckets under each token. |
+| `franchise_type` | String | yes | | One of FRANCHISE_TYPES / `FranchiseType` (the two lists differ - see [options.md](options.md#franchise-type)). May hold a comma-separated list; duplicate detection buckets under each token. Every type in the list must belong to one family (`FRANCHISE_FAMILY_FOR_TYPE`: `H-Comic` and `Hentai` are one, everything else is mainstream) - a mixed list is refused (422) by the franchise endpoints. See [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy). |
 | `franchise_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Name variants; CN leads `display_name`. |
 | `my_rating` | String | yes | | MY_RATINGS |
 | `franchise_expectation` | String | yes | `"Low"` | FRANCHISE_EXPECTATIONS |
@@ -219,7 +219,7 @@ Relationships: `franchise`, `animes`. Virtual: `remark`, `display_name`,
 
 ## Media entries
 
-Columns common to all ten entry tables (listed once here). Each table also
+Columns common to all eleven entry tables (listed once here). Each table also
 carries a constant `media_type` discriminator, the child half of its composite
 FK up to [the `media` supertable](#the-media-supertable).
 
@@ -655,7 +655,7 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `h_comic_name_kr` | String | yes | | The KR name |
 | `region` | String | yes | | H_COMIC_REGIONS (JP / KR). Required by the write schemas and checked again by the tracker PATCH (422); nullable here so a Pull row with a blank cell restores rather than fails the tab |
 | `originality` | String | yes | | **JP.** H_COMIC_ORIGINALITY (原創 / 同人) |
-| `animation_status` | String | yes | | **JP.** H_COMIC_ANIMATION_STATUSES (Not Animated / Announced / Animated), hand-set |
+| `animation_status` | String | yes | | **JP.** H_COMIC_ANIMATION_STATUSES (Not Animated / Announced / Animated), the hand-set value. While the entry has `adaptation` relations from hentai entries, the API serves a **derived** value instead and this column keeps the hand-set one ([entry-types.md](entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy)) |
 | `series_number` | Integer | yes | | **JP.** The entry's position in its series, like a volume number |
 | `serialization_status` | String | yes | | Both. MANGA_SERIALIZATION_STATUSES |
 | `page_total` | Integer | yes | | **JP.** |
@@ -670,11 +670,45 @@ Constraints and wiring, as for every entry table: composite FK `fk_h_comic_media
 `h_comic_public_id_seq`, and the AFTER DELETE trigger
 `trg_h_comic_delete_media`.
 
-Virtual: `remark`, `read_next`, `to_reread`, `display_name`, and the
+Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
+`animation_status_source` (`"derived"` / `"manual"`, null on KR), and the
 `illustrator` / `author` / `club` / `original_source` / `h_genre_plot` /
 `h_genre_appearance` / `h_genre_relation` link fields. Personal columns:
 `reading_status`, `my_rating`, `page_fin` (JP), `ch_fin` (KR), `usefulness`,
 `completed_at` on [`user_media_list`](#user_media_list).
+
+### `hentai`
+
+Adult anime, seen in the `unrestricted` access mode only. Model: `Hentai`
+(`app/models/hentai.py`). **One entry is one episode**, so there is no
+episode count and no progress counter.
+
+Every row carries the `hentai` content label, attached server-side on every
+write path; see [authorization.md](authorization.md#gated-types).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `hentai_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Anime's five. `display_name` order CN -> EN -> Alt -> roman -> JP |
+| `source_material` | String | yes | | HENTAI_SOURCE_MATERIALS (Original / Manga / Novel): what the episode adapts |
+| `originality` | String | yes | | H_COMIC_ORIGINALITY (原創 / 同人) |
+| `series_number` | Integer | yes | | The entry's position in its series |
+| `airing_status` | String | yes | | AiringStatus, anime's vocabulary. Filled by Tenrai when blank |
+| `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_hentai_release_date_iso`. Filled by Tenrai when blank |
+| `mal_id` / `mal_link` | Integer / String | yes | | The MyAnimeList entry; `mal_id` is extracted from `mal_link` as for anime. Tenrai reads it for airing status, release date and cover only |
+
+The vocabulary columns are checked on every write, including the tracker
+PATCH (`hentai_progress_hook` in `app/services/domain/hentai.py`).
+
+Constraints and wiring, as for every entry table: composite FK `fk_hentai_media`
+(`system_id`, `media_type`) -> `media` (deferrable, ON DELETE CASCADE), CHECK
+`ck_hentai_media_type` (`media_type = 'hentai'`), the sequence
+`hentai_public_id_seq`, and the AFTER DELETE trigger `trg_hentai_delete_media`.
+
+Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, and the
+`studio` / `studio_refs` / `director` / `h_genre_plot` / `h_genre_appearance` /
+`h_genre_relation` link fields. Personal columns: `watching_status`,
+`my_rating`, `usefulness`, `completed_at` on
+[`user_media_list`](#user_media_list).
 
 ---
 
@@ -746,14 +780,14 @@ got, and when they finished. Model: `UserMediaList`
 
 Keyed by `(user_id, media_id)` - `uq_user_media`. `media_id` points at the
 [`media` supertable](#the-media-supertable), not at a detail table, so one row
-shape serves all ten types and a deleted entry takes its list rows with it.
+shape serves all eleven types and a deleted entry takes its list rows with it.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE. Deleting a user removes their whole list and nothing else. |
 | `media_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE |
-| `status` | String | **no** | per type | The one status column for all ten types. Translated to and from `watching_status` / `reading_status` / `playing_status` by `STATUS_FIELD`; the default comes from `DEFAULT_STATUS`. |
+| `status` | String | **no** | per type | The one status column for all eleven types. Translated to and from `watching_status` / `reading_status` / `playing_status` by `STATUS_FIELD`; the default comes from `DEFAULT_STATUS`. |
 | `my_rating` | String | yes | | MY_RATINGS - a letter grade, never a number |
 | `completed_at` | DateTime | yes | | Stamped when the status becomes a completed one (`apply_list_completion_timestamp`) |
 | `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
@@ -766,7 +800,7 @@ shape serves all ten types and a deleted entry takes its list rows with it.
 | `progress_display` | String | yes | | novel |
 | `issue_fin` | Integer | yes | | comic |
 | `page_fin` | Integer | yes | | h_comic (JP; cleared on KR) |
-| `usefulness` | String | yes | | h_comic. H_COMIC_USEFULNESS, checked on every write; personal for the reason `my_rating` is |
+| `usefulness` | String | yes | | h_comic, hentai. H_COMIC_USEFULNESS, checked on every write; personal for the reason `my_rating` is |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 **Which keys a type owns** is `LIST_FIELDS`, not this table's shape. A write
@@ -1257,7 +1291,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - set when the owner is one of the ten media types |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - set when the owner is one of the eleven media types |
 | `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, indexed - set when the owner is a grouping tier |
 | `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed. Who wrote the row - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
@@ -1937,7 +1971,7 @@ deleted. Model: `DeletedRecord`.
 Every media entry has exactly one row in `media`, keyed by the **same**
 `system_id` the detail row already had. It exists so that anything pointing at
 "some entry" can use a real foreign key instead of an ambiguous (type, id)
-pair, and so the fields all ten types share can be queried in one place.
+pair, and so the fields all eleven types share can be queried in one place.
 
 | Column | Type | Null | Description |
 |---|---|:-:|---|
@@ -1966,7 +2000,7 @@ direction an `AFTER DELETE` trigger, `trg_<table>_delete_media`, removes the
 `media` row when the detail row is deleted, so a delete against either table
 cleans up both.
 
-**Who writes it.** `app/models/media_sync.py`, registered for all ten types
+**Who writes it.** `app/models/media_sync.py`, registered for all eleven types
 at the bottom of `app/models/__init__.py`. Not a router hook: entries are
 written through the ORM directly as often as through the API.
 
@@ -1982,7 +2016,7 @@ implicitly.
 
 An entry constructed with an explicit `system_id` - Pull carries one - adopts
 the `media` row already under that id rather than colliding with it, which is
-what lets Pull restore the `Media` tab before the ten entry tabs.
+what lets Pull restore the `Media` tab before the eleven entry tabs.
 
 **`display_name` is denormalized.** It is derived from the detail row's
 `*_name_*` columns, CN first, by the single producer
@@ -1991,7 +2025,7 @@ no name at all gets `(unnamed <type> <public_id>)`.
 `tests/api/test_display_name_drift.py` is what catches it going stale - the one
 new class of bug the supertable adds.
 
-**Promotion rule.** A field belongs on `media` only when all ten types have it
+**Promotion rule.** A field belongs on `media` only when all eleven types have it
 AND something queries across types by it. Both halves are required, or this
 becomes a junk drawer and the detail tables hollow out. Deliberately not here:
 `my_rating` and `watching_status` (per-user, not catalogue), `mal_rating` and
@@ -1999,7 +2033,7 @@ becomes a junk drawer and the detail tables hollow out. Deliberately not here:
 differently elsewhere and not the same concept).
 
 `tests/unit/test_media_constraints.py` pins the FK, the CHECK and the
-discriminator on all ten types, and a companion in
+discriminator on all eleven types, and a companion in
 `tests/api/test_media_supertable.py` pins the triggers in the database -
 Alembic autogenerates none of them, so nothing else would catch a tenth media
 type added without them.
@@ -2010,7 +2044,7 @@ type added without them.
 
 Ten entry tables each have their own `system_id` space, so a bare UUID would
 be ambiguous — except that the `media` supertable makes a media entry's id
-unique across all ten, and six tables hold a real `media_id` FK instead of a
+unique across all eleven, and six tables hold a real `media_id` FK instead of a
 pair.
 
 `note` and `meme` store no pair either: an owner that may be a **grouping

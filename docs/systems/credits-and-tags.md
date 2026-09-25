@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-23
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -59,9 +59,9 @@ the stored value, tuple of keys for validation.
 
 | key | label | target | media types |
 |---|---|---|---|
-| `studio` | Studio | studio | anime, anime-movie, game |
+| `studio` | Studio | studio | anime, anime-movie, game, hentai |
 | `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
-| `director` | Director | person | anime, anime-movie, movie, game |
+| `director` | Director | person | anime, anime-movie, movie, game, hentai |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime, game |
 | `author` | Author | person | manga, novel, comic, h-comic |
@@ -153,15 +153,22 @@ that names a credit which does not exist.
 | `comic_era` | Era | Comic Era | comic |
 | `comic_event` | Events | Comic Event | comic |
 | `game_genre` / `game_theme` / `game_mode` / `combat_mode` / `game_platform` | Genre / Theme / Mode / Combat Mode / Platform | Game Genre / Game Theme / Game Mode / Combat Mode / Game Platform | game |
-| `h_genre_plot` | Genre Plot | H Genre Plot | h-comic |
-| `h_genre_appearance` | Genre Appearance | H Genre Appearance | h-comic |
-| `h_genre_relation` | Genre Relation | H Genre Relation | h-comic |
+| `h_genre_plot` | Genre Plot | H Genre Plot | h-comic, hentai |
+| `h_genre_appearance` | Genre Appearance | H Genre Appearance | h-comic, hentai |
+| `h_genre_relation` | Genre Relation | H Genre Relation | h-comic, hentai |
 
-The three h-comic genre vocabularies are admin-managed and exist for the gated
-type alone; a value used or scoped only there is hidden from a session that
-cannot see h-comic. No h-comic credit or tag has a legacy sheet header, so each
-travels under its own key (`illustrator`, `author`, `club`,
-`original_source`, `h_genre_*`).
+The three H Genre vocabularies are admin-managed and shared by the two gated
+types, h-comic and hentai - one vocabulary per axis, not one per type; a value
+used or scoped only there is hidden from a session that can see neither. No
+h-comic or hentai credit or tag has a legacy sheet header, so each travels
+under its own key (`illustrator`, `author`, `club`, `original_source`,
+`studio`, `director`, `h_genre_*`).
+
+**Hentai shares anime's studio and director.** Both roles gain the `hentai`
+scope rather than a hentai-only role, so a studio credited on a mainstream
+anime and on a hentai is one studio row. The shared-record rule then does the
+rest: credited only on hentai, it is hidden with them; credited on an anime
+too, it stays visible through that anime, with the hentai credit omitted.
 
 `FILTER_ONLY_CATEGORIES = ("Franchise for Filter", "Reference Source")` exists
 as a vocabulary but backs no field. **There is no `publisher_tw` or

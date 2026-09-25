@@ -15,6 +15,16 @@ Franchise
   * nothing found -> a franchise is created, typed for the media
     (see FRANCHISE_TYPE_FOR), carrying whatever names were available.
 
+Franchise families
+  * FRANCHISE_FAMILY_FOR_TYPE (app/utils/constants.py) sorts franchise types
+    into families; a type it does not list is family "mainstream". An entry's
+    family is the family of the franchise type it would stamp
+    (FRANCHISE_TYPE_FOR), and the name lookup above matches only franchises
+    of that family - an h-comic called "Fate" never attaches to the
+    mainstream Fate, and a mainstream entry never lands under a franchise
+    whose gated label would hide it. A franchise whose types span two
+    families is refused (check_franchise_type_family).
+
 Series
   * a UUID passes through;
   * a non-empty string is looked up case-insensitively by name;
@@ -26,12 +36,16 @@ import logging
 import uuid
 from typing import Any, Dict, Optional, Tuple
 
-from sqlalchemy import func, or_, true
+from sqlalchemy import and_, func, or_, true
 from sqlalchemy.orm import Session
 
 from app.database import get_taipei_now
 from app.models import Franchise, Series
-from app.utils.constants import FranchiseType
+from app.utils.constants import (
+    FRANCHISE_FAMILY_FOR_TYPE,
+    MAINSTREAM_FAMILY,
+    FranchiseType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -58,14 +72,70 @@ FRANCHISE_TYPE_FOR = {
     "comic": FranchiseType.COMIC,
     "game": FranchiseType.GAME,
     "h-comic": FranchiseType.H_COMIC,
+    "hentai": FranchiseType.HENTAI,
 }
 
-# The one franchise type that is kept apart in BOTH directions (D9 in the
-# h-comic design): an h-comic matches only a franchise of this type, and every
-# other media type matches only a franchise that is not. A shared name - an
-# h-comic called "Fate" - must never attach to the mainstream franchise, and a
-# mainstream entry must never land under a franchise whose label hides it.
-SEGREGATED_TYPE = FranchiseType.H_COMIC.value
+
+def franchise_type_tokens(value) -> list[str]:
+    """A franchise's comma-separated franchise_type, as tokens."""
+    raw = (value or "").strip() if isinstance(value, str) else ""
+    return [t.strip() for t in raw.split(",") if t.strip()]
+
+
+def family_of_type(franchise_type: str) -> str:
+    """The family one franchise type belongs to; unlisted is mainstream."""
+    return FRANCHISE_FAMILY_FOR_TYPE.get(franchise_type, MAINSTREAM_FAMILY)
+
+
+def franchise_families(franchise_type) -> frozenset[str]:
+    """
+    The families a franchise_type value spans. An untyped franchise is
+    mainstream, as it has always matched.
+    """
+    tokens = franchise_type_tokens(franchise_type)
+    if not tokens:
+        return frozenset({MAINSTREAM_FAMILY})
+    return frozenset(family_of_type(t) for t in tokens)
+
+
+def entry_family(media_type: str) -> str:
+    """The family of the franchise type this media type stamps."""
+    return family_of_type(str(FRANCHISE_TYPE_FOR[media_type].value))
+
+
+def check_franchise_type_family(franchise_type) -> None:
+    """ValueError when a franchise_type value spans two families."""
+    families = franchise_families(franchise_type)
+    if len(families) > 1:
+        raise ValueError(
+            "A franchise's types must all belong to one family; "
+            f"'{franchise_type}' mixes {', '.join(sorted(families))}."
+        )
+
+
+def check_entry_franchise_family(db: Session, franchise_id: Any, media_type: str) -> None:
+    """
+    ValueError when a franchise named by id belongs to another family than
+    the entry. The name resolver never matches one; this is the other way in.
+    """
+    if not franchise_id:
+        return
+    if isinstance(franchise_id, str):
+        # A tracker PATCH carries the id as a string; a name is the
+        # resolver's business, not this check's.
+        try:
+            franchise_id = uuid.UUID(franchise_id)
+        except ValueError:
+            return
+    franchise = db.get(Franchise, franchise_id)
+    if franchise is None:
+        return
+    wanted = entry_family(media_type)
+    if franchise_families(franchise.franchise_type) != {wanted}:
+        raise ValueError(
+            f"A {media_type} can only sit in a franchise of the '{wanted}' "
+            "family."
+        )
 
 
 def _clean_names(names: Dict[str, Any]) -> Dict[str, Optional[str]]:
@@ -87,24 +157,40 @@ def _find_by_names(db: Session, model, columns, values, *criteria) -> Optional[A
     )
 
 
-def _segregation(media_type: str):
-    """The franchise-type condition name matching runs under for this type.
-
-    franchise_type is a comma-separated list, so the test is on the padded
-    token rather than a substring: "H-Comic" must not match inside some
-    longer type name.
+def _padded_type_like(franchise_type: str):
+    """
+    franchise_type contains this one type, as a whole token. franchise_type
+    is a comma-separated list, so the test is on the padded token rather
+    than a substring: "H-Comic" must not match inside some longer type name.
     """
     padded = func.concat(
         ",", func.replace(func.coalesce(Franchise.franchise_type, ""), " ", ""), ","
     )
-    token = f"%,{SEGREGATED_TYPE},%"
+    return padded.like(f"%,{franchise_type.replace(' ', '')},%")
+
+
+def _segregation(media_type: str):
+    """The franchise-type condition name matching runs under for this type:
+    a franchise of the entry's own family and of no other."""
     if media_type == "series":
         # A series names its parent franchise; it is not a work of any type,
-        # and an H-Comic series belongs under an H-Comic franchise.
+        # and a gated series belongs under a gated franchise.
         return true()
-    if FRANCHISE_TYPE_FOR.get(media_type) == FranchiseType.H_COMIC:
-        return padded.like(token)
-    return ~padded.like(token)
+    family = entry_family(media_type)
+    foreign = [
+        _padded_type_like(t)
+        for t, f in FRANCHISE_FAMILY_FOR_TYPE.items()
+        if f != family
+    ]
+    not_foreign = ~or_(*foreign) if foreign else true()
+    if family == MAINSTREAM_FAMILY:
+        return not_foreign
+    own = [
+        _padded_type_like(t)
+        for t, f in FRANCHISE_FAMILY_FOR_TYPE.items()
+        if f == family
+    ]
+    return and_(or_(*own), not_foreign)
 
 
 def resolve_franchise(db: Session, franchise_id: Any, names: Dict[str, Any], media_type: str) -> Any:
@@ -139,12 +225,12 @@ def resolve_franchise(db: Session, franchise_id: Any, names: Dict[str, Any], med
     )
     db.add(created)
     db.flush()
-    if created.franchise_type == FranchiseType.H_COMIC:
-        # Imported here: h_comic imports models, and this module is loaded
-        # while app.services.domain is still initialising.
-        from app.services.domain.h_comic import ensure_franchise_label
+    # A franchise stamped with a gated type carries that type's label from
+    # its first write. Imported here: gated_labels imports models, and this
+    # module is loaded while app.services.domain is still initialising.
+    from app.services.domain.gated_labels import ensure_franchise_labels
 
-        ensure_franchise_label(db, created)
+    ensure_franchise_labels(db, created)
     logger.info("Auto-created missing Franchise for %s: %s", label, created.system_id)
     return created.system_id
 
@@ -184,6 +270,7 @@ resolve_novel_parent_hierarchy = _entry_resolver("novel")
 resolve_comic_parent_hierarchy = _entry_resolver("comic")
 resolve_game_parent_hierarchy = _entry_resolver("game")
 resolve_h_comic_parent_hierarchy = _entry_resolver("h-comic")
+resolve_hentai_parent_hierarchy = _entry_resolver("hentai")
 
 
 def resolve_anime_movie_parent_hierarchy(db: Session, franchise_id: Any, names: Dict[str, Any]) -> Any:

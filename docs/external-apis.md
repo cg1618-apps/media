@@ -1,10 +1,10 @@
 # External APIs
 
-Last verified: 2026-09-23
+Last verified: 2026-09-25
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Nine outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Nine outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios, and three fields of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
@@ -34,7 +34,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 
 | Service | Base URL | Key / env var (`app/config.py`) | Client file | Mapper file | Feeds |
 |---|---|---|---|---|---|
-| Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel`, `studio` |
+| Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel`, `studio`, `hentai` |
 | AniList | `https://graphql.anilist.co` | none | `app/services/integrations/anilist.py` | `app/utils/anilist_utils.py` | `anime`, `anime_movies`, `manga`, `novel` |
 | TMDB | `https://api.themoviedb.org/3` | `settings.tmdb_api_key` ← `TMDB_API_KEY` | `app/services/integrations/tmdb.py` | `app/utils/tmdb_utils.py` | `movies`, `tv_shows`, `cartoons` |
 | OMDb | `http://www.omdbapi.com` | `settings.omdb_api_key` ← `OMDB_API_KEY` | `app/services/integrations/omdb.py` | `app/utils/omdb_utils.py` | `imdb_rating` on the three above |
@@ -64,7 +64,7 @@ Tenrai v1 is a public read-only mirror of MyAnimeList. No key is needed.
 
 | Item | Value |
 |---|---|
-| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime **and** anime movies), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga **and** novels) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios). The response's `data` object is returned. All three share one `TenraiRateLimiter` budget. |
+| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime, anime movies **and** hentai - it serves Rx titles like any other), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga **and** novels) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios). The response's `data` object is returned. All three share one `TenraiRateLimiter` budget. |
 | User-Agent | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0` — MAL's CDN rejects the default `python-requests` agent. |
 | Rate limiter | `TenraiRateLimiter`, two windows checked together: `DEFAULT_LIMITS = ((4, 1), (120, 60))` — 4 requests per second **and** 120 per minute. It loops until every window has room. |
 | Pipeline pacing | On top of the limiter, `specs.py` sleeps `MAL_PAUSE = 1` second between entries in Fill and Replace. |
@@ -93,6 +93,18 @@ entry columns — those columns were dropped by migration `dc1o2l3s4d5`. See
 
 Same rules, except the date goes to `release_date_jp` and there is no `release_season`. The mapper also returns `ep_total`, but `autofill_anime_movie_from_mal` never writes it.
 
+### Mapping for `hentai` — `map_tenrai_to_anime_data`, three fields
+
+Hentai reads anime's record through anime's mapper, and `autofill_hentai_from_mal` writes three things from it and nothing else:
+
+| Tenrai field | Column | Rule |
+|---|---|---|
+| `status` | `airing_status` | anime's mapping; fill-only |
+| `aired` | `release_date` | anime's mapping (precision from MAL's own aired string); fill-only |
+| `images` | `cover_image_file` | anime's URL choice; downloaded to `static/covers/hentai/` only when the entry has no cover |
+
+Names, studio, scores, ranks, episodes, the official links and AniList are not written. Because nothing is overwritten, a hentai Replace completes what is blank and changes nothing else.
+
 ### Mapping for `manga` / `novel` — `map_tenrai_to_manga_data`, `map_tenrai_to_novel_data`
 
 | Tenrai field | Column | Rule |
@@ -106,7 +118,7 @@ Same rules, except the date goes to `release_date_jp` and there is no `release_s
 
 ### What autofill actually writes (fill-only vs overwrite)
 
-`autofill_anime_from_mal`, `autofill_anime_movie_from_mal`, `autofill_manga_from_mal`, `autofill_novel_from_mal`:
+`autofill_anime_from_mal`, `autofill_anime_movie_from_mal`, `autofill_manga_from_mal`, `autofill_novel_from_mal`, and `autofill_hentai_from_mal` for the three it writes:
 
 | Column(s) | Rule |
 |---|---|

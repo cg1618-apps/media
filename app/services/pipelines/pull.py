@@ -36,6 +36,7 @@ from app.services.domain import (
     resolve_comic_parent_hierarchy,
     resolve_game_parent_hierarchy,
     resolve_h_comic_parent_hierarchy,
+    resolve_hentai_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
@@ -51,6 +52,7 @@ from app.services.domain.credits import (
     replace_tags,
 )
 from app.services.domain.h_comic import enforce_h_comic_invariants
+from app.services.domain.hentai import enforce_hentai_invariants
 from app.services.domain.user_list import installation_owner_id
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
@@ -104,6 +106,18 @@ H_COMIC_INVARIANT_TABS: frozenset[str] = frozenset(
     {
         "H-Comic",
         "User Media List",
+        "Franchise",
+        "Content Label",
+        "Media Content Label",
+        "Franchise Content Label",
+    }
+)
+
+# Tabs after which the hentai label is re-attached (app/services/domain/
+# hentai.py): the entries, the franchise types, and the label assignments.
+HENTAI_INVARIANT_TABS: frozenset[str] = frozenset(
+    {
+        "Hentai",
         "Franchise",
         "Content Label",
         "Media Content Label",
@@ -981,6 +995,21 @@ def execute_pull_specific(
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_h_comic_parent_hierarchy(db, fid, sid, name_fields)
             )
+        # Hentai uses resolve_hentai_parent_hierarchy, which matches and
+        # auto-creates ONLY franchises of the h-comic family (and labels them)
+        elif tab_name == "Hentai" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("hentai_name_en"),
+                "cn": clean_header_dict.get("hentai_name_cn"),
+                "roman": clean_header_dict.get("hentai_name_roman"),
+                "jp": clean_header_dict.get("hentai_name_jp"),
+                "alt": clean_header_dict.get("hentai_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_hentai_parent_hierarchy(db, fid, sid, name_fields)
+            )
         # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
         elif tab_name == "Movies" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
@@ -1489,7 +1518,7 @@ def execute_pull_specific(
             # question from confining the pipelines.
             if tab_name in (
                 "Anime", "Movies", "Anime Movie", "TV Shows", "Cartoons",
-                "Game", "Manga", "H-Comic",
+                "Game", "Manga", "H-Comic", "Hentai",
             ):
                 if clean_header_dict.get("created_at") is None:
                     clean_header_dict["created_at"] = get_taipei_now()
@@ -1651,6 +1680,10 @@ def execute_pull_specific(
     # could have restored without the required label.
     if tab_name in H_COMIC_INVARIANT_TABS:
         enforce_h_comic_invariants(db)
+        db.commit()
+    # The same net for the hentai label.
+    if tab_name in HENTAI_INVARIANT_TABS:
+        enforce_hentai_invariants(db)
         db.commit()
 
     logger.info("Successfully pulled and upserted %s records from '%s'.", processed, tab_name)

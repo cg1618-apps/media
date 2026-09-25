@@ -17,6 +17,7 @@ from app.models import (
     Comic,
     Game,
     HComic,
+    Hentai,
     ImageAttachment,
     Manga,
     Media,
@@ -35,6 +36,7 @@ from app.services.domain import (
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
     autofill_game_from_igdb,
+    autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
@@ -50,6 +52,7 @@ from app.services.domain import (
     tv_show_post_processing,
 )
 from app.services.domain.h_comic import enforce_h_comic_invariants
+from app.services.domain.hentai import enforce_hentai_invariants
 from app.services.domain.plan_next import derive_size_groups
 from app.services.domain.user_list import installation_owner_id, list_row
 from app.services.integrations.image_library import uploaded_image_ids
@@ -258,6 +261,17 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
+        hentais = db.query(Hentai).join(Hentai.media_row).filter(Media.cover_image_file.isnot(None)).all()
+        for he in hentais:
+            if not cover_image_exists("hentai", str(he.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(he.system_id),
+                        "name": he.display_name or str(he.system_id),
+                        "entry_type": "hentai",
+                    }
+                )
+
     total_checked = len(animes) + (
         0
         if entry_type
@@ -270,6 +284,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
         + len(comics)
         + len(games)
         + len(h_comics)
+        + len(hentais)
     )
     return {
         "status": "success",
@@ -449,6 +464,18 @@ def bulk_download_missing_covers(
     for _entry in _collect(h_comic_query, HComic, "h-comic"):
         total += 1
         skipped += 1
+    # Hentai re-fetches from Tenrai like an anime movie; one with no MAL id is
+    # counted and skipped.
+    hentai_query = db.query(Hentai).join(Hentai.media_row).filter(Media.cover_image_file.isnot(None))
+    for he in _collect(hentai_query, Hentai, "hentai"):
+        total += 1
+        if not he.mal_id:
+            skipped += 1
+            continue
+        he.cover_image_file = None
+        autofill_hentai_from_mal(he, db=db)
+        if he.cover_image_file:
+            downloaded += 1
 
     if total:
         db.commit()
@@ -523,6 +550,7 @@ def run_sync(db: Session) -> dict:
     run_sync_novel(db)
     run_sync_comic(db)
     run_sync_h_comic(db)
+    run_sync_hentai(db)
     run_sync_size_groups(db)
     return {
         "status": "success",
@@ -630,6 +658,21 @@ def run_sync_h_comic(db: Session) -> dict:
     return {
         "status": "success",
         "message": f"H-Comic sync completed ({result['entries']} entries).",
+    }
+
+
+def run_sync_hentai(db: Session) -> dict:
+    """
+    Re-establish the hentai invariant over the whole table: the label on
+    every entry and every Hentai franchise. A Sheets restore writes rows
+    without going through the router, so this is the net under it.
+    """
+    extract_system_options(db)
+    result = enforce_hentai_invariants(db)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Hentai sync completed ({result['entries']} entries).",
     }
 
 

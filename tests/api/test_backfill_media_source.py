@@ -23,7 +23,7 @@ _spec.loader.exec_module(migration)
 # Types registered after the archived migration ran. It pins HISTORY - the
 # source columns that existed to move - so a later type is excluded here by
 # name rather than written into a migration that has already run everywhere.
-TYPES_AFTER_THE_BACKFILL = {"h-comic"}
+TYPES_AFTER_THE_BACKFILL = {"h-comic", "hentai"}
 
 
 def test_the_map_covers_every_media_type():

@@ -76,6 +76,13 @@ from app.schemas.h_comic import (
     HComicSheetSync,
     HComicUpdate,
 )
+from app.schemas.hentai import (
+    HentaiBase,
+    HentaiCreate,
+    HentaiResponse,
+    HentaiSheetSync,
+    HentaiUpdate,
+)
 from app.schemas.link_fields import PublisherRef
 from app.schemas.manga import (
     MangaBase,
@@ -358,6 +365,11 @@ __all__ = [
     "HComicUpdate",
     "HComicResponse",
     "HComicSheetSync",
+    "HentaiBase",
+    "HentaiCreate",
+    "HentaiUpdate",
+    "HentaiResponse",
+    "HentaiSheetSync",
     "MovieBase",
     "MovieCreate",
     "MovieUpdate",

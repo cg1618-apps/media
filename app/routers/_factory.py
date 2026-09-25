@@ -28,6 +28,7 @@ from app.services.domain import (
 from app.services.domain.content_labels import attach_content_labels
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.game_copies import attach_own_copies
+from app.services.domain.h_comic import attach_animation_status
 from app.services.domain.plan_next import (
     PLAN_FLAG_FIELDS,
     attach_plan_flag,
@@ -150,6 +151,9 @@ def make_media_router(spec) -> APIRouter:
         # A game copy is a purchase record, so the relationship holds every
         # account's rows and the response must not. No-op for every other type.
         attach_own_copies(db, spec.owner_type, entry, user_id)
+        # An h-comic's animation status is derived from its hentai
+        # adaptations at read time. No-op for every other type.
+        attach_animation_status(db, spec.owner_type, entry)
         # `remark` is a personal-scope note, so it is read per viewer rather
         # than mapped on the class - see app/models/__init__.py. A path that
         # forgets this call shows no remark, never somebody else's.
@@ -262,6 +266,8 @@ def make_media_router(spec) -> APIRouter:
         attach_unit_ratings(db, spec.owner_type, entries, user_id)
         # One query for the page, filtered to this viewer's own purchases.
         attach_own_copies(db, spec.owner_type, entries, user_id)
+        # One query for the page: the h-comics' hentai adaptations.
+        attach_animation_status(db, spec.owner_type, entries)
         # One query for the page, filtered to this viewer's own remarks.
         attach_remark(db, spec.owner_type, entries, plan_user_id)
         return gate(viewer, spec.owner_type, entries, spec.response_schema)

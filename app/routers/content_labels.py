@@ -48,7 +48,7 @@ from app.services.domain.content_labels import (
     label_keys_for_entry,
     label_keys_for_franchise,
 )
-from app.services.domain.h_comic import (
+from app.services.domain.gated_labels import (
     refuse_label_removal_on_entry,
     refuse_label_removal_on_franchise,
 )
@@ -327,7 +327,7 @@ def replace_entry_labels(
     actor: Viewer = Depends(require_manage_catalog),
 ):
     _resolve_entry(db, media_type, entry_id, actor)
-    # Before anything is deleted: an h-comic keeps its required label.
+    # Before anything is deleted: a gated entry keeps its required label.
     refuse_label_removal_on_entry(db, media_type, entry_id, payload.label_keys)
     return _replace_labels(
         db,
@@ -386,7 +386,8 @@ def replace_franchise_labels(
     the set here reveals everything it covered.
     """
     _resolve_franchise(db, franchise_id, actor)
-    # An H-Comic franchise keeps the h-comic label, for the same reason.
+    # A franchise of a gated type keeps that type's label, for the same
+    # reason (H-Comic keeps h-comic, Hentai keeps hentai).
     refuse_label_removal_on_franchise(db, franchise_id, payload.label_keys)
     return _replace_labels(
         db,

@@ -14,7 +14,8 @@ Two invariants, and one place that keeps them:
             franchise whose type includes `H-Comic` carries it too. A missing
             label means a PUBLIC entry, so this is never left to the admin: it
             is attached server-side, and a request that would take it off is
-            refused (422).
+            refused (422). The mechanics are shared by every gated type and
+            live in app/services/domain/gated_labels.py.
 
 The write paths that reach them:
 
@@ -27,15 +28,24 @@ The write paths that reach them:
   Calculate                             run_sync_h_comic, the same function
 
 Both invariants are idempotent, so running them twice is always safe.
+
+`animation_status` is also DERIVED at read time when the entry has adaptation
+relations to hentai entries (attach_animation_status) - read, never written,
+so removing the relation restores the hand-set value.
 """
 
 import logging
-from typing import Iterable, Optional
+from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app import models
+from app.services.domain import gated_labels
+from app.services.domain.hierarchy import (
+    check_entry_franchise_family,
+    franchise_type_tokens,
+)
 from app.utils.constants import (
     H_COMIC_ANIMATION_STATUSES,
     H_COMIC_ORIGINALITY,
@@ -43,6 +53,7 @@ from app.utils.constants import (
     H_COMIC_REGION_KR,
     H_COMIC_REGIONS,
     H_COMIC_USEFULNESS,
+    AiringStatus,
     FranchiseType,
     ReadStatus,
 )
@@ -54,11 +65,6 @@ MEDIA_TYPE = "h-comic"
 # gated_types.REQUIRED_LABEL_FOR_TYPE so this module does not have to import
 # the rbac layer at module scope; a unit test pins the two together.
 LABEL_KEY = "h-comic"
-LABEL_NAME = "H-Comic"
-LABEL_DESCRIPTION = (
-    "Adult comics. Carried by every h-comic entry and every H-Comic "
-    "franchise; seen in the unrestricted mode only."
-)
 
 # Catalogue columns only one region uses, keyed by the region that CLEARS
 # them.
@@ -174,20 +180,13 @@ def _validate_catalog(entry) -> None:
 
 def _require_h_comic_franchise(db: Session, entry) -> None:
     """
-    An h-comic never sits in a mainstream franchise (D9).
+    An h-comic never sits in a franchise of another family (D9): only one
+    whose types are all of the h-comic family, which a Hentai franchise is.
 
     The name resolver already refuses to match one; this catches the other
     way in, a franchise named by id.
     """
-    franchise_id = getattr(entry, "franchise_id", None)
-    if franchise_id is None:
-        return
-    franchise = db.get(models.Franchise, franchise_id)
-    if franchise is not None and not is_h_comic_franchise(franchise):
-        raise ValueError(
-            "An h-comic can only sit in a franchise of type "
-            f"'{FranchiseType.H_COMIC.value}'."
-        )
+    check_entry_franchise_family(db, getattr(entry, "franchise_id", None), MEDIA_TYPE)
 
 
 def h_comic_progress_hook(db: Session, entry) -> None:
@@ -247,8 +246,7 @@ def mark_h_comic_list(row, entry) -> None:
 
 def franchise_types(franchise) -> list[str]:
     """A franchise's comma-separated type list, as tokens."""
-    raw = (getattr(franchise, "franchise_type", None) or "").strip()
-    return [t.strip() for t in raw.split(",") if t.strip()]
+    return franchise_type_tokens(getattr(franchise, "franchise_type", None))
 
 
 def is_h_comic_franchise(franchise) -> bool:
@@ -256,130 +254,133 @@ def is_h_comic_franchise(franchise) -> bool:
 
 
 def ensure_label(db: Session) -> models.ContentLabel:
-    """
-    The `h-comic` content label, created if it is missing. Idempotent.
-
-    Called from the lifespan as well as named by the migration, for the
-    reason seed_modes.py gives: API tests build the schema with create_all and
-    never run Alembic. It is granted to `unrestricted` and to no other mode -
-    exactly what creating a label through the API does, and the mode whose
-    sets are derived would carry it without the row anyway.
-    """
-    label = (
-        db.query(models.ContentLabel)
-        .filter(models.ContentLabel.key == LABEL_KEY)
-        .first()
-    )
-    if label is not None:
-        return label
-    label = models.ContentLabel(
-        key=LABEL_KEY,
-        label=LABEL_NAME,
-        description=LABEL_DESCRIPTION,
-        sort_order=0,
-    )
-    db.add(label)
-    db.flush()
-
-    from app.services.rbac.seed_modes import MODE_UNRESTRICTED
-
-    unrestricted = (
-        db.query(models.AccessMode)
-        .filter(models.AccessMode.key == MODE_UNRESTRICTED)
-        .first()
-    )
-    if unrestricted is not None:
-        db.add(
-            models.AccessModeLabel(
-                mode_id=unrestricted.system_id, label_id=label.system_id
-            )
-        )
-        db.flush()
-    from app.services.rbac import cache
-
-    cache.bump()
-    return label
+    """The `h-comic` content label, created if it is missing. Idempotent."""
+    return gated_labels.ensure_label(db, LABEL_KEY)
 
 
 def ensure_entry_label(db: Session, entry_id) -> None:
     """Attach the label to one entry unless it already carries it."""
-    label = ensure_label(db)
-    exists = (
-        db.query(models.MediaContentLabel.system_id)
-        .filter(
-            models.MediaContentLabel.media_id == entry_id,
-            models.MediaContentLabel.label_id == label.system_id,
-        )
-        .first()
-    )
-    if exists is None:
-        db.add(
-            models.MediaContentLabel(
-                media_id=entry_id, label_id=label.system_id, position=0
-            )
-        )
-        db.flush()
+    gated_labels.ensure_entry_label(db, entry_id, LABEL_KEY)
 
 
 def ensure_franchise_label(db: Session, franchise) -> None:
-    """Attach the label to a franchise whose type includes H-Comic."""
-    if franchise is None or not is_h_comic_franchise(franchise):
-        return
-    label = ensure_label(db)
-    exists = (
-        db.query(models.FranchiseContentLabel.system_id)
+    """Attach every gated label a franchise's types require - `h-comic` for
+    H-Comic among them."""
+    gated_labels.ensure_franchise_labels(db, franchise)
+
+
+# ---------------------------------------------------------------------------
+# animation_status, derived from adaptation relations to hentai entries
+# ---------------------------------------------------------------------------
+#
+# The relation reads `from` is the Adaptation of `to` (relation_kinds.py), so
+# a hentai adapting an h-comic is the row
+#     from_type 'hentai' -adaptation-> to_type 'h-comic'.
+# Only that direction counts: a row the other way round says the h-comic
+# adapts the hentai, which is not an animation of it.
+
+ANIMATION_ANNOUNCED = "Announced"
+ANIMATION_ANIMATED = "Animated"
+SOURCE_DERIVED = "derived"
+SOURCE_MANUAL = "manual"
+_AIRED = frozenset({AiringStatus.AIRING.value, AiringStatus.FINISHED_AIRING.value})
+
+
+def derived_animation_statuses(db: Session, h_comic_ids) -> dict:
+    """
+    {h-comic id: derived animation status} for every id with at least one
+    adaptation relation from a hentai entry. One query for the whole set.
+
+    `Animated` when any adapting hentai has aired (Airing or Finished
+    Airing), otherwise `Announced`. A relation whose hentai no longer exists
+    is ignored, as the read side ignores a missing endpoint.
+    """
+    ids = [i for i in h_comic_ids if i is not None]
+    if not ids:
+        return {}
+    rows = (
+        db.query(models.MediaRelation.to_id, models.Hentai.airing_status)
+        .join(models.Hentai, models.Hentai.system_id == models.MediaRelation.from_id)
         .filter(
-            models.FranchiseContentLabel.franchise_id == franchise.system_id,
-            models.FranchiseContentLabel.label_id == label.system_id,
+            models.MediaRelation.relation_type == "adaptation",
+            models.MediaRelation.from_type == "hentai",
+            models.MediaRelation.to_type == MEDIA_TYPE,
+            models.MediaRelation.to_id.in_(ids),
         )
-        .first()
+        .all()
     )
-    if exists is None:
-        db.add(
-            models.FranchiseContentLabel(
-                franchise_id=franchise.system_id,
-                label_id=label.system_id,
-                position=0,
+    out: dict = {}
+    for h_comic_id, airing_status in rows:
+        if airing_status in _AIRED:
+            out[h_comic_id] = ANIMATION_ANIMATED
+        else:
+            out.setdefault(h_comic_id, ANIMATION_ANNOUNCED)
+    return out
+
+
+def attach_animation_status(db: Session, owner_type: str, entries) -> None:
+    """
+    Set each h-comic's read-time animation status. No-op for other types.
+
+    Plain attributes, never the column: `animation_status_derived` holds the
+    derived value (None when there is none) and `animation_status_source`
+    says which one the response serves. HComicResponse swaps the derived
+    value in. Writing the column instead would flush the derived value over
+    the hand-set one on the next autoflush.
+
+    A KR entry has no animation status at all (REGION_CLEARS), so it is
+    neither derived nor manual.
+    """
+    if owner_type != MEDIA_TYPE:
+        return
+    rows = entries if isinstance(entries, list) else [entries]
+    if not rows:
+        return
+    derived = derived_animation_statuses(db, [e.system_id for e in rows])
+    for entry in rows:
+        if getattr(entry, "region", None) == H_COMIC_REGION_KR:
+            entry.animation_status_derived = None
+            entry.animation_status_source = None
+            continue
+        value = derived.get(entry.system_id)
+        entry.animation_status_derived = value
+        entry.animation_status_source = SOURCE_DERIVED if value else SOURCE_MANUAL
+
+
+def write_animation_status(db: Session, entry, value, viewer=None) -> None:
+    """
+    The writer for `animation_status` on every form and tracker write. It is
+    a nested-collection writer (app/registry.py) rather than a plain column
+    set so that it sees the STORED value: the key is lifted out of the
+    payload before the columns are applied, and nothing between there and
+    here can flush a new value over the old one.
+
+    With no derived status the value is stored, as for any column. While the
+    status is derived, the column keeps the hand-set value: a write naming
+    the derived value (the form sending back what it was served) or the
+    stored one changes nothing, and a write naming any other value is
+    refused (422), because it could not take effect while the relation
+    stands.
+    """
+    derived = None
+    # A KR entry has no animation status to derive (the hook clears it).
+    if entry.system_id is not None and getattr(entry, "region", None) != H_COMIC_REGION_KR:
+        with db.no_autoflush:
+            derived = derived_animation_statuses(db, [entry.system_id]).get(
+                entry.system_id
             )
-        )
-        db.flush()
-
-
-def refuse_label_removal_on_entry(
-    db: Session, media_type: str, entry_id, wanted_keys: Iterable[str]
-) -> None:
-    """
-    422 when a whole-set replace of an h-comic entry's labels would drop the
-    required label. Called by the content-label endpoints before they delete
-    anything.
-    """
-    if media_type != MEDIA_TYPE:
+    if derived is None:
+        entry.animation_status = value
         return
-    if LABEL_KEY not in set(wanted_keys):
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Every h-comic carries the '{LABEL_KEY}' label; it cannot be "
-                "removed."
-            ),
-        )
-
-
-def refuse_label_removal_on_franchise(
-    db: Session, franchise_id, wanted_keys: Iterable[str]
-) -> None:
-    """The same refusal for a franchise whose type includes H-Comic."""
-    franchise = db.get(models.Franchise, franchise_id)
-    if franchise is None or not is_h_comic_franchise(franchise):
+    if value in (derived, entry.animation_status):
         return
-    if LABEL_KEY not in set(wanted_keys):
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Every {FranchiseType.H_COMIC.value} franchise carries the "
-                f"'{LABEL_KEY}' label; it cannot be removed."
-            ),
-        )
+    raise HTTPException(
+        status_code=422,
+        detail=(
+            "animation_status is derived from an adaptation relation to a "
+            f"hentai ('{derived}'); remove the relation to set it by hand."
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -412,9 +413,7 @@ def enforce_h_comic_invariants(db: Session) -> dict:
         for row in rows:
             clear_h_comic_list(row, by_id[row.media_id])
 
-    for franchise in db.query(models.Franchise).filter(
-        models.Franchise.franchise_type.ilike(f"%{FranchiseType.H_COMIC.value}%")
-    ):
+    for franchise in gated_labels.franchises_of_type(db, FranchiseType.H_COMIC.value):
         ensure_franchise_label(db, franchise)
     db.flush()
     return {"entries": len(entries)}

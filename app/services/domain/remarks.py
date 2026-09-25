@@ -10,6 +10,7 @@ from app.models import (
     Cartoon,
     Comic,
     HComic,
+    Hentai,
     Manga,
     Movies,
     Note,
@@ -165,5 +166,16 @@ def find_all_remarks(db: Session, author_id=None) -> dict:
                 "remark": e.remark,
             }
             for e in _query(HComic)
+        ],
+        "hentai": [
+            {
+                "system_id": str(e.system_id),
+                "hentai_name_cn": e.hentai_name_cn,
+                "hentai_name_en": e.hentai_name_en,
+                "series_number": e.series_number,
+                "watching_status": getattr(e, "watching_status", None),
+                "remark": e.remark,
+            }
+            for e in _query(Hentai)
         ],
     }

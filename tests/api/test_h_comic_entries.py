@@ -409,7 +409,7 @@ def test_the_seed_still_tops_borderline_up_with_ordinary_labels(db_session, nsfw
 
 
 def test_me_names_h_comic_for_unrestricted(admin_client):
-    assert admin_client.get("/api/auth/me").json()["visible_gated_types"] == ["h-comic"]
+    assert "h-comic" in admin_client.get("/api/auth/me").json()["visible_gated_types"]
 
 
 def test_me_names_nothing_for_a_guest(client):
@@ -495,8 +495,10 @@ def test_a_franchise_gaining_the_type_gains_the_label(admin_client, db_session):
     franchise_id = uuid.UUID(created["system_id"])
     assert label_keys_for_franchise(db_session, franchise_id) == []
 
+    # H-Comic alone: "ACG, H-Comic" would span two families and is refused
+    # (tests/api/test_franchise_families.py).
     response = admin_client.patch(
-        f"/api/franchise/{franchise_id}", json={"franchise_type": "ACG, H-Comic"}
+        f"/api/franchise/{franchise_id}", json={"franchise_type": "H-Comic"}
     )
     assert response.status_code == 200
     assert label_keys_for_franchise(db_session, franchise_id) == [LABEL]

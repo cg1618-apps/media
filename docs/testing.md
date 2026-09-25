@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-21
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -211,9 +211,9 @@ mis-set `POSTGRES_DB` fails fast instead of wiping a real database.
 the metadata as well or it simply does not exist under test. Two things in this
 category, both in `app/models/media_sync.py`:
 
-- the `delete_media_row()` function and the ten `trg_<table>_delete_media`
+- the `delete_media_row()` function and the eleven `trg_<table>_delete_media`
   triggers, attached as `after_create` DDL;
-- the ten `<table>_public_id_seq` sequences, declared against the metadata now
+- the eleven `<table>_public_id_seq` sequences, declared against the metadata now
   that no column hangs them.
 
 Four guards keep the supertable honest, and a failure in any of them names the
@@ -246,6 +246,19 @@ Look at these files, in this order:
 | `tests/unit/test_link_fields_schema.py` | `LINK_FIELD_MIXINS` | Nothing if the response mixin is registered; a mismatch fails here. |
 | `tests/unit/test_release_date_models.py` | `ALL_MEDIA_MODELS` | Nothing if the model is in the list. |
 | `tests/unit/test_plan_next_kinds.py` | `EXPECTED_MEMBERS` / `EXPECTED_NON_MEMBERS` | Decide which list the type belongs to. |
+
+A **gated type** needs more than rows in those tables: its label must be
+present for its refusal tests to bite. The conftest seeds every system label
+session-wide (`ensure_system_labels`), as every real database has them, so a
+narrow mode is never vacuously narrow; a test that counts labels or asserts
+`visible_gated_types` has to allow for all of them. The hentai files are the
+current template: `test_hentai_entries.py` (CRUD, label, who sees it,
+franchises), `test_hentai_shared_records.py` (credits, shared vocabularies, a
+session seeing one gated type but not the other - `mode_client` with the
+other label in `denials`), `test_hentai_sheets.py`, `test_hentai_tenrai.py`
+(the fetch patched, no network), `test_hentai_label_migration.py` (the
+revision's own SQL run against the test session) and
+`tests/unit/test_hentai_domain.py`.
 
 Type-specific behaviour (autofill mapping, completion rules, sheet formatter)
 gets its own files following the comic precedent: `test_comic_model.py`,

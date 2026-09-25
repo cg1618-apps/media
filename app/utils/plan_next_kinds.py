@@ -59,6 +59,7 @@ ALLOWED_SCOPES: dict[str, dict[str, frozenset[str]]] = {
         "novel": frozenset({"entry"}),
         "game": frozenset({"entry", "series", "franchise"}),
         "h-comic": frozenset({"entry"}),
+        "hentai": frozenset({"entry"}),
     },
     "rewatch": {
         "anime": frozenset({"franchise"}),
@@ -71,6 +72,7 @@ ALLOWED_SCOPES: dict[str, dict[str, frozenset[str]]] = {
         "novel": frozenset({"entry", "series", "franchise"}),
         "game": frozenset({"entry", "series", "franchise"}),
         "h-comic": frozenset({"entry"}),
+        "hentai": frozenset({"entry"}),
     },
 }
 
@@ -161,6 +163,7 @@ PLAN_FLAG_FIELDS: dict[str, tuple[tuple[str, str], ...]] = {
     "comic": (("read_next", "next"), ("to_reread", "rewatch")),
     "game": (("play_next", "next"), ("to_replay", "rewatch")),
     "h-comic": (("read_next", "next"), ("to_reread", "rewatch")),
+    "hentai": (("watch_next", "next"), ("to_rewatch", "rewatch")),
 }
 
 

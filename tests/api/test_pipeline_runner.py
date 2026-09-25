@@ -92,7 +92,7 @@ def test_fill_all_skips_comic_but_includes_game_and_studio():
     # quota. IGDB has no such quota, so Game rides along with the rest.
     assert [s.key for s in FILL_ALL] == [
         "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
-        "game", "studio",
+        "game", "hentai", "studio",
     ]
 
 
@@ -102,7 +102,7 @@ def test_replace_all_skips_comic_and_studio():
     # even though nothing in an IGDB record does.
     assert [s.key for s in REPLACE_ALL] == [
         "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
-        "game",
+        "game", "hentai",
     ]
 
 

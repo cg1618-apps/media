@@ -18,7 +18,8 @@ from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import attach_remark, pop_remark, upsert_remark
 from app.services.domain.content_labels import attach_franchise_content_labels
-from app.services.domain.h_comic import ensure_franchise_label
+from app.services.domain.gated_labels import ensure_franchise_labels
+from app.services.domain.hierarchy import check_franchise_type_family
 from app.services.rbac.enforcement import (
     apply_franchise_visibility,
     franchise_visible,
@@ -30,6 +31,19 @@ from app.utils.entity_ref import find_entity
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/franchise", tags=["Franchise Management"])
+
+
+def _require_one_family(franchise_type) -> None:
+    """
+    422 when a franchise's types span two families (FRANCHISE_FAMILY_FOR_TYPE):
+    an h-comic and its hentai may share a franchise, a mainstream type and a
+    gated one may not. Checked on create, update AND patch, which has no
+    schema.
+    """
+    try:
+        check_franchise_type_family(franchise_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 # ==========================================
@@ -121,6 +135,7 @@ def create_franchise(
     viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Franchise. Does NOT trigger a background Google Sheets backup in V2."""
+    _require_one_family(payload.franchise_type)
     try:
         # Build from the validated payload rather than field-by-field. The previous
         # explicit form silently dropped cover_entry_id, type_covers, type_slots
@@ -136,10 +151,10 @@ def create_franchise(
 
         db.add(new_franchise)
         db.flush()
-        # A franchise whose type includes H-Comic carries the h-comic label
-        # from its first write - otherwise it is public until someone labels
-        # it by hand.
-        ensure_franchise_label(db, new_franchise)
+        # A franchise whose types include a gated type's (H-Comic, Hentai)
+        # carries that type's label from its first write - otherwise it is
+        # public until someone labels it by hand.
+        ensure_franchise_labels(db, new_franchise)
         db.commit()
         db.refresh(new_franchise)
 
@@ -181,6 +196,8 @@ def update_franchise(
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
     update_data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
+    if "franchise_type" in update_data:
+        _require_one_family(update_data["franchise_type"])
     for key, value in update_data.items():
         setattr(db_franchise, key, value)
     if has_remark:
@@ -189,8 +206,8 @@ def update_franchise(
         )
 
     db_franchise.updated_at = get_taipei_now()
-    # A type that GAINS H-Comic gains the label with it.
-    ensure_franchise_label(db, db_franchise)
+    # A type that GAINS a gated type gains its label with it.
+    ensure_franchise_labels(db, db_franchise)
     db.commit()
     db.refresh(db_franchise)
 
@@ -219,6 +236,8 @@ def patch_franchise(
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
     payload, remark, has_remark = pop_remark(payload)
+    if "franchise_type" in payload:
+        _require_one_family(payload["franchise_type"])
     apply_column_patch(db_franchise, payload)
     if has_remark:
         upsert_remark(
@@ -226,8 +245,8 @@ def patch_franchise(
         )
 
     db_franchise.updated_at = get_taipei_now()
-    # A type that GAINS H-Comic gains the label with it.
-    ensure_franchise_label(db, db_franchise)
+    # A type that GAINS a gated type gains its label with it.
+    ensure_franchise_labels(db, db_franchise)
     db.commit()
     db.refresh(db_franchise)
 

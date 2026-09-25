@@ -42,6 +42,7 @@ from app.routers import (
     game,
     h_comic,
     health,
+    hentai,
     images,
     manga,
     me_list,
@@ -67,7 +68,7 @@ from app.routers import (
     watch_order,
 )
 from app.schema_guard import ensure_schema
-from app.services.domain.h_comic import ensure_label as ensure_h_comic_label
+from app.services.domain.gated_labels import ensure_system_labels
 from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
 from app.services.rbac.modes import grant_all_modes_to_existing_accounts
 from app.services.rbac.seed import ADMIN_ROLE, ensure_rbac_seed
@@ -127,10 +128,11 @@ async def lifespan(app: FastAPI):
         # should find both seeds in one place. Idempotent for the same reason
         # ensure_rbac_seed is.
         ensure_access_mode_seed(db)
-        # The system label the gated h-comic type requires, AFTER the modes so
-        # it can be granted to `unrestricted` - and to nothing else, which
-        # ensure_access_mode_seed guarantees on every later boot too.
-        ensure_h_comic_label(db)
+        # The system labels the gated types require (h-comic, hentai), AFTER
+        # the modes so each can be granted to `unrestricted` - and to nothing
+        # else, which ensure_access_mode_seed guarantees on every later boot
+        # too. Found by key: a row an admin created by hand is adopted.
+        ensure_system_labels(db)
         # And make sure every existing account HOLDS a mode. A signed-in
         # caller with no mode resolves the empty object set - fail-closed,
         # and correct - so on a database built by create_all rather than by
@@ -263,6 +265,7 @@ app.include_router(novel.router)
 app.include_router(comic.router)
 app.include_router(game.router)
 app.include_router(h_comic.router)
+app.include_router(hentai.router)
 app.include_router(watch_order.router)
 app.include_router(media_relation.router)
 app.include_router(plan_next.router)

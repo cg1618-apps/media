@@ -40,6 +40,8 @@ execute_replace_single_comic = _single("comic")
 execute_replace_single_game = _single("game")
 # Fetches nothing either: there is no external API for h-comic.
 execute_replace_single_h_comic = _single("h-comic")
+# Tenrai's three fields, then the hentai sync that keeps the label on.
+execute_replace_single_hentai = _single("hentai")
 
 execute_replace_anime = _bulk("anime")
 execute_replace_anime_movie = _bulk("anime-movie")
@@ -49,6 +51,7 @@ execute_replace_cartoon = _bulk("cartoon")
 execute_replace_manga = _bulk("manga")
 execute_replace_novel = _bulk("novel")
 execute_replace_game = _bulk("game")
+execute_replace_hentai = _bulk("hentai")
 
 
 async def execute_replace_all(db: Session, request: Request, action_type: str = "Manual"):

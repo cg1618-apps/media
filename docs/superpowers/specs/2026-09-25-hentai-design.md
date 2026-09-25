@@ -24,6 +24,20 @@ between the sessions before either wrote code.
 | D8 | h-comic `animation_status` | **Derived from an adaptation relation to a hentai when one exists; hand-set otherwise.** |
 | D9 | h-comic usefulness | No change - it already exists on both regions. |
 | D10 | h-game | Stays separate: never shares a franchise with h-comic or hentai. |
+| D11 | Tenrai | **Tenrai fills airing status, release date, cover** - and nothing else (no names, studio, scores or AniList), under anime's fill-only rules. `mal_id` / `mal_link` columns as anime's. |
+
+## Decisions made during implementation
+
+| # | Question | Answer |
+|---|---|---|
+| I1 | Which relation direction derives the status? | Only `hentai -adaptation-> h-comic` ("the hentai is the Adaptation of the h-comic", per `relation_kinds.py`). The reverse row and other kinds do not count. |
+| I2 | A write of `animation_status` while it is derived | **Refused (422)** for any value but the derived or the stored one; those two change nothing (the form echoes the served value). Implemented as a nested-collection writer so it sees the stored value before any flush. |
+| I3 | KR h-comics | Have no animation status (it is cleared), so nothing is derived: `animation_status_source` is `null`. |
+| I4 | Derivation and visibility | Derived from every adapting hentai, whatever the viewer can see: the status is a fact about the h-comic. |
+| I5 | Completing a hentai | Movie's rule: status `Completed`, `airing_status` becomes `Finished Airing`. |
+| I6 | Personal fields | `watching_status` (`WatchStatus`), `my_rating`, `usefulness`; plan flags `watch_next` / `to_rewatch`, entry scope only. |
+| I7 | The family check on `franchise_id` | Applied by the two gated types' write hooks, not to mainstream types; a mainstream entry is still kept out of gated franchises by the resolver. |
+| I8 | The migration and mode grants | Besides removing the label from non-hentai entries, it removes any grant of `hentai` to a mode other than `unrestricted`. Neither is restored on downgrade; the label row is kept on downgrade because it may predate the revision. |
 
 ## The table: `hentai`
 
@@ -40,6 +54,7 @@ The common entry columns (franchise, series, cover, remarks, ...) come from the
 | `series_number` | Integer | Position in its series |
 | `airing_status` | String | anime's `AiringStatus` vocabulary |
 | `release_date` | String | ISO CHECK `ck_hentai_release_date_iso` |
+| `mal_id` / `mal_link` | Integer / String | as anime's; Tenrai's key (D11) |
 | `created_at` / `updated_at` | DateTime | |
 
 ### Stored elsewhere
@@ -127,8 +142,11 @@ The `adaptation` relation kind already exists (`app/utils/relation_kinds.py`).
 
 - Registry entry, router from the factory, `/api/hentai`, schemas with
   vocabulary checks on write.
-- Pipelines: `PIPELINES["hentai"]` fetches nothing; `run_sync_hentai` keeps
-  the label on every entry and every `Hentai` franchise. Sheets tab `Hentai`.
+- Pipelines: `PIPELINES["hentai"]` is anime's Tenrai spec minus AniList,
+  with MAL pacing: Fill, bulk Replace and the single-entry write hook fetch
+  `airing_status`, `release_date` and the cover (D11), then `run_sync_hentai`
+  keeps the label on every entry and every `Hentai` franchise. In Fill All and
+  Replace All. Sheets tab `Hentai`.
 - Duplicates: `franchise_id`, `series_id`, `series_number`.
 - Watch orders: `hentai` joins `WHOLE_ONLY_TYPES`.
 - Frontend: library config, detail page, add and modify tabs, nav row - all behind the gated-type check, as h-comic's.

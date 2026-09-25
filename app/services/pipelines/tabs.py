@@ -244,6 +244,8 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # The gated type. Its rows travel like every entry tab - the sheet is
     # private - and Pull re-attaches the h-comic label after the tab lands.
     SheetTab("H-Comic", models.HComic, f.parse_h_comic_from_sheet, "h-comic", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
+    # The second gated type, the same way: Pull re-attaches the hentai label.
+    SheetTab("Hentai", models.Hentai, f.parse_hentai_from_sheet, "hentai", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     # Personal list rows. After every media tab: media_id resolves through
     # media_type + public_id, and user_id through username, so both must
     # already be restored. Backup drops the three database-local ids and
