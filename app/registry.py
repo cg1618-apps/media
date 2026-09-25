@@ -38,6 +38,7 @@ from app.services.domain import (
     resolve_comic_parent_hierarchy,
     resolve_game_parent_hierarchy,
     resolve_h_comic_parent_hierarchy,
+    resolve_h_game_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
@@ -52,12 +53,17 @@ from app.services.domain.h_comic import (
     mark_h_comic_catalog,
     mark_h_comic_list,
 )
+from app.services.domain.h_game import (
+    h_game_progress_hook,
+    h_game_progress_hook_list,
+)
 from app.services.domain.sources import media_sources_writer
 from app.services.pipelines import (
     execute_replace_single_cartoon,
     execute_replace_single_comic,
     execute_replace_single_game,
     execute_replace_single_h_comic,
+    execute_replace_single_h_game,
     execute_replace_single_manga,
     execute_replace_single_movie,
     execute_replace_single_novel,
@@ -130,24 +136,32 @@ def _anime_airing_season(query, params, user_id=None):
     )
 
 
-def _game_ownership(query, params, user_id=None):
-    """?ownership=Owned -> games the acting user owns a copy row for.
+def _ownership_filter(model):
+    """?ownership=Owned -> entries the acting user owns a copy row for.
 
     Ownership is derived from the copy rows rather than stored, so the filter
     is an EXISTS over game_copy instead of a column comparison. Scoped to
     user_id since Task 19: one person's purchases must not filter another's
-    list.
+    list. One per model: game and h-game share game_copy.
     """
-    wanted = params.get("ownership")
-    if not wanted:
-        return query
-    return query.filter(
-        exists().where(
-            models.GameCopy.game_id == models.Game.system_id,
-            models.GameCopy.ownership == wanted,
-            models.GameCopy.user_id == user_id,
+
+    def _filter(query, params, user_id=None):
+        wanted = params.get("ownership")
+        if not wanted:
+            return query
+        return query.filter(
+            exists().where(
+                models.GameCopy.game_id == model.system_id,
+                models.GameCopy.ownership == wanted,
+                models.GameCopy.user_id == user_id,
+            )
         )
-    )
+
+    _filter.__name__ = f"_{model.__tablename__}_ownership"
+    return _filter
+
+
+_game_ownership = _ownership_filter(models.Game)
 
 
 MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
@@ -379,5 +393,39 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         # does not use, and keeps the `h-comic` label on the entry.
         progress_hook=h_comic_progress_hook,
         progress_hook_list=h_comic_progress_hook_list,
+    ),
+    "h_game": MediaTypeSpec(
+        key="h_game",
+        owner_type="h-game",
+        label="H-Game",
+        route="h-game",
+        model=models.HGame,
+        create_schema=schemas.HGameCreate,
+        update_schema=schemas.HGameUpdate,
+        response_schema=schemas.HGameResponse,
+        status_field="playing_status",
+        list_filters=(
+            "franchise_id", "series_id", "playing_status", "release_status",
+            "game_type", "playstyle", "language_availability",
+        ),
+        hierarchy_names={"en": "h_game_name_en", "cn": "h_game_name_cn",
+                         "roman": "h_game_name_roman", "jp": "h_game_name_jp",
+                         "alt": "h_game_name_alt"},
+        search_fields=("h_game_name_cn", "h_game_name_en", "h_game_name_roman",
+                       "h_game_name_jp", "h_game_name_alt"),
+        resolve_hierarchy=resolve_h_game_parent_hierarchy,
+        mark_completed=mark_game_catalog,
+        mark_completed_list=mark_game_list,
+        extra_filters=_ownership_filter(models.HGame),
+        # Game's Steam Replace, then the h-game sync.
+        write_hook=execute_replace_single_h_game,
+        nested_collections={
+            "copies": write_game_copies,
+            "sources": media_sources_writer("h-game"),
+        },
+        # Called on create, update AND the tracker PATCH: validates the h-game
+        # vocabularies (PATCH has no schema) and keeps the `h-game` label on.
+        progress_hook=h_game_progress_hook,
+        progress_hook_list=h_game_progress_hook_list,
     ),
 }

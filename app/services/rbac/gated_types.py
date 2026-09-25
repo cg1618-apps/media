@@ -34,7 +34,10 @@ from app.services.rbac.enforcement import hidden_label_ids
 # mode but `unrestricted` - see ensure_access_mode_seed, which keeps it off
 # the other all-labels mode. A new gated type adds its entry here and its row
 # to gated_labels.SYSTEM_LABELS.
-REQUIRED_LABEL_FOR_TYPE: dict[str, str] = {"h-comic": "h-comic"}
+REQUIRED_LABEL_FOR_TYPE: dict[str, str] = {
+    "h-comic": "h-comic",
+    "h-game": "h-game",
+}
 
 
 def required_label_keys() -> frozenset[str]:

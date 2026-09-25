@@ -162,6 +162,7 @@ class TestEntryRewatchFieldInvariant:
         "comic",
         "game",
         "h-comic",
+        "h-game",
     }
     EXPECTED_NON_MEMBERS = {"anime", "cartoon"}
 

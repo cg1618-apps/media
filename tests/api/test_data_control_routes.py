@@ -14,7 +14,7 @@ from app.services.pipelines import replace
 
 MEDIA = [
     "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
-    "comic", "h-comic",
+    "comic", "h-comic", "h-game",
 ]
 # Types with no bulk Replace: comic spends an hourly quota, and h-comic has no
 # external API to replace from.

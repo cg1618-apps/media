@@ -658,10 +658,14 @@ def test_a_publisher_scoped_only_to_a_hidden_gated_type_is_hidden(
     assert admin_client.get(f"/api/publisher/{publisher.system_id}").status_code == 200
 
 
-def test_the_registry_names_exactly_h_comic():
-    """h-comic is the one gated type, and it requires the label its own
-    domain module stamps - the two spellings are pinned together here."""
-    from app.services.domain import h_comic
+def test_the_registry_names_exactly_the_gated_types():
+    """h-comic and h-game are the gated types, and each requires the label
+    its own domain module stamps - the two spellings are pinned together here."""
+    from app.services.domain import h_comic, h_game
 
-    assert gated_types.REQUIRED_LABEL_FOR_TYPE == {"h-comic": "h-comic"}
-    assert gated_types.REQUIRED_LABEL_FOR_TYPE[h_comic.MEDIA_TYPE] == h_comic.LABEL_KEY
+    assert gated_types.REQUIRED_LABEL_FOR_TYPE == {
+        "h-comic": "h-comic",
+        "h-game": "h-game",
+    }
+    for module in (h_comic, h_game):
+        assert gated_types.REQUIRED_LABEL_FOR_TYPE[module.MEDIA_TYPE] == module.LABEL_KEY

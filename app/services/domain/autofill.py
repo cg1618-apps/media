@@ -10,7 +10,6 @@ from app.models import (
     AnimeMovies,
     Cartoon,
     Comic,
-    Game,
     Manga,
     Movies,
     Novel,
@@ -700,10 +699,30 @@ def autofill_studio_from_mal(studio: Studio) -> None:
         )
 
 
-def autofill_game_from_igdb(game: Game, db: Session) -> None:
+def _game_owner_type(entry) -> str:
+    """The media-type key of a Game or HGame row - whose credits, tags and
+    cover folder the shared game autofills write."""
+    from app.models.media_sync import MEDIA_TYPE_FOR_MODEL
+
+    return MEDIA_TYPE_FOR_MODEL[type(entry)]
+
+
+def _has_column(entry, column: str) -> bool:
+    """Whether the entry's own table has this column. h_game lacks several of
+    Game's, and a setattr would otherwise leave a stray, unsaved attribute."""
+    return column in type(entry).__table__.columns
+
+
+def autofill_game_from_igdb(game, db: Session) -> None:
     """
-    Enriches a single Game entry with IGDB data. Does not commit — the caller
-    is responsible.
+    Enriches a single Game or HGame entry with IGDB data. Does not commit —
+    the caller is responsible.
+
+    One function for both tables: the credits, tags and cover are written
+    under the entry's own media type, a tag or credit whose scope does not
+    include that type is skipped (an h-game takes studio, genre and theme -
+    no publisher, mode or platform), and the DLC parent is looked up in the
+    entry's own table.
 
     Fill-only throughout: nothing already set by the admin is replaced. That
     includes game_name_en, which is the entry's identity and often a deliberate
@@ -715,10 +734,13 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
     # Imported here rather than at module scope: app.routers.options imports
     # app.schemas, which imports this module back.
     from app.routers.options import resolve_option_alias
+    from app.utils.credit_roles import CREDIT_ROLES, TAG_FIELDS
 
     igdb_id = game.igdb_id
     if not igdb_id:
         return
+    owner_type = _game_owner_type(game)
+    model = type(game)
 
     try:
         raw_data = fetch_igdb_game(igdb_id)
@@ -749,14 +771,14 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
 
         # A game's developer IS its studio; the publisher is the third entity
         # target, which is why the publisher credit role exists.
-        if not credit_names(db, game.system_id, "studio"):
-            replace_credits(
-                db, "game", game.system_id, "studio", g_data.get("developers") or []
-            )
-        if not credit_names(db, game.system_id, "publisher"):
-            replace_credits(
-                db, "game", game.system_id, "publisher", g_data.get("publishers") or []
-            )
+        for role, values in (
+            ("studio", g_data.get("developers")),
+            ("publisher", g_data.get("publishers")),
+        ):
+            if owner_type not in CREDIT_ROLES[role].media_types:
+                continue
+            if not credit_names(db, game.system_id, role):
+                replace_credits(db, owner_type, game.system_id, role, values or [])
 
         # IGDB speaks English; the vocabulary is Chinese. An unmatched value is
         # LOGGED, never stored raw and never dropped silently - a new IGDB
@@ -767,6 +789,8 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
             ("game_mode", "Game Mode", g_data.get("game_modes")),
             ("game_platform", "Game Platform", g_data.get("platforms")),
         ):
+            if owner_type not in TAG_FIELDS[field].media_types:
+                continue
             if tag_values(db, game.system_id, field):
                 continue
             resolved = []
@@ -795,9 +819,9 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
         parent_igdb_id = g_data.get("parent_igdb_id")
         if game.base_game_id is None and parent_igdb_id:
             parent = (
-                db.query(Game)
+                db.query(model)
                 .filter(
-                    Game.igdb_id == parent_igdb_id, Game.system_id != game.system_id
+                    model.igdb_id == parent_igdb_id, model.system_id != game.system_id
                 )
                 .first()
             )
@@ -807,14 +831,15 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
         # Last, so a download failure cannot cost us the cheap columns above.
         if not game.cover_image_file and g_data.get("cover_image_url"):
             key = download_cover_image(
-                g_data.get("cover_image_url"), "game", str(game.system_id)
+                g_data.get("cover_image_url"), owner_type, str(game.system_id)
             )
             if key:
                 game.cover_image_file = key
 
     except Exception as e:
         logger.error(
-            "IGDB Autofill failed for Game ID %s (IGDB %s): %s",
+            "IGDB Autofill failed for %s ID %s (IGDB %s): %s",
+            owner_type,
             game.system_id,
             igdb_id,
             e,
@@ -838,10 +863,11 @@ STEAM_OVERWRITE_COLUMNS = (
 )
 
 
-def autofill_game_from_steam(game: Game, db: Session) -> None:
+def autofill_game_from_steam(game, db: Session) -> None:
     """
-    Enriches a single Game entry with Steam data. Does not commit — the caller
-    is responsible.
+    Enriches a single Game or HGame entry with Steam data. Does not commit —
+    the caller is responsible. A column the entry's table lacks is never
+    written: an h-game has no hours_played and no Metacritic score.
 
     Columns only: no tag and no credit, so this never touches the alias layer
     and cannot produce an untranslated term. `metacritic_user_score` is
@@ -874,11 +900,13 @@ def autofill_game_from_steam(game: Game, db: Session) -> None:
         s_data = map_steam_to_game_data(payloads)
 
         for column in STEAM_FILL_ONLY_COLUMNS:
+            if not _has_column(game, column):
+                continue
             if getattr(game, column, None) is None and s_data.get(column) is not None:
                 setattr(game, column, s_data[column])
 
         for column in STEAM_OVERWRITE_COLUMNS:
-            if s_data.get(column) is not None:
+            if _has_column(game, column) and s_data.get(column) is not None:
                 setattr(game, column, s_data[column])
 
         # is_free is not written to any column (there is no such column to
@@ -901,9 +929,10 @@ def autofill_game_from_steam(game: Game, db: Session) -> None:
 
         # Guard two: even with the lock open, a zero or unknown value must
         # not overwrite a real one already on the entry.
-        minutes = (fetch_owned_games() or {}).get(appid)
-        if minutes:
-            game.hours_played = round(minutes / 60, 1)
+        if _has_column(game, "hours_played"):
+            minutes = (fetch_owned_games() or {}).get(appid)
+            if minutes:
+                game.hours_played = round(minutes / 60, 1)
 
         earned = fetch_player_achievements(appid)
         if earned:

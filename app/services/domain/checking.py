@@ -286,10 +286,13 @@ def has_missing_values_game_steam(entry) -> bool:
     so testing those columns individually would leave such entries eligible
     for ever. Testing whether Steam has landed *anything* bounds that to the
     genuinely empty case; refreshing what is already there is Replace's job.
+
+    Shared with h-game, which has no Metacritic column: a column the model
+    lacks counts as empty.
     """
     return (
         entry.steam_appid is not None
-        and entry.metacritic_score is None
+        and getattr(entry, "metacritic_score", None) is None
         and entry.price_original_us is None
         and entry.achievements_total is None
     )

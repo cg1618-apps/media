@@ -51,6 +51,9 @@ class SearchBuckets(BaseModel):
     h_comic: Optional[List[schemas.HComicResponse]] = Field(
         default=None, alias="h-comic"
     )
+    h_game: Optional[List[schemas.HGameResponse]] = Field(
+        default=None, alias="h-game"
+    )
     seasonal: List[schemas.SeasonalResponse] = []
     # Staff. Ranked below the media buckets by the frontend, and characters are
     # deliberately not here - see services/domain/search.py.

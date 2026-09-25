@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-21
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -15,15 +15,15 @@ elsewhere.
 
 | Location | Files | Test functions | Needs |
 |---|---|---|---|
-| `tests/unit/` | 118 | 1360 | Python only, no database, no network |
-| `tests/api/` | 215 | 1975 | PostgreSQL database `media_test` |
-| `tests/services/` | 0 (only `__init__.py`) | 0 | placeholder, never populated |
-| `frontend/src/**/*.test.{js,jsx}` | 132 | 1089 `it`/`test` blocks | Node + jsdom |
+| `tests/unit/` | 122 | 1417 | Python only, no database, no network |
+| `tests/api/` | 229 | 2241 | PostgreSQL database `media_test` |
+| `tests/services/` | 4 | 32 | Mostly Python only: pure checks on the pipelines (Clean's tab list, the no-personal-columns rule, the User Media List tab); the backfill check reads whatever database the suite points at and skips when it holds no list rows |
+| `frontend/src/**/*.test.{js,jsx}` | 143 | 1199 `it`/`test` blocks | Node + jsdom |
 
 Counts were taken with `grep -E '^\s*(async )?def test_'` on the Python files
 and `grep -E '^\s*(it|test)\('` on the frontend files, so parametrised cases
 count once. Backend tests use only two markers: `pytest.mark.parametrize`
-(66 sites) and `pytest.mark.anyio` (10 sites, all in
+(147 sites) and `pytest.mark.anyio` (14 sites, all in
 `tests/api/test_pipeline_runner.py`).
 
 Frontend tests are co-located with the source they cover
@@ -439,10 +439,11 @@ first.
 
 ## Known gaps
 
-- `tests/services/` exists but is empty; the mocked-external service tests
-  once planned there (Tenrai client, image manager, Sheets, pipelines) were
-  never written. Integration code is covered indirectly by API tests that
-  create entries without external links so the write hooks no-op.
+- `tests/services/` holds four files of pure pipeline checks; the
+  mocked-external service tests once planned there (Tenrai client, image
+  manager, Sheets) were never written. Integration code is covered indirectly
+  by API tests that create entries without external links so the write hooks
+  no-op.
 - `responses` is listed in `requirements-dev.txt` but no test imports it; HTTP
   mocking is done ad hoc with `monkeypatch`.
 - No end-to-end browser tests (no Playwright), no coverage threshold, no

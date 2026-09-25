@@ -22,6 +22,7 @@ from app.models import (
     Comic,
     Game,
     HComic,
+    HGame,
     Manga,
     Media,
     Movies,
@@ -47,6 +48,8 @@ MEDIA_TYPE_MODELS = {
     "game": Game,
     # Whole-only, like game: a step names the work, never a range of it.
     "h-comic": HComic,
+    # Whole-only, like game.
+    "h-game": HGame,
 }
 
 # Per type: which column holds the progress status, and which holds the unit
@@ -63,6 +66,7 @@ _STATUS_FIELDS = {
     "comic": "reading_status",
     "game": "playing_status",
     "h-comic": "reading_status",
+    "h-game": "playing_status",
 }
 
 _TOTAL_FIELDS = {

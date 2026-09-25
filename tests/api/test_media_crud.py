@@ -20,6 +20,7 @@ CASES = [
     ("novel", "novel_name_en", "reading_status", models.Novel, "Novel"),
     ("comic", "comic_name_en", "reading_status", models.Comic, "Comic"),
     ("game", "game_name_en", "playing_status", models.Game, "Game"),
+    ("h-game", "h_game_name_en", "playing_status", models.HGame, "H-Game"),
 ]
 IDS = [c[0] for c in CASES]
 

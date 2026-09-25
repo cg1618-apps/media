@@ -44,6 +44,11 @@ SYSTEM_LABELS: dict[str, tuple[str, str]] = {
         "Adult comics. Carried by every h-comic entry and every H-Comic "
         "franchise; seen in the unrestricted mode only.",
     ),
+    "h-game": (
+        "H-Game",
+        "Adult games. Carried by every h-game entry and every H-Game "
+        "franchise; seen in the unrestricted mode only.",
+    ),
 }
 
 

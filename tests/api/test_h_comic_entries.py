@@ -469,7 +469,10 @@ def test_the_seed_still_tops_borderline_up_with_ordinary_labels(db_session, nsfw
 
 
 def test_me_names_h_comic_for_unrestricted(admin_client):
-    assert admin_client.get("/api/auth/me").json()["visible_gated_types"] == ["h-comic"]
+    assert admin_client.get("/api/auth/me").json()["visible_gated_types"] == [
+        "h-comic",
+        "h-game",
+    ]
 
 
 def test_me_names_nothing_for_a_guest(client):

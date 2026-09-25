@@ -354,7 +354,8 @@ def test_episode_comments_is_text_links_with_an_episode_field():
     assert ns.locator_for(sec, "anime") == "Episode, e.g. ep 1"
     # A game is cut into chapters, so it reuses the section under its own label.
     assert ns.locator_for(sec, "game") == "Chapter / Part, e.g. Ch 3"
-    assert sec.owners == ("anime", "tv-show", "cartoon", "game")
+    assert sec.owners == ("anime", "tv-show", "cartoon", "game", "h-game")
+    assert ns.locator_for(sec, "h-game") == "Chapter / Part, e.g. Ch 3"
 
 
 def test_unread_is_gone():
@@ -495,6 +496,7 @@ CATALOG_KEYS = {
     "highlight_passages",
     "highlight_moments",
     "h_comic_highlights",
+    "h_game_highlights",
     "analysis",
     "cinematography",
     "craft",
@@ -570,7 +572,7 @@ def test_the_personal_sections_are_exactly_these_twelve():
     assert ns.PERSONAL_SECTIONS == PERSONAL_KEYS
 
 
-def test_the_catalog_sections_are_exactly_these_forty_nine():
+def test_the_catalog_sections_are_exactly_these_fifty():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_CATALOG} == (
         CATALOG_KEYS
     )
@@ -579,7 +581,7 @@ def test_the_catalog_sections_are_exactly_these_forty_nine():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 61
+    assert len(stored) == 62
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 

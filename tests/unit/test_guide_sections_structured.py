@@ -88,7 +88,7 @@ def test_endings_is_no_longer_a_guide_section():
 def test_every_guide_section_is_game_only_and_catalogue():
     for key in GUIDES_ORDER:
         section = ns.section_by_key(key)
-        assert section.owners == ("game",), key
+        assert section.owners == ns.GAME_OWNERS, key
         assert section.scope == ns.SCOPE_CATALOG, key
 
 
@@ -229,7 +229,7 @@ def test_the_three_glossary_sections_share_one_spec():
 def test_story_terms_is_a_game_only_catalogue_section_in_the_worldbuilding_card():
     section = ns.section_by_key("story_terms")
     assert section.group == "worldbuilding"
-    assert section.owners == ("game",)
+    assert section.owners == ns.GAME_OWNERS
     assert section.scope == ns.SCOPE_CATALOG
 
 
