@@ -66,7 +66,7 @@ def test_the_cards_read_in_this_order_on_the_page():
         "builds",
         "gear",
         "compendium",
-        # After the 劇情, 劇情列表 and 待辦 cards: what it holds is not part of
+        # After the 劇情, 劇情列表, 劇情設定 and 待辦 cards: what it holds is not part of
         # the guide, so it sits beside the site-wide Resources card.
         "tools",
     ]
@@ -204,13 +204,13 @@ def test_enemies_carry_a_tier_a_region_and_a_closed_beaten_status():
 def test_the_three_glossary_sections_share_one_spec():
     """
     遊戲名詞, 劇情名詞 and 玩法系統 are one shape: a term in Chinese, what
-    else it is called, what it means, and where that is sourced - links, which
-    劇情名詞 must have to sit in 劇情 Story. Only 玩法系統 adds a type, because
+    else it is called, and what it means. Only 玩法系統 adds a type, because
     "game mode", "gacha" and "upgrade system" are different KINDS of system
-    in a way two glossary terms are not.
+    in a way two glossary terms are not - and links, because a mechanic is
+    something a write-up explains, where a glossary term is only looked up.
     """
     for key in ("game_terms", "story_terms"):
-        assert _keys(key) == ["name_cn", "name_alt", "description", "links"], key
+        assert _keys(key) == ["name_cn", "name_alt", "description"], key
     assert _keys("gameplay_systems") == [
         "type",
         "name_cn",
@@ -226,9 +226,9 @@ def test_the_three_glossary_sections_share_one_spec():
         assert _field(key, "description").column == "content", key
 
 
-def test_story_terms_is_a_game_only_catalogue_section_in_the_story_card():
+def test_story_terms_is_a_game_only_catalogue_section_in_the_setting_card():
     section = ns.section_by_key("story_terms")
-    assert section.group == "story"
+    assert section.group == "story_setting"
     assert section.owners == ("game",)
     assert section.scope == ns.SCOPE_CATALOG
 
