@@ -7,6 +7,7 @@ import { entityPath } from "../../lib/entityPath";
 import FxRatesEditor from "./FxRatesEditor";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType } from "../../lib/gatedTypes";
+import { nextSeason } from "../../lib/season";
 
 // entityPath returns "" when an entity has no public_id; never navigate to the site root.
 function goTo(path) {
@@ -1449,9 +1450,9 @@ export default function Admin() {
 
   // Season config
   const [currentSeason, setCurrentSeason] = useState("Loading...");
-  const [seasonCode, setSeasonCode] = useState("WIN");
-  const [seasonYear, setSeasonYear] = useState(
-    new Date().getFullYear().toString(),
+  const [seasonCode, setSeasonCode] = useState(() => nextSeason().code);
+  const [seasonYear, setSeasonYear] = useState(() =>
+    nextSeason().year.toString(),
   );
   const [settingSeason, setSettingSeason] = useState(false);
 

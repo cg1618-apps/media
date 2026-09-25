@@ -55,7 +55,10 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 - **Announcements.** Create / edit / delete the dashboard board
   (`/api/announcements/`; title is the identifier — see api.md).
 - **Current season.** Reads and writes `/api/system/config/current_season`
-  (`"SPR 2025"` shape; not validated server-side).
+  (`"SPR 2025"` shape; not validated server-side). The season and year
+  pickers default to the season after today's (`nextSeason` in
+  `lib/season.js`; seasons are calendar quarters, so late September offers
+  `FAL` of the same year and December offers `WIN` of the next).
 - **Remarks / Duplicates modals.** The same views as the Review Queue, opened
   in place. (The Remarks modal's media-type tab list must include every type;
   `ReviewQueue.jsx` is the reference copy.)
