@@ -125,7 +125,7 @@ describe("declared option categories", () => {
 // opens the form.
 // Mirrors CREDIT_ROLES in app/utils/credit_roles.py.
 const LEGAL = {
-  director: ["anime", "anime-movie", "movie", "game"],
+  director: ["anime", "anime-movie", "movie", "game", "hentai"],
   producer: ["anime"],
   composer: ["anime", "game"],
   author: ["manga", "novel", "comic", "h-comic"],
@@ -168,14 +168,16 @@ describe("person field sources", () => {
     for (const key of retired) expect(json).not.toContain(`"${key}"`);
   });
 
-  it("asks for sixteen distinct role/scope pairs", () => {
+  it("asks for seventeen distinct role/scope pairs", () => {
     // Eleven before games; director|game and composer|game are the two the
-    // ninth media type adds, and illustrator, author and club the three the
-    // gated h-comic type adds. H-game adds none: its one credit, the
-    // developer, is a studio row, not a person.
+    // ninth media type adds, illustrator, author and club the three the
+    // gated h-comic type adds, and director|hentai the one hentai adds.
+    // H-game adds none: its one credit, the developer, is a studio row, not
+    // a person.
     const keys = PERSON_SOURCES.map((s) => `${s.role}|${s.scope}`);
-    expect(new Set(keys).size).toBe(16);
-    expect(keys).toHaveLength(16);
+    expect(new Set(keys).size).toBe(17);
+    expect(keys).toHaveLength(17);
+    expect(keys).toContain("director|hentai");
     expect(keys).toContain("director|game");
     expect(keys).toContain("composer|game");
     expect(keys).toContain("illustrator|h-comic");

@@ -37,6 +37,7 @@ const TYPE_ORDER = [
   // see it, so no group is drawn for one.
   "h-comic",
   "h-game",
+  "hentai",
 ];
 
 function typeLabel(key) {

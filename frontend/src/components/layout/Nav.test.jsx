@@ -212,6 +212,29 @@ describe("Nav gated types", () => {
       "/library/h-game",
     );
   });
+
+  it("offers no Hentai link to a session that sees the other gated types", async () => {
+    const user = userEvent.setup();
+    auth.isAdmin = true;
+    auth.visibleGatedTypes = ["h-comic", "h-game"];
+    renderNav("/");
+    await user.click(tab("restricted"));
+    const panel = document.querySelector("[data-nav-panel]");
+    expect(within(panel).getByRole("link", { name: /h-game/i })).toBeInTheDocument();
+    expect(within(panel).queryByRole("link", { name: /^hentai$/i })).toBeNull();
+  });
+
+  it("offers the Hentai link once /api/auth/me names hentai", async () => {
+    const user = userEvent.setup();
+    auth.visibleGatedTypes = ["h-comic", "h-game", "hentai"];
+    renderNav("/");
+    await user.click(tab("restricted"));
+    const panel = document.querySelector("[data-nav-panel]");
+    expect(within(panel).getByRole("link", { name: /^hentai$/i })).toHaveAttribute(
+      "href",
+      "/library/hentai",
+    );
+  });
 });
 
 describe("Nav admin gating", () => {

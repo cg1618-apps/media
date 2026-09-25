@@ -14,6 +14,7 @@ const TYPE_TO_ENTRY_TYPES = {
   Game: ["game"],
   "H-Comic": ["h_comic"],
   "H-Game": ["h_game"],
+  Hentai: ["hentai"],
 };
 
 export function getDisplayName(f) {

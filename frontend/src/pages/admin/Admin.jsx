@@ -1445,6 +1445,7 @@ export default function Admin() {
   const auth = useAuth();
   const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const canSeeHGame = canSeeGatedType(auth, "h-game");
+  const canSeeHentai = canSeeGatedType(auth, "hentai");
 
   // Season config
   const [currentSeason, setCurrentSeason] = useState("Loading...");
@@ -2036,6 +2037,12 @@ export default function Admin() {
                 ...(canSeeHGame
                   ? [{ label: "H-Game", url: "/api/data-control/fill/h-game" }]
                   : []),
+                // Tenrai's airing status, release date and cover over the
+                // hentai table, fill-only, in Fill All. Gated like every
+                // other hentai surface.
+                ...(canSeeHentai
+                  ? [{ label: "Hentai", url: "/api/data-control/fill/hentai" }]
+                  : []),
                 // The only non-media type here: a studio fills its logo and
                 // founding facts from MAL's producer record. Replace has no
                 // Studio row to match - see PipelineSpec.fill_only.
@@ -2075,6 +2082,11 @@ export default function Admin() {
                 // Game's Replace (IGDB, then Steam), limited to what h_game has.
                 ...(canSeeHGame
                   ? [{ label: "H-Game", url: "/api/data-control/replace/h-game" }]
+                  : []),
+                // The same three fields, still fill-only: Replace completes
+                // what is blank and overwrites nothing.
+                ...(canSeeHentai
+                  ? [{ label: "Hentai", url: "/api/data-control/replace/hentai" }]
                   : []),
               ]}
               streamRunning={streamRunning === "replace"}

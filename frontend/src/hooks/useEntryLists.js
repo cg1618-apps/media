@@ -29,6 +29,7 @@ export const MEDIA_LIST_TYPES = [
   // answers [] anyway.
   "h-comic",
   "h-game",
+  "hentai",
 ];
 
 // Loaded on mount by every page: read across all tabs, not owned by one.

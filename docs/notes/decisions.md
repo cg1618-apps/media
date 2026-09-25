@@ -1978,7 +1978,9 @@ them.
   write of the derived value itself - the form sending back what it was
   served - is accepted and stores nothing, which is why the write goes
   through a nested-collection writer that sees the stored value before any
-  flush can replace it.
+  flush can replace it. It is derived from every adapting hentai, whatever
+  the viewer can see: the status is a fact about the h-comic, and a narrow
+  session never sees the h-comic either.
 - **Studio, director and the H Genre vocabularies are shared, not copied
   (D6).** A studio that makes both is one studio row; the shared-record rule
   already hides one credited only on hentai. The H Genre categories serve
@@ -2001,6 +2003,30 @@ them.
   `FRANCHISE_FAMILY_FOR_TYPE`. The family check on a `franchise_id` named by
   id is the router factory's, run for every media type, so hentai's write hook
   keeps only its vocabularies and the label stamp.
+- **No notes section of its own (D7).** The owner's call: a hentai takes the
+  sections every entry has and nothing type-specific, so its detail page
+  hands the notes page the owner type alone, as a movie's does.
+- **The SPA mirrors the families, it does not re-derive them.**
+  `frontend/src/lib/gatedTypes.js` holds `FRANCHISE_FAMILY_FOR_TYPE` as a
+  copy of the backend map, and one picker (`FamilyLineageFields`) serves both
+  the h-comic and the hentai forms, offering the family's franchises. Offering
+  only a type's own franchise type would have made the shared franchise D5
+  allows unreachable from the form: a hentai could never be put beside the
+  h-comic it adapts. The hub pages fetch either list under any franchise of
+  the family for the same reason - joining a franchise does not add the
+  joiner's type to `franchise_type`.
+- **A derived animation status names its hentai from the relation card's
+  rows.** The h-comic response says only that the status is derived, not
+  from which entry; the detail page's Related entries card already loads
+  every relation, so it hands its rows up (`RelationsSection`'s `onRows`)
+  and the page names the adapting hentai without a second request or a new
+  response field. The form, which has no relation card, says where the value
+  comes from without naming it, and leaves `animation_status` out of the
+  body while it is derived rather than echoing it back.
+- **One entry, one episode, one Movie-shaped page.** The detail page follows
+  Movie's layout rather than Anime's: there is no counter to step, and Mark
+  completed also marks it aired, movie's rule. The watch axis is the ordinary one, so
+  the plan tabs, library button and status chips need no hentai branch.
 
 ### Gated-type labels in one module (2026-09-25)
 
