@@ -812,10 +812,11 @@ With the label on every entry, the ordinary gates hide the type everywhere
 connected only to it. `/api/auth/me`'s `visible_gated_types` tells the SPA
 whether to offer the type at all: `AuthContext` exposes it, and one helper,
 `canSeeGatedType` (`frontend/src/lib/gatedTypes.js`), is what both SPA
-permission surfaces ask - `<ProtectedRoute gatedType="h-comic">` around the
-library and detail routes, and the nav row's `gatedType` in `navigation.js` -
-along with every picker, tab and list that names the type. The SPA offers no
-h-game or hentai surface yet, so for those two the API is the whole of it
+permission surfaces ask - `<ProtectedRoute gatedType="h-comic">` /
+`gatedType="h-game"` around each type's library and detail routes, and the nav
+row's `gatedType` in `navigation.js` - along with every picker, tab, list and
+favourite grid that names the type. The SPA offers no
+hentai surface yet, so for that type the API is the whole of it
 ([frontend/components.md](frontend/components.md#gated-media-types)). A root
 account in a narrower mode is not shown the type either: the gate is the
 mode's label, not a capability.

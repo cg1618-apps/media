@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -59,7 +59,7 @@ counts). `h1` is display by default.
    expectation and the like are text (`Chip`, tone `ink`). The exceptions
    are the rating stamp (brand), destructive states (danger) and the
    **scope chips on the System Options page** (`config/scopeColors.js`,
-   `--color-scope-*` in all three palettes). That page runs the same ten media
+   `--color-scope-*` in all three palettes). That page runs the same eleven media
    type keys down one narrow column across hundreds of rows, and the question
    asked of it — which two values are offered in the same places — is a
    comparison, not a reading; hue answers it at a glance where
@@ -71,7 +71,9 @@ counts). `h1` is display by default.
    means adding its `--c-scope-*` hue to `:root`, `[data-theme="dark"]` **and**
    the `prefers-color-scheme` block — `game` is `hsl(95 40% 33%)` light,
    `hsl(95 45% 58%)` dark; `h-comic` is `hsl(70 55% 30%)` light,
-   `hsl(70 50% 56%)` dark, an olive between game's green and cartoon's ochre.
+   `hsl(70 50% 56%)` dark, an olive between game's green and cartoon's ochre;
+   `h-game` is `hsl(285 35% 45%)` light, `hsl(285 45% 72%)` dark, a violet
+   between anime movie's and comic's, the widest gap left on the wheel.
 6. **Copy** is sentence case, plain verbs, no exclamation marks:
    "Quick edit", "Mark completed", "Saved". Empty states say what is
    missing and what to do, not a mood.

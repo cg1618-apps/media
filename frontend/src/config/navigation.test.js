@@ -342,7 +342,7 @@ describe("the Restricted section", () => {
     const keys = NAV_SECTIONS.map((s) => s.key);
     expect(keys.indexOf("restricted")).toBe(keys.indexOf("library") + 1);
     const items = sectionItems(restricted());
-    expect(items.map((i) => i.label)).toEqual(["H-Comic"]);
+    expect(items.map((i) => i.label)).toEqual(["H-Comic", "H-Game"]);
     for (const item of items) expect(item.gatedType).toBeTruthy();
   });
 
@@ -391,5 +391,35 @@ describe("the Restricted section", () => {
     );
     expect(item.gatedType).toBe("h-comic");
     expect(activeItem("/h-comic/3/some-title").item).toBe(item);
+  });
+});
+
+describe("the gated h-game row", () => {
+  const holdsEverything = () => true;
+  const restrictedRoutes = (canSeeType) =>
+    visibleSections(NAV_SECTIONS, holdsEverything, canSeeType)
+      .filter((s) => s.key === "restricted")
+      .flatMap((s) => sectionItems(s).map((i) => i.to));
+
+  it("is hidden from a session that cannot see it, whatever it may see", () => {
+    // A session that sees h-comic still does not see h-game: each gated type
+    // is asked about on its own.
+    const routes = restrictedRoutes((type) => type === "h-comic");
+    expect(routes).not.toContain("/library/h-game");
+    expect(routes).toContain("/library/h-comic");
+  });
+
+  it("is shown to a session that can", () => {
+    expect(restrictedRoutes((type) => type === "h-game")).toContain("/library/h-game");
+  });
+
+  it("names the gated type App.jsx's guard asks for, and owns its detail pages", () => {
+    const item = sectionItems(NAV_SECTIONS.find((s) => s.key === "restricted")).find(
+      (i) => i.to === "/library/h-game",
+    );
+    expect(item.gatedType).toBe("h-game");
+    expect(activeItem("/h-game/3/some-title").item).toBe(item);
+    // /game/... is not /h-game/...: the Game row keeps its own pages.
+    expect(activeItem("/game/3/some-title").item).not.toBe(item);
   });
 });

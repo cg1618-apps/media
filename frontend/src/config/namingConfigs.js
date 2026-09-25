@@ -51,6 +51,14 @@ export const NAMING_CONFIGS = {
     "h_comic_name_kr",
     "h_comic_name_alt",
   ],
+  // Game's five names, in game's order.
+  "h-game": [
+    "h_game_name_cn",
+    "h_game_name_en",
+    "h_game_name_roman",
+    "h_game_name_jp",
+    "h_game_name_alt",
+  ],
   collection: [
     "collection_name_cn",
     "collection_name_en",

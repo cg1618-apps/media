@@ -35,9 +35,9 @@ export const SIZE_GROUPS = {
     { key: "11_plus", label: "11+ Issues" },
   ],
   "anime-movie": [],
-  // Game and h-comic are absent on purpose, exactly as anime-movie is empty:
-  // there is no size axis either groups by, so each Plan tab renders one
-  // ungrouped list.
+  // Game, h-comic and h-game are absent on purpose, exactly as anime-movie is
+  // empty: there is no size axis any of them groups by, so each Plan tab
+  // renders one ungrouped list.
   // Manga and novel do NOT have a size bucket. They group by a column on the
   // entry itself - the way the pre-plan_next Plan page did - so these two
   // vocabularies exist only here, never in app/utils/plan_next_kinds.py, which
@@ -84,6 +84,7 @@ export const PLAN_TABS = [
   { key: "game", label: "Game", icon: "fa-gamepad" },
   // Gated: the Plan page filters its tabs through visibleByType.
   { key: "h-comic", label: "H-Comic", icon: "fa-book" },
+  { key: "h-game", label: "H-Game", icon: "fa-gamepad" },
 ];
 
 export const SCOPE_LABELS = {
@@ -111,6 +112,8 @@ export const ALLOWED_SCOPES = {
     comic: ["entry", "series"],
     game: ["entry", "series", "franchise"],
     "h-comic": ["entry"],
+    // Game's tiers: an h-game is queued the way a game is.
+    "h-game": ["entry", "series", "franchise"],
   },
   rewatch: {
     // Anime and cartoon are rewatched as whole franchises; novels are reread
@@ -128,6 +131,8 @@ export const ALLOWED_SCOPES = {
     game: ["entry", "series", "franchise"],
     // An h-comic is queued and reread one entry at a time.
     "h-comic": ["entry"],
+    // Replayed at any tier, as a game is.
+    "h-game": ["entry", "series", "franchise"],
   },
 };
 
@@ -142,6 +147,7 @@ export const REWATCH_TABS = [
   { key: "comic", label: "Comic", icon: "fa-book-dead" },
   { key: "game", label: "Game", icon: "fa-gamepad" },
   { key: "h-comic", label: "H-Comic", icon: "fa-book" },
+  { key: "h-game", label: "H-Game", icon: "fa-gamepad" },
 ];
 
 export function scopesFor(kind, mediaType) {
