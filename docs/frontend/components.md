@@ -182,6 +182,8 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `GAME_COMPLETION_AXES` by default, and the h-game page passes
   `H_GAME_COMPLETION_AXES` - Completion Level, All Endings, All CG and
   usefulness, the other personal answer about a playthrough), `WeeklySchedule`,
+  `ComingNext` (the dashboard's next-season block; its selection is the pure
+  `selectComingNext` in `lib/comingNext.js`),
   `RelationsSection` (its optional `onRows` prop is handed every row the card
   loads, so the h-comic page names the hentai its derived animation status
   comes from without a second request), `WatchOrderSection`, `WatchOrderGuide`,
