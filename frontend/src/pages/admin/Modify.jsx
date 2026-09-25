@@ -928,6 +928,7 @@ export default function Modify() {
       language_availability: g.language_availability || "",
       audio_availability: list(g.audio_availability),
       h_presentation: list(g.h_presentation),
+      art_style: list(g.art_style),
       platform: list(g.platform),
       my_rating: g.my_rating || "",
       usefulness: g.usefulness || "",

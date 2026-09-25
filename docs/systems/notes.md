@@ -500,7 +500,8 @@ appears. A test asserts they share an `owners` tuple, not just a scope.
 
 Only 備註 is hidden by `hideSections` — the dedicated remark editors on the
 Add form, the Modify tabs and the detail pages write that one row and nothing
-else.
+else. The Add page's panel for a just-created entry hides nothing: by then the
+form has reset to a blank entry, so its Remark field no longer edits that row.
 
 ### OST
 
@@ -521,7 +522,7 @@ The notes page is three pieces:
 | `NotesGroup` | `NotesTemplate.jsx` | **One** group's sections with no card of their own, for a screen that puts a group somewhere else. |
 
 `NotesTemplate` is a provider wrapped around `NotesBlocks`, which is what the
-**eleven** thin wrappers under `frontend/src/pages/detail/*Notes.jsx` (e.g.
+**fifteen** thin wrappers under `frontend/src/pages/detail/*Notes.jsx` (e.g.
 `AnimeNotes.jsx`, `ComicNotes.jsx`, `FranchiseNotes.jsx`) render — they fix the
 owner type and forward the rest, unchanged by the split.
 
@@ -532,10 +533,12 @@ row fails (`ownerMatches` in `NotesContext.jsx`; without the row every section
 is kept); **`nameSuggestions`** feeds every `names` input; **`groupOrder`** and
 **`onGroupOrderChange`** are the owner's stored order for its grouped section
 and the callback that saves a new one. An owner type has at most one grouped
-section, so one order suffices. `HComicNotes.jsx` is the only wrapper passing
-them.
+section, so one order suffices. `HComicNotes.jsx` and `HGameNotes.jsx` are
+the wrappers passing them - `HGameNotes` without `nameSuggestions`, since an
+h-game has no cast.
 
-**The game detail page composes the three itself** and has no wrapper: it puts
+**The game and h-game detail pages compose the three themselves**, and
+`GameNotes.jsx` and `HGameNotes.jsx` exist for their Modify tabs only: each page puts
 待辦 Todo inside its Progress slip with `NotesGroup`, and renders everything
 else with `NotesBlocks hideGroups={["todo"]}`. One provider wraps both, because
 two `NotesTemplate`s would be two fetches of the same two endpoints, two

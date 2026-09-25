@@ -14,6 +14,7 @@ from app.schemas.sources import SourceWriteFields
 from app.services.domain.game_copies import derive_game_ownership
 from app.services.domain.h_comic import check_usefulness, normalize_group_order
 from app.services.domain.h_game import (
+    check_art_style,
     check_audio_availability,
     check_h_presentation,
     check_language_availability,
@@ -67,6 +68,7 @@ class HGameBase(BaseModel):
     audio_availability: Optional[List[str]] = None
     animation_availability: Optional[bool] = None
     h_presentation: Optional[List[str]] = None
+    art_style: Optional[List[str]] = None
     platform: Optional[List[str]] = None
 
     igdb_id: Optional[int] = None
@@ -125,6 +127,11 @@ class _WriteChecks(BaseModel):
     @classmethod
     def _h_presentation(cls, v):
         return check_h_presentation(v)
+
+    @field_validator("art_style", mode="before", check_fields=False)
+    @classmethod
+    def _art_style(cls, v):
+        return check_art_style(v)
 
     @field_validator("platform", mode="before", check_fields=False)
     @classmethod

@@ -1,6 +1,7 @@
 // Build request payloads from anime / anime-movie form state.
 
 import {
+  H_GAME_ART_STYLES,
   H_GAME_AUDIO_AVAILABILITY,
   H_GAME_H_PRESENTATIONS,
   H_GAME_PLATFORMS,
@@ -536,6 +537,7 @@ export function hGameFieldsPayload(f) {
     audio_availability: choiceList(f.audio_availability, H_GAME_AUDIO_AVAILABILITY),
     animation_availability: tri(f.animation_availability),
     h_presentation: choiceList(f.h_presentation, H_GAME_H_PRESENTATIONS),
+    art_style: choiceList(f.art_style, H_GAME_ART_STYLES),
     platform: choiceList(f.platform, H_GAME_PLATFORMS),
     playing_status: f.playing_status || "Might Play",
     my_rating: f.my_rating || null,

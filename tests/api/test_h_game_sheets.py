@@ -49,6 +49,7 @@ def test_the_parser_types_every_column():
             "language_availability": "中文補丁",
             "audio_availability": '["H場景", "一般對話"]',
             "h_presentation": "3D動畫, 靜圖",
+            "art_style": "Pixel, 2D",
             "platform": '["DLsite"]',
             "price_original_jp": "1980",
             "highlight_group_order": '["Ana", "Bea"]',
@@ -61,6 +62,7 @@ def test_the_parser_types_every_column():
     assert parsed["animation_availability"] is False
     assert parsed["audio_availability"] == ["一般對話", "H場景"]
     assert parsed["h_presentation"] == ["靜圖", "3D動畫"]
+    assert parsed["art_style"] == ["2D", "Pixel"]
     assert parsed["platform"] == ["DLsite"]
     assert parsed["highlight_group_order"] == ["Ana", "Bea"]
     assert parsed["studio"] == "Studio A"
