@@ -45,7 +45,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   h-comic has no Replace button, since there is no bulk Replace for it. The
   **H-Game** buttons (`/fill/h-game` in the Fill box, `/replace/h-game` in the
   Replace box) are gated the same way; they run Game's IGDB and Steam fill and
-  Game's Steam Replace over the h-game table.
+  Game's Replace (IGDB fill-only, then Steam) over the h-game table.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
 - **Announcements.** Create / edit / delete the dashboard board

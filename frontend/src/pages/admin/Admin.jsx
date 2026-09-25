@@ -2072,7 +2072,7 @@ export default function Admin() {
                 // drifts) and then Steam: the live prices, the Metacritic
                 // score, and this collection's own playtime.
                 { label: "Game", url: "/api/data-control/replace/game" },
-                // Game's Steam Replace, limited to the columns h_game has.
+                // Game's Replace (IGDB, then Steam), limited to what h_game has.
                 ...(canSeeHGame
                   ? [{ label: "H-Game", url: "/api/data-control/replace/h-game" }]
                   : []),
