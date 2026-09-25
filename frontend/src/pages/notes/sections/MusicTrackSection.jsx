@@ -14,11 +14,13 @@ import {
   LinkPill,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
   brandTagCls,
   draftCls,
   inputCls,
   rowCls,
   tagCls,
+  useEntryCap,
 } from "./ui";
 
 const empty = (section) => ({
@@ -114,6 +116,9 @@ export default function MusicTrackSection({
   const [draft, setDraft] = useState(() => empty(section));
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState(() => empty(section));
+  const cap = useEntryCap(notes, {
+    keep: (row) => row.system_id === editId,
+  });
 
   // The type is prefilled, so it cannot be what makes a row worth storing.
   // Mirrors validate_note_payload so the reader sees an inert Save rather than
@@ -141,7 +146,7 @@ export default function MusicTrackSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {notes.map((n) => (
+      {cap.visible.map((n) => (
         <div
           key={n.system_id}
           className={rowCls}
@@ -196,6 +201,7 @@ export default function MusicTrackSection({
           )}
         </div>
       ))}
+      <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>
           <MusicTrackForm val={draft} setVal={setDraft} section={section} />

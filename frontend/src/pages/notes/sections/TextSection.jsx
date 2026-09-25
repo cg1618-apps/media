@@ -12,7 +12,9 @@ import {
   ItemActions,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
   inputCls,
+  useEntryCap,
 } from "./ui";
 
 // ─── Singleton (Remark) ──────────────────────────────────────────────────────
@@ -133,6 +135,9 @@ function TextList({ section, notes, isAdmin, onCreate, onUpdate, onDelete }) {
   const [draft, setDraft] = useState("");
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState("");
+  const cap = useEntryCap(notes, {
+    keep: (row) => row.system_id === editId,
+  });
 
   const commit = () => {
     const content = draft.trim();
@@ -156,7 +161,7 @@ function TextList({ section, notes, isAdmin, onCreate, onUpdate, onDelete }) {
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {notes.map((n) => (
+      {cap.visible.map((n) => (
         <div key={n.system_id}>
           {editId === n.system_id ? (
             <div>
@@ -187,6 +192,7 @@ function TextList({ section, notes, isAdmin, onCreate, onUpdate, onDelete }) {
           )}
         </div>
       ))}
+      <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div>
           <textarea

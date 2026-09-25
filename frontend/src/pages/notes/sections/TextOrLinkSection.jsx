@@ -12,7 +12,9 @@ import {
   LinkPill,
   SaveCancel,
   SectionCard,
+  ShowAllToggle,
   inputCls,
+  useEntryCap,
 } from "./ui";
 
 function Row({ note }) {
@@ -37,6 +39,9 @@ export default function TextOrLinkSection({
   const [draft, setDraft] = useState("");
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState("");
+  const cap = useEntryCap(notes, {
+    keep: (row) => row.system_id === editId,
+  });
 
   const commit = () => {
     const fields = classify(draft);
@@ -62,7 +67,7 @@ export default function TextOrLinkSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {notes.map((n) => (
+      {cap.visible.map((n) => (
         <div key={n.system_id}>
           {editId === n.system_id ? (
             <div>
@@ -93,6 +98,7 @@ export default function TextOrLinkSection({
           )}
         </div>
       ))}
+      <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div>
           <textarea
