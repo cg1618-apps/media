@@ -68,6 +68,11 @@ export const NAV_SECTIONS = [
             to: "/library/character",
             matches: ["/character"],
           },
+          {
+            label: "Seiyuu",
+            icon: "fas fa-microphone",
+            to: "/library/seiyuu",
+          },
         ],
       },
       {
@@ -103,29 +108,6 @@ export const NAV_SECTIONS = [
             to: "/library/game",
             matches: ["/game"],
           },
-          // Gated: only a session whose mode carries the h-comic label is told
-          // the type exists. App.jsx's <ProtectedRoute gatedType> asks the
-          // same question for both of its routes.
-          {
-            label: "H-Comic",
-            icon: "fas fa-book",
-            to: "/library/h-comic",
-            matches: ["/h-comic"],
-            gatedType: "h-comic",
-          },
-          // Gated on h-game the same way.
-          {
-            label: "H-Game",
-            icon: "fas fa-gamepad",
-            to: "/library/h-game",
-            matches: ["/h-game"],
-            gatedType: "h-game",
-          },
-          {
-            label: "Seiyuu",
-            icon: "fas fa-microphone",
-            to: "/library/seiyuu",
-          },
         ],
       },
       {
@@ -156,6 +138,33 @@ export const NAV_SECTIONS = [
             matches: ["/comic"],
           },
         ],
+      },
+    ],
+  },
+  {
+    key: "restricted",
+    label: "Restricted",
+    // The gated media types, apart from the library everyone browses. Every
+    // row carries a `gatedType`, so a session that may see none of them is
+    // left with an empty section and visibleSections drops the tab.
+    items: [
+      // Only a session whose mode carries the h-comic label is told the type
+      // exists. App.jsx's <ProtectedRoute gatedType> asks the same question
+      // for both of its routes.
+      {
+        label: "H-Comic",
+        icon: "fas fa-book",
+        to: "/library/h-comic",
+        matches: ["/h-comic"],
+        gatedType: "h-comic",
+      },
+      // Gated on h-game the same way.
+      {
+        label: "H-Game",
+        icon: "fas fa-gamepad",
+        to: "/library/h-game",
+        matches: ["/h-game"],
+        gatedType: "h-game",
       },
     ],
   },

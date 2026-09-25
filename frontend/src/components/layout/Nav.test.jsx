@@ -149,22 +149,23 @@ describe("Nav panels", () => {
 });
 
 describe("Nav gated types", () => {
-  it("offers no H-Comic link to a session that cannot see the type", async () => {
+  it("draws no Restricted tab for a session that cannot see the type", async () => {
     const user = userEvent.setup();
     auth.isAdmin = true; // every permission: the gate is the mode, not a role
     auth.visibleGatedTypes = [];
     renderNav("/");
+    expect(screen.queryByRole("button", { name: /restricted/i })).toBeNull();
     await user.click(tab("library"));
     const panel = document.querySelector("[data-nav-panel]");
     expect(within(panel).getByRole("link", { name: /^manga$/i })).toBeInTheDocument();
     expect(within(panel).queryByRole("link", { name: /h-comic/i })).toBeNull();
   });
 
-  it("offers it once /api/auth/me names the type", async () => {
+  it("offers H-Comic under Restricted once /api/auth/me names the type", async () => {
     const user = userEvent.setup();
     auth.visibleGatedTypes = ["h-comic"];
     renderNav("/");
-    await user.click(tab("library"));
+    await user.click(tab("restricted"));
     const panel = document.querySelector("[data-nav-panel]");
     expect(within(panel).getByRole("link", { name: /h-comic/i })).toHaveAttribute(
       "href",
@@ -172,12 +173,29 @@ describe("Nav gated types", () => {
     );
   });
 
+  it("keeps H-Comic out of the Library panel even when it is visible", async () => {
+    const user = userEvent.setup();
+    auth.visibleGatedTypes = ["h-comic"];
+    renderNav("/");
+    await user.click(tab("library"));
+    const panel = document.querySelector("[data-nav-panel]");
+    expect(within(panel).getByRole("link", { name: /^manga$/i })).toBeInTheDocument();
+    expect(within(panel).queryByRole("link", { name: /h-comic/i })).toBeNull();
+  });
+
+  it("marks the Restricted tab, not Library, on an h-comic page", () => {
+    auth.visibleGatedTypes = ["h-comic"];
+    renderNav("/h-comic/3/some-title");
+    expect(tab("restricted")).toHaveAttribute("aria-current", "page");
+    expect(tab("library")).not.toHaveAttribute("aria-current");
+  });
+
   it("offers no H-Game link to a session that sees only h-comic", async () => {
     const user = userEvent.setup();
     auth.isAdmin = true;
     auth.visibleGatedTypes = ["h-comic"];
     renderNav("/");
-    await user.click(tab("library"));
+    await user.click(tab("restricted"));
     const panel = document.querySelector("[data-nav-panel]");
     expect(within(panel).getByRole("link", { name: /h-comic/i })).toBeInTheDocument();
     expect(within(panel).queryByRole("link", { name: /h-game/i })).toBeNull();
@@ -187,7 +205,7 @@ describe("Nav gated types", () => {
     const user = userEvent.setup();
     auth.visibleGatedTypes = ["h-comic", "h-game"];
     renderNav("/");
-    await user.click(tab("library"));
+    await user.click(tab("restricted"));
     const panel = document.querySelector("[data-nav-panel]");
     expect(within(panel).getByRole("link", { name: /h-game/i })).toHaveAttribute(
       "href",
