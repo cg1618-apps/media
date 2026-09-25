@@ -3,25 +3,29 @@
 //
 // A gated type is a media type whose every entry carries a required content
 // label (REQUIRED_LABEL_FOR_TYPE in app/services/rbac/gated_types.py) - today
-// only `h-comic`. A session whose access mode lacks that label is not told
-// the type exists: the server withholds its entries, its vocabularies and its
-// constants, and `/api/auth/me` names in `visible_gated_types` only the gated
-// types the session MAY see.
+// `h-comic` and `h-game`. A session whose access mode lacks that label is not
+// told the type exists: the server withholds its entries, its vocabularies
+// and its constants, and `/api/auth/me` names in `visible_gated_types` only
+// the gated types the session MAY see.
 //
 // So the SPA never decides visibility itself. It asks `canSeeGatedType`, which
 // reads that list, and every surface that could name a gated type - the nav,
 // both routes, the type pickers, the search tabs, the statistics chips - asks
-// through here rather than testing `"h-comic"` inline. Hiding in the UI is
-// cosmetic: the server has already refused what the viewer may not read.
+// through here rather than testing `"h-comic"` or `"h-game"` inline. Hiding
+// in the UI is cosmetic: the server has already refused what the viewer may
+// not read.
 
 // Every gated media type the frontend knows how to render. A type that is not
 // listed here is ungated and always visible.
-export const GATED_TYPES = Object.freeze(["h-comic"]);
+export const GATED_TYPES = Object.freeze(["h-comic", "h-game"]);
 
 // Franchise types stamped only for a gated media type (FRANCHISE_TYPE_FOR on
 // the backend). A franchise-type picker offers one only when its media type
 // is visible.
-export const GATED_FRANCHISE_TYPES = Object.freeze({ "H-Comic": "h-comic" });
+export const GATED_FRANCHISE_TYPES = Object.freeze({
+  "H-Comic": "h-comic",
+  "H-Game": "h-game",
+});
 
 const GATED = new Set(GATED_TYPES);
 
@@ -72,7 +76,10 @@ export function visibleFranchiseTypes(auth, franchiseTypes) {
 // of its franchise type; the content-label endpoints refuse (422) a new set
 // that drops it. So the label pickers lock it on, and the savers add it back
 // rather than let a save the admin never touched fail.
-export const REQUIRED_LABEL_FOR_TYPE = Object.freeze({ "h-comic": "h-comic" });
+export const REQUIRED_LABEL_FOR_TYPE = Object.freeze({
+  "h-comic": "h-comic",
+  "h-game": "h-game",
+});
 
 /** The labels an entry of `mediaType` must carry: [] for an ungated type. */
 export function requiredLabelsForType(mediaType) {

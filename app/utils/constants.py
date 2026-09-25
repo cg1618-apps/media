@@ -97,6 +97,13 @@ class FranchiseType(str, Enum):
     # in a franchise of this type, and every franchise of this type carries
     # the `h-comic` content label - see app/services/domain/h_comic.py.
     H_COMIC = "H-Comic"
+    # The franchise type of adult anime. A hentai only ever sits in a
+    # franchise of the h-comic family (FRANCHISE_FAMILY_FOR_TYPE below), and
+    # every franchise of this type carries the `hentai` content label.
+    HENTAI = "Hentai"
+    # The franchise type of the adult games type, a family of its own
+    # (FRANCHISE_FAMILY_FOR_TYPE below) - see app/services/domain/h_game.py.
+    H_GAME = "H-Game"
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +207,8 @@ FRANCHISE_TYPES: tuple[str, ...] = (
     "Novel",
     "Game",
     "H-Comic",
+    "Hentai",
+    "H-Game",
 )
 
 # Franchise FAMILIES: which franchise types may share one franchise, and which
@@ -207,9 +216,12 @@ FRANCHISE_TYPES: tuple[str, ...] = (
 # A franchise whose types span two families is refused, and an entry sits only
 # in a franchise of its own family - matched by name or named by id
 # (app/services/domain/hierarchy.py). Keyed on the franchise type, so a gated
-# media type joins by naming its franchise type here.
+# media type joins by naming its franchise type here. An h-comic and its hentai
+# adaptation share a franchise the way a manga and its anime do.
 FRANCHISE_FAMILY_FOR_TYPE: dict[str, str] = {
     "H-Comic": "h-comic",
+    "Hentai": "h-comic",
+    "H-Game": "h-game",
 }
 MAINSTREAM_FAMILY = "mainstream"
 
@@ -304,6 +316,7 @@ H_COMIC_REGION_KR = "KR"
 
 # 原創 is an original work, 同人 a derivative one. JP only.
 H_COMIC_ORIGINALITY: tuple[str, ...] = ("原創", "同人")
+# hentai.originality reuses it.
 
 # Hand-set, JP only. Whether the work has been adapted into a hentai entry.
 H_COMIC_ANIMATION_STATUSES: tuple[str, ...] = (
@@ -312,7 +325,42 @@ H_COMIC_ANIMATION_STATUSES: tuple[str, ...] = (
     "Animated",
 )
 
-# How useful a work was to the reader. PERSONAL - it lives on
+# How useful a work was to the reader - h-comic, h-game and hentai. PERSONAL - it lives on
 # user_media_list beside my_rating, not on the entry - and it is also the
 # vocabulary of the highlight rows' `status` dropdown.
 H_COMIC_USEFULNESS: tuple[str, ...] = ("非常實用", "實用", "特定情況實用", "不實用")
+
+
+# ---------------------------------------------------------------------------
+# hentai. Adult anime, one entry per episode. Its originality reuses
+# H_COMIC_ORIGINALITY, its usefulness H_COMIC_USEFULNESS, and its airing
+# status AiringStatus.
+# ---------------------------------------------------------------------------
+
+# What the episode is adapted from, or Original.
+HENTAI_SOURCE_MATERIALS: tuple[str, ...] = ("Original", "Manga", "Novel")
+
+
+# ---------------------------------------------------------------------------
+# h-game. Fixed vocabularies rather than system options: they are closed, and
+# the write schemas, the tracker PATCH hook and the Sheets parser all check
+# them (app/services/domain/h_game.py). The multi-choice ones are stored as
+# JSONB lists kept in the order given here.
+# ---------------------------------------------------------------------------
+
+# How the game is played. Single choice.
+H_GAME_PLAYSTYLES: tuple[str, ...] = ("ADV", "RPG", "SLG", "Other")
+
+# Whether it can be played in Chinese: officially, through a fan patch, or
+# not at all. Single choice.
+H_GAME_LANGUAGE_AVAILABILITY: tuple[str, ...] = ("官方中文", "中文補丁", "無中文")
+
+# Which parts are voiced. Multi-choice.
+H_GAME_AUDIO_AVAILABILITY: tuple[str, ...] = ("一般對話", "H場景")
+
+# H 演出形式 - how the H scenes are presented. Multi-choice.
+H_GAME_H_PRESENTATIONS: tuple[str, ...] = ("靜圖", "動圖", "2D動畫", "3D動畫", "互動")
+
+# Where it is sold. Multi-choice, hand-set, never filled from IGDB - not
+# Game's game_platform tag field, which names hardware.
+H_GAME_PLATFORMS: tuple[str, ...] = ("Steam", "DLsite", "Nintendo", "Other")

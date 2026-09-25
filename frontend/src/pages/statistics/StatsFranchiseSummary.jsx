@@ -156,6 +156,9 @@ export default function StatsFranchiseSummary({
   allComic,
   // null for a session that cannot see the gated type: no card at all.
   allHComic = null,
+  // The same for h-game. Only its nullness is read: the card counts H-Game
+  // franchises, as the Game card counts game franchises.
+  allHGame = null,
   seasonals,
   currentSeason,
 }) {
@@ -217,6 +220,11 @@ export default function StatsFranchiseSummary({
     computeRatingRows(allComic);
   // Per entry, like comics: an h-comic franchise is rarely rated on its own.
   const hComicRating = allHComic ? computeRatingRows(allHComic) : null;
+  const hGameRating = allHGame
+    ? computeRatingRows(
+        franchises.filter((f) => parseTypes(f.franchise_type).includes("H-Game")),
+      )
+    : null;
 
   return (
     <>
@@ -305,6 +313,14 @@ export default function StatsFranchiseSummary({
               subtitle="All h-comics"
               rows={hComicRating.rows}
               total={hComicRating.ratedCount}
+            />
+          )}
+          {hGameRating && (
+            <RatingDistributionCard
+              title="My rating"
+              subtitle="H-Game franchises"
+              rows={hGameRating.rows}
+              total={hGameRating.ratedCount}
             />
           )}
         </div>

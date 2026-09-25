@@ -1946,6 +1946,62 @@ them.
   the section, like every other structured field: the next section wanting
   groups or free-text names is a registry edit.
 
+### Hentai, the second gated type (spec: 2026-09-25 hentai-design)
+
+- **Its own table, not an `anime` row with a label (D1).** Its fields are
+  h-comic's more than anime's - source material, originality, a series
+  number, usefulness - and none of anime's episode, season, broadcast or
+  AniList machinery applies to one episode of adult anime. A label on an
+  anime row would also have left the type ungated: a label an admin can
+  remove is not a type.
+- **Franchise families instead of a second special case (D5).** h-comic was
+  kept apart from the mainstream by one hard-coded franchise type. Hentai
+  needs the opposite as well as the same: apart from the mainstream, but
+  sharing a franchise with the h-comic it adapts, as anime shares one with
+  its manga. So the rule became data: `FRANCHISE_FAMILY_FOR_TYPE` maps
+  `H-Comic` and `Hentai` to one family, every unlisted type is mainstream, a
+  franchise spanning two families is refused, and the resolver matches within
+  the entry's family. It is written for any number of families - h-game adds
+  its own - and one franchise carries the label of each gated type it holds,
+  which is what keeps an h-comic-and-hentai franchise hidden from a session
+  that sees only one of them.
+- **h-comic's `animation_status` is derived at read time, not written
+  (D8).** The alternative - writing the derived value whenever a relation or
+  an airing status changes - needs a recompute on every relation write,
+  every hentai write and every Pull, and it overwrites the hand-set value, so
+  removing the relation would leave a stale one. Deriving on read needs
+  neither, keeps the hand-set value for the day the relation goes, and costs
+  one query per page. Only `hentai -adaptation-> h-comic` counts, read from
+  the relation's own direction ("the hentai is the Adaptation of the
+  h-comic"). While derived, a write of any other value is refused (422)
+  rather than silently ignored: an ignored write looks saved and is not. A
+  write of the derived value itself - the form sending back what it was
+  served - is accepted and stores nothing, which is why the write goes
+  through a nested-collection writer that sees the stored value before any
+  flush can replace it.
+- **Studio, director and the H Genre vocabularies are shared, not copied
+  (D6).** A studio that makes both is one studio row; the shared-record rule
+  already hides one credited only on hentai. The H Genre categories serve
+  both gated types, so they are hidden only from a session that sees
+  neither, and `/api/constants` serves a vocabulary while any type it serves
+  is seeable.
+- **The hand-made `hentai` label is adopted, and leaves every non-hentai
+  entry.** The label existed on the home database, on one anime. Find-or-
+  create by key keeps that row; the migration then removes the label from
+  every entry that is not a hentai, and from every mode but `unrestricted`,
+  because the label now means the type. Which rows carried it is recorded
+  nowhere, so the downgrade does not restore them.
+- **Tenrai fills three fields (D11).** The owner asked for airing status,
+  release date and cover, and nothing else - not names, studio or scores.
+  Tenrai serves Rx titles from the same anime endpoint, so the pipeline is
+  anime's minus AniList, under anime's fill-only rules.
+- **Hentai's label and family are map entries, not code.** It joins the
+  shared label module by its `REQUIRED_LABEL_FOR_TYPE` entry and its
+  `SYSTEM_LABELS` row, and the families by `"Hentai": "h-comic"` in
+  `FRANCHISE_FAMILY_FOR_TYPE`. The family check on a `franchise_id` named by
+  id is the router factory's, run for every media type, so hentai's write hook
+  keeps only its vocabularies and the label stamp.
+
 ### Gated-type labels in one module (2026-09-25)
 
 The label machinery h-comic introduced - the system label found or created by
@@ -1970,3 +2026,133 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
 - **Found by key.** `ensure_label` adopts a label row an admin made by hand
   with the same key instead of failing on the unique key or creating a twin;
   an adopted row keeps its own name and grants.
+
+### A switched-to access mode lasts an hour, or until the browser closes (2026-09-25)
+
+- **The problem.** The active mode lived in the login token's `mode` claim, and
+  the login lasts 30 days in a persistent cookie. A laptop switched to
+  `unrestricted`, closed, and reopened the next day was still `unrestricted`,
+  although its default was `borderline`. The widening password protects the act
+  of switching up; nothing protected a device left switched up.
+- **Two cookies.** The login cookie says who is asking; `access_mode` says which
+  mode they switched to. Every request with no live override resolves the
+  account's default from the database, and the login token's `mode` claim is
+  no longer read - which is also what moves every cookie minted before this
+  change back to its default on deploy.
+- **Both limits, not either.** A browser-session cookie alone fails in a browser
+  that restores its session on startup, and in one that is never closed. A
+  timer alone would survive closing the browser for up to an hour. The override
+  is a session cookie whose token expires 60 minutes after the switch
+  (`ACCESS_MODE_OVERRIDE_MINUTES`), capped at the login's own expiry.
+- **Fixed, not sliding.** The hour runs from the switch, not from the last
+  request, so a session left open on a page that polls does not stay wide.
+- **Narrowing expires too.** A session switched below its default returns to
+  the default without the password. Accepted: the default is what the
+  account's own login already grants, so returning to it is not a new grant,
+  and a rule that kept narrow overrides but expired wide ones would need an
+  ordering of modes, which they deliberately do not have.
+- **A revoked override still resolves to nothing**, not to the default, until
+  it expires - the fail-closed rule for revoked modes is unchanged.
+- **The switch no longer reissues the login cookie**, so the
+  session-extension concern that made it preserve `exp` has no surface left.
+
+### H-Game, the second gated type (spec: 2026-09-25 h-game-design)
+
+- **Its own table, Game's machinery.** `h_game` is to `games` what `h_comic`
+  is to `manga`: the IGDB and Steam fill, the purchase records, the DLC chain
+  and the game note sections are reused, the table is not. The two autofills
+  take the entry's model and owner type instead of being copied, and write a
+  column only when the table has it, so a column Game has and h_game lacks
+  (`hours_played`, the Metacritic pair) is skipped rather than set as a stray
+  attribute; a credit or tag whose scope lacks `h-game` (publisher, mode,
+  platform) is skipped the same way.
+- **Purchase records are shared, through `media`.** `game_copy.game_id`
+  points at `media.system_id` instead of `games.system_id`. Every entry
+  shares its id with its media row, so no value changed; the column kept its
+  name because the `Game Copy` sheet tab is headed by it. With the FK off
+  `games`, both `Game.copies` and `HGame.copies` spell out their join.
+- **Fixed vocabularies, checked on every path.** The five h-game vocabularies
+  live in `constants.py`, not in `system_option`: they are closed, and a
+  closed list the code checks is a constant. The write schemas and the
+  registry's progress hook (the tracker PATCH has no schema) refuse an
+  unknown value with a 422; the Sheets parser drops it and logs, because a
+  restore must not fail a tab over one hand-typed cell.
+- **A multi-choice list is stored in vocabulary order, and `[]` is an
+  answer.** Two ways of ticking the same boxes store the same list. An empty
+  list ("no voiced scenes", "none of these presentations") is kept and is
+  different from null ("not recorded"), the way `animation_availability`'s
+  null means unknown rather than no.
+- **No invariant pass of its own.** H-Game has no region and nothing derived,
+  so the label is the only thing a restore could break, and the pass every
+  gated type shares (`enforce_gated_label_invariants`) covers it. Its pipeline
+  spec runs `run_sync_game` and `run_sync_gated_labels`.
+- **Plans and watch orders as Game.** Plan-next scopes and the
+  `play_next` / `to_replay` flags mirror game's; a watch-order step names an
+  h-game whole.
+- **Game's note sections by default.** Every game section names
+  `GAME_OWNERS`, so the next one written for games reaches h-game without a
+  registry edit. `h_game_highlights` copies `h_comic_highlights`' fields -
+  the second copy, so not factored out yet - with the locator labelled
+  "Route / Scene" and no `owner_where`.
+- **A franchise family of its own.** `FRANCHISE_FAMILY_FOR_TYPE` maps
+  `H-Game` to `h-game`, apart from the `h-comic` family H-Comic and Hentai
+  share: an h-game never sits in a franchise with an adult comic or anime,
+  by the owner's choice.
+- **DLsite is two plain links, not an id and not JSONB.** Nothing fetches
+  DLsite, so an id would be decoration; the JP and TW stores are exactly two
+  fixed slots, so two columns sit beside `steam_link` and `igdb_link` in
+  the Sources card, the forms and the sheet, where a JSONB object would
+  put two links in one cell.
+- **Game Spend stays games only.** The copies table is shared, but the
+  statistic reads the `game` list's copies, so an h-game purchase never
+  reaches a page a narrow session can open.
+- **A multi-choice field is chips, with None and Unknown as chips too.**
+  `ChoiceChips` sets `[]` from None and `null` from Unknown, so the
+  difference the column keeps is one the form can express.
+- **Usefulness sits in the completion block**, beside Completion Level, All
+  Endings and All CG, because the shared tracker card has no per-type slot.
+- **Its nav row is under Restricted**, with H-Comic's, not in the Library.
+
+### The scope reconcile leaves unscoped options alone (2026-09-25)
+
+- **What happened.** Netflix and Disney+ were left with no scope rows when the
+  media-sources work cleared their TV-only scoping, so they were offered on
+  every type. Calculate's `extract_system_options` then gave them `tv-show`
+  and `cartoon` rows, because TV shows and cartoons name them in
+  `original_source`. On a value with no rows, the first row narrows rather than
+  widens, so both dropped out of the anime, anime-movie and movie Main Sources
+  pickers. Ruling R27 had banned exactly this for `replace_tags`; the reconcile
+  kept doing it, because "additive" was read as "never deletes a row".
+- **The fix.** The reconcile now skips any option with no scope rows. A new
+  value typed into a tag field therefore stays offered everywhere until an
+  admin scopes it, which is what "scopes are admin data" already said.
+- **Explicit scopes, not unscoped again.** Migration `n1d2plscope3` gives both
+  values rows for anime, anime-movie, movie, tv-show and cartoon. Clearing them
+  would also offer them on manga, novel and comic, which are read rather than
+  watched. Explicit rows cannot be narrowed by the reconcile, since it only
+  adds. Its downgrade is a no-op: nothing shows which rows were there before,
+  and the older code is just as happy to offer the values more widely.
+
+### Game Replace runs IGDB as well as Steam (2026-09-25)
+
+- **Owner's decision: Autofill and Replace run both sources** on `game` and
+  `h-game`, in Fill's order — IGDB, then Steam. Steam-only Replace had been
+  justified by "nothing in an IGDB record drifts", which is true, but it meant
+  the detail page's Autofill button could not finish an entry that had only
+  an IGDB link: Steam keys off the appid that only IGDB supplies.
+- **IGDB stays fill-only under Replace.** That is what every other type's
+  Replace does with its source: the MAL Replace runs the same fill-only
+  autofill and overwrites only the scores and ranks, which drift. IGDB has no
+  drifting column, so its half of Replace only fills gaps. Overwriting would
+  have rewritten hand-shortened names, curated tags and chosen covers for no
+  new information.
+- **The write hook keeps running the whole Replace.** Every other type with a
+  source fetches it on save (movie, TV show and cartoon pay TMDB/OMDb, manga
+  and novel pay Tenrai), and a game saved with a fresh IGDB link should be
+  filled then, not on the next run. The cost is up to two IGDB requests per
+  save of a linked game, well inside IGDB's 4/second limiter. The corollary
+  is shared with every fill-only field: clearing IGDB-supplied tags or credits
+  on an entry that still carries its `igdb_id` refills them on save.
+- **Bulk Replace selects IGDB-only entries too**, and the Steam budget still
+  gates every entry: IGDB can hand Steam an appid mid-entry, so an IGDB-only
+  row is not exempt from the storefront window.

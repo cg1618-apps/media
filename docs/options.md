@@ -68,28 +68,33 @@ diverged from the Enum long ago and reconciling them is out of scope (the
 file's own comment calls this Ruling R10). See
 [Known discrepancies](#known-discrepancies).
 
-The payload is **viewer-scoped on one axis**: what exists only for a gated
-type the viewer cannot see is left out
+The payload is **viewer-scoped on one axis**: what exists only for gated
+types the viewer cannot see is left out
 ([authorization.md](authorization.md#what-a-narrow-session-is-not-told)). For
-any session outside `unrestricted` that means no `h_comic_*` keys at all, no
-`H-Comic` in `franchise_type`, no `h-comic` in `media_type`, no `club` in
-`person_role`, and none of the three H Genre categories in
-`option_categories`.
+any session outside `unrestricted` that means no `h_comic_*`, `h_game_*` or
+`hentai_*` keys at all, no `H-Comic`, `H-Game` or `Hentai` in
+`franchise_type`, no `h-comic`, `h-game` or `hentai` in `media_type`, no
+`club` in `person_role`, and none of the three H Genre categories in
+`option_categories`. A vocabulary shared by several gated types
+(`h_comic_originality` and `h_comic_usefulness`, which hentai and - for
+usefulness - h-game read too, and the H Genre categories) is served while any
+type it serves is seeable.
 
 | Name | Values (in order) | Used by | `/api/constants` key |
 |---|---|---|---|
-| `WatchStatus` (Enum) | `Might Watch`, `Plan to Watch`, `Watch When Airs`, `Active Watching`, `Passive Watching`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Watch` | `watching_status` on anime, anime_movies, movies, tv_shows, cartoons | `watching_status` |
+| `WatchStatus` (Enum) | `Might Watch`, `Plan to Watch`, `Watch When Airs`, `Active Watching`, `Passive Watching`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Watch` | `watching_status` on anime, anime_movies, movies, tv_shows, cartoons, hentai | `watching_status` |
 | `ReadStatus` (Enum) | `Might Read`, `Plan to Read`, `Active Reading`, `Passive Reading`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Read` | `reading_status` on manga, novel, comic, h_comic | `reading_status` |
 | `COMPLETED_WATCH_STATUSES` | `{Completed, Completed (解說)}` | completion checks (`Completed (解說)` = finished via a summary/commentary video; counts as completed everywhere) | not served |
 | `COMPLETED_READ_STATUSES` | `{Completed, Completed (解說)}` | same, for reading types | not served |
-| `PlayStatus` (Enum) | `Might Play`, `Plan to Play`, `Play When Released`, `Active Playing`, `Passive Playing`, `Play Anytime`, `Paused`, `Completed`, `Temp Dropped`, `Dropped`, `Won't Play` | `playing_status` on games. `Play When Released` is `Watch When Airs`'s analogue and more load-bearing here: a pre-ordered or wishlisted unreleased title is an ordinary state in a collection organised by purchasable. `Play Anytime` covers titles with nothing to resume and nothing to finish - sandbox (Minecraft), live-service (Valorant) and roguelike (Slay the Spire) alike, because what differs between those three is the game, not the state | `playing_status` |
+| `PlayStatus` (Enum) | `Might Play`, `Plan to Play`, `Play When Released`, `Active Playing`, `Passive Playing`, `Play Anytime`, `Paused`, `Completed`, `Temp Dropped`, `Dropped`, `Won't Play` | `playing_status` on games and h_game. `Play When Released` is `Watch When Airs`'s analogue and more load-bearing here: a pre-ordered or wishlisted unreleased title is an ordinary state in a collection organised by purchasable. `Play Anytime` covers titles with nothing to resume and nothing to finish - sandbox (Minecraft), live-service (Valorant) and roguelike (Slay the Spire) alike, because what differs between those three is the game, not the state | `playing_status` |
 | `COMPLETED_PLAY_STATUSES` | `{Completed}` | completion checks for games. One value: there is no games analogue of `Completed (解說)`. Declared anyway so it reads beside its two siblings | not served |
-| `AiringStatus` (Enum) | `Not Yet Aired`, `Airing`, `Finished Airing`, `Canceled`, `Rumored` | `airing_status` (business logic compares string literals, the Enum itself is only served) | `airing_status` |
+| `AiringStatus` (Enum) | `Not Yet Aired`, `Airing`, `Finished Airing`, `Canceled`, `Rumored` | `airing_status` (business logic compares string literals, the Enum itself is only served). `hentai.airing_status` is **checked** against it on every write, and it decides a derived h-comic `animation_status` (`Airing` / `Finished Airing` -> `Animated`) | `airing_status` |
 | `AnimeAiringType` (Enum) | `TV`, `ONA`, `OVA`, `OAD`, `Special`, `Movie` | backend-internal only | not served |
 | `ANIME_AIRING_TYPES` | `TV`, `Movie`, `ONA`, `OVA`, `OAD`, `Special`, `Other` | `anime.airing_type` dropdown | `anime_airing_type` |
 | `CARTOON_AIRING_TYPES` | `TV`, `Movie`, `OVA`, `Special` | `cartoons.airing_type` dropdown (Fill only handles `TV` and `Movie`, see business-rules.md section 17) | `cartoon_airing_type` |
-| `FranchiseType` (Enum) | `Anime`, `Movie`, `TV`, `Cartoon`, `Comic`, `ACG`, `Novel`, `Game`, `H-Comic` | backend-internal only | not served |
-| `FRANCHISE_TYPES` | `ACG`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic` | `franchise.franchise_type` dropdown. `H-Comic` is the one type code branches on: a franchise carrying it carries the `h-comic` label and only h-comics resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
+| `FranchiseType` (Enum) | `Anime`, `Movie`, `TV`, `Cartoon`, `Comic`, `ACG`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | backend-internal only | not served |
+| `FRANCHISE_TYPES` | `ACG`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
+| `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic` -> `h-comic`, `Hentai` -> `h-comic`, `H-Game` -> `h-game`; any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
 | `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `franchise.franchise_expectation` | `franchise_expectation` |
 | `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on entries, franchise, seasonal, person, studio | `my_rating` |
 | `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; `comic.is_main_entry` is a Boolean, not this) | `is_main` |
@@ -99,10 +104,10 @@ any session outside `unrestricted` that means no `h_comic_*` keys at all, no
 | `NOVEL_REGIONS` | `JP`, `CN`, `TW`, `KR`, `Western` | `novel.region` | `novel_region` |
 | `NOVEL_TYPES` | `Light Novel`, `Novel`, `Web`, `Other` | `novel.novel_type`; also the Plan page novel grouping | `novel_type` |
 | `COMIC_TYPES` | `Ongoing`, `Limited`, `One-Shot`, `Annual` | `comic.comic_type` | `comic_type` |
-| `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`; `Base Game` is the value `ck_games_base_no_parent` names | `game_type` |
-| `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | `completion_level` |
-| `GAME_RELEASE_STATUSES` | `Rumored`, `Unreleased`, `Early Access`, `Released`, `Ongoing`, `Discontinued`, `Cancelled` | `games.release_status` | `game_release_status` |
-| `GAME_COMPLETION_FLAGS` | `Yes`, `No`, `Inapplicable` | `games.all_endings`, `games.all_achievements`, `games.all_collected`. `NULL` is outside the vocabulary and means "not recorded yet"; `Inapplicable` means the game has none of that thing to find. `games.steam_progress_sync` is **not** one of these - it is a boolean lock on Steam writes | `game_completion_flag` |
+| `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`, `h_game.game_type`; `Base Game` is the value `ck_games_base_no_parent` / `ck_h_game_base_no_parent` name | `game_type` |
+| `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`, `h_game.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | `completion_level` |
+| `GAME_RELEASE_STATUSES` | `Rumored`, `Unreleased`, `Early Access`, `Released`, `Ongoing`, `Discontinued`, `Cancelled` | `games.release_status`, `h_game.release_status` | `game_release_status` |
+| `GAME_COMPLETION_FLAGS` | `Yes`, `No`, `Inapplicable` | `games.all_endings`, `games.all_achievements`, `games.all_collected`, `h_game.all_endings`, `h_game.all_cg`. `NULL` is outside the vocabulary and means "not recorded yet"; `Inapplicable` means the game has none of that thing to find. `games.steam_progress_sync` is **not** one of these - it is a boolean lock on Steam writes | `game_completion_flag` |
 | `GAME_STOREFRONTS` | `Steam`, `Nintendo eShop`, `PlayStation Store`, `Xbox Store`, `GOG`, `Epic Games Store`, `Physical`, `Other` | `game_copy.storefront` | `game_storefront` |
 | `GAME_OWNERSHIP_KINDS` | `Owned`, `Wishlist`, `Subscription`, `Free`, `Not Owned` | `game_copy.ownership`; also the precedence order `derive_game_ownership` reads | `game_ownership` |
 | `GAME_COPY_FORMATS` | `Digital`, `Physical` | `game_copy.copy_format` | `game_copy_format` |
@@ -113,9 +118,15 @@ any session outside `unrestricted` that means no `h_comic_*` keys at all, no
 | `MUSIC_STATUSES` | `Need`, `Pending`, `Done` | `note.status` on the `op`, `ed`, `insert_songs`, `ost` sections | `music_status` |
 | `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
 | `H_COMIC_REGIONS` | `JP`, `KR` | `h_comic.region`, required on every write; decides which columns the entry keeps ([entry-types.md](entry-types.md#h-comic-regions-region_clears-appservicesdomainh_comicpy)) | `h_comic_region` |
-| `H_COMIC_ORIGINALITY` | `原創`, `同人` | `h_comic.originality` (JP only) | `h_comic_originality` |
-| `H_COMIC_ANIMATION_STATUSES` | `Not Animated`, `Announced`, `Animated` | `h_comic.animation_status` (JP only, hand-set) | `h_comic_animation_status` |
-| `H_COMIC_USEFULNESS` | `非常實用`, `實用`, `特定情況實用`, `不實用` | `user_media_list.usefulness` (personal) and the `status` field of the `h_comic_highlights` note section | `h_comic_usefulness` |
+| `H_COMIC_ORIGINALITY` | `原創`, `同人` | `h_comic.originality` (JP only), `hentai.originality` | `h_comic_originality` |
+| `H_COMIC_ANIMATION_STATUSES` | `Not Animated`, `Announced`, `Animated` | `h_comic.animation_status` (JP only): hand-set, or derived from hentai adaptations (`Announced` / `Animated`) | `h_comic_animation_status` |
+| `H_COMIC_USEFULNESS` | `非常實用`, `實用`, `特定情況實用`, `不實用` | `user_media_list.usefulness` (personal, on h-comic, h-game and hentai) and the `status` field of the `h_comic_highlights` and `h_game_highlights` note sections | `h_comic_usefulness` |
+| `HENTAI_SOURCE_MATERIALS` | `Original`, `Manga`, `Novel` | `hentai.source_material`: what the episode adapts, or Original | `hentai_source_material` |
+| `H_GAME_PLAYSTYLES` | `ADV`, `RPG`, `SLG`, `Other` | `h_game.playstyle`, single choice | `h_game_playstyle` |
+| `H_GAME_LANGUAGE_AVAILABILITY` | `官方中文`, `中文補丁`, `無中文` | `h_game.language_availability`, single choice | `h_game_language_availability` |
+| `H_GAME_AUDIO_AVAILABILITY` | `一般對話`, `H場景` | `h_game.audio_availability`, a JSONB list kept in this order | `h_game_audio_availability` |
+| `H_GAME_H_PRESENTATIONS` | `靜圖`, `動圖`, `2D動畫`, `3D動畫`, `互動` | `h_game.h_presentation` (H 演出形式), a JSONB list kept in this order | `h_game_h_presentation` |
+| `H_GAME_PLATFORMS` | `Steam`, `DLsite`, `Nintendo`, `Other` | `h_game.platform`, a JSONB list kept in this order; hand-set, never filled from IGDB, and unrelated to the `game_platform` tag field | `h_game_platform` |
 
 `anime.seiyuu` and the `seiyuu` **person role** below are unrelated, and the
 name collision is worth flagging: `anime.seiyuu` is a `Need`/`Done` to-do flag
@@ -133,9 +144,15 @@ zero castings, and vice versa.
 `game_copy` vocabularies are prefixed `game_` because the column name alone
 (storefront, ownership, acquisition) would not say which table it belongs to
 in one flat map. Two derived keys widen with every new type, because both are
-built from lists: `franchise_type` carries `Game` and `H-Comic`, and
-`media_type` carries `game` and `h-comic`. The four h-comic vocabularies are
-served under `h_comic_`-prefixed keys for the same one-flat-map reason.
+built from lists: `franchise_type` carries `Game`, `H-Comic`, `H-Game` and
+`Hentai`, and `media_type` carries `game`, `h-comic`, `h-game` and `hentai`.
+The four h-comic vocabularies are served under `h_comic_`-prefixed keys, and
+the five h-game ones under `h_game_`-prefixed keys, for the same
+one-flat-map reason - hentai reads `h_comic_originality` and
+`h_comic_usefulness` under those names rather than a copy - and hentai's own
+under `hentai_source_material`. Every h-game vocabulary is checked on every
+write path - a value outside it is a 422 through the API, and dropped (logged)
+by the Sheets parser.
 
 Only `playing_status` is wired into the frontend fallback map, though. It is
 the one game list in `CONSTANTS_FALLBACK` in
@@ -247,8 +264,9 @@ can only hold URLs and `text_links` has no title, so neither could say
 | `quotes_memes` | 名言/梗 Quotes and Memes |
 
 **Sections** (`NOTE_SECTIONS`, in display order). "All" means every media
-type plus `series`, `franchise`, `collection`; "Entries" means the ten
-media types only.
+type plus `series`, `franchise`, `collection`; "Entries" means the twelve
+media types only. "game, h-game" is `GAME_OWNERS`: every game section serves
+h-game too, under game's labels, placeholders and groups.
 
 | Key | Shape | Label | Owners | Group | Kinds / statuses |
 |---|---|---|---|---|---|
@@ -259,49 +277,50 @@ media types only.
 | `double_edged` | text | 優缺點 | All | reviews | |
 | `public_reviews` | text_or_link | 大眾評價 Public Reviews | All | reviews | |
 | `personal_reviews` | text | 我的評價 Personal Reviews | All | reviews | gated by field group `personal_notes` |
-| `episode_comments` | text_links | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | anime, tv-show, cartoon, game | reviews | locator required; game's placeholder is "Chapter / Part" |
+| `episode_comments` | text_links | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | anime, tv-show, cartoon, game, h-game | reviews | locator required; game's placeholder is "Chapter / Part" |
 | `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
 | `highlight_passages` | text | 神片段 | novel | | |
-| `highlight_moments` | episode_text | 神場景 Highlights | game | | locator required, placeholder "Chapter / Boss" |
+| `highlight_moments` | episode_text | 神場景 Highlights | game, h-game | | locator required, placeholder "Chapter / Boss" |
 | `h_comic_highlights` | structured | 亮點 Highlights | h-comic | | KR entries only (`owner_where`); grouped by the `female_characters` names field; usefulness select `H_COMIC_USEFULNESS` |
-| `analysis` | text_links | 解析 Analysis | All | analysis_group; **reviews** for game | Last in the 評論 card for a game - see `groups_by_owner` |
+| `h_game_highlights` | structured | 亮點 Highlights | h-game | | `h_comic_highlights`' fields with the locator labelled "Route / Scene"; every h-game; grouped by `female_characters` |
+| `analysis` | text_links | 解析 Analysis | All | analysis_group; **reviews** for game and h-game | Last in the 評論 card for a game - see `groups_by_owner` |
 | `cinematography` | text_links | 分鏡/演出/巧思 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
 | `craft` | text_links | 巧思 | novel | analysis_group | |
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
-| `beginner` | text_links | 新手 Beginner | game | guides | |
-| `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game | guides | type (free text), name (CN), alt name, description, links |
-| `controls` | structured | 操作 Controls | game | guides | Fields: control (`title`), description (`content`), links |
-| `guide_notes` | text_links | 攻略筆記 Guide Notes | game | guides | |
-| `trivia` | text_links | 小知識 Trivia | game | guides | |
-| `stats_and_points` | structured | 屬性&配點 Stats & Points | game | builds | name, min/rec/soft-cap, my value (quick-edit), description |
-| `skills` | structured | 技能 Skills | game | builds | type, name, description, links |
-| `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game | builds | name, five nested lists, description, links |
-| `team_composition` | structured | 隊伍組成 Team Composition | game | builds | name, members list (name, 定位, build, notes), description, links |
-| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game | gear | type, name, variant, description, links, collect status (default `not collected`) |
-| `items` | structured | 道具 Items | game | gear | type, name, variant, description, links, collect status (default `not collected`) |
-| `collectibles` | structured | 收集物 Collectibles | game | gear | type, name, variant, description, links, collect status (default `not collected`) |
-| `characters_guide` | structured | 角色 Characters | game | compendium | group, name, alias, description |
-| `enemies` | structured | 敵人 Enemies | game | compendium | tier, region, name, alias, description, beaten status (default `to beat`) |
-| `game_terms` | structured | 遊戲名詞 Game Terms | game | compendium | name (CN), alt name, description |
-| `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
-| `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), description, links |
-| `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
-| `endings` | structured | 結局 Endings | game | story | name, completion status, description, links |
-| `story_list_main` | structured | 主線 Main | game | story_list | order, name, description, links; nestable |
-| `story_list_side` | structured | 支線 Side | game | story_list | order, name, description, links; nestable |
-| `story_list_character` | structured | 角色 Character | game | story_list | order, name, description, links; nestable |
-| `story_list_event` | structured | 事件 Event | game | story_list | order, name, description, links; nestable |
-| `lore` | text_links | 設定 Lore | game | worldbuilding | |
-| `story_terms` | structured | 劇情名詞 Story Terms | game | worldbuilding | name (CN), alt name, description |
-| `timeline` | text_links | 時間線 Timeline | game | worldbuilding | |
-| `mysteries` | text_links | 未解之謎 Mysteries | game | worldbuilding | |
-| `story_other` | text_links | 其他 Other | game | worldbuilding | |
-| `todo_now` | text_links | 現在進行 Doing now | game | todo | personal scope |
-| `todo_next` | text_links | 接下來 To do next | game | todo | personal scope |
-| `todo_later` | text_links | 未來 To do in the future | game | todo | personal scope |
-| `todo_maybe` | text_links | 可能 Might do | game | todo | personal scope |
+| `beginner` | text_links | 新手 Beginner | game, h-game | guides | |
+| `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description, links |
+| `controls` | structured | 操作 Controls | game, h-game | guides | Fields: control (`title`), description (`content`), links |
+| `guide_notes` | text_links | 攻略筆記 Guide Notes | game, h-game | guides | |
+| `trivia` | text_links | 小知識 Trivia | game, h-game | guides | |
+| `stats_and_points` | structured | 屬性&配點 Stats & Points | game, h-game | builds | name, min/rec/soft-cap, my value (quick-edit), description |
+| `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links |
+| `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game, h-game | builds | name, five nested lists, description, links |
+| `team_composition` | structured | 隊伍組成 Team Composition | game, h-game | builds | name, members list (name, 定位, build, notes), description, links |
+| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`) |
+| `items` | structured | 道具 Items | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`) |
+| `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`) |
+| `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group, name, alias, description |
+| `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`) |
+| `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
+| `main_plot` | structured | 主線劇情 Main Plot | game, h-game | story | chapter (`locator`, optional), description, links |
+| `side_plot` | structured | 支線劇情 Side Stories | game, h-game | story | chapter (`locator`, optional), description, links |
+| `character_arcs` | text_links | 角色劇情 Character Arcs | game, h-game | story | |
+| `endings` | structured | 結局 Endings | game, h-game | story | name, completion status, description, links |
+| `story_list_main` | structured | 主線 Main | game, h-game | story_list | order, name, description, links; nestable |
+| `story_list_side` | structured | 支線 Side | game, h-game | story_list | order, name, description, links; nestable |
+| `story_list_character` | structured | 角色 Character | game, h-game | story_list | order, name, description, links; nestable |
+| `story_list_event` | structured | 事件 Event | game, h-game | story_list | order, name, description, links; nestable |
+| `lore` | text_links | 設定 Lore | game, h-game | worldbuilding | |
+| `story_terms` | structured | 劇情名詞 Story Terms | game, h-game | worldbuilding | name (CN), alt name, description |
+| `timeline` | text_links | 時間線 Timeline | game, h-game | worldbuilding | |
+| `mysteries` | text_links | 未解之謎 Mysteries | game, h-game | worldbuilding | |
+| `story_other` | text_links | 其他 Other | game, h-game | worldbuilding | |
+| `todo_now` | text_links | 現在進行 Doing now | game, h-game | todo | personal scope |
+| `todo_next` | text_links | 接下來 To do next | game, h-game | todo | personal scope |
+| `todo_later` | text_links | 未來 To do in the future | game, h-game | todo | personal scope |
+| `todo_maybe` | text_links | 可能 Might do | game, h-game | todo | personal scope |
 | `op` | music_track | OP | anime | music | kinds `MUSIC_TYPES`, default `normal`; statuses `MUSIC_STATUSES` |
 | `ed` | music_track | ED | anime | music | same as `op` |
 | `insert_songs` | episode_name_links | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES`; no kinds |
@@ -309,8 +328,8 @@ media types only.
 | `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS` |
 | `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
-| `mods_and_tools` | structured | 模組&工具 Mods & Tools | game | tools | type `Mod`/`Tool`, name, developer, description, status |
-| `guide_resources` | structured | 攻略資源 Guide Resources | game | tools | name, description, links |
+| `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status |
+| `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | name, description, links |
 | `resources` | name_links | Resources | All | standalone | |
 | `questions` | episode_text | Questions | All | standalone | description required everywhere |
 | `quotes` | external | 名言 Quotes | Entries | quotes_memes | |
@@ -405,9 +424,9 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 
 | Key | Label | Target | Media types |
 |---|---|---|---|
-| `studio` | Studio | studio | anime, anime-movie, game |
+| `studio` | Studio | studio | anime, anime-movie, game, h-game, hentai |
 | `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
-| `director` | Director | person | anime, anime-movie, movie, game |
+| `director` | Director | person | anime, anime-movie, movie, game, hentai |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime, game |
 | `author` | Author | person | manga, novel, comic, h-comic |
@@ -502,24 +521,26 @@ Tier 2 category:
 | `comic_continuity` | Continuity | `Comic Continuity` | comic |
 | `comic_era` | Era | `Comic Era` | comic |
 | `comic_event` | Events | `Comic Event` | comic |
-| `game_genre` | Genre | `Game Genre` | game |
-| `game_theme` | Theme | `Game Theme` | game |
+| `game_genre` | Genre | `Game Genre` | game, h-game |
+| `game_theme` | Theme | `Game Theme` | game, h-game |
 | `game_mode` | Mode | `Game Mode` | game |
 | `combat_mode` | Combat Mode | `Combat Mode` | game |
 | `game_platform` | Platform | `Game Platform` | game |
-| `h_genre_plot` | Genre Plot | `H Genre Plot` | h-comic |
-| `h_genre_appearance` | Genre Appearance | `H Genre Appearance` | h-comic |
-| `h_genre_relation` | Genre Relation | `H Genre Relation` | h-comic |
+| `h_genre_plot` | Genre Plot | `H Genre Plot` | h-comic, h-game, hentai |
+| `h_genre_appearance` | Genre Appearance | `H Genre Appearance` | h-comic, h-game, hentai |
+| `h_genre_relation` | Genre Relation | `H Genre Relation` | h-comic, h-game, hentai |
 
-The three h-comic genre fields exist for the gated type alone, and their
-**category itself is a connection** to h-comic: every value in `H Genre Plot`,
-`H Genre Appearance` or `H Genre Relation` is hidden from a session that
-cannot see h-comic, whatever scope rows it has - an unscoped, unused value
+The three H genre fields are shared by the gated types - one vocabulary per
+axis, not one per type - and serve gated types alone, so their **category
+itself is a connection**: every value in `H Genre Plot`, `H Genre Appearance`
+or `H Genre Relation` is hidden from a session that can see none of those
+types, whatever scope rows it has - an unscoped, unused value
 included ([authorization.md](authorization.md#shared-records)). A category
 shared with an ungated type, such as Official Source, keeps the ordinary
-rule: its values are hidden only through their uses and gated scopes.
-They have no legacy sheet header; h-comic credits and tags all surface under
-their own keys.
+rule: its values are hidden only through their uses and gated scopes - which
+is true of `Game Genre` and `Game Theme` too, since they serve game as well as
+h-game. They have no legacy sheet header; h-comic, h-game and hentai credits
+and tags all surface under their own keys.
 
 The five game fields mirror IGDB's own four fields plus one that is not an
 IGDB field: genre, theme, mode and platform carry `system_option_alias` rows
@@ -620,7 +641,7 @@ labels.
 `MEDIA_TYPE_KEYS` (hyphenated, stored in `media_relation`, `watch_order_item`,
 `plan_next`, `media_credit`, `media_tag`, `system_option_scope`; served as
 `/api/constants` `media_type`): `anime`, `anime-movie`, `movie`, `tv-show`,
-`cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`. `OWNER_TYPE_KEYS` adds the grouping
+`cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`, `h-game`, `hentai`. `OWNER_TYPE_KEYS` adds the grouping
 tiers `series`, `franchise`, `collection` for note and meme owners.
 
 ---
@@ -650,14 +671,14 @@ twenty in `OPTION_CATEGORIES`:
 | `Comic Continuity` | comic | tag field `comic_continuity` |
 | `Comic Era` | comic | tag field `comic_era` |
 | `Comic Event` | comic | tag field `comic_event` |
-| `Game Genre` | game | tag field `game_genre`; 23 Chinese values seeded by `g1a2m3e4s5`, each with an IGDB alias |
-| `Game Theme` | game | tag field `game_theme`; 20 seeded values, each with an IGDB alias |
+| `Game Genre` | game, h-game | tag field `game_genre`; 23 Chinese values seeded by `g1a2m3e4s5`, each with an IGDB alias |
+| `Game Theme` | game, h-game | tag field `game_theme`; 20 seeded values, each with an IGDB alias |
 | `Game Mode` | game | tag field `game_mode`; 5 seeded values, each with an IGDB alias |
 | `Combat Mode` | game | tag field `combat_mode`; `PvE` and `PvP`, seeded **without** aliases - it is not an IGDB field |
 | `Game Platform` | game | tag field `game_platform`; `PlayStation`, `Nintendo`, `Xbox`, `PC`, `Mobile`, `Browser` - each folding a whole IGDB console generation in through its aliases. Brand names, so English rather than Chinese |
-| `H Genre Plot` | h-comic | tag field `h_genre_plot`; admin-managed, ships empty |
-| `H Genre Appearance` | h-comic | tag field `h_genre_appearance`; admin-managed, ships empty |
-| `H Genre Relation` | h-comic | tag field `h_genre_relation`; admin-managed, ships empty |
+| `H Genre Plot` | h-comic, h-game, hentai | tag field `h_genre_plot`; admin-managed, ships empty |
+| `H Genre Appearance` | h-comic, h-game, hentai | tag field `h_genre_appearance`; admin-managed, ships empty |
+| `H Genre Relation` | h-comic, h-game, hentai | tag field `h_genre_relation`; admin-managed, ships empty |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
 
 **The game vocabulary is seeded from code, not inline SQL.**
@@ -773,7 +794,9 @@ only automated pass that touches scopes is `extract_system_options`
 (`app/services/domain/options_extraction.py`), and it is **purely additive**:
 it walks every `media_tag`, and for each `(option_id, media_type)` pair with no
 scope row it inserts one. It never removes a row, skips tags whose `field` is
-not in `TAG_FIELDS` or whose option no longer exists, and reads the existing
+not in `TAG_FIELDS` or whose option no longer exists, skips any option with no
+scope rows at all - unscoped already means every media type, so a first row
+would narrow it - and reads the existing
 pairs once up front so two entries sharing a genre cannot insert a duplicate.
 It runs at the end of every `run_sync_<type>` in `app/services/calculation.py`
 (so Calculate All calls it seven times) and after credit backfill.

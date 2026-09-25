@@ -116,11 +116,17 @@ export default function usePlanData(reloadKey = 0) {
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
   const gameQuery = useMediaList("game", LIST_OPTIONS);
-  // Gated: fetched only for a session that can see the type. For anyone else
-  // plan_next holds no h-comic row they may read, and the tab is not drawn.
+  // Gated: each fetched only for a session that can see its type. For anyone
+  // else plan_next holds no row of the type they may read, and the tab is not
+  // drawn.
+  const auth = useAuth();
   const hComicQuery = useMediaList("h-comic", {
     ...LIST_OPTIONS,
-    enabled: canSeeGatedType(useAuth(), "h-comic"),
+    enabled: canSeeGatedType(auth, "h-comic"),
+  });
+  const hGameQuery = useMediaList("h-game", {
+    ...LIST_OPTIONS,
+    enabled: canSeeGatedType(auth, "h-game"),
   });
 
   // Not a media type - plan_next has no MEDIA_CONFIG entry, so this is a plain
@@ -145,6 +151,7 @@ export default function usePlanData(reloadKey = 0) {
   const allComics = comicQuery.data || [];
   const allGames = gameQuery.data || [];
   const allHComics = hComicQuery.data || [];
+  const allHGames = hGameQuery.data || [];
   const planNextRows = planNextQuery.data || [];
 
   const franchiseMap = useMemo(
@@ -207,6 +214,7 @@ export default function usePlanData(reloadKey = 0) {
       comic: allComics,
       game: allGames,
       "h-comic": allHComics,
+      "h-game": allHGames,
     }),
     [
       allAnime,
@@ -219,6 +227,7 @@ export default function usePlanData(reloadKey = 0) {
       allComics,
       allGames,
       allHComics,
+      allHGames,
     ],
   );
 
@@ -264,6 +273,7 @@ export default function usePlanData(reloadKey = 0) {
     novelQuery,
     gameQuery,
     hComicQuery,
+    hGameQuery,
     seriesQuery,
     comicQuery,
     planNextQuery,

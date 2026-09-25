@@ -50,7 +50,7 @@ def test_the_group_holds_four_strands_in_order():
 def test_every_strand_is_game_only_catalogue_and_nestable():
     for key in STORY_LIST_KEYS:
         section = ns.section_by_key(key)
-        assert section.owners == ("game",), key
+        assert section.owners == ns.GAME_OWNERS, key
         assert section.scope == ns.SCOPE_CATALOG, key
         assert section.hierarchical is True, key
         assert section.shape == ns.SHAPE_STRUCTURED, key

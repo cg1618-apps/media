@@ -19,7 +19,14 @@ import {
   useMemo,
 } from "react";
 
+import { hardNavigate } from "../lib/hardNavigate";
+
 const AuthContext = createContext(null);
+
+// When a switched-to access mode ends, reload a moment after the server's
+// deadline, and never sooner than the floor after this page loaded.
+const MODE_RELOAD_GRACE_MS = 1000;
+const MODE_RELOAD_FLOOR_MS = 5000;
 
 const ANONYMOUS = {
   isAdmin: false,
@@ -74,6 +81,29 @@ export function AuthProvider({ children }) {
     // Populate auth state as soon as the provider mounts.
     fetchAuth();
   }, [fetchAuth]);
+
+  // A switched-to access mode is temporary: at `expires_at` the server puts
+  // the session back in the account's default mode. Everything on screen was
+  // fetched in the old mode, so reload at that moment - the same full load a
+  // switch takes, for the same reason (lib/hardNavigate.js).
+  //
+  // The floor matters when this device's clock runs ahead of the server's:
+  // the reload lands while the server still counts the override as live, /me
+  // hands back the same expires_at, and without a floor the page would
+  // reload in a tight loop until the clocks agree.
+  const modeExpiresAt = auth.mode?.expires_at ?? null;
+  useEffect(() => {
+    if (!modeExpiresAt) return undefined;
+    const delay = Math.max(
+      MODE_RELOAD_FLOOR_MS,
+      Date.parse(modeExpiresAt) - Date.now() + MODE_RELOAD_GRACE_MS,
+    );
+    const timer = setTimeout(
+      () => hardNavigate(window.location.pathname + window.location.search),
+      delay,
+    );
+    return () => clearTimeout(timer);
+  }, [modeExpiresAt]);
 
   // A Set so has() stays O(1) on pages that ask about many permissions.
   const held = useMemo(() => new Set(auth.permissions), [auth.permissions]);

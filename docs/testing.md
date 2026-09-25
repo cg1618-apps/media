@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-21
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -15,15 +15,15 @@ elsewhere.
 
 | Location | Files | Test functions | Needs |
 |---|---|---|---|
-| `tests/unit/` | 118 | 1360 | Python only, no database, no network |
-| `tests/api/` | 215 | 1975 | PostgreSQL database `media_test` |
-| `tests/services/` | 0 (only `__init__.py`) | 0 | placeholder, never populated |
-| `frontend/src/**/*.test.{js,jsx}` | 132 | 1089 `it`/`test` blocks | Node + jsdom |
+| `tests/unit/` | 122 | 1417 | Python only, no database, no network |
+| `tests/api/` | 229 | 2241 | PostgreSQL database `media_test` |
+| `tests/services/` | 4 | 32 | Mostly Python only: pure checks on the pipelines (Clean's tab list, the no-personal-columns rule, the User Media List tab); the backfill check reads whatever database the suite points at and skips when it holds no list rows |
+| `frontend/src/**/*.test.{js,jsx}` | 143 | 1199 `it`/`test` blocks | Node + jsdom |
 
 Counts were taken with `grep -E '^\s*(async )?def test_'` on the Python files
 and `grep -E '^\s*(it|test)\('` on the frontend files, so parametrised cases
 count once. Backend tests use only two markers: `pytest.mark.parametrize`
-(66 sites) and `pytest.mark.anyio` (10 sites, all in
+(147 sites) and `pytest.mark.anyio` (14 sites, all in
 `tests/api/test_pipeline_runner.py`).
 
 Frontend tests are co-located with the source they cover
@@ -136,10 +136,10 @@ the two-stage cursor stepper.
 | `db_session` | function | SQLAlchemy session inside a rolled-back transaction (savepoint mode) |
 | `_clear_permission_cache` | function, autouse | RBAC cache bumped before and after the test |
 | `client` | function | Unauthenticated `TestClient` with `get_db` overridden to `db_session` |
-| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, all four access modes granted, and a valid `access_token` cookie carrying a `mode` claim |
+| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, all four access modes granted with `unrestricted` as the default, and a valid `access_token` cookie |
 | `user_client` / `plain_user` | function | The same for an account on the `user` role |
 | `super_client` / `super_user` | function | The same for the `super` role - both `manage.*`, no `admin.authz`. **This is the account shape that keeps a library**, so it is what a test of a personal endpoint should use: an admin holds no `self.*` grant. Use the fixture rather than building one inline |
-| `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The mode travels in the token claim exactly as in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
+| `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The mode is granted as a non-default and travels in the `access_mode` override cookie exactly as after a switch in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
 | `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and granting one (optionally minus some labels, named by key) |
 | `nsfw_label` / `hidden_anime` | function | A content label and an entry carrying it. Label fixtures call `carry_label_in_wide_modes`, because a mode's labels are materialised rows and a label created after the seed would otherwise reach no mode - which would make fixture ORDER decide what a mode holds |
 | `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` in a mode carrying NO labels - i.e. a writer who cannot see the labelled entry. `tests/api/test_franchise_content_labels.py` builds its `narrow` fixture from this, and pairs every refusal with the same call from `admin_client`: a mode-scoped 404 and an empty database are indistinguishable without the mirror |
@@ -152,7 +152,8 @@ the two-stage cursor stepper.
 | `role_id_for(db, name)` | helper, not a fixture | Looks up a seeded role's `system_id`; needed because `users.role` is a read-only mapping and fixtures must set `role_id` |
 | `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis and build a bespoke mode. Both default to "everything", so a test that only cares about capabilities need not mention them |
 
-**A signed-in test client with no `mode` claim resolves the EMPTY object set**
+**A signed-in test client whose account holds no default mode, and has no
+`access_mode` override, resolves the EMPTY object set**
 and every gated field vanishes from every response. Never mint a token by
 hand; use the fixtures above. This has cost two debugging cycles, each time
 presenting as "my route 401s / my field is missing" with nothing wrong in the
@@ -211,9 +212,9 @@ mis-set `POSTGRES_DB` fails fast instead of wiping a real database.
 the metadata as well or it simply does not exist under test. Two things in this
 category, both in `app/models/media_sync.py`:
 
-- the `delete_media_row()` function and the ten `trg_<table>_delete_media`
+- the `delete_media_row()` function and the twelve `trg_<table>_delete_media`
   triggers, attached as `after_create` DDL;
-- the ten `<table>_public_id_seq` sequences, declared against the metadata now
+- the twelve `<table>_public_id_seq` sequences, declared against the metadata now
   that no column hangs them.
 
 Four guards keep the supertable honest, and a failure in any of them names the
@@ -246,6 +247,19 @@ Look at these files, in this order:
 | `tests/unit/test_link_fields_schema.py` | `LINK_FIELD_MIXINS` | Nothing if the response mixin is registered; a mismatch fails here. |
 | `tests/unit/test_release_date_models.py` | `ALL_MEDIA_MODELS` | Nothing if the model is in the list. |
 | `tests/unit/test_plan_next_kinds.py` | `EXPECTED_MEMBERS` / `EXPECTED_NON_MEMBERS` | Decide which list the type belongs to. |
+
+A **gated type** needs more than rows in those tables: its label must be
+present for its refusal tests to bite. The conftest seeds every system label
+session-wide (`ensure_system_labels`), as every real database has them, so a
+narrow mode is never vacuously narrow; a test that counts labels or asserts
+`visible_gated_types` has to allow for all of them. The hentai files are the
+current template: `test_hentai_entries.py` (CRUD, label, who sees it,
+franchises), `test_hentai_shared_records.py` (credits, shared vocabularies, a
+session seeing one gated type but not the other - `mode_client` with the
+other label in `denials`), `test_hentai_sheets.py`, `test_hentai_tenrai.py`
+(the fetch patched, no network), `test_hentai_label_migration.py` (the
+revision's own SQL run against the test session) and
+`tests/unit/test_hentai_domain.py`.
 
 Type-specific behaviour (autofill mapping, completion rules, sheet formatter)
 gets its own files following the comic precedent: `test_comic_model.py`,
@@ -439,10 +453,11 @@ first.
 
 ## Known gaps
 
-- `tests/services/` exists but is empty; the mocked-external service tests
-  once planned there (Tenrai client, image manager, Sheets, pipelines) were
-  never written. Integration code is covered indirectly by API tests that
-  create entries without external links so the write hooks no-op.
+- `tests/services/` holds four files of pure pipeline checks; the
+  mocked-external service tests once planned there (Tenrai client, image
+  manager, Sheets) were never written. Integration code is covered indirectly
+  by API tests that create entries without external links so the write hooks
+  no-op.
 - `responses` is listed in `requirements-dev.txt` but no test imports it; HTTP
   mocking is done ad hoc with `monkeypatch`.
 - No end-to-end browser tests (no Playwright), no coverage threshold, no

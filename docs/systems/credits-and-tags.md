@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-23
+Last verified: 2026-09-25
 
 ## What this is for
 
@@ -59,9 +59,9 @@ the stored value, tuple of keys for validation.
 
 | key | label | target | media types |
 |---|---|---|---|
-| `studio` | Studio | studio | anime, anime-movie, game |
+| `studio` | Studio | studio | anime, anime-movie, game, h-game (its only credit), hentai |
 | `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
-| `director` | Director | person | anime, anime-movie, movie, game |
+| `director` | Director | person | anime, anime-movie, movie, game, hentai |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime, game |
 | `author` | Author | person | manga, novel, comic, h-comic |
@@ -152,16 +152,27 @@ that names a credit which does not exist.
 | `comic_continuity` | Continuity | Comic Continuity | comic |
 | `comic_era` | Era | Comic Era | comic |
 | `comic_event` | Events | Comic Event | comic |
-| `game_genre` / `game_theme` / `game_mode` / `combat_mode` / `game_platform` | Genre / Theme / Mode / Combat Mode / Platform | Game Genre / Game Theme / Game Mode / Combat Mode / Game Platform | game |
-| `h_genre_plot` | Genre Plot | H Genre Plot | h-comic |
-| `h_genre_appearance` | Genre Appearance | H Genre Appearance | h-comic |
-| `h_genre_relation` | Genre Relation | H Genre Relation | h-comic |
+| `game_genre` / `game_theme` | Genre / Theme | Game Genre / Game Theme | game, h-game |
+| `game_mode` / `combat_mode` / `game_platform` | Mode / Combat Mode / Platform | Game Mode / Combat Mode / Game Platform | game |
+| `h_genre_plot` | Genre Plot | H Genre Plot | h-comic, h-game, hentai |
+| `h_genre_appearance` | Genre Appearance | H Genre Appearance | h-comic, h-game, hentai |
+| `h_genre_relation` | Genre Relation | H Genre Relation | h-comic, h-game, hentai |
 
-The three h-comic genre vocabularies are admin-managed and exist for the gated
-type alone; a value used or scoped only there is hidden from a session that
-cannot see h-comic. No h-comic credit or tag has a legacy sheet header, so each
-travels under its own key (`illustrator`, `author`, `club`,
-`original_source`, `h_genre_*`).
+The three H genre vocabularies are admin-managed and shared by the gated
+types - one vocabulary per axis, not one per type; they serve gated types
+alone, so a value is hidden from a session that can see none of them.
+`game_genre` and `game_theme` reach h-game as well as game, filled from IGDB
+the same way; because game is ungated, a value of theirs is hidden only
+through its uses, like any ordinary vocabulary. No h-comic, h-game or hentai
+credit or tag has a legacy sheet header, so each travels under its own key
+(`illustrator`, `author`, `club`, `original_source`, `studio`, `director`,
+`game_genre`, `game_theme`, `h_genre_*`).
+
+**Hentai shares anime's studio and director.** Both roles gain the `hentai`
+scope rather than a hentai-only role, so a studio credited on a mainstream
+anime and on a hentai is one studio row. The shared-record rule then does the
+rest: credited only on hentai, it is hidden with them; credited on an anime
+too, it stays visible through that anime, with the hentai credit omitted.
 
 `FILTER_ONLY_CATEGORIES = ("Franchise for Filter", "Reference Source")` exists
 as a vocabulary but backs no field. **There is no `publisher_tw` or
@@ -241,7 +252,8 @@ Sheets restore — so a Tenrai name and a hand-typed name land on the same row.
 
 Purely additive reconcile: for every `media_tag` whose field is in `TAG_FIELDS`,
 ensure a `system_option_scope (option_id, media_type)` row exists. Never removes
-a scope. Reads existing pairs once into a set — reading them through a
+a scope, and never gives an unscoped option its first one - no rows means
+offered on every type, so that row would narrow it. Reads existing pairs once into a set — reading them through a
 relationship collection instead goes stale mid-run, adds duplicates and 500s
 the first Calculate after a restore. Called by the backfill and by Calculate
 All.

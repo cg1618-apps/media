@@ -21,9 +21,14 @@ const SECTIONS = [
     statuses: ["Active Watching", "Passive Watching", "Paused"],
   },
   {
+    key: "when_airs",
+    label: "Watch When Airs",
+    statuses: ["Watch When Airs"],
+  },
+  {
     key: "planned",
-    label: "Planned",
-    statuses: ["Plan to Watch", "Watch When Airs"],
+    label: "Plan to Watch",
+    statuses: ["Plan to Watch"],
   },
   {
     key: "might",
@@ -317,7 +322,7 @@ export default function SeasonalDetail() {
           const sorted = sortAnime(items, franchiseMap);
 
           return (
-            <div key={section.key}>
+            <section key={section.key}>
               <div className="flex items-center gap-3 mb-6 pb-2 border-b border-border">
                 <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted font-normal">
                   {section.label}
@@ -337,7 +342,7 @@ export default function SeasonalDetail() {
                   />
                 ))}
               </div>
-            </div>
+            </section>
           );
         })}
 

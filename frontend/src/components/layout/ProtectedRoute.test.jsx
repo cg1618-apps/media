@@ -98,3 +98,38 @@ describe("ProtectedRoute gatedType", () => {
     expect(screen.getByText("the login page")).toBeInTheDocument();
   });
 });
+
+describe("ProtectedRoute gatedType h-game", () => {
+  function renderHGame(auth) {
+    mockAuth.mockReturnValue({ has: () => false, loading: false, ...auth });
+    return render(
+      <MemoryRouter initialEntries={["/h-game/7/some-title"]}>
+        <Routes>
+          <Route element={<ProtectedRoute gatedType="h-game" />}>
+            <Route path="/h-game/:publicId/:slug?" element={<div>the h-game page</div>} />
+          </Route>
+          <Route path="/" element={<div>the home page</div>} />
+          <Route path="/login" element={<div>the login page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it("lets through a session the server named h-game for", () => {
+    renderHGame({ username: "cg1618", visibleGatedTypes: ["h-comic", "h-game"] });
+    expect(screen.getByText("the h-game page")).toBeInTheDocument();
+  });
+
+  it("sends home a session that sees h-comic but not h-game", () => {
+    // The mirror case of the one above, with the gated list non-empty: the
+    // guard refuses because h-game is missing, not because the list is.
+    renderHGame({ username: "cg1618", visibleGatedTypes: ["h-comic"] });
+    expect(screen.getByText("the home page")).toBeInTheDocument();
+    expect(screen.queryByText("the h-game page")).not.toBeInTheDocument();
+  });
+
+  it("sends a signed-out visitor to login", () => {
+    renderHGame({ username: null, visibleGatedTypes: [] });
+    expect(screen.getByText("the login page")).toBeInTheDocument();
+  });
+});

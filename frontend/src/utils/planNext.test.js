@@ -154,13 +154,13 @@ describe("kind vocabulary", () => {
 
   it("covers every media type under both kinds", () => {
     const types = Object.keys(ALLOWED_SCOPES.next);
-    expect(types).toHaveLength(10);
+    expect(types).toHaveLength(11);
     expect(Object.keys(ALLOWED_SCOPES.rewatch).sort()).toEqual(types.sort());
   });
 });
 
 describe("scopesFor", () => {
-  // Must agree with app/utils/plan_next_kinds.py for all 16 pairs.
+  // Must agree with app/utils/plan_next_kinds.py for every pair listed.
   it.each([
     ["rewatch", "anime", ["franchise"]],
     ["rewatch", "anime-movie", ["entry"]],
@@ -174,6 +174,8 @@ describe("scopesFor", () => {
     ["rewatch", "game", ["entry", "series", "franchise"]],
     ["next", "h-comic", ["entry"]],
     ["rewatch", "h-comic", ["entry"]],
+    ["next", "h-game", ["entry", "series", "franchise"]],
+    ["rewatch", "h-game", ["entry", "series", "franchise"]],
   ])("%s / %s", (kind, mediaType, expected) => {
     expect(scopesFor(kind, mediaType)).toEqual(expected);
   });
@@ -189,7 +191,7 @@ describe("scopesFor", () => {
 });
 
 describe("REWATCH_TABS", () => {
-  it("covers all ten types", () => {
+  it("covers all eleven types", () => {
     expect(REWATCH_TABS.map((t) => t.key)).toEqual([
       "anime",
       "anime-movie",
@@ -201,6 +203,7 @@ describe("REWATCH_TABS", () => {
       "comic",
       "game",
       "h-comic",
+      "h-game",
     ]);
   });
 });

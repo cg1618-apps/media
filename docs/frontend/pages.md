@@ -37,9 +37,11 @@ are a large share of the bundle and never needed on first paint.
 | `/library/seiyuu` | `PersonLibrary role="seiyuu"` — same file, filtered server-side via `?role=seiyuu` (matched before `/library/:type`) | lazy |
 | `/library/character` | `CharacterLibrary` — `library/CharacterLibrary.jsx` (matched before `/library/:type`) | lazy |
 | `/library/h-comic` | `Library type="h-comic"` — same file, declared on its own inside `<ProtectedRoute gatedType="h-comic">` (matched before `/library/:type`) | eager, **gated** |
+| `/library/h-game` | `Library type="h-game"` — the same, inside `<ProtectedRoute gatedType="h-game">` | eager, **gated** |
 | `/library/:type` | `Library` — `library/Library.jsx` (anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game; anything else redirects to `/under-development`) | eager |
 | `/anime/:system_id` … `/game/:system_id` | `detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx` (`/movie`), `TV.jsx` (`/tv-show`), `Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx`, `Game.jsx` | eager |
 | `/h-comic/:system_id` | `detail/HComic.jsx`, inside `<ProtectedRoute gatedType="h-comic">` | eager, **gated** |
+| `/h-game/:system_id` | `detail/HGame.jsx`, inside `<ProtectedRoute gatedType="h-game">` | eager, **gated** |
 | `/collection/:system_id` | `detail/Collection.jsx` → `CollectionPage.jsx` | eager |
 | `/franchise/:system_id` | `detail/Franchise.jsx` → `FranchisePage.jsx` | eager |
 | `/series/:system_id` | `detail/Series.jsx` → `SeriesPage.jsx` | eager |
@@ -59,8 +61,9 @@ are a large share of the bundle and never needed on first paint.
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
 
 **Gated routes.** The two h-comic routes sit inside
-`<ProtectedRoute gatedType="h-comic">`, which asks `canSeeGatedType`
-(`lib/gatedTypes.js`) - the question the nav row asks too. A signed-in session
+`<ProtectedRoute gatedType="h-comic">`, and the two h-game routes inside
+`<ProtectedRoute gatedType="h-game">`; each asks `canSeeGatedType`
+(`lib/gatedTypes.js`) for its own type - the question its nav row asks too. A signed-in session
 that cannot see the type is sent to `/`, as for a path that does not exist; a
 signed-out visitor is sent to log in, since an account may bring a mode that
 carries the label.
@@ -77,7 +80,8 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`), H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`, drawn only for a session that can see the type), Seiyuu `/library/seiyuu` · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`), Seiyuu `/library/seiyuu` · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions` |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults` |
@@ -123,15 +127,15 @@ repeats all of it, indicator first.
 debounces 250 ms, discards stale responses by request id, and calls
 `GET /api/search/?q=…&limit=20[&scope=…]`. Scopes: all, collection, franchise,
 series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game,
-h-comic (offered only to a session that can see the type), seasonal, person,
+h-comic and h-game (each offered only to a session that can see the type), seasonal, person,
 studio, publisher. With scope `all`, `TYPE_QUOTAS`
 (collection 3, franchise 3, series 3, anime 10, anime-movie 3, movie 3,
-tv-show 3, cartoon 5, manga 5, novel 5, comic 5, game 5, h-comic 5, seasonal 3,
-person 2, studio 2, publisher 2) act as first-pass
+tv-show 3, cartoon 5, manga 5, novel 5, comic 5, game 5, h-comic 5, h-game 5,
+seasonal 3, person 2, studio 2, publisher 2) act as first-pass
 floors that `mergeBuckets` fills in
-order then round-robins up to `MAX_RESULTS = 20` (the quotas sum to 61, so
-they never all fill). The server's `h-comic` bucket is empty for a session
-that cannot see the type. Person, studio and publisher come last and smallest on
+order then round-robins up to `MAX_RESULTS = 20` (the quotas sum to 72, so
+they never all fill). The server leaves a gated type's bucket out altogether
+for a session that cannot see the type, and a missing bucket reads as empty. Person, studio and publisher come last and smallest on
 purpose: a query is usually about a title, so a name match on a credited
 person, studio or publisher is the weaker answer and takes the slots the media
 buckets left behind. Exact
@@ -269,16 +273,20 @@ Admin-only behaviour comes from `MediaCard` itself.
 ### Library — `/library/:type`
 
 Files `pages/library/Library.jsx`, `pages/library/configs/index.js` +
-`configs/{anime,animeMovie,movie,tvShow,cartoon,manga,novel,comic,game,hComic}.jsx`,
+`configs/{anime,animeMovie,movie,tvShow,cartoon,manga,novel,comic,game,hComic,hGame}.jsx`,
 `components/layout/LibraryLayout.jsx`, `components/layout/libraryColumns.jsx`,
 `hooks/useLibraryState.js`.
 
 One page, one config per type. The type is the route's `:type`, or the
-`type` prop of the one route that names it - `/library/h-comic`, declared
-separately so its gate runs first. The h-comic config filters by region,
+`type` prop of the two routes that name it - `/library/h-comic` and
+`/library/h-game`, declared separately so their gates run first. The h-comic
+config filters by region,
 reading status, serialization status, originality, animation status and
 usefulness, and its Progress column reads in the region's unit (pages on JP,
-chapters on KR). `Library.jsx` looks up `LIBRARY_CONFIGS[type]`,
+chapters on KR). The h-game config is Game's without playtime or Metacritic:
+it filters by type, play status, play style, language, platform (an entry
+matches when its list holds a chosen value), ownership, release status and
+usefulness, and its columns add style, language and achievements. `Library.jsx` looks up `LIBRARY_CONFIGS[type]`,
 runs `useMediaList(type, LIST_OPTIONS)`, `useMediaList("franchise")` and
 (when `config.usesSeries`) `useMediaList("series")`, and hands everything to
 `LibraryLayout`. `useLibraryState` holds search text, sort, grid/table view,
@@ -354,15 +362,16 @@ with member count.
 File `pages/library/FranchiseLibrary.jsx`. Raw `fetch` of `/api/franchise/`,
 `/api/collection/` and **every** entry list the session may see, each
 `?limit=2000`, driven by the `ENTRY_SOURCES` table at the top of the file
-rather than by positional bindings - the gated `h-comic` list only for a
-session that can see it, which is why the load waits for `/api/auth/me`. The
+rather than by positional bindings - the gated `h-comic` and `h-game` lists
+each only for a session that can see its type, which is why the load waits
+for `/api/auth/me`. The
 full set is a requirement, not a preference:
 `getFranchiseCover()` falls back to the placeholder silently for any entry
 type the caller leaves out, and the table's Entries column counts whatever
 `ENTRY_SOURCES` lists, so a gap there undercounts it.
 
 Filter panel "Type": Anime, Manga, Novel, Anime Movie, Movie, TV, Cartoon,
-Comic, H-Comic (drawn only for a session that can see the type), Other
+Comic, H-Comic, H-Game (each drawn only for a session that can see the type), Other
 (Anime/Manga only count when the type is ACG *and* the franchise actually has
 such entries) — **there is no Game category**, so a Game-only franchise files
 under "Other". Sort
@@ -566,11 +575,11 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 
 | | FranchisePage | SeriesPage | CollectionPage |
 |---|---|---|---|
-| Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, **game** lists `?franchise_id=`, and **h-comic** only when `franchise_type` includes `H-Comic`; `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, novel, comic `?series_id=`, **game** included (no anime-movie — they have no series), and **h-comic** in its own effect, only for a session that can see the type; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
+| Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, **game** lists `?franchise_id=`, **h-comic** only when `franchise_type` includes `H-Comic`, and **h-game** only when it includes `H-Game`; `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, novel, comic `?series_id=`, **game** included (no anime-movie — they have no series), **h-comic** in its own effect, only for a session that can see the type, and **h-game** likewise, and only once the parent franchise has loaded and its `franchise_type` includes `H-Game`; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
 | Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation", parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
 | Admin controls | Overall Rating select, Expectation select, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), rewatch `PlanKindToggles` | Overall Rating, Expectation, rewatch `PlanKindToggles scope="series"` (no size groups at series level) | Overall Rating, Expectation |
 | Remark | textarea (admin editable, guest disabled, shown when admin or non-empty), "Show all" opens `RemarkModal`; saved on blur / modal close via PATCH `{ remark }` | same | same |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic** (by `series_number`, then release date), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Watch Order, Relations, Notes | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic** and **H-Game** (each by `series_number`, then release date), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Watch Order, Relations, Notes | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
@@ -609,8 +618,9 @@ Top to bottom:
 2. **Admin toolbar** (`isAdmin`): **Quick Edit** → `/modify?id={id}`;
    **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;
    **Autofill & Update** → `POST /api/data-control/replace/{type}/{id}`
-   with a spinner. On Game it re-fetches Steam only (appid, SteamDB link,
-   store figures), since IGDB carries nothing that drifts. Comic renders no
+   with a spinner. On Game and H-Game it runs both sources: IGDB, fill-only
+   (release date, times, credits, tags, cover, the Steam pair when the entry
+   has none), then Steam (SteamDB link, store figures, progress). Comic renders no
    Autofill button: the single Replace route exists for it, but Comic Vine
    carries no score or rank that drifts, which is also why comic is not in
    bulk Replace.
@@ -717,6 +727,29 @@ two under both; dragging a group header - or its arrows - saves the whole new
 order, and the rows inside a group are not movable
 ([systems/notes.md](../systems/notes.md#h-comic-highlights-h_comic_highlights)).
 
+**H-Game** (`pages/detail/HGame.jsx`) is the other gated type's page, routed
+the same way. It is Game's page for what `h_game` holds: one `NotesProvider`
+around the page, `MyTrackerCard` (playing status, rating, To Replay), a
+Progress and Todo slip, the Prices card, the read-only Copies slip
+(`GameCopiesSection`, imported from `Game.jsx`) and an Autofill button (Game's
+IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
+
+| | |
+|---|---|
+| Completion block | `GameCompletionBlock` with `H_GAME_COMPLETION_AXES`: Completion Level, All Endings, **All CG**, and **usefulness** (personal, like the rating) - no All Achievements or All Collected |
+| Progress | `HGameProgress`: the main-story estimate and achievements - there is no playtime, so the cover's progress rule is achievements earned against the total |
+| Information card | Type, Base Game (an h-game), Play Style, Series Number, Language, Animation (yes / no, a dash when unknown), Audio, H 演出形式, Platform, Release Status / Date, Current Patch, Steam Progress Sync, Ownership, Copies. A multi-choice list reads "None" when it is `[]` and a dash when it is `null` (`choiceText`) |
+| Production card | Developer only (`studioValue`), skipped when there is none |
+| Genres card | Genre, Theme, Genre Plot / Appearance / Relation |
+| Sources | `SourcesCard` with `igdbLink`, `steamLink` and the two DLsite links under "Where to Play" |
+| Notes | every game section, plus **亮點 Highlights** |
+
+No Metacritic, no Cast and no `RelationsSection`. The provider is handed the
+entry row, `highlight_group_order` and a callback that PATCHes a new order,
+exactly as on H-Comic; an h-game has no cast, so the Highlights `names` inputs
+take free text with no suggestions
+([systems/notes.md](../systems/notes.md#h-game-highlights-h_game_highlights)).
+
 `MarkAiringModal` is not used by any detail page; only `MediaCard` opens it.
 
 **Notes.** Each `pages/detail/*Notes.jsx` is a one-liner around
@@ -781,7 +814,10 @@ Might Watch / Dropped with a `RatingDistributionBlock`), **Next Season**
 (Watch When Airs / Plan to Watch / Might Watch / Other) and **All Seasons**
 (year × WIN/SPR/SUM/FAL table linking `/seasonal/{id}`). Detail loads
 `/api/seasonal/{id}`, `/api/anime/?airing_season={id}`, `/api/franchise/`,
-with prev/next season arrows. Both render `DashboardCard`s with the same
+with prev/next season arrows, a `RatingDistributionBlock`, and sections
+Completed / Watching / Watch When Airs / Plan to Watch / Might Watch /
+Dropped. The hero's **Planned** figure is `entry_planned`, which still counts
+both of the two planned statuses together. Both render `DashboardCard`s with the same
 optimistic `PATCH /api/anime/{id} { ep_fin }`. **Admin-only**: a "Seasonal
 Rating" select → `PATCH /api/seasonal/{id} { my_rating }`, plus the hint to
 set the current season under Admin → System Config when none is set.
@@ -792,13 +828,15 @@ Files `pages/public/Statistics.jsx`, `pages/statistics/useStatisticsData.js`,
 `StatsFavoriteGrids.jsx`, `StatsFranchiseSummary.jsx`, `StatsCompletions.jsx`,
 `pages/public/Completions.jsx`, `components/charts/BarChart.jsx`.
 
-`useStatisticsData` runs `useMediaList` for franchise, series and all nine
-entry types plus `useApiQuery(["api","seasonal"], "/api/seasonal/")` and
+`useStatisticsData` runs `useMediaList` for franchise, series and every
+entry type the session may see (`h-comic` and `h-game` each only when
+visible, and handed on as `null` otherwise) plus `useApiQuery(["api","seasonal"], "/api/seasonal/")` and
 `useApiQuery(["api","seasonal","current-season"], "/api/seasonal/current-season")`.
 
 `StatsSidebar.jsx` is a sticky in-page table of contents down the left, built
 from `pages/statistics/sections.js` — one entry per block and one per
-favourite grid, with an IntersectionObserver highlighting whichever section is
+favourite grid (a gated grid's entry only for a session that can see its
+type), with an IntersectionObserver highlighting whichever section is
 nearest the top. It is `lg:`-only: on a narrow screen the page is already one
 column. A section's id is both the sidebar's anchor and the block's `id`,
 because `sections.js` is the only place either is written down.
@@ -806,13 +844,17 @@ because `sections.js` is the only place either is written down.
 Every block is headed by `StatsSectionHeader.jsx` — an eyebrow and an `<h2>`
 at one size — so the page has exactly one `<h1>`, its own.
 
-Statistics renders the nine favourite 3×3 grids, then the twelve
+Statistics renders the favourite 3×3 grids (nine, and eleven for a session
+that can see h-game), then the twelve
 "Rating distribution" bar-chart cards in one wrapping grid: my rating per
 anime franchise; MAL rating and **AniList score** over all anime; seasonal
 per season; my rating over all manga / novels / anime movies / movies /
 **comics**; and my rating per TV show / cartoon / **game** franchise - plus a
-thirteenth, my rating over all **h-comics**, only for a session that can see
-the type (`useStatisticsData` hands `allHComic: null` to anyone else). Comics
+thirteenth, my rating over all **h-comics**, and a fourteenth, my rating per
+**H-Game** franchise (as Game's card counts game franchises), each only for a
+session that can see its type (`useStatisticsData` hands `allHComic` /
+`allHGame: null` to anyone else). Game Spend reads the `game` list only, so
+an h-game's copies never reach it. Comics
 and h-comics are counted per entry rather than per franchise, because a comic
 franchise is usually one long-running title. `computeScoreRows` puts a numeric column into
 a bucket ladder, and `ANILIST_BUCKETS` is `MAL_BUCKETS` scaled by ten and
@@ -820,9 +862,9 @@ rounded — AniList's `averageScore` is an integer 0–100 against MAL's 0–10,
 the two cards sit side by side on the same cut points.
 
 **The favourite grids** are declared in `config/favoriteGrids.js`, read by
-both this page and `/modify` → Fav3x3. A grid holds one of three tiers — six
-hold franchises (ACG, Novel, Movie, TV, Cartoon, Game), one holds series
-(Comic), two hold entries (Movie, Game) — and every tier stores a slot the
+both this page and `/modify` → Fav3x3. A grid holds one of three tiers — seven
+hold franchises (ACG, Novel, Movie, TV, Cartoon, Game, H-Game), one holds
+series (Comic), three hold entries (Movie, Game, H-Game) — and every tier stores a slot the
 same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. The
 `favorite*` helpers in `utils/statsUtils.js` (`favoriteName`, `favoriteCover`,
 `favoritePath`, `favoritePool`, `slotIn`) answer everything that differs
@@ -854,8 +896,9 @@ Completions renders `StatsCompletions`:
 one tab per type with paged sub-groups (anime by airing type, anime movie by
 studio bucket, movie/TV Disney/Marvel/other, cartoon by network, manga by
 region, novel by region, comic dynamic, game by `completion_level` on the
-closed ladder with the unrecorded ones last, h-comic by region - its tab and
-its list only for a session that can see the type) using `COMPLETED_STATUSES`. The
+closed ladder with the unrecorded ones last, h-comic by region, h-game by
+`completion_level` as game with usefulness shown per row - each gated type's
+tab and list only for a session that can see it) using `COMPLETED_STATUSES`. The
 game tab filters on `playing_status === "Completed"` plus a `completed_at`:
 the completion **level** is a separate axis shown per row, so a Main Story
 finish still counts as finished. No admin
@@ -881,8 +924,8 @@ by that date, so a full date precedes a bare year. Cards are `MediaCard` with
 
 Files `pages/public/Plan.jsx`, `pages/plan/usePlanData.js`, `PlanWatchNext.jsx`,
 `PlanToRewatch.jsx`, `PlanToWatchFuture.jsx`, `PlanNextCard.jsx`.
-`usePlanData` runs a `useMediaList` for franchise, series and each of the ten
-entry types (`h-comic` enabled only for a session that can see it)
+`usePlanData` runs a `useMediaList` for franchise, series and each of the eleven
+entry types (`h-comic` and `h-game` each enabled only for a session that can see it)
 and `useQuery({ queryKey: ["plan-next"], queryFn: () => fetchJson("/api/plan-next/") })`
 — deliberately not a media-list key. Rows are decorated with a `bucket`
 (`utils/planNext.js` `entryBucket`) and a cover for franchise/series scopes.
@@ -890,8 +933,8 @@ Sections: **Watch Next** (`PLAN_TABS`, `kind === "next"`, grouped by
 `SIZE_GROUPS` with manga's empties under "其他"; the **Game** tab has no
 `SIZE_GROUPS` entry at all and renders one ungrouped list, deliberately, since
 every existing bucket keys off a count and a game would key off hours; **H-Comic**
-is ungrouped the same way and drawn only for a session that can see the type), **To Rewatch**
-(`REWATCH_TABS`, scopes Franchise → Series → Entries via `scopesFor`; h-comic at entry scope only),
+and **H-Game** are ungrouped the same way and each drawn only for a session that can see the type), **To Rewatch**
+(`REWATCH_TABS`, scopes Franchise → Series → Entries via `scopesFor`; h-comic at entry scope only, h-game at all three as game),
 **Plan to Watch for Future Releases** (Watch When Airs / Plan to Watch,
 grouped by year, `MediaCard variant="future"`; an update bumps `reloadKey`
 which invalidates `["media-list"]` and `["plan-next"]`). Toggling plan flags
@@ -905,7 +948,7 @@ Files `pages/public/Quotes.jsx`, `Memes.jsx`, shell
 `media_type`, `is_general`, `is_favorite`, `needs_review` (admin-only
 toggle), `search_query`. Memes: `useApiQuery(["memes-grouped"], "/api/meme/grouped", { params })`
 with `owner_type`, `is_favorite`, `search_query`. The Quotes media-type
-filter offers H-Comic only to a session that can see the type. Both group rows under an
+filter offers H-Comic and H-Game only to a session that can see each type. Both group rows under an
 owner card (cover or tier icon; "Unlinked / deleted owner" when missing).
 Row actions: copy text/image for everyone; **admin-only** favourite toggle,
 edit (`QuoteForm` / `MemeForm`, PATCH `/api/quote/{id}` / `/api/meme/{id}`)

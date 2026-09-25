@@ -10,10 +10,10 @@ from app.services.domain.user_list import (
 )
 
 
-def test_all_ten_hyphenated_media_types_are_present():
+def test_all_eleven_hyphenated_media_types_are_present():
     expected = {
         "anime", "anime-movie", "movie", "tv-show", "cartoon",
-        "manga", "novel", "comic", "game", "h-comic",
+        "manga", "novel", "comic", "game", "h-comic", "h-game", "hentai",
     }
     assert set(LIST_FIELDS) == expected
     assert set(STATUS_FIELD) == expected
@@ -33,6 +33,8 @@ def test_all_ten_hyphenated_media_types_are_present():
         ("comic", "reading_status", "Might Read"),
         ("game", "playing_status", "Might Play"),
         ("h-comic", "reading_status", "Might Read"),
+        ("hentai", "watching_status", "Might Watch"),
+        ("h-game", "playing_status", "Might Play"),
     ],
 )
 def test_status_field_and_default_per_type(media_type, status_field, default):
@@ -54,8 +56,10 @@ def test_status_field_and_default_per_type(media_type, status_field, default):
                    "ch_fin_in_arc", "progress_display", "completed_at")),
         ("comic", ("reading_status", "my_rating", "issue_fin", "completed_at")),
         ("game", ("playing_status", "my_rating", "completed_at")),
+        ("hentai", ("watching_status", "my_rating", "usefulness", "completed_at")),
         ("h-comic", ("reading_status", "my_rating", "page_fin", "ch_fin",
                      "usefulness", "completed_at")),
+        ("h-game", ("playing_status", "my_rating", "usefulness", "completed_at")),
     ],
 )
 def test_list_fields_per_type(media_type, expected):

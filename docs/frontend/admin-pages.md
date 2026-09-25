@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-24
+Last verified: 2026-09-25
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -42,7 +42,10 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   stream on unmount. Only one stream runs at a time. The Fill box's
   **H-Comic** button (`/fill/h-comic`) is drawn only for a session that can see
   the type; it fetches nothing and re-runs the region clears and the label, and
-  h-comic has no Replace button, since there is no bulk Replace for it.
+  h-comic has no Replace button, since there is no bulk Replace for it. The
+  **H-Game** buttons (`/fill/h-game` in the Fill box, `/replace/h-game` in the
+  Replace box) are gated the same way; they run Game's IGDB and Steam fill and
+  Game's Replace (IGDB fill-only, then Steam) over the h-game table.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
 - **Announcements.** Create / edit / delete the dashboard board
@@ -73,8 +76,8 @@ back to the owning franchise/series where the ids still exist.
 ## /add (`Add.jsx`)
 
 A two-level tab bar (`config/adminTabs.js`): **Entries** (anime, anime movie,
-movie, TV show, cartoon, manga, novel, comic, game, and the gated h-comic for a
-session that can see it), **Structure** (collection,
+movie, TV show, cartoon, manga, novel, comic, game, and the gated h-comic and
+h-game, each for a session that can see it), **Structure** (collection,
 franchise, series, quote, meme), **Entity** (studio, publisher, person,
 character) and **System** (system option, alias). Each
 tab is a form component in `pages/add-tabs/`; the page owns the state objects,
@@ -97,7 +100,7 @@ and meme are excluded — those four have no factory in
 tab's pickers and by `buildAutofillPatch`), the form defaults and the
 suggestion sources — all started together, in one wave.
 
-**The nine media lists are fetched per tab**, by `hooks/useEntryLists.js`: the
+**The eleven media lists are fetched per tab**, by `hooks/useEntryLists.js`: the
 visible tab's list goes out first, and another tab's list is fetched the first
 time that tab is opened and never again. Which lists a tab reads is
 `config/adminEntryLists.js`. All twelve still carry `limit=2000` — the API
@@ -207,6 +210,32 @@ the cast and the labels, without enrichment (there is no external API). The
 content-label picker shows the `h-comic` label checked and locked: every entry
 carries it, and the save adds it back. The form never sends
 `highlight_group_order` - the detail page's drag owns it.
+
+**H-Game tab.** `HGameAddTab.jsx`, gated like the H-Comic tab. It is the Game
+tab reshaped for `h_game`: the same **IGDB search** at the top (`IgdbSearchBox`
+pointed at `/api/h-game/search-igdb`, filling the id, the link and a blank EN
+name), then `HGameLineageFields` and `HGameFormBody`, which the Modify tab
+renders too. The franchise picker offers **H-Game franchises only**, and a new
+franchise typed there is created as `H-Game` - H-Game is a franchise family of
+its own, and the server refuses an h-game anywhere else. The **Base Game**
+picker offers h-games only (the self-FK is on `h_game`) and never the row
+being edited. The body has the five names; classification (game type, base
+game, **play style**, series number, Genre and Theme scoped to `h-game`, and
+the three H Genre fields); a **Content** section - **Language** (one choice),
+**Animation** (yes / no / unset) and three `ChoiceChips` lists, **Audio**, **H
+演出形式** and **Platform** (where it is sold; not Game's hardware Platform
+tag, and never filled from IGDB), each with None (`[]`) and Unknown (`null`)
+as separate answers; rating and **usefulness**; status, completion level,
+current patch, **All Endings**, **All CG** and Steam progress sync;
+achievements and the three HLTB tiers; one credit, the **Developer** (a studio
+row); release date and the six prices; **Copies** (Game's `GameCopiesEditor`,
+gated on `self.list` as on Game); IGDB id and link, Steam appid and link, and
+the two **DLsite** links; sources, flags and notes. No hours played,
+Metacritic, All Achievements or All Collected - `h_game` has none of them.
+Submit needs a CN or EN name, quick-creates the developer and tag values
+through `hGameSourceFields`, then `POST /api/h-game/`, the credits and the
+labels, without enrichment; the `h-game` label is checked and locked in the
+picker.
 
 **Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
 owned or wanted (storefront, ownership, format, acquisition, price paid +
@@ -354,11 +383,13 @@ holds — a franchise, a series or an entry; see
 - **Data loading** is `hooks/useEntryLists.js`, as on `/add`: collections,
   franchises and series eagerly, the media lists per tab. The three
   grouping-tier tabs are the ones that read more than their own — **franchise**
-  pulls the eight lists that are neither game nor h-comic for its ribbon,
-  **series** the seven (a series never lists anime movies), and **fav3x3** every
-  list but h-comic, because two of its grids hold game rows and none holds an
-  h-comic. `config/adminEntryLists.js` holds the map; games and h-comics appear
-  in no tier ribbon.
+  pulls the eight lists that are neither game, h-comic nor h-game for its
+  ribbon, **series** the seven (a series never lists anime movies), and
+  **fav3x3** every list but h-comic, because two of its grids hold game rows,
+  two hold h-game rows and none holds an h-comic. `config/adminEntryLists.js`
+  holds the map; games, h-comics and h-games appear in no tier ribbon. The two
+  h-game grids are drawn only for a session that can see the type
+  (`visibleFavoriteGrids`).
 - **Finding a row.** A search box over that tab's list, or a deep link
   `/modify?id=<system_id>[&type=<type>]` used by the dashboard cards and
   detail-page "Quick Edit" buttons. The deep-link effect runs once on mount,
@@ -389,6 +420,11 @@ holds — a franchise, a series or an entry; see
   `HComicRegionField`, `HComicLineageFields` and `HComicFormBody`, the game
   pattern. It loads the cast like the other cast-carrying tabs, and saves with
   `PATCH /api/h-comic/{id}`, then credits, cast and labels, without enrichment.
+- **H-Game tab.** `HGameModifyTab.jsx` renders `HGameAddTab`'s exported
+  `HGameLineageFields` and `HGameFormBody`, the game pattern, with the row
+  being edited left out of its own Base Game picker. `hGameToForm` keeps an
+  unrecorded list `null` rather than `[]`. No IGDB box, as on Game; it saves
+  with `PATCH /api/h-game/{id}`, then credits and labels, without enrichment.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
 - **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
@@ -449,9 +485,11 @@ copy rows it warns how many will be deleted with it. Its DLC and expansion rows
 are not cascaded — they survive with `base_game_id` set to `NULL`.
 
 The **H-Comic tab** (gated like its Add tab) offers the same orphan series
-and orphan franchise checkboxes as the manga tab.
+and orphan franchise checkboxes as the manga tab. The **H-Game tab** (gated
+the same way) offers them too, and warns about copy rows as the Game tab
+does; its DLC rows likewise survive with `base_game_id` set to `NULL`.
 
-Counts are computed across all ten media types (`entriesIn`,
+Counts are computed across all eleven media types (`entriesIn`,
 `standaloneEntriesIn`), so **opening the confirmation waits for every media
 list to be in** — lazily loaded ones included — and `executeDirectDelete`
 waits again before cascading. A list that was never fetched reads as empty,
@@ -504,7 +542,9 @@ by any field.
 
 `h-comic` is present here for a session that can see it; its Add form has no
 "copy an existing entry" search either, so its auto-fill ticks drive nothing
-yet.
+yet. `h-game` is present the same way and for Game's reason (its box searches
+IGDB); its three multi-choice lists offer no default, since their unset state
+is `null`, "not recorded".
 
 `game` is present here like any other media type, but its Add form has no
 "copy an existing entry" search (its box searches IGDB), so the auto-fill ticks

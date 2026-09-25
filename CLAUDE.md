@@ -12,7 +12,7 @@ schema vocabulary and the mistakes that are specific to it.
 
 ## Project Overview
 
-**CG1618 Media Tracker & Database** — a FastAPI web application for tracking a personal media collection. Data is organized in a three-tier relational hierarchy: `Collection → Franchise → Series → entry`. Media entry types: Anime, Anime Movie, Movie, TV Show, Cartoon, Manga, Novel, Comic, Game, H-Comic (all implemented; H-Comic is a gated type, seen in the `unrestricted` access mode only). Access: guests browse (subject to role permissions and content labels), admins manage everything.
+**CG1618 Media Tracker & Database** — a FastAPI web application for tracking a personal media collection. Data is organized in a three-tier relational hierarchy: `Collection → Franchise → Series → entry`. Media entry types: Anime, Anime Movie, Movie, TV Show, Cartoon, Manga, Novel, Comic, Game, H-Comic, H-Game, Hentai (all implemented; H-Comic, H-Game and Hentai are gated types, seen in the `unrestricted` access mode only - Hentai has no SPA pages yet). Access: guests browse (subject to role permissions and content labels), admins manage everything.
 
 ## Documentation Map
 

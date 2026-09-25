@@ -158,7 +158,7 @@ def create_franchise(
 
         db.add(new_franchise)
         db.flush()
-        # A franchise whose type names a gated type's franchise type (H-Comic)
+        # A franchise whose type names a gated type's franchise type (H-Comic, Hentai)
         # carries that type's label from its first write - otherwise it is
         # public until someone labels it by hand.
         ensure_franchise_labels(db, new_franchise)
@@ -212,7 +212,7 @@ def update_franchise(
         )
 
     db_franchise.updated_at = get_taipei_now()
-    # A type that GAINS a gated franchise type (H-Comic) gains its label.
+    # A type that GAINS a gated franchise type (H-Comic, Hentai) gains its label.
     ensure_franchise_labels(db, db_franchise)
     db.commit()
     db.refresh(db_franchise)
@@ -250,7 +250,7 @@ def patch_franchise(
         )
 
     db_franchise.updated_at = get_taipei_now()
-    # A type that GAINS a gated franchise type (H-Comic) gains its label.
+    # A type that GAINS a gated franchise type (H-Comic, Hentai) gains its label.
     ensure_franchise_labels(db, db_franchise)
     db.commit()
     db.refresh(db_franchise)

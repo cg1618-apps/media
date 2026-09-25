@@ -9,7 +9,8 @@ import { LIBRARY_CONFIGS } from "./configs";
 const EMPTY = [];
 
 // `type` comes from the route, or as a prop from a route that names it - the
-// gated /library/h-comic, which App.jsx declares on its own behind its guard.
+// gated /library/h-comic and /library/h-game, which App.jsx declares on their
+// own behind their guards.
 export default function Library({ type: typeProp }) {
   const params = useParams();
   const type = typeProp ?? params.type;

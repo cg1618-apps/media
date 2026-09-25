@@ -130,6 +130,8 @@ def test_date_columns_cover_every_table_with_truncated_iso_dates():
         "games",
         "game_copy",
         "h_comic",
+        "hentai",
+        "h_game",
         "studio",
     }
 

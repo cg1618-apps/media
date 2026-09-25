@@ -18,7 +18,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [The hierarchy](#the-hierarchy)
 - [Conventions shared by every table](#conventions-shared-by-every-table)
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
-- [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy, h_comic
+- [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy, h_comic, h_game, hentai
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
 - [Personal data](#personal-data): user_media_list, user_novel_unit_rating
 - [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_casting, media_credit, media_tag
@@ -87,7 +87,7 @@ deleting a group leaves its members in place and simply ungrouped.
   `role_permission`, `data_control_logs`, `deleted_record`, `person_role`),
   `users.id` (UUID, named `id`), and `seasonal`, whose primary key is the pair
   `(user_id, seasonal)` - one row per user per season string.
-- **Public id.** Every entity with a detail page - the ten media tables plus
+- **Public id.** Every entity with a detail page - the twelve media tables plus
   `collection`, `franchise`, `series`, `person`, `studio`, `publisher`,
   `character` and `watch_order_list`, eighteen in all - also carries
   `public_id INTEGER NOT NULL UNIQUE`, fed by a per-table sequence
@@ -139,7 +139,7 @@ deleting a group leaves its members in place and simply ungrouped.
   `plan_next.kind`, `media_credit.role`, ...) are plain `String`s validated
   in the API layer against the registries in [`options.md`](options.md), so
   adding a value never needs a migration.
-- **`remark` is virtual on eleven tables** - see
+- **`remark` is virtual on twelve tables** - see
   [Virtual fields](#virtual-fields-on-media-entries).
 
 ---
@@ -178,7 +178,7 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `franchise_type` | String | yes | | One of FRANCHISE_TYPES / `FranchiseType` (the two lists differ - see [options.md](options.md#franchise-type)). May hold a comma-separated list; duplicate detection buckets under each token. |
+| `franchise_type` | String | yes | | One of FRANCHISE_TYPES / `FranchiseType` (the two lists differ - see [options.md](options.md#franchise-type)). May hold a comma-separated list; duplicate detection buckets under each token. Every type in the list must belong to one family (`FRANCHISE_FAMILY_FOR_TYPE`: `H-Comic` and `Hentai` are one, everything else is mainstream) - a mixed list is refused (422) by the franchise endpoints. See [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy). |
 | `franchise_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Name variants; CN leads `display_name`. |
 | `my_rating` | String | yes | | MY_RATINGS |
 | `franchise_expectation` | String | yes | `"Low"` | FRANCHISE_EXPECTATIONS |
@@ -219,7 +219,7 @@ Relationships: `franchise`, `animes`. Virtual: `remark`, `display_name`,
 
 ## Media entries
 
-Columns common to all ten entry tables (listed once here). Each table also
+Columns common to all twelve entry tables (listed once here). Each table also
 carries a constant `media_type` discriminator, the child half of its composite
 FK up to [the `media` supertable](#the-media-supertable).
 
@@ -586,8 +586,8 @@ Virtual: `remark`, `play_next`, `to_replay`, `display_name`, `copies`,
 
 ### `game_copy`
 
-One purchase - or wish, or subscription entitlement - of one game. Model:
-`GameCopy` (`app/models/game_copy.py`).
+One purchase - or wish, or subscription entitlement - of one game or h-game.
+Model: `GameCopy` (`app/models/game_copy.py`).
 
 Deliberately **not** a `media_source` row. "Where can I watch this" and "which
 storefront do I own this on" look alike at one field, but a copy carries six
@@ -595,13 +595,17 @@ more (ownership, format, acquisition, price paid, currency, date) and at that
 size it is a purchase record, not a source. Putting it on `media_source` would
 mean six columns meaning nothing for the other eight media types. And
 `game_id` is a real foreign key rather than the polymorphic `(media_type,
-entry_id)` pair the other child tables use, because a DLC is itself a `games`
-row, so one FK covers game and DLC purchases identically.
+entry_id)` pair the other child tables use. It points at `media.system_id`,
+which every entry shares with its detail row, so one FK covers game and h-game
+purchases - and their DLCs, which are rows of the same tables - alike. The
+column keeps the name `game_id` because the `Game Copy` sheet tab is headed by
+it. `Game.copies` and `HGame.copies` are the two relationships over it, each
+joined on its own table's `system_id`.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `game_id` | UUID | **no** | | FK `games.system_id` ON DELETE CASCADE, indexed (`ix_game_copy_game`) |
+| `game_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE (`game_copy_game_id_fkey`), indexed (`ix_game_copy_game`). A game's or an h-game's id |
 | `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed (`ix_game_copy_user`). Whose purchase this is. A copy is a purchase record, not a fact about the game, so two people own two rows for the same edition - and `uq_game_copy_row` leads with this column. |
 | `storefront` | String | yes | | GAME_STOREFRONTS |
 | `ownership` | String | yes | | GAME_OWNERSHIP_KINDS (Owned / Wishlist / Subscription / Free / Not Owned) |
@@ -620,8 +624,9 @@ without colliding, but the same edition cannot be bought twice on the same
 store by the same person. `user_id` leads: two accounts can each own Hollow
 Knight, Digital, on Steam.
 
-On the read side, `attach_own_copies` narrows a game's `copies` to the acting
-user's rows before the response is built. It populates the loaded value
+On the read side, `attach_own_copies` narrows a game's or an h-game's
+`copies` (`COPY_OWNER_TYPES`) to the acting user's rows before the response is
+built. It populates the loaded value
 rather than assigning to the relationship, because `Game.copies` is
 `cascade="all, delete-orphan"` and an assignment would delete every row the
 filter dropped.
@@ -655,7 +660,7 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `h_comic_name_kr` | String | yes | | The KR name |
 | `region` | String | yes | | H_COMIC_REGIONS (JP / KR). Required by the write schemas and checked again by the tracker PATCH (422); nullable here so a Pull row with a blank cell restores rather than fails the tab |
 | `originality` | String | yes | | **JP.** H_COMIC_ORIGINALITY (原創 / 同人) |
-| `animation_status` | String | yes | | **JP.** H_COMIC_ANIMATION_STATUSES (Not Animated / Announced / Animated), hand-set |
+| `animation_status` | String | yes | | **JP.** H_COMIC_ANIMATION_STATUSES (Not Animated / Announced / Animated), the hand-set value. While the entry has `adaptation` relations from hentai entries, the API serves a **derived** value instead and this column keeps the hand-set one ([entry-types.md](entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy)) |
 | `series_number` | Integer | yes | | **JP.** The entry's position in its series, like a volume number |
 | `serialization_status` | String | yes | | Both. MANGA_SERIALIZATION_STATUSES |
 | `page_total` | Integer | yes | | **JP.** |
@@ -670,11 +675,99 @@ Constraints and wiring, as for every entry table: composite FK `fk_h_comic_media
 `h_comic_public_id_seq`, and the AFTER DELETE trigger
 `trg_h_comic_delete_media`.
 
-Virtual: `remark`, `read_next`, `to_reread`, `display_name`, and the
+Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
+`animation_status_source` (`"derived"` / `"manual"`, null on KR), and the
 `illustrator` / `author` / `club` / `original_source` / `h_genre_plot` /
 `h_genre_appearance` / `h_genre_relation` link fields. Personal columns:
 `reading_status`, `my_rating`, `page_fin` (JP), `ch_fin` (KR), `usefulness`,
 `completed_at` on [`user_media_list`](#user_media_list).
+
+### `h_game`
+
+Adult games, seen in the `unrestricted` access mode only. Model: `HGame`
+(`app/models/h_game.py`). To `games` what `h_comic` is to `manga`: its own
+table, reusing Game's machinery - the IGDB and Steam fill, `game_copy`, the
+DLC chain and the game note sections. One purchasable per row, as on `games`.
+
+Every row carries the `h-game` content label, attached server-side on every
+write path; see [authorization.md](authorization.md#gated-types). The
+fixed-choice columns carry vocabularies from `app/utils/constants.py` with no
+CHECK, matching `games`; they are checked on every write path
+(`app/services/domain/h_game.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `h_game_name_cn` / `_en` / `_jp` / `_roman` / `_alt` | String | yes | | `display_name` order CN -> EN -> Alt -> Roman -> JP, as `games` |
+| `series_number` | Integer | yes | | The entry's position in its series |
+| `playstyle` | String | yes | | H_GAME_PLAYSTYLES (ADV / RPG / SLG / Other) |
+| `game_type` | String | yes | | GAME_TYPES |
+| `base_game_id` | UUID | yes | | FK `h_game.system_id` ON DELETE SET NULL. A DLC's base game, among h-games |
+| `release_status` | String | yes | | GAME_RELEASE_STATUSES |
+| `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_h_game_release_date_iso` |
+| `current_patch` | String | yes | | |
+| `completion_level` | String | yes | | COMPLETION_LEVELS |
+| `all_endings` / `all_cg` | String | yes | | GAME_COMPLETION_FLAGS; null is the unrecorded fourth state |
+| `steam_progress_sync` | Boolean | yes | | As on `games`: `False` stops Steam writing `achievements_earned` |
+| `achievements_earned` / `achievements_total` | Integer | yes | | Steam-fillable |
+| `hltb_main` / `_main_extra` / `_completionist` | Float | yes | | IGDB time-to-beat, fill-only |
+| `price_original_us` / `_jp` / `_tw`, `price_current_us` / `_jp` / `_tw` | Numeric(10,2) | yes | | Market prices, Steam-fillable as on `games` |
+| `language_availability` | String | yes | | H_GAME_LANGUAGE_AVAILABILITY (官方中文 / 中文補丁 / 無中文) |
+| `audio_availability` | JSONB | yes | | A list over H_GAME_AUDIO_AVAILABILITY (一般對話 / H場景), in vocabulary order. `[]` is "none", null "unknown" |
+| `animation_availability` | Boolean | yes | | Null is "unknown" |
+| `h_presentation` | JSONB | yes | | A list over H_GAME_H_PRESENTATIONS (靜圖 / 動圖 / 2D動畫 / 3D動畫 / 互動) |
+| `platform` | JSONB | yes | | A list over H_GAME_PLATFORMS (Steam / DLsite / Nintendo / Other). Hand-set, never filled |
+| `igdb_id` / `igdb_link` | Integer / String | yes | | As on `games` |
+| `steam_appid` / `steam_link` | Integer / String | yes | | As on `games`; the SteamDB reference row is derived from the appid |
+| `dlsite_link_jp` / `dlsite_link_tw` | String | yes | | Plain links; nothing fetches DLsite |
+| `highlight_group_order` | JSONB | yes | | The owner's order of the `h_game_highlights` groups, as `h_comic`'s |
+| `type_slots` | JSONB | yes | | Favourite-grid slot per grid key, as on `games` |
+
+Constraints and wiring, as for every entry table: composite FK `fk_h_game_media`
+(`system_id`, `media_type`) -> `media` (deferrable, ON DELETE CASCADE), CHECK
+`ck_h_game_media_type` (`media_type = 'h-game'`), the sequence
+`h_game_public_id_seq`, and the AFTER DELETE trigger
+`trg_h_game_delete_media`. Game's two DLC CHECKs are mirrored:
+`ck_h_game_base_no_parent` (a `Base Game` has no parent) and
+`ck_h_game_not_self_parent`.
+
+Virtual: `remark`, `play_next`, `to_replay`, `display_name`, `base_game`,
+`copies`, `ownership`, and the `studio` / `game_genre` / `game_theme` /
+`h_genre_plot` / `h_genre_appearance` / `h_genre_relation` link fields.
+Personal columns: `playing_status`, `my_rating`, `usefulness`, `completed_at`
+on [`user_media_list`](#user_media_list).
+
+### `hentai`
+
+Adult anime, seen in the `unrestricted` access mode only. Model: `Hentai`
+(`app/models/hentai.py`). **One entry is one episode**, so there is no
+episode count and no progress counter.
+
+Every row carries the `hentai` content label, attached server-side on every
+write path; see [authorization.md](authorization.md#gated-types).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `hentai_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Anime's five. `display_name` order CN -> EN -> Alt -> roman -> JP |
+| `source_material` | String | yes | | HENTAI_SOURCE_MATERIALS (Original / Manga / Novel): what the episode adapts |
+| `originality` | String | yes | | H_COMIC_ORIGINALITY (原創 / 同人) |
+| `series_number` | Integer | yes | | The entry's position in its series |
+| `airing_status` | String | yes | | AiringStatus, anime's vocabulary. Filled by Tenrai when blank |
+| `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_hentai_release_date_iso`. Filled by Tenrai when blank |
+| `mal_id` / `mal_link` | Integer / String | yes | | The MyAnimeList entry; `mal_id` is extracted from `mal_link` as for anime. Tenrai reads it for airing status, release date and cover only |
+
+The vocabulary columns are checked on every write, including the tracker
+PATCH (`hentai_progress_hook` in `app/services/domain/hentai.py`).
+
+Constraints and wiring, as for every entry table: composite FK `fk_hentai_media`
+(`system_id`, `media_type`) -> `media` (deferrable, ON DELETE CASCADE), CHECK
+`ck_hentai_media_type` (`media_type = 'hentai'`), the sequence
+`hentai_public_id_seq`, and the AFTER DELETE trigger `trg_hentai_delete_media`.
+
+Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, and the
+`studio` / `studio_refs` / `director` / `h_genre_plot` / `h_genre_appearance` /
+`h_genre_relation` link fields. Personal columns: `watching_status`,
+`my_rating`, `usefulness`, `completed_at` on
+[`user_media_list`](#user_media_list).
 
 ---
 
@@ -685,18 +778,18 @@ are not columns on the entry tables.
 
 | Field | Where it comes from | Tables |
 |---|---|---|
-| `remark` | A **plain attribute**, defaulted to `None` on the class and set per request by `app.services.domain.remark_field.attach_remark`, which reads `note` (`section = 'remark'`) filtered on `note.author_id` - one query per page. Writes go through `upsert_remark`, which finds *this author's* row. **It is not a SQL expression**, so it cannot appear in a `filter` or `order_by` - `find_all_remarks` queries `note` directly for that reason. It must not become a `column_property` again: a scalar subquery cannot know who is asking, and would serve one person's remark to everybody. | all 9 entries + series, franchise, collection |
+| `remark` | A **plain attribute**, defaulted to `None` on the class and set per request by `app.services.domain.remark_field.attach_remark`, which reads `note` (`section = 'remark'`) filtered on `note.author_id` - one query per page. Writes go through `upsert_remark`, which finds *this author's* row. **It is not a SQL expression**, so it cannot appear in a `filter` or `order_by` - `find_all_remarks` queries `note` directly for that reason. It must not become a `column_property` again: a scalar subquery cannot know who is asking, and would serve one person's remark to everybody. | all entries + series, franchise, collection |
 | `display_name` | `NameFallbackMixin` property, first non-empty name in language order. | all entries and tiers |
-| `ownership` | Derived from a game's `game_copy` rows by `derive_game_ownership`; never stored. Declared on `GameResponse` but **not yet populated by any read path** - the list filter `?ownership=` is an EXISTS over `game_copy` and does not need it. | games |
-| `copies` | The game's `game_copy` rows, in `position` order, through the ORM relationship; written back through the `copies` payload key (`nested_collections`). | games |
+| `ownership` | Derived from a game's `game_copy` rows by `derive_game_ownership`; never stored. Declared on `GameResponse` but **not yet populated by any read path** - the list filter `?ownership=` is an EXISTS over `game_copy` and does not need it. | games, h_game |
+| `copies` | The game's `game_copy` rows, in `position` order, through the ORM relationship; written back through the `copies` payload key (`nested_collections`). | games, h_game |
 | `names_dict` | `{en, cn, roman, jp, alt}` for hierarchy resolution. | anime, anime_movies, series |
 | `cum_ep_fin`, `cum_ep_total` | Pydantic `computed_field` on `AnimeResponse`: `ep_previous + ep_fin` and `ep_previous + ep_total` (None if `ep_total` unknown). | anime |
-| `watch_next` / `read_next` / `play_next` | Boolean over `plan_next` (`kind = next`, `scope = entry`). The row's existence is the flag. | all 9 |
-| `to_rewatch` / `to_reread` / `to_replay` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. Note that a virtual flag also has to be **declared on the response schema** - the router factory sets it, but pydantic drops an undeclared field silently, which is why `GameBase` names `play_next` / `to_replay` outright. | anime_movies, movies, tv_shows, manga, novel, comic, games |
+| `watch_next` / `read_next` / `play_next` | Boolean over `plan_next` (`kind = next`, `scope = entry`). The row's existence is the flag. | all entries |
+| `to_rewatch` / `to_reread` / `to_replay` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. Note that a virtual flag also has to be **declared on the response schema** - the router factory sets it, but pydantic drops an undeclared field silently, which is why `GameBase` names `play_next` / `to_replay` outright. | anime_movies, movies, tv_shows, manga, novel, comic, games, h_comic, h_game |
 | Credit / tag link fields (`studio`, `director`, `producer`, `music`, `genre_main`, `genre_sub`, `label`, `distributor_tw`, `source_official` **or** `original_source`, `author_plot`, ...) | Attached at read time by `services.domain.credits.attach_link_fields` from `media_credit` / `media_tag`; the attribute names are the legacy sheet headers in `LEGACY_SHEET_COLUMN` (`app/utils/credit_roles.py`). | per media type - see `TAG_FIELDS` / `CREDIT_ROLES` |
-| `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Gated with `studio` in the Credits field group (`app/services/rbac/field_groups.py`). | anime, anime_movies |
+| `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Gated with `studio` in the Credits field group (`app/services/rbac/field_groups.py`). | anime, anime_movies, games, h_game |
 | `publisher_refs` | Attached by the same `attach_link_fields` pass from the entry's `publisher` credit rows - `{system_id, display_name, label}` per publisher, the `studio_refs` idea for the third entity target plus `credit_refs`'s label, because one publisher role reads a different word per media type (`label` carries `credit_label("publisher", media_type)` - 台灣代理商, 台灣出版商, 出版商 or 發行商). Attached only for media types whose `credit_roles_for()` includes `publisher`, derived rather than hand-listed. Gated with `publisher` in the Credits field group. | anime, anime_movies, manga, novel, comic, games |
-| `sources` | List of `SourceRef` (`app/schemas/sources.py`), attached at read time from `media_source` by `services.domain.sources.attach_sources`. Bucket-filtered per viewer (`sources_other` / `sources_restricted`) before the response is built - see [authorization.md](authorization.md). | all 9 |
+| `sources` | List of `SourceRef` (`app/schemas/sources.py`), attached at read time from `media_source` by `services.domain.sources.attach_sources`. Bucket-filtered per viewer (`sources_other` / `sources_restricted`) before the response is built - see [authorization.md](authorization.md). | all entries |
 | `User.role` | `column_property` over `role.name` via `users.role_id` (read-only). | users |
 
 **A tag field's response attribute is not always its field key - and the rule
@@ -746,14 +839,14 @@ got, and when they finished. Model: `UserMediaList`
 
 Keyed by `(user_id, media_id)` - `uq_user_media`. `media_id` points at the
 [`media` supertable](#the-media-supertable), not at a detail table, so one row
-shape serves all ten types and a deleted entry takes its list rows with it.
+shape serves all twelve types and a deleted entry takes its list rows with it.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE. Deleting a user removes their whole list and nothing else. |
 | `media_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE |
-| `status` | String | **no** | per type | The one status column for all ten types. Translated to and from `watching_status` / `reading_status` / `playing_status` by `STATUS_FIELD`; the default comes from `DEFAULT_STATUS`. |
+| `status` | String | **no** | per type | The one status column for all twelve types. Translated to and from `watching_status` / `reading_status` / `playing_status` by `STATUS_FIELD`; the default comes from `DEFAULT_STATUS`. |
 | `my_rating` | String | yes | | MY_RATINGS - a letter grade, never a number |
 | `completed_at` | DateTime | yes | | Stamped when the status becomes a completed one (`apply_list_completion_timestamp`) |
 | `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
@@ -766,7 +859,7 @@ shape serves all ten types and a deleted entry takes its list rows with it.
 | `progress_display` | String | yes | | novel |
 | `issue_fin` | Integer | yes | | comic |
 | `page_fin` | Integer | yes | | h_comic (JP; cleared on KR) |
-| `usefulness` | String | yes | | h_comic. H_COMIC_USEFULNESS, checked on every write; personal for the reason `my_rating` is |
+| `usefulness` | String | yes | | h_comic, h_game, hentai. H_COMIC_USEFULNESS, checked on every write; personal for the reason `my_rating` is |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 **Which keys a type owns** is `LIST_FIELDS`, not this table's shape. A write
@@ -1257,7 +1350,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - set when the owner is one of the ten media types |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - set when the owner is one of the twelve media types |
 | `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, indexed - set when the owner is a grouping tier |
 | `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed. Who wrote the row - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
@@ -1755,11 +1848,11 @@ resolution is a union. Kept out of
 | `sort_order` | Integer | no | `0` (server default) | |
 | `created_at` / `updated_at` | DateTime | yes | now | Yes, labels have timestamps. |
 
-One row is a **system label**: `h-comic`, the label the gated h-comic type
-requires. It is created by its migration and by the lifespan seed
-(`ensure_system_labels` in `app/services/domain/gated_labels.py`, which finds
-it by key), granted to `unrestricted` alone, and refused deletion (409) by the
-label API.
+Three rows are **system labels**: `h-comic`, `h-game` and `hentai`, the
+labels the gated h-comic, h-game and hentai types require. Each is created by its type's migration and
+by the lifespan seed (`ensure_system_labels` in
+`app/services/domain/gated_labels.py`), granted to `unrestricted` alone, and
+refused deletion (409) by the label API.
 
 ### `media_content_label`
 
@@ -1867,7 +1960,7 @@ One mode an account holds.
 | `system_id` | UUID | no | uuid4 | PK |
 | `user_id` | UUID | no | | FK `users.id` CASCADE |
 | `mode_id` | UUID | no | | FK `access_mode.system_id` CASCADE |
-| `is_default` | Boolean | no | `false` | Where a fresh login lands |
+| `is_default` | Boolean | no | `false` | The mode a session is in unless it has switched (a switch lasts at most an hour) |
 | `created_at` | DateTime | yes | now | |
 
 UNIQUE `(user_id, mode_id)`, plus `ix_one_default_mode_per_user` — partial
@@ -1938,7 +2031,7 @@ deleted. Model: `DeletedRecord`.
 Every media entry has exactly one row in `media`, keyed by the **same**
 `system_id` the detail row already had. It exists so that anything pointing at
 "some entry" can use a real foreign key instead of an ambiguous (type, id)
-pair, and so the fields all ten types share can be queried in one place.
+pair, and so the fields all twelve types share can be queried in one place.
 
 | Column | Type | Null | Description |
 |---|---|:-:|---|
@@ -1967,7 +2060,7 @@ direction an `AFTER DELETE` trigger, `trg_<table>_delete_media`, removes the
 `media` row when the detail row is deleted, so a delete against either table
 cleans up both.
 
-**Who writes it.** `app/models/media_sync.py`, registered for all ten types
+**Who writes it.** `app/models/media_sync.py`, registered for all twelve types
 at the bottom of `app/models/__init__.py`. Not a router hook: entries are
 written through the ORM directly as often as through the API.
 
@@ -1983,7 +2076,7 @@ implicitly.
 
 An entry constructed with an explicit `system_id` - Pull carries one - adopts
 the `media` row already under that id rather than colliding with it, which is
-what lets Pull restore the `Media` tab before the ten entry tabs.
+what lets Pull restore the `Media` tab before the twelve entry tabs.
 
 **`display_name` is denormalized.** It is derived from the detail row's
 `*_name_*` columns, CN first, by the single producer
@@ -1992,7 +2085,7 @@ no name at all gets `(unnamed <type> <public_id>)`.
 `tests/api/test_display_name_drift.py` is what catches it going stale - the one
 new class of bug the supertable adds.
 
-**Promotion rule.** A field belongs on `media` only when all ten types have it
+**Promotion rule.** A field belongs on `media` only when all twelve types have it
 AND something queries across types by it. Both halves are required, or this
 becomes a junk drawer and the detail tables hollow out. Deliberately not here:
 `my_rating` and `watching_status` (per-user, not catalogue), `mal_rating` and
@@ -2000,9 +2093,9 @@ becomes a junk drawer and the detail tables hollow out. Deliberately not here:
 differently elsewhere and not the same concept).
 
 `tests/unit/test_media_constraints.py` pins the FK, the CHECK and the
-discriminator on all ten types, and a companion in
+discriminator on all twelve types, and a companion in
 `tests/api/test_media_supertable.py` pins the triggers in the database -
-Alembic autogenerates none of them, so nothing else would catch a tenth media
+Alembic autogenerates none of them, so nothing else would catch a new media
 type added without them.
 
 ---
@@ -2011,7 +2104,7 @@ type added without them.
 
 Ten entry tables each have their own `system_id` space, so a bare UUID would
 be ambiguous — except that the `media` supertable makes a media entry's id
-unique across all ten, and six tables hold a real `media_id` FK instead of a
+unique across all twelve, and six tables hold a real `media_id` FK instead of a
 pair.
 
 `note` and `meme` store no pair either: an owner that may be a **grouping

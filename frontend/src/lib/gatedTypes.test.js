@@ -67,6 +67,34 @@ describe("the list filters", () => {
   });
 });
 
+describe("h-game", () => {
+  // Both gated types visible, and only h-comic: the second is the non-empty
+  // list a refusal has to be tested against, so a green "hidden" proves the
+  // h-game entry was looked for and missed.
+  const both = { visibleGatedTypes: ["h-comic", "h-game"] };
+  const hComicOnly = { visibleGatedTypes: ["h-comic"] };
+
+  it("is a gated type of its own", () => {
+    expect(isGatedType("h-game")).toBe(true);
+    expect(canSeeGatedType(both, "h-game")).toBe(true);
+    expect(canSeeGatedType(hComicOnly, "h-game")).toBe(false);
+    expect(canSeeGatedType(hComicOnly, "h-comic")).toBe(true);
+  });
+
+  it("drops the H-Game franchise type with its media type", () => {
+    const fts = ["Game", "H-Comic", "H-Game"];
+    expect(visibleFranchiseTypes(hComicOnly, fts)).toEqual(["Game", "H-Comic"]);
+    expect(visibleFranchiseTypes(both, fts)).toEqual(fts);
+  });
+
+  it("requires the h-game label on its entries and its franchises", () => {
+    expect(requiredLabelsForType("h-game")).toEqual(["h-game"]);
+    expect(requiredLabelsForType("game")).toEqual([]);
+    expect(requiredLabelsForFranchiseType("H-Game")).toEqual(["h-game"]);
+    expect(requiredLabelsForFranchiseType("Game")).toEqual([]);
+  });
+});
+
 describe("required labels", () => {
   it("names the h-comic label for the h-comic type only", () => {
     expect(requiredLabelsForType("h-comic")).toEqual(["h-comic"]);

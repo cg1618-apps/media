@@ -25,6 +25,7 @@ from app.utils.utils import (
     COMIC_FIELDS_TO_FILL,
     COMIC_LINK_FIELDS_TO_FILL,
     GAME_FIELDS_TO_FILL,
+    HENTAI_FIELDS_TO_FILL,
     MANGA_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     MOVIE_LINK_FIELDS_TO_FILL,
@@ -122,6 +123,14 @@ def has_missing_values_anime(anime: Anime) -> bool:
             missing_fields.append("ep_previous")
 
     return len(missing_fields) > 0
+
+
+def has_missing_values_hentai(hentai) -> bool:
+    """True if any of the three columns Tenrai fills is blank."""
+    return any(
+        getattr(hentai, field, None) is None or str(getattr(hentai, field)).strip() == ""
+        for field in HENTAI_FIELDS_TO_FILL
+    )
 
 
 def has_missing_values_anime_movie(anime_movie: AnimeMovies) -> bool:
@@ -286,10 +295,13 @@ def has_missing_values_game_steam(entry) -> bool:
     so testing those columns individually would leave such entries eligible
     for ever. Testing whether Steam has landed *anything* bounds that to the
     genuinely empty case; refreshing what is already there is Replace's job.
+
+    Shared with h-game, which has no Metacritic column: a column the model
+    lacks counts as empty.
     """
     return (
         entry.steam_appid is not None
-        and entry.metacritic_score is None
+        and getattr(entry, "metacritic_score", None) is None
         and entry.price_original_us is None
         and entry.achievements_total is None
     )

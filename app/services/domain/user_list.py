@@ -34,6 +34,8 @@ STATUS_FIELD: dict[str, str] = {
     "comic": "reading_status",
     "game": "playing_status",
     "h-comic": "reading_status",
+    "hentai": "watching_status",
+    "h-game": "playing_status",
 }
 
 # The NOT NULL default each detail column carried before it moved. Copied from
@@ -49,6 +51,8 @@ DEFAULT_STATUS: dict[str, str] = {
     "comic": "Might Read",
     "game": "Might Play",
     "h-comic": "Might Read",
+    "hentai": "Might Watch",
+    "h-game": "Might Play",
 }
 
 # The counters that were NOT NULL DEFAULT 0 on their detail table. On
@@ -95,6 +99,11 @@ LIST_FIELDS: dict[str, tuple[str, ...]] = {
         "reading_status", "my_rating", "page_fin", "ch_fin", "usefulness",
         "completed_at",
     ),
+    # One entry is one episode, so there is no counter. usefulness is
+    # h-comic's column and vocabulary.
+    "hentai": ("watching_status", "my_rating", "usefulness", "completed_at"),
+    # Game's, plus the usefulness h-comic introduced. No progress counter.
+    "h-game": ("playing_status", "my_rating", "completed_at", "usefulness"),
 }
 
 

@@ -6,12 +6,13 @@ one whose every entry carries one content label. A missing label means a
 PUBLIC entry, so the label is never left to the admin: this module attaches it
 server-side and refuses a request that would take it off (422). The same holds
 for a franchise whose type list names a gated type's franchise type
-(hierarchy.FRANCHISE_TYPE_FOR): `H-Comic` brings `h-comic`.
+(hierarchy.FRANCHISE_TYPE_FOR): `H-Comic` brings `h-comic`, `Hentai` brings
+`hentai`.
 
 Everything here is driven by those two maps, so a further gated type needs
 only its entries in them and its row in SYSTEM_LABELS - no code here names a
-type. Each type's own module (app/services/domain/h_comic.py) keeps the rules
-that are not about the label.
+type. Each type's own module (app/services/domain/h_comic.py, hentai.py) keeps
+the rules that are not about the label.
 
 The write paths that keep the label on:
 
@@ -42,6 +43,16 @@ SYSTEM_LABELS: dict[str, tuple[str, str]] = {
     "h-comic": (
         "H-Comic",
         "Adult comics. Carried by every h-comic entry and every H-Comic "
+        "franchise; seen in the unrestricted mode only.",
+    ),
+    "hentai": (
+        "Hentai",
+        "Adult anime. Carried by every hentai entry and every Hentai "
+        "franchise; seen in the unrestricted mode only.",
+    ),
+    "h-game": (
+        "H-Game",
+        "Adult games. Carried by every h-game entry and every H-Game "
         "franchise; seen in the unrestricted mode only.",
     ),
 }

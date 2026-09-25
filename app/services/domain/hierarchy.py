@@ -70,6 +70,8 @@ FRANCHISE_TYPE_FOR = {
     "comic": FranchiseType.COMIC,
     "game": FranchiseType.GAME,
     "h-comic": FranchiseType.H_COMIC,
+    "hentai": FranchiseType.HENTAI,
+    "h-game": FranchiseType.H_GAME,
 }
 
 
@@ -275,6 +277,8 @@ resolve_novel_parent_hierarchy = _entry_resolver("novel")
 resolve_comic_parent_hierarchy = _entry_resolver("comic")
 resolve_game_parent_hierarchy = _entry_resolver("game")
 resolve_h_comic_parent_hierarchy = _entry_resolver("h-comic")
+resolve_hentai_parent_hierarchy = _entry_resolver("hentai")
+resolve_h_game_parent_hierarchy = _entry_resolver("h-game")
 
 
 def resolve_anime_movie_parent_hierarchy(db: Session, franchise_id: Any, names: Dict[str, Any]) -> Any:

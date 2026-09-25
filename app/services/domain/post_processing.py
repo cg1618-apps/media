@@ -20,7 +20,9 @@ from app.services.domain.autofill import (
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
     autofill_from_anilist,
+    autofill_game_from_igdb,
     autofill_game_from_steam,
+    autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
@@ -34,12 +36,12 @@ from app.services.domain.checking import (
 )
 from app.services.domain.derivation import (
     apply_calculate_seasonal_from_month,
+    apply_extract_game_ids,
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
     apply_extract_novel_ids,
     apply_extract_season_from_title,
-    apply_extract_steam_appid,
     derive_ep_previous_anime,
     derive_season_1_anime,
     derive_season_1_cartoon,
@@ -86,6 +88,16 @@ def apply_single_replace_anime_movie(
     )
     autofill_from_anilist(anime_movie, ANIME, db)
     anime_movie_post_processing(anime_movie, db)
+
+
+def apply_single_replace_hentai(db: Session, hentai, bulk: bool = False) -> None:
+    """
+    Core 'Replace' logic for a single hentai entry: Tenrai's three fields,
+    fill-only like anime's. No AniList, and nothing derived afterwards.
+    `bulk` is kept for signature parity with the other media types.
+    """
+    apply_extract_mal_id_anime(hentai)
+    autofill_hentai_from_mal(hentai, db=db)
 
 
 def apply_single_replace_movie(db: Session, movie: Movies, bulk: bool = False) -> None:
@@ -149,20 +161,24 @@ def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) ->
     autofill_from_anilist(novel, MANGA, db)
 
 
-def apply_single_replace_game(db: Session, game: Game, bulk: bool = False) -> None:
+def apply_single_replace_game(db: Session, game, bulk: bool = False) -> None:
     """
-    Core 'Replace' logic for a single Game entry.
+    Core 'Replace' logic for a single Game or HGame entry: IGDB, then Steam.
 
-    Steam only. IGDB carries nothing that drifts - its half of the game Fill is
-    fill-only throughout - so re-fetching it would rewrite exactly what Fill
-    already wrote. `bulk` is accepted for signature parity with the other
-    media types.
+    Both sources, in the Fill's order, so the detail page's Autofill button
+    finishes an entry in one press - IGDB can supply the appid Steam then keys
+    off. IGDB stays fill-only here as it is in Fill: nothing it carries
+    drifts, so Replace keeps what is already set, the same bargain the MAL
+    Replace makes with everything but its scores. Steam's current prices and
+    Metacritic score are what Replace overwrites. `bulk` is accepted for
+    signature parity with the other media types.
 
-    The SteamDB row is derived before the fetch, not after it: it needs only
-    the appid, so a storefront that is down or rate-limited must not cost the
-    entry its link.
+    The SteamDB row is derived before the Steam fetch, not after it: it needs
+    only the appid, so a storefront that is down or rate-limited must not cost
+    the entry its link.
     """
-    apply_extract_steam_appid(game)
+    apply_extract_game_ids(game)
+    autofill_game_from_igdb(game, db)
     derive_steamdb_source(game, db)
     autofill_game_from_steam(game, db)
 

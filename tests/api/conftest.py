@@ -8,6 +8,7 @@ Setup: createdb -U postgres media_test  (run once)
 """
 
 import uuid
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,6 +24,7 @@ from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.modes import grant_all_modes_to_existing_accounts
 from app.services.rbac.permissions import PERM_MANAGE_CATALOG
+from app.services.rbac.resolver import MODE_OVERRIDE_COOKIE
 from app.services.rbac.seed import default_user_permissions, ensure_rbac_seed
 from app.services.rbac.seed_modes import (
     MODE_UNRESTRICTED,
@@ -82,8 +84,8 @@ def test_engine():
     # starts with no labels; carry_label_in_wide_modes() tops it up.
     ensure_access_mode_seed(seeding)
     seeding.commit()
-    # The system label every gated type requires (h-comic). The lifespan
-    # seeds them too, on its own connection; seeding them here first,
+    # The system labels the gated types require (h-comic, hentai). The
+    # lifespan seeds them too, on its own connection; seeding them here first,
     # committed, keeps the lifespan's copy to a SELECT for the same reason as
     # the modes above. They exist in every test from here on, as they do on
     # every real database - so a narrow mode is never vacuously narrow on
@@ -517,9 +519,10 @@ def grant_mode(db_session, mode):
 def mode_client(db_session, admin_user, grant_mode):
     """A client sitting in one named mode.
 
-    The mode travels in the token claim exactly as it does in production, so
-    these tests exercise the real resolution path rather than a Viewer built
-    by hand.
+    The mode travels in the access_mode override cookie exactly as it does
+    after a switch in production, so these tests exercise the real resolution
+    path rather than a Viewer built by hand. The grant is not the account's
+    default, so without that cookie the session would resolve nothing.
     """
 
     def _client(mode_key, user=None, denials=()):
@@ -530,17 +533,21 @@ def mode_client(db_session, admin_user, grant_mode):
             yield db_session
 
         app.dependency_overrides[get_db] = override_get_db
-        token = create_access_token(
-            {"sub": user.username, "role": user.role, "mode": str(grant.mode_id)}
+        token = create_access_token({"sub": user.username, "role": user.role})
+        override = create_access_token(
+            {"sub": user.username, "mode": str(grant.mode_id)},
+            expires_delta=timedelta(minutes=60),
         )
         c = TestClient(app)
         # domain= matters here and nowhere else. This client RECEIVES
-        # Set-Cookie responses - the access-mode switch reissues the cookie -
-        # and TestClient's own cookies land under "testserver.local". A jar
-        # cookie set with no domain does not match, so the two ACCUMULATE and
-        # httpx raises CookieConflict on the next read. The other fixture
-        # clients never get a Set-Cookie back, which is why they can omit it.
+        # Set-Cookie responses - the access-mode switch sets or clears the
+        # override - and TestClient's own cookies land under
+        # "testserver.local". A jar cookie set with no domain does not match,
+        # so the two ACCUMULATE and httpx raises CookieConflict on the next
+        # read. The other fixture clients never get a Set-Cookie back, which
+        # is why they can omit it.
         c.cookies.set("access_token", f"Bearer {token}", domain="testserver.local")
+        c.cookies.set(MODE_OVERRIDE_COOKIE, override, domain="testserver.local")
         return c
 
     yield _client

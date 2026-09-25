@@ -54,7 +54,7 @@ true, including for permissions that do not exist yet.
 
 | Permission | `guest` | `user` | `super` | `admin` | a custom role |
 |---|---|---|---|---|---|
-| `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic` (all ten) | yes (as seeded) | yes (as seeded) | yes | implicit | — |
+| `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`, `h-game`, `hentai` (all twelve) | yes (as seeded) | yes (as seeded) | yes | implicit | — |
 | `self.list` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `self.personal_notes` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `manage.catalog` | **locked off** | — | **locked on** | implicit | — |
@@ -66,9 +66,9 @@ true, including for permissions that do not exist yet.
 - **"As seeded" is what a fresh database gets.** The seed derives every
   `media_type.*` grant from `MEDIA_TYPE_KEYS`, but it tops up only a role
   holding nothing, so on an established database a media type added later -
-  `h-comic` - reaches `super` (locked on) and `admin` (implicit) and not
-  `guest` or `user` until an admin grants it. The type axis is not what hides
-  h-comic from a narrow session anyway: its label is (see
+  `h-comic`, `h-game`, `hentai` - reaches `super` (locked on) and `admin`
+  (implicit) and not `guest` or `user` until an admin grants it. The type axis
+  is not what hides a gated type from a narrow session anyway: its label is (see
   [Gated types](#gated-types)).
 - **Locked means that cell is not an admin choice** — see
   [Locked grants](#locked-grants) below. Saving a locked-off grant answers
@@ -153,7 +153,8 @@ groups and nothing else; there is no column on `access_mode_label` or
   narrower than the other. A label minted later reaches `borderline` only if
   an admin grants it there. The seed's "every label" never includes a label a
   gated type requires (`required_label_keys()`, see
-  [Gated types](#gated-types)): `h-comic` belongs to `unrestricted` alone,
+  [Gated types](#gated-types)): `h-comic`, `h-game` and `hentai` belong to
+  `unrestricted` alone,
   including on the boot where `borderline`, still holding no labels, would
   otherwise be topped up with every label that exists.
 - **"derived from guest"** is the rule, not the fallback: `safe` means "today's
@@ -164,9 +165,10 @@ groups and nothing else; there is no column on `access_mode_label` or
   `{"sources_restricted"}`. Assuming the two were the same would have published
   the other-sources list and other people's personal reviews to every
   logged-out visitor.
-- **Content labels are admin-created, with one system label.** On a fresh
-  database the label row is empty for every mode except for `h-comic`, which
-  the lifespan seeds and grants to `unrestricted` only — and a label minted
+- **Content labels are admin-created, with the gated types' system labels.**
+  On a fresh database the label row is empty for every mode except for
+  `h-comic`, `h-game` and `hentai`, which the lifespan seeds and grants to
+  `unrestricted` only — and a label minted
   *after* the seed reaches no mode, hiding its entries from everyone until an
   admin grants it on `/access-modes`. Fail-closed, deliberately.
 - **A mode is a ceiling.** What an account actually reaches is the mode's sets
@@ -221,7 +223,7 @@ this is what carrying it means.
 
 | Item | Without it, a session… | `unrestricted` | `borderline` | `normal` | `safe` |
 |---|---|---|---|---|---|
-| `label.<key>` | never learns an entry carrying that label exists — absent from lists, search, relations, watch orders, quotes, memes and a public profile, 404 on its detail page | **always, derived** | at seed time, never `h-comic` | — | — |
+| `label.<key>` | never learns an entry carrying that label exists — absent from lists, search, relations, watch orders, quotes, memes and a public profile, 404 on its detail page | **always, derived** | at seed time, never `h-comic` or `h-game` | — | — |
 | `field_group.sources_other` | gets a source list with the `other` bucket missing | yes | yes | yes | from guest |
 | `field_group.sources_restricted` | gets a source list with the `restricted` bucket missing | yes | yes | yes | **—** |
 | `field_group.personal_notes` | cannot read **another** user's personal notes; its own are never withheld | yes | yes | yes | from guest |
@@ -229,7 +231,8 @@ this is what carrying it means.
 Which fields each group covers is [Field groups](#field-groups); it is not
 restated here, or the two copies drift.
 
-- **A fresh database carries one label, `h-comic`.** Every other content
+- **A fresh database carries three labels, `h-comic`, `h-game` and
+  `hentai`.** Every other content
   label is admin-created, so the first row is empty for every mode but
   `unrestricted`, which derives its set rather than reading rows. A label minted later reaches
   no other mode until an admin grants it there, hiding its entries from
@@ -523,20 +526,25 @@ set. `visible_label_ids` holds the labels this session may SEE —
 per-user read and write keys on, and it is why a guest sees no list at all —
 see [What a guest sees](#what-a-guest-sees).
 
-- Reads the `access_token` cookie, decodes the JWT (which carries `sub`, a
-  decorative `role` and a `mode` uuid), loads the user, takes `user.role_ref`
-  or the guest role, then resolves the access mode.
+- Reads the `access_token` cookie, decodes the JWT (which carries `sub` and a
+  decorative `role` and `mode`), loads the user, takes `user.role_ref` or the
+  guest role, then resolves the access mode.
+- **Which mode**: the `access_mode` cookie's mode if that cookie holds a live
+  override minted for this account, otherwise the account's `is_default` mode,
+  read from the database. The login token's `mode` claim is not read. An
+  override that is expired, badly signed or minted for another account counts
+  as no override. See [Switching mid-session](#switching-mid-session-post-apiauthaccess-mode).
 
 **Mode resolution, fail-closed** (`app/services/rbac/modes.py::resolve_mode`):
 
 ```
-token.mode  ->  still granted to this user?
+mode        ->  still granted to this user?
                   yes -> effective = mode's sets - this pair's denials
                   no  -> effective = EMPTY SET
 no token    ->  the `safe` mode by key, or EMPTY SET if it is missing
 ```
 
-The claim **names a choice, not a grant**: whether the account may still use
+An override **names a choice, not a grant**: whether the account may still use
 that mode is re-resolved from the database on every request, exactly as the
 role already is, so revoking a mode or ticking a denial takes effect on the
 viewer's next request even with a live cookie. It carries the mode's **uuid**
@@ -545,12 +553,15 @@ rather than its key, so renaming a mode does not invalidate live sessions.
 Three fallbacks that all go to the **empty set**, and each for a reason worth
 keeping:
 
-- A revoked mode does **not** fall back to the account's default. "Narrowest"
+- A revoked mode does **not** fall back to the account's default: an override
+  naming it resolves to nothing until it expires or is switched away from.
+  "Narrowest"
   is not well defined once modes are deliberately unordered, and falling back
   to `is_default` could *widen* a session — sitting in `safe` when an admin
   revokes `safe` would hand the viewer `unrestricted` with no password.
-- A signed-in caller with no usable claim does **not** inherit the guest
-  default. That mode is the anonymous policy, not this account's.
+- A signed-in account with no override and no default mode does **not**
+  inherit the guest default. That mode is the anonymous policy, not this
+  account's.
 - A missing `safe` mode gives a guest nothing, rather than everything. A
   misconfiguration must hide, not publish.
 - **Never raises.** Missing/garbage/expired cookie, deleted user, deleted role,
@@ -584,8 +595,10 @@ keeping:
 - `/api/auth/me` returns `is_admin`, `username`, `role`, `is_root`,
   `permissions` (sorted); `AuthContext.jsx` builds a `Set` and exposes `has()`.
   It also returns `visible_gated_types`, the sorted gated media types this
-  session may see (`gated_types.visible_gated_types`) - `["h-comic"]` in a mode
-  carrying the `h-comic` label, `[]` otherwise. It names only the seeable
+  session may see (`gated_types.visible_gated_types`) - `["h-comic", "h-game",
+  "hentai"]` in `unrestricted`, which carries every label, only the types
+  whose label a mode carries otherwise, `[]` in a mode carrying none. It names
+  only the seeable
   ones, so a session that cannot see a gated type is not told it exists.
 
 ### Cache (`cache.py`)
@@ -637,7 +650,7 @@ question.
 | `franchise_visible(db, viewer, franchise_id)` | franchise detail and its writes | bool; callers **404 with their normal not-found message** |
 | `apply_series_visibility(query, db, viewer)` / `series_visible(db, viewer, series_id)` | series list, search bucket, detail and writes; series-scope plan targets | A series carries no labels; it is hidden when its franchise is, through the same `franchise_content_label` anti-join reached read-time via `series.franchise_id`. A series with no franchise is never hidden |
 | `tier_visible(db, viewer, tier_id)` / `require_visible_owner(db, viewer, owner_id, detail)` | note and meme owners | `tier_visible` resolves a franchise or series **from the id**, never from a caller-supplied tier type, and answers True for anything else. `require_visible_owner` is `require_visible_media` plus that tier half, raising the caller's own 404 |
-| `apply_media_visibility(query, db, viewer)` | anything spanning every type at once | The same two gates over the `media` supertable rather than one detail table: the media-type check becomes an `IN` over the types the viewer holds, and the label anti-join goes through `media_content_label.media_id` and `media.franchise_id`. The profile page needs this — it answers for all ten types in one query. The query must already select from or join `Media` |
+| `apply_media_visibility(query, db, viewer)` | anything spanning every type at once | The same two gates over the `media` supertable rather than one detail table: the media-type check becomes an `IN` over the types the viewer holds, and the label anti-join goes through `media_content_label.media_id` and `media.franchise_id`. The profile page needs this — it answers for all twelve types in one query. The query must already select from or join `Media` |
 | `entry_visible(db, viewer, media_type, entry_id)` | detail and per-entry sub-routes | bool; callers **404 with their normal not-found message** |
 | `filter_visible_pairs(db, viewer, pairs)` | cross-type batches | one query for many `(media_type, id)` pairs. A pair naming a grouping tier passes the media-type half (a tier holds no such permission) and meets the label half as a tier: a `franchise` pair by its own labels, a `series` pair by its franchise's, a `collection` pair never |
 | `label_hidden_entry_ids(db, viewer, ids)` | shared-record sub-routes | the ids hidden by a **label** alone, without the media-type half. A person's or character's `/entries` drops these rows whole, group and all, because a label-hidden appearance is a hidden connection; a row withheld only by a type gap is not (see [Shared records](#shared-records)) |
@@ -689,20 +702,25 @@ A connection is one of three kinds:
   hidden when the viewer cannot see that type. **A scope naming an ordinary
   type is not a connection at all** — every credit writes a matching role row,
   so counting ordinary scopes would keep visible every person whose only
-  credits are hidden. The one gated type is `h-comic`, so a person role, a
-  publisher scope or an option scope naming `h-comic` is a hidden connection
-  for a session outside `unrestricted`: a club created before its first
-  credit (its `club` role is scoped to h-comic alone) and an unused
-  h-comic genre value are hidden by their scope.
+  credits are hidden. The gated types are `h-comic`, `h-game` and `hentai`, so
+  a person role, a publisher scope or an option scope naming one is a hidden
+  connection for a session that cannot see that type: a club created before
+  its first credit (its `club` role is scoped to h-comic alone) and an unused
+  H Genre value are hidden by their scope. A studio or director credited on a
+  hentai is the ordinary case: hidden when every credit is on a hidden entry,
+  visible through any mainstream anime it is also credited on.
 - **A category serving gated types only.** A vocabulary value's own
   `category` is a connection when every tag field drawing on that category
   serves gated types alone (`gated_tag_categories`,
   `DeclaredScope("category")` in `shared_visibility.py`). The code declares
   it, so no row is needed: every value of `H Genre Plot`, `H Genre
-  Appearance` and `H Genre Relation` is hidden from a session that cannot see
-  h-comic even with no scope row and no use. A category shared with an
-  ungated type (Official Source) is not a connection, and its values follow
-  the two rules above.
+  Appearance` and `H Genre Relation` - shared by h-comic, h-game and hentai -
+  is hidden from a session that can see none of them, even with no scope row
+  and no use. A session that sees one of them keeps the categories. A category
+  shared with an ungated type (Official Source; Game Genre and Game Theme,
+  which serve game as well as h-game) is not a connection, and its values
+  follow the two rules above: a game genre used only by an h-game is hidden
+  through that appearance, an unused one stays visible.
 
 **Club membership is not a connection.** `person_membership` never makes a
 hidden club or artist visible. A visible club's `/members` omits the members
@@ -744,35 +762,45 @@ convention holds here too.
 
 A **gated type** is a media type every entry of which carries one content
 label. `REQUIRED_LABEL_FOR_TYPE` (`app/services/rbac/gated_types.py`) names
-them; today it is `{"h-comic": "h-comic"}`. A session can see a gated type
+them; today it is `{"h-comic": "h-comic", "h-game": "h-game", "hentai": "hentai"}`. A session can see a gated type
 when its mode carries the required label, which in practice means
 `unrestricted`: the label is granted to no other mode, and the seed keeps it
 off `borderline` (see [Access modes](#access-modes--which-objects-those-operations-reach)).
 
-The label is a **system label**, and nothing about it is left to an admin,
-because a missing label means a public entry:
+Each label is a **system label**, and nothing about it is left to an admin,
+because a missing label means a public entry. The mechanics are shared by
+every gated type (`app/services/domain/gated_labels.py`):
 
-- **Created** by migration `h1c2o3m4i5c6` and by the lifespan seed
-  (`ensure_system_labels` in `app/services/domain/gated_labels.py`, which
-  finds the label by key and so adopts a row an admin made by hand), granted
-  to `unrestricted` only. `DELETE /api/content-labels/{id}` refuses it (409).
-- **Stamped on every h-comic entry on every write path**: the registry's
+- **Created** by its type's migration (`h1c2o3m4i5c6` for h-comic,
+  `h2g3a4m5e6t7` for h-game, `h2e3n4t5a6i7` for hentai) and by the lifespan
+  seed (`ensure_system_labels` in `app/services/domain/gated_labels.py`, which
+  finds the label by key and so adopts a row an admin made by hand - a
+  `hentai` label made by hand is adopted, not duplicated), granted to
+  `unrestricted` only. `DELETE /api/content-labels/{id}` refuses it (409).
+- **The `hentai` label means the type.** Its migration removed it from every
+  entry that is not a hentai, and removed any grant to a mode other than
+  `unrestricted`; neither is restored by the downgrade. Nothing refuses a
+  gated label on another type's entry afterwards.
+- **Stamped on every entry of the type on every write path**: the registry's
   `progress_hook` on create, update and the tracker PATCH; and
-  `enforce_gated_label_invariants` after Pull restores the H-Comic, Franchise
-  or any label tab, and in Calculate (`run_sync_gated_labels`).
-- **Stamped on every franchise whose type includes `H-Comic`**: when the
-  resolver auto-creates one, when a franchise is created, updated or patched
-  with that type, and by the same invariant pass.
-- **Never removable**: a label replace on an h-comic entry or an `H-Comic`
-  franchise whose new set lacks `h-comic` is refused with 422 before anything
-  is deleted (`refuse_label_removal_on_entry` /
+  `enforce_gated_label_invariants` after Pull restores the type's own tab
+  (H-Comic, H-Game, Hentai), Franchise or any label tab, and in Calculate
+  (`run_sync_gated_labels`).
+- **Stamped on every franchise whose type list names the type's franchise
+  type** (`H-Comic` -> `h-comic`, `H-Game` -> `h-game`, `Hentai` -> `hentai`;
+  a franchise holding `H-Comic` and `Hentai` carries both): when the resolver
+  auto-creates one, when a franchise is created, updated or patched with that
+  type, and by the same invariant pass.
+- **Never removable**: a label replace on a gated entry, or on a franchise
+  whose types require it, whose new set lacks the required label is refused
+  with 422 before anything is deleted (`refuse_label_removal_on_entry` /
   `refuse_label_removal_on_franchise`).
-- **Kept in its own franchises, both ways.** A mainstream entry under an
-  `H-Comic` franchise would be hidden by that franchise's label, and an
-  h-comic under a mainstream franchise would put a gated work in a public
-  group. `FRANCHISE_FAMILY_FOR_TYPE` sorts franchise types into families and
-  every write path keeps an entry in its own
-  ([entry-types.md](entry-types.md)).
+- **Kept in its own franchises, both ways.** A mainstream entry under a gated
+  family's franchise would be hidden by that franchise's label, and a gated
+  entry under a mainstream franchise would put a gated work in a public group.
+  `FRANCHISE_FAMILY_FOR_TYPE` sorts franchise types into families - `H-Comic`
+  and `Hentai` are one, `H-Game` is its own - and every write path keeps an
+  entry in its own ([entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy)).
 
 The label handling lives in `app/services/domain/gated_labels.py` and is driven by
 `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` alone: a further gated
@@ -784,9 +812,11 @@ With the label on every entry, the ordinary gates hide the type everywhere
 connected only to it. `/api/auth/me`'s `visible_gated_types` tells the SPA
 whether to offer the type at all: `AuthContext` exposes it, and one helper,
 `canSeeGatedType` (`frontend/src/lib/gatedTypes.js`), is what both SPA
-permission surfaces ask - `<ProtectedRoute gatedType="h-comic">` around the
-library and detail routes, and the nav row's `gatedType` in `navigation.js` -
-along with every picker, tab and list that names the type
+permission surfaces ask - `<ProtectedRoute gatedType="h-comic">` /
+`gatedType="h-game"` around each type's library and detail routes, and the nav
+row's `gatedType` in `navigation.js` - along with every picker, tab, list and
+favourite grid that names the type. The SPA offers no
+hentai surface yet, so for that type the API is the whole of it
 ([frontend/components.md](frontend/components.md#gated-media-types)). A root
 account in a narrower mode is not shown the type either: the gate is the
 mode's label, not a capability.
@@ -799,9 +829,9 @@ a second gated type needs no edit to them:
 
 | Surface | Left out |
 |---|---|
-| `GET /api/constants` | the type's own vocabularies (`TYPE_ONLY_VOCABULARIES`: the `h_comic_*` keys), its key from `media_type`, a franchise type stamped only for it from `franchise_type` (`H-Comic`), a person role scoped only to it from `person_role` (`club`), a category serving only it from `option_categories` / `tag_categories` (the H Genre categories) |
+| `GET /api/constants` | a vocabulary serving only hidden gated types (`TYPE_ONLY_VOCABULARIES`: `h_comic_region` and `h_comic_animation_status` with h-comic, the `h_game_*` keys with h-game, `hentai_source_material` with hentai, `h_comic_originality` only when h-comic and hentai are both hidden, `h_comic_usefulness` only when h-comic, h-game and hentai all are), its key from `media_type`, a franchise type stamped only for it from `franchise_type` (`H-Comic`, `H-Game`, `Hentai`), a person role scoped only to hidden types from `person_role` (`club`), a category serving only hidden types from `option_categories` / `tag_categories` (the H Genre categories, when every type they serve is hidden) |
 | `GET /api/person/role-scopes`, `/role-counts` | the gated type from every role's scopes, and a role scoped only to it (`club`) entirely |
-| `GET /api/notes/sections?owner_type=h-comic` | the whole answer: 400, as for an unknown owner type. No other owner type lists `h_comic_highlights` |
+| `GET /api/notes/sections?owner_type=h-comic` (or `h-game`, `hentai`) | the whole answer: 400, as for an unknown owner type. No other owner type lists `h_comic_highlights` / `h_game_highlights` |
 | `GET /api/auth/me` | the type from `visible_gated_types` |
 | `GET /api/constants/external-apis` | the type's row in `media` |
 | `GET /api/search` | the type's bucket key from `results` - absent, not empty |
@@ -864,7 +894,7 @@ there is nothing for it to test.
 `_factory.py::_get_or_404`'s `viewer` parameter **has no default, and must not
 be given one**. `entry_visible` returns `True` for a `None` viewer, so a
 default silently closes the check on every call site that omits it — 36
-routes, including the four per-type write routes across all ten media types.
+routes, including the four per-type write routes across all twelve media types.
 Required means a write route that forgets it is a `TypeError` rather than a
 silent grant.
 
@@ -887,7 +917,8 @@ helper exists because the shortest form has to be the safe one.
 says nothing about which objects a session reaches, so a narrowed editor who
 knew the id could otherwise clear the very label hiding the thing from them.
 Both answer 404 in the words the router already uses for missing. A replace
-that would drop `h-comic` from an h-comic entry or from an `H-Comic` franchise
+that would drop a gated type's label from one of its entries or from a
+franchise of its franchise type (`h-comic` / `H-Comic`, `h-game` / `H-Game`, `hentai` / `Hentai`)
 is a **422**, checked before anything is deleted - see
 [Gated types](#gated-types).
 
@@ -1013,7 +1044,7 @@ reviews to every logged-out visitor.
 
 **Which LIST:** a logged-out visitor has **no list**, and is shown none. `acting_user_id`
 returns None for an unresolved viewer, `attach_list_fields` sets nothing, and
-the ten `*Response` schemas declare their status field `Optional[str] = None`
+the twelve `*Response` schemas declare their status field `Optional[str] = None`
 so it serialises as null. The library table renders `-`, and the detail page's
 "My tracker" card does not render at all - the card is one person's by name,
 and there is no "my" without a viewer.
@@ -1140,9 +1171,9 @@ the `personal_reviews` section on every row the viewer did not author.
 | `PUT /api/roles/{id}/permissions` | replaces the set; 422 unknown, 409 root role, 409 if the payload holds a locked-off grant or drops a locked-on one |
 | `DELETE /api/roles/{id}` | 204; 409 for system roles or roles still held |
 | `GET/POST/PATCH/DELETE /api/users/…` | `role_id` must exist (422); username 409 |
-| `GET /api/content-labels/`, `POST`, `PATCH`, `DELETE` | 409 duplicate key; delete cascades assignments (entries become visible again); 204. `DELETE` of a label a gated type requires (`h-comic`) is **409** |
-| `GET/PUT /api/content-labels/entry/{media_type}/{entry_id}` | list / replace an entry's label keys; 400 unknown type, 404 entry, 422 unknown label, 422 a set without `h-comic` on an h-comic |
-| `GET/PUT /api/content-labels/franchise/{franchise_id}` | the same for a franchise; 422 a set without `h-comic` on a franchise whose type includes `H-Comic` |
+| `GET /api/content-labels/`, `POST`, `PATCH`, `DELETE` | 409 duplicate key; delete cascades assignments (entries become visible again); 204. `DELETE` of a label a gated type requires (`h-comic`, `h-game`, `hentai`) is **409** |
+| `GET/PUT /api/content-labels/entry/{media_type}/{entry_id}` | list / replace an entry's label keys; 400 unknown type, 404 entry, 422 unknown label, 422 a set without the required label on a gated entry (`h-comic` on an h-comic, `h-game` on an h-game, `hentai` on a hentai) |
+| `GET/PUT /api/content-labels/franchise/{franchise_id}` | the same for a franchise; 422 a set without the required label on a franchise whose type includes `H-Comic` / `H-Game` / `Hentai` |
 
 `ContentLabelResponse` carries no `permission` field. A label is not a
 permission — publishing `label.<key>` would name something that does not
@@ -1215,8 +1246,8 @@ which is correct and indistinguishable from a broken invitation.
 
 ### Switching mid-session: `POST /api/auth/access-mode`
 
-Narrowing is instant; widening asks for the password again, so a
-browser left logged in at a narrow mode is actually narrow. The test is a set
+Narrowing is instant; widening asks for the password again, so nobody widens
+a session they merely find logged in. The test is a set
 comparison - modes are deliberately unordered, so "narrower" can only mean
 "its effective set is a subset of mine" - and it runs against **effective**
 sets, after denials.
@@ -1226,15 +1257,31 @@ endpoint enforces it with the **same function**, because the endpoint that
 enforces a rule must not be able to disagree with the payload that advertises
 it. The SPA never models the rule.
 
-**THE REISSUED COOKIE KEEPS THE ORIGINAL `exp`.** Minting a fresh month-long
-token on each switch would make toggling between two modes an unlimited
+**A SWITCHED-TO MODE IS TEMPORARY; THE DEFAULT IS NOT.** The login cookie
+says who is asking and lasts a month; it does not say which mode. Switching to
+anything but the account's default sets a second cookie, `access_mode`
+(`resolver.MODE_OVERRIDE_COOKIE`):
+
+| Property | Value | Why |
+|---|---|---|
+| lifetime in the browser | session cookie: no `max_age`, no `expires` | closing the browser drops it |
+| token `exp` | `ACCESS_MODE_OVERRIDE_MINUTES` (60) after the switch, capped at the login's `exp` | a browser that restores its session, or is never closed, still returns to the default |
+| token claims | `sub`, `mode` | an override minted for another account is ignored |
+| cleared by | switching to the default, login, logout | a new login always starts in the default |
+
+So a laptop switched to `unrestricted` and left alone is back in its default
+mode within the hour. This applies to narrowing as well as widening: a session
+switched below its default returns to the default when the override ends,
+without the password, because the default is what the account's own login
+already grants. `/api/auth/me` publishes the end as `mode.expires_at`, and
+`AuthContext` reloads the page just after, so nothing fetched in the old mode stays
+on screen.
+
+**The login cookie is not reissued by a switch.** Minting a fresh month-long
+login on each switch would make toggling between two modes an unlimited
 session-extension oracle, and the lifetime here is flat with no refresh flow
-and no revocation - so the entire session policy would be defeated by a
-control whose purpose is to make sessions safer. It is invisible to manual
-testing and to every form of checking except decoding both tokens and
-comparing. `create_access_token` takes an explicit `expires_at` for this, and
-the cookie's `max_age` is the REMAINING seconds so a switch cannot resurrect
-an already-expired token.
+and no revocation. `create_access_token` takes an explicit `expires_at` so the
+override can be capped at the login's.
 
 A mode the account does not hold answers **404**, identically to one that does
 not exist, and deliberately **not** flagged `requires_password`: it is not a
@@ -1365,8 +1412,14 @@ matters is enforced server-side.
 | `tests/api/test_cover_images_are_gated.py` | a hidden entry's cover 404s and the same file 200s for an admin, the lying-folder case, and that `/static/covers/` no longer answers. The written file and `nsfw_label` are load-bearing: a missing file 404s too, and an empty label set makes every refusal vacuous |
 | `tests/api/test_shared_record_visibility.py` | the shared-record rule: a person, seiyuu, character, studio, publisher or vocabulary value connected only to label-hidden entries is hidden, one visible connection keeps it visible with the hidden one omitted, no connections stays visible, a type gap hides nothing; series under a hidden franchise; entity photos; notes on a hidden series; and scope connections through a gated type registered for the test (`manga` pointed at `nsfw`), independent of h-comic. Every refusal pairs with `admin_client` seeing the same record |
 | `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` carries the label after a re-seed, `visible_gated_types`, no `h-comic` search bucket for a narrow session, `PUT /api/me/list` running the list hook, H-Comic franchises labelled and segregated from mainstream ones |
+| `tests/api/test_hentai_entries.py` | hentai: the same set as h-comic's - label stamped, refused removal and deletion, narrow modes 404 while `unrestricted` sees it, only `unrestricted` carries the label - plus its franchise family |
+| `tests/api/test_hentai_shared_records.py` | a studio or director credited only on hentai is hidden, one also on an anime is not; an H Genre value used only by hentai is hidden; `/api/constants` for a session seeing neither gated type and for one seeing h-comic only (`unrestricted` with `hentai` denied, both labels present) |
+| `tests/api/test_hentai_label_migration.py` | the hentai revision's own `settle_label`: the label leaves an anime and stays on a hentai, adopted not duplicated, granted to `unrestricted` alone |
 | `tests/api/test_franchise_family.py` | franchise families: a `franchise_id` of another family refused on create, `PUT` and `PATCH`, in both directions, a franchise type spanning two families refused, a franchise holding mainstream entries not retyped into the gated family - each with its accepted mirror |
+| `tests/api/test_franchise_families.py` | what hentai adds to the families: `"ACG, Hentai"` refused on every write path and `"H-Comic, Hentai"` accepted, a franchise holding a hentai not retyped mainstream, both gated labels on an `H-Comic, Hentai` franchise and neither removable, an h-comic and its hentai resolving to one franchise |
 | `tests/unit/test_search_gated_buckets.py` | every gated type's `SearchBuckets` field defaults to absent, so a new gated type cannot put its key back |
+| `tests/api/test_h_game_entries.py` | h-game: CRUD and the vocabularies (422 on create, update and the tracker PATCH), the DLC chain, purchase records on h-game and still on game, the `h-game` label stamped on every write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 while `unrestricted` sees it, the h-game franchise family refused both ways, by name and by id |
+| `tests/api/test_h_game_shared_records.py` | a studio, a game genre and an H Genre value connected only to h-game are hidden; an unused game genre stays visible; the notes registry, `/api/constants` and the external-API catalogue leave h-game out for a narrow session, with the `unrestricted` mirror |
 | `tests/api/test_h_comic_shared_records.py` | people in every h-comic role, a club with no credit, characters and vocabulary values connected only to h-comic are hidden; club membership filters hidden members and reveals nobody |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |

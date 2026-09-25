@@ -113,6 +113,8 @@ MOVED_TO_MEDIA = {
     "manga", "novel", "comic", "games",
     # Never had the column: created after the move, on the same pattern.
     "h_comic",
+    "hentai",
+    "h_game",
 }
 
 

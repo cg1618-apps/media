@@ -18,7 +18,8 @@ behind that, and they are the reason the catalog exists:
     see autofill_game_from_steam.
   * Per MEDIA TYPE - which pipelines exist at all. Comic and Studio have no
     bulk Replace; Comic is out of Fill All to protect its hourly quota. Game's
-    bulk Replace runs its Steam half only - nothing in an IGDB record drifts.
+    Replace runs both its sources, IGDB fill-only - nothing in an IGDB record
+    drifts, but it can supply the appid Steam keys off.
 
 Note what Replace is NOT: a different set of writes. `apply_single_replace_*`
 in post_processing.py calls the same `autofill_*` function Fill calls, with the
@@ -809,6 +810,115 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "label on."
         ),
         sources=(),
+    ),
+    # Game's two sources on the h-game table, writing only what the table has.
+    Coverage(
+        key="h-game",
+        keyed_by="igdb_id",
+        combination="merged",
+        requests_per_entry=(
+            "6 - as for a game: the IGDB game and its time-to-beat, three "
+            "Steam storefronts, and one achievement call, skipped when "
+            "steam_progress_sync is false"
+        ),
+        note=(
+            "Game's fill, generalised over the table. IGDB writes the studio "
+            "credit and the genre and theme tags, not the publisher, mode or "
+            "platform; Steam writes prices and achievements, not hours or a "
+            "Metacritic score, which h_game has no column for. The DLC parent "
+            "is looked up among h-games only. DLsite is linked, never fetched."
+        ),
+        sources=(
+            SourceBlock(
+                source="igdb",
+                writes=(
+                    Write("release_date", "column", "fill-only"),
+                    Write("igdb_link", "column", "fill-only"),
+                    Write("hltb_main", "column", "fill-only"),
+                    Write("hltb_main_extra", "column", "fill-only"),
+                    Write("hltb_completionist", "column", "fill-only"),
+                    Write(
+                        "base_game_id",
+                        "column",
+                        "conditional",
+                        "fill-only, and only when IGDB's parent game is already an "
+                        "h-game in the database",
+                    ),
+                    Write("studio", "credit", "if-absent", "IGDB's developer"),
+                    Write("game_genre", "tag", "if-absent", "alias-resolved"),
+                    Write("game_theme", "tag", "if-absent", "alias-resolved"),
+                    Write("cover_image_file", "image", "if-empty"),
+                    Write("steam_appid", "column", "fill-only", "adopted as a pair, as for a game"),
+                    Write("steam_link", "column", "fill-only"),
+                    Write(
+                        "platform",
+                        "none",
+                        "never",
+                        "where the game is sold is hand-set; IGDB's platforms "
+                        "name hardware",
+                    ),
+                    Write("publisher", "none", "never", "h-game credits the studio only"),
+                ),
+            ),
+            SourceBlock(
+                source="steam",
+                writes=(
+                    Write("price_original_us", "column", "fill-only"),
+                    Write("price_original_jp", "column", "fill-only"),
+                    Write("price_original_tw", "column", "fill-only"),
+                    Write("price_current_us", "column", "overwrite"),
+                    Write("price_current_jp", "column", "overwrite"),
+                    Write("price_current_tw", "column", "overwrite"),
+                    Write("achievements_total", "column", "fill-only"),
+                    Write(
+                        "achievements_earned",
+                        "column",
+                        "overwrite",
+                        "skipped when steam_progress_sync is false; an unknown "
+                        "count is not a zero",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    Coverage(
+        key="hentai",
+        keyed_by="mal_id",
+        combination="single",
+        requests_per_entry="1 Tenrai",
+        note=(
+            "The same Tenrai anime record as Anime, read for three things only. "
+            "Every run and the single-entry hook end in the hentai sync, which "
+            "keeps the hentai label on."
+        ),
+        sources=(
+            SourceBlock(
+                source="tenrai",
+                writes=(
+                    Write("airing_status", "column", "fill-only"),
+                    Write(
+                        "release_date",
+                        "column",
+                        "fill-only",
+                        "precision taken from MAL's own aired string, never padded",
+                    ),
+                    Write("cover_image_file", "image", "if-empty"),
+                    Write(
+                        "mal_rating",
+                        "none",
+                        "never",
+                        "hentai takes airing status, release date and cover "
+                        "from Tenrai and nothing else",
+                    ),
+                    Write(
+                        "studio",
+                        "none",
+                        "never",
+                        "credited by hand; Tenrai's studios are not read here",
+                    ),
+                ),
+            ),
+        ),
     ),
     Coverage(
         key="studio",

@@ -92,7 +92,7 @@ def test_the_todo_group_holds_four_buckets_in_order():
 
 def test_the_new_sections_are_game_only():
     for key in STORY_KEYS + TODO_KEYS:
-        assert ns.section_by_key(key).owners == ("game",), key
+        assert ns.section_by_key(key).owners == ns.GAME_OWNERS, key
 
 
 def test_story_is_catalogue_and_todo_is_personal():
@@ -165,7 +165,7 @@ def test_no_story_or_todo_section_carries_a_section_level_locator():
 def test_highlight_moments_still_belongs_to_game_and_stays_flat():
     section = ns.section_by_key("highlight_moments")
     assert section.shape == ns.SHAPE_EPISODE_TEXT
-    assert section.owners == ("game",)
+    assert section.owners == ns.GAME_OWNERS
     assert section.group is None
 
 

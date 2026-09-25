@@ -63,8 +63,9 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     # A game's developer IS its studio: one company that made the work, the
     # same fact the anime role records. A separate `developer` key would split
     # one studio's anime and game credits across two vocabularies.
+    # h-game's only credit (its developer), filled from IGDB as game's is.
     "studio": CreditRole(
-        "studio", "Studio", "studio", ("anime", "anime-movie", "game")
+        "studio", "Studio", "studio", ("anime", "anime-movie", "game", "h-game", "hentai")
     ),
     # One role for every company that puts a work in front of a reader: a
     # games publisher, a TW licensor, a comic's original publisher. The LABEL
@@ -75,7 +76,8 @@ CREDIT_ROLES: dict[str, CreditRole] = {
         ("anime", "anime-movie", "manga", "novel", "comic", "game"),
     ),
     "director": CreditRole(
-        "director", "Director", "person", ("anime", "anime-movie", "movie", "game")
+        "director", "Director", "person",
+        ("anime", "anime-movie", "movie", "game", "hentai"),
     ),
     "producer": CreditRole("producer", "Producer", "person", ("anime",)),
     "composer": CreditRole(
@@ -197,9 +199,15 @@ TAG_FIELDS: dict[str, TagField] = {
     # The five game vocabularies. Genre, theme, mode and platform mirror
     # IGDB's own fields, which is why each has a system_option_alias row
     # rather than an English value; combat mode (PvE/PvP) is not an IGDB field
-    # and is hand-entered.
-    "game_genre": TagField("game_genre", "Genre", "Game Genre", ("game",)),
-    "game_theme": TagField("game_theme", "Theme", "Game Theme", ("game",)),
+    # and is hand-entered. Genre and theme reach h-game too, filled from IGDB
+    # the same way; they stay ordinary vocabularies, not gated ones, because
+    # game - an ungated type - uses them as well.
+    "game_genre": TagField(
+        "game_genre", "Genre", "Game Genre", ("game", "h-game")
+    ),
+    "game_theme": TagField(
+        "game_theme", "Theme", "Game Theme", ("game", "h-game")
+    ),
     "game_mode": TagField("game_mode", "Mode", "Game Mode", ("game",)),
     "combat_mode": TagField(
         "combat_mode", "Combat Mode", "Combat Mode", ("game",)
@@ -210,18 +218,19 @@ TAG_FIELDS: dict[str, TagField] = {
     "game_platform": TagField(
         "game_platform", "Platform", "Game Platform", ("game",)
     ),
-    # The three h-comic genre vocabularies. They exist for the gated type
-    # alone, so every value is scoped to it - which is what hides an unused
-    # value from a session that cannot see h-comic (shared_visibility.py).
+    # The three adult genre vocabularies, shared by the gated types h-comic,
+    # h-game and hentai. They serve gated types alone, so every value is
+    # hidden from a session that can see none of them (shared_visibility.py).
     "h_genre_plot": TagField(
-        "h_genre_plot", "Genre Plot", "H Genre Plot", ("h-comic",)
+        "h_genre_plot", "Genre Plot", "H Genre Plot", ("h-comic", "h-game", "hentai")
     ),
     "h_genre_appearance": TagField(
         "h_genre_appearance", "Genre Appearance", "H Genre Appearance",
-        ("h-comic",),
+        ("h-comic", "h-game", "hentai"),
     ),
     "h_genre_relation": TagField(
-        "h_genre_relation", "Genre Relation", "H Genre Relation", ("h-comic",)
+        "h_genre_relation", "Genre Relation", "H Genre Relation",
+        ("h-comic", "h-game", "hentai"),
     ),
 }
 

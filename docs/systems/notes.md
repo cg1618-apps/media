@@ -13,7 +13,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | Column | Type | Notes |
 | --- | --- | --- |
 | `system_id` | UUID PK | Generated with `uuid.uuid4()`. |
-| `media_id` | UUID, indexed | FK `media.system_id` ON DELETE CASCADE. Set when the owner is any of the ten media types. |
+| `media_id` | UUID, indexed | FK `media.system_id` ON DELETE CASCADE. Set when the owner is any of the twelve media types. |
 | `collection_id` / `franchise_id` / `series_id` | UUID, indexed | FK to the matching tier table, ON DELETE CASCADE. Set when the owner is a grouping tier. |
 | `author_id` | UUID, indexed, **NOT NULL** | FK `users.id` ON DELETE CASCADE. Who wrote the row — always set, whatever the section's scope, because a catalogue note has an author too and that is the only provenance the catalogue has. Never read from the payload (`NoteBase` has no such field): the router stamps whoever is asking. |
 | `section` | String, indexed | Key of an entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`). |
@@ -101,15 +101,15 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | --- | --- | --- |
 | `reviews` | 評論 Reviews and Comments | `fa-comments` |
 | `analysis_group` | 解析 Analysis and Cinematography | `fa-clapperboard` (keyed `analysis_group` because a section already owns `analysis`) |
-| `guides` | 攻略 Guides | `fa-map` — game-only: beginner, gameplay systems, controls, guide notes, trivia. The way in, not the content |
-| `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game-only: stats, skills, builds, team composition |
-| `gear` | 物品 Items & Gear | `fa-sack-xmark` — game-only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
-| `compendium` | 圖鑑 Compendium | `fa-dragon` — game-only: characters, enemies, game terms |
-| `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game-only: mods and tools, guide resources. Renders beside the site-wide Resources card, not with the 攻略 run |
-| `story` | 劇情 Story | `fa-book-open` — game-only: main plot, side stories, character arcs, endings. What happens |
-| `story_list` | 劇情列表 Story List | `fa-list-ol` — game-only, 4 **hierarchical** strands |
-| `worldbuilding` | 世界觀 Worldbuilding | `fa-earth-asia` — game-only: lore, story terms, timeline, mysteries, other. The world it happens in |
-| `todo` | 待辦 Todo | `fa-list-check` — game-only, 4 personal-scope buckets |
+| `guides` | 攻略 Guides | `fa-map` — game and h-game only: beginner, gameplay systems, controls, guide notes, trivia. The way in, not the content |
+| `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game and h-game only: stats, skills, builds, team composition |
+| `gear` | 物品 Items & Gear | `fa-sack-xmark` — game and h-game only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
+| `compendium` | 圖鑑 Compendium | `fa-dragon` — game and h-game only: characters, enemies, game terms |
+| `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game and h-game only: mods and tools, guide resources. Renders beside the site-wide Resources card, not with the 攻略 run |
+| `story` | 劇情 Story | `fa-book-open` — game and h-game only: main plot, side stories, character arcs, endings. What happens |
+| `story_list` | 劇情列表 Story List | `fa-list-ol` — game and h-game only, 4 **hierarchical** strands |
+| `worldbuilding` | 世界觀 Worldbuilding | `fa-earth-asia` — game and h-game only: lore, story terms, timeline, mysteries, other. The world it happens in |
+| `todo` | 待辦 Todo | `fa-list-check` — game and h-game only, 4 personal-scope buckets |
 | `music` | 音樂 Music | `fa-music` |
 | `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` |
 
@@ -213,7 +213,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 
 ### Section registry
 
-`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all twelve owners (`ALL_OWNERS`); "Entries" = the ten media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically — `h-comic` has `remark`, `remark_list`, `personal_reviews`, `public_reviews`, `resources`, `questions`, `memes` and the rest of the shared sections with no registry edit of its own.
+`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all fifteen owners (`ALL_OWNERS`); "Entries" = the twelve media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically — `h-comic` and `h-game` have `remark`, `remark_list`, `personal_reviews`, `public_reviews`, `resources`, `questions`, `memes` and the rest of the shared sections with no registry edit of its own.
 
 | Key | Label | Shape | Group / standalone | Owners | Kinds (`kind`) | Statuses | Locator placeholder | Locator req. | Singleton | Content req. |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -224,49 +224,50 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `double_edged` | 優缺點 | text | reviews | All | — | — | — | no | no | no |
 | `public_reviews` | 大眾評價 Public Reviews | text_or_link | reviews | All | — | — | — | no | no | no |
 | `personal_reviews` | 我的評價 Personal Reviews | text | reviews | All | — | — | — | no | no | no |
-| `episode_comments` | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | text_links | reviews | anime, tv-show, cartoon, game | — | — | "Episode, e.g. ep 1" (game: "Chapter / Part, e.g. Ch 3") | **yes** | no | no |
+| `episode_comments` | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | text_links | reviews | anime, tv-show, cartoon, game, h-game | — | — | "Episode, e.g. ep 1" (game: "Chapter / Part, e.g. Ch 3") | **yes** | no | no |
 | `highlights` | 神回/神片段 Highlights | episode_text | flat | anime | 神回, 神片段, 神篇章 | — | "Episode(s), e.g. ep 6" | **yes** | no | no |
 | `highlight_episodes` | 神回/神片段 (manga: 神回) | episode_text | flat | tv-show, cartoon, manga | tv-show & cartoon: 神回, 神片段, 神篇章; manga: none | — | "Episode(s), e.g. ep 3" (manga: "Chapter(s), e.g. ch 6") | **yes** | no | no |
 | `highlight_passages` | 神片段 | text | flat | novel | — | — | — | no | no | no |
-| `highlight_moments` | 神場景 Highlights | episode_text | flat | game | — | — | "Chapter / Boss, e.g. Ch 3" | **yes** | no | no |
+| `highlight_moments` | 神場景 Highlights | episode_text | flat | game, h-game | — | — | "Chapter / Boss, e.g. Ch 3" | **yes** | no | no |
 | `h_comic_highlights` | 亮點 Highlights | **structured** | flat | h-comic (**KR only**, `owner_where`) | — | — | *(on its `chapter` field)* | no | no | no |
-| `analysis` | 解析 Analysis | text_links | analysis_group (**reviews** for game) | All | — | — | — | no | no | no |
+| `h_game_highlights` | 亮點 Highlights | **structured** | flat | h-game | — | — | *(on its `route_scene` field)* | no | no | no |
+| `analysis` | 解析 Analysis | text_links | analysis_group (**reviews** for game and h-game) | All | — | — | — | no | no | no |
 | `cinematography` | 分鏡/演出/巧思 | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, series | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
 | `foreshadowing` | Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
-| `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
-| `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game | — | — | — | no | no | no |
-| `controls` | 操作 Controls | **structured** | guides | game | — | — | — | no | no | no |
-| `guide_notes` | 攻略筆記 Guide Notes | text_links | guides | game | — | — | — | no | no | no |
-| `trivia` | 小知識 Trivia | text_links | guides | game | — | — | — | no | no | no |
-| `stats_and_points` | 屬性&配點 Stats & Points | **structured** | builds | game | — | — | — | no | no | no |
-| `skills` | 技能 Skills | **structured** | builds | game | — | — | — | no | no | no |
-| `builds_and_styles` | 配裝&流派 Builds & Styles | **structured** | builds | game | — | — | — | no | no | no |
-| `team_composition` | 隊伍組成 Team Composition | **structured** | builds | game | — | — | — | no | no | no |
-| `weapons_and_gear` | 武器&裝備 Weapons & Gear | **structured** | gear | game | — | — | — | no | no | no |
-| `items` | 道具 Items | **structured** | gear | game | — | — | — | no | no | no |
-| `collectibles` | 收集物 Collectibles | **structured** | gear | game | — | — | — | no | no | no |
-| `characters_guide` | 角色 Characters | **structured** | compendium | game | — | — | — | no | no | no |
-| `enemies` | 敵人 Enemies | **structured** | compendium | game | — | — | — | no | no | no |
-| `game_terms` | 遊戲名詞 Game Terms | **structured** | compendium | game | — | — | — | no | no | no |
-| `main_plot` | 主線劇情 Main Plot | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
-| `side_plot` | 支線劇情 Side Stories | **structured** | story | game | — | — | *(on its `chapter` field)* | no | no | no |
-| `character_arcs` | 角色劇情 Character Arcs | text_links | story | game | — | — | — | no | no | no |
-| `endings` | 結局 Endings | **structured** | story | game | — | — | — | no | no | no |
-| `story_list_main` | 主線 Main | **structured** | story_list | game | — | — | — | no | no | no |
-| `story_list_side` | 支線 Side | **structured** | story_list | game | — | — | — | no | no | no |
-| `story_list_character` | 角色 Character | **structured** | story_list | game | — | — | — | no | no | no |
-| `story_list_event` | 事件 Event | **structured** | story_list | game | — | — | — | no | no | no |
-| `lore` | 設定 Lore | text_links | worldbuilding | game | — | — | — | no | no | no |
-| `story_terms` | 劇情名詞 Story Terms | **structured** | worldbuilding | game | — | — | — | no | no | no |
-| `timeline` | 時間線 Timeline | text_links | worldbuilding | game | — | — | — | no | no | no |
-| `mysteries` | 未解之謎 Mysteries | text_links | worldbuilding | game | — | — | — | no | no | no |
-| `story_other` | 其他 Other | text_links | worldbuilding | game | — | — | — | no | no | no |
-| `todo_now` | 現在進行 Doing now | text_links | todo | game | — | — | — | no | no | no |
-| `todo_next` | 接下來 To do next | text_links | todo | game | — | — | — | no | no | no |
-| `todo_later` | 未來 To do in the future | text_links | todo | game | — | — | — | no | no | no |
-| `todo_maybe` | 可能 Might do | text_links | todo | game | — | — | — | no | no | no |
+| `beginner` | 新手 Beginner | text_links | guides | game, h-game | — | — | — | no | no | no |
+| `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
+| `controls` | 操作 Controls | **structured** | guides | game, h-game | — | — | — | no | no | no |
+| `guide_notes` | 攻略筆記 Guide Notes | text_links | guides | game, h-game | — | — | — | no | no | no |
+| `trivia` | 小知識 Trivia | text_links | guides | game, h-game | — | — | — | no | no | no |
+| `stats_and_points` | 屬性&配點 Stats & Points | **structured** | builds | game, h-game | — | — | — | no | no | no |
+| `skills` | 技能 Skills | **structured** | builds | game, h-game | — | — | — | no | no | no |
+| `builds_and_styles` | 配裝&流派 Builds & Styles | **structured** | builds | game, h-game | — | — | — | no | no | no |
+| `team_composition` | 隊伍組成 Team Composition | **structured** | builds | game, h-game | — | — | — | no | no | no |
+| `weapons_and_gear` | 武器&裝備 Weapons & Gear | **structured** | gear | game, h-game | — | — | — | no | no | no |
+| `items` | 道具 Items | **structured** | gear | game, h-game | — | — | — | no | no | no |
+| `collectibles` | 收集物 Collectibles | **structured** | gear | game, h-game | — | — | — | no | no | no |
+| `characters_guide` | 角色 Characters | **structured** | compendium | game, h-game | — | — | — | no | no | no |
+| `enemies` | 敵人 Enemies | **structured** | compendium | game, h-game | — | — | — | no | no | no |
+| `game_terms` | 遊戲名詞 Game Terms | **structured** | compendium | game, h-game | — | — | — | no | no | no |
+| `main_plot` | 主線劇情 Main Plot | **structured** | story | game, h-game | — | — | *(on its `chapter` field)* | no | no | no |
+| `side_plot` | 支線劇情 Side Stories | **structured** | story | game, h-game | — | — | *(on its `chapter` field)* | no | no | no |
+| `character_arcs` | 角色劇情 Character Arcs | text_links | story | game, h-game | — | — | — | no | no | no |
+| `endings` | 結局 Endings | **structured** | story | game, h-game | — | — | — | no | no | no |
+| `story_list_main` | 主線 Main | **structured** | story_list | game, h-game | — | — | — | no | no | no |
+| `story_list_side` | 支線 Side | **structured** | story_list | game, h-game | — | — | — | no | no | no |
+| `story_list_character` | 角色 Character | **structured** | story_list | game, h-game | — | — | — | no | no | no |
+| `story_list_event` | 事件 Event | **structured** | story_list | game, h-game | — | — | — | no | no | no |
+| `lore` | 設定 Lore | text_links | worldbuilding | game, h-game | — | — | — | no | no | no |
+| `story_terms` | 劇情名詞 Story Terms | **structured** | worldbuilding | game, h-game | — | — | — | no | no | no |
+| `timeline` | 時間線 Timeline | text_links | worldbuilding | game, h-game | — | — | — | no | no | no |
+| `mysteries` | 未解之謎 Mysteries | text_links | worldbuilding | game, h-game | — | — | — | no | no | no |
+| `story_other` | 其他 Other | text_links | worldbuilding | game, h-game | — | — | — | no | no | no |
+| `todo_now` | 現在進行 Doing now | text_links | todo | game, h-game | — | — | — | no | no | no |
+| `todo_next` | 接下來 To do next | text_links | todo | game, h-game | — | — | — | no | no | no |
+| `todo_later` | 未來 To do in the future | text_links | todo | game, h-game | — | — | — | no | no | no |
+| `todo_maybe` | 可能 Might do | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `op` | OP | music_track | music | anime | normal, different version, all inclusive version (default `normal`) | Need, Pending, Done | — | no | no | no |
 | `ed` | ED | music_track | music | anime | same as `op` | Need, Pending, Done | — | no | no | no |
 | `insert_songs` | 插入曲 Insert Song | episode_name_links | music | anime | — | Need, Pending, Done | "Episode(s), e.g. ep 3" | **yes** | no | no |
@@ -274,12 +275,14 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `op_ed_changes` | OP/ED 變動 | episode_text | music | anime, tv-show, cartoon | 變化OP, 變化ED, 無OP, 無ED, 特殊OP, 特殊ED | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `extended_episodes` | 加長 | episode_text | flat | anime, tv-show, cartoon | — | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, novel, series, franchise | — | — | — | no | no | anime, anime-movie, novel |
-| `mods_and_tools` | 模組&工具 Mods & Tools | **structured** | tools | game | — | — | — | no | no | no |
-| `guide_resources` | 攻略資源 Guide Resources | **structured** | tools | game | — | — | — | no | no | no |
+| `mods_and_tools` | 模組&工具 Mods & Tools | **structured** | tools | game, h-game | — | — | — | no | no | no |
+| `guide_resources` | 攻略資源 Guide Resources | **structured** | tools | game, h-game | — | — | — | no | no | no |
 | `resources` | Resources | name_links | **standalone** | All | — | — | — | no | no | no |
 | `questions` | Questions | episode_text | **standalone** | All | — | — | "Source, e.g. ep 3" | no | no | **All** |
 | `quotes` | 名言 Quotes | external | quotes_memes | Entries only | — | — | — | — | — | — |
 | `memes` | 梗/迷因 Memes | external | quotes_memes | All | — | — | — | — | — | — |
+
+"game, h-game" is `GAME_OWNERS` (`("game", "h-game")`): every section written for games names it rather than `("game",)`, and its per-owner overrides (the Part Reviews label and placeholder, 解析 inside 評論) are built over it with `_for_game_owners`, so h-game reads every game section exactly as game does and a future game section reaches it by default.
 
 Per-owner overrides (`labels`, `kinds_by_owner`, `locator_placeholders`, `desc_required`) are resolved for one owner by `section_out()` in `app/schemas/note.py` before they reach the frontend, so the page only ever sees a flat `NoteSectionOut`.
 
@@ -309,7 +312,25 @@ lacks renders after it in first-appearance order, and a listed name no row
 carries any more is ignored. It is a column rather than a table because it is
 only ever read and written whole.
 
-**On the page** (`frontend/src/pages/detail/HComic.jsx`, `HComicNotes.jsx`):
+### H-Game highlights (`h_game_highlights`)
+
+An h-game's standout scenes: `h_comic_highlights`' fields, grouped the same
+way by `female_characters`, with the locator field keyed `route_scene` and
+labelled **Route / Scene** (free text, e.g. `Route A, scene 3`). Catalogue
+scope, owners `("h-game",)`, and **no** `owner_where` - every h-game takes it.
+The group order is `h_game.highlight_group_order`, written through the entry
+update and normalised exactly as h-comic's (`normalize_group_order`), without
+any region clear. The fields are not factored out of the two sections: this is
+only their second copy.
+
+**On the h-game page** (`frontend/src/pages/detail/HGame.jsx`): the page's one
+`NotesProvider` - Game's composition, with 待辦 Todo in the Progress slip - is
+handed the entry row, `highlight_group_order` and the callback that PATCHes a
+new order, and the section renders exactly as on a KR h-comic: one group per
+female character, headers dragged or stepped, rows not movable. An h-game has
+no cast, so the `names` inputs offer no suggestions and take any name typed.
+
+**On the h-comic page** (`frontend/src/pages/detail/HComic.jsx`, `HComicNotes.jsx`):
 the detail page hands the notes page the entry row, the cast's character names
 and the stored group order. A JP entry gets no Highlights card at all
 (`owner_where`, see below). The rows render one group per female character

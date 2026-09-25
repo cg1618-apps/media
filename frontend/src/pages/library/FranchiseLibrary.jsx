@@ -34,6 +34,7 @@ function getFilterCategories(franchise, animeSet, mangaSet) {
   if (types.includes("Cartoon")) cats.push("Cartoon");
   if (types.includes("Comic")) cats.push("Comic");
   if (types.includes("H-Comic")) cats.push("H-Comic");
+  if (types.includes("H-Game")) cats.push("H-Game");
   if (cats.length === 0) cats.push("Other");
   return cats;
 }
@@ -54,9 +55,10 @@ const ENTRY_SOURCES = [
   ["novel", "/api/novel/"],
   ["comic", "/api/comic/"],
   ["game", "/api/game/"],
-  // Gated: fetched only for a session that can see the type (see the load
-  // effect), so a narrower one never asks.
+  // Gated: each fetched only for a session that can see its type (see the
+  // load effect), so a narrower one never asks.
   ["h-comic", "/api/h-comic/"],
+  ["h-game", "/api/h-game/"],
 ];
 
 // Breakpoints below which a column collapses, matching libraryColumns.jsx.
@@ -213,6 +215,7 @@ export default function FranchiseLibrary() {
   const auth = useAuth();
   const authLoading = Boolean(auth?.loading);
   const canSeeHComic = canSeeGatedType(auth, "h-comic");
+  const canSeeHGame = canSeeGatedType(auth, "h-game");
   const [allFranchises, setAllFranchises] = useState([]);
   const [allEntriesDict, setAllEntriesDict] = useState({});
   const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
@@ -228,12 +231,11 @@ export default function FranchiseLibrary() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   useEffect(() => {
-    // Wait for /api/auth/me: which entry lists to fetch depends on whether
-    // this session may see the gated h-comic type.
+    // Wait for /api/auth/me: which entry lists to fetch depends on which
+    // gated types this session may see.
     if (authLoading) return;
-    const sources = ENTRY_SOURCES.filter(
-      ([type]) => type !== "h-comic" || canSeeHComic,
-    );
+    const visible = { "h-comic": canSeeHComic, "h-game": canSeeHGame };
+    const sources = ENTRY_SOURCES.filter(([type]) => visible[type] ?? true);
     async function load() {
       try {
         const [franchises, collections, ...entryLists] = await Promise.all([
@@ -280,7 +282,7 @@ export default function FranchiseLibrary() {
       }
     }
     load();
-  }, [authLoading, canSeeHComic]);
+  }, [authLoading, canSeeHComic, canSeeHGame]);
 
   function toggleFilter(value) {
     setFilters((prev) => {
@@ -478,6 +480,7 @@ export default function FranchiseLibrary() {
                 <FilterTag value="Cartoon" label="Cartoon" />
                 <FilterTag value="Comic" label="Comic" />
                 {canSeeHComic && <FilterTag value="H-Comic" label="H-Comic" />}
+                {canSeeHGame && <FilterTag value="H-Game" label="H-Game" />}
                 <FilterTag value="Other" label="Other" />
               </div>
               {activeFilterCount > 0 && (
