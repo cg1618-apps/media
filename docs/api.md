@@ -337,7 +337,7 @@ nested `copies` collection.
 | -------- | ---------------------- | ------ | ----------- |
 | `GET`    | `/`                    | Public | List all games. Optional params: `franchise_id`, `series_id`, `playing_status`, `release_status`, `game_type`, `search_query`, plus **`ownership`** (see below). |
 | `GET`    | `/{entry_id}`          | Public | One game by UUID. |
-| `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_replace_single_game` after creation, which calls `apply_single_replace_game` (Steam only, keyed on `steam_appid`) and re-extracts system options, then logs the write. |
+| `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_replace_single_game` after creation, which calls `apply_single_replace_game` (IGDB fill-only, keyed on `igdb_id`, then Steam, keyed on `steam_appid`; both ids derived from their links first) and re-extracts system options, then logs the write. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `GameUpdate`. Same write hook. |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. `copies` is honoured here too — the nested writer coerces a copy's `system_id` from a JSON string, since a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets `playing_status = "Completed"` and **nothing else**: `completion_level`, the three `all_*` flags and the achievement pair are independent axes only the user can judge. |
@@ -516,7 +516,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 | `GET`    | `/search-igdb`         | `manage.catalog` | `?q=` (required), `limit` (1-50, default 10). Searches IGDB so the admin can pick the entry and store its `igdb_id` - Game's endpoint, under this route. |
 | `GET`    | `/`                    | Public | List. Optional params: `franchise_id`, `series_id`, `playing_status`, `release_status`, `game_type`, `playstyle`, `language_availability`, `ownership` (the acting user's copies, as for game), `search_query` (all five name columns). |
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
-| `POST`   | `/`                    | Admin  | Create. Body: `HGameCreate`. Auto-runs `execute_replace_single_h_game`: Game's Steam Replace (appid extracted from `steam_link`, SteamDB row derived, Steam fetched when there is an appid), then `run_sync_game` and `run_sync_gated_labels`. |
+| `POST`   | `/`                    | Admin  | Create. Body: `HGameCreate`. Auto-runs `execute_replace_single_h_game`: Game's Replace (ids extracted from `igdb_link` and `steam_link`, IGDB fetched fill-only when there is an `igdb_id`, SteamDB row derived, Steam fetched when there is an appid), then `run_sync_game` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HGameUpdate`. Same write hook. |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `playing_status = "Completed"`; nothing on the catalogue side, as for game. |
@@ -1719,10 +1719,12 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/replace/manga/{entry_id}`             | Replace metadata for a single manga entry by UUID. Returns JSON.                     |
 | `POST` | `/replace/novel`                        | Replace metadata for all novels that have a MAL ID. Streams SSE progress.            |
 | `POST` | `/replace/novel/{entry_id}`             | Replace metadata for a single novel entry by UUID. Returns JSON.                     |
+| `POST` | `/replace/game`                         | Replace for every game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam (overwrites the current prices and the Metacritic score). Stops cleanly when the Steam storefront budget is spent. Streams SSE progress. Part of Replace All. |
+| `POST` | `/replace/game/{entry_id}`              | The same for one game — the detail page's Autofill button — then `run_sync_game`. Returns JSON. |
 | `POST` | `/replace/comic/{entry_id}`             | Runs the Replace write hook for a single comic entry. Fetches nothing — comics are manual-entry, so there is no external record to reconcile against; it exists only so the write is logged like every other type's. Returns JSON. |
 | `POST` | `/replace/h-comic/{entry_id}`           | The write hook for one h-comic: fetches nothing, runs `run_sync_h_comic` and `run_sync_gated_labels`. Returns JSON. There is no bulk `/replace/h-comic`, and h-comic is not part of Replace All. |
-| `POST` | `/replace/h-game`                       | Steam Replace for every h-game with a `steam_appid` or `steam_link`, as for game. Streams SSE progress. Part of Replace All. |
-| `POST` | `/replace/h-game/{entry_id}`            | Steam Replace for one h-game, then `run_sync_game` and `run_sync_gated_labels`. Returns JSON. |
+| `POST` | `/replace/h-game`                       | Game's Replace for every h-game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam. Streams SSE progress. Part of Replace All. |
+| `POST` | `/replace/h-game/{entry_id}`            | The same for one h-game — the detail page's Autofill button — then `run_sync_game` and `run_sync_gated_labels`. Returns JSON. |
 | `POST` | `/replace/hentai`                       | Re-run Tenrai for every hentai that has a MAL id or link - the same three fill-only fields, so it completes what is blank and overwrites nothing - then `run_sync_hentai` and `run_sync_gated_labels`. Streams SSE progress. |
 | `POST` | `/replace/hentai/{entry_id}`            | The write hook for one hentai: the Tenrai fetch, then `run_sync_hentai` and `run_sync_gated_labels`. Returns JSON. |
 | `POST` | `/replace/all`                          | Replace all + auto-backup on completion. Streams SSE progress.                       |

@@ -18,7 +18,8 @@ behind that, and they are the reason the catalog exists:
     see autofill_game_from_steam.
   * Per MEDIA TYPE - which pipelines exist at all. Comic and Studio have no
     bulk Replace; Comic is out of Fill All to protect its hourly quota. Game's
-    bulk Replace runs its Steam half only - nothing in an IGDB record drifts.
+    Replace runs both its sources, IGDB fill-only - nothing in an IGDB record
+    drifts, but it can supply the appid Steam keys off.
 
 Note what Replace is NOT: a different set of writes. `apply_single_replace_*`
 in post_processing.py calls the same `autofill_*` function Fill calls, with the

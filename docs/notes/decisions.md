@@ -2138,3 +2138,47 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
 - **Usefulness sits in the completion block**, beside Completion Level, All
   Endings and All CG, because the shared tracker card has no per-type slot.
 - **Its nav row is under Restricted**, with H-Comic's, not in the Library.
+
+### The scope reconcile leaves unscoped options alone (2026-09-25)
+
+- **What happened.** Netflix and Disney+ were left with no scope rows when the
+  media-sources work cleared their TV-only scoping, so they were offered on
+  every type. Calculate's `extract_system_options` then gave them `tv-show`
+  and `cartoon` rows, because TV shows and cartoons name them in
+  `original_source`. On a value with no rows, the first row narrows rather than
+  widens, so both dropped out of the anime, anime-movie and movie Main Sources
+  pickers. Ruling R27 had banned exactly this for `replace_tags`; the reconcile
+  kept doing it, because "additive" was read as "never deletes a row".
+- **The fix.** The reconcile now skips any option with no scope rows. A new
+  value typed into a tag field therefore stays offered everywhere until an
+  admin scopes it, which is what "scopes are admin data" already said.
+- **Explicit scopes, not unscoped again.** Migration `n1d2plscope3` gives both
+  values rows for anime, anime-movie, movie, tv-show and cartoon. Clearing them
+  would also offer them on manga, novel and comic, which are read rather than
+  watched. Explicit rows cannot be narrowed by the reconcile, since it only
+  adds. Its downgrade is a no-op: nothing shows which rows were there before,
+  and the older code is just as happy to offer the values more widely.
+
+### Game Replace runs IGDB as well as Steam (2026-09-25)
+
+- **Owner's decision: Autofill and Replace run both sources** on `game` and
+  `h-game`, in Fill's order — IGDB, then Steam. Steam-only Replace had been
+  justified by "nothing in an IGDB record drifts", which is true, but it meant
+  the detail page's Autofill button could not finish an entry that had only
+  an IGDB link: Steam keys off the appid that only IGDB supplies.
+- **IGDB stays fill-only under Replace.** That is what every other type's
+  Replace does with its source: the MAL Replace runs the same fill-only
+  autofill and overwrites only the scores and ranks, which drift. IGDB has no
+  drifting column, so its half of Replace only fills gaps. Overwriting would
+  have rewritten hand-shortened names, curated tags and chosen covers for no
+  new information.
+- **The write hook keeps running the whole Replace.** Every other type with a
+  source fetches it on save (movie, TV show and cartoon pay TMDB/OMDb, manga
+  and novel pay Tenrai), and a game saved with a fresh IGDB link should be
+  filled then, not on the next run. The cost is up to two IGDB requests per
+  save of a linked game, well inside IGDB's 4/second limiter. The corollary
+  is shared with every fill-only field: clearing IGDB-supplied tags or credits
+  on an entry that still carries its `igdb_id` refills them on save.
+- **Bulk Replace selects IGDB-only entries too**, and the Steam budget still
+  gates every entry: IGDB can hand Steam an appid mid-entry, so an IGDB-only
+  row is not exempt from the storefront window.

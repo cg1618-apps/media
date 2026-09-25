@@ -413,13 +413,18 @@ yet permanently "needs filling", re-requested on every single run.
 in the database (matched on `igdb_id`, excluding the row itself), Fill sets
 `base_game_id` and the DLC links itself up. A parent not yet entered leaves the
 column null, which is exactly why `base_game_id` is nullable even for a DLC.
+IGDB sets `parent_game` on a remaster or an edition too (Spider-Man Remastered
+names Spider-Man), so the parent is adopted only when the entry's `game_type`
+is not `Base Game`: a Base Game with a parent violates `ck_games_base_no_parent`,
+and the failed flush would roll back the entry's whole fill, cover included.
 
-**IGDB itself still has no bulk Replace path of its own** — nothing in an IGDB
-record drifts, the same reasoning that makes Studio `fill_only`. What changed
-is that `game` as a whole now has a bulk Replace: it runs the Steam half only.
+**Replace runs IGDB too, and it stays fill-only there** — nothing in an IGDB
+record drifts, so a Replace keeps every value already set, as the MAL Replace
+keeps everything but its scores. It runs because it can supply the appid
+Steam keys off: one Replace finishes an entry that carries only an IGDB link.
 See [Steam](#steam) and the game row in [Which pipeline calls which
-service](#which-pipeline-calls-which-service). Games **are** in Fill All, as
-they were before — there is no hourly quota to protect.
+service](#which-pipeline-calls-which-service). Games are in Fill All — there
+is no hourly quota to protect.
 
 ## Steam
 
@@ -611,10 +616,11 @@ already-complete columns. So an entry admitted *solely* by the Steam clause
 (IGDB columns already full) still spends `autofill_game_from_igdb`'s two IGDB
 requests before Steam's three run.
 
-Refreshing what is already there is Replace's job: **game's first bulk
-Replace**, `replace_select = _linked(Game, Game.steam_appid, Game.steam_link)`,
-runs `autofill_game_from_steam` only — nothing in an IGDB record drifts, so
-Replace never re-fetches it.
+Refreshing what is already there is Replace's job: **game's Replace**,
+`replace_select = _linked(Game, Game.steam_appid, Game.steam_link,
+Game.igdb_id, Game.igdb_link)`, runs `autofill_game_from_igdb` (fill-only,
+so it only fills gaps) and then `autofill_game_from_steam`, which overwrites
+the current prices and the Metacritic score.
 
 ## Google Sheets
 
@@ -697,8 +703,8 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` + `autofill_from_anilist` when `mal_link` is present, else `autofill_novel_from_openlibrary` alone (nothing for AniList to key on without a `mal_id`) | 1 s | Tenrai **or** Open Library, plus AniList on the Tenrai branch |
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
-| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`); in Fill All; bulk Replace runs the Steam half only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
-| `h-game` | as game | game's two autofills on the `h_game` table, writing only what it has (above); in Fill All; bulk Replace runs the Steam half only. `/api/h-game/search-igdb` is game's picker. DLsite is linked, never fetched | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch), Steam |
+| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`); in Fill All; Replace (bulk, single, write hook) runs both, IGDB fill-only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
+| `h-game` | as game | game's two autofills on the `h_game` table, writing only what it has (above); in Fill All; Replace runs both, as game's. `/api/h-game/search-igdb` is game's picker. DLsite is linked, never fetched | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch), Steam |
 
 Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page touch local disk and, for missing covers, the autofill functions again.
 

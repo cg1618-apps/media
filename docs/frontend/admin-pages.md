@@ -45,10 +45,11 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   h-comic has no Replace button, since there is no bulk Replace for it. The
   **H-Game** buttons (`/fill/h-game` in the Fill box, `/replace/h-game` in the
   Replace box) are gated the same way; they run Game's IGDB and Steam fill and
-  Game's Steam Replace over the h-game table. The **Hentai** buttons
-  (`/fill/hentai`, `/replace/hentai`) are gated the same way too; both fetch
-  Tenrai's airing status, release date and cover over the hentai table, and
-  both are fill-only - Replace completes what is blank and overwrites nothing.
+  Game's Replace (IGDB fill-only, then Steam) over the h-game table. The
+  **Hentai** buttons (`/fill/hentai`, `/replace/hentai`) are gated the same
+  way too; both fetch Tenrai's airing status, release date and cover over the
+  hentai table, and both are fill-only - Replace completes what is blank and
+  overwrites nothing.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
 - **Announcements.** Create / edit / delete the dashboard board
