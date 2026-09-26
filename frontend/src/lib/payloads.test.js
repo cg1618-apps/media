@@ -315,6 +315,14 @@ describe("h-comic animation_status", () => {
   });
 });
 
+describe("h-comic ehentai_link", () => {
+  it("is sent as typed, and a blank one as null", () => {
+    const link = "https://e-hentai.org/g/618395/0439fa3666/";
+    expect(hComicFieldsPayload({ region: "JP", ehentai_link: link }).ehentai_link).toBe(link);
+    expect(hComicFieldsPayload({ region: "JP", ehentai_link: "" }).ehentai_link).toBeNull();
+  });
+});
+
 describe("hentai", () => {
   it("sends studio and director as credits and the three genres as tags", () => {
     const payload = buildCreditsPayload("hentai", {

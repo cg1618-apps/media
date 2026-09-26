@@ -53,6 +53,7 @@ def test_the_parser_types_every_column():
             "club": "Circle A, Circle B",
             "mal_id": "777",
             "mal_link": "https://myanimelist.net/manga/777",
+            "ehentai_link": "https://e-hentai.org/g/618395/0439fa3666/",
         }
     )
     assert parsed["region"] == "KR"
@@ -63,6 +64,7 @@ def test_the_parser_types_every_column():
     assert parsed["club"] == "Circle A, Circle B"
     assert parsed["mal_id"] == 777
     assert parsed["mal_link"] == "https://myanimelist.net/manga/777"
+    assert parsed["ehentai_link"] == "https://e-hentai.org/g/618395/0439fa3666/"
 
 
 def test_pull_clears_the_columns_the_region_does_not_use(monkeypatch, db_session):

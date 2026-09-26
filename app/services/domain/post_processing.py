@@ -24,6 +24,7 @@ from app.services.domain.autofill import (
     autofill_game_cover_from_igdb,
     autofill_game_from_igdb,
     autofill_game_from_steam,
+    autofill_h_comic_from_ehentai,
     autofill_h_comic_from_mal,
     autofill_h_game_from_dlsite,
     autofill_hentai_from_mal,
@@ -97,12 +98,14 @@ def apply_single_replace_anime_movie(
 def apply_single_replace_h_comic(db: Session, h_comic, bulk: bool = False) -> None:
     """
     Core 'Replace' logic for a single h-comic entry: manga's Tenrai fields,
+    then E-Hentai's cover and illustrator for whatever MAL left empty, all
     fill-only. No AniList, and nothing derived afterwards - the region rule
     and the label are the spec's syncs. `bulk` is kept for signature parity
     with the other media types.
     """
     apply_extract_mal_id_manga_novel(h_comic)
     autofill_h_comic_from_mal(h_comic, db=db)
+    autofill_h_comic_from_ehentai(h_comic, db)
 
 
 def apply_single_replace_hentai(db: Session, hentai, bulk: bool = False) -> None:

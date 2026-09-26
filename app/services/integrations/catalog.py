@@ -220,6 +220,15 @@ SERVICES: dict[str, Service] = {
         rate_limit="none published; 1 s between requests as a courtesy",
         docs_anchor="dlsite",
     ),
+    "ehentai": Service(
+        key="ehentai",
+        label="E-Hentai",
+        module="app.services.integrations.ehentai",
+        base_url="https://api.e-hentai.org/api.php",
+        auth="None - the official gallery metadata API (gdata)",
+        rate_limit="a few sequential requests / second, documented; 1 s between requests",
+        docs_anchor="e-hentai",
+    ),
 }
 
 # A missing key is never fatal: the client logs and returns None, so the run
@@ -811,17 +820,23 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             ),
         ),
     ),
-    # Manga's Tenrai record, for the columns h_comic has.
+    # Manga's Tenrai record, for the columns h_comic has, then E-Hentai for
+    # what it left empty.
     Coverage(
         key="h-comic",
         keyed_by="mal_id",
-        combination="single",
-        requests_per_entry="1 Tenrai",
+        combination="merged",
+        requests_per_entry="2 - one Tenrai, one E-Hentai gallery",
         note=(
             "The same Tenrai manga record as Manga, read for the columns an "
-            "h-comic has. Every run and the single-entry hook end in the "
-            "h-comic sync, which clears the region's unused columns, and the "
-            "gated label sync, which keeps the h-comic label on."
+            "h-comic has, then the E-Hentai gallery in ehentai_link, keyed on "
+            "the gallery id and token read out of the URL. Both are "
+            "fill-only and Tenrai runs first, so E-Hentai supplies only what "
+            "MAL left empty - usually the cover of a doujinshi MAL does not "
+            "list. An entry with only an E-Hentai link is filled too. Every "
+            "run and the single-entry hook end in the h-comic sync, which "
+            "clears the region's unused columns, and the gated label sync, "
+            "which keeps the h-comic label on."
         ),
         sources=(
             SourceBlock(
@@ -854,6 +869,37 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "none",
                         "never",
                         "h_comic has no rating column",
+                    ),
+                ),
+            ),
+            SourceBlock(
+                source="ehentai",
+                writes=(
+                    Write(
+                        "illustrator",
+                        "credit",
+                        "if-absent",
+                        "the gallery's artist: tags, title-cased",
+                    ),
+                    Write(
+                        "cover_image_file",
+                        "image",
+                        "if-empty",
+                        "the gallery thumb, 250px wide - the same image the "
+                        "gallery page shows; tried after Tenrai's",
+                    ),
+                    Write(
+                        "release_date",
+                        "none",
+                        "never",
+                        "posted is the gallery's upload date, not the work's release",
+                    ),
+                    Write(
+                        "h_comic_name_jp",
+                        "none",
+                        "never",
+                        "a gallery title is the uploader's, and names are the "
+                        "entry's identity",
                     ),
                 ),
             ),

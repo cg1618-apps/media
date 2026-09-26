@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 ## What this is for
 
@@ -2255,3 +2255,46 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   unhashed CDN path, and a 404 there is "no cover", which leaves an app with
   hashed store assets to IGDB rather than adding a storefront request to find
   the hashed path.
+
+### H-Comic fills from E-Hentai after MAL, mainly for the cover (2026-09-27)
+
+- **Why E-Hentai.** MAL lists few doujinshi, so most `同人` h-comics had no
+  source at all and no cover, where an E-Hentai gallery usually exists. It is
+  a second source, run after Tenrai and fill-only like it, so it supplies only
+  what MAL left empty; an entry with only a gallery link is filled too
+  (`has_missing_values_h_comic_ehentai`, ORed onto the MAL clause). One
+  column, `ehentai_link`, and no id column: the gallery id and token are read
+  out of the URL, as DLsite's product id is out of an h-game's links. An
+  `exhentai.org` URL is accepted, since the two hosts share one id space.
+- **The official `gdata` API, and no scraping.** `api.e-hentai.org/api.php`
+  answers a gallery's metadata with no key and no cookie. Its `thumb` was
+  checked live on 2026-09-27: a 250×353 WebP at `ehgt.org/w/...webp`, the same
+  URL the gallery page itself shows as its cover. No larger variant exists on
+  that path (`_l`, `_250` and `.jpg` all 404), and the CDN serves it with no
+  `Referer` and with a foreign one, so fetching the gallery HTML would buy
+  nothing - the API already names the cover the page shows. The WebP is
+  stored under the usual `.jpg` key, as Tenrai's WebP is.
+- **`posted` and the titles are not mapped.** `posted` is when the gallery
+  was uploaded, not when the work came out, so it would be a
+  wrong `release_date` that fill-only would then keep forever. A gallery's
+  titles are an uploader's filename-style string (`(Event) [Circle (Artist)]
+  Title (Parody) [Language]`), and an entry's names are its identity; nothing
+  writes a name.
+- **`artist:` becomes the illustrator (繪師); `group:` is left alone.** The
+  `artist:` tags name who drew the work, which on an h-comic is the
+  `illustrator` credit - held by both regions, where `author` is KR-only. The
+  names are title-cased (the tags are lowercase romanisation) and written only
+  when the entry has no illustrator; every name is checked with `find_person`
+  first, so one ambiguous name skips the whole credit rather than crediting
+  half of it, and the cover still lands. The `group:` tag is the circle,
+  which on an h-comic is the `club` credit - a person row with memberships -
+  and was kept out of this change: the source was added for the cover, and
+  the illustrator is the one credit the tags name directly.
+- **The External APIs catalogue stopped leaking gated types through its
+  services list.** `GET /api/constants/external-apis` already dropped a
+  hidden gated type's row from `media`, but `services[].feeds` still named
+  it, and the DLsite service - which feeds h-game only - was listed whole, so
+  a catalogue editor in a narrower mode could learn that h-game, h-comic and
+  hentai exist, and E-Hentai would have been a second such service. The
+  services are now filtered the same way: a hidden type leaves every
+  `feeds`, and a service left feeding nothing visible is dropped.

@@ -49,6 +49,7 @@ class HComicBase(BaseModel):
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
+    ehentai_link: Optional[str] = None
 
     # KR only; cleared on JP. The group order of the highlights section, read
     # and written whole: a list of female character names.

@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -126,6 +126,14 @@ Steam link is never paired with an IGDB appid for a different edition) —
 `apply_extract_steam_appid` only comes into play when a `steam_link` was
 hand-typed ahead of any IGDB Fill. See
 [external-apis.md](external-apis.md#steam).
+
+An h-comic's E-Hentai gallery key is read, not extracted: there is no id
+column for it, so nothing is written. `ehentai_gallery_key_for`
+(`app/utils/ehentai_utils.py`) parses `(gid, token)` out of `ehentai_link`
+(`(?:e-hentai|exhentai)\.org/g/(\d+)/([0-9a-f]{10})`, case-insensitive, the
+token lowercased) each time the fill or its eligibility check needs it, and a
+link that does not match simply gives the entry no E-Hentai source. See
+[external-apis.md](external-apis.md#e-hentai).
 
 ### SteamDB, derived from the appid
 
@@ -438,7 +446,7 @@ in `app/utils/utils.py`.
 | Manga       | `serialization_status, release_date, end_date, mal_rating, mal_rank, cover_image_file`                                     | When `serialization_status == "完結"`, also missing if **both** `vol_total` and `ch_total` are `None`. One missing total alone does not trigger a fetch.                                                                                                                                 |
 | Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
 | Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `publisher` credit — Comic Vine's publisher resolves to a `publisher` entity, not a tag. Imprint, continuity, era and events and `end_date` are manual and never required — Comic Vine does not model them.                                                          |
-| H-Comic     | `serialization_status, release_date, end_date, cover_image_file` (`H_COMIC_FIELDS_TO_FILL`)                               | The spec additionally requires `mal_id`. On a KR entry whose `serialization_status` is `完結`, also missing while `ch_total` is `None`; a JP entry counts pages, which MAL does not report. |
+| H-Comic     | `serialization_status, release_date, end_date, cover_image_file` (`H_COMIC_FIELDS_TO_FILL`)                               | The MAL clause additionally requires `mal_id`. On a KR entry whose `serialization_status` is `完結`, also missing while `ch_total` is `None`; a JP entry counts pages, which MAL does not report. A second clause is ORed on, E-Hentai's: `has_missing_values_h_comic_ehentai(db, e)` is true when `ehentai_link` names a gallery and `cover_image_file` (`H_COMIC_EHENTAI_FIELDS_TO_FILL`) or the `illustrator` credit (`H_COMIC_EHENTAI_LINK_FIELDS_TO_FILL`) is blank - so an entry with only an E-Hentai link is eligible. See [external-apis.md](external-apis.md#e-hentai). |
 | Hentai      | `airing_status, release_date, cover_image_file` (`HENTAI_FIELDS_TO_FILL`)                                                 | The spec additionally requires `mal_id`. These are the only three things Tenrai fills on a hentai, so nothing else can make one eligible. |
 | Studio      | `mal_link, founded_date, name_jp, website_url, logo_file`                                                                 | The only non-media type Fill covers. The spec additionally requires `mal_id` to be set — a studio with no MAL id has no source to fill from, however empty it is. Pasting the producer URL into `mal_link` is enough: `apply_extract_mal_id_studio` derives the id before eligibility is checked (section 2), on Fill and on every studio write. `my_rating`, `country` and `defunct_date` are absent on purpose: MAL's producer record reports none of them, so listing them would leave every studio permanently missing. |
 | Game        | `igdb_link, release_date, cover_image_file, hltb_main, hltb_main_extra, hltb_completionist`                                | Two independent sources, ORed rather than gated together: the IGDB clause above requires `igdb_id` set; the Steam clause is separate and ignores this column list entirely — `has_missing_values_game_steam(e)` is true when `steam_appid` is set and Steam has written **nothing at all** yet (`metacritic_score`, `price_original_us` and `achievements_total` all `None`). Deliberately not folded into the column list above: a free game has no price, an obscure one no Metacritic score, and many have no achievements, so testing those individually would leave such an entry eligible forever. `steam_appid` itself is written by IGDB, not typed in or picked directly — pasting a `store.steampowered.com/app/<id>` link into `steam_link` and running `apply_extract_steam_appid` (section 2) is the only hand-typed path onto it. Refreshing columns Steam already filled is Replace's job, not Fill's — see [external-apis.md](external-apis.md#steam). |

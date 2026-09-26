@@ -16,10 +16,18 @@ from app.models import (
     Studio,
     TVShows,
 )
-from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
+from app.services.domain.credits import (
+    AmbiguousNameError,
+    credit_names,
+    find_person,
+    replace_credits,
+    replace_tags,
+    tag_values,
+)
 from app.services.integrations.anilist import anilist_record
 from app.services.integrations.comicvine import fetch_comicvine_volume
 from app.services.integrations.dlsite import fetch_dlsite_product
+from app.services.integrations.ehentai import fetch_ehentai_gallery
 from app.services.integrations.igdb import fetch_igdb_game, fetch_igdb_time_to_beat
 from app.services.integrations.image_manager import (
     cover_needs_download,
@@ -43,6 +51,7 @@ from app.utils.anilist_utils import map_anilist_record
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
 from app.utils.constants import H_COMIC_REGION_KR
 from app.utils.dlsite_utils import dlsite_product_id_for, map_dlsite_to_h_game_data
+from app.utils.ehentai_utils import ehentai_gallery_key_for, map_ehentai_to_h_comic_data
 from app.utils.igdb_utils import map_igdb_to_game_data
 from app.utils.imdb_utils import (
     _derive_tv_season_airing_status,
@@ -301,6 +310,69 @@ def autofill_h_comic_from_mal(h_comic, db: Session = None) -> None:
             "MAL Autofill failed for H-Comic ID %s (MAL %s): %s",
             h_comic.system_id,
             mal_id,
+            e,
+        )
+
+
+def autofill_h_comic_from_ehentai(h_comic, db: Session) -> None:
+    """
+    Enriches a single h-comic entry from its E-Hentai gallery. Does not
+    commit - the caller is responsible.
+
+    The h-comic fill's second source, run after MAL and fill-only, so it
+    supplies only what MAL left empty. Keyed by the gallery id and token in
+    ehentai_link. Two things only: the cover, which is what MAL most often
+    lacks for a doujinshi, and the `artist:` tags as the illustrator (繪師)
+    credit, written only when the entry has no illustrator yet.
+
+    Nothing else is read: the gallery's `posted` is its upload date, not the
+    work's release, and its title is an uploader's, not the entry's name.
+    """
+    key = ehentai_gallery_key_for(h_comic)
+    if not key:
+        return
+    gid, token = key
+
+    try:
+        record = fetch_ehentai_gallery(gid, token)
+        if not record:
+            return
+
+        e_data = map_ehentai_to_h_comic_data(record)
+
+        artists = e_data.get("artists")
+        if artists and not credit_names(db, h_comic.system_id, "illustrator"):
+            try:
+                # Every name is checked before anything is written, so an
+                # ambiguous second artist cannot leave the first credited.
+                for name in artists:
+                    find_person(db, name)
+                replace_credits(db, "h-comic", h_comic.system_id, "illustrator", artists)
+            except AmbiguousNameError as e:
+                # Two people already answer to a name. Leave the credit for
+                # the owner to pick, and still take the cover below.
+                logger.warning(
+                    "E-Hentai illustrator skipped for H-Comic ID %s: %s",
+                    h_comic.system_id,
+                    e,
+                )
+
+        # Last, so a download failure cannot cost us the credit above.
+        if (
+            cover_needs_download(h_comic.cover_image_file, "h-comic", str(h_comic.system_id))
+            and e_data.get("cover_image_url")
+        ):
+            cover = download_cover_image(
+                e_data.get("cover_image_url"), "h-comic", str(h_comic.system_id)
+            )
+            if cover:
+                h_comic.cover_image_file = cover
+
+    except Exception as e:
+        logger.error(
+            "E-Hentai Autofill failed for H-Comic ID %s (gallery %s): %s",
+            h_comic.system_id,
+            gid,
             e,
         )
 

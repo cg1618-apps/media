@@ -1,10 +1,10 @@
 # External APIs
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Ten outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios, the columns an h-comic has, and three fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; **DLsite** fills an h-game's release date, studio and cover ahead of both; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Eleven outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios, the columns an h-comic has, and three fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; **DLsite** fills an h-game's release date, studio and cover ahead of both; **E-Hentai** fills an h-comic's cover and illustrator after Tenrai, for the doujinshi MAL does not list; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
@@ -26,6 +26,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 - [IGDB](#igdb)
 - [Steam](#steam)
 - [DLsite](#dlsite)
+- [E-Hentai](#e-hentai)
 - [Google Sheets](#google-sheets)
 - [Cover images (local disk)](#cover-images-local-disk)
 - [Which pipeline calls which service](#which-pipeline-calls-which-service)
@@ -44,6 +45,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 | IGDB | `https://api.igdb.com/v4` (token from `https://id.twitch.tv/oauth2/token`) | `settings.igdb_client_id` ← `IGDB_CLIENT_ID` **and** `settings.igdb_client_secret` ← `IGDB_CLIENT_SECRET` | `app/services/integrations/igdb.py` | `app/utils/igdb_utils.py` | `games` |
 | Steam | `https://store.steampowered.com/api` (no key) **and** `https://api.steampowered.com` (`settings.steam_api_key` ← `STEAM_API_KEY`, `settings.steam_id` ← `STEAM_ID`) | `settings.steam_api_key` / `settings.steam_id`, both optional | `app/services/integrations/steam.py` | `app/utils/steam_utils.py` | `games`; the cover of an `h_game` |
 | DLsite | `https://www.dlsite.com/maniax/api/=/product.json` (undocumented) | none | `app/services/integrations/dlsite.py` | `app/utils/dlsite_utils.py` | `h_game` |
+| E-Hentai | `https://api.e-hentai.org/api.php` (the official gallery metadata API, `gdata`) | none | `app/services/integrations/ehentai.py` | `app/utils/ehentai_utils.py` | `h_comic` |
 | Google Sheets | via `gspread` | `settings.google_sheet_id` ← `GOOGLE_SHEET_ID`; `settings.google_credentials_json` ← `GOOGLE_CREDENTIALS_JSON` (falls back to a local `credentials.json`; the two branches are environment-split, see [Google Sheets](#google-sheets)) | `app/services/integrations/sheets.py` | `app/utils/formatter.py` | Backup / Pull |
 
 A missing key is never fatal: each client logs `"<NAME> environment variable is not set."` and returns `None` (or `[]`), so a Fill run simply fills nothing from that source. Open Library is the exception in a different direction: it has no key at all, so this failure mode does not apply to it — see [Open Library](#open-library).
@@ -55,7 +57,7 @@ The metadata clients (Tenrai, TMDB, OMDb, Comic Vine, Open Library, IGDB) are bu
 | Concern | Behaviour |
 |---|---|
 | HTTP library | `requests`, synchronous, `timeout=15` seconds on every call (also on the cover-image download in `image_manager.py`). |
-| Rate limiter | One module-level instance per service (`tenrai_rate_limiter`, `tmdb_rate_limiter`, `omdb_rate_limiter`, `comicvine_rate_limiter`, `openlibrary_rate_limiter`, `igdb_rate_limiter`). DLsite, which publishes no limit to window against, instead spaces its requests by a fixed `MIN_INTERVAL` - see [DLsite](#dlsite). Each limiter is a sliding window of request timestamps kept **in memory, per process** — it resets on restart, and two uvicorn workers do not share it. `wait_if_needed()` sleeps before a request when the window is full. |
+| Rate limiter | One module-level instance per service (`tenrai_rate_limiter`, `tmdb_rate_limiter`, `omdb_rate_limiter`, `comicvine_rate_limiter`, `openlibrary_rate_limiter`, `igdb_rate_limiter`). DLsite, which publishes no limit to window against, instead spaces its requests by a fixed `MIN_INTERVAL` - see [DLsite](#dlsite) - and so does E-Hentai ([E-Hentai](#e-hentai)). Each limiter is a sliding window of request timestamps kept **in memory, per process** — it resets on restart, and two uvicorn workers do not share it. `wait_if_needed()` sleeps before a request when the window is full. |
 | Retry | `tenacity` decorator: `stop_after_attempt(5)`, `wait_exponential(multiplier=1, min=2, max=10)`, retried only on `requests.exceptions.RequestException` (network / timeout) and the client's own `RateLimitExceeded` (raised on HTTP 429, plus 420 for Comic Vine). `reraise=False`. |
 | Not retried | HTTP 404 → warning, returns `None`. HTTP 5xx → warning `"… skipping retries"`, returns `None`. OMDb and Comic Vine also return `None` on 401 (bad key); IGDB's 401 additionally **clears the cached token** so the next call refetches one. |
 | When the 5 attempts run out | Because `reraise=False`, tenacity raises its own `tenacity.RetryError`. Every `autofill_*` function in `app/services/domain/autofill.py` wraps its whole body in `try: … except Exception as e: logger.error(...)`, so the `RetryError` is **swallowed**: the entry is left untouched, an error line is logged, and the pipeline moves on as if the entry had simply had nothing to fetch. Nothing in the UI distinguishes "no data" from "the network was down five times in a row". |
@@ -131,6 +133,8 @@ H-comic reads manga's record through manga's mapper, and `autofill_h_comic_from_
 | `images` | `cover_image_file` | manga's URL choice; downloaded to `static/covers/h-comic/` only when the entry has no cover |
 
 Scores, ranks, volumes, names and AniList are not written - `h_comic` has no rating columns, and MAL reports no page count, so a JP entry's `page_total` stays hand-set. Because nothing is overwritten, an h-comic Replace completes what is blank and changes nothing else.
+
+Tenrai is the h-comic's **first** source, not its only one: [E-Hentai](#e-hentai) runs after it in the same fill, and supplies the cover and the illustrator credit where MAL left them empty. MAL lists few doujinshi, so for most `同人` entries the cover is E-Hentai's.
 
 ### What autofill actually writes (fill-only vs overwrite)
 
@@ -720,6 +724,81 @@ credit is blank (`H_GAME_DLSITE_FIELDS_TO_FILL`,
 `replace_select` includes `dlsite_link_jp` and `dlsite_link_tw`, and DLsite
 stays fill-only under Replace: nothing in its record is overwritten.
 
+## E-Hentai
+
+E-Hentai fills two things on an **h-comic** only, both fill-only and both
+after [Tenrai](#mapping-for-h_comic--map_tenrai_to_manga_data-the-columns-it-has): the **cover**,
+and the gallery's artists as the **illustrator credit** (labelled 繪師 on an
+h-comic). It is there for the cover: MAL lists few doujinshi, and a gallery
+nearly always exists. `app/services/integrations/ehentai.py` calls the site's
+official gallery metadata API:
+
+```
+POST https://api.e-hentai.org/api.php
+{"method": "gdata", "gidlist": [[<gid>, "<token>"]], "namespace": 1}
+```
+
+It answers `{"gmetadata": [...]}`, one record per requested gallery.
+`namespace: 1` prefixes every tag with its namespace (`artist:`, `group:`,
+`parody:`). No key and no cookie. A gallery the API cannot serve - a wrong
+token, an unknown id - still comes back as an HTTP 200 with a record holding
+only `gid` and an `error` string; `fetch_ehentai_gallery` turns that into an
+ordinary `None` rather than an error.
+
+| Concern | Behaviour |
+|---|---|
+| Keyed by | The gallery id and token read out of `ehentai_link` - `https://e-hentai.org/g/<gid>/<token>/`, the token ten hex characters - by `extract_ehentai_gallery_key` / `ehentai_gallery_key_for` in `app/utils/ehentai_utils.py`. There is no id column. An `exhentai.org` gallery URL is accepted too: the two hosts share one id space, so the same call serves a gallery pasted from either. A link that is not a gallery page gives no key, and the entry is not an E-Hentai candidate. |
+| Throttle | The API documents a courtesy limit of a few sequential requests per second; requests are spaced by `MIN_INTERVAL` (1 s). One gallery request per h-comic. |
+| Retry | 404 and 5xx are a `None` with no retry; 429 and network errors are retried as in [Shared behaviour](#shared-behaviour), and `autofill_h_comic_from_ehentai` swallows and logs anything that escapes. |
+
+### Mapping — `map_ehentai_to_h_comic_data`
+
+| E-Hentai field | Written to | Rule |
+|---|---|---|
+| `tags`, the `artist:` ones | the `illustrator` credit | Title-cased (the tags are lowercase romanisation, `artist:nanahara fuyuki`), in the gallery's order, de-duplicated. Written through `replace_credits(db, "h-comic", ...)` only when the entry has no illustrator credit yet. Every name is looked up with `find_person` **before** anything is written: when one of them matches two people (`AmbiguousNameError`), the whole credit is skipped and logged for the owner to pick, and the cover below is still taken. Person lookup casefolds, so an existing person matches whatever the case - title case only shapes a person the credit creates. |
+| `thumb` | `cover_image_file` | Downloaded under `h-comic/` only when the entry has no cover, so after Tenrai's. |
+
+The `thumb` is the gallery page's own cover: a 250×353 WebP at
+`https://ehgt.org/w/...webp`, the same URL the gallery page shows. There is no
+larger variant on that path - the `_l`, `_250` and `.jpg` forms all answer
+404 - and the CDN serves it with no `Referer` and with a foreign one alike,
+so nothing is scraped and no header is forged. The WebP bytes are stored
+under the usual `h-comic/<id>.jpg` key as they are, as Tenrai's WebP is
+([Cover images](#cover-images-local-disk)).
+
+**Not mapped, deliberately:**
+
+- `group:` tags - the circle, which would be the `club` credit. Left out of
+  scope: this source is there for the cover, and the illustrator is the one
+  credit the tags name directly.
+- `posted` - when the gallery was **uploaded**, not when the work came out,
+  so it never reaches `release_date`.
+- `title` / `title_jpn` - an uploader's filename-style title (`(Event)
+  [Circle (Artist)] Title (Parody) [Language]`), and an entry's names are its
+  identity, so no name is written.
+
+### The h-comic order, eligibility and Replace
+
+Both sources are fill-only, so the order is the priority. `_fill_h_comic`
+(`app/services/pipelines/specs.py`) and `apply_single_replace_h_comic`
+(`app/services/domain/post_processing.py`) run `autofill_h_comic_from_mal`
+first and `autofill_h_comic_from_ehentai` second: the cover is Tenrai's, else
+E-Hentai's; the illustrator can only come from E-Hentai, since Tenrai writes
+no credits on an h-comic.
+
+`has_missing_values_h_comic_ehentai` (`app/services/domain/checking.py`) is
+h-comic's second `fill_eligible` clause, ORed with the MAL one: an entry whose
+`ehentai_link` parses to a gallery key and whose cover or illustrator credit
+is blank (`H_COMIC_EHENTAI_FIELDS_TO_FILL`,
+`H_COMIC_EHENTAI_LINK_FIELDS_TO_FILL`). An entry with only an E-Hentai link -
+no `mal_id` - is therefore picked up by Fill and Fill All. h-comic's
+`replace_select` includes `ehentai_link`, and E-Hentai stays fill-only under
+Replace. The pause between entries is still `MAL_PAUSE`; E-Hentai's own
+spacing sits inside the client. The Calculate page's missing-cover tool
+re-fetches an h-comic with a `mal_id` or a parseable `ehentai_link` in the
+same order - and, like DLsite's there, the E-Hentai call can also write an
+absent illustrator credit.
+
 ## Google Sheets
 
 Sheets is the backup target and restore source. `sheets.py` contains no database logic — it only moves matrices in and out of tabs.
@@ -803,7 +882,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
 | `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`); in Fill All; Replace (bulk, single, write hook) runs both, IGDB fill-only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
-| `h-comic` | `apply_extract_mal_id_manga_novel` | `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has, fill-only; no AniList; in Fill All and Replace All | 1 s | Tenrai |
+| `h-comic` | `apply_extract_mal_id_manga_novel` | `_fill_h_comic`: `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has - then `autofill_h_comic_from_ehentai` - the cover and illustrator MAL left empty (see [E-Hentai](#e-hentai)); all fill-only; no AniList; in Fill All and Replace All, and Replace (`apply_single_replace_h_comic`) runs the same order and also selects entries linked only to E-Hentai | 1 s | Tenrai, E-Hentai |
 | `h-game` | as game | `_fill_h_game`: `autofill_h_game_from_dlsite`, then game's two autofills on the `h_game` table writing only what it has (IGDB's cover held back), then `autofill_cover_from_steam` and `autofill_game_cover_from_igdb` - the cover comes DLsite, Steam, IGDB (see [DLsite](#dlsite)); in Fill All; Replace (`apply_single_replace_h_game`) runs the same order and also selects entries linked only to DLsite. `/api/h-game/search-igdb` is game's picker | `STEAM_PAUSE` (0.5 s) | DLsite, IGDB (+ Twitch), Steam (storefront and image CDN) |
 
 Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page touch local disk and, for missing covers, the autofill functions again.
@@ -819,6 +898,7 @@ Things the code does today that a reader might not expect. None is a documentati
 - `fetch_openlibrary_work`'s `@retry` wraps all three calls (work, editions, authors), so a flaky author call re-runs the work and editions calls too on each attempt — the same shape as the `fetch_tmdb_data` note above.
 - The docstring of `_status_code` in `sheets.py` says gspread `5.12.0` is pinned; `requirements.txt` pins `6.2.1`. The function handles both shapes, so behaviour is unaffected.
 - DLsite's product JSON is undocumented: a change to its shape shows up as h-games that stop filling, logged, not as an error anywhere visible.
+- E-Hentai's cover is its 250px-wide gallery thumb, the largest the API names; an h-comic whose cover came from E-Hentai is a small image.
 - Steam's library capsule is looked up at the unhashed CDN path only. Apps whose store assets sit under a hashed path answer 404 there, so their h-game cover falls through to IGDB.
 - MAL's `OAD` type maps to `"Other"` even though the app's own vocabulary has an `OAD` value.
 - A single-entry Replace never fires `pre_run`, so AniList's cache is never bulk-primed for it; `anilist_record` falls back to a one-id fetch instead of returning nothing, which is what keeps a one-entry Replace from silently writing no AniList data at all.

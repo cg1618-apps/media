@@ -84,6 +84,11 @@ H_COMIC_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+# What E-Hentai fills on an h-comic, after MAL: the cover, and the
+# illustrator credit from the gallery's artist tags.
+H_COMIC_EHENTAI_FIELDS_TO_FILL = ["cover_image_file"]
+H_COMIC_EHENTAI_LINK_FIELDS_TO_FILL = [("credit", "illustrator")]
+
 ANIME_MOVIE_FIELDS_TO_FILL = [
     "airing_status",
     "release_date_jp",
