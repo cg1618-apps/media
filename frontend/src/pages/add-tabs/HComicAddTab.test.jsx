@@ -207,6 +207,11 @@ describe("HComicAddTab", () => {
       expect(field("MAL ID")).toHaveValue("777");
       expect(field("MAL ID")).toBeDisabled();
     });
+
+    it("asks for the E-Hentai gallery link", () => {
+      renderTab({ initial: { ehentai_link: "https://e-hentai.org/g/618395/0439fa3666/" } });
+      expect(field("E-Hentai Link")).toHaveValue("https://e-hentai.org/g/618395/0439fa3666/");
+    });
   });
 });
 

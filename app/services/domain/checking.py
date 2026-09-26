@@ -26,6 +26,8 @@ from app.utils.utils import (
     COMIC_FIELDS_TO_FILL,
     COMIC_LINK_FIELDS_TO_FILL,
     GAME_FIELDS_TO_FILL,
+    H_COMIC_EHENTAI_FIELDS_TO_FILL,
+    H_COMIC_EHENTAI_LINK_FIELDS_TO_FILL,
     H_COMIC_FIELDS_TO_FILL,
     H_GAME_DLSITE_FIELDS_TO_FILL,
     H_GAME_DLSITE_LINK_FIELDS_TO_FILL,
@@ -151,6 +153,27 @@ def has_missing_values_h_comic(h_comic) -> bool:
         h_comic.region == H_COMIC_REGION_KR
         and h_comic.serialization_status == "完結"
         and h_comic.ch_total is None
+    )
+
+
+def has_missing_values_h_comic_ehentai(db, entry) -> bool:
+    """
+    True when an h-comic's ehentai_link names a gallery and something E-Hentai
+    supplies is still blank: the cover, or the illustrator credit.
+
+    Its own gate rather than a clause of has_missing_values_h_comic, so an
+    entry with only an E-Hentai link - no MAL id - is picked up by Fill.
+    """
+    from app.utils.ehentai_utils import ehentai_gallery_key_for
+
+    if not ehentai_gallery_key_for(entry):
+        return False
+    for field in H_COMIC_EHENTAI_FIELDS_TO_FILL:
+        val = getattr(entry, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return _link_missing(
+        db, "h-comic", entry.system_id, H_COMIC_EHENTAI_LINK_FIELDS_TO_FILL
     )
 
 

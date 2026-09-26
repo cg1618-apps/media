@@ -529,6 +529,7 @@ export default function HComic() {
             sources={hComic.sources}
             mediaType="h-comic"
             malLink={hComic.mal_link}
+            ehentaiLink={hComic.ehentai_link}
             originalSource={shows("original_source") ? hComic.original_source : null}
           />
 

@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -669,6 +669,7 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `release_date` / `end_date` | String | yes | | Truncated ISO-8601, CHECKs `ck_h_comic_release_date_iso` / `ck_h_comic_end_date_iso` |
 | `mal_id` | Integer | yes | | Both. Extracted from `mal_link` by the write hook and every pipeline (`apply_extract_mal_id_manga_novel`); the key Tenrai is fetched on |
 | `mal_link` | String | yes | | Both. The MyAnimeList manga URL, typed by hand |
+| `ehentai_link` | String | yes | | Both. The E-Hentai gallery URL (`https://e-hentai.org/g/<gid>/<token>/`, an `exhentai.org` one accepted), typed by hand. No id column: the E-Hentai fill reads the gallery id and token out of it, and fills the cover and the illustrator credit after Tenrai ([external-apis.md](external-apis.md#e-hentai)) |
 | `highlight_group_order` | JSONB | yes | | **KR.** The owner's order of the `h_comic_highlights` groups: a list of distinct, non-blank female character names, read and written whole through the entry update. Names absent from it render after it, in first-appearance order |
 
 Constraints and wiring, as for every entry table: composite FK `fk_h_comic_media`

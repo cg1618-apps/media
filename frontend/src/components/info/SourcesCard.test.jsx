@@ -44,6 +44,21 @@ describe("SourcesCard", () => {
     expect(screen.getByRole("link", { name: /myanimelist/i })).toBeInTheDocument();
   });
 
+  it("renders an h-comic's E-Hentai gallery under Where to Look Up", () => {
+    render(
+      <SourcesCard
+        sources={[]}
+        mediaType="h-comic"
+        ehentaiLink="https://e-hentai.org/g/618395/0439fa3666/"
+      />,
+    );
+    const section = screen.getByRole("region", { name: "Where to Look Up" });
+    expect(within(section).getByRole("link", { name: /e-hentai/i })).toHaveAttribute(
+      "href",
+      "https://e-hentai.org/g/618395/0439fa3666/",
+    );
+  });
+
   // A game's Steam page is a storefront, not a reference database, so it
   // belongs beside the access rows rather than with IGDB and MAL.
   it("renders the Steam link under Where to Play", () => {

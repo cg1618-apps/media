@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -41,8 +41,9 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   aborts the fetch via an `AbortController`, and the page aborts any running
   stream on unmount. Only one stream runs at a time. The Fill box's
   **H-Comic** buttons (`/fill/h-comic`, `/replace/h-comic`) are drawn only for
-  a session that can see the type; both fetch Tenrai's manga record over the
-  h-comic table, fill-only, and end in the region clears and the label. The
+  a session that can see the type; both fetch Tenrai's manga record and then
+  the E-Hentai gallery (the cover and the illustrator) over the h-comic
+  table, fill-only, and end in the region clears and the label. The
   **H-Game** buttons (`/fill/h-game` in the Fill box, `/replace/h-game` in the
   Replace box) are gated the same way; they run Game's IGDB and Steam fill and
   Game's Replace (IGDB fill-only, then Steam) over the h-game table. The
@@ -258,13 +259,16 @@ needs a region and a CN or EN name, blanks what the region does not use
 (`clearedForRegion` - names are kept), quick-creates the typed people and genre
 values through `hComicSourceFields`, then `POST /api/h-comic/`, the credits,
 the cast and the labels; the write hook then fills from Tenrai when a MAL
-link was given. The form starts with the restricted source `禁漫天堂`, and
+link was given, and from E-Hentai when a gallery link was. The form starts with the restricted source `禁漫天堂`, and
 choosing KR adds the six KR names (`污汙漫畫`, `漫小肆ikanhm`, `ToonGod`,
 `Anime Planet`, `MANGA18`, `MANGADNA`) - rows that are still untouched (a
 suggested name with no url) follow the region, and anything typed stays
 (`lib/restrictedSources.js`). Modify offers the same names through the
-editor's **Prefill suggested** button instead. The MAL ID beside the MAL Link
-is read-only: the write hook derives it from the link. The
+editor's **Prefill suggested** button instead. The Links section holds the
+MAL Link, the MAL ID beside it - read-only: the write hook derives it from the
+link - and the **E-Hentai Link**, the gallery URL the second fill source reads
+(no id field: the gallery id and token are read out of the link). A blank
+E-Hentai Link is sent as `null` (`hComicFieldsPayload`). The
 content-label picker shows the `h-comic` label checked and locked: every entry
 carries it, and the save adds it back. The form never sends
 `highlight_group_order` - the detail page's drag owns it.
@@ -670,7 +674,8 @@ box. `h-game`'s four multi-choice lists offer no default, since their unset
 state is `null`, "not recorded"; auto-fill copies them as they are, `null`
 included (`buildAutofillPatch` keeps any field whose blank form value is
 `null`). `hentai`'s `mal_id` is hidden (the write hook derives it from the
-link) and `mal_link` is not auto-fillable.
+link) and `mal_link` is not auto-fillable; `h-comic`'s the same, and its
+`ehentai_link` (group Links) is neither defaultable nor auto-fillable.
 
 `game` is present here like any other media type, but its Add form has no
 "copy an existing entry" search (its box searches IGDB), so the auto-fill ticks

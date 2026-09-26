@@ -261,7 +261,8 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
       {/* The MAL id is not typed in: the write hook derives it from the
           link, and Tenrai fills the serialization status, the dates, the
           cover and a finished KR entry's chapter total from it where they
-          are blank. */}
+          are blank. The E-Hentai gallery is the second fill source, after
+          MAL: the cover and the illustrator, where still blank. */}
       <SectionHeader icon="fa-external-link-alt" title="Links" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2">
@@ -285,6 +286,18 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
             disabled
           />
         </Field>
+        <div className="md:col-span-2">
+          <Field label="E-Hentai Link">
+            <input
+              className={inputCls}
+              type="url"
+              aria-label="E-Hentai Link"
+              value={f.ehentai_link ?? ""}
+              onChange={(e) => u("ehentai_link", e.target.value)}
+              placeholder="https://e-hentai.org/g/.../.../"
+            />
+          </Field>
+        </div>
       </div>
 
       {/* Characters are real character rows, cast without a seiyuu - the
