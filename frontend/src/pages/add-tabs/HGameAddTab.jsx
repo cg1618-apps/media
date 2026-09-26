@@ -359,10 +359,11 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         </Field>
         {text("steam_link", "Steam Link", "https://store.steampowered.com/app/...")}
       </div>
-      {/* Plain links: nothing fetches DLsite. */}
+      {/* The DLsite fill reads the product id out of these links (JP first,
+          then TW) - there is no id field beside them. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {text("dlsite_link_jp", "DLsite Link (JP)", "https://www.dlsite.com/maniax/work/=/product_id/...")}
-        {text("dlsite_link_tw", "DLsite Link (TW)", "https://www.dlsite.com/...")}
+        {text("dlsite_link_tw", "DLsite Link (TW)", "https://www.dlsite.com/maniax/work/=/product_id/....html/?locale=zh_TW")}
       </div>
       <SourcesEditor
         value={f.sources}
