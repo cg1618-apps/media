@@ -1436,7 +1436,13 @@ export const TYPE_FIELD_META = {
     },
     my_rating: { autofillable: false },
     country: { label: "Country", group: "Classification", autofillable: false },
-    logo_file: { label: "Logo File", group: "Media", autofillable: false },
+    logo_file: {
+      label: "Logo File",
+      control: "none",
+      defaultable: false,
+      autofillable: false,
+      group: "Media",
+    },
     // Free text, not control: "date" — both columns take YYYY, YYYY-MM or
     // YYYY-MM-DD, which a native date picker cannot express. Same reason
     // release_date above is text.
@@ -1478,7 +1484,13 @@ export const TYPE_FIELD_META = {
     },
     my_rating: { autofillable: false },
     country: { label: "Country", group: "Classification", autofillable: false },
-    logo_file: { label: "Logo File", group: "Media", autofillable: false },
+    logo_file: {
+      label: "Logo File",
+      control: "none",
+      defaultable: false,
+      autofillable: false,
+      group: "Media",
+    },
     // Free text for the same reason the studio columns are: YYYY, YYYY-MM and
     // YYYY-MM-DD are all legal, which a native date picker cannot express.
     founded_date: {
@@ -1517,7 +1529,13 @@ export const TYPE_FIELD_META = {
     // Free text on the Add form: there is no gender vocabulary to select from.
     gender: { label: "Gender", group: "Classification", autofillable: false },
     my_rating: { autofillable: false },
-    photo_file: { label: "Photo File", group: "Media", autofillable: false },
+    photo_file: {
+      label: "Photo File",
+      control: "none",
+      defaultable: false,
+      autofillable: false,
+      group: "Media",
+    },
     remark: { autofillable: false },
   },
 
@@ -1535,7 +1553,13 @@ export const TYPE_FIELD_META = {
     },
     gender: { label: "Gender", group: "Classification", autofillable: false },
     my_rating: { autofillable: false },
-    photo_file: { label: "Photo File", group: "Media", autofillable: false },
+    photo_file: {
+      label: "Photo File",
+      control: "none",
+      defaultable: false,
+      autofillable: false,
+      group: "Media",
+    },
     remark: { autofillable: false },
   },
 };

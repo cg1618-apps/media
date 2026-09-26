@@ -60,6 +60,18 @@ describe("resolveDefaults", () => {
     expect(resolved.franchise_id).toBeNull();
   });
 
+  it("ignores a stored default for a field that cannot take one", () => {
+    // A logo default saved before the field became undefaultable. /defaults
+    // no longer shows it, so it could not be cleared there - it must stop
+    // applying. Country beside it proves the config was read at all.
+    const resolved = resolveDefaults("studio", {
+      studio: { defaults: { logo_file: "library/old.jpg", country: "Japan" } },
+    });
+
+    expect(resolved.logo_file).toBe(defaultStudio().logo_file);
+    expect(resolved.country).toBe("Japan");
+  });
+
   it("resolves the entity forms, which are not media entries", () => {
     const resolved = resolveDefaults("studio", {
       studio: { defaults: { country: "Japan", removed_field: "x" } },

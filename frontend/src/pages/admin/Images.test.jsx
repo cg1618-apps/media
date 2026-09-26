@@ -75,3 +75,47 @@ describe("Images manager - backfilled legacy rows", () => {
     expect(srcs).toContain("/api/covers/anime/x.jpg");
   });
 });
+
+describe("Images manager - cast photos", () => {
+  it("shows a cast photo as in use and refuses to delete it", async () => {
+    // A cast photo has no attachment row, so without cast_photo_count the
+    // tile would read Unused and offer a Delete the server refuses. The
+    // loose image beside it proves Delete is still offered when nothing
+    // uses the image.
+    vi.resetModules();
+    vi.doMock("../../hooks/useImages", () => ({
+      useImages: () => ({
+        data: {
+          images: [
+            {
+              system_id: "img-cast",
+              storage_key: "library/cast.jpg",
+              original_filename: "cast.jpg",
+              attachments: [],
+              cast_photo_count: 2,
+            },
+            {
+              system_id: "img-loose",
+              storage_key: "library/loose.jpg",
+              original_filename: "loose.jpg",
+              attachments: [],
+              cast_photo_count: 0,
+            },
+          ],
+          total: 2,
+        },
+        isLoading: false,
+      }),
+      useUploadImage: () => ({ mutateAsync: vi.fn(), isPending: false }),
+      useDetachImage: () => ({ mutateAsync: vi.fn(), isPending: false }),
+      useDeleteImage: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    }));
+    const { default: ImagesWithCastPhoto } = await import("./Images");
+    const { getByText, getAllByRole } = render(<ImagesWithCastPhoto />);
+
+    expect(getByText("Cast photo ×2")).toBeInTheDocument();
+    const [castDelete, looseDelete] = getAllByRole("button", { name: "Delete" });
+    expect(castDelete).toBeDisabled();
+    expect(looseDelete).toBeEnabled();
+  });
+});

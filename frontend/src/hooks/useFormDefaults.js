@@ -12,7 +12,7 @@
 // factory value's type before they ever reach form state.
 
 import { FORM_FACTORIES } from "../config/formFactories";
-import { BUILTIN_AUTOFILL } from "../config/formFields";
+import { BUILTIN_AUTOFILL, getFieldMap } from "../config/formFields";
 import { endpoints } from "../api/endpoints";
 
 /** Forces a stored value into the shape the form state expects. */
@@ -47,9 +47,13 @@ export function resolveDefaults(type, config) {
   const stored = config?.[type]?.defaults;
   if (!stored) return base;
 
+  const fieldMap = getFieldMap(type);
   const resolved = { ...base };
   for (const [key, value] of Object.entries(stored)) {
     if (!(key in base)) continue; // stale key from a removed form field
+    // Saved before the field stopped taking a default: /defaults no longer
+    // shows it, so it could never be cleared there.
+    if (fieldMap[key]?.defaultable === false) continue;
     resolved[key] = coerceToShape(base[key], value);
   }
   return resolved;
