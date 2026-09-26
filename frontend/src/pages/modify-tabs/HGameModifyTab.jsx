@@ -15,13 +15,10 @@ export default function HGameModifyTab({
   allHGames,
   seriesItemsForHGame,
   editingItem,
-  ribbonSection,
   sources,
 }) {
   return (
     <>
-      {ribbonSection}
-
       <SectionHeader icon="fa-gamepad" title="Titles & Naming" />
       <HGameLineageFields
         f={chgf}

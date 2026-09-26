@@ -490,6 +490,14 @@ holds — a franchise, a series or an entry; see
   counter), and the label picker clears the previous selection before
   fetching, so a slow or failed fetch can never save one entry's credits or
   labels onto another.
+- **Other entries in this franchise.** Above the editor card, a media entry
+  in a franchise gets a ribbon of that franchise's other entries of the same
+  type, grouped by series (a "No Series" group last), each a chip that opens
+  its editor. Anime, movie, TV show, cartoon and novel build it inline in
+  `Modify.jsx`; manga and comic build it there too but draw it inside the
+  card. Game, h-comic, h-game and hentai use `FranchiseRibbon`
+  (`components/forms/`), with the chip badged by game type (game, h-game) or
+  region (h-comic). Anime movie has none.
 - **Save.** `PUT` the entry → `saveCredits` → labels (a franchise saves its
   own set the same way, through `saveFranchiseLabels`) → for **anime, anime
   movie, cartoon and manga**, enrichment via `lib/enrich.js`; the page then
@@ -497,8 +505,8 @@ holds — a franchise, a series or an entry; see
   enrichment failed. Other types save without enrichment.
 - **Game tab.** `GameModifyTab.jsx` renders `GameAddTab`'s exported
   `GameLineageFields` and `GameFormBody` rather than keeping its own copy, so
-  the two tabs cannot drift; the only differences are the ribbon section Modify
-  puts above the form, the Structured Notes below it, and `excludeGameId`, which drops the row being edited from
+  the two tabs cannot drift; the only differences are the franchise ribbon
+  Modify puts above the card, the Structured Notes below the form, and `excludeGameId`, which drops the row being edited from
   its own Base Game picker. This is a deliberate divergence from the **comic**
   pair, which still keeps two near-identical files. The Modify tab has **no IGDB
   search box** — identification happens once, on Add — and it saves with
@@ -519,8 +527,7 @@ holds — a franchise, a series or an entry; see
   unrecorded list `null` rather than `[]`. No IGDB box, as on Game; it saves
   with `PATCH /api/h-game/{id}`, then credits and labels, without enrichment.
 - **Hentai tab.** `HentaiModifyTab.jsx` renders `HentaiAddTab`'s exported
-  `HentaiLineageFields` and `HentaiFormBody`, the game pattern, with no
-  ribbon. `hentaiToForm` seeds the columns and the credit and genre fields
+  `HentaiLineageFields` and `HentaiFormBody`, the game pattern. `hentaiToForm` seeds the columns and the credit and genre fields
   arrive through `loadCreditsIntoForm`; a new franchise typed there is created
   as `Hentai`. It saves with `PATCH /api/hentai/{id}`, then credits and
   labels, without enrichment.
