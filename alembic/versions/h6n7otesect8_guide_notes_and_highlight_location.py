@@ -12,7 +12,7 @@ one per line, the location as a `Location:` line - after whatever the
 description already said.
 
 Revision ID: h6n7otesect8
-Revises: h5c6malsrc7
+Revises: h7v8oicecast9
 Create Date: 2026-09-26 00:00:00.000000
 
 """
@@ -24,7 +24,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "h6n7otesect8"
-down_revision: Union[str, Sequence[str], None] = "h5c6malsrc7"
+down_revision: Union[str, Sequence[str], None] = "h7v8oicecast9"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
