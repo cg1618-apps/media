@@ -710,13 +710,13 @@ since it already reaches every type. The scope is copied once, not derived: a
 the Options page too.
 
 **Restricted sources are suggested, not a vocabulary.** A `restricted`
-`media_source` row is free text, so the names an h-comic is prefilled with -
-`禁漫天堂` on every entry, and `污汙漫畫`, `漫小肆ikanhm`, `ToonGod`,
-`Anime Planet`, `MANGA18` and `MANGADNA` on a KR one - and the one a hentai
-is prefilled with, `Hanime1`, live in the frontend
-(`lib/hComicRestrictedSources.js`, `lib/hentaiRestrictedSources.js`), not in
-`system_option`. The server never
-checks them, and any other name is still accepted.
+`media_source` row is free text, so the names each type is prefilled with and
+offers - `Gimy` on the watch types, `Anime1` on anime, `BatCave` on comic,
+the novel sites, `禁漫天堂` and the six KR names on h-comic, `Hanime1` on
+hentai, and the rest - live in the frontend (`lib/restrictedSources.js`; the
+full table is in [Admin Pages](frontend/admin-pages.md#add-addjsx)), not in
+`system_option`. The server never checks them, and any other name is still
+accepted.
 
 **The game vocabulary is seeded from code, not inline SQL.**
 `app/utils/game_vocabulary.py` holds `GAME_VOCABULARY` (the five tag

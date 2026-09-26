@@ -154,7 +154,7 @@ describe("SourcesEditor", () => {
           onChange={onChange}
           mediaType="h-comic"
           sources={sources}
-          restrictedSuggestions={["禁漫天堂", "ToonGod"]}
+          restrictedSources={{ prefill: ["禁漫天堂", "ToonGod"], suggestions: ["禁漫天堂", "ToonGod"] }}
         />,
       );
       return onChange;
@@ -186,8 +186,50 @@ describe("SourcesEditor", () => {
       expect(onChange).toHaveBeenCalledWith([row("Somewhere else")]);
     });
 
-    it("offers neither without suggestions", () => {
-      renderEditor([row("")]);
+    it("prefills only the every-entry names, and offers the optional ones too", () => {
+      // Manga: three names every entry has, 包子漫畫 only offered. The bucket
+      // holds none of them, so a prefill that took every suggestion would
+      // add four rows here, not three.
+      const onChange = vi.fn();
+      render(
+        <SourcesEditor
+          value={[row("")]}
+          onChange={onChange}
+          mediaType="manga"
+          sources={sources}
+        />,
+      );
+      const input = screen.getByRole("combobox", { name: "Restricted Sources name" });
+      const list = document.getElementById(input.getAttribute("list"));
+      expect([...list.options].map((o) => o.value)).toEqual([
+        "漫畫櫃 (電腦版)",
+        "漫畫櫃 (手機版)",
+        "漫畫人",
+        "包子漫畫",
+      ]);
+      fireEvent.click(screen.getByRole("button", { name: /prefill suggested \(3\)/i }));
+      expect(onChange).toHaveBeenCalledWith([
+        row(""),
+        row("漫畫櫃 (電腦版)"),
+        row("漫畫櫃 (手機版)"),
+        row("漫畫人"),
+      ]);
+    });
+
+    it("offers the names but no prefill when every one is optional", () => {
+      render(
+        <SourcesEditor value={[row("")]} onChange={vi.fn()} mediaType="novel" sources={sources} />,
+      );
+      expect(screen.queryByRole("button", { name: /prefill suggested/i })).toBeNull();
+      expect(
+        screen.getByRole("combobox", { name: "Restricted Sources name" }),
+      ).toHaveAttribute("list");
+    });
+
+    it("offers neither on a type with no list", () => {
+      render(
+        <SourcesEditor value={[row("")]} onChange={vi.fn()} mediaType="game" sources={sources} />,
+      );
       expect(screen.queryByRole("button", { name: /prefill suggested/i })).toBeNull();
       expect(
         screen.getByRole("textbox", { name: "Restricted Sources name" }),
