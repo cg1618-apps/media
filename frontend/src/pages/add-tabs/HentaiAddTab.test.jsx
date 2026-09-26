@@ -79,12 +79,17 @@ describe("HentaiAddTab", () => {
     expect(screen.getByText("Genre Relation")).toBeInTheDocument();
   });
 
-  it("offers no progress, no cast and no MAL id", () => {
+  it("offers no progress and no MAL id", () => {
     renderTab();
     for (const label of ["Episodes Finished", "Total Episodes", "MAL ID", "Reading Status"]) {
       expect(field(label), label).toBeNull();
     }
-    expect(screen.queryByText("Cast")).toBeNull();
+  });
+
+  it("offers a cast", () => {
+    // The seiyuu column itself is CastEditor's, asserted in its own test.
+    renderTab();
+    expect(screen.getByText("Cast")).toBeInTheDocument();
   });
 
   it("offers the h-comic family's franchises and no mainstream one", async () => {

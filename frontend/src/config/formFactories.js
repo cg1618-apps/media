@@ -19,6 +19,7 @@
 // sent to the API and is always reset to null by freshForm() after a save.
 
 import { withSuggestedRestrictedSources } from "../lib/hComicRestrictedSources";
+import { defaultHentaiSources } from "../lib/hentaiRestrictedSources";
 
 export const defaultAnime = () => ({
   anime_name_en: "",
@@ -532,7 +533,7 @@ export const defaultHentai = () => ({
   h_genre_plot: "",
   h_genre_appearance: "",
   h_genre_relation: "",
-  sources: [],
+  sources: defaultHentaiSources(),
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",

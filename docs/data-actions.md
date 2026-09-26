@@ -465,7 +465,7 @@ Per type (verbatim from `specs.py`):
 | `game` | `igdb_id` set and `has_missing_values_game(e)`, **or** `has_missing_values_game_steam(e)` | `autofill_game_from_igdb(e, db)` then `autofill_game_from_steam(e, db)` | `STEAM_PAUSE` = 0.5 s | — | `"Syncing system options..."` → `run_sync_game` | `steam_store_rate_limiter.has_capacity` |
 | `h-comic` | `mal_id` set and `has_missing_values_h_comic` (`serialization_status`, `release_date`, `end_date` or the cover blank, or `ch_total` on a `完結` KR entry) | `autofill_h_comic_from_mal(e, db=db)` - no AniList | `MAL_PAUSE` = 1 s | — | `"Syncing h-comic invariants..."` → `run_sync_h_comic`, `"Syncing gated labels..."` → `run_sync_gated_labels` | — |
 | `h-game` | as game | game's two autofills, generalised over the model (below) | `STEAM_PAUSE` = 0.5 s | `game_post_processing` | `"Syncing system options..."` → `run_sync_game`, `"Syncing gated labels..."` → `run_sync_gated_labels` | `steam_store_rate_limiter.has_capacity` |
-| `hentai` | `mal_id` set and `has_missing_values_hentai` (`airing_status`, `release_date` or the cover blank) | `autofill_hentai_from_mal(e, db=db)` - no AniList | `MAL_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_hentai`, `"Syncing gated labels..."` → `run_sync_gated_labels` | — |
+| `hentai` | `mal_id` set and `has_missing_values_hentai` (`airing_status`, `release_date` or the cover blank) | `autofill_hentai_from_mal(e, db=db)` - also the Official site / Twitter reference rows; no AniList | `MAL_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_hentai`, `"Syncing gated labels..."` → `run_sync_gated_labels` | — |
 | `studio` | `mal_id` set and `has_missing_values_studio` | `autofill_studio_from_mal(e)` | `MAL_PAUSE` = 1 s | — | — | — |
 
 `extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie, hentai), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga, h-comic), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic), `apply_extract_game_ids` (game — runs both `apply_extract_igdb_id`, from `igdb_link`, and `apply_extract_steam_appid`, from `steam_link`, unconditionally, since a game can carry an IGDB link, a Steam link, or both; a `www.igdb.com` **slug** URL or a `steamcommunity.com` hub link carries no id and leaves any existing one untouched, mirroring `extract_comicvine_id`'s rejection of issue URLs). `apply_extract_mal_id_studio` (studio — a producer URL is `myanimelist.net/anime/producer/<id>/<slug>`, which needs its own pattern; see [external-apis.md](external-apis.md#tenrai-myanimelist)).
@@ -522,11 +522,14 @@ filled. Every run and the write hook end in `run_sync_h_comic` and
 `run_sync_gated_labels`. Nothing it writes is overwritten, so its bulk Replace
 completes what is blank.
 
-**Hentai reads Tenrai for three things.** `PIPELINES["hentai"]` is anime's
-spec minus AniList: `fetch_tenrai_anime_data` and `map_tenrai_to_anime_data`,
-which serve Rx titles like any other, and only `airing_status`,
-`release_date` (both fill-only) and the cover (downloaded only when the entry
-has none) are written - no names, studio, scores or AniList. Because nothing
+**Hentai reads Tenrai for three fields and two links.** `PIPELINES["hentai"]`
+is anime's spec minus AniList: `fetch_tenrai_anime_data` and
+`map_tenrai_to_anime_data`, which serve Rx titles like any other, and only
+`airing_status`, `release_date` (both fill-only), the cover (downloaded only
+when the entry has none) and the `Official site` / `Twitter` reference rows
+(added only where the entry has none) are written - no names, studio, scores
+or AniList. Fill eligibility still looks at the three fields alone, so an
+entry whose three fields are set gains its links on a Replace, not a Fill. Because nothing
 it writes is overwritten, its bulk Replace completes what is blank and
 changes nothing else. Every run, and the single-entry write hook, ends in
 `run_sync_hentai` (system options) and `run_sync_gated_labels`, which keeps

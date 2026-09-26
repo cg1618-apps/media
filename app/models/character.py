@@ -157,11 +157,11 @@ class CharacterCasting(Base):
             "character_id", "media_type", "entry_id", name="uq_character_casting"
         ),
         # Characters reach the ACG types (CASTING_MEDIA_TYPES); seiyuu reach
-        # only the two with voice acting.
+        # only the ones with voice acting (VOICED_MEDIA_TYPES).
         # Enforced here rather than by convention because the Fill pipeline and
         # any future migration write these rows without going through the API.
         CheckConstraint(
-            "person_id IS NULL OR media_type IN ('anime', 'anime-movie')",
+            "person_id IS NULL OR media_type IN ('anime', 'anime-movie', 'hentai')",
             name="ck_casting_voice_scope",
         ),
         Index("ix_character_casting_entry", "media_type", "entry_id"),

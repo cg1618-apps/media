@@ -434,7 +434,7 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 | `author` | Author | person | manga, novel, comic, h-comic |
 | `illustrator` | Illustrator | person | manga, novel, comic, h-comic |
 | `club` | Club | person | h-comic |
-| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie |
+| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai |
 
 `PERSON_ROLES` (derived, served as `/api/constants` `person_role`): `director`,
 `producer`, `composer`, `author`, `illustrator`, `club`, `seiyuu` -
@@ -696,11 +696,22 @@ streaming service in the Main Sources picker of every read and gated type -
 and, with no Platform value of its own, it was the only thing h-comic offered.
 `Official site` and `Twitter` are scoped to `h-comic` too.
 
+**hentai is offered what anime is, plus DLsite** (migration `h6e7n8srcs9`).
+Every `Platform` value scoped to `anime` carries a `hentai` scope as well, and
+so do `DLsite TW` and `DLsite JP` (still `watch`-only, so Main Sources and not
+an origin picker). `Official site` and `Twitter` are scoped to `hentai`, the
+two links Tenrai writes for it. A value carrying no scope rows is left alone,
+since it already reaches every type. The scope is copied once, not derived: a
+`Platform` value later given an `anime` scope needs its `hentai` scope added on
+the Options page too.
+
 **Restricted sources are suggested, not a vocabulary.** A `restricted`
 `media_source` row is free text, so the names an h-comic is prefilled with -
 `禁漫天堂` on every entry, and `污汙漫畫`, `漫小肆ikanhm`, `ToonGod`,
-`Anime Planet`, `MANGA18` and `MANGADNA` on a KR one - live in the frontend
-(`lib/hComicRestrictedSources.js`), not in `system_option`. The server never
+`Anime Planet`, `MANGA18` and `MANGADNA` on a KR one - and the one a hentai
+is prefilled with, `Hanime1`, live in the frontend
+(`lib/hComicRestrictedSources.js`, `lib/hentaiRestrictedSources.js`), not in
+`system_option`. The server never
 checks them, and any other name is still accepted.
 
 **The game vocabulary is seeded from code, not inline SQL.**

@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-25
+Last verified: 2026-09-26
 
 ## What this is for
 
@@ -36,7 +36,7 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 | `media_credit` | One person, studio **or** publisher on one entry: `media_id` FK → `media.system_id` (cascade), `role` (one of `CREDIT_ROLE_KEYS`), `person_id` / `studio_id` / `publisher_id` (all three FK, cascade on delete), `position` (order of the original comma list), `remark`. Exactly one of the three is set. | `ck_media_credit_one_target` CHECK `num_nonnulls(person_id, studio_id, publisher_id) = 1`; `uq_media_credit_row (media_id, role, person_id, studio_id, publisher_id)` NULLS NOT DISTINCT; index on `media_id` |
 | `media_tag` | One vocabulary value on one entry: `media_id` FK → `media.system_id` (cascade), `field` (one of `TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. Column is `field`, not `category`: one category can back several fields, one field maps to exactly one category. | `uq_media_tag_row (media_id, field, option_id)`; index on `media_id` |
 | `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `remark`, timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
-| `character_casting` | THE cast record for one character, in one entry, optionally voiced by one person: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `person_id` (FK, **SET NULL**), `role` (`CHARACTER_ROLES`), `position`, `photo_file`, `remark`. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, media_type, entry_id)`; `ck_casting_voice_scope` (a seiyuu only on `anime`/`anime-movie`); index on `(media_type, entry_id)` |
+| `character_casting` | THE cast record for one character, in one entry, optionally voiced by one person: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `person_id` (FK, **SET NULL**), `role` (`CHARACTER_ROLES`), `position`, `photo_file`, `remark`. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, media_type, entry_id)`; `ck_casting_voice_scope` (a seiyuu only on `anime`/`anime-movie`/`hentai`); index on `(media_type, entry_id)` |
 
 **Why NULLS NOT DISTINCT everywhere.** Postgres treats two NULLs as distinct
 inside a UNIQUE constraint. `name_en` is NULL on essentially every backfilled
@@ -67,7 +67,7 @@ the stored value, tuple of keys for validation.
 | `author` | Author | person | manga, novel, comic, h-comic |
 | `illustrator` | Illustrator | person | manga, novel, comic, h-comic |
 | `club` | Club | person | h-comic |
-| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie |
+| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai |
 
 **`club` is the circle an h-comic comes out of.** Studio-like as an idea, an
 author as a schema: a `person` row, so a club and its artists live in one
@@ -288,7 +288,7 @@ All.
 | `DELETE /api/character/{id}?castings=N` | admin | Same count-guard shape as `DELETE /api/person?credits=N`: castings cascade away, and a count that moved underneath the admin is a 409. |
 | `POST /api/character/{id}/merge` `{source_id}` | admin | Repoints every casting from source onto target (drops ones that would collide on `uq_character_casting`), deletes the source. The correct fix for a duplicate, since a delete would cascade the castings away. |
 | `GET /api/casting/{media_type}/{entry_id}` | public (viewer) | The entry's cast, ordered by `position`. Missing or hidden entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
-| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, novel, h-comic). Rejects (422) a seiyuu on a non-voiced media type - h-comic included - or an unknown role before the row ever reaches `ck_casting_voice_scope`. |
+| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, novel, h-comic, hentai). Rejects (422) a seiyuu on a non-voiced media type - h-comic included - or an unknown role before the row ever reaches `ck_casting_voice_scope`. |
 
 **Deleting a publisher removes its logo; deleting a studio does not.** This
 asymmetry is deliberate, not an oversight. `delete_publisher` calls
