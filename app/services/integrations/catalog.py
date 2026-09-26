@@ -220,6 +220,22 @@ SERVICES: dict[str, Service] = {
         rate_limit="none published; 1 s between requests as a courtesy",
         docs_anchor="dlsite",
     ),
+    "anidb": Service(
+        key="anidb",
+        label="AniDB",
+        module="app.services.integrations.anidb",
+        base_url="http://api.anidb.net:9001/httpapi",
+        auth=(
+            "ANIDB_CLIENT + ANIDB_CLIENTVER, a client registered at anidb.net; "
+            "AniDB is off while either is unset"
+        ),
+        rate_limit=(
+            "bans above ~1 request / 2 s and for re-fetching an anime within a "
+            "day; paced 4 s apart, each answer cached 24 h, and a run stops at "
+            "the first error"
+        ),
+        docs_anchor="anidb",
+    ),
 }
 
 # A missing key is never fatal: the client logs and returns None, so the run
@@ -980,11 +996,19 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
     Coverage(
         key="hentai",
         keyed_by="mal_id",
-        combination="single",
-        requests_per_entry="1 Tenrai",
+        combination="merged",
+        requests_per_entry=(
+            "1 Tenrai, plus 1 AniDB while something is still blank after it "
+            "(none when AniDB is disabled, or the aid was fetched in the last "
+            "24 hours)"
+        ),
         note=(
             "The same Tenrai anime record as Anime, read for three fields and "
-            "the two reference links. "
+            "the two reference links, then AniDB - keyed on anidb_id, from "
+            "anidb_link - for whichever of the three MAL left blank. Both are "
+            "fill-only, so MAL's value wins wherever both have one; AniDB "
+            "covers the OVAs MAL does not list. An entry with only an AniDB "
+            "link is filled while AniDB is enabled. "
             "Every run and the single-entry hook end in the hentai sync, which "
             "keeps the hentai label on."
         ),
@@ -1013,6 +1037,37 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "none",
                         "never",
                         "credited by hand; Tenrai's studios are not read here",
+                    ),
+                ),
+            ),
+            SourceBlock(
+                source="anidb",
+                writes=(
+                    Write(
+                        "airing_status",
+                        "column",
+                        "fill-only",
+                        "derived from startdate / enddate / episodecount - "
+                        "AniDB publishes no status",
+                    ),
+                    Write("release_date", "column", "fill-only", "startdate"),
+                    Write(
+                        "cover_image_file",
+                        "image",
+                        "if-empty",
+                        "picture, from AniDB's image CDN; after MAL's",
+                    ),
+                    Write(
+                        "Official site",
+                        "source",
+                        "if-absent",
+                        "a reference media_source row, from the anime's url",
+                    ),
+                    Write(
+                        "hentai_name_en",
+                        "none",
+                        "never",
+                        "no name is ever written: the names are the entry's identity",
                     ),
                 ),
             ),

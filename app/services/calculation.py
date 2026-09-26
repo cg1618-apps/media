@@ -8,6 +8,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session, selectinload
 
+from app.config import settings
 from app.models import (
     Anime,
     AnimeMovies,
@@ -41,6 +42,7 @@ from app.services.domain import (
     autofill_game_from_igdb,
     autofill_h_comic_from_mal,
     autofill_h_game_from_dlsite,
+    autofill_hentai_from_anidb,
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -487,16 +489,18 @@ def bulk_download_missing_covers(
         autofill_h_comic_from_mal(hc, db=db)
         if hc.cover_image_file:
             downloaded += 1
-    # Hentai re-fetches from Tenrai like an anime movie; one with no MAL id is
+    # Hentai's fill order: Tenrai, then AniDB while the cover is still empty.
+    # One with neither a MAL id nor an AniDB id (with AniDB enabled) is
     # counted and skipped.
     hentai_query = db.query(Hentai).join(Hentai.media_row).filter(Media.cover_image_file.isnot(None))
     for he in _collect(hentai_query, Hentai, "hentai"):
         total += 1
-        if not he.mal_id:
+        if not he.mal_id and not (he.anidb_id and settings.anidb_enabled):
             skipped += 1
             continue
         he.cover_image_file = None
         autofill_hentai_from_mal(he, db=db)
+        autofill_hentai_from_anidb(he, db=db)
         if he.cover_image_file:
             downloaded += 1
 

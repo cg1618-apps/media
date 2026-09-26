@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-25
+Last verified: 2026-09-27
 
 ## What this is for
 
@@ -257,7 +257,8 @@ current template: `test_hentai_entries.py` (CRUD, label, who sees it,
 franchises), `test_hentai_shared_records.py` (credits, shared vocabularies, a
 session seeing one gated type but not the other - `mode_client` with the
 other label in `denials`), `test_hentai_sheets.py`, `test_hentai_tenrai.py`
-(the fetch patched, no network), `test_hentai_label_migration.py` (the
+(the fetch patched, no network), `test_hentai_anidb_fill.py` (AniDB after MAL,
+the enabled/disabled pair and a ban stopping the run; `requests.get` patched), `test_hentai_label_migration.py` (the
 revision's own SQL run against the test session) and
 `tests/unit/test_hentai_domain.py`.
 

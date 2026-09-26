@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 ## What this is for
 
@@ -2255,3 +2255,34 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   unhashed CDN path, and a 404 there is "no cover", which leaves an app with
   hashed store assets to IGDB rather than adding a storefront request to find
   the hashed path.
+
+### Hentai fills from AniDB after MAL (2026-09-27)
+
+- **Why AniDB.** Hentai filled from MAL alone, through Tenrai, and MAL does
+  not list many hentai OVAs - the cover is what goes missing most. AniDB
+  catalogues them, publishes a documented HTTP API and serves covers from an
+  open CDN. It is a second source in the DLsite mould: fill-only, keyed off a
+  pasted link, and run after the first source so it only fills gaps.
+- **MAL first, then AniDB, both fill-only.** The order is the priority, as it
+  is for h-game's covers. AniDB also fills the release date (`startdate`), an
+  airing status derived from its dates (AniDB publishes no status), and the
+  Official site row - whatever MAL's hentai autofill writes and AniDB can
+  supply. Never a name: the names are the entry's identity.
+- **An `anidb_id` column beside `anidb_link`.** Unlike DLsite, whose product
+  id is read out of the link on every use, hentai already has the MAL pair -
+  `mal_id` extracted from `mal_link` by the write hook and at the start of a
+  run - and AniDB follows that pair rather than DLsite's shape.
+- **A registered client, and off without one.** AniDB answers only a client
+  registered on the site. `ANIDB_CLIENT` / `ANIDB_CLIENTVER` carry it;
+  unset, nothing is sent and, unlike Steam's switch, fill eligibility turns
+  false too, so an unconfigured machine does not queue entries nothing would
+  fill. No client name was invented or borrowed: AniDB bans by client.
+- **Pacing is set by AniDB's bans, not by a rate limit.** AniDB bans a
+  client that asks more than about once every two seconds, and one that
+  fetches the same anime twice in a day. So requests are 4 s apart, every
+  answer is cached for 24 hours in-process, and the first error answer other
+  than a not-found halts the client and becomes the hentai spec's `budget`:
+  the run stops, and the rest is reported as left for the next run. That
+  stops the MAL half of the remaining entries as well - accepted, because the
+  run is short, the message says why, and continuing to call a banning server
+  is what extends a ban. The next run's `pre_run` lifts the halt.

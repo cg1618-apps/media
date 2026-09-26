@@ -1017,6 +1017,8 @@ export default function Modify() {
       release_date: h.release_date ?? "",
       mal_id: h.mal_id ?? "",
       mal_link: h.mal_link || "",
+      anidb_id: h.anidb_id ?? "",
+      anidb_link: h.anidb_link || "",
       watching_status: h.watching_status || md("hentai").watching_status,
       my_rating: h.my_rating || "",
       usefulness: h.usefulness || "",

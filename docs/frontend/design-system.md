@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-09-25
+Last verified: 2026-09-27
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -116,8 +116,8 @@ Two of those flex rather than fork for a type that does not fit the shape:
 - `SourcesCard`'s access heading is chosen by media type — "Where to Watch",
   "Where to Read", or **"Where to Play"** for a game — above a single
   "Where to Look Up" reference section that also renders the column-backed
-  `malLink` / `imdbLink` / `comicvineLink` / `openLibraryLink` / `igdbLink`
-  props.
+  `malLink` / `anidbLink` / `imdbLink` / `comicvineLink` / `openLibraryLink` /
+  `igdbLink` props.
 
 ## Page anatomy
 

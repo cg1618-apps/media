@@ -44,6 +44,7 @@ from app.services.domain import (
     anime_post_processing,
     apply_extract_comicvine_id,
     apply_extract_game_ids,
+    apply_extract_hentai_ids,
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
@@ -71,6 +72,7 @@ from app.services.domain import (
     autofill_game_from_steam,
     autofill_h_comic_from_mal,
     autofill_h_game_from_dlsite,
+    autofill_hentai_from_anidb,
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -90,6 +92,7 @@ from app.services.domain import (
     has_missing_values_h_comic,
     has_missing_values_h_game_dlsite,
     has_missing_values_hentai,
+    has_missing_values_hentai_anidb,
     has_missing_values_manga,
     has_missing_values_movie,
     has_missing_values_novel,
@@ -99,6 +102,7 @@ from app.services.domain import (
     manga_post_processing,
     tv_show_post_processing,
 )
+from app.services.integrations import anidb
 from app.services.integrations.anilist import (
     ANIME,
     MANGA,
@@ -179,6 +183,17 @@ def _fill_h_game(db, entry) -> None:
     autofill_game_from_steam(entry, db)
     autofill_cover_from_steam(entry)
     autofill_game_cover_from_igdb(entry)
+
+
+def _fill_hentai(db, entry) -> None:
+    """MAL first, then AniDB for whatever MAL left blank.
+
+    Both are fill-only, so the order IS the priority: MAL's cover, date and
+    status win whenever MAL has them, and AniDB covers the OVAs MAL does not
+    list. AniDB paces itself (anidb.MIN_INTERVAL) and asks only while
+    something is still blank after MAL."""
+    autofill_hentai_from_mal(entry, db=db)
+    autofill_hentai_from_anidb(entry, db=db)
 
 
 def _start_game_run(db) -> None:
@@ -402,20 +417,34 @@ PIPELINES: dict[str, PipelineSpec] = {
         single_after=(run_sync_h_comic, run_sync_gated_labels),
     ),
     # Tenrai, like anime minus AniList, for three things only: airing status,
-    # release date and the cover, all fill-only (autofill_hentai_from_mal).
-    # Every run and the single-entry hook end in the hentai sync and the gated
-    # label sync, which keeps the label on.
+    # release date and the cover, then AniDB for whichever of them MAL left
+    # blank - all fill-only (_fill_hentai). Every run and the single-entry
+    # hook end in the hentai sync and the gated label sync, which keeps the
+    # label on.
     "hentai": PipelineSpec(
         key="hentai", label="Hentai", model=Hentai,
-        extract_id=apply_extract_mal_id_anime,
-        fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_hentai(e),
-        fill=lambda db, e: autofill_hentai_from_mal(e, db=db),
+        extract_id=apply_extract_hentai_ids,
+        # Two gates, as h-game's: an entry with only an AniDB link is queued
+        # while AniDB is enabled, and never while it is not.
+        fill_eligible=lambda db, e: (
+            (e.mal_id is not None and has_missing_values_hentai(e))
+            or has_missing_values_hentai_anidb(e)
+        ),
+        fill=_fill_hentai,
+        # Lifts a halt left by the previous run's AniDB error.
+        pre_run=lambda db: anidb.start_run(),
         fill_sleep=MAL_PAUSE,
+        # AniDB bans a client that keeps asking after an error, so the first
+        # error answer (a ban above all) ends the run here, with the rest
+        # reported as left for the next one.
+        budget=anidb.has_capacity,
         fill_after=(
             ("Syncing system options...", run_sync_hentai),
             ("Syncing gated labels...", run_sync_gated_labels),
         ),
-        replace_select=_linked(Hentai, Hentai.mal_id, Hentai.mal_link),
+        replace_select=_linked(
+            Hentai, Hentai.mal_id, Hentai.mal_link, Hentai.anidb_id, Hentai.anidb_link
+        ),
         replace=lambda db, e, bulk: apply_single_replace_hentai(db, e, bulk=bulk),
         replace_sleep=MAL_PAUSE,
         replace_after=(

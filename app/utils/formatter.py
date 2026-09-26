@@ -1040,6 +1040,8 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
         ),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
+        "anidb_id": parse_from_sheet(raw.get("anidb_id"), int),
+        "anidb_link": parse_from_sheet(raw.get("anidb_link"), str),
         "studio": parse_from_sheet(raw.get("studio"), str),
         "director": parse_from_sheet(raw.get("director"), str),
         "h_genre_plot": parse_from_sheet(raw.get("h_genre_plot"), str),

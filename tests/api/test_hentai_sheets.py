@@ -44,6 +44,8 @@ def test_the_parser_types_every_column():
             "release_date": "2024",
             "mal_id": "188",
             "mal_link": "https://myanimelist.net/anime/188",
+            "anidb_id": "4521.0",
+            "anidb_link": "https://anidb.net/anime/4521",
             "studio": "Studio A, Studio B",
         }
     )
@@ -51,6 +53,8 @@ def test_the_parser_types_every_column():
     assert parsed["series_number"] == 2
     assert parsed["release_date"] == "2024"
     assert parsed["mal_id"] == 188
+    assert parsed["anidb_id"] == 4521
+    assert parsed["anidb_link"] == "https://anidb.net/anime/4521"
     assert parsed["studio"] == "Studio A, Studio B"
 
 

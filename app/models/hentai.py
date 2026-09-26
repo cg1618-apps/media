@@ -23,7 +23,8 @@ class Hentai(Base, NameFallbackMixin):
     One entry is one episode, so there is no episode count and watch orders
     treat an entry as whole. Tenrai fills airing_status, release_date, the
     cover and the Official site / Twitter reference rows from `mal_link`
-    (autofill_hentai_from_mal).
+    (autofill_hentai_from_mal); AniDB then fills what is still blank from
+    `anidb_link` (autofill_hentai_from_anidb).
 
     Every row carries the `hentai` content label, attached server-side on
     every write path - REQUIRED_LABEL_FOR_TYPE in
@@ -88,6 +89,11 @@ class Hentai(Base, NameFallbackMixin):
     # The MyAnimeList entry Tenrai fills this entry from. mal_id is extracted from mal_link, as for anime.
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
+
+    # The AniDB anime filled from after MAL, for what MAL left blank - the
+    # cover above all. anidb_id is extracted from anidb_link, as mal_id is.
+    anidb_id = Column(Integer, nullable=True)
+    anidb_link = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

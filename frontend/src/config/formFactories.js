@@ -505,8 +505,8 @@ export const defaultHGame = () => ({
 
 // The gated hentai type. One entry is one episode, so there is no episode
 // count. The credit and tag keys are the role and tag-field keys themselves,
-// as h-comic's are (payloads.js CREDITS_FIELD_MAP). `mal_id` is not typed in:
-// the write hook derives it from `mal_link`.
+// as h-comic's are (payloads.js CREDITS_FIELD_MAP). `mal_id` and `anidb_id`
+// are not typed in: the write hook derives each from its link.
 export const defaultHentai = () => ({
   hentai_name_cn: "",
   hentai_name_en: "",
@@ -524,6 +524,8 @@ export const defaultHentai = () => ({
   release_date: "",
   mal_id: "",
   mal_link: "",
+  anidb_id: "",
+  anidb_link: "",
   watching_status: "Might Watch",
   my_rating: "",
   usefulness: "",
