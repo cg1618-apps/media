@@ -29,8 +29,20 @@ def test_analysis_is_the_only_section_with_a_per_owner_group():
     # It puts the same rows in a different card for one owner, which is worth
     # keeping rare: a reader of NOTE_SECTIONS sees `group` and would have to
     # notice the override to be right about where a section lands.
+    #
+    # The others are all h-game's. 評論 Reviews and Comments opens its 評論
+    # card, where an h-comic or a hentai has it flat, having nothing else of
+    # 評論 to share a card with. And an h-game has no prose 劇情, so for it
+    # the Story List sections ARE 劇情.
     overridden = [s.key for s in ns.NOTE_SECTIONS if s.groups_by_owner]
-    assert overridden == ["analysis"]
+    assert overridden == [
+        "reviews_and_comments",
+        "analysis",
+        "story_list_main",
+        "story_list_side",
+        "story_list_character",
+        "story_list_event",
+    ]
 
 
 def test_every_overridden_group_is_a_real_group():

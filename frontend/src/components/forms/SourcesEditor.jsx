@@ -16,6 +16,7 @@
 import { useId } from "react";
 import { inputCls, selectCls } from "./FormField";
 import { getSourceValues } from "../../lib/formatters";
+import { restrictedSourcesFor } from "../../lib/restrictedSources";
 
 function updateRow(value, index, patch) {
   return value.map((row, j) => (j === index ? { ...row, ...patch } : row));
@@ -123,8 +124,9 @@ function VocabRows({ indices, names, showAvailability, onChange, value }) {
   );
 }
 
-// `suggestions` are offered while typing and by the prefill button, never
-// enforced: the bucket is free text, so any other name is still accepted.
+// `suggestions` are offered while typing and `prefill` by the prefill button,
+// never enforced: the bucket is free text, so any other name is still
+// accepted, and a chosen name can still be edited for this one row.
 function FreeTextRows({
   indices,
   bucket,
@@ -133,9 +135,10 @@ function FreeTextRows({
   onChange,
   value,
   suggestions = [],
+  prefill = [],
 }) {
   const listId = useId();
-  const missing = missingSuggestions(value, indices, suggestions);
+  const missing = missingSuggestions(value, indices, prefill);
   return (
     <div>
       <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
@@ -206,8 +209,9 @@ function FreeTextRows({
   );
 }
 
-// `restrictedSuggestions` are the names the restricted bucket is prefilled
-// with (h-comic's, lib/hComicRestrictedSources.js).
+// `restrictedSources` is `{ prefill, suggestions }` for the restricted bucket
+// (lib/restrictedSources.js), looked up from `mediaType` unless given - h-comic
+// passes its own, since its list depends on the region.
 //
 // `showAccess` false drops the access group entirely - games have no "where
 // can I play this" source: that is the Platform tag, and which copy was bought
@@ -220,8 +224,9 @@ export default function SourcesEditor({
   mediaType,
   sources,
   showAccess = true,
-  restrictedSuggestions = [],
+  restrictedSources,
 }) {
+  const restricted = restrictedSources || restrictedSourcesFor(mediaType);
   const rows = value || [];
   const mainIndices = [];
   const referenceIndices = [];
@@ -311,7 +316,8 @@ export default function SourcesEditor({
         addLabel="Add restricted source"
         onChange={onChange}
         value={rows}
-        suggestions={restrictedSuggestions}
+        suggestions={restricted.suggestions}
+        prefill={restricted.prefill}
       />
     </div>
   );

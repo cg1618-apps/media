@@ -108,20 +108,49 @@ def test_credits_and_tags():
 # ---------------------------------------------------------------------------
 
 
-def test_every_game_section_reaches_h_game():
+# What an h-game does NOT take of game's notes. Everything else reaches it.
+GAME_ONLY_SECTIONS = {
+    # 評論: one list of reviews and comments stands in for these three.
+    "public_reviews",
+    "personal_reviews",
+    "episode_comments",
+    # Its highlights are h_game_highlights.
+    "highlight_moments",
+    # 攻略 and 圖鑑.
+    "beginner",
+    "trivia",
+    "player_terms",
+    # 劇情: its Story List is its story.
+    "main_plot",
+    "side_plot",
+    "character_arcs",
+    # 世界觀, whole.
+    "lore",
+    "story_terms",
+    "timeline",
+    "mysteries",
+    "story_other",
+    # 名言/梗, whole.
+    "quotes",
+    "memes",
+}
+
+
+def test_h_game_takes_game_notes_less_the_game_only_sections():
     game = {s.key for s in ns.sections_for("game")}
     h = {s.key for s in ns.sections_for("h-game")}
-    assert game <= h
-    assert h - game == {"h_game_highlights"}
+    assert game - h == GAME_ONLY_SECTIONS
+    assert h - game == {"h_game_highlights", "reviews_and_comments"}
 
 
 def test_the_per_owner_game_overrides_carry_over():
     for section in ns.NOTE_SECTIONS:
-        if "game" not in section.owners:
+        if "game" not in section.owners or "h-game" not in section.owners:
             continue
         assert ns.label_for(section, "h-game") == ns.label_for(section, "game"), section.key
         assert ns.locator_for(section, "h-game") == ns.locator_for(section, "game"), section.key
-        assert ns.group_for(section, "h-game") == ns.group_for(section, "game"), section.key
+        if not section.key.startswith("story_list_"):
+            assert ns.group_for(section, "h-game") == ns.group_for(section, "game"), section.key
         assert ns.kinds_for(section, "h-game") == ns.kinds_for(section, "game"), section.key
 
 
@@ -132,8 +161,26 @@ def test_the_highlights_section():
     assert section.owner_where == {}
     locator = next(f for f in section.fields if f.column == "locator")
     assert locator.label == "Route / Scene"
-    comic = ns.section_by_key("h_comic_highlights")
-    # KR h-comic's fields, bar the locator's label.
-    assert [(f.key, f.type, f.column) for f in section.fields if f.column != "locator"] == [
-        (f.key, f.type, f.column) for f in comic.fields if f.column != "locator"
+    assert [(f.key, f.type, f.column) for f in section.fields] == [
+        ("female_characters", ns.FIELD_NAMES, None),
+        ("male_characters", ns.FIELD_NAMES, None),
+        ("route_scene", ns.FIELD_TEXT, "locator"),
+        # Where the h-comic has a location.
+        ("audio", ns.FIELD_SELECT, None),
+        ("h_presentation", ns.FIELD_SELECT, None),
+        ("art_style", ns.FIELD_SELECT, None),
+        ("label", ns.FIELD_TEXT, "kind"),
+        ("usefulness", ns.FIELD_SELECT, "status"),
+        ("description", ns.FIELD_TEXTAREA, "content"),
     ]
+
+
+def test_the_highlight_scene_fields_offer_the_entry_columns_options():
+    """Audio, H 演出形式 and art style mean what the h_game columns mean."""
+    section = ns.section_by_key("h_game_highlights")
+    assert ns.field_by_key(section, "audio").options == H_GAME_AUDIO_AVAILABILITY
+    assert (
+        ns.field_by_key(section, "h_presentation").options == H_GAME_H_PRESENTATIONS
+    )
+    assert ns.field_by_key(section, "art_style").options == H_GAME_ART_STYLES
+    assert ns.field_by_key(section, "location") is None

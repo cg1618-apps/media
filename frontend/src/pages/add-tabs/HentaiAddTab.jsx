@@ -25,7 +25,6 @@ import {
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import { HENTAI_SOURCES } from "../../lib/hentaiForm";
-import { HENTAI_RESTRICTED_SOURCES } from "../../lib/hentaiRestrictedSources";
 import { getSourceValues } from "../../utils/media";
 
 export { defaultHentai } from "../../config/formFactories";
@@ -171,7 +170,6 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
         onChange={(rows) => u("sources", rows)}
         mediaType="hentai"
         sources={sources}
-        restrictedSuggestions={HENTAI_RESTRICTED_SOURCES}
       />
 
       <SectionHeader icon="fa-flag" title="Flags" />
