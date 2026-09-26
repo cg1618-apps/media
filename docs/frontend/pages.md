@@ -319,7 +319,9 @@ hentai config has no progress column - one entry is one episode: it filters
 by watch status, airing status, source material, originality and usefulness,
 sorts by title, release date and my rating, and its columns are franchise,
 title, source, airing status, usefulness, my rating, the watch button and
-the watch-next / to-rewatch flags. `Library.jsx` looks up `LIBRARY_CONFIGS[type]`,
+the watch-next / to-rewatch flags. All three also sort by usefulness
+(`usefulnessSort`), in the vocabulary's order - 非常實用, 實用, 特定情況實用,
+不實用 - with an unset value last; no other library offers it. `Library.jsx` looks up `LIBRARY_CONFIGS[type]`,
 runs `useMediaList(type, LIST_OPTIONS)`, `useMediaList("franchise")` and
 (when `config.usesSeries`) `useMediaList("series")`, and hands everything to
 `LibraryLayout`. `useLibraryState` holds search text, sort, grid/table view,

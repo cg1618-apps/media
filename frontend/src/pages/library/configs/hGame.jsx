@@ -4,6 +4,7 @@ import {
   myRatingSort,
   planFlagColumn,
   playButtonColumn,
+  usefulnessSort,
 } from "../../../components/layout/libraryColumns";
 import { PLAYING_STATUS_GROUP } from "../../../config/statusGroups";
 import { getDisplayName, getSortName } from "../../../lib/naming";
@@ -112,6 +113,7 @@ const H_GAME_LIBRARY_CONFIG = {
       compare: (a, b) => releaseScore(b.release_date) - releaseScore(a.release_date),
     },
     myRatingSort,
+    usefulnessSort,
   ],
 
   tableColumns: [

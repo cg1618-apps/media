@@ -5,6 +5,7 @@ import {
   anilistRatingSort,
   imdbRatingSort,
   malRatingSort,
+  usefulnessSort,
   planFlagColumn,
   playButtonColumn,
   watchButtonColumn,
@@ -37,6 +38,17 @@ it("rating sorts put the highest first and unrated last", () => {
   expect([...rows].sort(malRatingSort.compare).map((r) => r.mal_rating)).toEqual(["8.9", "7.1", null]);
   const movies = [{ imdb_rating: "N/A" }, { imdb_rating: "8.0" }, { imdb_rating: "6.5" }];
   expect([...movies].sort(imdbRatingSort.compare).map((r) => r.imdb_rating)).toEqual(["8.0", "6.5", "N/A"]);
+});
+
+it("the usefulness sort follows the vocabulary's order, most useful first and unset last", () => {
+  const rows = [{ usefulness: "不實用" }, { usefulness: null }, { usefulness: "非常實用" }, { usefulness: "特定情況實用" }, { usefulness: "實用" }];
+  expect([...rows].sort(usefulnessSort.compare).map((r) => r.usefulness)).toEqual([
+    "非常實用",
+    "實用",
+    "特定情況實用",
+    "不實用",
+    null,
+  ]);
 });
 
 it("the AniList score sort puts the highest first and unscored last", () => {
