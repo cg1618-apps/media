@@ -37,7 +37,7 @@ def test_the_group_exists_and_renders_below_story():
     # in first-appearance order - so the group label is not what puts this
     # card below 劇情. Where its first section sits is.
     order = [s.key for s in ns.NOTE_SECTIONS]
-    assert order.index("story_list_main") > order.index("endings")
+    assert order.index("story_list_main") > order.index("character_arcs")
     assert order.index("story_list_event") < order.index("todo_now")
 
 

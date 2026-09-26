@@ -86,15 +86,19 @@ def test_endings_is_no_longer_a_guide_section():
 
 
 def test_every_guide_section_is_game_only_and_catalogue():
+    # 新手, 小知識 and 玩家術語 are not part of an h-game's notes.
+    game_only = {"beginner", "trivia", "player_terms"}
     for key in GUIDES_ORDER:
         section = ns.section_by_key(key)
-        assert section.owners == ns.GAME_OWNERS, key
+        expected = ("game",) if key in game_only else ns.GAME_OWNERS
+        assert section.owners == expected, key
         assert section.scope == ns.SCOPE_CATALOG, key
 
 
 def test_guide_notes_is_a_plain_list_beneath_controls():
     section = ns.section_by_key("guide_notes")
-    assert section.shape == ns.SHAPE_TEXT_LINKS
+    # Plain text: a guide note carries no links.
+    assert section.shape == ns.SHAPE_TEXT
     assert GUIDES_ORDER.index("guide_notes") == GUIDES_ORDER.index("controls") + 1
 
 
@@ -224,7 +228,7 @@ def test_player_terms_is_a_game_only_catalogue_section_after_game_terms():
     section = ns.section_by_key("player_terms")
     assert section.label == "玩家術語 Player Terms"
     assert section.group == "compendium"
-    assert section.owners == ns.GAME_OWNERS
+    assert section.owners == ("game",)
     assert section.scope == ns.SCOPE_CATALOG
 
 
@@ -236,7 +240,7 @@ def test_the_compendium_card_is_named_for_its_terms_too():
 def test_story_terms_is_a_game_only_catalogue_section_in_the_worldbuilding_card():
     section = ns.section_by_key("story_terms")
     assert section.group == "worldbuilding"
-    assert section.owners == ns.GAME_OWNERS
+    assert section.owners == ("game",)
     assert section.scope == ns.SCOPE_CATALOG
 
 

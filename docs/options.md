@@ -251,14 +251,14 @@ can only hold URLs and `text_links` has no title, so neither could say
 | Key | Label |
 |---|---|
 | `reviews` | 評論 Reviews and Comments |
-| `analysis_group` | 解析 Analysis and Cinematography (a game reads `analysis` in `reviews` instead) |
+| `analysis_group` | 解析 Analysis and Cinematography (a game and an h-game read `analysis` in `reviews` instead) |
 | `guides` | 攻略 Guides |
 | `builds` | 養成&流派 Builds & Growth |
 | `gear` | 物品 Items & Gear |
 | `compendium` | 圖鑑與名詞 Compendium & Terms |
-| `story` | 劇情 Story |
-| `story_list` | 劇情列表 Story List |
-| `worldbuilding` | 世界觀 Worldbuilding |
+| `story` | 劇情 Story (for an h-game, the four Story List strands and 結局) |
+| `story_list` | 劇情列表 Story List (game only) |
+| `worldbuilding` | 世界觀 Worldbuilding (game only) |
 | `todo` | 待辦 Todo (rendered inside the game page's Progress slip) |
 | `music` | 音樂 Music |
 | `tools` | 資源&工具 Tools & Resources |
@@ -266,35 +266,39 @@ can only hold URLs and `text_links` has no title, so neither could say
 
 **Sections** (`NOTE_SECTIONS`, in display order). "All" means every media
 type plus `series`, `franchise`, `collection`; "Entries" means the twelve
-media types only. "game, h-game" is `GAME_OWNERS`: every game section serves
-h-game too, under game's labels, placeholders and groups.
+media types only; "but H" leaves out h-comic, hentai and h-game. "game,
+h-game" is `GAME_OWNERS`, and h-game reads those under game's labels,
+placeholders and groups; a section marked "game" alone is one an h-game leaves
+out. What the three gated types keep is in
+[systems/notes.md](systems/notes.md#the-gated-types-notes).
 
 | Key | Shape | Label | Owners | Group | Kinds / statuses |
 |---|---|---|---|---|---|
 | `remark` | text | 備註 Remark | All | | singleton |
 | `remark_list` | text_links | 備註列表 Remark List | All | | Personal scope, many rows - 備註 is the singleton block |
-| `advantages` | text | 優點 Advantages | All | reviews | |
-| `disadvantages` | text | 缺點 Disadvantages | All | reviews | |
-| `double_edged` | text | 優缺點 | All | reviews | |
-| `public_reviews` | text_or_link | 大眾評價 Public Reviews | All | reviews | |
-| `personal_reviews` | text | 我的評價 Personal Reviews | All | reviews | gated by field group `personal_notes` |
-| `episode_comments` | text_links | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | anime, tv-show, cartoon, game, h-game | reviews | locator required; game's placeholder is "Chapter / Part" |
+| `reviews_and_comments` | text | 評論 Reviews and Comments | h-comic, hentai, h-game | flat; **reviews** for h-game | personal scope; in place of 大眾評價 and 我的評價 |
+| `advantages` | text | 優點 Advantages | All but h-comic, hentai | reviews | |
+| `disadvantages` | text | 缺點 Disadvantages | All but h-comic, hentai | reviews | |
+| `double_edged` | text | 優缺點 | All but h-comic, hentai | reviews | |
+| `public_reviews` | text_or_link | 大眾評價 Public Reviews | All but H | reviews | |
+| `personal_reviews` | text | 我的評價 Personal Reviews | All but H | reviews | gated by field group `personal_notes` |
+| `episode_comments` | text_links | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | anime, tv-show, cartoon, game | reviews | locator required; game's placeholder is "Chapter / Part" |
 | `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
 | `highlight_passages` | text | 神片段 | novel | | |
-| `highlight_moments` | episode_text | 神場景 Highlights | game, h-game | | locator required, placeholder "Chapter / Boss" |
+| `highlight_moments` | episode_text | 神場景 Highlights | game | | locator required, placeholder "Chapter / Boss" |
 | `h_comic_highlights` | structured | 亮點 Highlights | h-comic | | KR entries only (`owner_where`); grouped by the `female_characters` names field; usefulness select `H_COMIC_USEFULNESS` |
-| `h_game_highlights` | structured | 亮點 Highlights | h-game | | `h_comic_highlights`' fields with the locator labelled "Route / Scene"; every h-game; grouped by `female_characters` |
-| `analysis` | text_links | 解析 Analysis | All | analysis_group; **reviews** for game and h-game | Last in the 評論 card for a game - see `groups_by_owner` |
+| `h_game_highlights` | structured | 亮點 Highlights | h-game | | female/male characters, route / scene (`locator`), audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness, description; every h-game; grouped by `female_characters` |
+| `analysis` | text_links | 解析 Analysis | All but h-comic, hentai | analysis_group; **reviews** for game and h-game | Last in the 評論 card for a game - see `groups_by_owner` |
 | `cinematography` | text_links | 分鏡/演出/巧思 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
 | `craft` | text_links | 巧思 | novel | analysis_group | |
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
-| `beginner` | text_links | 新手 Beginner | game, h-game | guides | |
+| `beginner` | text_links | 新手 Beginner | game | guides | |
 | `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description |
 | `controls` | structured | 操作 Controls | game, h-game | guides | Fields: control (`title`), description (`content`), links |
-| `guide_notes` | text_links | 攻略筆記 Guide Notes | game, h-game | guides | |
-| `trivia` | text_links | 小知識 Trivia | game, h-game | guides | |
+| `guide_notes` | text | 攻略筆記 Guide Notes | game, h-game | guides | no links |
+| `trivia` | text_links | 小知識 Trivia | game | guides | |
 | `stats_and_points` | structured | 屬性&配點 Stats & Points | game, h-game | builds | name, min/rec/soft-cap, my value (quick-edit), description |
 | `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game, h-game | builds | name, five nested lists, description, links |
@@ -305,20 +309,20 @@ h-game too, under game's labels, placeholders and groups.
 | `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group, name, alias, description |
 | `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`) |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
-| `player_terms` | structured | 玩家術語 Player Terms | game, h-game | compendium | name (CN), alt name, description |
-| `main_plot` | structured | 主線劇情 Main Plot | game, h-game | story | chapter (`locator`, optional), description, links |
-| `side_plot` | structured | 支線劇情 Side Stories | game, h-game | story | chapter (`locator`, optional), description, links |
-| `character_arcs` | text_links | 角色劇情 Character Arcs | game, h-game | story | |
+| `player_terms` | structured | 玩家術語 Player Terms | game | compendium | name (CN), alt name, description |
+| `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
+| `side_plot` | structured | 支線劇情 Side Stories | game | story | chapter (`locator`, optional), description, links |
+| `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
 | `endings` | structured | 結局 Endings | game, h-game | story | name, completion status, description, links |
-| `story_list_main` | structured | 主線 Main | game, h-game | story_list | order, name, description, links; nestable |
-| `story_list_side` | structured | 支線 Side | game, h-game | story_list | order, name, description, links; nestable |
-| `story_list_character` | structured | 角色 Character | game, h-game | story_list | order, name, description, links; nestable |
-| `story_list_event` | structured | 事件 Event | game, h-game | story_list | order, name, description, links; nestable |
-| `lore` | text_links | 設定 Lore | game, h-game | worldbuilding | |
-| `story_terms` | structured | 劇情名詞 Story Terms | game, h-game | worldbuilding | name (CN), alt name, description |
-| `timeline` | text_links | 時間線 Timeline | game, h-game | worldbuilding | |
-| `mysteries` | text_links | 未解之謎 Mysteries | game, h-game | worldbuilding | |
-| `story_other` | text_links | 其他 Other | game, h-game | worldbuilding | |
+| `story_list_main` | structured | 主線 Main | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
+| `story_list_side` | structured | 支線 Side | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
+| `story_list_character` | structured | 角色 Character | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
+| `story_list_event` | structured | 事件 Event | game, h-game | story_list; **story** for h-game | order, name, description, links; nestable |
+| `lore` | text_links | 設定 Lore | game | worldbuilding | |
+| `story_terms` | structured | 劇情名詞 Story Terms | game | worldbuilding | name (CN), alt name, description |
+| `timeline` | text_links | 時間線 Timeline | game | worldbuilding | |
+| `mysteries` | text_links | 未解之謎 Mysteries | game | worldbuilding | |
+| `story_other` | text_links | 其他 Other | game | worldbuilding | |
 | `todo_now` | text_links | 現在進行 Doing now | game, h-game | todo | personal scope |
 | `todo_next` | text_links | 接下來 To do next | game, h-game | todo | personal scope |
 | `todo_later` | text_links | 未來 To do in the future | game, h-game | todo | personal scope |
@@ -333,9 +337,9 @@ h-game too, under game's labels, placeholders and groups.
 | `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status |
 | `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | name, description, links |
 | `resources` | name_links | Resources | All | standalone | |
-| `questions` | episode_text | Questions | All | standalone | description required everywhere |
-| `quotes` | external | 名言 Quotes | Entries | quotes_memes | |
-| `memes` | external | 梗/迷因 Memes | All | quotes_memes | |
+| `questions` | episode_text | Questions | All but h-comic, hentai | standalone | description required everywhere |
+| `quotes` | external | 名言 Quotes | Entries but H | quotes_memes | |
+| `memes` | external | 梗/迷因 Memes | All but H | quotes_memes | |
 
 Kind vocabularies:
 
