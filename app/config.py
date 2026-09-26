@@ -72,8 +72,9 @@ class Settings(BaseSettings):
     # changing their role ends a session early, and a password change does
     # not - see docs/authentication.md.
     access_token_expire_minutes: int = 43200
-    # How long a switched-to access mode lasts before the session falls back
-    # to the account's default. The override also lives in a browser-session
+    # How long a switched-to access mode WIDER than the account's default lasts
+    # before the session falls back to the default; a narrower one lasts as
+    # long as the login. The override also lives in a browser-session
     # cookie, so closing the browser ends it sooner - this covers the browser
     # that restores its session, and the one that is never closed.
     access_mode_override_minutes: int = 60

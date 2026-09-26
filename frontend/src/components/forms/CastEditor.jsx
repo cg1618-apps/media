@@ -6,10 +6,10 @@
 import { useEffect, useRef, useState } from "react";
 
 import ComboBox from "./ComboBox";
+import ImagePicker from "./ImagePicker";
 import { useConstants } from "../../config/useConstants";
 import { endpoints } from "../../api/endpoints";
 import { buildCreateRequest } from "../../lib/ensureSourceValues";
-import { getCoverUrl } from "../../lib/covers";
 
 const FALLBACK_CHARACTER_ROLES = ["Main", "Supporting"];
 
@@ -367,21 +367,15 @@ export default function CastEditor({ mediaType, value, onChange }) {
             ))}
           </select>
 
-          <div className="flex items-center gap-1 shrink-0 w-32">
-            {row.photo_file ? (
-              <img
-                loading="lazy"
-                src={getCoverUrl(row.photo_file)}
-                alt=""
-                className="w-8 h-8 rounded object-cover shrink-0"
-              />
-            ) : null}
-            <input
-              className={cellCls + " text-xs w-full min-w-0"}
-              placeholder="Photo file"
+          {/* No ownerType or ownerId: a casting cannot own an attachment,
+              because replace_casting re-inserts every row on each save. The
+              picked key rides in photo_file with the cast PUT, and the image
+              library counts it as in use by reading that column. */}
+          <div role="group" aria-label="Photo" className="shrink-0 pt-0.5">
+            <ImagePicker
+              compact
               value={row.photo_file || ""}
-              onChange={(e) => updateRow(i, { photo_file: e.target.value || null })}
-              aria-label="Photo file"
+              onChange={(key) => updateRow(i, { photo_file: key || null })}
             />
           </div>
 

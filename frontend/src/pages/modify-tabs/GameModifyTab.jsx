@@ -16,13 +16,10 @@ export default function GameModifyTab({
   allGames,
   seriesItemsForGame,
   editingItem,
-  ribbonSection,
   sources,
 }) {
   return (
     <>
-      {ribbonSection}
-
       <SectionHeader icon="fa-gamepad" title="Titles & Naming" />
       <GameLineageFields
         f={cgmf}

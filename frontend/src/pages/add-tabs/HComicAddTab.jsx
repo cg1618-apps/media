@@ -9,6 +9,7 @@
 // an author and an official source on KR - so until a region is chosen only
 // the fields both regions share are offered.
 import CastEditor from "../../components/forms/CastEditor";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import {
   Field,
@@ -33,7 +34,7 @@ import {
 import { isDerivedAnimationStatus } from "../../lib/hComicAnimation";
 import { showsField } from "../../lib/hComicRegion";
 import { followRegion, restrictedSourcesFor } from "../../lib/restrictedSources";
-import { getSourceValues } from "../../utils/media";
+import { getDisplayName, getSourceValues } from "../../utils/media";
 
 export { defaultHComic } from "../../config/formFactories";
 
@@ -386,6 +387,9 @@ export default function HComicAddTab({
   hcf,
   uhc,
   allFranchises,
+  allHComics,
+  hComicsLoading,
+  applyHComicEntryAutofill,
   seriesItemsForHComic,
   sources,
 }) {
@@ -398,6 +402,21 @@ export default function HComicAddTab({
   };
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
+      <EntryAutofillSearch
+        items={allHComics}
+        names={(h) => [
+          h.h_comic_name_cn,
+          h.h_comic_name_en,
+          h.h_comic_name_alt,
+          h.h_comic_name_jp,
+          h.h_comic_name_kr,
+        ]}
+        title={(h) => getDisplayName(h, "h-comic")}
+        badge={(h) => h.region}
+        franchises={allFranchises}
+        onPick={applyHComicEntryAutofill}
+        loading={hComicsLoading}
+      />
       <SectionHeader icon="fa-book" title="Titles & Naming" />
       <HComicRegionField f={hcf} u={setRegion} />
       <HComicLineageFields

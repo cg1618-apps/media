@@ -1193,7 +1193,7 @@ single answer (Decision A).
 | `person_id` | UUID | yes | | FK `person.system_id` **ON DELETE SET NULL**, indexed |
 | `role` | String | yes | | One of `CHARACTER_ROLES` (`Main`, `Supporting`) |
 | `position` | Integer | no | `0` (server default too) | Display / drag-reorder order |
-| `photo_file` | String | yes | | Storage key under `static/covers/`: this character as she appears in this entry. NULL falls back to `character.photo_file` at read time. |
+| `photo_file` | String | yes | | Storage key: this character as she appears in this entry, usually a library image (`library/<checksum>.jpg`) set through the cast editor's picker. NULL falls back to `character.photo_file` at read time. Not an attachment - castings are re-inserted on every cast save, so their ids cannot own one - so the image library reads this column itself when it asks whether an image is in use. |
 | `remark` | Text | yes | | |
 | `created_at` | DateTime | yes | now | No `updated_at` |
 
@@ -1470,6 +1470,11 @@ stored file, joined polymorphically to whatever uses it. This is the source
 of truth for an uploaded image; `cover_image_file` and the entity photo/logo
 columns above are kept written-through by the attach, detach and clear
 endpoints so every existing reader of those columns is unaffected.
+
+One use has no attachment: a cast photo. `character_casting.photo_file` holds
+the storage key itself, because its rows are re-inserted on every cast save
+and so have no lasting id to attach to. An image is in use when it has an
+attachment **or** a cast row names its `storage_key`.
 
 A **downloaded** image (`uploaded_by` NULL) is not library content in the same
 sense: its file is keyed on the owner it was downloaded for, and the next

@@ -22,6 +22,10 @@
 // Replace downloads the cover of whatever external id the entry points at
 // now. Without one there is nothing on the server yet, and Remove only empties
 // the form.
+//
+// A cast row is the one caller that never has an owner: castings are
+// re-inserted on every cast save, so CastEditor uses the picker ownerless
+// (and `compact`) for good, and the key rides in the row's photo_file.
 import { useEffect, useRef, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
@@ -58,6 +62,7 @@ export default function ImagePicker({
   role = "cover",
   value,
   onChange,
+  compact = false,
 }) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [error, setError] = useState(null);
@@ -136,6 +141,77 @@ export default function ImagePicker({
     if (attachError) setError(attachError);
   }
 
+  const libraryModal = libraryOpen && (
+    <LibraryModal
+      onSelect={chooseFromLibrary}
+      onClose={() => setLibraryOpen(false)}
+    />
+  );
+
+  // One line - a thumbnail and three icon buttons - for a picker that sits in
+  // a row of other cells, such as a cast member's photo in CastEditor. The
+  // accessible names match the full picker's, so a control is found the same
+  // way in either shape.
+  if (compact) {
+    const iconCls =
+      "px-1.5 py-1 text-text-faint hover:text-text disabled:opacity-40";
+    return (
+      <div className="min-w-0">
+        <div className="flex items-center gap-1">
+          {value ? (
+            <img
+              loading="lazy"
+              src={previewUrl}
+              alt="Current image"
+              className="w-8 h-8 rounded object-cover shrink-0 border border-border"
+            />
+          ) : (
+            <span className="w-8 h-8 rounded shrink-0 border border-dashed border-border" />
+          )}
+          <label
+            className={iconCls + " cursor-pointer"}
+            title={busy ? "Working…" : "Upload"}
+          >
+            <i className={busy ? "fas fa-spinner fa-spin" : "fas fa-upload"} />
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              aria-label="Upload"
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+          </label>
+          <button
+            type="button"
+            className={iconCls}
+            disabled={busy}
+            onClick={() => setLibraryOpen(true)}
+            aria-label="Choose from library"
+            title="Choose from library"
+          >
+            <i className="fas fa-images" />
+          </button>
+          {value && (
+            <button
+              type="button"
+              className={iconCls}
+              disabled={busy}
+              onClick={removeImage}
+              aria-label="Remove image"
+              title="Remove image"
+            >
+              <i className="fas fa-trash-alt" />
+            </button>
+          )}
+        </div>
+        {error && <p className="text-xs text-danger">{error}</p>}
+        {libraryModal}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       {value && (
@@ -194,12 +270,7 @@ export default function ImagePicker({
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
-      {libraryOpen && (
-        <LibraryModal
-          onSelect={chooseFromLibrary}
-          onClose={() => setLibraryOpen(false)}
-        />
-      )}
+      {libraryModal}
     </div>
   );
 }

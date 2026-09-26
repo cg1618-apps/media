@@ -13,6 +13,26 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 import CastEditor from "./CastEditor";
 
+// The photo cell is ImagePicker, whose upload and library calls are its own
+// tests' business. A stub stands in for it and records the props it was
+// given, so these tests can see how CastEditor wires it.
+const pickerProps = [];
+vi.mock("./ImagePicker", () => ({
+  default: (props) => {
+    pickerProps.push(props);
+    return (
+      <div>
+        <button type="button" onClick={() => props.onChange("library/pick.jpg", "img-1")}>
+          Simulate photo pick
+        </button>
+        <button type="button" onClick={() => props.onChange("", null)}>
+          Simulate photo remove
+        </button>
+      </div>
+    );
+  },
+}));
+
 // CastEditor is fully controlled: typing a character re-renders it only if
 // the parent feeds the updated row back in as `value`. Tests that exercise
 // typing need a real (if minimal) parent, not a `vi.fn()` no-op onChange.
@@ -103,6 +123,7 @@ function mockFetch({ characters = [], entriesByCharacter = {}, createdCharacter 
 
 beforeEach(() => {
   vi.stubGlobal("fetch", mockFetch());
+  pickerProps.length = 0;
 });
 
 it("renders one row per cast member", async () => {
@@ -126,7 +147,7 @@ it("gives every cell at most one width utility", async () => {
     );
     const cells = [
       screen.getByLabelText("Role"),
-      screen.getByLabelText("Photo file"),
+      screen.getByRole("group", { name: "Photo" }),
       screen.getByLabelText("Remark"),
     ];
     for (const cell of cells) {
@@ -136,6 +157,32 @@ it("gives every cell at most one width utility", async () => {
     expect(screen.getByLabelText("Role")).toHaveClass("w-28", "shrink-0");
     unmount();
   }
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
+it("sets a cast photo through ImagePicker, never a typed key", async () => {
+  const onChangeSpy = vi.fn();
+  render(
+    <Controlled
+      mediaType="h-comic"
+      initialRows={[row({ photo_file: "library/old.jpg" })]}
+      onChangeSpy={onChangeSpy}
+    />,
+  );
+
+  expect(screen.queryByRole("textbox", { name: /photo/i })).not.toBeInTheDocument();
+  // No owner: a casting row cannot hold an attachment, so the picker must
+  // not try to attach to one.
+  const props = pickerProps.at(-1);
+  expect(props).toMatchObject({ compact: true, value: "library/old.jpg" });
+  expect(props.ownerId).toBeUndefined();
+  expect(props.ownerType).toBeUndefined();
+
+  await userEvent.click(screen.getByRole("button", { name: "Simulate photo pick" }));
+  expect(onChangeSpy.mock.lastCall[0][0].photo_file).toBe("library/pick.jpg");
+
+  await userEvent.click(screen.getByRole("button", { name: "Simulate photo remove" }));
+  expect(onChangeSpy.mock.lastCall[0][0].photo_file).toBeNull();
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 

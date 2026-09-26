@@ -863,11 +863,11 @@ no public read.
 | Method   | Path                          | Auth   | Description                                                                                                                                |
 | -------- | ----------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POST`   | `/`                           | Catalog | Upload one file (`multipart/form-data`, field `file`). Validates, re-encodes to JPEG, stores it, and returns the `image` row. Attaches it to nothing — upload and attach are separate calls. 413 over `MAX_IMAGE_UPLOAD_MB` (default 10), 422 if the bytes are not a PNG/JPEG/WebP image. |
-| `GET`    | `/`                           | Catalog | The library, paginated (`limit` ≤200, `offset`). `?q=` matches `original_filename`; `?unused=true` restricts to images with no attachment; `?missing=true` restricts to images whose file is not on this machine; `?duplicates=true` is always empty (checksum is unique) and exists to prove dedup rather than to filter anything. |
+| `GET`    | `/`                           | Catalog | The library, paginated (`limit` ≤200, `offset`). `?q=` matches `original_filename`; `?unused=true` restricts to images with no attachment and no cast row using them as a photo; `?missing=true` restricts to images whose file is not on this machine; `?duplicates=true` is always empty (checksum is unique) and exists to prove dedup rather than to filter anything. |
 | `POST`   | `/{image_id}/attach`          | Catalog | Body: `{owner_type, owner_id, role}`. Points an owner at this image; re-attaching the same `(owner_type, owner_id, role)` replaces rather than duplicating. 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
 | `DELETE` | `/{image_id}/attach/{attachment_id}` | Catalog | Detach. An uploaded image (`uploaded_by` set) stays in the library for reuse. A downloaded one is deleted with its file once its last attachment goes: its file is keyed on the owner it was downloaded for, so the next download for that owner overwrites it, and kept in the library it would alias that owner's live cover. |
 | `DELETE` | `/owners/{owner_type}/{owner_id}/{role}` | Catalog | Clear an owner's image, so it has none — the picker's **Remove**. Clears the attachment if there is one (by the rule detach follows), the mirror column, and — for `role` `cover` on a `COVER_OWNERS` type — the file downloaded for the owner at `covers/<owner_type>/<owner_id>.jpg`, unless an `image` row attached elsewhere still points at it. Keyed on the owner because a cover downloaded after the library was introduced has no `image` row to detach. The next Replace downloads the cover of whatever external id the entry holds then. 204 when there was nothing to clear; 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
-| `DELETE` | `/{image_id}`                 | Catalog | Delete the file and its row. 409 while any attachment still points at it, unless `?force=true`. |
+| `DELETE` | `/{image_id}`                 | Catalog | Delete the file and its row. 409 while any attachment or cast photo still points at it, unless `?force=true`; a forced delete empties those owners' mirror columns and those cast rows' `photo_file`. |
 
 **The 404 on attach and clear.** `manage.catalog` says nothing about *which* entries a
 holder may reach, so attaching to or clearing a media owner (one of `MEDIA_TABLES`) also
@@ -877,6 +877,14 @@ would, rather than a 403 that would confirm the entry exists. An entity owner
 (`staff`, `character`, `publisher`, `studio`) is a shared record and is asked
 the same way through `shared_record_visible`, with the same 404.
 `quote`/`meme` carry no content label and skip the check.
+
+**Cast photos.** A cast row's `photo_file` holds an image's storage key
+directly, with no attachment: castings are deleted and re-inserted on every
+`PUT /api/casting/...`, so their ids cannot own one. The library reads
+`character_casting.photo_file` as well as the attachments wherever it asks
+whether an image is in use: each image in a response carries
+`cast_photo_count`, `?unused=true` leaves those images out, and a delete
+refuses them.
 
 **Response models:** `ImageOut` (adds `missing` — computed per request from
 whether the file exists on this machine — and `attachments`, the list of
@@ -1965,8 +1973,10 @@ Now also returns:
 ```
 
 **`mode.expires_at`** is when a switched-to mode ends and the session returns
-to the account's default mode (ISO 8601, UTC), or `null` while it is already
-in the default. `AuthContext` reloads the page just after it.
+to the account's default mode (ISO 8601, UTC), or `null` when there is no
+such moment: the session is already in the default, or in a mode no wider than
+it, which lasts as long as the login. `AuthContext` reloads the page just after
+it.
 
 **`visible_gated_types`** is the sorted list of gated media types this session
 may see (`gated_types.visible_gated_types`): `["h-comic", "h-game", "hentai"]`
@@ -2022,9 +2032,11 @@ Change the active access mode without logging out.
 
 **A switched-to mode is temporary.** Switching to any mode other than the
 account's default sets the `access_mode` cookie: a browser-session cookie (no
-`max_age`, so closing the browser drops it) holding a signed token that expires
-`ACCESS_MODE_OVERRIDE_MINUTES` (60) after the switch, and never after the login
-does. Switching to the default clears it. Either way out, the session is back
+`max_age`, so closing the browser drops it) holding a signed token. A mode
+**wider** than the default - one showing anything the default hides, the same
+test that asks for the password - expires `ACCESS_MODE_OVERRIDE_MINUTES` (60)
+after the switch; any other lasts as long as the login. Neither outlives the
+login. Switching to the default clears it. Either way out, the session is back
 in the default mode.
 
 **The login cookie is not reissued.** A switch cannot extend the session:

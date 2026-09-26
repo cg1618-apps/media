@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { buildAutofillPatch } from "./autofill";
 import { BUILTIN_AUTOFILL } from "../config/formFields";
+import { getDisplayName as getDisplayNameFor } from "./naming";
 
 const FRANCHISES = [
   { system_id: "f1", franchise_name_cn: "測試系列", franchise_name_en: "Test" },
@@ -344,5 +345,61 @@ describe("buildAutofillPatch — link-backed fields", () => {
     );
     expect(patch.studio).toBe("MAPPA, WIT");
     expect(patch.genre_main).toBe("Action");
+  });
+});
+
+describe("buildAutofillPatch — the gated types", () => {
+  it("copies the h-comic field set, credits included", () => {
+    const source = {
+      region: "JP",
+      h_comic_name_cn: "中文名",
+      h_comic_name_en: "English",
+      h_comic_name_alt: "",
+      h_comic_name_jp: "日本語",
+      h_comic_name_kr: "",
+      franchise_id: "f1",
+      series_id: "s1",
+      originality: "Original",
+      club: "Club A",
+      illustrator: "Artist B",
+    };
+    expect(patchFor(source, "h-comic")).toEqual({
+      ...source,
+      franchise_text: getDisplayNameFor(FRANCHISES[0], "franchise"),
+      series_text: getDisplayNameFor(SERIES[0], "series"),
+    });
+  });
+
+  it("copies the hentai field set", () => {
+    const patch = patchFor(
+      { hentai_name_cn: "中文", source_material: "Comic", studio: "Studio X" },
+      "hentai",
+    );
+    expect(patch.hentai_name_cn).toBe("中文");
+    expect(patch.source_material).toBe("Comic");
+    expect(patch.studio).toBe("Studio X");
+  });
+
+  it("keeps a null-blank field null rather than turning it into a string", () => {
+    // h-game's base game and multi-choice lists start null on a blank form:
+    // for the lists null is "not recorded", which [] ("none of these") and ""
+    // (not a list at all) are not. The recorded list beside them proves the
+    // field is copied, not skipped.
+    const patch = buildAutofillPatch(
+      { base_game_id: null, audio_availability: null, platform: ["PC"], h_presentation: [] },
+      "h-game",
+      ["base_game_id", "audio_availability", "platform", "h_presentation"],
+    );
+    expect(patch).toEqual({
+      base_game_id: null,
+      audio_availability: null,
+      platform: ["PC"],
+      h_presentation: [],
+    });
+  });
+
+  it("copies a base game's id", () => {
+    const patch = buildAutofillPatch({ base_game_id: "g1" }, "h-game", ["base_game_id"]);
+    expect(patch.base_game_id).toBe("g1");
   });
 });

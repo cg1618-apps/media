@@ -35,7 +35,10 @@ function formatBytes(n) {
 }
 
 function ImageTile({ image, onDetach, onDelete, busy }) {
-  const canDelete = image.attachments.length === 0;
+  // A cast photo is a storage key on the cast row, with no attachment to
+  // detach here - it is changed in the entry's cast editor.
+  const castPhotos = image.cast_photo_count || 0;
+  const canDelete = image.attachments.length === 0 && castPhotos === 0;
 
   return (
     <div className="flex flex-col gap-2 border border-border bg-surface p-2">
@@ -67,10 +70,17 @@ function ImageTile({ image, onDetach, onDelete, busy }) {
         </p>
       </div>
 
-      {image.attachments.length === 0 ? (
+      {canDelete ? (
         <Chip tone="muted">Unused</Chip>
       ) : (
         <ul className="space-y-1">
+          {castPhotos > 0 && (
+            <li>
+              <Chip tone="ink" className="min-w-0 truncate">
+                Cast photo ×{castPhotos}
+              </Chip>
+            </li>
+          )}
           {image.attachments.map((a) => (
             <li key={a.system_id} className="flex items-center justify-between gap-2">
               <Chip tone="ink" className="min-w-0 truncate">
@@ -93,7 +103,11 @@ function ImageTile({ image, onDetach, onDelete, busy }) {
         kind="danger"
         size="sm"
         disabled={!canDelete || busy}
-        title={canDelete ? undefined : "Detach every use before deleting."}
+        title={
+          canDelete
+            ? undefined
+            : "Detach every use, and change any cast photo, before deleting."
+        }
         onClick={() => onDelete(image)}
       >
         Delete

@@ -159,11 +159,18 @@ replaced by the next media add, and goes when the banner is dismissed or a
 non-media row (collection, person, …) is added.
 
 **Autofill search box (anime, anime movie, movie, TV show, cartoon, manga,
-novel, comic).** Typing filters that tab's list client-side; picking a row
-copies its fields into the form (`lib/autofill.js`, driven by
-`config/formFields/fieldMeta.js`). Nothing is fetched from external APIs at
-this point. **Game is the exception** — its box searches IGDB instead, see the
-Game tab below.
+novel, comic, h-comic, h-game, hentai).** Typing filters that tab's list
+client-side; picking a row copies its fields into the form (`lib/autofill.js`,
+driven by `config/formFields/fieldMeta.js` and the auto-fill ticks on
+`/defaults`). Nothing is fetched from external APIs at this point. The three
+gated tabs draw the box with `EntryAutofillSearch`, which holds its own query
+and dropdown, and hand a pick to `applyEntryAutofill` in `Add.jsx`; the older
+tabs inline the same markup and keep that state in `Add.jsx`. On h-comic a
+copied region carries the untouched suggested restricted sources over to it
+(`mergeHComicAutofill`), as choosing the region by hand does, unless the
+sources were copied too. **H-Game has two boxes**: this one, and the IGDB
+search below it. **Game is the exception** — its only box searches IGDB, see
+the Game tab below.
 
 **Franchise / series pickers.** `ComboBox` over the loaded lists; "create new"
 opens `FranchiseCreateModal` / `CreateNewEntityModal`, which POST the group
@@ -430,7 +437,8 @@ behind `manage.catalog`. A drop zone accepts multiple files at once
 (`POST /api/images` per file); a grid below shows each image's thumbnail,
 size, dimensions and what it is attached to.
 
-Three filters, each answering one question: **Unused** (no attachment),
+Three filters, each answering one question: **Unused** (no attachment and
+no cast row using it as a photo),
 **Not on this machine** (the row exists but the file does not — the normal
 state of an uploaded image after a machine switch, since uploads never travel
 through Backup or Pull), and **Duplicates** (same checksum; always empty in
@@ -444,8 +452,10 @@ the place that uses it (detach there first), not a blanket "delete anyway"
 from the library. Each tile's **Detach** button removes one attachment
 (`DELETE /api/images/{id}/attach/{attachment_id}`); an uploaded image stays in
 the library, a downloaded one goes with its last attachment (see
-[api.md](../api.md#images--apiimages)). **Delete** is disabled until every
-attachment is gone.
+[api.md](../api.md#images--apiimages)). A cast photo shows as **Cast photo
+×N**; it has no attachment to detach, and is changed in the entry's cast
+editor instead. **Delete** is disabled until every attachment and cast photo
+is gone.
 
 ## /modify (`Modify.jsx`)
 
@@ -480,6 +490,14 @@ holds — a franchise, a series or an entry; see
   counter), and the label picker clears the previous selection before
   fetching, so a slow or failed fetch can never save one entry's credits or
   labels onto another.
+- **Other entries in this franchise.** Above the editor card, a media entry
+  in a franchise gets a ribbon of that franchise's other entries of the same
+  type, grouped by series (a "No Series" group last), each a chip that opens
+  its editor. Anime, movie, TV show, cartoon and novel build it inline in
+  `Modify.jsx`; manga and comic build it there too but draw it inside the
+  card. Game, h-comic, h-game and hentai use `FranchiseRibbon`
+  (`components/forms/`), with the chip badged by game type (game, h-game) or
+  region (h-comic). Anime movie has none.
 - **Save.** `PUT` the entry → `saveCredits` → labels (a franchise saves its
   own set the same way, through `saveFranchiseLabels`) → for **anime, anime
   movie, cartoon and manga**, enrichment via `lib/enrich.js`; the page then
@@ -487,8 +505,8 @@ holds — a franchise, a series or an entry; see
   enrichment failed. Other types save without enrichment.
 - **Game tab.** `GameModifyTab.jsx` renders `GameAddTab`'s exported
   `GameLineageFields` and `GameFormBody` rather than keeping its own copy, so
-  the two tabs cannot drift; the only differences are the ribbon section Modify
-  puts above the form, the Structured Notes below it, and `excludeGameId`, which drops the row being edited from
+  the two tabs cannot drift; the only differences are the franchise ribbon
+  Modify puts above the card, the Structured Notes below the form, and `excludeGameId`, which drops the row being edited from
   its own Base Game picker. This is a deliberate divergence from the **comic**
   pair, which still keeps two near-identical files. The Modify tab has **no IGDB
   search box** — identification happens once, on Add — and it saves with
@@ -509,8 +527,7 @@ holds — a franchise, a series or an entry; see
   unrecorded list `null` rather than `[]`. No IGDB box, as on Game; it saves
   with `PATCH /api/h-game/{id}`, then credits and labels, without enrichment.
 - **Hentai tab.** `HentaiModifyTab.jsx` renders `HentaiAddTab`'s exported
-  `HentaiLineageFields` and `HentaiFormBody`, the game pattern, with no
-  ribbon. `hentaiToForm` seeds the columns and the credit and genre fields
+  `HentaiLineageFields` and `HentaiFormBody`, the game pattern. `hentaiToForm` seeds the columns and the credit and genre fields
   arrive through `loadCreditsIntoForm`; a new franchise typed there is created
   as `Hentai`. It saves with `PATCH /api/hentai/{id}`, then credits and
   labels, without enrichment.
@@ -638,17 +655,22 @@ three grouping tiers, and the three Entity tabs. Fields come from
 `config/formFields/fieldMeta.js` (label, control, option source, `coerce`
 rule); values are stored per type via `/api/form-defaults/<type>` and applied
 by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
-defaults for that type. Note `coerce: "tristate"` is implemented but unused
+defaults for that type. No image field takes a default - `cover_image_file`,
+`logo_file` and `photo_file` are all `control: "none"`, `defaultable: false`,
+since an image is set through `ImagePicker` and a default would stamp one
+picture on every new record - and `useFormDefaults` skips a stored value for
+any field marked `defaultable: false`, so one saved before the field became
+undefaultable stops applying rather than lingering where the page cannot
+clear it. Note `coerce: "tristate"` is implemented but unused
 by any field.
 
-`h-comic` is present here for a session that can see it; its Add form has no
-"copy an existing entry" search either, so its auto-fill ticks drive nothing
-yet. `h-game` is present the same way and for Game's reason (its box searches
-IGDB); its four multi-choice lists offer no default, since their unset state
-is `null`, "not recorded". `hentai` is present the same way; its Add form has
-no copy search either, so its auto-fill ticks drive nothing yet; its
-`mal_id` is hidden (the write hook derives it from the link) and `mal_link`
-is not auto-fillable.
+`h-comic`, `h-game` and `hentai` are present here for a session that can see
+them, and their auto-fill ticks drive each Add form's copy-an-existing-entry
+box. `h-game`'s four multi-choice lists offer no default, since their unset
+state is `null`, "not recorded"; auto-fill copies them as they are, `null`
+included (`buildAutofillPatch` keeps any field whose blank form value is
+`null`). `hentai`'s `mal_id` is hidden (the write hook derives it from the
+link) and `mal_link` is not auto-fillable.
 
 `game` is present here like any other media type, but its Add form has no
 "copy an existing entry" search (its box searches IGDB), so the auto-fill ticks
