@@ -363,42 +363,6 @@ export default function Delete() {
     setModal({ type, item });
   }
 
-  async function executeDirectDelete(type, item) {
-    setDeleting(true);
-    try {
-      // deleteChildren() walks db[key] for every media type. A list that was
-      // never fetched reads as empty, which would silently leave children
-      // behind with a dangling franchise_id rather than deleting them.
-      await ensureAll();
-      if (type === "franchise") {
-        await deleteChildren("franchise_id", item.system_id);
-        for (const s of db.series.filter(
-          (x) => x.franchise_id === item.system_id,
-        )) {
-          await fetch(`/api/series/${s.system_id}`, {
-            method: "DELETE",
-            credentials: "include",
-          });
-        }
-      } else if (type === "series") {
-        await deleteChildren("series_id", item.system_id);
-      }
-      const res = await fetch(`/api/${type}/${item.system_id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error(`Failed to delete ${type}`);
-      setSelectedFranchise(null);
-      setSelectedSeries(null);
-      showToast("success", "Deletion successful");
-      await Promise.all([loadDb(), reloadLoaded()]);
-    } catch (e) {
-      showToast("error", e.message);
-    } finally {
-      setDeleting(false);
-    }
-  }
-
   async function executeStudioDelete(item) {
     setDeleting(true);
     try {
@@ -2292,16 +2256,10 @@ export default function Delete() {
                     <i className="fas fa-times"></i>
                   </button>
                   <button
-                    onClick={() =>
-                      executeDirectDelete("franchise", selectedFranchise)
-                    }
-                    disabled={deleting}
-                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1 disabled:opacity-50"
+                    onClick={() => initDelete("franchise", selectedFranchise)}
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
-                    <i
-                      className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
-                    ></i>
-                    {deleting ? "Deleting..." : "Delete"}
+                    <i className="fas fa-trash-alt"></i> Delete
                   </button>
                 </div>
               </div>
@@ -2397,16 +2355,10 @@ export default function Delete() {
                     <i className="fas fa-times"></i>
                   </button>
                   <button
-                    onClick={() =>
-                      executeDirectDelete("series", selectedSeries)
-                    }
-                    disabled={deleting}
-                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1 disabled:opacity-50"
+                    onClick={() => initDelete("series", selectedSeries)}
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
-                    <i
-                      className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
-                    ></i>
-                    {deleting ? "Deleting..." : "Delete"}
+                    <i className="fas fa-trash-alt"></i> Delete
                   </button>
                 </div>
               </div>

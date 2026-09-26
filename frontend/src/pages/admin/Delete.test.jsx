@@ -82,3 +82,103 @@ describe("Delete page - game entries", () => {
     expect(gameDeletes).toHaveLength(1);
   });
 });
+
+// Franchise and series are the two group tabs. Their Delete button used to run
+// the delete straight away, cascading over every child, with no modal at all.
+// The button must only open the confirmation; nothing is deleted until
+// Confirm Delete is pressed.
+const FRANCHISE = { system_id: 7, public_id: "f-7", franchise_name_en: "Zelda" };
+const SERIES = {
+  system_id: 8,
+  public_id: "s-8",
+  series_name_en: "Oracle Games",
+  franchise_id: null,
+};
+
+function installGroupFetch() {
+  const fetchMock = vi.fn(async (url, opts = {}) => {
+    if (opts.method === "DELETE") {
+      return { ok: true, status: 200, json: async () => ({}) };
+    }
+    const u = String(url);
+    const body = u.startsWith("/api/franchise/")
+      ? [FRANCHISE]
+      : u.startsWith("/api/series/")
+        ? [SERIES]
+        : [];
+    return { ok: true, status: 200, json: async () => body };
+  });
+  globalThis.fetch = fetchMock;
+  return fetchMock;
+}
+
+const deletesOf = (fetchMock) =>
+  fetchMock.mock.calls.filter(([, opts]) => opts?.method === "DELETE");
+
+describe.each([
+  ["franchise", "Zelda", "/api/franchise/7"],
+  ["series", "Oracle Games", "/api/series/8"],
+])("Delete page - %s tab", (type, title, url) => {
+  beforeEach(() => {
+    showToast.mockClear();
+  });
+
+  it("deletes nothing until the confirmation is accepted", async () => {
+    const fetchMock = installGroupFetch();
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <Delete />
+      </MemoryRouter>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: /structure/i }));
+    await user.click(
+      screen.getByRole("button", { name: new RegExp(`^${type}$`, "i") }),
+    );
+    await user.type(
+      screen.getByPlaceholderText(new RegExp(`search ${type} to delete`, "i")),
+      title.slice(0, 4),
+    );
+    await user.click(await screen.findByText(title));
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+
+    const confirm = await screen.findByRole("button", {
+      name: /confirm delete/i,
+    });
+    expect(deletesOf(fetchMock)).toHaveLength(0);
+
+    await user.click(confirm);
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith("success", "Deletion successful"),
+    );
+    expect(deletesOf(fetchMock).map(([u]) => u)).toEqual([url]);
+  });
+
+  it("deletes nothing when the confirmation is cancelled", async () => {
+    const fetchMock = installGroupFetch();
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <Delete />
+      </MemoryRouter>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: /structure/i }));
+    await user.click(
+      screen.getByRole("button", { name: new RegExp(`^${type}$`, "i") }),
+    );
+    await user.type(
+      screen.getByPlaceholderText(new RegExp(`search ${type} to delete`, "i")),
+      title.slice(0, 4),
+    );
+    await user.click(await screen.findByText(title));
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+    await user.click(await screen.findByRole("button", { name: /^cancel$/i }));
+
+    expect(
+      screen.queryByRole("button", { name: /confirm delete/i }),
+    ).not.toBeInTheDocument();
+    expect(deletesOf(fetchMock)).toHaveLength(0);
+  });
+});
