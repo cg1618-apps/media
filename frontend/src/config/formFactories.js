@@ -18,7 +18,7 @@
 // ImagePicker.jsx's module comment and attachUploadedImage()). It is never
 // sent to the API and is always reset to null by freshForm() after a save.
 
-import { withSuggestedRestrictedSources } from "../lib/hComicRestrictedSources";
+import { defaultRestrictedSources } from "../lib/restrictedSources";
 
 export const defaultAnime = () => ({
   anime_name_en: "",
@@ -64,7 +64,7 @@ export const defaultAnime = () => ({
   mal_id: "",
   mal_link: "",
   exclusive_source: "",
-  sources: [],
+  sources: defaultRestrictedSources("anime"),
   seiyuu: "",
   watch_next: false,
   cover_image_file: "",
@@ -97,7 +97,7 @@ export const defaultAnimeMovie = () => ({
   mal_id: "",
   mal_link: "",
   exclusive_source: "",
-  sources: [],
+  sources: defaultRestrictedSources("anime-movie"),
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
@@ -125,7 +125,7 @@ export const defaultMovie = () => ({
   imdb_id: "",
   imdb_link: "",
   original_source: "",
-  sources: [],
+  sources: defaultRestrictedSources("movie"),
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
@@ -154,7 +154,7 @@ export const defaultTvShow = () => ({
   release_date: "",
   imdb_id: "",
   imdb_link: "",
-  sources: [],
+  sources: defaultRestrictedSources("tv-show"),
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
@@ -184,7 +184,7 @@ export const defaultCartoon = () => ({
   release_date: "",
   imdb_id: "",
   imdb_link: "",
-  sources: [],
+  sources: defaultRestrictedSources("cartoon"),
   watch_next: false,
   cover_image_file: "",
   pending_image_id: null,
@@ -225,7 +225,7 @@ export const defaultManga = () => ({
   publisher_tw: "",
   mal_id: "",
   mal_link: "",
-  sources: [],
+  sources: defaultRestrictedSources("manga"),
   read_next: false,
   to_reread: false,
   cover_image_file: "",
@@ -275,7 +275,7 @@ export const defaultNovel = () => ({
   mal_link: "",
   openlibrary_link: "",
   openlibrary_id: "",
-  sources: [],
+  sources: defaultRestrictedSources("novel"),
   read_next: false,
   to_reread: false,
   cover_image_file: "",
@@ -310,7 +310,7 @@ export const defaultComic = () => ({
   is_main_entry: false,
   read_order: "",
   comicvine_link: "",
-  sources: [],
+  sources: defaultRestrictedSources("comic"),
   read_next: false,
   to_reread: false,
   cover_image_file: "",
@@ -425,8 +425,8 @@ export const defaultHComic = () => ({
   h_genre_appearance: "",
   h_genre_relation: "",
   // Prefilled with the restricted sources every h-comic has; the Add form
-  // adds the region's own once one is chosen (lib/hComicRestrictedSources.js).
-  sources: withSuggestedRestrictedSources([], ""),
+  // adds the region's own once one is chosen (lib/restrictedSources.js).
+  sources: defaultRestrictedSources("h-comic"),
   read_next: false,
   to_reread: false,
   cover_image_file: "",

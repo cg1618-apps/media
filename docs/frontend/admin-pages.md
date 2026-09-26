@@ -90,6 +90,26 @@ character) and **System** (system option, alias). Each
 tab is a form component in `pages/add-tabs/`; the page owns the state objects,
 submit handlers and the shared modals.
 
+**Restricted sources start prefilled.** A new entry's Sources block starts
+with one restricted row for every name its type has on every entry, and the
+restricted name field offers that type's other names as a datalist
+(`lib/restrictedSources.js`). The names are suggestions, not a vocabulary:
+choosing one only fills that row's text, which can still be edited for this
+entry, and any other name is accepted.
+
+| Type | Prefilled on every entry | Offered as well |
+| --- | --- | --- |
+| anime, anime movie | `Gimy`, `Anime1` | - |
+| movie, TV show, cartoon | `Gimy` | - |
+| manga | `漫畫櫃 (電腦版)`, `漫畫櫃 (手機版)`, `漫畫人` | `包子漫畫` |
+| novel | - | `bili嗶哩輕小說`, `無限輕小說`, `無限小說`, `輕小說文庫`, `真白萌`, `和圖書`, `小說狂人`, `全本小說` |
+| comic | `BatCave` | `GlobalComix`, `Read Comics Online` |
+| h-comic | `禁漫天堂`, and six more on KR (below) | - |
+
+Modify starts from the entry's stored rows and adds nothing, but the editor's
+**Prefill suggested** button adds whichever prefilled names are missing. A
+`sources` default set on `/defaults` replaces the prefill outright.
+
 The **System** group holds the vocabulary tables themselves rather than
 anything a visitor browses. System Option moved here out of Structure, which
 had come to mean "grouping tiers plus a vocabulary editor"; Alias is new.
@@ -231,9 +251,10 @@ needs a region and a CN or EN name, blanks what the region does not use
 values through `hComicSourceFields`, then `POST /api/h-comic/`, the credits,
 the cast and the labels; the write hook then fills from Tenrai when a MAL
 link was given. The form starts with the restricted source `禁漫天堂`, and
-choosing KR adds the six KR suggestions - rows that are still untouched (a
+choosing KR adds the six KR names (`污汙漫畫`, `漫小肆ikanhm`, `ToonGod`,
+`Anime Planet`, `MANGA18`, `MANGADNA`) - rows that are still untouched (a
 suggested name with no url) follow the region, and anything typed stays
-(`lib/hComicRestrictedSources.js`). Modify offers the same names through the
+(`lib/restrictedSources.js`). Modify offers the same names through the
 editor's **Prefill suggested** button instead. The MAL ID beside the MAL Link
 is read-only: the write hook derives it from the link. The
 content-label picker shows the `h-comic` label checked and locked: every entry
