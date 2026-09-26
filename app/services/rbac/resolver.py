@@ -35,8 +35,9 @@ GUEST_ROLE = "guest"
 # The cookie holding a switched-to access mode. The login cookie says WHO is
 # asking and lasts a month; this one says which mode they chose, and is a
 # browser-session cookie holding a token that expires
-# settings.access_mode_override_minutes after the switch. With no live
-# override the session is in the account's default mode.
+# settings.access_mode_override_minutes after the switch when the mode is wider
+# than the default, and with the login otherwise (its `timed` claim is then
+# false). With no live override the session is in the account's default mode.
 MODE_OVERRIDE_COOKIE = "access_mode"
 
 
@@ -209,9 +210,12 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
             override = _mode_override(request, user.username)
             if override is not None:
                 mode_id = _mode_claim(override)
-                mode_expires_at = datetime.fromtimestamp(
-                    override["exp"], tz=timezone.utc
-                )
+                # An override with no `timed` claim predates the claim, and
+                # every one of those was on the clock.
+                if override.get("timed", True):
+                    mode_expires_at = datetime.fromtimestamp(
+                        override["exp"], tz=timezone.utc
+                    )
             else:
                 mode_id = default_mode_id(db, user)
         mode = resolve_mode(db, user, mode_id)

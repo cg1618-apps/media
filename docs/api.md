@@ -1973,8 +1973,10 @@ Now also returns:
 ```
 
 **`mode.expires_at`** is when a switched-to mode ends and the session returns
-to the account's default mode (ISO 8601, UTC), or `null` while it is already
-in the default. `AuthContext` reloads the page just after it.
+to the account's default mode (ISO 8601, UTC), or `null` when there is no
+such moment: the session is already in the default, or in a mode no wider than
+it, which lasts as long as the login. `AuthContext` reloads the page just after
+it.
 
 **`visible_gated_types`** is the sorted list of gated media types this session
 may see (`gated_types.visible_gated_types`): `["h-comic", "h-game", "hentai"]`
@@ -2030,9 +2032,11 @@ Change the active access mode without logging out.
 
 **A switched-to mode is temporary.** Switching to any mode other than the
 account's default sets the `access_mode` cookie: a browser-session cookie (no
-`max_age`, so closing the browser drops it) holding a signed token that expires
-`ACCESS_MODE_OVERRIDE_MINUTES` (60) after the switch, and never after the login
-does. Switching to the default clears it. Either way out, the session is back
+`max_age`, so closing the browser drops it) holding a signed token. A mode
+**wider** than the default - one showing anything the default hides, the same
+test that asks for the password - expires `ACCESS_MODE_OVERRIDE_MINUTES` (60)
+after the switch; any other lasts as long as the login. Neither outlives the
+login. Switching to the default clears it. Either way out, the session is back
 in the default mode.
 
 **The login cookie is not reissued.** A switch cannot extend the session:

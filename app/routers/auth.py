@@ -229,10 +229,11 @@ def switch_access_mode(
 
     A SWITCHED-TO MODE IS TEMPORARY. Switching to anything but the account's
     default sets the access_mode cookie: a browser-session cookie (no
-    max_age, so closing the browser drops it) holding a token that expires
-    settings.access_mode_override_minutes from now, and never after the login
-    does. Switching to the default clears it. The login cookie is not
-    reissued, so switching cannot extend a session.
+    max_age, so closing the browser drops it) holding a token. A mode WIDER
+    than the default expires settings.access_mode_override_minutes from now;
+    a narrower one lasts as long as the login. Neither outlives the login.
+    Switching to the default clears it. The login cookie is not reissued, so
+    switching cannot extend a session.
     """
     viewer = resolve_viewer(request, db)
     user = _user_for(db, viewer)
@@ -281,21 +282,33 @@ def switch_access_mode(
                 },
             )
 
-    if payload.mode_id == default_mode_id(db, user):
+    default_id = default_mode_id(db, user)
+    if payload.mode_id == default_id:
         _clear_mode_override(response)
     else:
         login_expires_at = datetime.fromtimestamp(
             (viewer.token_payload or {})["exp"], tz=timezone.utc
         )
-        expires_at = min(
-            datetime.now(timezone.utc)
-            + timedelta(minutes=settings.access_mode_override_minutes),
-            login_expires_at,
+        # Only a mode that reaches past the default is on a clock. "Past" is
+        # the password prompt's own subset test, against the DEFAULT rather
+        # than the mode being left, so the answer does not depend on the
+        # route taken to the target.
+        timed = switch_requires_password(
+            resolve_mode(db, user, default_id), target
         )
-        token = create_access_token(
-            {"sub": user.username, "mode": str(payload.mode_id)},
-            expires_at=expires_at,
-        )
+        claims = {"sub": user.username, "mode": str(payload.mode_id)}
+        if timed:
+            expires_at = min(
+                datetime.now(timezone.utc)
+                + timedelta(minutes=settings.access_mode_override_minutes),
+                login_expires_at,
+            )
+        else:
+            expires_at = login_expires_at
+            # Tells /me there is no end to report: the login's own end is a
+            # month away, past what the SPA's reload timer can hold.
+            claims["timed"] = False
+        token = create_access_token(claims, expires_at=expires_at)
         # No max_age and no expires: a browser-session cookie. The token's
         # own `exp` is what ends it in a browser that restores its session.
         response.set_cookie(
