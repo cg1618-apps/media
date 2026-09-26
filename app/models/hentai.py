@@ -21,8 +21,9 @@ class Hentai(Base, NameFallbackMixin):
     Adult anime, seen in the `unrestricted` access mode only.
 
     One entry is one episode, so there is no episode count and watch orders
-    treat an entry as whole. Tenrai fills three things from `mal_link`:
-    airing_status, release_date and the cover (autofill_hentai_from_mal).
+    treat an entry as whole. Tenrai fills airing_status, release_date, the
+    cover and the Official site / Twitter reference rows from `mal_link`
+    (autofill_hentai_from_mal).
 
     Every row carries the `hentai` content label, attached server-side on
     every write path - REQUIRED_LABEL_FOR_TYPE in
@@ -84,8 +85,7 @@ class Hentai(Base, NameFallbackMixin):
     airing_status = Column(String, nullable=True)
     release_date = Column(String, nullable=True)
 
-    # The MyAnimeList entry Tenrai fills airing_status, release_date and the
-    # cover from. mal_id is extracted from mal_link, as for anime.
+    # The MyAnimeList entry Tenrai fills this entry from. mal_id is extracted from mal_link, as for anime.
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
 

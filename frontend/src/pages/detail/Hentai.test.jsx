@@ -13,7 +13,7 @@ import Hentai from "./Hentai";
 
 const REMARK = { key: "remark", shape: "text", label: "Remark", owner_where: {} };
 
-function mockFetch(entry) {
+function mockFetch(entry, cast = []) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => {
@@ -30,6 +30,8 @@ function mockFetch(entry) {
         };
       } else if (u.startsWith(`/api/hentai/${entry.system_id}`)) {
         body = entry;
+      } else if (u.startsWith(`/api/casting/hentai/${entry.system_id}`)) {
+        body = { cast };
       } else if (u.startsWith("/api/notes/sections")) {
         body = [REMARK];
       }
@@ -102,5 +104,33 @@ describe("Hentai detail page", () => {
     // The shared registry, asked for this type: no section of its own.
     const urls = fetch.mock.calls.map(([url]) => String(url));
     expect(urls).toContain("/api/notes/sections?owner_type=hentai");
+  });
+
+  it("draws the cast with each character's seiyuu", async () => {
+    mockFetch(ENTRY, [
+      {
+        system_id: "c1",
+        role: "Main",
+        position: 0,
+        character_name: "Heroine",
+        character_public_id: 7,
+        person_id: "p1",
+        person_name: "Voice Actor",
+        person_public_id: 9,
+      },
+    ]);
+    mount(ENTRY);
+    await screen.findByText("Heroine");
+    expect(screen.getByText("Cast")).toBeInTheDocument();
+    expect(screen.getByText("voiced by")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Voice Actor" })).toBeInTheDocument();
+  });
+
+  it("draws no cast slip for an entry with no cast", async () => {
+    mockFetch(ENTRY);
+    mount(ENTRY);
+    await screen.findByRole("heading", { name: "中文名" });
+    await screen.findByText("Notes");
+    expect(screen.queryByText("Cast")).toBeNull();
   });
 });

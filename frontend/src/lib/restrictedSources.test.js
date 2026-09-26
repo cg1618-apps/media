@@ -41,6 +41,7 @@ describe("restrictedSourcesFor", () => {
     ["manga", ["漫畫櫃 (電腦版)", "漫畫櫃 (手機版)", "漫畫人"], ["包子漫畫"]],
     ["novel", [], NOVEL],
     ["comic", ["BatCave"], ["GlobalComix", "Read Comics Online"]],
+    ["hentai", ["Hanime1"], []],
   ])("%s prefills its every-entry names and offers the rest after them", (type, prefill, optional) => {
     expect(restrictedSourcesFor(type)).toEqual({
       prefill,

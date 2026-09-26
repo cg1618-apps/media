@@ -49,6 +49,7 @@ const RESTRICTED_SOURCES = Object.freeze({
   },
   comic: { prefill: ["BatCave"], optional: ["GlobalComix", "Read Comics Online"] },
   "h-comic": { prefill: ["禁漫天堂"], optional: [] },
+  hentai: { prefill: ["Hanime1"], optional: [] },
 });
 
 // Added to h-comic's prefill on KR.

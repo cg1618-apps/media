@@ -532,7 +532,7 @@ export const defaultHentai = () => ({
   h_genre_plot: "",
   h_genre_appearance: "",
   h_genre_relation: "",
-  sources: [],
+  sources: defaultRestrictedSources("hentai"),
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",

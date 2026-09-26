@@ -1204,9 +1204,10 @@ Constraints and indexes:
   no default/override split, so a recast is a second row, not a resolution
   rule). No NULLS NOT DISTINCT needed: all three columns are NOT NULL.
 - `ck_casting_voice_scope` CHECK `person_id IS NULL OR media_type IN
-  ('anime', 'anime-movie')` - characters reach all four ACG types
-  (`anime`, `anime-movie`, `manga`, `novel`), but a seiyuu (`person_id` set)
-  may only be attached on the two types with voice acting. Enforced in the
+  ('anime', 'anime-movie', 'hentai')` - characters reach every type in
+  `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `novel`, `h-comic`,
+  `hentai`), but a seiyuu (`person_id` set) may only be attached on the three
+  types with voice acting. Enforced in the
   database, not just in `app/services/domain/casting.py`, because the Fill
   pipeline and any future migration write these rows without going through
   the API.

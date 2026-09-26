@@ -21,13 +21,14 @@ from app.utils.character_roles import CHARACTER_ROLES
 # The ACG media types character_casting.media_type may hold - a subset of
 # MEDIA_TABLES. h-comic casts real character rows like manga does (D6); it has
 # no voice acting, so ck_casting_voice_scope already refuses a seiyuu there.
+# hentai is animated, so it is cast the way anime is, seiyuu included.
 CASTING_MEDIA_TYPES: tuple[str, ...] = (
-    "anime", "anime-movie", "manga", "novel", "h-comic",
+    "anime", "anime-movie", "manga", "novel", "h-comic", "hentai",
 )
 
-# Media types a seiyuu (person_id) may be attached to - the two with voice
+# Media types a seiyuu (person_id) may be attached to - the ones with voice
 # acting. Mirrors ck_casting_voice_scope exactly.
-VOICED_MEDIA_TYPES: tuple[str, ...] = ("anime", "anime-movie")
+VOICED_MEDIA_TYPES: tuple[str, ...] = ("anime", "anime-movie", "hentai")
 
 
 class CastingValidationError(ValueError):

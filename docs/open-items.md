@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-09-24
+Last verified: 2026-09-26
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -193,4 +193,5 @@ nothing else is in flight, and not before.
 | `/defaults` shows an inert auto-fill column for Game | `frontend/src/config/formFields/fieldMeta.js` |
 | Invented entities never reach the admin log table — `error_message` renders only on Failed rows, never `details_json` | `Admin.jsx` |
 | The colour-token table holds pre-archive hexes | `docs/frontend/components.md` |
+| Six detail pages each define their own near-identical `CastSection`; it should be one shared component | `pages/detail/{Anime,AnimeMovie,Manga,Novel,HComic,Hentai}.jsx` |
 | Two docs still describe a `ScoreBlock` "Last updated" figure that the component no longer has, one of them as the worked example of withheld fields being absent rather than blanked — so replacing it needs a different example, not a deletion | `docs/authorization.md:423`, `:1163`, `:1191` |
