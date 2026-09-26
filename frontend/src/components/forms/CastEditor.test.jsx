@@ -114,6 +114,31 @@ it("renders one row per cast member", async () => {
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 
+it("gives every cell at most one width utility", async () => {
+  // jsdom lays nothing out, so this pins the mechanism of the defect rather
+  // than the picture: a shared `w-full` beside the Role select's own `w-28`
+  // let `w-full` win on stylesheet order, and the non-shrinking select took
+  // the whole row. Checked on h-comic, where it was seen, and on anime, whose
+  // seiyuu column adds a cell.
+  for (const mediaType of ["h-comic", "anime"]) {
+    const { unmount } = render(
+      <CastEditor mediaType={mediaType} value={[row()]} onChange={vi.fn()} />,
+    );
+    const cells = [
+      screen.getByLabelText("Role"),
+      screen.getByLabelText("Photo file"),
+      screen.getByLabelText("Remark"),
+    ];
+    for (const cell of cells) {
+      const widths = [...cell.classList].filter((c) => /^w-/.test(c));
+      expect(widths.length, `${mediaType} ${cell.getAttribute("aria-label")}`).toBeLessThanOrEqual(1);
+    }
+    expect(screen.getByLabelText("Role")).toHaveClass("w-28", "shrink-0");
+    unmount();
+  }
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
 it("hides the seiyuu column on manga", async () => {
   // ck_casting_voice_scope: nobody voices anyone in a manga, so the UI must
   // not offer what the database will reject.
