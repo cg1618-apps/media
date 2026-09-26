@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultRestrictedSources,
   followRegion,
+  mergeHComicAutofill,
   restrictedSourcesFor,
   withRestrictedSources,
 } from "./restrictedSources";
@@ -118,5 +119,30 @@ describe("followRegion", () => {
 
   it("never drops 禁漫天堂, which every region has", () => {
     expect(names(followRegion([restricted("禁漫天堂")], "KR", "JP"))).toEqual(["禁漫天堂"]);
+  });
+});
+
+describe("mergeHComicAutofill", () => {
+  const form = { region: "", h_comic_name_cn: "", sources: [restricted("禁漫天堂")] };
+
+  it("carries the untouched sources over to a copied region", () => {
+    const out = mergeHComicAutofill(form, { region: "KR", h_comic_name_cn: "名" });
+
+    expect(out.region).toBe("KR");
+    expect(out.h_comic_name_cn).toBe("名");
+    expect(names(out.sources)).toEqual(["禁漫天堂", ...KR_ONLY]);
+  });
+
+  it("keeps copied sources as they are", () => {
+    const copied = [restricted("禁漫天堂", "https://x.test/1")];
+    const out = mergeHComicAutofill(form, { region: "KR", sources: copied });
+
+    expect(out.sources).toBe(copied);
+  });
+
+  it("leaves the sources alone when no region was copied", () => {
+    const out = mergeHComicAutofill(form, { h_comic_name_cn: "名" });
+
+    expect(out.sources).toBe(form.sources);
   });
 });
