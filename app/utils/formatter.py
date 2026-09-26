@@ -992,6 +992,8 @@ def parse_h_comic_from_sheet(raw: dict) -> dict:
             parse_from_sheet(raw.get("release_date"), str)
         ),
         "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
+        "mal_id": parse_from_sheet(raw.get("mal_id"), int),
+        "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "highlight_group_order": _safe_json(raw.get("highlight_group_order")),
         "illustrator": parse_from_sheet(raw.get("illustrator"), str),
         "author": parse_from_sheet(raw.get("author"), str),

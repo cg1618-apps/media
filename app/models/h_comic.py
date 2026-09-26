@@ -101,6 +101,11 @@ class HComic(Base, NameFallbackMixin):
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
 
+    # The MyAnimeList entry Tenrai fills from. mal_id is extracted from
+    # mal_link, as for manga.
+    mal_id = Column(Integer, nullable=True)
+    mal_link = Column(String, nullable=True)
+
     # The owner's order of the KR highlight GROUPS (one group per female
     # character name): a list of names, read and written whole. Names absent
     # from it render after it, in first-appearance order. KR.

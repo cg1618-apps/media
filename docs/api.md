@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-25
+Last verified: 2026-09-26
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -399,7 +399,7 @@ with no additions. There is no external API, so the write hook fetches nothing.
 | -------- | ---------------------- | ------ | ----------- |
 | `GET`    | `/`                    | Public | List. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `region`, `search_query` (matched against all five name columns). |
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
-| `POST`   | `/`                    | Admin  | Create. Body: `HComicCreate`; **`region` is required** (`JP` / `KR`). Auto-runs `execute_replace_single_h_comic`, which fetches nothing and runs `run_sync_h_comic` and `run_sync_gated_labels`. |
+| `POST`   | `/`                    | Admin  | Create. Body: `HComicCreate`; **`region` is required** (`JP` / `KR`). Auto-runs `execute_replace_single_h_comic`: when the entry has a `mal_link`, `mal_id` is extracted from it and Tenrai's manga record fills what is blank (see `/replace/h-comic/{entry_id}`); then `run_sync_h_comic` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HComicUpdate`. `region` may be omitted, but not sent as `null` (422). Same write hook. |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The h-comic vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. `animation_status` follows the derived-status rule below. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `reading_status = "Completed"`; `serialization_status` becomes `完結` unless it is `腰斬`; the region's counter reaches its total (`page_fin = page_total` on JP, `ch_fin = ch_total` on KR). |
@@ -1698,7 +1698,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/fill/manga`       | Fill missing metadata for all manga from Tenrai. Streams SSE progress.        |
 | `POST` | `/fill/novel`       | Fill missing metadata for all novels from Tenrai. Streams SSE progress.       |
 | `POST` | `/fill/comic`       | Runs options extraction for all comics. No external call — comics are manual-entry. Streams SSE progress. |
-| `POST` | `/fill/h-comic`     | Nothing is eligible - there is no external API - so it only runs `run_sync_h_comic` (region clears over the whole table) and `run_sync_gated_labels` (every gated type's label on every entry and franchise). Streams SSE progress. Not part of Fill All. |
+| `POST` | `/fill/h-comic`     | Fill `serialization_status`, `release_date`, `end_date`, the cover and - on a finished (`完結`) KR entry - `ch_total` from Tenrai's manga record, for every h-comic with a MAL id that is missing one of them, fill-only, 1 s between calls; then `run_sync_h_comic` (region clears over the whole table) and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/h-game`      | Game's Fill on the h-game table: IGDB (columns, the `studio` credit, `game_genre` / `game_theme`) and Steam (prices, achievements), then `run_sync_game` and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/hentai`      | Fill `airing_status`, `release_date` and the cover from Tenrai for every hentai with a MAL id that is missing one of them, fill-only, 1 s between calls; then `run_sync_hentai` (system options) and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/studio`      | Fill missing logo, MAL link, founding date, Japanese name and website for every studio that has a MAL id, from Tenrai's producers endpoint. Fill-only; there is no `/replace/studio`. Streams SSE progress. |
@@ -1725,7 +1725,8 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/replace/game`                         | Replace for every game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam (overwrites the current prices and the Metacritic score). Stops cleanly when the Steam storefront budget is spent. Streams SSE progress. Part of Replace All. |
 | `POST` | `/replace/game/{entry_id}`              | The same for one game — the detail page's Autofill button — then `run_sync_game`. Returns JSON. |
 | `POST` | `/replace/comic/{entry_id}`             | Runs the Replace write hook for a single comic entry. Fetches nothing — comics are manual-entry, so there is no external record to reconcile against; it exists only so the write is logged like every other type's. Returns JSON. |
-| `POST` | `/replace/h-comic/{entry_id}`           | The write hook for one h-comic: fetches nothing, runs `run_sync_h_comic` and `run_sync_gated_labels`. Returns JSON. There is no bulk `/replace/h-comic`, and h-comic is not part of Replace All. |
+| `POST` | `/replace/h-comic`                      | Replace for every h-comic with a `mal_id` or `mal_link`: the same Tenrai fields as Fill, still fill-only, so it completes what is blank and overwrites nothing. Streams SSE progress. Part of Replace All. |
+| `POST` | `/replace/h-comic/{entry_id}`           | The same for one h-comic — the detail page's Autofill button and the write hook — then `run_sync_h_comic` and `run_sync_gated_labels`. Returns JSON. |
 | `POST` | `/replace/h-game`                       | Game's Replace for every h-game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam. Streams SSE progress. Part of Replace All. |
 | `POST` | `/replace/h-game/{entry_id}`            | The same for one h-game — the detail page's Autofill button — then `run_sync_game` and `run_sync_gated_labels`. Returns JSON. |
 | `POST` | `/replace/hentai`                       | Re-run Tenrai for every hentai that has a MAL id or link - the same three fill-only fields, so it completes what is blank and overwrites nothing - then `run_sync_hentai` and `run_sync_gated_labels`. Streams SSE progress. |

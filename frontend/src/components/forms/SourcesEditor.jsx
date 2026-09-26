@@ -13,6 +13,7 @@
 // payload conversion (`Object.fromEntries` over name) silently collapsed two
 // rows sharing a name; storing an array and always mapping/filtering by
 // index (`j === i`, `j !== i`) means duplicate names never collide.
+import { useId } from "react";
 import { inputCls, selectCls } from "./FormField";
 import { getSourceValues } from "../../lib/formatters";
 
@@ -24,8 +25,14 @@ function removeRow(value, index) {
   return value.filter((_, j) => j !== index);
 }
 
-function addRow(bucket, kind = "access") {
-  return { kind, bucket, name: "", url: "", available: null };
+function addRow(bucket, kind = "access", name = "") {
+  return { kind, bucket, name, url: "", available: null };
+}
+
+// The suggested names this bucket does not hold yet, in suggestion order.
+function missingSuggestions(value, indices, suggestions) {
+  const present = new Set(indices.map((i) => (value[i].name || "").trim()));
+  return suggestions.filter((name) => !present.has(name));
 }
 
 function RowActions({ onRemove }) {
@@ -116,7 +123,19 @@ function VocabRows({ indices, names, showAvailability, onChange, value }) {
   );
 }
 
-function FreeTextRows({ indices, bucket, label, addLabel, onChange, value }) {
+// `suggestions` are offered while typing and by the prefill button, never
+// enforced: the bucket is free text, so any other name is still accepted.
+function FreeTextRows({
+  indices,
+  bucket,
+  label,
+  addLabel,
+  onChange,
+  value,
+  suggestions = [],
+}) {
+  const listId = useId();
+  const missing = missingSuggestions(value, indices, suggestions);
   return (
     <div>
       <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
@@ -130,6 +149,8 @@ function FreeTextRows({ indices, bucket, label, addLabel, onChange, value }) {
               <input
                 className={inputCls}
                 placeholder="Source name"
+                aria-label={`${label} name`}
+                list={suggestions.length ? listId : undefined}
                 value={row.name}
                 onChange={(e) =>
                   onChange(updateRow(value, index, { name: e.target.value }))
@@ -150,18 +171,44 @@ function FreeTextRows({ indices, bucket, label, addLabel, onChange, value }) {
             </div>
           );
         })}
-        <button
-          type="button"
-          className="text-xs text-brand hover:underline mt-1"
-          onClick={() => onChange([...value, addRow(bucket)])}
-        >
-          + {addLabel}
-        </button>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            className="text-xs text-brand hover:underline mt-1"
+            onClick={() => onChange([...value, addRow(bucket)])}
+          >
+            + {addLabel}
+          </button>
+          {missing.length > 0 && (
+            <button
+              type="button"
+              className="text-xs text-brand hover:underline mt-1"
+              onClick={() =>
+                onChange([
+                  ...value,
+                  ...missing.map((name) => addRow(bucket, "access", name)),
+                ])
+              }
+            >
+              + Prefill suggested ({missing.length})
+            </button>
+          )}
+        </div>
+        {suggestions.length > 0 && (
+          <datalist id={listId}>
+            {suggestions.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+        )}
       </div>
     </div>
   );
 }
 
+// `restrictedSuggestions` are the names the restricted bucket is prefilled
+// with (h-comic's, lib/hComicRestrictedSources.js).
+//
 // `showAccess` false drops the access group entirely - games have no "where
 // can I play this" source: that is the Platform tag, and which copy was bought
 // is game_copy. It is a prop rather than a media-type check here because the
@@ -173,6 +220,7 @@ export default function SourcesEditor({
   mediaType,
   sources,
   showAccess = true,
+  restrictedSuggestions = [],
 }) {
   const rows = value || [];
   const mainIndices = [];
@@ -263,6 +311,7 @@ export default function SourcesEditor({
         addLabel="Add restricted source"
         onChange={onChange}
         value={rows}
+        suggestions={restrictedSuggestions}
       />
     </div>
   );

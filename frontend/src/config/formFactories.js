@@ -18,6 +18,8 @@
 // ImagePicker.jsx's module comment and attachUploadedImage()). It is never
 // sent to the API and is always reset to null by freshForm() after a save.
 
+import { withSuggestedRestrictedSources } from "../lib/hComicRestrictedSources";
+
 export const defaultAnime = () => ({
   anime_name_en: "",
   anime_name_cn: "",
@@ -408,6 +410,8 @@ export const defaultHComic = () => ({
   ch_behind: "",
   release_date: "",
   end_date: "",
+  mal_id: "",
+  mal_link: "",
   reading_status: "Might Read",
   my_rating: "",
   usefulness: "",
@@ -420,7 +424,9 @@ export const defaultHComic = () => ({
   h_genre_plot: "",
   h_genre_appearance: "",
   h_genre_relation: "",
-  sources: [],
+  // Prefilled with the restricted sources every h-comic has; the Add form
+  // adds the region's own once one is chosen (lib/hComicRestrictedSources.js).
+  sources: withSuggestedRestrictedSources([], ""),
   read_next: false,
   to_reread: false,
   cover_image_file: "",

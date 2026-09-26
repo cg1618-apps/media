@@ -29,8 +29,13 @@ const CHARACTER_SEARCH_DEBOUNCE_MS = 250;
 // seiyuu column must not offer what the database will reject.
 const SEIYUU_MEDIA_TYPES = new Set(["anime", "anime-movie"]);
 
+// No width here: each cell states its own. A shared `w-full` beside a cell's
+// own `w-28` is two width utilities on one element, and Tailwind resolves
+// that by stylesheet order, not class order - `w-full` won, so the
+// non-shrinking Role select took the whole row and pushed the photo, remark
+// and remove controls out of the card.
 const cellCls =
-  "border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface w-full";
+  "border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface";
 
 function emptyRow(position) {
   return {
@@ -372,7 +377,7 @@ export default function CastEditor({ mediaType, value, onChange }) {
               />
             ) : null}
             <input
-              className={cellCls + " text-xs"}
+              className={cellCls + " text-xs w-full min-w-0"}
               placeholder="Photo file"
               value={row.photo_file || ""}
               onChange={(e) => updateRow(i, { photo_file: e.target.value || null })}

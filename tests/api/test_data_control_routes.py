@@ -16,9 +16,8 @@ MEDIA = [
     "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
     "comic", "h-comic", "h-game", "hentai",
 ]
-# Types with no bulk Replace: comic spends an hourly quota, and h-comic has no
-# external API to replace from.
-NO_BULK_REPLACE = {"comic", "h-comic"}
+# The one type with no bulk Replace: comic spends an hourly quota.
+NO_BULK_REPLACE = {"comic"}
 
 
 def routes():
@@ -32,7 +31,7 @@ def test_fill_and_single_replace_exist_for_every_type(media):
 
 
 @pytest.mark.parametrize("media", [m for m in MEDIA if m not in NO_BULK_REPLACE])
-def test_bulk_replace_exists_for_every_type_but_comic_and_h_comic(media):
+def test_bulk_replace_exists_for_every_type_but_comic(media):
     assert ("POST", f"/api/data-control/replace/{media}") in routes()
 
 

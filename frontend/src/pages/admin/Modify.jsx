@@ -975,6 +975,8 @@ export default function Modify() {
       ch_behind: h.ch_behind ?? "",
       release_date: h.release_date ?? "",
       end_date: h.end_date ?? "",
+      mal_id: h.mal_id ?? "",
+      mal_link: h.mal_link || "",
       reading_status: h.reading_status || md("h-comic").reading_status,
       my_rating: h.my_rating || "",
       usefulness: h.usefulness || "",

@@ -39,6 +39,7 @@ from app.services.integrations.tenrai import (
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
 from app.utils.anilist_utils import map_anilist_record
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
+from app.utils.constants import H_COMIC_REGION_KR
 from app.utils.igdb_utils import map_igdb_to_game_data
 from app.utils.imdb_utils import (
     _derive_tv_season_airing_status,
@@ -243,6 +244,61 @@ def autofill_hentai_from_mal(hentai, db: Session = None) -> None:
         logger.error(
             "MAL Autofill failed for Hentai ID %s (MAL %s): %s",
             hentai.system_id,
+            mal_id,
+            e,
+        )
+
+
+def autofill_h_comic_from_mal(h_comic, db: Session = None) -> None:
+    """
+    Fetches Tenrai data for a single h-comic entry. Does not commit - caller
+    is responsible.
+
+    Manga's record and mapper, and manga's rules for what it has columns for:
+    serialization_status, release_date and end_date are fill-only, the cover
+    is downloaded only when the entry has none, and ch_total is filled only
+    once the serialization is 完結 - and only on KR, the region that counts
+    chapters. h_comic has no rating columns, so none are read.
+    """
+    mal_id = h_comic.mal_id
+    if not mal_id:
+        return
+
+    try:
+        raw_data = fetch_tenrai_manga_novel_data(mal_id)
+        if not raw_data:
+            return
+
+        j_data = map_tenrai_to_manga_data(raw_data)
+
+        if h_comic.serialization_status is None:
+            h_comic.serialization_status = j_data.get("serialization_status")
+        if h_comic.release_date is None:
+            h_comic.release_date = j_data.get("release_date")
+        if h_comic.end_date is None:
+            h_comic.end_date = j_data.get("end_date")
+
+        if (
+            h_comic.region == H_COMIC_REGION_KR
+            and h_comic.serialization_status == "完結"
+            and h_comic.ch_total is None
+        ):
+            h_comic.ch_total = j_data.get("ch_total")
+
+        if (
+            cover_needs_download(h_comic.cover_image_file, "h-comic", str(h_comic.system_id))
+            and j_data.get("cover_image_url")
+        ):
+            key = download_cover_image(
+                j_data.get("cover_image_url"), "h-comic", str(h_comic.system_id)
+            )
+            if key:
+                h_comic.cover_image_file = key
+
+    except Exception as e:
+        logger.error(
+            "MAL Autofill failed for H-Comic ID %s (MAL %s): %s",
+            h_comic.system_id,
             mal_id,
             e,
         )

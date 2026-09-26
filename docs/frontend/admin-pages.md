@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-25
+Last verified: 2026-09-26
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -40,9 +40,9 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   `success`, `error`) into a status line and toasts on completion; **Stop**
   aborts the fetch via an `AbortController`, and the page aborts any running
   stream on unmount. Only one stream runs at a time. The Fill box's
-  **H-Comic** button (`/fill/h-comic`) is drawn only for a session that can see
-  the type; it fetches nothing and re-runs the region clears and the label, and
-  h-comic has no Replace button, since there is no bulk Replace for it. The
+  **H-Comic** buttons (`/fill/h-comic`, `/replace/h-comic`) are drawn only for
+  a session that can see the type; both fetch Tenrai's manga record over the
+  h-comic table, fill-only, and end in the region clears and the label. The
   **H-Game** buttons (`/fill/h-game` in the Fill box, `/replace/h-game` in the
   Replace box) are gated the same way; they run Game's IGDB and Steam fill and
   Game's Replace (IGDB fill-only, then Steam) over the h-game table. The
@@ -229,7 +229,13 @@ created as `H-Comic`; the server refuses an h-comic in any other family. Submit
 needs a region and a CN or EN name, blanks what the region does not use
 (`clearedForRegion` - names are kept), quick-creates the typed people and genre
 values through `hComicSourceFields`, then `POST /api/h-comic/`, the credits,
-the cast and the labels, without enrichment (there is no external API). The
+the cast and the labels; the write hook then fills from Tenrai when a MAL
+link was given. The form starts with the restricted source `禁漫天堂`, and
+choosing KR adds the six KR suggestions - rows that are still untouched (a
+suggested name with no url) follow the region, and anything typed stays
+(`lib/hComicRestrictedSources.js`). Modify offers the same names through the
+editor's **Prefill suggested** button instead. The MAL ID beside the MAL Link
+is read-only: the write hook derives it from the link. The
 content-label picker shows the `h-comic` label checked and locked: every entry
 carries it, and the save adds it back. The form never sends
 `highlight_group_order` - the detail page's drag owns it.
