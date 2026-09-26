@@ -99,6 +99,7 @@ export default function SourcesCard({
   sources = [],
   mediaType,
   malLink,
+  anidbLink,
   imdbLink,
   comicvineLink,
   openLibraryLink,
@@ -129,6 +130,7 @@ export default function SourcesCard({
     hasStorefront ||
     referenceRows.length > 0 ||
     Boolean(malLink) ||
+    Boolean(anidbLink) ||
     Boolean(imdbLink) ||
     Boolean(comicvineLink) ||
     Boolean(openLibraryLink) ||
@@ -187,6 +189,7 @@ export default function SourcesCard({
       )}
       {(referenceRows.length > 0 ||
         malLink ||
+        anidbLink ||
         imdbLink ||
         comicvineLink ||
         openLibraryLink ||
@@ -201,6 +204,11 @@ export default function SourcesCard({
           {malLink && (
             <SourceLink href={malLink} tag="MAL">
               MyAnimeList
+            </SourceLink>
+          )}
+          {anidbLink && (
+            <SourceLink href={anidbLink} tag="AniDB">
+              AniDB
             </SourceLink>
           )}
           {imdbLink && (

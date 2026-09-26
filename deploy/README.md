@@ -289,7 +289,8 @@ machines pin the same value for the same reason.
 Plus the third-party API keys, which are account credentials rather than
 per-environment secrets and are reused from a dev machine: `TMDB_API_KEY`,
 `OMDB_API_KEY`, `COMICVINE_API_KEY`, `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET`,
-`STEAM_API_KEY`, `STEAM_ID`.
+`STEAM_API_KEY`, `STEAM_ID`, `ANIDB_CLIENT`, `ANIDB_CLIENTVER` (the last two
+name a client registered at anidb.net; AniDB is off while either is unset).
 
 Generate a secret with:
 

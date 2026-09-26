@@ -570,9 +570,10 @@ export function hGameFieldsPayload(f) {
  * franchise and series ids, which the caller resolves (and may have just
  * created) first.
  *
- * One entry is one episode, so there is no progress to send. `mal_link` is
- * the MAL key's source of truth: the write hook derives `mal_id` from it, so
- * the id travels only beside a link, and clearing the link clears the id.
+ * One entry is one episode, so there is no progress to send. `mal_link` and
+ * `anidb_link` are their keys' source of truth: the write hook derives
+ * `mal_id` and `anidb_id` from them, so an id travels only beside its link,
+ * and clearing the link clears the id.
  */
 export function hentaiFieldsPayload(f) {
   return {
@@ -588,6 +589,8 @@ export function hentaiFieldsPayload(f) {
     release_date: f.release_date || null,
     mal_link: f.mal_link || null,
     mal_id: f.mal_link ? int(f.mal_id) : null,
+    anidb_link: f.anidb_link || null,
+    anidb_id: f.anidb_link ? int(f.anidb_id) : null,
     watching_status: f.watching_status || "Might Watch",
     my_rating: f.my_rating || null,
     usefulness: f.usefulness || null,

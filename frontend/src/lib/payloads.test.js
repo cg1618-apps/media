@@ -372,6 +372,18 @@ describe("hentai", () => {
     expect(body.mal_link).toBeNull();
     expect(body.mal_id).toBeNull();
   });
+
+  it("sends the AniDB link, and its id only beside it", () => {
+    const linked = hentaiFieldsPayload({
+      anidb_link: "https://anidb.net/anime/1",
+      anidb_id: "1",
+    });
+    expect(linked.anidb_link).toBe("https://anidb.net/anime/1");
+    expect(linked.anidb_id).toBe(1);
+    const cleared = hentaiFieldsPayload({ anidb_link: "", anidb_id: "5" });
+    expect(cleared.anidb_link).toBeNull();
+    expect(cleared.anidb_id).toBeNull();
+  });
 });
 
 // The person credits of manga, novel and comic are `author` and `illustrator`,

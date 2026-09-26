@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -48,7 +48,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   Game's Replace (IGDB fill-only, then Steam) over the h-game table. The
   **Hentai** buttons (`/fill/hentai`, `/replace/hentai`) are gated the same
   way too; both fetch Tenrai's airing status, release date and cover over the
-  hentai table, and both are fill-only - Replace completes what is blank and
+  hentai table, then AniDB's for whatever MAL left blank, and both are fill-only - Replace completes what is blank and
   overwrites nothing.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
@@ -314,7 +314,7 @@ and `hentaiFieldsPayload` sends an id only beside one; sources, Watch Next /
 To Rewatch, cover and remark. Submit needs a CN or EN name and a franchise,
 quick-creates the studio, director and genre values through `hentaiSourceFields`, then
 `POST /api/hentai/`, the credits and the labels, without enrichment (Fill and
-Replace fetch from Tenrai later); the `hentai` label is checked and locked in
+Replace fetch from Tenrai and AniDB later); the `hentai` label is checked and locked in
 the picker.
 
 **Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
@@ -669,8 +669,8 @@ them, and their auto-fill ticks drive each Add form's copy-an-existing-entry
 box. `h-game`'s four multi-choice lists offer no default, since their unset
 state is `null`, "not recorded"; auto-fill copies them as they are, `null`
 included (`buildAutofillPatch` keeps any field whose blank form value is
-`null`). `hentai`'s `mal_id` is hidden (the write hook derives it from the
-link) and `mal_link` is not auto-fillable.
+`null`). `hentai`'s `mal_id` and `anidb_id` are hidden (the write hook derives
+each from its link) and `mal_link` and `anidb_link` are not auto-fillable.
 
 `game` is present here like any other media type, but its Add form has no
 "copy an existing entry" search (its box searches IGDB), so the auto-fill ticks

@@ -26,6 +26,7 @@ from app.services.domain.autofill import (
     autofill_game_from_steam,
     autofill_h_comic_from_mal,
     autofill_h_game_from_dlsite,
+    autofill_hentai_from_anidb,
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -41,6 +42,7 @@ from app.services.domain.checking import (
 from app.services.domain.derivation import (
     apply_calculate_seasonal_from_month,
     apply_extract_game_ids,
+    apply_extract_hentai_ids,
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
@@ -108,11 +110,14 @@ def apply_single_replace_h_comic(db: Session, h_comic, bulk: bool = False) -> No
 def apply_single_replace_hentai(db: Session, hentai, bulk: bool = False) -> None:
     """
     Core 'Replace' logic for a single hentai entry: Tenrai's three fields,
-    fill-only like anime's. No AniList, and nothing derived afterwards.
-    `bulk` is kept for signature parity with the other media types.
+    fill-only like anime's, then AniDB for whatever MAL left blank - fill-only
+    too, so Replace never overwrites from AniDB. No AniList, and nothing
+    derived afterwards. `bulk` is kept for signature parity with the other
+    media types.
     """
-    apply_extract_mal_id_anime(hentai)
+    apply_extract_hentai_ids(hentai)
     autofill_hentai_from_mal(hentai, db=db)
+    autofill_hentai_from_anidb(hentai, db=db)
 
 
 def apply_single_replace_movie(db: Session, movie: Movies, bulk: bool = False) -> None:

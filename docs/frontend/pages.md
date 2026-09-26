@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -804,11 +804,11 @@ Release Date), **Credits** (Studio via `studioValue`, Director) and
 Credits and Genres - characters with "voiced by" their seiyuu, from
 `useCasting("hentai", …)`, drawn only when the entry has a cast. The spine reads "Hentai" and
 the source material; the series number sits beside the series link. The left
-column carries `SourcesCard` with `malLink` and `RelationsSection`. The admin
+column carries `SourcesCard` with `malLink` and `anidbLink` and `RelationsSection`. The admin
 toolbar has Quick edit, Mark completed and **Autofill & update**, the
-single-entry Tenrai fetch (`replaceSingle("hentai")`: airing status, release
-date, cover and the Official site / Twitter reference rows, each only where
-blank). A Remarks slip appears only when a
+single-entry Tenrai and AniDB fetch (`replaceSingle("hentai")`: airing
+status, release date, cover and the Official site / Twitter reference rows,
+each only where blank, AniDB only for what MAL left blank). A Remarks slip appears only when a
 remark exists, and `HentaiNotes.jsx` is the plain wrapper - the type has no
 notes section of its own - with the `remark` section hidden exactly then.
 

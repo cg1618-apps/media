@@ -375,7 +375,12 @@ export default function Hentai() {
             </div>
           </div>
 
-          <SourcesCard sources={hentai.sources} mediaType="hentai" malLink={hentai.mal_link} />
+          <SourcesCard
+            sources={hentai.sources}
+            mediaType="hentai"
+            malLink={hentai.mal_link}
+            anidbLink={hentai.anidb_link}
+          />
 
           <RelationsSection mediaType="hentai" entryId={hentai.system_id} />
         </div>

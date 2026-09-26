@@ -44,6 +44,15 @@ describe("SourcesCard", () => {
     expect(screen.getByRole("link", { name: /myanimelist/i })).toBeInTheDocument();
   });
 
+  it("renders a hentai's AniDB link under Where to Look Up", () => {
+    render(
+      <SourcesCard sources={[]} mediaType="hentai" anidbLink="https://anidb.net/anime/1" />,
+    );
+    const link = screen.getByRole("link", { name: /anidb/i });
+    expect(link).toHaveAttribute("href", "https://anidb.net/anime/1");
+    expect(screen.getByRole("region", { name: "Where to Look Up" })).toContainElement(link);
+  });
+
   // A game's Steam page is a storefront, not a reference database, so it
   // belongs beside the access rows rather than with IGDB and MAL.
   it("renders the Steam link under Where to Play", () => {

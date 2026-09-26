@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -754,9 +754,10 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `source_material` | String | yes | | HENTAI_SOURCE_MATERIALS (Original / Manga / Novel): what the episode adapts |
 | `originality` | String | yes | | H_COMIC_ORIGINALITY (原創 / 同人) |
 | `series_number` | Integer | yes | | The entry's position in its series |
-| `airing_status` | String | yes | | AiringStatus, anime's vocabulary. Filled by Tenrai when blank |
-| `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_hentai_release_date_iso`. Filled by Tenrai when blank |
+| `airing_status` | String | yes | | AiringStatus, anime's vocabulary. Filled by Tenrai when blank, then by AniDB (derived from its dates) |
+| `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_hentai_release_date_iso`. Filled by Tenrai when blank, then by AniDB's `startdate` |
 | `mal_id` / `mal_link` | Integer / String | yes | | The MyAnimeList entry; `mal_id` is extracted from `mal_link` as for anime. Tenrai reads it for airing status, release date and cover only |
+| `anidb_id` / `anidb_link` | Integer / String | yes | | The AniDB anime; `anidb_id` is extracted from `anidb_link` (`https://anidb.net/anime/<aid>` or the old `animedb.pl?show=anime&aid=<aid>`), as `mal_id` is from `mal_link`. AniDB fills airing status, release date and cover after Tenrai, only where they are still blank, and only while `ANIDB_CLIENT` / `ANIDB_CLIENTVER` are set |
 
 The vocabulary columns are checked on every write, including the tracker
 PATCH (`hentai_progress_hook` in `app/services/domain/hentai.py`).

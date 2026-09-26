@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -110,10 +110,15 @@ unparseable link never clears an existing ID.
 | `apply_extract_imdb_id`           | `imdb_link`       | `imdb_id` (str)| `imdb.com/title/tt(\d+)` → stored as `"tt…"`   |
 | `apply_extract_comicvine_id`      | `comicvine_link`  | `comicvine_id` | `comicvine.gamespot.com/<slug>/4050-(\d+)` — the `4050-` prefix means "volume"; issue (`4000-`) and character (`4005-`) URLs are rejected |
 | `apply_extract_igdb_id`           | `igdb_link`       | `igdb_id` (int)| `api\.igdb\.com/v\d+/games/(\d+)` — a public `www.igdb.com` URL carries only a slug, no id, and is rejected |
+| `apply_extract_anidb_id`          | `anidb_link`      | `anidb_id` (int) | `anidb\.net/(?:anime/\|a)(\d+)`, or the old `anidb\.net/perl-bin/animedb\.pl?...aid=(\d+)` — an episode, creator or search URL names no anime and is rejected |
 | `apply_extract_steam_appid`       | `steam_link`      | `steam_appid` (int) | `store\.steampowered\.com/app/(\d+)` — a `steamcommunity.com` hub link uses the same `/app/<id>/` shape but is rejected, since it is not the store page the prices and Metacritic score come from |
 
 `imdb_id` is a **string** like `tt7660850`, never an integer and never
 zero-padded by the app.
+
+`apply_extract_hentai_ids` runs `apply_extract_mal_id_anime` and
+`apply_extract_anidb_id` the same way, for a hentai that can carry a MAL
+link, an AniDB link, or both.
 
 `apply_extract_game_ids` runs both game extractors — IGDB then Steam — and
 returns True when either set an id, rather than short-circuiting on the
@@ -439,7 +444,7 @@ in `app/utils/utils.py`.
 | Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
 | Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `publisher` credit — Comic Vine's publisher resolves to a `publisher` entity, not a tag. Imprint, continuity, era and events and `end_date` are manual and never required — Comic Vine does not model them.                                                          |
 | H-Comic     | `serialization_status, release_date, end_date, cover_image_file` (`H_COMIC_FIELDS_TO_FILL`)                               | The spec additionally requires `mal_id`. On a KR entry whose `serialization_status` is `完結`, also missing while `ch_total` is `None`; a JP entry counts pages, which MAL does not report. |
-| Hentai      | `airing_status, release_date, cover_image_file` (`HENTAI_FIELDS_TO_FILL`)                                                 | The spec additionally requires `mal_id`. These are the only three things Tenrai fills on a hentai, so nothing else can make one eligible. |
+| Hentai      | `airing_status, release_date, cover_image_file` (`HENTAI_FIELDS_TO_FILL`)                                                 | The spec requires `mal_id`, **or** (`has_missing_values_hentai_anidb`) an `anidb_id` while AniDB is enabled. These are the only three things Tenrai and AniDB fill on a hentai, so nothing else can make one eligible. |
 | Studio      | `mal_link, founded_date, name_jp, website_url, logo_file`                                                                 | The only non-media type Fill covers. The spec additionally requires `mal_id` to be set — a studio with no MAL id has no source to fill from, however empty it is. Pasting the producer URL into `mal_link` is enough: `apply_extract_mal_id_studio` derives the id before eligibility is checked (section 2), on Fill and on every studio write. `my_rating`, `country` and `defunct_date` are absent on purpose: MAL's producer record reports none of them, so listing them would leave every studio permanently missing. |
 | Game        | `igdb_link, release_date, cover_image_file, hltb_main, hltb_main_extra, hltb_completionist`                                | Two independent sources, ORed rather than gated together: the IGDB clause above requires `igdb_id` set; the Steam clause is separate and ignores this column list entirely — `has_missing_values_game_steam(e)` is true when `steam_appid` is set and Steam has written **nothing at all** yet (`metacritic_score`, `price_original_us` and `achievements_total` all `None`). Deliberately not folded into the column list above: a free game has no price, an obscure one no Metacritic score, and many have no achievements, so testing those individually would leave such an entry eligible forever. `steam_appid` itself is written by IGDB, not typed in or picked directly — pasting a `store.steampowered.com/app/<id>` link into `steam_link` and running `apply_extract_steam_appid` (section 2) is the only hand-typed path onto it. Refreshing columns Steam already filled is Replace's job, not Fill's — see [external-apis.md](external-apis.md#steam). |
 
@@ -574,7 +579,7 @@ bulk Replace:
 | Manga       | extract MAL id → autofill (ratings forced) → manga post-processing                                                                                    |
 | Novel       | extract MAL id → autofill (ratings forced)                                                                                                            |
 | Comic       | nothing — no replace function; the write hook only re-syncs system options                                                                           |
-| Hentai      | extract MAL id → `autofill_hentai_from_mal` (airing status, release date, cover, and the Official site / Twitter reference rows; all fill-only) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
+| Hentai      | extract MAL and AniDB ids → `autofill_hentai_from_mal` (airing status, release date, cover, and the Official site / Twitter reference rows; all fill-only) → `autofill_hentai_from_anidb` (the same three and the Official site row, only where still blank) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
 
 The `bulk` parameter is accepted by movie/tv/cartoon/manga/novel/hentai for
 signature parity and ignored. Fill-only vs overwrite semantics of the autofill functions

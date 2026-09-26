@@ -130,11 +130,28 @@ def has_missing_values_anime(anime: Anime) -> bool:
 
 
 def has_missing_values_hentai(hentai) -> bool:
-    """True if any of the three columns Tenrai fills is blank."""
+    """True if any of the three columns Tenrai (and AniDB) fills is blank."""
     return any(
         getattr(hentai, field, None) is None or str(getattr(hentai, field)).strip() == ""
         for field in HENTAI_FIELDS_TO_FILL
     )
+
+
+def has_missing_values_hentai_anidb(hentai) -> bool:
+    """
+    True when AniDB could fill something on this hentai: AniDB is enabled,
+    the entry has an anidb_id, and one of the three columns is blank.
+
+    Its own gate rather than a clause of has_missing_values_hentai, so an
+    entry with only an AniDB link - no mal_id - is picked up by Fill. False
+    while AniDB is disabled, so an unconfigured machine never queues an entry
+    that nothing would fill.
+    """
+    from app.config import settings
+
+    if not settings.anidb_enabled or hentai.anidb_id is None:
+        return False
+    return has_missing_values_hentai(hentai)
 
 
 def has_missing_values_h_comic(h_comic) -> bool:

@@ -1,10 +1,10 @@
 # External APIs
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Ten outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios, the columns an h-comic has, and three fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; **DLsite** fills an h-game's release date, studio and cover ahead of both; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Eleven outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios, the columns an h-comic has, and three fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; **DLsite** fills an h-game's release date, studio and cover ahead of both; **AniDB** fills whatever of a hentai's cover, release date and airing status MAL left blank; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
@@ -26,6 +26,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 - [IGDB](#igdb)
 - [Steam](#steam)
 - [DLsite](#dlsite)
+- [AniDB](#anidb)
 - [Google Sheets](#google-sheets)
 - [Cover images (local disk)](#cover-images-local-disk)
 - [Which pipeline calls which service](#which-pipeline-calls-which-service)
@@ -44,6 +45,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 | IGDB | `https://api.igdb.com/v4` (token from `https://id.twitch.tv/oauth2/token`) | `settings.igdb_client_id` ← `IGDB_CLIENT_ID` **and** `settings.igdb_client_secret` ← `IGDB_CLIENT_SECRET` | `app/services/integrations/igdb.py` | `app/utils/igdb_utils.py` | `games` |
 | Steam | `https://store.steampowered.com/api` (no key) **and** `https://api.steampowered.com` (`settings.steam_api_key` ← `STEAM_API_KEY`, `settings.steam_id` ← `STEAM_ID`) | `settings.steam_api_key` / `settings.steam_id`, both optional | `app/services/integrations/steam.py` | `app/utils/steam_utils.py` | `games`; the cover of an `h_game` |
 | DLsite | `https://www.dlsite.com/maniax/api/=/product.json` (undocumented) | none | `app/services/integrations/dlsite.py` | `app/utils/dlsite_utils.py` | `h_game` |
+| AniDB | `http://api.anidb.net:9001/httpapi` (XML, gzip) | `settings.anidb_client` ← `ANIDB_CLIENT` **and** `settings.anidb_clientver` ← `ANIDB_CLIENTVER`, a client registered at anidb.net; AniDB is off while either is unset | `app/services/integrations/anidb.py` | `app/utils/anidb_utils.py` | `hentai` |
 | Google Sheets | via `gspread` | `settings.google_sheet_id` ← `GOOGLE_SHEET_ID`; `settings.google_credentials_json` ← `GOOGLE_CREDENTIALS_JSON` (falls back to a local `credentials.json`; the two branches are environment-split, see [Google Sheets](#google-sheets)) | `app/services/integrations/sheets.py` | `app/utils/formatter.py` | Backup / Pull |
 
 A missing key is never fatal: each client logs `"<NAME> environment variable is not set."` and returns `None` (or `[]`), so a Fill run simply fills nothing from that source. Open Library is the exception in a different direction: it has no key at all, so this failure mode does not apply to it — see [Open Library](#open-library).
@@ -55,7 +57,7 @@ The metadata clients (Tenrai, TMDB, OMDb, Comic Vine, Open Library, IGDB) are bu
 | Concern | Behaviour |
 |---|---|
 | HTTP library | `requests`, synchronous, `timeout=15` seconds on every call (also on the cover-image download in `image_manager.py`). |
-| Rate limiter | One module-level instance per service (`tenrai_rate_limiter`, `tmdb_rate_limiter`, `omdb_rate_limiter`, `comicvine_rate_limiter`, `openlibrary_rate_limiter`, `igdb_rate_limiter`). DLsite, which publishes no limit to window against, instead spaces its requests by a fixed `MIN_INTERVAL` - see [DLsite](#dlsite). Each limiter is a sliding window of request timestamps kept **in memory, per process** — it resets on restart, and two uvicorn workers do not share it. `wait_if_needed()` sleeps before a request when the window is full. |
+| Rate limiter | One module-level instance per service (`tenrai_rate_limiter`, `tmdb_rate_limiter`, `omdb_rate_limiter`, `comicvine_rate_limiter`, `openlibrary_rate_limiter`, `igdb_rate_limiter`). DLsite, which publishes no limit to window against, and AniDB, which bans rather than throttles, instead space their requests by a fixed `MIN_INTERVAL` - see [DLsite](#dlsite) and [AniDB](#anidb). Each limiter is a sliding window of request timestamps kept **in memory, per process** — it resets on restart, and two uvicorn workers do not share it. `wait_if_needed()` sleeps before a request when the window is full. |
 | Retry | `tenacity` decorator: `stop_after_attempt(5)`, `wait_exponential(multiplier=1, min=2, max=10)`, retried only on `requests.exceptions.RequestException` (network / timeout) and the client's own `RateLimitExceeded` (raised on HTTP 429, plus 420 for Comic Vine). `reraise=False`. |
 | Not retried | HTTP 404 → warning, returns `None`. HTTP 5xx → warning `"… skipping retries"`, returns `None`. OMDb and Comic Vine also return `None` on 401 (bad key); IGDB's 401 additionally **clears the cached token** so the next call refetches one. |
 | When the 5 attempts run out | Because `reraise=False`, tenacity raises its own `tenacity.RetryError`. Every `autofill_*` function in `app/services/domain/autofill.py` wraps its whole body in `try: … except Exception as e: logger.error(...)`, so the `RetryError` is **swallowed**: the entry is left untouched, an error line is logged, and the pipeline moves on as if the entry had simply had nothing to fetch. Nothing in the UI distinguishes "no data" from "the network was down five times in a row". |
@@ -107,6 +109,8 @@ Hentai reads anime's record through anime's mapper, and `autofill_hentai_from_ma
 | `external` | `media_source` reference rows `Official site` and `Twitter` | anime's `_write_tenrai_reference_rows`; a row is added only when the entry has none for that value |
 
 Names, studio, scores, ranks, episodes and AniList are not written. Because nothing is overwritten, a hentai Replace completes what is blank and changes nothing else.
+
+AniDB runs after this, for whichever of the three columns and the Official site row are still blank - see [AniDB](#anidb). MAL's value wins wherever both have one.
 
 ### Mapping for `manga` / `novel` — `map_tenrai_to_manga_data`, `map_tenrai_to_novel_data`
 
@@ -720,6 +724,72 @@ credit is blank (`H_GAME_DLSITE_FIELDS_TO_FILL`,
 `replace_select` includes `dlsite_link_jp` and `dlsite_link_tw`, and DLsite
 stays fill-only under Replace: nothing in its record is overwritten.
 
+## AniDB
+
+AniDB fills a **hentai** only, after MAL and fill-only, for what MAL left
+blank: the cover above all - MAL misses many hentai OVAs - and the release
+date, the airing status and the Official site reference row. It never writes
+a name: the names are the entry's identity. `app/services/integrations/anidb.py`
+calls the documented HTTP API
+([HTTP_API_Definition](https://wiki.anidb.net/HTTP_API_Definition)):
+
+```
+GET http://api.anidb.net:9001/httpapi?request=anime&client=<ANIDB_CLIENT>
+    &clientver=<ANIDB_CLIENTVER>&protover=1&aid=<aid>
+```
+
+It answers a gzip-compressed `<anime>` document, or an `<error>` document
+(`<error>Banned</error>`, `<error>Anime not found</error>`,
+`<error code="...">client version missing or invalid</error>`). `requests`
+inflates the body when the response says it is gzipped; a body that still
+starts with the gzip magic is inflated by the client. The XML is parsed with
+the standard library's `ElementTree`.
+
+| Concern | Behaviour |
+|---|---|
+| Registered client | AniDB answers only a client registered on the site (profile, then "Add client", for the HTTP API). `ANIDB_CLIENT` and `ANIDB_CLIENTVER` carry its name and version; `settings.anidb_enabled` is true only when both are set. While it is false nothing is sent, one line (`AniDB is disabled: ANIDB_CLIENT / ANIDB_CLIENTVER are not set.`) is logged once per process, and no hentai is queued for AniDB - see [Eligibility and Replace](#hentai-eligibility-and-replace). Disabled is not an error: the run is not stopped. |
+| Keyed by | `anidb_id`, extracted from `anidb_link` by `apply_extract_anidb_id` (`extract_anidb_aid` in `app/utils/anidb_utils.py`). Both URL forms are read: `https://anidb.net/anime/<aid>` (and the short `anidb.net/a<aid>`), and the old `anidb.net/perl-bin/animedb.pl?show=anime&aid=<aid>`. |
+| Throttle | AniDB bans a client that asks more often than about once every two seconds, so requests are spaced by `MIN_INTERVAL` (4 s). One request per hentai at most, and none when MAL already filled all three columns. |
+| Repeat requests | AniDB also bans a client that fetches the same anime more than once a day. Every answer - a record, or a not-found - is cached in-process for `CACHE_SECONDS` (24 hours), so a Fill followed by a Replace, or an entry AniDB has no picture for, costs one request a day. The cache is per process: a restart forgets it. |
+| Errors | An `<error>` answer other than a not-found **halts** the client: no further request is sent, and `anidb.has_capacity()` turns false. That is the hentai spec's `budget`, so the run stops at the next entry and reports the rest as left for the next run, exactly as an exhausted Steam or Comic Vine budget does - the MAL half of those entries waits too. The spec's `pre_run` (`anidb.start_run()`) lifts the halt at the start of the next Fill or Replace, which then spends one request to learn whether the ban still stands. The single-entry write hook never fires `pre_run`, so after a halt it sends nothing to AniDB until a bulk run has started. A not-found is an answer about one aid, not about the client, and does not halt. |
+| Retry | None. A network error, a non-200 status or a body that is not XML is a logged `None` that neither halts nor is cached; `autofill_hentai_from_anidb` swallows and logs anything that escapes. |
+| Cover | `<picture>` is a file name on AniDB's image CDN, `https://cdn-eu.anidb.net/images/main/<picture>` (`cdn-us` and `cdn` serve the same files; `img7.anidb.net`, which older clients name, only redirects). The CDN serves it with no key and no `Referer`. |
+
+### Mapping — `map_anidb_to_hentai_data`
+
+Only direct children of `<anime>` are read: a character carries a
+`<picture>` of its own and an external resource a `<url>`, and neither is the
+anime's.
+
+| AniDB field | Written to | Rule |
+|---|---|---|
+| `startdate` | `release_date` | Kept at AniDB's precision (`YYYY-MM-DD`, or coarser). Fill-only. As with MAL, the date is the anime's - a multi-episode OVA's first episode - not the entry's own episode. |
+| `startdate`, `enddate`, `episodecount` | `airing_status` | Derived, since AniDB publishes no status: Finished Airing once the end date has passed, or once a single-episode anime has started; Not Yet Aired while the start date is ahead; Airing when it has started and its end is unknown or ahead; nothing when a coarse date contains today. Fill-only. |
+| `picture` | `cover_image_file` | The CDN URL above, downloaded to `static/covers/hentai/` only when the entry still has no cover - after MAL's. |
+| `url` | `media_source` reference row `Official site` | Through `upsert_main_source`; added only when the entry has none. |
+
+Titles, tags, creators, ratings and characters are not read.
+
+### The hentai order
+
+`_fill_hentai` (`app/services/pipelines/specs.py`) and
+`apply_single_replace_hentai` (`app/services/domain/post_processing.py`) run
+`autofill_hentai_from_mal`, then `autofill_hentai_from_anidb`. Both are
+fill-only, so the order is the priority: the cover, the date and the status are
+MAL's wherever MAL has them. The Calculate page's missing-cover tool follows the
+same order, and handles a hentai with an `anidb_id` (while AniDB is enabled) as
+well as one with a `mal_id`.
+
+### Hentai eligibility and Replace
+
+`has_missing_values_hentai_anidb` (`app/services/domain/checking.py`) is the
+hentai spec's second `fill_eligible` clause, beside the MAL one: AniDB enabled,
+an `anidb_id`, and one of `HENTAI_FIELDS_TO_FILL` blank. An entry with only an
+AniDB link is therefore picked up by Fill and Fill All while AniDB is enabled,
+and never while it is not, so an unconfigured machine does not queue entries
+nothing would fill. hentai's `replace_select` includes `anidb_id` and
+`anidb_link`, and AniDB stays fill-only under Replace.
+
 ## Google Sheets
 
 Sheets is the backup target and restore source. `sheets.py` contains no database logic — it only moves matrices in and out of tabs.
@@ -804,6 +874,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
 | `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`); in Fill All; Replace (bulk, single, write hook) runs both, IGDB fill-only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
 | `h-comic` | `apply_extract_mal_id_manga_novel` | `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has, fill-only; no AniList; in Fill All and Replace All | 1 s | Tenrai |
+| `hentai` | `apply_extract_hentai_ids` (MAL then AniDB) | `_fill_hentai`: `autofill_hentai_from_mal`, then `autofill_hentai_from_anidb` for what MAL left blank (see [AniDB](#anidb)); stops when `anidb.has_capacity()` is false (an AniDB error answer); in Fill All; Replace (`apply_single_replace_hentai`) runs the same order and also selects entries linked only to AniDB | 1 s, plus AniDB's own 4 s spacing | Tenrai, AniDB (API and image CDN) |
 | `h-game` | as game | `_fill_h_game`: `autofill_h_game_from_dlsite`, then game's two autofills on the `h_game` table writing only what it has (IGDB's cover held back), then `autofill_cover_from_steam` and `autofill_game_cover_from_igdb` - the cover comes DLsite, Steam, IGDB (see [DLsite](#dlsite)); in Fill All; Replace (`apply_single_replace_h_game`) runs the same order and also selects entries linked only to DLsite. `/api/h-game/search-igdb` is game's picker | `STEAM_PAUSE` (0.5 s) | DLsite, IGDB (+ Twitch), Steam (storefront and image CDN) |
 
 Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page touch local disk and, for missing covers, the autofill functions again.
@@ -818,6 +889,7 @@ Things the code does today that a reader might not expect. None is a documentati
 - `fetch_tmdb_data`'s retry wraps both TMDB calls, so a flaky details call costs an extra Find call per attempt.
 - `fetch_openlibrary_work`'s `@retry` wraps all three calls (work, editions, authors), so a flaky author call re-runs the work and editions calls too on each attempt — the same shape as the `fetch_tmdb_data` note above.
 - The docstring of `_status_code` in `sheets.py` says gspread `5.12.0` is pinned; `requirements.txt` pins `6.2.1`. The function handles both shapes, so behaviour is unaffected.
+- AniDB's ban protection - the 24-hour answer cache and the halt - is per-process memory, like the rate limiters: a restart forgets which aids were fetched today.
 - DLsite's product JSON is undocumented: a change to its shape shows up as h-games that stop filling, logged, not as an error anywhere visible.
 - Steam's library capsule is looked up at the unhashed CDN path only. Apps whose store assets sit under a hashed path answer 404 there, so their h-game cover falls through to IGDB.
 - MAL's `OAD` type maps to `"Other"` even though the app's own vocabulary has an `OAD` value.

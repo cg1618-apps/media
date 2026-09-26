@@ -35,6 +35,9 @@ class HentaiBase(BaseModel):
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
+    # Derived from anidb_link by the write hook, as mal_id is from mal_link.
+    anidb_id: Optional[int] = None
+    anidb_link: Optional[str] = None
 
     # Personal - split off onto user_media_list by the router.
     watching_status: str = "Might Watch"
