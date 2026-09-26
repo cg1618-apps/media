@@ -125,7 +125,6 @@ describe("Add tabs render ImagePicker instead of a hand-typed storage key", () =
         allGames={[]}
         seriesItemsForGame={[]}
         editingItem={{ system_id: "game-1" }}
-        ribbonSection={null}
         sources={{}}
       />,
     );

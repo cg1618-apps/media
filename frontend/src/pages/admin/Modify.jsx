@@ -42,6 +42,7 @@ import MangaModifyTab from "../modify-tabs/MangaModifyTab";
 import NovelModifyTab from "../modify-tabs/NovelModifyTab";
 import ComicModifyTab from "../modify-tabs/ComicModifyTab";
 import GameModifyTab from "../modify-tabs/GameModifyTab";
+import FranchiseRibbon from "../../components/forms/FranchiseRibbon";
 import HComicModifyTab from "../modify-tabs/HComicModifyTab";
 import { H_COMIC_FRANCHISE_TYPE } from "../add-tabs/HComicAddTab";
 import HGameModifyTab from "../modify-tabs/HGameModifyTab";
@@ -4122,6 +4123,51 @@ export default function Modify() {
           {/* Novel ribbon — grouped by series */}
           {editingType === "novel" && novelRibbonSection}
 
+          {/* Game and the three gated types share one ribbon component. */}
+          {editingType === "game" && (
+            <FranchiseRibbon
+              entries={allGames}
+              type="game"
+              franchiseId={cgmf.franchise_id}
+              excludeId={editingItem.system_id}
+              allSeries={allSeries}
+              badge={(g) => g.game_type}
+              onOpen={(g) => openEditor(g, "game")}
+            />
+          )}
+          {editingType === "h-comic" && (
+            <FranchiseRibbon
+              entries={allHComics}
+              type="h-comic"
+              franchiseId={chcf.franchise_id}
+              excludeId={editingItem.system_id}
+              allSeries={allSeries}
+              badge={(h) => h.region}
+              onOpen={(h) => openEditor(h, "h-comic")}
+            />
+          )}
+          {editingType === "h-game" && (
+            <FranchiseRibbon
+              entries={allHGames}
+              type="h-game"
+              franchiseId={chgf.franchise_id}
+              excludeId={editingItem.system_id}
+              allSeries={allSeries}
+              badge={(g) => g.game_type}
+              onOpen={(g) => openEditor(g, "h-game")}
+            />
+          )}
+          {editingType === "hentai" && (
+            <FranchiseRibbon
+              entries={allHentai}
+              type="hentai"
+              franchiseId={chtf.franchise_id}
+              excludeId={editingItem.system_id}
+              allSeries={allSeries}
+              onOpen={(h) => openEditor(h, "hentai")}
+            />
+          )}
+
           <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
             <h2 className="text-lg font-black text-text">
               {getItemLabel(editingItem, editingType)}
@@ -4291,7 +4337,6 @@ export default function Modify() {
                 allGames={allGames}
                 seriesItemsForGame={seriesItemsForGame}
                 editingItem={editingItem}
-                ribbonSection={null}
                 sources={sources}
               />
             )}
@@ -4306,7 +4351,6 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForHComic={seriesItemsForHComic}
                 editingItem={editingItem}
-                ribbonSection={null}
                 sources={sources}
               />
             )}
@@ -4321,7 +4365,6 @@ export default function Modify() {
                 allHGames={allHGames}
                 seriesItemsForHGame={seriesItemsForHGame}
                 editingItem={editingItem}
-                ribbonSection={null}
                 sources={sources}
               />
             )}
@@ -4335,7 +4378,6 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForHentai={seriesItemsForHentai}
                 editingItem={editingItem}
-                ribbonSection={null}
                 sources={sources}
               />
             )}

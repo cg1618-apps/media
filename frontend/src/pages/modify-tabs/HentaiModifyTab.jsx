@@ -14,13 +14,10 @@ export default function HentaiModifyTab({
   allFranchises,
   seriesItemsForHentai,
   editingItem,
-  ribbonSection,
   sources,
 }) {
   return (
     <>
-      {ribbonSection}
-
       <SectionHeader icon="fa-tv" title="Titles & Naming" />
       <HentaiLineageFields
         f={chtf}

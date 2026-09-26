@@ -14,13 +14,10 @@ export default function HComicModifyTab({
   allFranchises,
   seriesItemsForHComic,
   editingItem,
-  ribbonSection,
   sources,
 }) {
   return (
     <>
-      {ribbonSection}
-
       <SectionHeader icon="fa-book" title="Titles & Naming" />
       <HComicRegionField f={chcf} u={uhc} />
       <HComicLineageFields
