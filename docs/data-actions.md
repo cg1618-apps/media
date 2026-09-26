@@ -464,7 +464,7 @@ Per type (verbatim from `specs.py`):
 | `comic` | `comicvine_id` set and `has_missing_values_comic(db, e)` | `autofill_comic_from_comicvine(e, db)` | `COMICVINE_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_comic` | `comicvine_rate_limiter.has_capacity` |
 | `game` | `igdb_id` set and `has_missing_values_game(e)`, **or** `has_missing_values_game_steam(e)` | `autofill_game_from_igdb(e, db)` then `autofill_game_from_steam(e, db)` | `STEAM_PAUSE` = 0.5 s | — | `"Syncing system options..."` → `run_sync_game` | `steam_store_rate_limiter.has_capacity` |
 | `h-comic` | `mal_id` set and `has_missing_values_h_comic` (`serialization_status`, `release_date`, `end_date` or the cover blank, or `ch_total` on a `完結` KR entry) | `autofill_h_comic_from_mal(e, db=db)` - no AniList | `MAL_PAUSE` = 1 s | — | `"Syncing h-comic invariants..."` → `run_sync_h_comic`, `"Syncing gated labels..."` → `run_sync_gated_labels` | — |
-| `h-game` | as game | game's two autofills, generalised over the model (below) | `STEAM_PAUSE` = 0.5 s | `game_post_processing` | `"Syncing system options..."` → `run_sync_game`, `"Syncing gated labels..."` → `run_sync_gated_labels` | `steam_store_rate_limiter.has_capacity` |
+| `h-game` | as game | `_fill_h_game`: DLsite, then game's two autofills generalised over the model, then the Steam and IGDB covers (below) | `STEAM_PAUSE` = 0.5 s | `game_post_processing` | `"Syncing system options..."` → `run_sync_game`, `"Syncing gated labels..."` → `run_sync_gated_labels` | `steam_store_rate_limiter.has_capacity` |
 | `hentai` | `mal_id` set and `has_missing_values_hentai` (`airing_status`, `release_date` or the cover blank) | `autofill_hentai_from_mal(e, db=db)` - also the Official site / Twitter reference rows; no AniList | `MAL_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_hentai`, `"Syncing gated labels..."` → `run_sync_gated_labels` | — |
 | `studio` | `mal_id` set and `has_missing_values_studio` | `autofill_studio_from_mal(e)` | `MAL_PAUSE` = 1 s | — | — | — |
 
@@ -535,15 +535,22 @@ changes nothing else. Every run, and the single-entry write hook, ends in
 `run_sync_hentai` (system options) and `run_sync_gated_labels`, which keeps
 the `hentai` label on.
 
-**H-Game runs Game's pipeline on its own table.** `PIPELINES["h-game"]` has
-game's extractor, gates, pacing, budget, post-processing and Replace;
-`autofill_game_from_igdb` and `autofill_game_from_steam` take the entry's
-model and owner type, so they write the credits, tags and cover under
-`h-game`, skip a credit or tag whose scope lacks it (`publisher`,
+**H-Game runs Game's pipeline on its own table, with DLsite in front.**
+`PIPELINES["h-game"]` has game's extractor, pacing, budget and
+post-processing; `autofill_game_from_igdb` and `autofill_game_from_steam`
+take the entry's model and owner type, so they write the credits, tags and
+cover under `h-game`, skip a credit or tag whose scope lacks it (`publisher`,
 `game_mode`, `game_platform`), write a column only when `h_game` has it (no
 `hours_played`, no Metacritic score), and look the DLC parent up among
-h-games. It has no invariant pass of its own: `run_sync_gated_labels` follows
-`run_sync_game` after a Fill, a Replace and the write hook.
+h-games. Its own fill, `_fill_h_game`, and Replace,
+`apply_single_replace_h_game`, run `autofill_h_game_from_dlsite` first, IGDB
+with its cover held back, Steam, then `autofill_cover_from_steam` and
+`autofill_game_cover_from_igdb` - so the cover comes from DLsite, then Steam's
+library capsule, then IGDB ([external-apis.md](external-apis.md#dlsite)). Its
+`fill_eligible` adds a third clause, `has_missing_values_h_game_dlsite`, so an
+entry with only a DLsite link is filled. It has no invariant pass of its own:
+`run_sync_gated_labels` follows `run_sync_game` after a Fill, a Replace and
+the write hook.
 
 **Comic Vine budget stop**: the limiter allows 200 requests per rolling hour. Before each comic, `has_capacity()` is checked; when it is `False` the loop breaks instead of blocking, and the remaining count is reported in the final message. The run still logs `Success`.
 
@@ -558,7 +565,7 @@ h-games. It has no invariant pass of its own: `run_sync_gated_labels` follows
 ### 5.1 Bulk — `run_replace(spec, ...)` (SSE)
 
 0. If the spec has `pre_run`, it runs first — game's `_start_game_run` drops the cached Steam owned-games library so the run reads today's playtime rather than a stale in-memory copy (also wired ahead of Fill Game, for the same reason).
-1. `spec.replace_select(db)` picks the entries: for most types `_linked(Model, id_col, link_col)` — rows with `mal_id`/`mal_link` (anime, anime-movie, manga, novel, h-comic, hentai), `imdb_id`/`imdb_link` (movie, tv-show), or any of `steam_appid`/`steam_link`/`igdb_id`/`igdb_link` (game, h-game) not null. Cartoon additionally requires `airing_type in ["Movie", "TV"]`. Comic has `replace_select=None` — **no bulk Replace** for it.
+1. `spec.replace_select(db)` picks the entries: for most types `_linked(Model, id_col, link_col)` — rows with `mal_id`/`mal_link` (anime, anime-movie, manga, novel, h-comic, hentai), `imdb_id`/`imdb_link` (movie, tv-show), or any of `steam_appid`/`steam_link`/`igdb_id`/`igdb_link` (game; h-game also `dlsite_link_jp`/`dlsite_link_tw`) not null. Cartoon additionally requires `airing_type in ["Movie", "TV"]`. Comic has `replace_select=None` — **no bulk Replace** for it.
 2. Zero entries → logs `Success` with `rows_updated=0` and emits an `info` event `"No {type} entries found to replace"`.
 3. Per entry: connection check, progress event, `spec.replace(db, entry, bulk=True)` in a worker thread, commit; failure is rolled back and logged, the run continues; then `replace_sleep` (1 s for the MAL types - anime, anime-movie, manga, novel, h-comic, hentai - 0 for TMDB/OMDb types, `STEAM_PAUSE` = 0.5 s for game and h-game).
 4. `replace_after` steps: same as the type's `fill_after` for anime (`derive_ep_previous_all_anime`, `run_sync_anime`), anime-movie, tv-show, cartoon, manga, novel; none for movie.
@@ -577,7 +584,7 @@ Returns a status dict, never raises. `action_specific` is `"Replace for single {
 3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic`, `run_sync_game`, `run_sync_h_comic` then `run_sync_gated_labels` (h-comic), `run_sync_game` then `run_sync_gated_labels` (h-game), `run_sync_hentai` then `run_sync_gated_labels` (hentai). Movie and TV Show have none. Comic has no `replace` at all, so its single hook only re-syncs system options.
 4. Log `Replace` / `Success` with `rows_updated=1`; return `{"status": "success", "message": "Successfully updated {display_name}."}`. Any exception → rollback, log `Failed`, `status_code: 500`.
 
-**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel, comic, game, h-comic, h-game and hentai (`execute_replace_single_game` and `execute_replace_single_h_game` call `apply_single_replace_game`, so a game saved with an IGDB or Steam link picks up both sources' data immediately, not just on the next Replace run — each save of a linked game costs up to two IGDB requests and three storefront requests, the same kind of per-save cost movie, TV show and cartoon pay to TMDB/OMDb): the CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
+**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel, comic, game, h-comic, h-game and hentai (`execute_replace_single_game` calls `apply_single_replace_game` and `execute_replace_single_h_game` calls `apply_single_replace_h_game`, so a game saved with an IGDB or Steam link - or an h-game with a DLsite one - picks up its sources' data immediately, not just on the next Replace run — each save of a linked game costs up to two IGDB requests and three storefront requests, the same kind of per-save cost movie, TV show and cartoon pay to TMDB/OMDb): the CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
 
 The manual route `POST /replace/{key}/{entry_id}` calls the same function with `action_type="Manual"`, `log_action=False` — so a single Replace never writes a `DataControlLog` row, whichever way it is triggered.
 
@@ -608,7 +615,7 @@ All in `calculation.py`; storage helpers come from `app/services/integrations/im
 | `bulk_check_cover_image(db, entry_type)` | `GET /calculate/check-cover-image` | Lists entries whose `cover_image_file` is set but whose file is missing in storage. With `entry_type` only Anime rows with that `airing_type` are checked; without it all twelve types are. Also embeds `bulk_check_unused_cover_images`: keys in storage referenced by no row, split into `should_use` (the key names an existing row) and `orphaned` (no row owns it). That scan walks every table that owns an image, `COVER_OWNER_TABLES` — the twelve media types plus staff, character, publisher and studio, and casting override photos. Leaving a table out of it reported all of its images as orphaned, and the delete action below then deleted them. | `total_checked`, `missing_count`, `missing[]` (`system_id`, `name`, `entry_type`), `entry_type`, `should_use[]`, `should_use_count`, `orphaned[]`, `orphaned_count` |
 | `bulk_set_cover_image_fields(db)` | `POST /calculate/set-cover-image-fields` | For every entry (all twelve types) with `cover_image_file` null whose file exists in storage, sets `cover_image_file = "{owner_type}/{system_id}.jpg"`. Covers only: the four entity tables in `COVER_OWNER_TABLES` keep their image in `photo_file` / `logo_file` and are skipped. | `updated_count` |
 | `bulk_delete_orphaned_cover_images(db)` | `DELETE /calculate/delete-orphaned-covers` | Deletes every `orphaned` key from the check above, splitting the key back into owner type and id. **Blind spot:** `list_all_cover_images` only walks the owner folders, so an image left at the `static/covers/` root belongs to no owner and this action cannot see it. `scripts/migrate_cover_layout.py --prune-orphans --apply` sweeps both kinds. | `deleted_count` |
-| `bulk_download_missing_covers(db, system_ids)` | `POST /calculate/download-missing-covers` | For entries with `cover_image_file` set but the file missing (optionally limited to `system_ids`), clears the field and re-runs the type's autofill so the cover is downloaded again (`force_replace_ratings=False` for MAL types). Skipped: Anime whose `airing_type` is not in `ALLOWED_AIRING_TYPES`, Novel without `mal_link`, Comic without `comicvine_id`, Game or H-Game without `igdb_id`, Hentai without `mal_id`, every H-Comic (no external source), and any entry whose cover attachment points at an **uploaded** `image` row (`uploaded_by` set) — re-fetching over an upload would destroy the only reference to a file no API can supply, so it is counted separately instead. Game re-fetches through `autofill_game_from_igdb`, which is the only game autofill that downloads a cover — the Steam half writes columns only. One commit at the end. | `{status, message, skipped_uploads}`: `message` is `"Downloaded X of Y missing cover images."` plus `"N skipped (no external source on the entry)."` and/or `"N skipped (uploaded image, not re-fetchable)."` when either applies |
+| `bulk_download_missing_covers(db, system_ids)` | `POST /calculate/download-missing-covers` | For entries with `cover_image_file` set but the file missing (optionally limited to `system_ids`), clears the field and re-runs the type's autofill so the cover is downloaded again (`force_replace_ratings=False` for MAL types). Skipped: Anime whose `airing_type` is not in `ALLOWED_AIRING_TYPES`, Novel without `mal_link`, Comic without `comicvine_id`, Game without `igdb_id`, H-Game with no DLsite product id, `steam_appid` or `igdb_id`, Hentai without `mal_id`, every H-Comic (no external source), and any entry whose cover attachment points at an **uploaded** `image` row (`uploaded_by` set) — re-fetching over an upload would destroy the only reference to a file no API can supply, so it is counted separately instead. Game re-fetches through `autofill_game_from_igdb`, which is the only game autofill that downloads a game's cover — the Steam half writes columns only. H-Game takes its covers in the fill's order: `autofill_h_game_from_dlsite`, `autofill_cover_from_steam`, `autofill_game_cover_from_igdb`, each writing only while the cover is still empty. One commit at the end. | `{status, message, skipped_uploads}`: `message` is `"Downloaded X of Y missing cover images."` plus `"N skipped (no external source on the entry)."` and/or `"N skipped (uploaded image, not re-fetchable)."` when either applies |
 
 ---
 
@@ -824,7 +831,7 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | POST | `/fill/all` | — | SSE | Fill All (ten media types plus studio; no comic) then Auto Backup |
 | POST | `/replace/all` | — | SSE | Replace All (eleven types; no comic) then Auto Backup |
 | POST | `/fill/{key}` | — | SSE | Fill one type (all thirteen keys, studio included) |
-| POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) or `studio` (`fill_only`) — `game` and `h-game` are registered (IGDB, then Steam) |
+| POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) or `studio` (`fill_only`) — `game` (IGDB, then Steam) and `h-game` (DLsite, IGDB, Steam) are registered |
 | POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 500 on failure | single Replace (the twelve media keys; **not registered for `studio`**) |
 | POST | `/backup` | — | JSON `{"status", "message"}`; 500 on failure | Backup every tab |
 | POST | `/pull` | — | JSON `{"status": "success", "details": {tab: processed}}`; 500 when any tab was unreadable or failed | Pull All |

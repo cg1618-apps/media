@@ -1290,7 +1290,8 @@ export const TYPE_FIELD_META = {
       group: "Links",
     },
     steam_link: { label: "Steam Link", control: "url", group: "Links" },
-    // Plain links - nothing fetches DLsite, so there is no id beside them.
+    // No id column beside them: the DLsite fill reads the product id out of
+    // the link itself (JP first, then TW - both name the same product).
     dlsite_link_jp: {
       label: "DLsite Link (JP)",
       control: "url",

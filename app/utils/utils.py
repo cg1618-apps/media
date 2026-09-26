@@ -188,6 +188,16 @@ GAME_FIELDS_TO_FILL = [
     "hltb_completionist",
 ]
 
+# What an h-game's DLsite product record supplies: the release date, the
+# cover, and the circle or brand as the studio credit. Only these, so an
+# entry whose other columns DLsite does not model is not re-requested forever.
+H_GAME_DLSITE_FIELDS_TO_FILL = [
+    "release_date",
+    "cover_image_file",
+]
+
+H_GAME_DLSITE_LINK_FIELDS_TO_FILL = [("credit", "studio")]
+
 # ==========================================
 # VALIDATION
 # ==========================================

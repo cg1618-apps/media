@@ -721,7 +721,7 @@ CHECK, matching `games`; they are checked on every write path
 | `platform` | JSONB | yes | | A list over H_GAME_PLATFORMS (Steam / DLsite / Nintendo / Other). Hand-set, never filled |
 | `igdb_id` / `igdb_link` | Integer / String | yes | | As on `games` |
 | `steam_appid` / `steam_link` | Integer / String | yes | | As on `games`; the SteamDB reference row is derived from the appid |
-| `dlsite_link_jp` / `dlsite_link_tw` | String | yes | | Plain links; nothing fetches DLsite |
+| `dlsite_link_jp` / `dlsite_link_tw` | String | yes | | The two DLsite store pages. No id column: the DLsite fill reads the product id (`RJ`/`VJ`/`BJ` + digits) out of the JP link, else the TW link - the same product either way |
 | `highlight_group_order` | JSONB | yes | | The owner's order of the `h_game_highlights` groups, as `h_comic`'s |
 | `type_slots` | JSONB | yes | | Favourite-grid slot per grid key, as on `games` |
 

@@ -19,6 +19,7 @@ from app.models import (
 from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
 from app.services.integrations.anilist import anilist_record
 from app.services.integrations.comicvine import fetch_comicvine_volume
+from app.services.integrations.dlsite import fetch_dlsite_product
 from app.services.integrations.igdb import fetch_igdb_game, fetch_igdb_time_to_beat
 from app.services.integrations.image_manager import (
     cover_needs_download,
@@ -30,6 +31,7 @@ from app.services.integrations.steam import (
     fetch_owned_games,
     fetch_player_achievements,
     fetch_steam_appdetails,
+    fetch_steam_library_capsule_url,
 )
 from app.services.integrations.tenrai import (
     fetch_tenrai_anime_data,
@@ -40,6 +42,7 @@ from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
 from app.utils.anilist_utils import map_anilist_record
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
 from app.utils.constants import H_COMIC_REGION_KR
+from app.utils.dlsite_utils import dlsite_product_id_for, map_dlsite_to_h_game_data
 from app.utils.igdb_utils import map_igdb_to_game_data
 from app.utils.imdb_utils import (
     _derive_tv_season_airing_status,
@@ -872,7 +875,20 @@ def _has_column(entry, column: str) -> bool:
     return column in type(entry).__table__.columns
 
 
-def autofill_game_from_igdb(game, db: Session) -> None:
+def _fill_game_cover(game, image_url) -> None:
+    """Downloads `image_url` as the entry's cover when it has none - the
+    if-empty rule every game-cover source shares."""
+    if not image_url:
+        return
+    owner_type = _game_owner_type(game)
+    if not cover_needs_download(game.cover_image_file, owner_type, str(game.system_id)):
+        return
+    key = download_cover_image(image_url, owner_type, str(game.system_id))
+    if key:
+        game.cover_image_file = key
+
+
+def autofill_game_from_igdb(game, db: Session, *, cover: bool = True) -> None:
     """
     Enriches a single Game or HGame entry with IGDB data. Does not commit —
     the caller is responsible.
@@ -889,6 +905,11 @@ def autofill_game_from_igdb(game, db: Session) -> None:
 
     IGDB's `summary` is mapped but not stored: the games table has no summary
     column by design — a synopsis lives in the entry's notes, written by hand.
+
+    `cover=False` leaves the cover alone. The h-game fill passes it because
+    IGDB is its last cover source, not its first: IGDB runs early for the
+    appid Steam keys off, and its cover waits for autofill_game_cover_from_igdb
+    once DLsite and Steam have had their turn.
     """
     # Imported here rather than at module scope: app.routers.options imports
     # app.schemas, which imports this module back.
@@ -997,15 +1018,8 @@ def autofill_game_from_igdb(game, db: Session) -> None:
                 game.base_game_id = parent.system_id
 
         # Last, so a download failure cannot cost us the cheap columns above.
-        if (
-            cover_needs_download(game.cover_image_file, owner_type, str(game.system_id))
-            and g_data.get("cover_image_url")
-        ):
-            key = download_cover_image(
-                g_data.get("cover_image_url"), owner_type, str(game.system_id)
-            )
-            if key:
-                game.cover_image_file = key
+        if cover:
+            _fill_game_cover(game, g_data.get("cover_image_url"))
 
     except Exception as e:
         logger.error(
@@ -1013,6 +1027,101 @@ def autofill_game_from_igdb(game, db: Session) -> None:
             owner_type,
             game.system_id,
             igdb_id,
+            e,
+        )
+
+
+def autofill_game_cover_from_igdb(game) -> None:
+    """
+    IGDB's cover alone, for an entry that still has none - the h-game fill's
+    last cover source. Costs one IGDB request, and none at all when the entry
+    already has a cover or no igdb_id. Does not commit.
+    """
+    igdb_id = game.igdb_id
+    if not igdb_id:
+        return
+    owner_type = _game_owner_type(game)
+    if not cover_needs_download(game.cover_image_file, owner_type, str(game.system_id)):
+        return
+
+    try:
+        raw_data = fetch_igdb_game(igdb_id)
+        if not raw_data:
+            return
+        _fill_game_cover(game, map_igdb_to_game_data(raw_data).get("cover_image_url"))
+    except Exception as e:
+        logger.error(
+            "IGDB cover fill failed for %s ID %s (IGDB %s): %s",
+            owner_type,
+            game.system_id,
+            igdb_id,
+            e,
+        )
+
+
+def autofill_cover_from_steam(game) -> None:
+    """
+    Steam's portrait library capsule as the entry's cover, when it has none.
+    Does not commit.
+
+    Called by the h-game fill only. autofill_game_from_steam writes no cover,
+    on either table, and a game's cover stays IGDB's.
+    """
+    appid = game.steam_appid
+    if not appid:
+        return
+    owner_type = _game_owner_type(game)
+    if not cover_needs_download(game.cover_image_file, owner_type, str(game.system_id)):
+        return
+
+    try:
+        _fill_game_cover(game, fetch_steam_library_capsule_url(appid))
+    except Exception as e:
+        logger.error("Steam cover fill failed for app %s: %s", appid, e)
+
+
+def autofill_h_game_from_dlsite(h_game, db: Session) -> None:
+    """
+    Enriches a single HGame entry from its DLsite product record. Does not
+    commit - the caller is responsible.
+
+    Keyed by the product id in dlsite_link_jp, else dlsite_link_tw - both
+    name the same product. Fill-only throughout, and three things only: the
+    release date, the circle or brand as the studio credit, and the cover.
+    DLsite is the h-game fill's first cover source, ahead of Steam and IGDB.
+
+    The studio credit is written exactly as IGDB's is - replace_credits under
+    the entry's own media type, which resolves the name to its company record
+    or creates one - and only when the entry has no studio credit yet.
+    """
+    product_id = dlsite_product_id_for(h_game)
+    if not product_id:
+        return
+    owner_type = _game_owner_type(h_game)
+
+    try:
+        raw_data = fetch_dlsite_product(product_id)
+        if not raw_data:
+            return
+
+        d_data = map_dlsite_to_h_game_data(raw_data)
+
+        if not h_game.release_date and d_data.get("release_date"):
+            h_game.release_date = d_data["release_date"]
+
+        maker = d_data.get("maker_name")
+        if maker and not credit_names(db, h_game.system_id, "studio"):
+            replace_credits(db, owner_type, h_game.system_id, "studio", [maker])
+
+        # Last, so a download failure cannot cost us the cheap columns above.
+        _fill_game_cover(h_game, d_data.get("cover_image_url"))
+
+    except Exception as e:
+        logger.error(
+            "DLsite Autofill failed for %s ID %s (DLsite %s): %s",
+            owner_type,
+            h_game.system_id,
+            product_id,
             e,
         )
 
@@ -1040,8 +1149,9 @@ def autofill_game_from_steam(game, db: Session) -> None:
     the caller is responsible. A column the entry's table lacks is never
     written: an h-game has no hours_played and no Metacritic score.
 
-    Columns only: no tag and no credit, so this never touches the alias layer
-    and cannot produce an untranslated term. `metacritic_user_score` is
+    Columns only: no tag, no credit and no cover, so this never touches the
+    alias layer and cannot produce an untranslated term. The h-game fill takes
+    a Steam cover separately, through autofill_cover_from_steam. `metacritic_user_score` is
     deliberately absent — Steam does not publish it.
 
     Unlike the IGDB half this is not fill-only. The current prices and the

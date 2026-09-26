@@ -36,8 +36,11 @@ from app.services.domain import (
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
+    autofill_cover_from_steam,
+    autofill_game_cover_from_igdb,
     autofill_game_from_igdb,
     autofill_h_comic_from_mal,
+    autofill_h_game_from_dlsite,
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -64,6 +67,7 @@ from app.services.integrations.image_manager import (
     list_all_cover_images,
 )
 from app.utils.data_control_utils import log_data_control
+from app.utils.dlsite_utils import dlsite_product_id_for
 from app.utils.tenrai_utils import ALLOWED_AIRING_TYPES
 
 # Every table that owns a stored image, as (owner_type, model, column). The
@@ -496,13 +500,16 @@ def bulk_download_missing_covers(
         if he.cover_image_file:
             downloaded += 1
 
-    # IGDB, as for a game.
+    # The h-game fill's cover order: DLsite, then Steam's library capsule,
+    # then IGDB. Each source writes only while the cover is still empty.
     h_game_query = db.query(HGame).join(HGame.media_row).filter(Media.cover_image_file.isnot(None))
     for h_game in _collect(h_game_query, HGame, "h-game"):
         total += 1
-        if h_game.igdb_id:
+        if dlsite_product_id_for(h_game) or h_game.steam_appid or h_game.igdb_id:
             h_game.cover_image_file = None
-            autofill_game_from_igdb(h_game, db)
+            autofill_h_game_from_dlsite(h_game, db)
+            autofill_cover_from_steam(h_game)
+            autofill_game_cover_from_igdb(h_game)
             if h_game.cover_image_file:
                 downloaded += 1
         else:

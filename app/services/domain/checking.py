@@ -27,6 +27,8 @@ from app.utils.utils import (
     COMIC_LINK_FIELDS_TO_FILL,
     GAME_FIELDS_TO_FILL,
     H_COMIC_FIELDS_TO_FILL,
+    H_GAME_DLSITE_FIELDS_TO_FILL,
+    H_GAME_DLSITE_LINK_FIELDS_TO_FILL,
     HENTAI_FIELDS_TO_FILL,
     MANGA_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
@@ -323,6 +325,28 @@ def has_missing_values_game_steam(entry) -> bool:
         and getattr(entry, "metacritic_score", None) is None
         and entry.price_original_us is None
         and entry.achievements_total is None
+    )
+
+
+def has_missing_values_h_game_dlsite(db, entry) -> bool:
+    """
+    True when an h-game's DLsite link carries a product id and something
+    DLsite supplies is still blank: the release date, the cover, or the
+    studio credit.
+
+    Its own gate rather than a clause of has_missing_values_game, so an entry
+    with only a DLsite link - no igdb_id, no appid - is picked up by Fill.
+    """
+    from app.utils.dlsite_utils import dlsite_product_id_for
+
+    if not dlsite_product_id_for(entry):
+        return False
+    for field in H_GAME_DLSITE_FIELDS_TO_FILL:
+        val = getattr(entry, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return _link_missing(
+        db, "h-game", entry.system_id, H_GAME_DLSITE_LINK_FIELDS_TO_FILL
     )
 
 

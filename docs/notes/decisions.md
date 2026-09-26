@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-25
+Last verified: 2026-09-26
 
 ## What this is for
 
@@ -2222,3 +2222,36 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   list of the forum's words. The card is relabelled 圖鑑與名詞 Compendium &
   Terms; its key stays `compendium`, because the key is what code and tests
   name and only the label reaches a reader.
+
+### H-Game fills from DLsite, and its cover comes DLsite, Steam, IGDB (2026-09-26)
+
+- **Owner's decision: DLsite joins h-game's fill; IGDB stays.** DLsite
+  carries what an adult game's IGDB record is most often missing - the
+  circle, the sale date and a cover - and IGDB still supplies the appid,
+  time-to-beat, tags and the DLC parent. The DLsite links, until now plain
+  links, are what it keys off. This supersedes "DLsite is two plain links"
+  in the H-Game section above only in its reason: there is still no id
+  column, because the product id is read out of the link.
+- **DLsite fills three things, fill-only**: the release date, the maker as
+  the `studio` credit (only when the entry has none, through
+  `replace_credits` exactly as IGDB's developer), and the cover. JP link
+  first, TW link as the fallback; both name one product, because DLsite's
+  Traditional Chinese storefront is the same page with `?locale=zh_TW`.
+- **The source is the storefront's own `product.json`.** DLsite has no API.
+  Of the two JSON endpoints its pages load, `/maniax/api/=/product.json`
+  carries the cover, the date and `maker_name` in one record and serves RJ,
+  VJ and BJ ids from one path; `/product/info/ajax` has a `maker_id` but no
+  maker name, so it would have needed a second request.
+- **Cover priority is by order, not by a merge.** Every cover write is
+  if-empty, so running the sources in priority order is the priority. The
+  one wrinkle is IGDB, which must run before Steam to hand it an appid but
+  must lose the cover to it: `autofill_game_from_igdb` gained `cover=False`,
+  and `autofill_game_cover_from_igdb` fetches IGDB's cover last, only for an
+  entry still without one - at worst one extra IGDB request.
+- **Steam's cover is h-game only, in a function of its own.**
+  `autofill_game_from_steam` still writes no cover on either table, so
+  game's fill is byte-for-byte what it was; `autofill_cover_from_steam` is
+  called from the h-game paths alone. The capsule is looked up at the
+  unhashed CDN path, and a 404 there is "no cover", which leaves an app with
+  hashed store assets to IGDB rather than adding a storefront request to find
+  the hashed path.

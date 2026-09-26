@@ -54,6 +54,7 @@ from app.services.domain import (
     apply_single_replace_cartoon,
     apply_single_replace_game,
     apply_single_replace_h_comic,
+    apply_single_replace_h_game,
     apply_single_replace_hentai,
     apply_single_replace_manga,
     apply_single_replace_movie,
@@ -63,10 +64,13 @@ from app.services.domain import (
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
+    autofill_cover_from_steam,
     autofill_from_anilist,
+    autofill_game_cover_from_igdb,
     autofill_game_from_igdb,
     autofill_game_from_steam,
     autofill_h_comic_from_mal,
+    autofill_h_game_from_dlsite,
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -84,6 +88,7 @@ from app.services.domain import (
     has_missing_values_game,
     has_missing_values_game_steam,
     has_missing_values_h_comic,
+    has_missing_values_h_game_dlsite,
     has_missing_values_hentai,
     has_missing_values_manga,
     has_missing_values_movie,
@@ -159,6 +164,21 @@ def _fill_game(db, entry) -> None:
     IGDB supplied in this pass is picked up either way."""
     autofill_game_from_igdb(entry, db)
     autofill_game_from_steam(entry, db)
+
+
+def _fill_h_game(db, entry) -> None:
+    """Game's two sources with DLsite in front, and the cover taken in
+    priority order: DLsite, then Steam's library capsule, then IGDB.
+
+    Every write is fill-only, so the order IS the priority. DLsite goes first.
+    IGDB goes second, cover held back, because it may supply the appid Steam
+    keys off. Steam then writes its columns and offers its capsule, and IGDB's
+    cover is fetched last, only for an entry that still has none."""
+    autofill_h_game_from_dlsite(entry, db)
+    autofill_game_from_igdb(entry, db, cover=False)
+    autofill_game_from_steam(entry, db)
+    autofill_cover_from_steam(entry)
+    autofill_game_cover_from_igdb(entry)
 
 
 def _start_game_run(db) -> None:
@@ -404,17 +424,20 @@ PIPELINES: dict[str, PipelineSpec] = {
         ),
         single_after=(run_sync_hentai, run_sync_gated_labels),
     ),
-    # Game's spec on the h-game table: the same two sources, gates, pacing
-    # and Replace. The autofills write only the columns and tags the
-    # table has (autofill.py). In Fill All and Replace All, as Game is.
+    # Game's spec on the h-game table plus DLsite: game's two sources, gates
+    # and pacing, with DLsite in front and the cover taken DLsite, then
+    # Steam, then IGDB (_fill_h_game). The autofills write only the columns
+    # and tags the table has (autofill.py). In Fill All and Replace All, as
+    # Game is.
     "h-game": PipelineSpec(
         key="h-game", label="H-Game", model=HGame,
         extract_id=apply_extract_game_ids,
         fill_eligible=lambda db, e: (
             (e.igdb_id is not None and has_missing_values_game(e))
             or has_missing_values_game_steam(e)
+            or has_missing_values_h_game_dlsite(db, e)
         ),
-        fill=_fill_game,
+        fill=_fill_h_game,
         post_process=game_post_processing,
         pre_run=_start_game_run,
         fill_sleep=STEAM_PAUSE,
@@ -424,9 +447,15 @@ PIPELINES: dict[str, PipelineSpec] = {
         ),
         budget=steam_store_rate_limiter.has_capacity,
         replace_select=_linked(
-            HGame, HGame.steam_appid, HGame.steam_link, HGame.igdb_id, HGame.igdb_link
+            HGame,
+            HGame.steam_appid,
+            HGame.steam_link,
+            HGame.igdb_id,
+            HGame.igdb_link,
+            HGame.dlsite_link_jp,
+            HGame.dlsite_link_tw,
         ),
-        replace=lambda db, e, bulk: apply_single_replace_game(db, e, bulk=bulk),
+        replace=lambda db, e, bulk: apply_single_replace_h_game(db, e, bulk=bulk),
         replace_sleep=STEAM_PAUSE,
         replace_after=(
             ("Syncing system options...", run_sync_game),
