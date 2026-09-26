@@ -4,6 +4,7 @@ import {
   myRatingSort,
   planFlagColumn,
   readButtonColumn,
+  usefulnessSort,
 } from "../../../components/layout/libraryColumns";
 import { progressFor } from "../../../lib/hComicRegion";
 import { releaseScore } from "../../../lib/releaseDate";
@@ -98,6 +99,7 @@ const H_COMIC_LIBRARY_CONFIG = {
       compare: (a, b) => releaseScore(b.end_date) - releaseScore(a.end_date),
     },
     myRatingSort,
+    usefulnessSort,
   ],
 
   tableColumns: [

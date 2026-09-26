@@ -118,3 +118,11 @@ it("every AniList type offers both AniList sorts, and no other type does", () =>
     expect(keys.includes("anilist_popularity_rank")).toBe(expected);
   }
 });
+
+it("the three restricted types sort by usefulness, and no other type does", () => {
+  const RESTRICTED_TYPES = ["h-comic", "h-game", "hentai"];
+  for (const [type, cfg] of Object.entries(LIBRARY_CONFIGS)) {
+    const keys = cfg.sortDefs.map((s) => s.key);
+    expect(keys.includes("usefulness")).toBe(RESTRICTED_TYPES.includes(type));
+  }
+});

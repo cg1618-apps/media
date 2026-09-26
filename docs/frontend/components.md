@@ -144,7 +144,8 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   scaffold), `libraryColumns.jsx` (column and sort factories:
   `franchiseColumn`, `airingStatusColumn`, `myRatingColumn`, `malRatingColumn`,
   `imdbRatingColumn`, `watchButtonColumn`, `readButtonColumn`,
-  `planFlagColumn`, `myRatingSort`, `malRatingSort`, `imdbRatingSort`),
+  `planFlagColumn`, `myRatingSort`, `malRatingSort`, `imdbRatingSort`,
+  `usefulnessSort`),
   `GroupedEntryPage`, `CollapsibleCardGrid`, `CollapsiblePillRow`,
   `AdminTabBar`, `FittedName`, `TierBadge`.
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs`,
