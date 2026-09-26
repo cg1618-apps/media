@@ -32,10 +32,7 @@ import {
 } from "../../config/fieldOptions";
 import { isDerivedAnimationStatus } from "../../lib/hComicAnimation";
 import { showsField } from "../../lib/hComicRegion";
-import {
-  followRegion,
-  suggestedRestrictedSources,
-} from "../../lib/hComicRestrictedSources";
+import { followRegion, restrictedSourcesFor } from "../../lib/restrictedSources";
 import { getSourceValues } from "../../utils/media";
 
 export { defaultHComic } from "../../config/formFactories";
@@ -310,7 +307,7 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         onChange={(rows) => u("sources", rows)}
         mediaType="h-comic"
         sources={sources}
-        restrictedSuggestions={suggestedRestrictedSources(f.region)}
+        restrictedSources={restrictedSourcesFor("h-comic", f.region)}
       />
 
       <SectionHeader icon="fa-flag" title="Flags" />
@@ -393,7 +390,7 @@ export default function HComicAddTab({
   sources,
 }) {
   // A new entry's untouched suggested restricted sources follow the region
-  // (lib/hComicRestrictedSources.js). Only on Add: an existing entry's rows
+  // (lib/restrictedSources.js). Only on Add: an existing entry's rows
   // are the owner's, and Modify offers the prefill button instead.
   const setRegion = (key, value) => {
     uhc(key, value);
