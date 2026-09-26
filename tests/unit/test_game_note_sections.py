@@ -91,8 +91,17 @@ def test_the_todo_group_holds_four_buckets_in_order():
 
 
 def test_the_new_sections_are_game_only():
-    for key in STORY_KEYS + TODO_KEYS:
+    # 結局 and the todo buckets reach h-game; the prose strands do not - an
+    # h-game's 劇情 is its Story List.
+    for key in ["endings"] + TODO_KEYS:
         assert ns.section_by_key(key).owners == ns.GAME_OWNERS, key
+    for key in ["main_plot", "side_plot", "character_arcs"]:
+        assert ns.section_by_key(key).owners == ("game",), key
+
+
+def test_the_worldbuilding_sections_are_game_only():
+    for key in STORY_SETTING_KEYS:
+        assert ns.section_by_key(key).owners == ("game",), key
 
 
 def test_story_is_catalogue_and_todo_is_personal():
@@ -165,7 +174,8 @@ def test_no_story_or_todo_section_carries_a_section_level_locator():
 def test_highlight_moments_still_belongs_to_game_and_stays_flat():
     section = ns.section_by_key("highlight_moments")
     assert section.shape == ns.SHAPE_EPISODE_TEXT
-    assert section.owners == ns.GAME_OWNERS
+    # An h-game's highlights are h_game_highlights instead.
+    assert section.owners == ("game",)
     assert section.group is None
 
 

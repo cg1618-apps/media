@@ -176,7 +176,13 @@ def test_grouped_sections_are_adjacent():
             runs.append(sec.group)
         elif not sec.group and runs and runs[-1] is not None:
             runs.append(None)
+    # 結局 Endings is the one exception: it closes 劇情 for a game and for an
+    # h-game, whose 劇情 is its Story List (see `_story_list_sections`), so it
+    # is declared after those four lists and the 劇情 run resumes there.
     named = [g for g in runs if g]
+    assert named.count("story") == 2
+    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "story"][-1] == "endings"
+    named.remove("story")
     assert len(named) == len(set(named))
 
 
@@ -284,11 +290,16 @@ def test_episode_anchored_sections_never_reach_the_tiers():
 
 
 def test_quotes_stay_entry_only():
-    assert ns.section_by_key("quotes").owners == ns.ENTRY_OWNERS
+    assert ns.section_by_key("quotes").owners == tuple(
+        o for o in ns.ENTRY_OWNERS if o not in ns.H_OWNERS
+    )
 
 
 def test_memes_span_every_owner():
-    assert set(ns.section_by_key("memes").owners) == set(OWNER_TABLES)
+    # Bar the gated types, which keep no 名言/梗.
+    assert set(ns.section_by_key("memes").owners) == set(OWNER_TABLES) - set(
+        ns.H_OWNERS
+    )
 
 
 def test_label_for_falls_back_to_default():
@@ -354,8 +365,8 @@ def test_episode_comments_is_text_links_with_an_episode_field():
     assert ns.locator_for(sec, "anime") == "Episode, e.g. ep 1"
     # A game is cut into chapters, so it reuses the section under its own label.
     assert ns.locator_for(sec, "game") == "Chapter / Part, e.g. Ch 3"
-    assert sec.owners == ("anime", "tv-show", "cartoon", "game", "h-game")
-    assert ns.locator_for(sec, "h-game") == "Chapter / Part, e.g. Ch 3"
+    # Not h-game: its comments go in 評論 Reviews and Comments.
+    assert sec.owners == ("anime", "tv-show", "cartoon", "game")
 
 
 def test_unread_is_gone():
@@ -414,7 +425,9 @@ def test_questions_records_where_the_question_came_from():
     # Optional: plenty of questions arise from the work as a whole.
     assert not sec.locator_required
     # But a source with no question attached is nothing, so the body is not.
-    assert sec.desc_required == ns.ALL_OWNERS
+    assert sec.desc_required == sec.owners
+    # An h-comic and a hentai keep no Questions.
+    assert "h-comic" not in sec.owners and "hentai" not in sec.owners
 
 
 def test_insert_songs_sits_directly_below_ed():
@@ -473,6 +486,9 @@ PERSONAL_KEYS = {
     "episode_comments",
     "questions",
     "personal_reviews",
+    # The gated types' one list of reviews and comments, personal like the
+    # 我的評價 it stands in for.
+    "reviews_and_comments",
     # The 待辦 buckets. Four sections rather than one with a kind, because
     # sort_index orders rows within one (owner, section) pair.
     "todo_now",
@@ -566,7 +582,7 @@ def test_external_sections_carry_no_scope():
         assert sec.scope is None
 
 
-def test_the_personal_sections_are_exactly_these_twelve():
+def test_the_personal_sections_are_exactly_these_thirteen():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
         PERSONAL_KEYS
     )
@@ -582,7 +598,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 63
+    assert len(stored) == 64
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
@@ -592,6 +608,7 @@ def test_sections_by_scope_returns_registry_order():
     assert keys == [
         "remark",
         "remark_list",
+        "reviews_and_comments",
         "advantages",
         "disadvantages",
         "double_edged",

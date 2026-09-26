@@ -9,6 +9,7 @@ import uuid
 import pytest
 
 from app import models
+from app.services.rbac.seed_modes import MODE_UNRESTRICTED
 
 SECTION = "h_comic_highlights"
 
@@ -109,12 +110,49 @@ def test_the_section_is_offered_to_h_comic_with_its_grouping(admin_client):
     assert fields["description"]["column"] == "content"
 
 
-def test_the_every_owner_sections_reach_h_comic(admin_client):
-    keys = {
-        s["key"]
-        for s in admin_client.get("/api/notes/sections", params={"owner_type": "h-comic"}).json()
-    }
-    assert {"remark_list", "personal_reviews", "public_reviews"} <= keys
+@pytest.mark.parametrize(
+    "owner_type, expected",
+    [
+        (
+            "h-comic",
+            ["remark", "remark_list", "reviews_and_comments", SECTION, "resources"],
+        ),
+        ("hentai", ["remark", "remark_list", "reviews_and_comments", "resources"]),
+    ],
+)
+def test_h_comic_and_hentai_keep_one_list_of_reviews(admin_client, owner_type, expected):
+    """No 評論 card, 解析, Questions or 名言/梗 - one list of text instead."""
+    sections = admin_client.get("/api/notes/sections", params={"owner_type": owner_type}).json()
+    assert [s["key"] for s in sections] == expected
+    reviews = next(s for s in sections if s["key"] == "reviews_and_comments")
+    assert reviews["shape"] == "text"
+    assert reviews["scope"] == "personal"
+
+
+def test_reviews_and_comments_takes_a_row_where_personal_reviews_does_not(
+    admin_client, mode_client, plain_user
+):
+    """
+    Personal sections, so a member in the unrestricted mode writes them - an
+    admin holds no personal notes, and no other mode sees a hentai.
+    """
+    hentai = admin_client.post("/api/hentai/", json={"hentai_name_cn": "Zvornik Hentai"}).json()
+    member = mode_client(MODE_UNRESTRICTED, user=plain_user)
+
+    def post(section):
+        return member.post(
+            "/api/notes",
+            json={
+                "owner_type": "hentai",
+                "owner_id": hentai["system_id"],
+                "section": section,
+                "content": "worth it",
+            },
+        )
+
+    assert post("personal_reviews").status_code == 422
+    assert post("advantages").status_code == 422
+    assert post("reviews_and_comments").status_code == 201
 
 
 def test_the_section_is_not_offered_to_manga(client):
