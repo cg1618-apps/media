@@ -358,10 +358,10 @@ def test_tag_fields_for_comic():
 # ---------------------------------------------------------------------------
 
 
-def test_seiyuu_is_a_person_role_scoped_to_the_two_anime_types():
+def test_seiyuu_is_a_person_role_scoped_to_the_voiced_types():
     assert "seiyuu" in cr.PERSON_ROLES
     assert cr.CREDIT_ROLES["seiyuu"].target == "person"
-    assert cr.legal_scopes("seiyuu") == ("anime", "anime-movie")
+    assert cr.legal_scopes("seiyuu") == ("anime", "anime-movie", "hentai")
 
 
 def test_seiyuu_credits_are_not_stored_in_media_credit():

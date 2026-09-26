@@ -3086,6 +3086,7 @@ export default function Add() {
       "Entry",
     );
     await saveCredits("hentai", created.system_id, htf);
+    await saveCast("hentai", created.system_id, htf);
     window.scrollTo(0, 0);
     showToast("success", "Hentai appended successfully.");
     setLastAdded(getDisplayName(created, "hentai"));

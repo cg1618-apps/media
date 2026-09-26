@@ -268,8 +268,12 @@ picker.
 
 **Hentai tab.** `HentaiAddTab.jsx`, gated like the H-Comic tab. It exports
 `HentaiLineageFields` and `HentaiFormBody`, which the Modify tab renders too,
-and it is simpler than h-comic's: no region, no cast and no progress - one
-entry is one episode. The franchise picker is `FamilyLineageFields` over the
+and it is simpler than h-comic's: no region and no progress - one entry is
+one episode. The form starts with the restricted source `Hanime1`, which the
+Sources editor also offers as a suggestion (and Modify through **Prefill
+suggested**) - `lib/hentaiRestrictedSources.js`. Its **Cast** section is `CastEditor` with the seiyuu column, as
+on anime, saved through `PUT /api/casting/hentai/{id}` after the entry by both
+the Add and the Modify page. The franchise picker is `FamilyLineageFields` over the
 h-comic family (**Hentai and H-Comic** franchises), so a hentai can join the
 franchise of the h-comic it adapts; a new franchise typed there is created as
 `Hentai` (`HENTAI_FRANCHISE_TYPE`). The body has the five names;

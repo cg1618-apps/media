@@ -206,10 +206,10 @@ def autofill_hentai_from_mal(hentai, db: Session = None) -> None:
     Fetches Tenrai data for a single hentai entry. Does not commit - caller is
     responsible.
 
-    Three things and nothing else - airing_status, release_date and the cover
-    - each under anime's rule: the two columns are fill-only, the cover is
-    downloaded only when the entry has none. Tenrai serves Rx titles through
-    the same anime endpoint and mapper.
+    airing_status, release_date, the cover, and the Official site and
+    Twitter reference rows - each under anime's rule: the two columns and the
+    two rows are fill-only, the cover is downloaded only when the entry has
+    none. Tenrai serves Rx titles through the same anime endpoint and mapper.
     """
     mal_id = hentai.mal_id
     if not mal_id:
@@ -226,13 +226,11 @@ def autofill_hentai_from_mal(hentai, db: Session = None) -> None:
             hentai.airing_status = j_data.get("airing_status")
         if hentai.release_date is None:
             hentai.release_date = j_data.get("release_date")
+        _write_tenrai_reference_rows(db, "hentai", hentai, j_data)
 
         if (
-
             cover_needs_download(hentai.cover_image_file, "hentai", str(hentai.system_id))
-
             and j_data.get("cover_image_url")
-
         ):
             key = download_cover_image(
                 j_data.get("cover_image_url"), "hentai", str(hentai.system_id)

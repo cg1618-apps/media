@@ -244,3 +244,25 @@ def test_an_unknown_person_id_is_a_422(admin_client, anime, character):
     r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
     assert r.status_code == 422
     assert str(unknown_id) in r.json()["detail"]
+
+
+def test_a_hentai_is_cast_with_its_seiyuu(admin_client, character, person):
+    """Hentai is animated, so it is cast the way anime is. The mirror is
+    test_a_seiyuu_on_a_manga_casting_is_rejected: the same payload on a
+    type with no voice acting is a 422."""
+    created = admin_client.post("/api/hentai/", json={"hentai_name_cn": "Cast Hentai"})
+    assert created.status_code == 201, created.text
+    entry_id = created.json()["system_id"]
+
+    body = {"cast": [{
+        "character_id": str(character.system_id),
+        "person_id": str(person.system_id),
+        "role": "Main",
+    }]}
+    r = admin_client.put(f"/api/casting/hentai/{entry_id}", json=body)
+    assert r.status_code == 200, r.text
+
+    rows = admin_client.get(f"/api/casting/hentai/{entry_id}").json()["cast"]
+    assert len(rows) == 1
+    assert rows[0]["character_name"] == character.display_name
+    assert rows[0]["person_name"] == person.display_name

@@ -470,7 +470,7 @@ media-entry surface, with no additions.
 | -------- | ---------------------- | ------ | ----------- |
 | `GET`    | `/`                    | Public | List. Optional params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `source_material`, `search_query` (matched against all five name columns). |
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
-| `POST`   | `/`                    | Admin  | Create. Body: `HentaiCreate`. Auto-runs `execute_replace_single_hentai`: extracts `mal_id` from `mal_link`, fills `airing_status`, `release_date` and the cover from Tenrai where blank, then runs `run_sync_hentai` and `run_sync_gated_labels`. |
+| `POST`   | `/`                    | Admin  | Create. Body: `HentaiCreate`. Auto-runs `execute_replace_single_hentai`: extracts `mal_id` from `mal_link`, fills `airing_status`, `release_date`, the cover and the Official site / Twitter reference rows from Tenrai where blank, then runs `run_sync_hentai` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HentaiUpdate`. Same write hook. |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The hentai vocabularies are checked here too (422). |
 | `POST`   | `/{entry_id}/complete` | Admin  | `watching_status = "Completed"`; `airing_status` becomes `Finished Airing` (movie's rule). |
@@ -1557,13 +1557,14 @@ cast row names a character, an optional seiyuu, a role, a display position, a
 photo and a remark — forcing that shape into `/api/credits` would break the
 simpler contract for every other role, and it would pull character casting
 into a role vocabulary (`credit_roles_for`) that only some media types have.
-The castable types are `CASTING_MEDIA_TYPES`: anime, anime-movie, manga, novel
-and h-comic; a seiyuu is refused (422) on any but the first two.
+The castable types are `CASTING_MEDIA_TYPES`: anime, anime-movie, manga, novel,
+h-comic and hentai; a seiyuu is refused (422) on any but anime, anime-movie and
+hentai (`VOICED_MEDIA_TYPES`).
 
 | Method | Path                       | Auth   | Description                                                                    |
 | ------ | -------------------------- | ------ | ------------------------------------------------------------------------------- |
 | `GET`  | `/{media_type}/{entry_id}` | Public | The entry's cast, ordered by `position`. 400 for an unknown `media_type`; missing **or hidden** entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
-| `PUT`  | `/{media_type}/{entry_id}` | Admin  | Replaces the whole cast in the submitted order. Body: `{cast: [{character_id, person_id?, role?, position?, photo_file?, remark?}]}`. `position` defaults to list index when omitted. Rejects (422) a seiyuu (`person_id` set) on a media type outside `anime`/`anime-movie`, or a `role` outside `CHARACTER_ROLES`, in Python — before the row ever reaches `ck_casting_voice_scope` in the database. |
+| `PUT`  | `/{media_type}/{entry_id}` | Admin  | Replaces the whole cast in the submitted order. Body: `{cast: [{character_id, person_id?, role?, position?, photo_file?, remark?}]}`. `position` defaults to list index when omitted. Rejects (422) a seiyuu (`person_id` set) on a media type outside `anime`/`anime-movie`/`hentai`, or a `role` outside `CHARACTER_ROLES`, in Python — before the row ever reaches `ck_casting_voice_scope` in the database. |
 
 `media_type` for casting is one of `anime`, `anime-movie`, `manga`, `novel` —
 a subset of the eight `MEDIA_TABLES` keys, matching the four media types a
@@ -1700,7 +1701,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/fill/comic`       | Runs options extraction for all comics. No external call — comics are manual-entry. Streams SSE progress. |
 | `POST` | `/fill/h-comic`     | Fill `serialization_status`, `release_date`, `end_date`, the cover and - on a finished (`完結`) KR entry - `ch_total` from Tenrai's manga record, for every h-comic with a MAL id that is missing one of them, fill-only, 1 s between calls; then `run_sync_h_comic` (region clears over the whole table) and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/h-game`      | Game's Fill on the h-game table: IGDB (columns, the `studio` credit, `game_genre` / `game_theme`) and Steam (prices, achievements), then `run_sync_game` and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
-| `POST` | `/fill/hentai`      | Fill `airing_status`, `release_date` and the cover from Tenrai for every hentai with a MAL id that is missing one of them, fill-only, 1 s between calls; then `run_sync_hentai` (system options) and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
+| `POST` | `/fill/hentai`      | Fill `airing_status`, `release_date` and the cover (plus the Official site / Twitter reference rows) from Tenrai for every hentai with a MAL id that is missing one of the three, fill-only, 1 s between calls; then `run_sync_hentai` (system options) and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/studio`      | Fill missing logo, MAL link, founding date, Japanese name and website for every studio that has a MAL id, from Tenrai's producers endpoint. Fill-only; there is no `/replace/studio`. Streams SSE progress. |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
@@ -1729,7 +1730,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/replace/h-comic/{entry_id}`           | The same for one h-comic — the detail page's Autofill button and the write hook — then `run_sync_h_comic` and `run_sync_gated_labels`. Returns JSON. |
 | `POST` | `/replace/h-game`                       | Game's Replace for every h-game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam. Streams SSE progress. Part of Replace All. |
 | `POST` | `/replace/h-game/{entry_id}`            | The same for one h-game — the detail page's Autofill button — then `run_sync_game` and `run_sync_gated_labels`. Returns JSON. |
-| `POST` | `/replace/hentai`                       | Re-run Tenrai for every hentai that has a MAL id or link - the same three fill-only fields, so it completes what is blank and overwrites nothing - then `run_sync_hentai` and `run_sync_gated_labels`. Streams SSE progress. |
+| `POST` | `/replace/hentai`                       | Re-run Tenrai for every hentai that has a MAL id or link - the same fill-only fields and reference rows, so it completes what is blank and overwrites nothing - then `run_sync_hentai` and `run_sync_gated_labels`. Streams SSE progress. |
 | `POST` | `/replace/hentai/{entry_id}`            | The write hook for one hentai: the Tenrai fetch, then `run_sync_hentai` and `run_sync_gated_labels`. Returns JSON. |
 | `POST` | `/replace/all`                          | Replace all + auto-backup on completion. Streams SSE progress.                       |
 
