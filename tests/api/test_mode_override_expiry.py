@@ -4,7 +4,8 @@ The login cookie says WHO is asking and lasts a month. It no longer says which
 mode they are in: every request lands in the account's default mode unless a
 second cookie, `access_mode`, carries a live override. That cookie is a
 browser-session cookie (no Max-Age, so closing the browser drops it) holding a
-signed token that expires an hour after the switch. Either way the session
+signed token. A mode WIDER than the default expires an hour after the switch;
+a narrower one lasts as long as the login. Either way closing the browser
 falls back to the default.
 
 The case that drove this: switch a laptop to `unrestricted`, close the
@@ -294,3 +295,70 @@ def test_me_reports_when_the_override_ends(signed_in, mode):
 
 def test_me_reports_no_end_in_the_default(signed_in):
     assert _active(signed_in())["expires_at"] is None
+
+
+# ---------------------------------------------------------------------------
+# Only a mode WIDER than the default is timed
+#
+# "Wider" is the same set test the password prompt uses: the target shows
+# something the default hides. Here `unrestricted` is wider than the
+# `borderline` default and `safe` is narrower - which is what `nsfw_label`
+# in the fixture guarantees, so each test below has something to tell apart.
+# ---------------------------------------------------------------------------
+
+
+def test_a_narrower_mode_lasts_as_long_as_the_login(signed_in, mode):
+    login_ends = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(days=30)
+    c = signed_in(login_expires_at=login_ends)
+
+    response = _switch(c, mode(MODE_SAFE))
+
+    assert response.status_code == 200
+    assert _override_claims(c)["exp"] == int(login_ends.timestamp())
+    assert _active(c)["key"] == MODE_SAFE
+
+
+def test_a_wider_mode_is_still_timed_beside_a_narrower_one(signed_in, mode):
+    """The mirror: under the same long login, a wider mode keeps the hour -
+    so the narrower mode's month is the rule, not the login leaking through."""
+    login_ends = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(days=30)
+    c = signed_in(login_expires_at=login_ends)
+
+    _switch(c, mode(MODE_UNRESTRICTED))
+
+    remaining = _override_claims(c)["exp"] - datetime.now(timezone.utc).timestamp()
+    assert 3600 - 60 < remaining <= 3600
+
+
+def test_me_reports_no_end_for_a_narrower_mode(signed_in, mode):
+    """Nothing for the SPA to reload at - and a month away would overflow the
+    browser's setTimeout, which fires at once past ~24.8 days."""
+    c = signed_in()
+    _switch(c, mode(MODE_SAFE))
+
+    assert _active(c)["key"] == MODE_SAFE
+    assert _active(c)["expires_at"] is None
+
+
+def test_a_narrower_mode_still_ends_when_the_browser_closes(signed_in, mode):
+    c = signed_in()
+    _switch(c, mode(MODE_SAFE))
+
+    c.cookies.delete(OVERRIDE, domain=DOMAIN)
+
+    assert _active(c)["key"] == MODE_BORDERLINE
+
+
+def test_an_override_minted_before_the_timed_claim_still_reports_its_end(
+    signed_in, mode, admin_user
+):
+    """Cookies issued before this change carry no `timed` claim; they are all
+    hour-long wider-or-not overrides, so they keep reporting their end."""
+    c = signed_in()
+    live = create_access_token(
+        {"sub": admin_user.username, "mode": str(mode(MODE_SAFE).system_id)},
+        expires_delta=timedelta(minutes=5),
+    )
+    c.cookies.set(OVERRIDE, live, domain=DOMAIN)
+
+    assert _active(c)["expires_at"] is not None

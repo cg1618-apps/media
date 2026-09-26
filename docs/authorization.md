@@ -1264,17 +1264,26 @@ anything but the account's default sets a second cookie, `access_mode`
 | Property | Value | Why |
 |---|---|---|
 | lifetime in the browser | session cookie: no `max_age`, no `expires` | closing the browser drops it |
-| token `exp` | `ACCESS_MODE_OVERRIDE_MINUTES` (60) after the switch, capped at the login's `exp` | a browser that restores its session, or is never closed, still returns to the default |
-| token claims | `sub`, `mode` | an override minted for another account is ignored |
+| token `exp` | a mode **wider** than the default: `ACCESS_MODE_OVERRIDE_MINUTES` (60) after the switch, capped at the login's `exp`; any other mode: the login's `exp` | a browser that restores its session, or is never closed, still leaves a wider mode within the hour |
+| token claims | `sub`, `mode`, and `timed: false` on a mode that is not wider | an override minted for another account is ignored; `timed` tells `/me` whether there is an end to publish |
 | cleared by | switching to the default, login, logout | a new login always starts in the default |
 
 So a laptop switched to `unrestricted` and left alone is back in its default
-mode within the hour. This applies to narrowing as well as widening: a session
-switched below its default returns to the default when the override ends,
-without the password, because the default is what the account's own login
-already grants. `/api/auth/me` publishes the end as `mode.expires_at`, and
-`AuthContext` reloads the page just after, so nothing fetched in the old mode stays
-on screen.
+mode within the hour. **Wider** is the password prompt's subset test
+(`switch_requires_password`) taken against the account's DEFAULT, not against
+the mode being left: a target is wider when it shows any label or field group
+the default does not, so a mode that adds one thing and drops another is
+wider too. It is decided once, at the switch. Every other mode - `safe` under a
+`borderline` default, say - holds until the browser closes or the login ends,
+so a session narrowed on purpose is not widened back behind its owner's back.
+
+`/api/auth/me` publishes a wider mode's end as `mode.expires_at`, and
+`AuthContext` reloads the page just after, so nothing fetched in the old mode
+stays on screen. A mode that is not wider publishes `null`: its only end is the
+login's, up to a month away, which is past the ~24.8 days a browser
+`setTimeout` can wait - a longer delay fires at once, and the page would
+reload in a loop. An override minted before the `timed` claim existed carries
+none and is read as timed, which every one of them was.
 
 **The login cookie is not reissued by a switch.** Minting a fresh month-long
 login on each switch would make toggling between two modes an unlimited

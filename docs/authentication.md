@@ -132,8 +132,9 @@ The browser sends it automatically; the SPA always fetches with `credentials: "i
 
 A second cookie, `access_mode`, holds a switched-to access mode. It is a
 browser-session cookie with the same `HttpOnly`, `SameSite` and `Secure` flags,
-its token expires an hour after the switch, and login and logout both clear
-it. It does not identify anyone - without `access_token` it is ignored. See
+its token expires an hour after the switch when the mode is wider than the
+account's default and with the login otherwise, and login and logout both
+clear it. It does not identify anyone - without `access_token` it is ignored. See
 [authorization.md](authorization.md#switching-mid-session-post-apiauthaccess-mode).
 
 ## `GET /api/auth/me`

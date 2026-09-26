@@ -2082,6 +2082,27 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
 - **The switch no longer reissues the login cookie**, so the
   session-extension concern that made it preserve `exp` has no surface left.
 
+### Only a mode wider than the default expires (2026-09-26)
+
+- **Reverses "Narrowing expires too" above.** Narrowing on purpose - dropping
+  to `safe` with someone watching - was undone after the hour, widening the
+  session back to the default without its owner doing anything. The timer
+  exists to stop a device being LEFT wide, so it now applies only there.
+- **No ordering was needed after all.** The objection above was that keeping
+  narrow overrides would need modes ranked. It does not: "wider than the
+  default" is the password prompt's subset test with the default as the
+  starting point. A mode neither wider nor narrower (adds one label, drops
+  another) counts as wider and is timed - the conservative side.
+- **Decided at the switch, carried in the token.** The override token for a
+  mode that is not wider expires with the login and carries `timed: false`, so
+  `/me` reports no end instead of a date a month out. Without the claim the
+  SPA would schedule its reload past `setTimeout`'s ~24.8-day ceiling, which
+  fires immediately. An override minted before the claim has none and is read
+  as timed, which it was.
+- **Rejected: a separate setting for the narrower duration.** One knob
+  (`ACCESS_MODE_OVERRIDE_MINUTES`) now means "how long a wider mode lasts",
+  and a narrower mode needs no timer of its own.
+
 ### H-Game, the second gated type (spec: 2026-09-25 h-game-design)
 
 - **Its own table, Game's machinery.** `h_game` is to `games` what `h_comic`
