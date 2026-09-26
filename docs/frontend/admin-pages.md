@@ -586,10 +586,14 @@ does; its DLC rows likewise survive with `base_game_id` set to `NULL`. The
 **Hentai tab** (gated the same way) offers the orphan series and orphan
 franchise checkboxes as well.
 
+**Every Delete button only opens this modal** — franchise and series
+included; nothing is deleted until **Confirm Delete** is pressed, and Cancel
+deletes nothing. The studio, publisher, person and character panels, and the
+quote and meme tabs, confirm inline instead (Delete, then Confirm Delete).
+
 Counts are computed across all twelve media types (`entriesIn`,
 `standaloneEntriesIn`), so **opening the confirmation waits for every media
-list to be in** — lazily loaded ones included — and `executeDirectDelete`
-waits again before cascading. A list that was never fetched reads as empty,
+list to be in** — lazily loaded ones included. A list that was never fetched reads as empty,
 which would understate the cascade and offer to delete a franchise that still
 holds entries. The modal says "Checking what else this would delete…" while
 that completes. Deletion order is children first, then the row, then
