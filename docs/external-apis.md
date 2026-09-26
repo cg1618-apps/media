@@ -4,7 +4,7 @@ Last verified: 2026-09-26
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Nine outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios, the columns an h-comic has, and three fields of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Nine outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios, the columns an h-comic has, and three fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
@@ -93,17 +93,18 @@ entry columns — those columns were dropped by migration `dc1o2l3s4d5`. See
 
 Same rules, except the date goes to `release_date_jp` and there is no `release_season`. The mapper also returns `ep_total`, but `autofill_anime_movie_from_mal` never writes it.
 
-### Mapping for `hentai` — `map_tenrai_to_anime_data`, three fields
+### Mapping for `hentai` — `map_tenrai_to_anime_data`, three fields and two links
 
-Hentai reads anime's record through anime's mapper, and `autofill_hentai_from_mal` writes three things from it and nothing else:
+Hentai reads anime's record through anime's mapper, and `autofill_hentai_from_mal` writes these and nothing else:
 
 | Tenrai field | Column | Rule |
 |---|---|---|
 | `status` | `airing_status` | anime's mapping; fill-only |
 | `aired` | `release_date` | anime's mapping (precision from MAL's own aired string); fill-only |
 | `images` | `cover_image_file` | anime's URL choice; downloaded to `static/covers/hentai/` only when the entry has no cover |
+| `external` | `media_source` reference rows `Official site` and `Twitter` | anime's `_write_tenrai_reference_rows`; a row is added only when the entry has none for that value |
 
-Names, studio, scores, ranks, episodes, the official links and AniList are not written. Because nothing is overwritten, a hentai Replace completes what is blank and changes nothing else.
+Names, studio, scores, ranks, episodes and AniList are not written. Because nothing is overwritten, a hentai Replace completes what is blank and changes nothing else.
 
 ### Mapping for `manga` / `novel` — `map_tenrai_to_manga_data`, `map_tenrai_to_novel_data`
 

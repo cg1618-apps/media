@@ -97,6 +97,7 @@ const CAST_MEDIA_TYPES = new Set([
   "manga",
   "novel",
   "h-comic",
+  "hentai",
 ]);
 
 function parseSeasonPart(sp) {
@@ -485,6 +486,7 @@ export default function Modify() {
     else if (castMediaType === "manga") setCmgf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "novel") setCnvf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "h-comic") setChcf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "hentai") setChtf((p) => ({ ...p, cast: rows }));
   }, [castMediaType, editingItem, castData]);
 
   // The active tab's own list goes out FIRST, before the twenty-odd source
@@ -2867,6 +2869,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("hentai", updated.system_id, chtf);
+    await saveCast("hentai", updated.system_id, chtf);
     setAllHentai((prev) =>
       prev.map((h) => (h.system_id === updated.system_id ? updated : h)),
     );

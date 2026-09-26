@@ -243,8 +243,9 @@ def test_a_catalogue_editor_who_cannot_see_hentai_is_not_told_it_exists(
     assert {"anime", "game", "studio"} <= keys
 
 
-def test_unrestricted_is_told_about_hentai_and_its_three_tenrai_fields(admin_client):
-    """The mirror, and what the row says: three fill-only writes from Tenrai."""
+def test_unrestricted_is_told_about_hentai_and_its_tenrai_writes(admin_client):
+    """The mirror, and what the row says: three fill-only fields and the two
+    reference links from Tenrai."""
     body = admin_client.get("/api/constants/external-apis").json()
     hentai = next(e for e in body["media"] if e["key"] == "hentai")
     tenrai = next(s for s in hentai["sources"] if s["source"] == "tenrai")
@@ -253,4 +254,6 @@ def test_unrestricted_is_told_about_hentai_and_its_three_tenrai_fields(admin_cli
         "airing_status": "fill-only",
         "release_date": "fill-only",
         "cover_image_file": "if-empty",
+        "Official site": "if-absent",
+        "Twitter": "if-absent",
     }

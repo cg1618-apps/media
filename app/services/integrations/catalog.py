@@ -919,7 +919,8 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
         combination="single",
         requests_per_entry="1 Tenrai",
         note=(
-            "The same Tenrai anime record as Anime, read for three things only. "
+            "The same Tenrai anime record as Anime, read for three fields and "
+            "the two reference links. "
             "Every run and the single-entry hook end in the hentai sync, which "
             "keeps the hentai label on."
         ),
@@ -935,12 +936,13 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "precision taken from MAL's own aired string, never padded",
                     ),
                     Write("cover_image_file", "image", "if-empty"),
+                    *_TENRAI_LINKS,
                     Write(
                         "mal_rating",
                         "none",
                         "never",
-                        "hentai takes airing status, release date and cover "
-                        "from Tenrai and nothing else",
+                        "hentai takes airing status, release date, cover and "
+                        "the two reference links from Tenrai and nothing else",
                     ),
                     Write(
                         "studio",

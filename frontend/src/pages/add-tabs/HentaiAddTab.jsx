@@ -4,9 +4,11 @@
 // way HComicAddTab's is: this file exports the field body and the lineage
 // pickers, and HentaiModifyTab renders them, so the two cannot drift.
 //
-// Simpler than h-comic's: no region, no cast, and no progress - one entry is
-// one episode, so it is watched or it is not. The `hentai` content label is
+// Simpler than h-comic's: no region and no progress - one entry is one
+// episode, so it is watched or it is not. The cast is anime's, seiyuu
+// included, since a hentai is voiced. The `hentai` content label is
 // the page's to lock on (ContentLabelPicker's `required`), not this form's.
+import CastEditor from "../../components/forms/CastEditor";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ImagePicker from "../../components/forms/ImagePicker";
@@ -23,6 +25,7 @@ import {
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import { HENTAI_SOURCES } from "../../lib/hentaiForm";
+import { HENTAI_RESTRICTED_SOURCES } from "../../lib/hentaiRestrictedSources";
 import { getSourceValues } from "../../utils/media";
 
 export { defaultHentai } from "../../config/formFactories";
@@ -127,6 +130,11 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
         <Field label="Director">{tagField("director", "Select director...")}</Field>
       </div>
 
+      {/* Saved through PUT /api/casting/hentai/{id} once the entry exists,
+          by the Add and Modify pages - not part of the entry payload. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor mediaType="hentai" value={f.cast} onChange={(v) => u("cast", v)} />
+
       <SectionHeader icon="fa-chart-bar" title="Status" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {select("airing_status", "Airing Status", AIRING_STATUSES)}
@@ -163,6 +171,7 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
         onChange={(rows) => u("sources", rows)}
         mediaType="hentai"
         sources={sources}
+        restrictedSuggestions={HENTAI_RESTRICTED_SOURCES}
       />
 
       <SectionHeader icon="fa-flag" title="Flags" />

@@ -1,7 +1,8 @@
 """
-Hentai is filled from Tenrai for three things only: airing_status,
-release_date and the cover - each under anime's rule (the two columns
-fill-only, the cover only when the entry has none).
+Hentai is filled from Tenrai for airing_status, release_date, the cover, and
+the Official site and Twitter reference rows - each under anime's rule (the
+two columns and the two rows fill-only, the cover only when the entry has
+none).
 
 The Tenrai fetch and the cover download are both patched out; no test here
 reaches the network. The payload is the shape Tenrai serves for an Rx title
@@ -19,6 +20,7 @@ from app.services.domain import autofill as autofill_module
 from app.services.domain.autofill import autofill_hentai_from_mal
 from app.services.domain.content_labels import label_keys_for_entry
 from app.services.pipelines.specs import PIPELINES
+from app.utils.source_fields import OFFICIAL_SITE_VALUE, TWITTER_VALUE
 
 RX_RESULT = {
     "type": "OVA",
@@ -35,6 +37,10 @@ RX_RESULT = {
     "images": {"jpg": {"image_url": "https://cdn.test/188.jpg"}},
     "studios": [{"name": "Some Studio"}],
     "titles": [{"type": "Default", "title": "Default Title"}],
+    "external": [
+        {"name": "Official Site", "url": "https://official.test/188"},
+        {"name": "X", "url": "https://twitter.com/rx188"},
+    ],
 }
 
 
@@ -86,8 +92,60 @@ def test_never_overwrites_what_is_already_there(db_session, tenrai):
     assert tenrai["download"] == []
 
 
+def _reference_urls(db_session, entry) -> dict:
+    return {
+        option.value: row.url
+        for row, option in db_session.query(models.MediaSource, models.SystemOption)
+        .join(
+            models.SystemOption,
+            models.SystemOption.system_id == models.MediaSource.option_id,
+        )
+        .filter(
+            models.MediaSource.media_id == entry.system_id,
+            models.MediaSource.kind == "reference",
+            models.MediaSource.bucket == "main",
+        )
+    }
+
+
+def test_writes_the_official_site_and_twitter_rows(db_session, tenrai):
+    entry = _entry(db_session)
+    autofill_hentai_from_mal(entry, db=db_session)
+    db_session.flush()
+    assert _reference_urls(db_session, entry) == {
+        OFFICIAL_SITE_VALUE: "https://official.test/188",
+        TWITTER_VALUE: "https://twitter.com/rx188",
+    }
+
+
+def test_an_existing_reference_row_is_not_overwritten(db_session, tenrai):
+    entry = _entry(db_session)
+    option = models.SystemOption(category="Reference Source", value=OFFICIAL_SITE_VALUE)
+    db_session.add(option)
+    db_session.flush()
+    db_session.add(
+        models.MediaSource(
+            media_id=entry.system_id,
+            kind="reference",
+            bucket="main",
+            option_id=option.system_id,
+            url="https://mine.test",
+        )
+    )
+    db_session.flush()
+
+    autofill_hentai_from_mal(entry, db=db_session)
+    db_session.flush()
+
+    urls = _reference_urls(db_session, entry)
+    assert urls[OFFICIAL_SITE_VALUE] == "https://mine.test"
+    # The mirror: the same run did write the row that was missing.
+    assert urls[TWITTER_VALUE] == "https://twitter.com/rx188"
+
+
 def test_writes_nothing_it_was_not_asked_for(db_session, tenrai):
-    """No names, studio, scores or AniList: the owner asked for three fields."""
+    """No names, studio, scores or AniList: the owner asked for three fields
+    and the two reference links."""
     entry = _entry(db_session)
     autofill_hentai_from_mal(entry, db=db_session)
     assert entry.hentai_name_en is None
