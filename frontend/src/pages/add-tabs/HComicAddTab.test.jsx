@@ -36,7 +36,7 @@ const PLATFORM_SOURCES = {
   ],
 };
 
-function Harness({ franchises = [], initial = {}, sources = SOURCES }) {
+function Harness({ franchises = [], initial = {}, sources = SOURCES, entries = [], onPick = () => {} }) {
   const [form, setForm] = useState({ ...defaultHComic(), ...initial });
   return (
     <HComicAddTab
@@ -44,6 +44,8 @@ function Harness({ franchises = [], initial = {}, sources = SOURCES }) {
       hcf={form}
       uhc={(k, v) => setForm((p) => ({ ...p, [k]: v }))}
       allFranchises={franchises}
+      allHComics={entries}
+      applyHComicEntryAutofill={onPick}
       seriesItemsForHComic={[]}
       sources={sources}
     />
@@ -205,5 +207,26 @@ describe("HComicAddTab", () => {
       expect(field("MAL ID")).toHaveValue("777");
       expect(field("MAL ID")).toBeDisabled();
     });
+  });
+});
+
+describe("HComicAddTab - auto-fill from an existing entry", () => {
+  it("offers the existing h-comics and hands the picked one over", async () => {
+    // The second entry proves the box filters rather than listing everything.
+    const onPick = vi.fn();
+    const entries = [
+      { system_id: "e1", h_comic_name_cn: "既有條目", franchise_id: null },
+      { system_id: "e2", h_comic_name_cn: "其他", franchise_id: null },
+    ];
+    renderTab({ entries, onPick });
+
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Auto-fill from existing entry" }),
+      "既有",
+    );
+    expect(screen.queryByRole("button", { name: /其他/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /既有條目/ }));
+
+    expect(onPick).toHaveBeenCalledWith(entries[0]);
   });
 });

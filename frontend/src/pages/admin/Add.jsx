@@ -13,6 +13,7 @@ import {
   hentaiFieldsPayload,
 } from "../../utils/media";
 import { clearedForRegion } from "../../lib/hComicRegion";
+import { mergeHComicAutofill } from "../../lib/restrictedSources";
 import { hComicSourceFields } from "../../lib/hComicForm";
 import { hGameSourceFields } from "../../lib/hGameForm";
 import { hentaiSourceFields } from "../../lib/hentaiForm";
@@ -116,7 +117,9 @@ export default function Add() {
   const allNovels = lists.novel;
   const allComics = lists.comic;
   const allGames = lists.game;
+  const allHComics = lists["h-comic"];
   const allHGames = lists["h-game"];
+  const allHentai = lists.hentai;
   // Every submit handler appends its newly created row to the list it came
   // from, so the picker offers it without a refetch.
   const setAllAnime = (v) => setList("anime", v);
@@ -603,18 +606,38 @@ export default function Add() {
 
   // One auto-fill handler per tab. Which fields get copied comes from the
   // admin's /defaults configuration, falling back to the built-in field sets.
-  const makeApply = (setter, type, setQuery, setOpen) => (item) => {
-    const patch = buildAutofillPatch(
-      item,
-      type,
-      autofillFields(type, formDefaults),
-      { allFranchises, allSeries, allCollections, defaults: freshForm(type) },
-    );
-    setter((p) => ({ ...p, ...patch }));
-    setQuery("");
-    setOpen(false);
-    showToast("success", "Auto-filled fields from existing entry.");
+  // `merge` folds the patch into the form; a tab whose fields depend on each
+  // other (h-comic's region and sources) passes its own.
+  const applyEntryAutofill =
+    (setter, type, merge = (p, patch) => ({ ...p, ...patch })) =>
+    (item) => {
+      const patch = buildAutofillPatch(
+        item,
+        type,
+        autofillFields(type, formDefaults),
+        { allFranchises, allSeries, allCollections, defaults: freshForm(type) },
+      );
+      setter((p) => merge(p, patch));
+      showToast("success", "Auto-filled fields from existing entry.");
+    };
+  // The older tabs hold their search box's state here, so a pick also has to
+  // clear it; the gated tabs' EntryAutofillSearch clears itself.
+  const makeApply = (setter, type, setQuery, setOpen) => {
+    const apply = applyEntryAutofill(setter, type);
+    return (item) => {
+      apply(item);
+      setQuery("");
+      setOpen(false);
+    };
   };
+
+  const applyHComicEntryAutofill = applyEntryAutofill(
+    setHcf,
+    "h-comic",
+    mergeHComicAutofill,
+  );
+  const applyHGameEntryAutofill = applyEntryAutofill(setHgf, "h-game");
+  const applyHentaiEntryAutofill = applyEntryAutofill(setHtf, "hentai");
 
   const applyAutofill = makeApply(setAf, "anime", setFillQuery, setFillOpen);
   const applyAnimeMovieAutofill = makeApply(
@@ -3517,6 +3540,9 @@ export default function Add() {
             hcf={hcf}
             uhc={uhc}
             allFranchises={allFranchises}
+            allHComics={allHComics}
+            hComicsLoading={isLoading("h-comic")}
+            applyHComicEntryAutofill={applyHComicEntryAutofill}
             seriesItemsForHComic={seriesItemsForHComic}
             sources={sources}
           />
@@ -3530,9 +3556,11 @@ export default function Add() {
             uhg={uhg}
             allFranchises={allFranchises}
             allHGames={allHGames}
+            hGamesLoading={isLoading("h-game")}
             seriesItemsForHGame={seriesItemsForHGame}
             sources={sources}
             applyHGameAutofill={applyHGameAutofill}
+            applyHGameEntryAutofill={applyHGameEntryAutofill}
           />
         )}
 
@@ -3543,6 +3571,9 @@ export default function Add() {
             htf={htf}
             uht={uht}
             allFranchises={allFranchises}
+            allHentai={allHentai}
+            hentaiLoading={isLoading("hentai")}
+            applyHentaiEntryAutofill={applyHentaiEntryAutofill}
             seriesItemsForHentai={seriesItemsForHentai}
             sources={sources}
           />
