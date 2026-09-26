@@ -23,7 +23,12 @@ vs `craft`): the drift is intentional, not accidental.
 
 from dataclasses import dataclass, field
 
-from app.utils.constants import H_COMIC_USEFULNESS
+from app.utils.constants import (
+    H_COMIC_USEFULNESS,
+    H_GAME_ART_STYLES,
+    H_GAME_AUDIO_AVAILABILITY,
+    H_GAME_H_PRESENTATIONS,
+)
 from app.utils.media_resolver import MEDIA_TYPE_KEYS, OWNER_TYPE_KEYS
 
 # --- Shapes ---------------------------------------------------------------
@@ -113,6 +118,19 @@ def _for_game_owners(value) -> dict:
 # Sections every owner shares, spelled out per section below rather than
 # composed, so one section's applicability is readable in one place.
 _SERIES_AND_UP = ("series", "franchise")
+
+# The gated types. Their notes are pared down rather than inherited whole: an
+# h-comic or a hentai has one list of reviews and comments in place of the
+# 評論 card, 解析, Questions and 名言/梗, and an h-game keeps only the parts of
+# game's notes that describe how it plays.
+H_OWNERS: tuple[str, ...] = ("h-comic", "hentai", "h-game")
+# The two of them that keep nothing of 評論 but that one list.
+_H_READ_OWNERS: tuple[str, ...] = ("h-comic", "hentai")
+
+
+def _all_but(owners: tuple[str, ...], *excluded: str) -> tuple[str, ...]:
+    """`owners` in their own order, less `excluded`."""
+    return tuple(o for o in owners if o not in excluded)
 
 
 # --- Structured fields ----------------------------------------------------
@@ -523,6 +541,10 @@ def _story_list_sections() -> tuple["NoteSection", ...]:
             owners=GAME_OWNERS,
             scope=SCOPE_CATALOG,
             group="story_list",
+            # An h-game keeps no prose 劇情, so its Story List IS its story:
+            # the four lists render in the 劇情 card with 結局 Endings, not in
+            # a card of their own.
+            groups_by_owner={"h-game": "story"},
             hierarchical=True,
             require_any=(("order", "name"),),
             fields=(
@@ -579,10 +601,26 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_PERSONAL,
     ),
     NoteSection(
+        # The gated types' reviews: one list of what I thought, one row per
+        # remark, in place of 大眾評價 and 我的評價. For an h-comic or a hentai
+        # it is all they keep of 評論, so it renders flat in the Notes card
+        # beside 備註 rather than as a card holding one section. An h-game
+        # keeps 優點, 缺點, 優缺點 and 解析 too, so for it this opens the 評論
+        # card - see `groups_by_owner`.
+        #
+        # Personal, like 我的評價 it stands in for.
+        key="reviews_and_comments",
+        shape=SHAPE_TEXT,
+        label="評論 Reviews and Comments",
+        owners=H_OWNERS,
+        scope=SCOPE_PERSONAL,
+        groups_by_owner={"h-game": "reviews"},
+    ),
+    NoteSection(
         key="advantages",
         shape=SHAPE_TEXT,
         label="優點 Advantages",
-        owners=ALL_OWNERS,
+        owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_PERSONAL,
         group="reviews",
     ),
@@ -590,7 +628,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="disadvantages",
         shape=SHAPE_TEXT,
         label="缺點 Disadvantages",
-        owners=ALL_OWNERS,
+        owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_PERSONAL,
         group="reviews",
     ),
@@ -598,7 +636,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="double_edged",
         shape=SHAPE_TEXT,
         label="優缺點",
-        owners=ALL_OWNERS,
+        owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_PERSONAL,
         group="reviews",
     ),
@@ -606,7 +644,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="public_reviews",
         shape=SHAPE_TEXT_OR_LINK,
         label="大眾評價 Public Reviews",
-        owners=ALL_OWNERS,
+        owners=_all_but(ALL_OWNERS, *H_OWNERS),
         scope=SCOPE_CATALOG,
         group="reviews",
     ),
@@ -614,7 +652,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="personal_reviews",
         shape=SHAPE_TEXT,
         label="我的評價 Personal Reviews",
-        owners=ALL_OWNERS,
+        owners=_all_but(ALL_OWNERS, *H_OWNERS),
         scope=SCOPE_PERSONAL,
         group="reviews",
     ),
@@ -623,13 +661,14 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         locator_required=True,
         shape=SHAPE_TEXT_LINKS,
         label="各集評論 Episode Comments",
-        owners=("anime", "tv-show", "cartoon") + GAME_OWNERS,
+        # Not h-game: its comments go in 評論 Reviews and Comments.
+        owners=("anime", "tv-show", "cartoon", "game"),
         scope=SCOPE_PERSONAL,
         # A game is cut into chapters or parts rather than episodes, but the
         # section is the same one: a comment on one segment of the work.
-        labels=_for_game_owners("各章評論 Part Reviews"),
+        labels={"game": "各章評論 Part Reviews"},
         locator_placeholder="Episode, e.g. ep 1",
-        locator_placeholders=_for_game_owners("Chapter / Part, e.g. Ch 3"),
+        locator_placeholders={"game": "Chapter / Part, e.g. Ch 3"},
         group="reviews",
     ),
     NoteSection(
@@ -670,7 +709,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         locator_required=True,
         shape=SHAPE_EPISODE_TEXT,
         label="神場景 Highlights",
-        owners=GAME_OWNERS,
+        # Not h-game: its highlights are h_game_highlights.
+        owners=("game",),
         scope=SCOPE_CATALOG,
         locator_placeholder="Chapter / Boss, e.g. Ch 3",
     ),
@@ -724,11 +764,15 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         # An h-game's standout scenes, grouped by the female characters in
-        # them: h_comic_highlights' fields, located by route and scene rather
-        # than by chapter. Every h-game takes it, so there is no owner_where.
-        # The group order is h_game.highlight_group_order, written through the
-        # entry update. Only the second copy of these fields, so they are not
-        # factored out.
+        # them. h_comic_highlights' fields, except that a scene is located by
+        # route rather than by chapter, and described the way the entry
+        # describes the game rather than by a location: audio, H 演出形式 and
+        # art style, each offering the options of the h_game column that means
+        # the same thing. Single-choice where the entry's are multi-choice -
+        # the entry says what the game has anywhere, a row says what one scene
+        # is. Every h-game takes it, so there is no owner_where. The group
+        # order is h_game.highlight_group_order, written through the entry
+        # update.
         key="h_game_highlights",
         shape=SHAPE_STRUCTURED,
         label="亮點 Highlights",
@@ -753,7 +797,24 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 column="locator",
                 placeholder="Route / Scene, e.g. Route A, scene 3",
             ),
-            NoteField(key="location", label="Location"),
+            NoteField(
+                key="audio",
+                label="Audio",
+                type=FIELD_SELECT,
+                options=H_GAME_AUDIO_AVAILABILITY,
+            ),
+            NoteField(
+                key="h_presentation",
+                label="H 演出形式",
+                type=FIELD_SELECT,
+                options=H_GAME_H_PRESENTATIONS,
+            ),
+            NoteField(
+                key="art_style",
+                label="Art Style",
+                type=FIELD_SELECT,
+                options=H_GAME_ART_STYLES,
+            ),
             # A `kind`-backed field with no options is free text.
             NoteField(key="label", label="Label", column="kind"),
             NoteField(
@@ -775,7 +836,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="analysis",
         shape=SHAPE_TEXT_LINKS,
         label="解析 Analysis",
-        owners=ALL_OWNERS,
+        owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_CATALOG,
         group="analysis_group",
         # For a game, the last subsection of 評論 Reviews rather than a card
@@ -858,7 +919,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="beginner",
         shape=SHAPE_TEXT_LINKS,
         label="新手 Beginner",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="guides",
     ),
@@ -910,8 +971,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # out of whichever list happens to be open.
         #
         # Order carries no meaning, so its rows are appended and left alone.
+        #
+        # Plain text, no links: a guide note is a remark, and a write-up worth
+        # pointing at belongs in 攻略資源 Guide Resources.
         key="guide_notes",
-        shape=SHAPE_TEXT_LINKS,
+        shape=SHAPE_TEXT,
         label="攻略筆記 Guide Notes",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
@@ -921,7 +985,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="trivia",
         shape=SHAPE_TEXT_LINKS,
         label="小知識 Trivia",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="guides",
     ),
@@ -1192,7 +1256,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="player_terms",
         shape=SHAPE_STRUCTURED,
         label="玩家術語 Player Terms",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="compendium",
         fields=_term_fields(),
@@ -1213,7 +1277,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="main_plot",
         shape=SHAPE_STRUCTURED,
         label="主線劇情 Main Plot",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="story",
         fields=_plot_fields(),
@@ -1222,7 +1286,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="side_plot",
         shape=SHAPE_STRUCTURED,
         label="支線劇情 Side Stories",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="story",
         fields=_plot_fields(),
@@ -1231,11 +1295,34 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="character_arcs",
         shape=SHAPE_TEXT_LINKS,
         label="角色劇情 Character Arcs",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="story",
     ),
+    # --- 劇情列表 Story List ----------------------------------------------
+    # Four sections rather than one with a kind, for the reason the 待辦
+    # buckets below are four: `sort_index` orders rows within one
+    # (owner, section) pair, so a kind-tagged single section could not order
+    # entries within a strand.
+    #
+    # These are the first `hierarchical` sections. An entry nests under
+    # another to any depth - a chapter holding scenes holding beats - which is
+    # what `note.parent_id` was added for. Two or three levels is the expected
+    # shape; nothing enforces a limit, because the limit would be arbitrary
+    # and the router already refuses a cycle.
+    #
+    # `require_any` is the rule that makes an entry an entry: it needs an
+    # order number OR a name. "3.2" with no name is a placeholder somebody
+    # will fill in; "The Lake" with no number is an entry whose position is
+    # its parent's business. Neither is worth refusing, and a row with
+    # neither is nothing.
+    *_story_list_sections(),
     NoteSection(
+        # Declared after the Story List sections rather than beside the other
+        # strands. For a game that changes nothing - card order is where a
+        # group first appears, and 結局 is still the last of 劇情 - but an
+        # h-game's 劇情 is its Story List, and this puts 結局 after it.
+        #
         # Entry order carries no meaning here - endings are a set, not a
         # sequence - but the rows still reorder, because "the one I am going
         # for first" is a reason to move one up that the data cannot express.
@@ -1263,24 +1350,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
         ),
     ),
-    # --- 劇情列表 Story List ----------------------------------------------
-    # Four sections rather than one with a kind, for the reason the 待辦
-    # buckets below are four: `sort_index` orders rows within one
-    # (owner, section) pair, so a kind-tagged single section could not order
-    # entries within a strand.
-    #
-    # These are the first `hierarchical` sections. An entry nests under
-    # another to any depth - a chapter holding scenes holding beats - which is
-    # what `note.parent_id` was added for. Two or three levels is the expected
-    # shape; nothing enforces a limit, because the limit would be arbitrary
-    # and the router already refuses a cycle.
-    #
-    # `require_any` is the rule that makes an entry an entry: it needs an
-    # order number OR a name. "3.2" with no name is a placeholder somebody
-    # will fill in; "The Lake" with no number is an entry whose position is
-    # its parent's business. Neither is worth refusing, and a row with
-    # neither is nothing.
-    *_story_list_sections(),
     # --- 世界觀 Worldbuilding --------------------------------------------
     # The world, its words, its chronology and its open questions - what the
     # plot stands on rather than what it does.
@@ -1288,7 +1357,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="lore",
         shape=SHAPE_TEXT_LINKS,
         label="設定 Lore",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="worldbuilding",
     ),
@@ -1299,7 +1368,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="story_terms",
         shape=SHAPE_STRUCTURED,
         label="劇情名詞 Story Terms",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="worldbuilding",
         fields=_term_fields(),
@@ -1311,7 +1380,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="timeline",
         shape=SHAPE_TEXT_LINKS,
         label="時間線 Timeline",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="worldbuilding",
     ),
@@ -1319,7 +1388,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="mysteries",
         shape=SHAPE_TEXT_LINKS,
         label="未解之謎 Mysteries",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="worldbuilding",
     ),
@@ -1329,7 +1398,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="story_other",
         shape=SHAPE_TEXT_LINKS,
         label="其他 Other",
-        owners=GAME_OWNERS,
+        owners=("game",),
         scope=SCOPE_CATALOG,
         group="worldbuilding",
     ),
@@ -1571,7 +1640,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="questions",
         shape=SHAPE_EPISODE_TEXT,
         label="Questions",
-        owners=ALL_OWNERS,
+        owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_PERSONAL,
         # The locator here is not an episode: it is whatever prompted the
         # question - an episode, a scene, an interview. Optional, because
@@ -1579,7 +1648,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         locator_placeholder="Source, e.g. ep 3",
         # The mirror of locator_required: a source with no question attached
         # says nothing, so the body is what cannot be missing.
-        desc_required=ALL_OWNERS,
+        desc_required=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         standalone=True,
     ),
     NoteSection(
@@ -1588,7 +1657,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="名言 Quotes",
         # A quote is said in a specific work, so it stays entry-only - see the
         # class docstring in app/models/quote.py.
-        owners=ENTRY_OWNERS,
+        owners=_all_but(ENTRY_OWNERS, *H_OWNERS),
         # Universal: shared, unfiltered, no per-user copies. Backed by the
         # `quote` table, so there is no `note` row to scope.
         scope=None,
@@ -1599,7 +1668,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EXTERNAL,
         label="梗/迷因 Memes",
         # A running gag often spans a franchise, so meme already allows all ten.
-        owners=ALL_OWNERS,
+        owners=_all_but(ALL_OWNERS, *H_OWNERS),
         # Universal, like quotes, and backed by the `meme` table.
         scope=None,
         group="quotes_memes",
