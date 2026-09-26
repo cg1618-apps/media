@@ -215,4 +215,21 @@ describe("HComic animation status", () => {
     await screen.findAllByRole("link", { name: /The Anime/ });
     expect(screen.queryByText(/Derived from/)).toBeNull();
   });
+
+  it("links the MAL entry in the Sources card", async () => {
+    mockFetch({
+      ...BASE,
+      system_id: "mal1",
+      region: "KR",
+      h_comic_name_en: "Em Ay El",
+      mal_id: 777,
+      mal_link: "https://myanimelist.net/manga/777",
+    });
+    mount({ system_id: "mal1" });
+    await screen.findByRole("heading", { name: "Em Ay El" });
+    const link = screen
+      .getAllByRole("link")
+      .find((a) => a.getAttribute("href") === "https://myanimelist.net/manga/777");
+    expect(link).toBeTruthy();
+  });
 });

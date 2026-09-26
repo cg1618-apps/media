@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-25
+Last verified: 2026-09-26
 
 ## What this is for
 
@@ -682,6 +682,26 @@ twenty in `OPTION_CATEGORIES`:
 | `H Genre Appearance` | h-comic, h-game, hentai | tag field `h_genre_appearance`; admin-managed, ships empty |
 | `H Genre Relation` | h-comic, h-game, hentai | tag field `h_genre_relation`; admin-managed, ships empty |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
+
+**h-comic has Platform values of its own**, scoped to `h-comic` alone and
+split by usage (migration `h5c6malsrc7`). The regional storefronts an
+h-comic is read on - `DLsite TW`, `DLsite JP`, `Toptoon TW`, `Toptoon KR`,
+`Toomics TW`, `Toomics KR`, `Lezhin TW`, `Lezhin KR` - carry `watch`, so they
+are its Main Sources. The publishers a KR work is officially serialised by -
+`DLsite`, `Toptoon`, `Toomics`, `Lezhin` - carry `origin`, so they are its
+Official Source. `Prime Video` carries explicit scopes for the
+five watched types (anime, anime-movie, movie, tv-show, cartoon) rather than
+none: a value with no scope rows is offered on **every** type, which put a
+streaming service in the Main Sources picker of every read and gated type -
+and, with no Platform value of its own, it was the only thing h-comic offered.
+`Official site` and `Twitter` are scoped to `h-comic` too.
+
+**Restricted sources are suggested, not a vocabulary.** A `restricted`
+`media_source` row is free text, so the names an h-comic is prefilled with -
+`禁漫天堂` on every entry, and `污汙漫畫`, `漫小肆ikanhm`, `ToonGod`,
+`Anime Planet`, `MANGA18` and `MANGADNA` on a KR one - live in the frontend
+(`lib/hComicRestrictedSources.js`), not in `system_option`. The server never
+checks them, and any other name is still accepted.
 
 **The game vocabulary is seeded from code, not inline SQL.**
 `app/utils/game_vocabulary.py` holds `GAME_VOCABULARY` (the five tag

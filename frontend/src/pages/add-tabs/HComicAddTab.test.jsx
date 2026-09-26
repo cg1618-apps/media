@@ -19,7 +19,24 @@ vi.mock("../../contexts/AuthContext", () => ({
 
 const SOURCES = { options: [], studios: [], publishers: {}, people: {} };
 
-function Harness({ franchises = [], initial = {} }) {
+// Platform values as the migration leaves them: the h-comic storefronts
+// (watch) and publishers (origin) scoped to h-comic, and Prime Video scoped
+// to the watched types.
+const PLATFORM_SOURCES = {
+  ...SOURCES,
+  options: [
+    { category: "Platform", value: "Prime Video", scopes: ["anime", "movie"], usages: [] },
+    { category: "Platform", value: "DLsite TW", scopes: ["h-comic"], usages: ["watch"] },
+    { category: "Platform", value: "Toptoon KR", scopes: ["h-comic"], usages: ["watch"] },
+    { category: "Platform", value: "DLsite", scopes: ["h-comic"], usages: ["origin"] },
+    { category: "Platform", value: "Toptoon", scopes: ["h-comic"], usages: ["origin"] },
+    { category: "Reference Source", value: "Official site", scopes: ["h-comic"], usages: [] },
+    { category: "Reference Source", value: "Twitter", scopes: ["h-comic"], usages: [] },
+    { category: "Reference Source", value: "SteamDB", scopes: ["game"], usages: [] },
+  ],
+};
+
+function Harness({ franchises = [], initial = {}, sources = SOURCES }) {
   const [form, setForm] = useState({ ...defaultHComic(), ...initial });
   return (
     <HComicAddTab
@@ -28,7 +45,7 @@ function Harness({ franchises = [], initial = {} }) {
       uhc={(k, v) => setForm((p) => ({ ...p, [k]: v }))}
       allFranchises={franchises}
       seriesItemsForHComic={[]}
-      sources={SOURCES}
+      sources={sources}
     />
   );
 }
@@ -138,5 +155,55 @@ describe("HComicAddTab", () => {
     expect(screen.getByText("Adult Fate")).toBeInTheDocument();
     expect(screen.getByText("Adult Anime")).toBeInTheDocument();
     expect(screen.queryByText("Mainstream Fate")).toBeNull();
+  });
+
+  describe("sources", () => {
+    const restrictedNames = () =>
+      screen
+        .queryAllByRole("combobox", { name: "Restricted Sources name" })
+        .map((input) => input.value);
+    const KR_ONLY = ["污汙漫畫", "漫小肆ikanhm", "ToonGod", "Anime Planet", "MANGA18", "MANGADNA"];
+
+    it("starts with 禁漫天堂 and follows the region with the KR sources", async () => {
+      const user = userEvent.setup();
+      renderTab();
+      expect(restrictedNames()).toEqual(["禁漫天堂"]);
+      await user.selectOptions(field("Region"), "KR");
+      expect(restrictedNames()).toEqual(["禁漫天堂", ...KR_ONLY]);
+      await user.selectOptions(field("Region"), "JP");
+      expect(restrictedNames()).toEqual(["禁漫天堂"]);
+    });
+
+    it("offers the h-comic platforms as main sources, and not Prime Video", async () => {
+      const user = userEvent.setup();
+      renderTab({ sources: PLATFORM_SOURCES });
+      await user.click(screen.getByRole("button", { name: /add main source/i }));
+      await user.click(screen.getByRole("button", { name: /add reference source/i }));
+      const [main, reference] = screen
+        .getAllByRole("combobox")
+        .filter((el) => el.tagName === "SELECT" && [...el.options].some((o) => o.value === "DLsite TW" || o.value === "Twitter"));
+      const values = (select) => [...select.options].map((o) => o.value).filter(Boolean);
+      expect(values(main)).toEqual(["DLsite TW", "Toptoon KR"]);
+      expect(values(reference)).toEqual(["Official site", "Twitter"]);
+    });
+
+    it("offers the publishers, not the storefronts, as a KR entry's Official Source", async () => {
+      const user = userEvent.setup();
+      renderTab({ sources: PLATFORM_SOURCES });
+      await user.selectOptions(field("Region"), "KR");
+      await user.click(screen.getByPlaceholderText("Select or type platform..."));
+      expect(screen.getByRole("button", { name: "DLsite" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Toptoon" })).toBeInTheDocument();
+      for (const name of ["DLsite TW", "Toptoon KR", "Prime Video"]) {
+        expect(screen.queryByRole("button", { name }), name).toBeNull();
+      }
+    });
+
+    it("asks for the MAL link and shows the id read-only", () => {
+      renderTab({ initial: { mal_link: "https://myanimelist.net/manga/777", mal_id: 777 } });
+      expect(field("MAL Link")).toHaveValue("https://myanimelist.net/manga/777");
+      expect(field("MAL ID")).toHaveValue("777");
+      expect(field("MAL ID")).toBeDisabled();
+    });
   });
 });

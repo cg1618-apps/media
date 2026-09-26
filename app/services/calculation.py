@@ -37,6 +37,7 @@ from app.services.domain import (
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
     autofill_game_from_igdb,
+    autofill_h_comic_from_mal,
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -470,12 +471,18 @@ def bulk_download_missing_covers(
         else:
             skipped += 1
 
-    # No external source to fetch a cover from: a missing h-comic cover is
-    # counted and skipped, like a novel with no MAL link.
+    # Tenrai's manga record, as for a manga; one with no MAL id is counted
+    # and skipped.
     h_comic_query = db.query(HComic).join(HComic.media_row).filter(Media.cover_image_file.isnot(None))
-    for _entry in _collect(h_comic_query, HComic, "h-comic"):
+    for hc in _collect(h_comic_query, HComic, "h-comic"):
         total += 1
-        skipped += 1
+        if not hc.mal_id:
+            skipped += 1
+            continue
+        hc.cover_image_file = None
+        autofill_h_comic_from_mal(hc, db=db)
+        if hc.cover_image_file:
+            downloaded += 1
     # Hentai re-fetches from Tenrai like an anime movie; one with no MAL id is
     # counted and skipped.
     hentai_query = db.query(Hentai).join(Hentai.media_row).filter(Media.cover_image_file.isnot(None))

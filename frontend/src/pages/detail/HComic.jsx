@@ -311,6 +311,7 @@ export default function HComic() {
 
   const [hComic, setHComic] = useState(null);
   const [adaptations, setAdaptations] = useState([]);
+  const [autofilling, setAutofilling] = useState(false);
   const handleRelationRows = useCallback((rows) => setAdaptations(adaptingHentai(rows)), []);
 
   const itemQuery = useMediaItem("h-comic", publicId);
@@ -388,6 +389,27 @@ export default function HComic() {
     }
   }
 
+  // The single-entry Tenrai fetch: serialization status, dates, cover and a
+  // finished KR entry's chapter total, each only where it is blank.
+  async function handleAutofill() {
+    setAutofilling(true);
+    try {
+      const res = await fetch(endpoints.dataControl.replaceSingle("h-comic", system_id), {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Autofill failed");
+      showToast("success", "Autofill completed");
+      await invalidateMedia();
+      await fetchMediaItem();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setAutofilling(false);
+    }
+  }
+
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading details..." />;
   }
@@ -437,8 +459,6 @@ export default function HComic() {
         </span>
       </nav>
 
-      {/* No Autofill: h-comic has no external API, so its write hook fetches
-          nothing. */}
       {isAdmin && (
         <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
           <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
@@ -447,6 +467,9 @@ export default function HComic() {
               Quick edit
             </Button>
             <Button onClick={markCompleted}>Mark completed</Button>
+            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+              {autofilling ? "Autofilling…" : "Autofill & update"}
+            </Button>
           </div>
         </div>
       )}
@@ -505,6 +528,7 @@ export default function HComic() {
           <SourcesCard
             sources={hComic.sources}
             mediaType="h-comic"
+            malLink={hComic.mal_link}
             originalSource={shows("original_source") ? hComic.original_source : null}
           />
 
