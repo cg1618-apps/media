@@ -211,6 +211,15 @@ SERVICES: dict[str, Service] = {
         rate_limit="~200 requests / 5 minutes per IP, observed not documented",
         docs_anchor="steam",
     ),
+    "dlsite": Service(
+        key="dlsite",
+        label="DLsite",
+        module="app.services.integrations.dlsite",
+        base_url="https://www.dlsite.com/maniax/api/=/product.json",
+        auth="None - the storefront's own undocumented product JSON",
+        rate_limit="none published; 1 s between requests as a courtesy",
+        docs_anchor="dlsite",
+    ),
 }
 
 # A missing key is never fatal: the client logs and returns None, so the run
@@ -791,6 +800,13 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "IGDB already owns the game vocabulary through the "
                         "alias layer; a second one would fight it",
                     ),
+                    Write(
+                        "cover_image_file",
+                        "none",
+                        "never",
+                        "a game's cover is IGDB's; Steam's library capsule is "
+                        "taken for an h-game only",
+                    ),
                 ),
             ),
         ),
@@ -843,24 +859,58 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             ),
         ),
     ),
-    # Game's two sources on the h-game table, writing only what the table has.
+    # Game's two sources on the h-game table, writing only what the table has,
+    # with DLsite in front.
     Coverage(
         key="h-game",
         keyed_by="igdb_id",
         combination="merged",
         requests_per_entry=(
-            "6 - as for a game: the IGDB game and its time-to-beat, three "
-            "Steam storefronts, and one achievement call, skipped when "
-            "steam_progress_sync is false"
+            "7 to 10 - one DLsite product, then as for a game: the IGDB game "
+            "and its time-to-beat, three Steam storefronts, and one "
+            "achievement call, skipped when steam_progress_sync is false; "
+            "plus up to two Steam capsule checks and one more IGDB game "
+            "request while the entry still has no cover"
         ),
         note=(
-            "Game's fill, generalised over the table. IGDB writes the studio "
+            "Game's fill, generalised over the table, with DLsite in front. "
+            "DLsite is keyed on the product id in dlsite_link_jp, else "
+            "dlsite_link_tw, and writes the release date, the circle or brand "
+            "as the studio credit, and the cover. IGDB writes the studio "
             "credit and the genre and theme tags, not the publisher, mode or "
             "platform; Steam writes prices and achievements, not hours or a "
-            "Metacritic score, which h_game has no column for. The DLC parent "
-            "is looked up among h-games only. DLsite is linked, never fetched."
+            "Metacritic score, which h_game has no column for. Every source "
+            "is fill-only for the cover, and they run in the order DLsite, "
+            "IGDB (cover held back), Steam, IGDB's cover - so the cover comes "
+            "from DLsite, then Steam's library capsule, then IGDB, and the "
+            "release date and studio from DLsite before IGDB. The DLC parent "
+            "is looked up among h-games only."
         ),
         sources=(
+            SourceBlock(
+                source="dlsite",
+                writes=(
+                    Write(
+                        "release_date",
+                        "column",
+                        "fill-only",
+                        "regist_date, the day the work went on sale",
+                    ),
+                    Write(
+                        "studio",
+                        "credit",
+                        "if-absent",
+                        "maker_name - the circle of a doujin work, the brand "
+                        "of a commercial one",
+                    ),
+                    Write(
+                        "cover_image_file",
+                        "image",
+                        "if-empty",
+                        "the work's main image; the first cover source",
+                    ),
+                ),
+            ),
             SourceBlock(
                 source="igdb",
                 writes=(
@@ -879,7 +929,13 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     Write("studio", "credit", "if-absent", "IGDB's developer"),
                     Write("game_genre", "tag", "if-absent", "alias-resolved"),
                     Write("game_theme", "tag", "if-absent", "alias-resolved"),
-                    Write("cover_image_file", "image", "if-empty"),
+                    Write(
+                        "cover_image_file",
+                        "image",
+                        "if-empty",
+                        "the last cover source, fetched only when neither DLsite "
+                        "nor Steam supplied one",
+                    ),
                     Write("steam_appid", "column", "fill-only", "adopted as a pair, as for a game"),
                     Write("steam_link", "column", "fill-only"),
                     Write(
@@ -908,6 +964,14 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "overwrite",
                         "skipped when steam_progress_sync is false; an unknown "
                         "count is not a zero",
+                    ),
+                    Write(
+                        "cover_image_file",
+                        "image",
+                        "if-empty",
+                        "the portrait library capsule (library_600x900_2x, then "
+                        "1x), tried after DLsite and before IGDB; an app whose "
+                        "capsule is not at the unhashed path gives no cover",
                     ),
                 ),
             ),

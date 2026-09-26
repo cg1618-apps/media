@@ -41,6 +41,15 @@ logger = logging.getLogger(__name__)
 STORE_BASE_URL = "https://store.steampowered.com/api"
 WEB_API_BASE_URL = "https://api.steampowered.com"
 
+# The portrait library capsule - the 600x900 box art the Steam client's
+# library shows - on Steam's image CDN, not the storefront. Tried in this
+# order: the 2x file, then the 1x. An app whose store assets moved to a
+# hashed path answers 404 on both, which is "no cover", not an error.
+LIBRARY_CAPSULE_URLS = (
+    "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appid}/library_600x900_2x.jpg",
+    "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appid}/library_600x900.jpg",
+)
+
 # The library is one response for every game owned, so a call is cached for
 # this many seconds rather than repeated per entry. A run shorter than this
 # costs exactly one request; a run that outlives it pays one more and gets
@@ -401,3 +410,29 @@ def fetch_player_achievements(appid: int) -> Optional[int]:
         return None
 
     return sum(1 for a in achievements if a.get("achieved"))
+
+
+def fetch_steam_library_capsule_url(appid: int) -> Optional[str]:
+    """
+    The URL of this app's portrait library capsule, or None when it has none.
+
+    Each candidate is probed with a HEAD on the image CDN, so the cover
+    download that follows only ever sees a URL that exists. The CDN is not the
+    storefront, so this neither spends nor waits on the storefront's window.
+    Any failure is a None: a missing cover must not cost the entry its prices.
+    """
+    if not settings.steam_enabled or not appid:
+        return None
+
+    for template in LIBRARY_CAPSULE_URLS:
+        url = template.format(appid=int(appid))
+        try:
+            response = requests.head(url, timeout=15, allow_redirects=True)
+        except requests.exceptions.RequestException as e:
+            logger.warning("Steam library capsule check failed for app %s: %s", appid, e)
+            return None
+        if response.status_code == 200:
+            return url
+
+    logger.info("Steam app %s has no library capsule at the unhashed path.", appid)
+    return None

@@ -19,10 +19,13 @@ from app.services.domain.autofill import (
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
+    autofill_cover_from_steam,
     autofill_from_anilist,
+    autofill_game_cover_from_igdb,
     autofill_game_from_igdb,
     autofill_game_from_steam,
     autofill_h_comic_from_mal,
+    autofill_h_game_from_dlsite,
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -193,6 +196,26 @@ def apply_single_replace_game(db: Session, game, bulk: bool = False) -> None:
     autofill_game_from_igdb(game, db)
     derive_steamdb_source(game, db)
     autofill_game_from_steam(game, db)
+
+
+def apply_single_replace_h_game(db: Session, h_game, bulk: bool = False) -> None:
+    """
+    Core 'Replace' logic for a single HGame entry: game's Replace with DLsite
+    in front and the cover taken in priority order - DLsite, then Steam's
+    library capsule, then IGDB.
+
+    DLsite runs first and is fill-only, as it is in Fill. IGDB runs next with
+    its cover held back, because it may supply the appid Steam keys off; its
+    cover is fetched last, and only when neither DLsite nor Steam supplied
+    one. `bulk` is accepted for signature parity with the other media types.
+    """
+    apply_extract_game_ids(h_game)
+    autofill_h_game_from_dlsite(h_game, db)
+    autofill_game_from_igdb(h_game, db, cover=False)
+    derive_steamdb_source(h_game, db)
+    autofill_game_from_steam(h_game, db)
+    autofill_cover_from_steam(h_game)
+    autofill_game_cover_from_igdb(h_game)
 
 
 def anime_post_processing(anime: Anime, db: Session) -> None:

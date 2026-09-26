@@ -26,7 +26,8 @@ class HGame(Base, NameFallbackMixin):
     Adult games, seen in the `unrestricted` access mode only.
 
     What `h_comic` is to `manga`, this is to `games`: a table of its own that
-    reuses Game's machinery - the IGDB and Steam fill, purchase records
+    reuses Game's machinery - the IGDB and Steam fill (with DLsite in front
+    of both), purchase records
     (`game_copy`), DLC chains and the game note sections - without sharing
     Game's table. The unit is the purchasable, as for Game: a DLC is a row
     here with a base_game_id.
@@ -157,7 +158,8 @@ class HGame(Base, NameFallbackMixin):
     # Adopted as a pair from IGDB or pasted in, exactly as on Game.
     steam_appid = Column(Integer, nullable=True)
     steam_link = Column(String, nullable=True)
-    # Plain links: nothing fetches DLsite, so there is no id column.
+    # No id column: the DLsite fill reads the product id (RJ/VJ/BJ + digits)
+    # out of the JP link, else the TW link - the same product either way.
     dlsite_link_jp = Column(String, nullable=True)
     dlsite_link_tw = Column(String, nullable=True)
 
