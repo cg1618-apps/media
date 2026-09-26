@@ -7,8 +7,9 @@
 // Laid out like Movie.jsx: one entry is one episode, so there is no episode
 // counter - it is watched or it is not, and Mark completed also marks it
 // aired. What it adds is h-comic's: usefulness, the three H genre fields, and
-// the originality of the work; and anime's: a studio, a director, and a MAL
-// link Tenrai fills the airing status, release date and cover from.
+// the originality of the work; and anime's: a studio, a director, a voiced
+// cast, and a MAL link Tenrai fills the airing status, release date, cover
+// and two reference links from.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -23,10 +24,11 @@ import { studioValue } from "../../components/info/StudioLinks";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
+import { Button, Chip, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
 import { H_COMIC_USEFULNESS, MY_RATINGS, WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { useCasting } from "../../hooks/useCasting";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
@@ -41,6 +43,68 @@ const selectCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
+
+// Main before Supporting, then whatever order the server already gave.
+const CAST_ROLE_ORDER = { Main: 0, Supporting: 1 };
+
+// Read-only cast list, the shape AnimeMovie.jsx's takes: a hentai is voiced,
+// so a row names its seiyuu. Renders nothing for an entry with no cast.
+function CastSection({ cast }) {
+  if (!cast || cast.length === 0) return null;
+  const sorted = [...cast].sort((a, b) => {
+    const ra = CAST_ROLE_ORDER[a.role] ?? 2;
+    const rb = CAST_ROLE_ORDER[b.role] ?? 2;
+    if (ra !== rb) return ra - rb;
+    return (a.position ?? 0) - (b.position ?? 0);
+  });
+  return (
+    <Slip title="Cast">
+      <div className="space-y-2">
+        {sorted.map((row) => (
+          <div key={row.system_id} className="flex items-center gap-3">
+            <div className="w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded">
+              <img
+                loading="lazy"
+                src={getCoverUrl(row.photo_file)}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = FALLBACK_SVG;
+                }}
+              />
+            </div>
+            <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+              {row.role && <Chip>{row.role}</Chip>}
+              <Link
+                to={entityPath("character", {
+                  public_id: row.character_public_id,
+                  display_name: row.character_name,
+                })}
+                className={lineageLinkCls}
+              >
+                {row.character_name || "Unknown"}
+              </Link>
+              {row.person_id && (
+                <>
+                  <span className="text-text-faint text-xs">voiced by</span>
+                  <Link
+                    to={entityPath("person", {
+                      public_id: row.person_public_id,
+                      display_name: row.person_name,
+                    })}
+                    className={lineageLinkCls}
+                  >
+                    {row.person_name || "Unknown"}
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Slip>
+  );
+}
 
 function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
   const select = (id, label, field, options, { emptyLabel, msg }) => (
@@ -134,6 +198,8 @@ export default function Hentai() {
   // Everything past the lookup speaks UUIDs; resolved from the fetched row so
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
+  const castingQuery = useCasting("hentai", system_id);
+  const cast = castingQuery.data?.cast || [];
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate(
@@ -384,6 +450,7 @@ export default function Hentai() {
                 ],
               ]}
             />
+            <CastSection cast={cast} />
             <InfoCard
               title="Genres"
               fields={[

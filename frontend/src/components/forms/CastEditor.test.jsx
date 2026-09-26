@@ -168,6 +168,16 @@ it("shows the seiyuu column on anime and anime-movie", async () => {
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 
+it("shows the seiyuu column on hentai, which is voiced", async () => {
+  render(<CastEditor mediaType="hentai" value={[row()]} onChange={vi.fn()} />);
+  expect(screen.getByLabelText(/seiyuu/i)).toBeInTheDocument();
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(([url]) => String(url).includes("scope=hentai")),
+    ).toBe(true),
+  );
+});
+
 it("renumbers position after a row is removed", async () => {
   const onChange = vi.fn();
   const rows = [

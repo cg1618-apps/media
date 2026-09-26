@@ -39,6 +39,7 @@ const TYPE_LABELS = {
   novel: "Novel",
   comic: "Comic",
   "h-comic": "H-Comic",
+  hentai: "Hentai",
 };
 
 export default function Character() {

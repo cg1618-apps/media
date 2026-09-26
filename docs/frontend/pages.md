@@ -798,12 +798,15 @@ episode counter: a local `HentaiTrackerBlock` (watching status, rating,
 **usefulness**, Watch next, To rewatch), `CommunityCard`, `NamingCard`, and
 three cards - **Information** (Source Material, Originality, Airing Status,
 Release Date), **Credits** (Studio via `studioValue`, Director) and
-**Genres** (Genre Plot / Appearance / Relation). The spine reads "Hentai" and
+**Genres** (Genre Plot / Appearance / Relation), with a **Cast** slip between
+Credits and Genres - characters with "voiced by" their seiyuu, from
+`useCasting("hentai", …)`, drawn only when the entry has a cast. The spine reads "Hentai" and
 the source material; the series number sits beside the series link. The left
 column carries `SourcesCard` with `malLink` and `RelationsSection`. The admin
 toolbar has Quick edit, Mark completed and **Autofill & update**, the
 single-entry Tenrai fetch (`replaceSingle("hentai")`: airing status, release
-date and cover, each only where blank). A Remarks slip appears only when a
+date, cover and the Official site / Twitter reference rows, each only where
+blank). A Remarks slip appears only when a
 remark exists, and `HentaiNotes.jsx` is the plain wrapper - the type has no
 notes section of its own - with the `remark` section hidden exactly then.
 

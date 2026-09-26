@@ -574,7 +574,7 @@ bulk Replace:
 | Manga       | extract MAL id → autofill (ratings forced) → manga post-processing                                                                                    |
 | Novel       | extract MAL id → autofill (ratings forced)                                                                                                            |
 | Comic       | nothing — no replace function; the write hook only re-syncs system options                                                                           |
-| Hentai      | extract MAL id → `autofill_hentai_from_mal` (airing status, release date, cover; all fill-only) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
+| Hentai      | extract MAL id → `autofill_hentai_from_mal` (airing status, release date, cover, and the Official site / Twitter reference rows; all fill-only) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
 
 The `bulk` parameter is accepted by movie/tv/cartoon/manga/novel/hentai for
 signature parity and ignored. Fill-only vs overwrite semantics of the autofill functions
