@@ -32,6 +32,10 @@ import {
 } from "../../config/fieldOptions";
 import { isDerivedAnimationStatus } from "../../lib/hComicAnimation";
 import { showsField } from "../../lib/hComicRegion";
+import {
+  followRegion,
+  suggestedRestrictedSources,
+} from "../../lib/hComicRestrictedSources";
 import { getSourceValues } from "../../utils/media";
 
 export { defaultHComic } from "../../config/formFactories";
@@ -256,6 +260,35 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         <ReleaseDateInput label="End Date" value={f.end_date} onChange={(v) => u("end_date", v)} />
       </div>
 
+      {/* The MAL id is not typed in: the write hook derives it from the
+          link, and Tenrai fills the serialization status, the dates, the
+          cover and a finished KR entry's chapter total from it where they
+          are blank. */}
+      <SectionHeader icon="fa-external-link-alt" title="Links" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-2">
+          <Field label="MAL Link">
+            <input
+              className={inputCls}
+              type="url"
+              aria-label="MAL Link"
+              value={f.mal_link ?? ""}
+              onChange={(e) => u("mal_link", e.target.value)}
+              placeholder="https://myanimelist.net/manga/..."
+            />
+          </Field>
+        </div>
+        <Field label="MAL ID" hint="Derived from the link on save">
+          <input
+            className={inputCls}
+            aria-label="MAL ID"
+            value={f.mal_link ? (f.mal_id ?? "") : ""}
+            readOnly
+            disabled
+          />
+        </Field>
+      </div>
+
       {/* Characters are real character rows, cast without a seiyuu - the
           cast is saved through PUT /api/casting/h-comic/{id} once the entry
           exists, never as part of the entry payload. */}
@@ -277,6 +310,7 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         onChange={(rows) => u("sources", rows)}
         mediaType="h-comic"
         sources={sources}
+        restrictedSuggestions={suggestedRestrictedSources(f.region)}
       />
 
       <SectionHeader icon="fa-flag" title="Flags" />
@@ -358,10 +392,17 @@ export default function HComicAddTab({
   seriesItemsForHComic,
   sources,
 }) {
+  // A new entry's untouched suggested restricted sources follow the region
+  // (lib/hComicRestrictedSources.js). Only on Add: an existing entry's rows
+  // are the owner's, and Modify offers the prefill button instead.
+  const setRegion = (key, value) => {
+    uhc(key, value);
+    uhc("sources", followRegion(hcf.sources, hcf.region, value));
+  };
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
       <SectionHeader icon="fa-book" title="Titles & Naming" />
-      <HComicRegionField f={hcf} u={uhc} />
+      <HComicRegionField f={hcf} u={setRegion} />
       <HComicLineageFields
         f={hcf}
         u={uhc}

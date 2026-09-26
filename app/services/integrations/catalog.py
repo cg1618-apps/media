@@ -795,21 +795,53 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             ),
         ),
     ),
-    # No external API covers adult comics, so nothing is fetched and nothing
-    # is written. Listed because every pipeline spec is: the page shows the
-    # type with no source, which is the truth.
+    # Manga's Tenrai record, for the columns h_comic has.
     Coverage(
         key="h-comic",
-        keyed_by="system_id",
+        keyed_by="mal_id",
         combination="single",
-        requests_per_entry="0 - there is no external API",
+        requests_per_entry="1 Tenrai",
         note=(
-            "No source. Fill finds nothing eligible and there is no bulk "
-            "Replace; the single-entry hook only re-runs the h-comic sync, "
-            "which clears the region's unused columns and keeps the h-comic "
-            "label on."
+            "The same Tenrai manga record as Manga, read for the columns an "
+            "h-comic has. Every run and the single-entry hook end in the "
+            "h-comic sync, which clears the region's unused columns, and the "
+            "gated label sync, which keeps the h-comic label on."
         ),
-        sources=(),
+        sources=(
+            SourceBlock(
+                source="tenrai",
+                writes=(
+                    Write(
+                        "serialization_status",
+                        "column",
+                        "fill-only",
+                        "Finished/Publishing/On Hiatus/Discontinued become "
+                        "完結/連載中/停更/腰斬",
+                    ),
+                    Write("release_date", "column", "fill-only"),
+                    Write("end_date", "column", "fill-only"),
+                    Write(
+                        "ch_total",
+                        "column",
+                        "conditional",
+                        "KR only, and only once serialization_status is 完結",
+                    ),
+                    Write("cover_image_file", "image", "if-empty"),
+                    Write(
+                        "page_total",
+                        "none",
+                        "never",
+                        "MAL counts chapters and volumes, not pages",
+                    ),
+                    Write(
+                        "mal_rating",
+                        "none",
+                        "never",
+                        "h_comic has no rating column",
+                    ),
+                ),
+            ),
+        ),
     ),
     # Game's two sources on the h-game table, writing only what the table has.
     Coverage(

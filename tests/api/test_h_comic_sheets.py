@@ -51,6 +51,8 @@ def test_the_parser_types_every_column():
             "release_date": "2024",
             "highlight_group_order": '["Ana", "Bea"]',
             "club": "Circle A, Circle B",
+            "mal_id": "777",
+            "mal_link": "https://myanimelist.net/manga/777",
         }
     )
     assert parsed["region"] == "KR"
@@ -59,6 +61,8 @@ def test_the_parser_types_every_column():
     assert parsed["release_date"] == "2024"
     assert parsed["highlight_group_order"] == ["Ana", "Bea"]
     assert parsed["club"] == "Circle A, Circle B"
+    assert parsed["mal_id"] == 777
+    assert parsed["mal_link"] == "https://myanimelist.net/manga/777"
 
 
 def test_pull_clears_the_columns_the_region_does_not_use(monkeypatch, db_session):

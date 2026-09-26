@@ -2026,9 +2026,8 @@ export default function Admin() {
                 // hourly quota to protect. The button is for filling one type
                 // after linking an igdb_id, without a full run.
                 { label: "Game", url: "/api/data-control/fill/game" },
-                // Fetches nothing - h-comic has no external API. It re-runs
-                // the region clears and the h-comic label over the whole
-                // table, and is out of Fill All; there is no bulk Replace.
+                // Tenrai's manga record over the h-comic table, fill-only, in
+                // Fill All; the run ends in the region clears and the label.
                 // Gated like every other h-comic surface.
                 ...(canSeeHComic
                   ? [{ label: "H-Comic", url: "/api/data-control/fill/h-comic" }]
@@ -2080,6 +2079,10 @@ export default function Admin() {
                 // drifts) and then Steam: the live prices, the Metacritic
                 // score, and this collection's own playtime.
                 { label: "Game", url: "/api/data-control/replace/game" },
+                // Manga's Tenrai fields, still fill-only.
+                ...(canSeeHComic
+                  ? [{ label: "H-Comic", url: "/api/data-control/replace/h-comic" }]
+                  : []),
                 // Game's Replace (IGDB, then Steam), limited to what h_game has.
                 ...(canSeeHGame
                   ? [{ label: "H-Game", url: "/api/data-control/replace/h-game" }]

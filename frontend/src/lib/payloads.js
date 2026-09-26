@@ -429,6 +429,10 @@ export function hComicFieldsPayload(f) {
     ch_behind: int(f.ch_behind),
     release_date: f.release_date || null,
     end_date: f.end_date || null,
+    // The link is the MAL key's source of truth, as on hentai: the write
+    // hook derives the id from it, and clearing the link clears the id.
+    mal_link: f.mal_link || null,
+    mal_id: f.mal_link ? int(f.mal_id) : null,
     reading_status: f.reading_status || "Might Read",
     my_rating: f.my_rating || null,
     usefulness: f.usefulness || null,

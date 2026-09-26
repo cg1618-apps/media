@@ -47,6 +47,9 @@ class HComicBase(BaseModel):
     release_date: Optional[str] = None
     end_date: Optional[str] = None
 
+    mal_id: Optional[int] = None
+    mal_link: Optional[str] = None
+
     # KR only; cleared on JP. The group order of the highlights section, read
     # and written whole: a list of female character names.
     highlight_group_order: Optional[List[str]] = None

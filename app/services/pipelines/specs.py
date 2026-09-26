@@ -53,6 +53,7 @@ from app.services.domain import (
     apply_single_replace_anime_movie,
     apply_single_replace_cartoon,
     apply_single_replace_game,
+    apply_single_replace_h_comic,
     apply_single_replace_hentai,
     apply_single_replace_manga,
     apply_single_replace_movie,
@@ -65,6 +66,7 @@ from app.services.domain import (
     autofill_from_anilist,
     autofill_game_from_igdb,
     autofill_game_from_steam,
+    autofill_h_comic_from_mal,
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -81,6 +83,7 @@ from app.services.domain import (
     has_missing_values_comic,
     has_missing_values_game,
     has_missing_values_game_steam,
+    has_missing_values_h_comic,
     has_missing_values_hentai,
     has_missing_values_manga,
     has_missing_values_movie,
@@ -354,26 +357,29 @@ PIPELINES: dict[str, PipelineSpec] = {
         replace_after=(("Syncing system options...", run_sync_game),),
         single_after=(run_sync_game,),
     ),
-    # There is no external API for h-comic, so Fill finds nothing eligible and
-    # there is no bulk Replace. The spec exists for the single-entry write
-    # hook and for the routes the pipeline page lists by type; both only
-    # re-run the sync, which keeps the region rule and the label. Out of Fill
-    # All and Replace All, which have nothing to gain from it - the precedent
-    # is game's first spec, which fetched nothing either.
+    # Tenrai's manga record, like manga minus AniList and the ratings:
+    # serialization status, the two dates, the cover, and a finished KR
+    # entry's chapter total, all fill-only (autofill_h_comic_from_mal). Every
+    # run and the single-entry hook end in the h-comic sync, which keeps the
+    # region rule, and the gated label sync, which keeps the label on.
     "h-comic": PipelineSpec(
         key="h-comic", label="H-Comic", model=HComic,
-        extract_id=None,
-        fill_eligible=lambda db, e: False,
-        fill=lambda db, e: None,
+        extract_id=apply_extract_mal_id_manga_novel,
+        fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_h_comic(e),
+        fill=lambda db, e: autofill_h_comic_from_mal(e, db=db),
+        fill_sleep=MAL_PAUSE,
         fill_after=(
             ("Syncing h-comic invariants...", run_sync_h_comic),
             ("Syncing gated labels...", run_sync_gated_labels),
         ),
-        in_fill_all=False,
-        replace_select=None,
-        replace=None,
+        replace_select=_linked(HComic, HComic.mal_id, HComic.mal_link),
+        replace=lambda db, e, bulk: apply_single_replace_h_comic(db, e, bulk=bulk),
+        replace_sleep=MAL_PAUSE,
+        replace_after=(
+            ("Syncing h-comic invariants...", run_sync_h_comic),
+            ("Syncing gated labels...", run_sync_gated_labels),
+        ),
         single_after=(run_sync_h_comic, run_sync_gated_labels),
-        in_replace_all=False,
     ),
     # Tenrai, like anime minus AniList, for three things only: airing status,
     # release date and the cover, all fill-only (autofill_hentai_from_mal).

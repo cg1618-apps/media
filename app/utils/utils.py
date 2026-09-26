@@ -74,6 +74,16 @@ HENTAI_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+# What Tenrai fills on an h-comic: manga's columns minus the ratings, which
+# h_comic has no column for. ch_total is filled too, on a finished KR entry
+# only - see has_missing_values_h_comic.
+H_COMIC_FIELDS_TO_FILL = [
+    "serialization_status",
+    "release_date",
+    "end_date",
+    "cover_image_file",
+]
+
 ANIME_MOVIE_FIELDS_TO_FILL = [
     "airing_status",
     "release_date_jp",

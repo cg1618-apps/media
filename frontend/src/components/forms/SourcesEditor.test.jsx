@@ -137,4 +137,61 @@ describe("SourcesEditor", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /remove/i })[1]);
     expect(onChange).toHaveBeenCalledWith([rows[0]]);
   });
+
+  describe("restricted suggestions", () => {
+    const row = (name, url = "") => ({
+      kind: "access",
+      bucket: "restricted",
+      name,
+      url,
+      available: null,
+    });
+
+    function renderWith(value, onChange = vi.fn()) {
+      render(
+        <SourcesEditor
+          value={value}
+          onChange={onChange}
+          mediaType="h-comic"
+          sources={sources}
+          restrictedSuggestions={["禁漫天堂", "ToonGod"]}
+        />,
+      );
+      return onChange;
+    }
+
+    it("prefills only the suggested names the bucket does not hold", () => {
+      // The other bucket holds ToonGod too; only a restricted row counts.
+      const other = { ...row("ToonGod"), bucket: "other" };
+      const onChange = renderWith([row("禁漫天堂", "https://x.test"), other]);
+      fireEvent.click(screen.getByRole("button", { name: /prefill suggested \(1\)/i }));
+      expect(onChange).toHaveBeenCalledWith([
+        row("禁漫天堂", "https://x.test"),
+        other,
+        row("ToonGod"),
+      ]);
+    });
+
+    it("offers no prefill once every suggestion is there", () => {
+      renderWith([row("禁漫天堂"), row("ToonGod")]);
+      expect(screen.queryByRole("button", { name: /prefill suggested/i })).toBeNull();
+    });
+
+    it("offers the suggestions while typing, and keeps a name outside them", () => {
+      const onChange = renderWith([row("")]);
+      const input = screen.getByRole("combobox", { name: "Restricted Sources name" });
+      const list = document.getElementById(input.getAttribute("list"));
+      expect([...list.options].map((o) => o.value)).toEqual(["禁漫天堂", "ToonGod"]);
+      fireEvent.change(input, { target: { value: "Somewhere else" } });
+      expect(onChange).toHaveBeenCalledWith([row("Somewhere else")]);
+    });
+
+    it("offers neither without suggestions", () => {
+      renderEditor([row("")]);
+      expect(screen.queryByRole("button", { name: /prefill suggested/i })).toBeNull();
+      expect(
+        screen.getByRole("textbox", { name: "Restricted Sources name" }),
+      ).not.toHaveAttribute("list");
+    });
+  });
 });

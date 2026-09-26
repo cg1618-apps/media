@@ -17,6 +17,7 @@ from app.models import (
     Studio,
     TVShows,
 )
+from app.utils.constants import H_COMIC_REGION_KR
 from app.utils.utils import (
     ANIME_FIELDS_TO_FILL,
     ANIME_MOVIE_FIELDS_TO_FILL,
@@ -25,6 +26,7 @@ from app.utils.utils import (
     COMIC_FIELDS_TO_FILL,
     COMIC_LINK_FIELDS_TO_FILL,
     GAME_FIELDS_TO_FILL,
+    H_COMIC_FIELDS_TO_FILL,
     HENTAI_FIELDS_TO_FILL,
     MANGA_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
@@ -130,6 +132,23 @@ def has_missing_values_hentai(hentai) -> bool:
     return any(
         getattr(hentai, field, None) is None or str(getattr(hentai, field)).strip() == ""
         for field in HENTAI_FIELDS_TO_FILL
+    )
+
+
+def has_missing_values_h_comic(h_comic) -> bool:
+    """
+    True if any column Tenrai fills on an h-comic is blank. Manga's special
+    case, on KR alone: ch_total is required only once the serialization is
+    完結. A JP entry counts pages, which MAL does not report.
+    """
+    for field in H_COMIC_FIELDS_TO_FILL:
+        val = getattr(h_comic, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return (
+        h_comic.region == H_COMIC_REGION_KR
+        and h_comic.serialization_status == "完結"
+        and h_comic.ch_total is None
     )
 
 

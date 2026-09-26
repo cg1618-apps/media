@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-25
+Last verified: 2026-09-26
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -747,10 +747,11 @@ with the region deciding what shows (`lib/hComicRegion.js`):
 Both regions carry the tracker's reading status, rating, **usefulness**
 (personal, like the rating) and Read Next / To Reread; a **Genres** card (Genre
 Plot / Appearance / Relation); `SourcesCard` with the KR official source as its
-tag; `RelationsSection`; a **Cast** slip (characters only - an h-comic casting
-never carries a seiyuu); the series number beside the series link on JP. The
-admin toolbar has Quick edit and Mark completed and **no Autofill**: h-comic
-has no external API, so its write hook fetches nothing.
+tag and the MAL link; `RelationsSection`; a **Cast** slip (characters only -
+an h-comic casting never carries a seiyuu); the series number beside the
+series link on JP. The admin toolbar has Quick edit, Mark completed and
+**Autofill & update**, which runs `POST /replace/h-comic/{id}` - Tenrai's
+manga record, fill-only.
 
 A JP entry's **Animation Status** is hand-set or derived, as
 `animation_status_source` says (`lib/hComicAnimation.js`). While a hentai

@@ -1085,6 +1085,9 @@ export const TYPE_FIELD_META = {
       source: { kind: "option", category: "H Genre Relation", scope: "h-comic" },
       group: "Classification",
     },
+    // Derived from mal_link by the write hook; the form shows it read-only.
+    mal_id: { hidden: true },
+    mal_link: { autofillable: false },
   },
 
   // Game's presentation for the columns the two share, plus h-game's own.
