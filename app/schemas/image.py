@@ -25,6 +25,9 @@ class ImageOut(BaseModel):
     # machine, and what this image is currently used for.
     missing: bool = False
     attachments: List["AttachmentOut"] = []
+    # Cast rows using this image as their photo. They hold the storage key
+    # directly, with no attachment row, so they are counted separately.
+    cast_photo_count: int = 0
 
 
 class AttachmentIn(BaseModel):

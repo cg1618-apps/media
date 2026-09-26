@@ -444,6 +444,84 @@ def test_delete_force_clears_the_owner_mirror_column(
 
 
 # ---------------------------------------------------------------------------
+# Cast photos
+#
+# A casting's photo_file names a library image by storage key, with no
+# attachment row: castings are deleted and re-inserted on every cast save, so
+# their ids cannot own an attachment. The library therefore has to read
+# character_casting.photo_file itself, or a cast photo looks unused and can be
+# deleted out from under the cast.
+# ---------------------------------------------------------------------------
+
+def _cast_with_photo(db_session, sample_anime, storage_key):
+    character = models.Character(system_id=uuid.uuid4(), name_en="Hikari")
+    db_session.add(character)
+    db_session.flush()
+    casting = models.CharacterCasting(
+        character_id=character.system_id,
+        media_type="anime",
+        entry_id=sample_anime.system_id,
+        photo_file=storage_key,
+    )
+    db_session.add(casting)
+    db_session.commit()
+    return casting
+
+
+def test_list_unused_excludes_an_image_used_as_a_cast_photo(
+    admin_client, db_session, sample_anime
+):
+    cast_photo = _upload(admin_client).json()
+    loose = _upload(admin_client, data=_png(color=(30, 30, 200))).json()
+    _cast_with_photo(db_session, sample_anime, cast_photo["storage_key"])
+
+    response = admin_client.get("/api/images?unused=true")
+
+    # The loose image proves the filter still lists unused images, so the
+    # cast photo's absence is the filter's doing.
+    ids = [image["system_id"] for image in response.json()["images"]]
+    assert ids == [loose["system_id"]]
+
+
+def test_list_reports_how_many_cast_rows_use_an_image(
+    admin_client, db_session, sample_anime
+):
+    cast_photo = _upload(admin_client).json()
+    loose = _upload(admin_client, data=_png(color=(30, 30, 200))).json()
+    _cast_with_photo(db_session, sample_anime, cast_photo["storage_key"])
+
+    response = admin_client.get("/api/images")
+
+    counts = {i["system_id"]: i["cast_photo_count"] for i in response.json()["images"]}
+    assert counts == {cast_photo["system_id"]: 1, loose["system_id"]: 0}
+
+
+def test_delete_refuses_while_used_as_a_cast_photo(
+    admin_client, db_session, sample_anime
+):
+    cast_photo = _upload(admin_client).json()
+    loose = _upload(admin_client, data=_png(color=(30, 30, 200))).json()
+    _cast_with_photo(db_session, sample_anime, cast_photo["storage_key"])
+
+    refused = admin_client.delete(f"/api/images/{cast_photo['system_id']}")
+    allowed = admin_client.delete(f"/api/images/{loose['system_id']}")
+
+    assert refused.status_code == 409
+    assert allowed.status_code == 204
+
+
+def test_delete_force_clears_the_cast_photo(admin_client, db_session, sample_anime):
+    cast_photo = _upload(admin_client).json()
+    casting = _cast_with_photo(db_session, sample_anime, cast_photo["storage_key"])
+
+    response = admin_client.delete(f"/api/images/{cast_photo['system_id']}?force=true")
+
+    assert response.status_code == 204
+    db_session.refresh(casting)
+    assert casting.photo_file is None
+
+
+# ---------------------------------------------------------------------------
 # The guard on bulk_download_missing_covers
 #
 # That action nulls cover_image_file and re-fetches from MAL. Against a

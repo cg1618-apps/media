@@ -113,6 +113,20 @@ def mirror_to_owner_column(db, owner_type, owner_id, role, storage_key):
         setattr(row, column, storage_key)
 
 
+def _cast_photo_keys(db):
+    """
+    The storage keys cast rows use as photos, as a subquery.
+
+    A casting cannot own an attachment - `replace_casting` deletes and
+    re-inserts every row on each save, so its ids do not last - and its
+    photo_file is the only record that it uses an image. Anything asking
+    whether an image is in use has to read this as well as the attachments.
+    """
+    return db.query(models.CharacterCasting.photo_file).filter(
+        models.CharacterCasting.photo_file.isnot(None)
+    )
+
+
 def _require_reachable_owner(db, viewer, owner_type, owner_id) -> None:
     """
     400 on an owner type no image can belong to; 404 on an owner the caller
@@ -207,6 +221,11 @@ def _to_out(db: Session, image: models.Image) -> ImageOut:
         .filter(models.ImageAttachment.image_id == image.system_id)
         .all()
     ]
+    out.cast_photo_count = (
+        db.query(models.CharacterCasting)
+        .filter(models.CharacterCasting.photo_file == image.storage_key)
+        .count()
+    )
     return out
 
 
@@ -284,7 +303,10 @@ def list_images(
 
     if unused:
         attached = db.query(models.ImageAttachment.image_id)
-        query = query.filter(models.Image.system_id.notin_(attached))
+        query = query.filter(
+            models.Image.system_id.notin_(attached),
+            models.Image.storage_key.notin_(_cast_photo_keys(db)),
+        )
 
     # `unused` (no attachments at all) and `owner_type` (has an attachment of
     # a given type) are contradictory: no image can satisfy both. Rather than
@@ -524,11 +546,24 @@ def delete_image(
         .filter(models.ImageAttachment.image_id == image_id)
         .all()
     )
-    if attachments and not force:
+    castings = (
+        db.query(models.CharacterCasting)
+        .filter(models.CharacterCasting.photo_file == image.storage_key)
+        .all()
+    )
+    if (attachments or castings) and not force:
         raise HTTPException(
             status_code=409,
-            detail=f"Image is still attached to {len(attachments)} owner(s).",
+            detail=(
+                f"Image is still attached to {len(attachments)} owner(s) "
+                f"and used as {len(castings)} cast photo(s)."
+            ),
         )
+
+    # A cast photo is a plain storage key with no attachment row behind it, so
+    # nothing cascades to it either.
+    for casting in castings:
+        casting.photo_file = None
 
     # A forced delete removes the attachment rows (they cascade with the
     # image below), but the legacy columns those rows were mirroring do not

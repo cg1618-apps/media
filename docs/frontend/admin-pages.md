@@ -430,7 +430,8 @@ behind `manage.catalog`. A drop zone accepts multiple files at once
 (`POST /api/images` per file); a grid below shows each image's thumbnail,
 size, dimensions and what it is attached to.
 
-Three filters, each answering one question: **Unused** (no attachment),
+Three filters, each answering one question: **Unused** (no attachment and
+no cast row using it as a photo),
 **Not on this machine** (the row exists but the file does not — the normal
 state of an uploaded image after a machine switch, since uploads never travel
 through Backup or Pull), and **Duplicates** (same checksum; always empty in
@@ -444,8 +445,10 @@ the place that uses it (detach there first), not a blanket "delete anyway"
 from the library. Each tile's **Detach** button removes one attachment
 (`DELETE /api/images/{id}/attach/{attachment_id}`); an uploaded image stays in
 the library, a downloaded one goes with its last attachment (see
-[api.md](../api.md#images--apiimages)). **Delete** is disabled until every
-attachment is gone.
+[api.md](../api.md#images--apiimages)). A cast photo shows as **Cast photo
+×N**; it has no attachment to detach, and is changed in the entry's cast
+editor instead. **Delete** is disabled until every attachment and cast photo
+is gone.
 
 ## /modify (`Modify.jsx`)
 
@@ -638,7 +641,13 @@ three grouping tiers, and the three Entity tabs. Fields come from
 `config/formFields/fieldMeta.js` (label, control, option source, `coerce`
 rule); values are stored per type via `/api/form-defaults/<type>` and applied
 by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
-defaults for that type. Note `coerce: "tristate"` is implemented but unused
+defaults for that type. No image field takes a default - `cover_image_file`,
+`logo_file` and `photo_file` are all `control: "none"`, `defaultable: false`,
+since an image is set through `ImagePicker` and a default would stamp one
+picture on every new record - and `useFormDefaults` skips a stored value for
+any field marked `defaultable: false`, so one saved before the field became
+undefaultable stops applying rather than lingering where the page cannot
+clear it. Note `coerce: "tristate"` is implemented but unused
 by any field.
 
 `h-comic` is present here for a session that can see it; its Add form has no
