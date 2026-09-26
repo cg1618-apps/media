@@ -79,6 +79,13 @@ export function buildAutofillPatch(source, type, fieldKeys, ctx = {}) {
           : [];
       continue;
     }
+    // A field whose blank form value is null (h-game's base game and its
+    // multi-choice lists) keeps the source's value as it is: for those lists
+    // null means "not recorded" and [] "none of these", and "" is neither.
+    if (meta.builtIn === null) {
+      patch[key] = value ?? null;
+      continue;
+    }
     // Most fields blank out when the source has no value. A few are marked to
     // fall back to the configured default instead, so auto-filling from an
     // entry with a gap doesn't wipe a deliberate default.

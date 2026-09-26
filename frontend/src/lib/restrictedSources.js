@@ -117,3 +117,17 @@ export function followRegion(rows, fromRegion, toRegion) {
   );
   return withRestrictedSources(remaining, restrictedSourcesFor("h-comic", toRegion).prefill);
 }
+
+/**
+ * An h-comic Add form with an auto-fill patch applied. A copied region
+ * carries the form's untouched suggested sources over to it, as choosing the
+ * region by hand does - unless the patch copied the sources as well, which
+ * then win as they are.
+ */
+export function mergeHComicAutofill(form, patch) {
+  const next = { ...form, ...patch };
+  if ("region" in patch && !("sources" in patch)) {
+    next.sources = followRegion(form.sources, form.region, patch.region);
+  }
+  return next;
+}

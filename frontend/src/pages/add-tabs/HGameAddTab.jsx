@@ -10,6 +10,7 @@
 // H-presentation / platform fields and the two DLsite links. The IGDB picker
 // is Game's, pointed at /api/h-game/search-igdb.
 import ComboBox from "../../components/forms/ComboBox";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import ChoiceChips from "../../components/forms/ChoiceChips";
 import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -494,12 +495,31 @@ export default function HGameAddTab({
   uhg,
   allFranchises,
   allHGames,
+  hGamesLoading,
   seriesItemsForHGame,
   sources,
   applyHGameAutofill,
+  applyHGameEntryAutofill,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
+      {/* Two boxes, two sources: this one copies fields from an h-game
+          already in the catalogue, the IGDB one below links the new entry
+          to its IGDB record. */}
+      <EntryAutofillSearch
+        items={allHGames}
+        names={(g) => [
+          g.h_game_name_cn,
+          g.h_game_name_en,
+          g.h_game_name_roman,
+          g.h_game_name_jp,
+          g.h_game_name_alt,
+        ]}
+        title={(g) => getDisplayName(g, "h-game")}
+        franchises={allFranchises}
+        onPick={applyHGameEntryAutofill}
+        loading={hGamesLoading}
+      />
       <IgdbSearchBox onPick={applyHGameAutofill} searchUrl={endpoints.hGame.searchIgdb} />
       <SectionHeader icon="fa-gamepad" title="Titles & Naming" />
       <HGameLineageFields

@@ -9,6 +9,7 @@
 // included, since a hentai is voiced. The `hentai` content label is
 // the page's to lock on (ContentLabelPicker's `required`), not this form's.
 import CastEditor from "../../components/forms/CastEditor";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ImagePicker from "../../components/forms/ImagePicker";
@@ -25,7 +26,7 @@ import {
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import { HENTAI_SOURCES } from "../../lib/hentaiForm";
-import { getSourceValues } from "../../utils/media";
+import { getDisplayName, getSourceValues } from "../../utils/media";
 
 export { defaultHentai } from "../../config/formFactories";
 
@@ -238,11 +239,28 @@ export default function HentaiAddTab({
   htf,
   uht,
   allFranchises,
+  allHentai,
+  hentaiLoading,
+  applyHentaiEntryAutofill,
   seriesItemsForHentai,
   sources,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
+      <EntryAutofillSearch
+        items={allHentai}
+        names={(h) => [
+          h.hentai_name_cn,
+          h.hentai_name_en,
+          h.hentai_name_alt,
+          h.hentai_name_roman,
+          h.hentai_name_jp,
+        ]}
+        title={(h) => getDisplayName(h, "hentai")}
+        franchises={allFranchises}
+        onPick={applyHentaiEntryAutofill}
+        loading={hentaiLoading}
+      />
       <SectionHeader icon="fa-tv" title="Titles & Naming" />
       <HentaiLineageFields
         f={htf}

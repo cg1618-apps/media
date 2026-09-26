@@ -159,11 +159,18 @@ replaced by the next media add, and goes when the banner is dismissed or a
 non-media row (collection, person, …) is added.
 
 **Autofill search box (anime, anime movie, movie, TV show, cartoon, manga,
-novel, comic).** Typing filters that tab's list client-side; picking a row
-copies its fields into the form (`lib/autofill.js`, driven by
-`config/formFields/fieldMeta.js`). Nothing is fetched from external APIs at
-this point. **Game is the exception** — its box searches IGDB instead, see the
-Game tab below.
+novel, comic, h-comic, h-game, hentai).** Typing filters that tab's list
+client-side; picking a row copies its fields into the form (`lib/autofill.js`,
+driven by `config/formFields/fieldMeta.js` and the auto-fill ticks on
+`/defaults`). Nothing is fetched from external APIs at this point. The three
+gated tabs draw the box with `EntryAutofillSearch`, which holds its own query
+and dropdown, and hand a pick to `applyEntryAutofill` in `Add.jsx`; the older
+tabs inline the same markup and keep that state in `Add.jsx`. On h-comic a
+copied region carries the untouched suggested restricted sources over to it
+(`mergeHComicAutofill`), as choosing the region by hand does, unless the
+sources were copied too. **H-Game has two boxes**: this one, and the IGDB
+search below it. **Game is the exception** — its only box searches IGDB, see
+the Game tab below.
 
 **Franchise / series pickers.** `ComboBox` over the loaded lists; "create new"
 opens `FranchiseCreateModal` / `CreateNewEntityModal`, which POST the group
@@ -657,14 +664,13 @@ undefaultable stops applying rather than lingering where the page cannot
 clear it. Note `coerce: "tristate"` is implemented but unused
 by any field.
 
-`h-comic` is present here for a session that can see it; its Add form has no
-"copy an existing entry" search either, so its auto-fill ticks drive nothing
-yet. `h-game` is present the same way and for Game's reason (its box searches
-IGDB); its four multi-choice lists offer no default, since their unset state
-is `null`, "not recorded". `hentai` is present the same way; its Add form has
-no copy search either, so its auto-fill ticks drive nothing yet; its
-`mal_id` is hidden (the write hook derives it from the link) and `mal_link`
-is not auto-fillable.
+`h-comic`, `h-game` and `hentai` are present here for a session that can see
+them, and their auto-fill ticks drive each Add form's copy-an-existing-entry
+box. `h-game`'s four multi-choice lists offer no default, since their unset
+state is `null`, "not recorded"; auto-fill copies them as they are, `null`
+included (`buildAutofillPatch` keeps any field whose blank form value is
+`null`). `hentai`'s `mal_id` is hidden (the write hook derives it from the
+link) and `mal_link` is not auto-fillable.
 
 `game` is present here like any other media type, but its Add form has no
 "copy an existing entry" search (its box searches IGDB), so the auto-fill ticks
