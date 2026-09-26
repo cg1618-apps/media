@@ -4,6 +4,7 @@ import {
   myRatingColumn,
   myRatingSort,
   planFlagColumn,
+  usefulnessSort,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { releaseScore } from "../../../lib/releaseDate";
@@ -86,6 +87,7 @@ const HENTAI_LIBRARY_CONFIG = {
       compare: (a, b) => releaseScore(b.release_date) - releaseScore(a.release_date),
     },
     myRatingSort,
+    usefulnessSort,
   ],
 
   tableColumns: [

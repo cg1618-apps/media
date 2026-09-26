@@ -12,6 +12,7 @@ import {
   getReadingButtonConfig,
   getStatusButtonConfig,
 } from "../../utils/media";
+import { H_COMIC_USEFULNESS } from "../../config/fieldOptions";
 import { Chip } from "../ui/primitives";
 
 const HIDDEN = {
@@ -203,6 +204,19 @@ export const myRatingSort = {
   key: "my_rating",
   label: "My Rating",
   compare: (a, b) => getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating),
+};
+
+// The three gated types share h-comic's usefulness vocabulary, which is listed
+// most useful first; a sort follows that order, with an unset value last.
+function usefulnessWeight(value) {
+  const index = H_COMIC_USEFULNESS.indexOf(value);
+  return index === -1 ? H_COMIC_USEFULNESS.length : index;
+}
+
+export const usefulnessSort = {
+  key: "usefulness",
+  label: "Usefulness",
+  compare: (a, b) => usefulnessWeight(a.usefulness) - usefulnessWeight(b.usefulness),
 };
 
 function numericDesc(read) {
