@@ -5,8 +5,8 @@ Two invariants, and one place that keeps them:
 
   values    The fixed-choice fields carry closed vocabularies from
             app/utils/constants.py: playstyle and language_availability are
-            single choices, audio_availability, h_presentation, art_style and
-            platform lists. An unknown value is refused (422) on a write through the
+            single choices, dialogue_audio, sound_effect, h_presentation,
+            art_style, h_art_style and platform lists. An unknown value is refused (422) on a write through the
             API; a list is de-duplicated and kept in vocabulary order, so two
             ways of ticking the same boxes store the same list. An empty list
             is kept as an answer ("none of these"), distinct from null
@@ -45,6 +45,7 @@ from app.services.domain.hierarchy import check_entry_franchise_family
 from app.utils.constants import (
     H_GAME_ART_STYLES,
     H_GAME_AUDIO_AVAILABILITY,
+    H_GAME_H_ART_STYLES,
     H_GAME_H_PRESENTATIONS,
     H_GAME_LANGUAGE_AVAILABILITY,
     H_GAME_PLATFORMS,
@@ -60,9 +61,11 @@ LABEL_KEY = "h-game"
 
 # column -> (vocabulary, what an error calls it). The multi-choice lists.
 CHOICE_LISTS: dict[str, tuple[tuple[str, ...], str]] = {
-    "audio_availability": (H_GAME_AUDIO_AVAILABILITY, "audio availability"),
+    "dialogue_audio": (H_GAME_AUDIO_AVAILABILITY, "dialogue audio"),
+    "sound_effect": (H_GAME_AUDIO_AVAILABILITY, "sound effect"),
     "h_presentation": (H_GAME_H_PRESENTATIONS, "H presentation"),
     "art_style": (H_GAME_ART_STYLES, "art style"),
+    "h_art_style": (H_GAME_H_ART_STYLES, "H art style"),
     "platform": (H_GAME_PLATFORMS, "platform"),
 }
 
@@ -121,8 +124,12 @@ def check_language_availability(value) -> Optional[str]:
     return check_choice(value, H_GAME_LANGUAGE_AVAILABILITY, "language availability")
 
 
-def check_audio_availability(value) -> Optional[list[str]]:
-    return normalize_choice_list(value, H_GAME_AUDIO_AVAILABILITY, "audio availability")
+def check_dialogue_audio(value) -> Optional[list[str]]:
+    return normalize_choice_list(value, H_GAME_AUDIO_AVAILABILITY, "dialogue audio")
+
+
+def check_sound_effect(value) -> Optional[list[str]]:
+    return normalize_choice_list(value, H_GAME_AUDIO_AVAILABILITY, "sound effect")
 
 
 def check_h_presentation(value) -> Optional[list[str]]:
@@ -131,6 +138,10 @@ def check_h_presentation(value) -> Optional[list[str]]:
 
 def check_art_style(value) -> Optional[list[str]]:
     return normalize_choice_list(value, H_GAME_ART_STYLES, "art style")
+
+
+def check_h_art_style(value) -> Optional[list[str]]:
+    return normalize_choice_list(value, H_GAME_H_ART_STYLES, "H art style")
 
 
 def check_platform(value) -> Optional[list[str]]:

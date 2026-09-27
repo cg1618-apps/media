@@ -3,6 +3,7 @@
 import {
   H_GAME_ART_STYLES,
   H_GAME_AUDIO_AVAILABILITY,
+  H_GAME_H_ART_STYLES,
   H_GAME_H_PRESENTATIONS,
   H_GAME_PLATFORMS,
 } from "../config/fieldOptions";
@@ -539,10 +540,11 @@ export function hGameFieldsPayload(f) {
     price_current_jp: num(f.price_current_jp),
     price_current_tw: num(f.price_current_tw),
     language_availability: f.language_availability || null,
-    audio_availability: choiceList(f.audio_availability, H_GAME_AUDIO_AVAILABILITY),
-    animation_availability: tri(f.animation_availability),
+    dialogue_audio: choiceList(f.dialogue_audio, H_GAME_AUDIO_AVAILABILITY),
+    sound_effect: choiceList(f.sound_effect, H_GAME_AUDIO_AVAILABILITY),
     h_presentation: choiceList(f.h_presentation, H_GAME_H_PRESENTATIONS),
     art_style: choiceList(f.art_style, H_GAME_ART_STYLES),
+    h_art_style: choiceList(f.h_art_style, H_GAME_H_ART_STYLES),
     platform: choiceList(f.platform, H_GAME_PLATFORMS),
     playing_status: f.playing_status || "Might Play",
     my_rating: f.my_rating || null,

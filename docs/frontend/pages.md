@@ -791,7 +791,7 @@ IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
 |---|---|
 | Completion block | `GameCompletionBlock` with `H_GAME_COMPLETION_AXES`: Completion Level, All Endings, **All CG**, and **usefulness** (personal, like the rating) - no All Achievements or All Collected |
 | Progress | `HGameProgress`: the main-story estimate and achievements - there is no playtime, so the cover's progress rule is achievements earned against the total |
-| Information card | Type, Base Game (an h-game), Play Style, Series Number, Language, Animation (yes / no, a dash when unknown), Audio, H 演出形式, Platform, Release Status / Date, Current Patch, Steam Progress Sync, Ownership, Copies. A multi-choice list reads "None" when it is `[]` and a dash when it is `null` (`choiceText`) |
+| Information card | Type, Base Game (an h-game), Play Style, Series Number, Language, Platform, Dialogue Audio, Sound Effect, Art Style, H 演出 Art Style, H 演出形式, Release Status / Date, Current Patch, Steam Progress Sync, Ownership, Copies. A multi-choice list reads "None" when it is `[]` and a dash when it is `null` (`choiceText`) |
 | Production card | Developer only (`studioValue`), skipped when there is none |
 | Genres card | Genre, Theme, Genre Plot / Appearance / Relation |
 | Sources | `SourcesCard` with `igdbLink`, `steamLink` and the two DLsite links under "Where to Play" |

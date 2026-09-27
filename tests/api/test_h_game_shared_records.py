@@ -90,6 +90,7 @@ def test_the_constants_omit_h_game_for_a_narrow_session(client, db_session):
         "h_game_audio_availability",
         "h_game_h_presentation",
         "h_game_art_style",
+        "h_game_h_art_style",
         "h_game_platform",
     ):
         assert key not in body
@@ -100,7 +101,7 @@ def test_the_constants_name_h_game_for_unrestricted(admin_client):
     body = admin_client.get("/api/constants").json()
     assert "h-game" in body["media_type"]
     assert "H-Game" in body["franchise_type"]
-    assert body["h_game_playstyle"] == ["ADV", "RPG", "SLG", "Other"]
+    assert body["h_game_playstyle"] == ["ADV", "VN", "RPG", "SLG", "ACT", "Other"]
     assert body["h_game_platform"] == ["Steam", "DLsite", "Nintendo", "Other"]
     assert body["h_game_art_style"][0] == "2D"
 
