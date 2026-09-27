@@ -2329,3 +2329,25 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   hentai exist, and E-Hentai would have been a second such service. The
   services are now filtered the same way: a hidden type leaves every
   `feeds`, and a service left feeding nothing visible is dropped.
+
+### Game takes Steam's cover as the fallback (2026-09-27)
+
+- **Owner's decision: Steam's library capsule is a game's cover too, not
+  only an h-game's.** This reverses "Steam's cover is h-game only" in the
+  DLsite entry above. A game IGDB has no cover for - or one linked to Steam
+  alone - otherwise stays coverless while Steam holds a perfectly good one.
+- **Fallback, not priority.** A game keeps IGDB's cover first; Steam's is
+  tried only while the cover is still empty. So `_fill_game` and
+  `apply_single_replace_game` call `autofill_cover_from_steam` after both
+  autofills, and IGDB needs no `cover=False` here. An h-game keeps its own
+  order, Steam before IGDB.
+- **The same function on both tables.** `autofill_cover_from_steam` already
+  wrote under the entry's own owner type, so nothing in it changed;
+  `autofill_game_from_steam` still writes columns only. The missing-covers
+  repair re-fetches a game carrying either an `igdb_id` or a `steam_appid`,
+  in the fill's order.
+- **Eligibility is unchanged.** `cover_image_file` is already in
+  `GAME_FIELDS_TO_FILL`, so a game with an IGDB id and no cover is queued. A
+  Steam-only game whose Steam columns are filled is not re-queued for its
+  cover alone - the same gate h-game has, and it keeps an app with no
+  capsule from being re-requested on every run.
