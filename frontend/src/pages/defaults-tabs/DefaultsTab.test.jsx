@@ -110,8 +110,15 @@ describe("DefaultsTab", () => {
       expect(screen.queryByText("Restricted Sources")).toBeNull();
     });
 
-    it("has no prefill row on a type with no restricted names", () => {
-      renderTab("game");
+    it.each(["game", "h-game"])("picks a prefill on %s, which has no built-in names", (type) => {
+      renderTab(type);
+
+      expect(screen.getByText("Restricted Prefill")).toBeInTheDocument();
+      expect(screen.getByText("+ Add prefilled source")).toBeInTheDocument();
+    });
+
+    it("has no prefill row on a type with no Sources block", () => {
+      renderTab("studio");
       expect(screen.queryByText(/Restricted Prefill/)).toBeNull();
     });
 

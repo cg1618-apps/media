@@ -180,7 +180,7 @@ def test_exhausted_retries_raise_rather_than_return_none(no_sleep):
 
 
 def test_unreadable_tab_raises_instead_of_reading_as_empty(monkeypatch, no_sleep):
-    def boom(tab_name):
+    def boom(tab_name, **kwargs):
         raise api_error(503, "The service is currently unavailable.")
 
     monkeypatch.setattr(sheets, "get_google_sheet_tab", boom)
@@ -194,7 +194,7 @@ def test_a_genuinely_empty_tab_still_returns_an_empty_list(monkeypatch):
         def get_all_values(self):
             return []
 
-    monkeypatch.setattr(sheets, "get_google_sheet_tab", lambda tab: _Worksheet())
+    monkeypatch.setattr(sheets, "get_google_sheet_tab", lambda tab, **kwargs: _Worksheet())
 
     assert sheets.get_all_raw_rows("System Options") == []
 

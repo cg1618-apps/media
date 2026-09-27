@@ -52,8 +52,16 @@ describe("restrictedSourcesFor", () => {
     });
   });
 
-  it("has neither for a type with no list", () => {
-    expect(restrictedSourcesFor("game")).toEqual({ prefill: [], suggestions: [] });
+  it.each(["game", "h-game"])("has neither built in for %s, but prefills its pick", (type) => {
+    expect(restrictedSourcesFor(type)).toEqual({ prefill: [], suggestions: [] });
+    expect(restrictedSourcesFor(type, "", { all: ["Somewhere"] })).toEqual({
+      prefill: ["Somewhere"],
+      suggestions: ["Somewhere"],
+    });
+  });
+
+  it("has neither for a type with no Sources block", () => {
+    expect(restrictedSourcesFor("studio")).toEqual({ prefill: [], suggestions: [] });
   });
 
   it("gives h-comic 禁漫天堂 on every region and the six KR sources on KR", () => {
@@ -107,8 +115,14 @@ describe("prefillVariants", () => {
     ]);
   });
 
-  it("offers none on a type with no restricted names", () => {
-    expect(prefillVariants("game")).toEqual([]);
+  it.each(["game", "h-game"])("offers an empty variant on %s, so its prefill can be picked", (type) => {
+    expect(prefillVariants(type)).toEqual([
+      { key: "all", label: "Every entry", names: [], builtIn: [] },
+    ]);
+  });
+
+  it("offers none on a type with no Sources block", () => {
+    expect(prefillVariants("studio")).toEqual([]);
   });
 });
 

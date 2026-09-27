@@ -45,8 +45,9 @@ const H_COMIC_KR_ONLY = Object.freeze([
 
 const only = (prefill, optional = []) => ({ [ALL]: { prefill, optional } });
 
-// Per media type (the data layer's hyphenated keys), per variant. A type not
-// listed has no restricted names at all.
+// Per media type (the data layer's hyphenated keys), per variant. Every type
+// with a Sources block is listed, even with no names yet, so /defaults offers
+// its prefill pick; a type not listed has no restricted sources at all.
 const RESTRICTED_SOURCES = Object.freeze({
   anime: only([GIMY, "Anime1"]),
   "anime-movie": only([GIMY, "Anime1"]),
@@ -68,10 +69,12 @@ const RESTRICTED_SOURCES = Object.freeze({
     ]
   ),
   comic: only(["BatCave"], ["GlobalComix", "Read Comics Online"]),
+  game: only([]),
   "h-comic": {
     [H_COMIC_REGION_JP]: { prefill: [JMTT], optional: [] },
     [H_COMIC_REGION_KR]: { prefill: [JMTT, ...H_COMIC_KR_ONLY], optional: [] },
   },
+  "h-game": only([]),
   hentai: only(["Hanime1"]),
 });
 
