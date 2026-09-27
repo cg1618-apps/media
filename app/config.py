@@ -12,7 +12,7 @@ import urllib.parse
 from functools import lru_cache
 from typing import Optional
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # --- The production signal -------------------------------------------------
@@ -115,6 +115,10 @@ class Settings(BaseSettings):
     # --- Google Sheets (backup / restore) ---
     google_credentials_json: Optional[str] = None
     google_sheet_id: Optional[str] = None
+    # Development only: the spreadsheet Pull and Clean READ, when it is not
+    # the one Backup writes - production's, to refresh a dev database from it.
+    # Backup never follows it (app/services/integrations/sheets.py).
+    google_pull_sheet_id: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Validation
@@ -137,6 +141,22 @@ class Settings(BaseSettings):
                 f"got {value!r}."
             )
         return normalised
+
+    @model_validator(mode="after")
+    def _pull_sheet_is_development_only(self) -> "Settings":
+        """
+        Refuse GOOGLE_PULL_SHEET_ID outside development.
+
+        It exists so a dev machine can read production's sheet. Production
+        reading another sheet is the same mechanism pointed the other way:
+        a Pull there would overwrite live tables with development data.
+        """
+        if self.google_pull_sheet_id and self.app_env != ENV_DEVELOPMENT:
+            raise ValueError(
+                "GOOGLE_PULL_SHEET_ID is for development only; "
+                "unset it or set APP_ENV=development."
+            )
+        return self
 
     def validate_secrets(self) -> None:
         """

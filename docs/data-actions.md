@@ -328,6 +328,14 @@ added or narrowed by hand is per-machine), `data_control_logs` and
 
 ## 3. Pull (restore from Google Sheets)
 
+**Which sheet.** Pull and Clean read `GOOGLE_PULL_SHEET_ID` when it is set, and
+`GOOGLE_SHEET_ID` otherwise; Backup writes only `GOOGLE_SHEET_ID`. The pull
+setting exists so a development machine can refresh from production's sheet
+without being able to overwrite it, and it is refused outside
+`APP_ENV=development`. A tab missing from the pull sheet makes that tab
+unreadable (`sheet_unavailable`) rather than empty. Procedure:
+[switching-environments.md](switching-environments.md#refreshing-a-development-database-from-production).
+
 ### 3.1 One tab — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
 Returns a status dict; the router turns `"status": "error"` into an HTTP error.

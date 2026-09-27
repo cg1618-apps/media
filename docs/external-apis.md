@@ -917,8 +917,8 @@ Sheets is the backup target and restore source. `sheets.py` contains no database
 |---|---|
 | Library | `gspread` (pinned `6.2.1` in `requirements.txt`) with `google-auth`. Scopes: `spreadsheets` and `drive`. |
 | Credentials | `settings.google_credentials_json` (a JSON string) → `Credentials.from_service_account_info`; if unset, `Credentials.from_service_account_file("credentials.json")`. **The two branches are split by environment and neither is tested** — see below. |
-| Spreadsheet | opened by key from `settings.google_sheet_id`; missing → `ValueError`. |
-| Tabs | `get_google_sheet_tab(tab_name)` creates a missing tab with `rows=1000, cols=50`. |
+| Spreadsheet | opened by key: writes from `settings.google_sheet_id`; reads (`get_google_sheet_tab(..., for_read=True)`, which is what `get_all_raw_rows` asks for) from `settings.google_pull_sheet_id` when it is set, else the same `google_sheet_id`. Neither set → `ValueError`. |
+| Tabs | `get_google_sheet_tab(tab_name)` creates a missing tab with `rows=1000, cols=50` - except in the pull sheet, which is never written: a tab missing there raises `SheetsUnavailableError`, so Pull reports it rather than reading the table as empty. |
 | Read | `get_all_raw_rows(tab_name)` → `worksheet.get_all_values()`. `[]` means an empty tab; an unreadable tab raises `SheetsUnavailableError` so Pull cannot mistake an outage for "no data". |
 | Write | `bulk_overwrite_sheet(tab_name, matrix)` refuses an empty matrix, writes the new data at `A1` **first**, then `batch_clear`s the leftover rows/columns beyond it — a failed write leaves the previous backup intact. |
 
