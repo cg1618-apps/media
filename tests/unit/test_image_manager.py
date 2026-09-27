@@ -162,16 +162,43 @@ def test_an_own_download_whose_file_is_gone_needs_one(local_covers, key):
     assert image_manager.cover_needs_download(key, "anime", "id1") is True
 
 
+def test_a_bare_legacy_key_is_the_owners_own_download(local_covers):
+    """
+    `<id>.jpg` is the spelling from before per-type folders, and Pull still
+    brings it in. Named after the entry's own id, it can only be its download.
+    """
+    assert image_manager.is_own_download("id1.jpg", "anime", "id1") is True
+
+
+def test_a_bare_legacy_key_whose_file_is_missing_needs_one(local_covers):
+    """
+    No file ever answers to a bare key - the root is not an owner folder - so
+    without this the entry would never download a cover again.
+    """
+    assert image_manager.cover_needs_download("id1.jpg", "anime", "id1") is True
+
+
+def test_a_bare_legacy_key_with_a_file_at_the_owner_key_does_not(local_covers):
+    (local_covers / "anime").mkdir(parents=True)
+    (local_covers / "anime" / "id1.jpg").write_bytes(b"x")
+
+    assert image_manager.cover_needs_download("id1.jpg", "anime", "id1") is False
+
+
 @pytest.mark.parametrize(
     "key",
     [
         "library/0123abcd.jpg",  # an upload, possibly on the other machine
         "anime/someone-else.jpg",  # another entry's download
         "covers/anime/someone-else.jpg",
+        "someone-else.jpg",  # another entry's download, in the legacy spelling
         "anime-movie/id1.jpg",  # the same id under another owner is another file
     ],
 )
 def test_a_cover_that_is_not_the_owners_download_is_never_replaced(local_covers, key):
+    # No file exists for any of these keys, so a False here is the ownership
+    # check refusing - not the "already on disk" branch.
+    assert image_manager.is_own_download(key, "anime", "id1") is False
     assert image_manager.cover_needs_download(key, "anime", "id1") is False
 
 
