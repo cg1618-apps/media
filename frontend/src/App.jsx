@@ -66,6 +66,7 @@ const Add = lazy(() => import("./pages/admin/Add"));
 const Modify = lazy(() => import("./pages/admin/Modify"));
 const Delete = lazy(() => import("./pages/admin/Delete"));
 const FormDefaults = lazy(() => import("./pages/admin/FormDefaults"));
+const PickerDefaults = lazy(() => import("./pages/admin/PickerDefaults"));
 const DataHistory = lazy(() => import("./pages/admin/DataHistory"));
 const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
 const CleanOrphans = lazy(() => import("./pages/admin/CleanOrphans"));
@@ -252,6 +253,7 @@ export default function App() {
                   <Route path="/modify" element={<Modify />} />
                   <Route path="/delete" element={<Delete />} />
                   <Route path="/defaults" element={<FormDefaults />} />
+                  <Route path="/random-defaults" element={<PickerDefaults />} />
                   <Route path="/watch-orders" element={<WatchOrders />} />
                   <Route path="/relations" element={<Relations />} />
                   <Route path="/options" element={<SystemOptions />} />

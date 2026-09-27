@@ -40,7 +40,8 @@ src/
 | `hooks/useMediaCacheUpdate(type, id)` | `setMediaItem`, `fetchMediaItem`, `invalidateMedia` for optimistic detail updates. |
 | `hooks/useStatusToggle(type)` | PATCHes one field and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
-| `hooks/useFilterState(filterDefs, data)` | The chip/toggle values for a list of FilterDefs, plus `toggleFilter`, `clearFilters`, `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState` and the random picker; the defs are read once, so a caller whose defs change remounts. |
+| `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker and Picker Defaults; the defs and `initial` are read once, so a caller whose defs change remounts. |
+| `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs, and its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none). Shared by the picker and Picker Defaults. |
 | `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
 | `pages/plan/usePlanData` | The Plan page's lists (franchise, series and the twelve entry types - `h-comic`, `h-game` and `hentai` each fetched only for a session that can see it) plus `["plan-next"]`. |
@@ -147,7 +148,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   scroll buttons), `Nav` + `NavSearch`, `ProtectedRoute`, `Toast`,
   `MediaLoadingState`, `LibraryLayout` (search / sort / filters / grid-table
   scaffold), `FilterPanel` (the chip panel for a list of FilterDefs, used by
-  `LibraryLayout` and the random picker), `libraryColumns.jsx` (column and sort factories:
+  `LibraryLayout`, the random picker and Picker Defaults), `libraryColumns.jsx` (column and sort factories:
   `franchiseColumn`, `airingStatusColumn`, `myRatingColumn`, `malRatingColumn`,
   `imdbRatingColumn`, `watchButtonColumn`, `readButtonColumn`,
   `planFlagColumn`, `myRatingSort`, `malRatingSort`, `imdbRatingSort`,
@@ -324,6 +325,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
   `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
+- **`components/picker`** — `ModeStrip` (the random picker's All-plus-types strip: links on `/random`, buttons with an unsaved dot on `/random-defaults`).
 - **`components/relations`** — `RelationGraph`, `RelationNode`, `FanEdge`,
   `ConnectPopup`, `EdgeInspector`, `NodePanel`, `RelationForm`,
   `RelationTypeFilter`.

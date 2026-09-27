@@ -242,13 +242,15 @@ export const NAV_SECTIONS = [
     key: "entry",
     label: "Entry",
     // Add/Modify/Delete/Form Defaults all write catalogue rows through
-    // catalogue CRUD endpoints (resource(...).create/update/remove, etc.).
+    // catalogue CRUD endpoints (resource(...).create/update/remove, etc.);
+    // Picker Defaults writes /api/random-picker-defaults, also manage.catalog.
     requires: "manage.catalog",
     items: [
       { label: "Add Entry", icon: "fas fa-plus-circle", to: "/add" },
       { label: "Modify Entry", icon: "fas fa-edit", to: "/modify" },
       { label: "Delete Entry", icon: "fas fa-trash-alt", to: "/delete" },
       { label: "Form Defaults", icon: "fas fa-sliders-h", to: "/defaults" },
+      { label: "Picker Defaults", icon: "fas fa-dice", to: "/random-defaults" },
       { label: "Images", icon: "fas fa-images", to: "/images" },
     ],
   },

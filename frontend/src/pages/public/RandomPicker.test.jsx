@@ -8,6 +8,7 @@ import { ToastProvider } from "../../hooks/useToast";
 import RandomPicker from "./RandomPicker";
 
 let visibleGatedTypes = [];
+let storedDefaults = {};
 
 function respond(url) {
   if (url.startsWith("/api/auth/me")) {
@@ -25,12 +26,17 @@ function respond(url) {
       { system_id: "a1", anime_name_en: "Frieren", airing_type: "TV" },
       { system_id: "a2", anime_name_en: "Mushishi Special", airing_type: "Special" },
     ];
+  if (url.startsWith("/api/random-picker-defaults/")) {
+    const mode = url.split("/").pop();
+    return { mode, version: 1, filters: storedDefaults[mode] ?? {} };
+  }
   if (url.startsWith("/api/manga/")) return [{ system_id: "m1", manga_name_en: "Yotsuba" }];
   return [];
 }
 
 beforeEach(() => {
   visibleGatedTypes = [];
+  storedDefaults = {};
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(respond(String(url))) }))
@@ -128,4 +134,23 @@ it("clears every filter and the pick with Clear all", async () => {
   expect(screen.queryByText("Mushishi Special")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Special" })).toHaveAttribute("aria-pressed", "false");
   expect(clear).toBeDisabled();
+});
+
+it("opens a mode on its saved defaults, and Defaults brings them back", async () => {
+  storedDefaults = { anime: { airingType: ["Special"] } };
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("1 in the pool")).toBeInTheDocument());
+  expect(screen.getByRole("button", { name: "Special" })).toHaveAttribute("aria-pressed", "true");
+
+  fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+  expect(screen.getByText("2 in the pool")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Defaults" }));
+  expect(screen.getByText("1 in the pool")).toBeInTheDocument();
+});
+
+it("offers no Defaults button for a mode with none saved", async () => {
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.queryByRole("button", { name: "Defaults" })).not.toBeInTheDocument();
 });
