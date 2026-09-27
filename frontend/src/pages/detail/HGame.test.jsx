@@ -63,7 +63,7 @@ const ENTRY = {
   steam_link: "https://store.steampowered.com/app/1/",
   dlsite_link_jp: "https://www.dlsite.com/maniax/work/=/product_id/RJ1.html",
   dlsite_link_tw: null,
-  audio_availability: [],
+  dialogue_audio: [],
   h_presentation: null,
   art_style: ["2D", "Live2D"],
   platform: ["Steam", "DLsite"],

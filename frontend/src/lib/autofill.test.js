@@ -386,13 +386,13 @@ describe("buildAutofillPatch — the gated types", () => {
     // (not a list at all) are not. The recorded list beside them proves the
     // field is copied, not skipped.
     const patch = buildAutofillPatch(
-      { base_game_id: null, audio_availability: null, platform: ["PC"], h_presentation: [] },
+      { base_game_id: null, dialogue_audio: null, platform: ["PC"], h_presentation: [] },
       "h-game",
-      ["base_game_id", "audio_availability", "platform", "h_presentation"],
+      ["base_game_id", "dialogue_audio", "platform", "h_presentation"],
     );
     expect(patch).toEqual({
       base_game_id: null,
-      audio_availability: null,
+      dialogue_audio: null,
       platform: ["PC"],
       h_presentation: [],
     });

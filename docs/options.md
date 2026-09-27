@@ -122,11 +122,12 @@ type it serves is seeable.
 | `H_COMIC_ANIMATION_STATUSES` | `Not Animated`, `Announced`, `Animated` | `h_comic.animation_status` (JP only): hand-set, or derived from hentai adaptations (`Announced` / `Animated`) | `h_comic_animation_status` |
 | `H_COMIC_USEFULNESS` | `非常實用`, `實用`, `特定情況實用`, `不實用` | `user_media_list.usefulness` (personal, on h-comic, h-game and hentai) and the `status` field of the `h_comic_highlights` and `h_game_highlights` note sections | `h_comic_usefulness` |
 | `HENTAI_SOURCE_MATERIALS` | `Original`, `Manga`, `Novel` | `hentai.source_material`: what the episode adapts, or Original | `hentai_source_material` |
-| `H_GAME_PLAYSTYLES` | `ADV`, `RPG`, `SLG`, `Other` | `h_game.playstyle`, single choice | `h_game_playstyle` |
-| `H_GAME_LANGUAGE_AVAILABILITY` | `官方中文`, `中文補丁`, `無中文` | `h_game.language_availability`, single choice | `h_game_language_availability` |
-| `H_GAME_AUDIO_AVAILABILITY` | `一般對話`, `H場景` | `h_game.audio_availability`, a JSONB list kept in this order | `h_game_audio_availability` |
-| `H_GAME_H_PRESENTATIONS` | `靜圖`, `動圖`, `2D動畫`, `3D動畫`, `3D模型`, `互動` | `h_game.h_presentation` (H 演出形式), a JSONB list kept in this order | `h_game_h_presentation` |
+| `H_GAME_PLAYSTYLES` | `ADV`, `VN`, `RPG`, `SLG`, `ACT`, `Other` | `h_game.playstyle`, single choice | `h_game_playstyle` |
+| `H_GAME_LANGUAGE_AVAILABILITY` | `官方中文`, `非官方中文`, `中文補丁`, `無中文` | `h_game.language_availability`, single choice. 非官方中文 is a Chinese edition the developer did not make; 中文補丁 a patch applied to the original | `h_game_language_availability` |
+| `H_GAME_AUDIO_AVAILABILITY` | `一般對話`, `H場景` | `h_game.dialogue_audio` and `h_game.sound_effect`, each a JSONB list kept in this order | `h_game_audio_availability` |
+| `H_GAME_H_PRESENTATIONS` | `靜態`, `動態`, `間接互動`, `直接互動`, `null`, `unknown` | `h_game.h_presentation` (H 演出形式), a JSONB list kept in this order. `null` and `unknown` are options the owner picks, stored as those strings - not the column's null | `h_game_h_presentation` |
 | `H_GAME_ART_STYLES` | `2D`, `2.5D`, `3D`, `Pixel`, `Live2D`, `Live-action-like`, `Live-action` | `h_game.art_style`, a JSONB list kept in this order. What the game looks like, independent of `h_presentation` | `h_game_art_style` |
+| `H_GAME_H_ART_STYLES` | `2D`, `Live2D`, `2.5D`, `3D模型`, `Live-action-like`, `Live-action`, `null`, `unknown` | `h_game.h_art_style` (H 演出 art style), a JSONB list kept in this order. What the H scenes look like, beside `art_style`; `null` and `unknown` are options the owner picks, stored as those strings - not the column's null | `h_game_h_art_style` |
 | `H_GAME_PLATFORMS` | `Steam`, `DLsite`, `Nintendo`, `Other` | `h_game.platform`, a JSONB list kept in this order; hand-set, never filled from IGDB, and unrelated to the `game_platform` tag field | `h_game_platform` |
 
 `anime.seiyuu` and the `seiyuu` **person role** below are unrelated, and the
@@ -288,7 +289,7 @@ out. What the three gated types keep is in
 | `highlight_passages` | text | 神片段 | novel | | |
 | `highlight_moments` | episode_text | 神場景 Highlights | game | | locator required, placeholder "Chapter / Boss" |
 | `h_comic_highlights` | structured | 亮點 Highlights | h-comic | | KR entries only (`owner_where`); grouped by the `female_characters` names field; usefulness select `H_COMIC_USEFULNESS` |
-| `h_game_highlights` | structured | 亮點 Highlights | h-game | | female/male characters, route / scene (`locator`), audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness, description; every h-game; grouped by `female_characters` |
+| `h_game_highlights` | structured | 亮點 Highlights | h-game | | female/male characters, route / scene (`locator`), dialogue audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness, description; every h-game; grouped by `female_characters` |
 | `analysis` | text_links | 解析 Analysis | All but h-comic, hentai | analysis_group; **reviews** for game and h-game | Last in the 評論 card for a game - see `groups_by_owner` |
 | `cinematography` | text_links | 分鏡/演出/巧思 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
 | `craft` | text_links | 巧思 | novel | analysis_group | |

@@ -15,6 +15,7 @@ from app.utils.constants import (
     FRANCHISE_TYPES,
     H_GAME_ART_STYLES,
     H_GAME_AUDIO_AVAILABILITY,
+    H_GAME_H_ART_STYLES,
     H_GAME_H_PRESENTATIONS,
     H_GAME_LANGUAGE_AVAILABILITY,
     H_GAME_PLATFORMS,
@@ -25,10 +26,27 @@ from app.utils.credit_roles import CREDIT_ROLES, TAG_FIELDS, credit_roles_for, t
 
 
 def test_the_vocabularies():
-    assert H_GAME_PLAYSTYLES == ("ADV", "RPG", "SLG", "Other")
-    assert H_GAME_LANGUAGE_AVAILABILITY == ("官方中文", "中文補丁", "無中文")
+    assert H_GAME_PLAYSTYLES == ("ADV", "VN", "RPG", "SLG", "ACT", "Other")
+    assert H_GAME_LANGUAGE_AVAILABILITY == ("官方中文", "非官方中文", "中文補丁", "無中文")
     assert H_GAME_AUDIO_AVAILABILITY == ("一般對話", "H場景")
-    assert H_GAME_H_PRESENTATIONS == ("靜圖", "動圖", "2D動畫", "3D動畫", "3D模型", "互動")
+    assert H_GAME_H_PRESENTATIONS == (
+        "靜態",
+        "動態",
+        "間接互動",
+        "直接互動",
+        "null",
+        "unknown",
+    )
+    assert H_GAME_H_ART_STYLES == (
+        "2D",
+        "Live2D",
+        "2.5D",
+        "3D模型",
+        "Live-action-like",
+        "Live-action",
+        "null",
+        "unknown",
+    )
     assert H_GAME_PLATFORMS == ("Steam", "DLsite", "Nintendo", "Other")
     assert H_GAME_ART_STYLES == (
         "2D",
@@ -56,14 +74,16 @@ def test_the_label_is_pinned_to_the_registry():
 
 def test_a_list_is_kept_in_vocabulary_order_once():
     assert h_game.check_platform(["Other", "Steam", "Other"]) == ["Steam", "Other"]
-    assert h_game.check_h_presentation(["互動", "靜圖"]) == ["靜圖", "互動"]
-    assert h_game.check_h_presentation(["互動", "3D模型"]) == ["3D模型", "互動"]
+    assert h_game.check_h_presentation(["直接互動", "靜態"]) == ["靜態", "直接互動"]
+    assert h_game.check_h_presentation(["unknown", "動態"]) == ["動態", "unknown"]
+    assert h_game.check_h_art_style(["3D模型", "Live2D"]) == ["Live2D", "3D模型"]
+    assert h_game.check_sound_effect(["H場景", "一般對話"]) == ["一般對話", "H場景"]
     assert h_game.check_art_style(["Live-action", "2D", "2D"]) == ["2D", "Live-action"]
 
 
 def test_none_and_empty_are_different_answers():
-    assert h_game.check_audio_availability(None) is None
-    assert h_game.check_audio_availability([]) == []
+    assert h_game.check_dialogue_audio(None) is None
+    assert h_game.check_dialogue_audio([]) == []
 
 
 @pytest.mark.parametrize("value", ["Steam", ["Xbox"], [1], {"Steam": True}])

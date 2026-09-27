@@ -15,11 +15,13 @@ from app.services.domain.game_copies import derive_game_ownership
 from app.services.domain.h_comic import check_usefulness, normalize_group_order
 from app.services.domain.h_game import (
     check_art_style,
-    check_audio_availability,
+    check_dialogue_audio,
+    check_h_art_style,
     check_h_presentation,
     check_language_availability,
     check_platform,
     check_playstyle,
+    check_sound_effect,
 )
 
 
@@ -65,10 +67,11 @@ class HGameBase(BaseModel):
     language_availability: Optional[str] = None
     # Lists over their vocabularies, in vocabulary order. None is unknown,
     # [] is "none of these".
-    audio_availability: Optional[List[str]] = None
-    animation_availability: Optional[bool] = None
+    dialogue_audio: Optional[List[str]] = None
+    sound_effect: Optional[List[str]] = None
     h_presentation: Optional[List[str]] = None
     art_style: Optional[List[str]] = None
+    h_art_style: Optional[List[str]] = None
     platform: Optional[List[str]] = None
 
     igdb_id: Optional[int] = None
@@ -118,10 +121,15 @@ class _WriteChecks(BaseModel):
     def _language(cls, v):
         return check_language_availability(v)
 
-    @field_validator("audio_availability", mode="before", check_fields=False)
+    @field_validator("dialogue_audio", mode="before", check_fields=False)
     @classmethod
-    def _audio(cls, v):
-        return check_audio_availability(v)
+    def _dialogue_audio(cls, v):
+        return check_dialogue_audio(v)
+
+    @field_validator("sound_effect", mode="before", check_fields=False)
+    @classmethod
+    def _sound_effect(cls, v):
+        return check_sound_effect(v)
 
     @field_validator("h_presentation", mode="before", check_fields=False)
     @classmethod
@@ -132,6 +140,11 @@ class _WriteChecks(BaseModel):
     @classmethod
     def _art_style(cls, v):
         return check_art_style(v)
+
+    @field_validator("h_art_style", mode="before", check_fields=False)
+    @classmethod
+    def _h_art_style(cls, v):
+        return check_h_art_style(v)
 
     @field_validator("platform", mode="before", check_fields=False)
     @classmethod

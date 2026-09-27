@@ -702,7 +702,7 @@ CHECK, matching `games`; they are checked on every write path
 |---|---|:-:|---|---|
 | `h_game_name_cn` / `_en` / `_jp` / `_roman` / `_alt` | String | yes | | `display_name` order CN -> EN -> Alt -> Roman -> JP, as `games` |
 | `series_number` | Integer | yes | | The entry's position in its series |
-| `playstyle` | String | yes | | H_GAME_PLAYSTYLES (ADV / RPG / SLG / Other) |
+| `playstyle` | String | yes | | H_GAME_PLAYSTYLES (ADV / VN / RPG / SLG / ACT / Other) |
 | `game_type` | String | yes | | GAME_TYPES |
 | `base_game_id` | UUID | yes | | FK `h_game.system_id` ON DELETE SET NULL. A DLC's base game, among h-games |
 | `release_status` | String | yes | | GAME_RELEASE_STATUSES |
@@ -714,11 +714,12 @@ CHECK, matching `games`; they are checked on every write path
 | `achievements_earned` / `achievements_total` | Integer | yes | | Steam-fillable |
 | `hltb_main` / `_main_extra` / `_completionist` | Float | yes | | IGDB time-to-beat, fill-only |
 | `price_original_us` / `_jp` / `_tw`, `price_current_us` / `_jp` / `_tw` | Numeric(10,2) | yes | | Market prices, Steam-fillable as on `games` |
-| `language_availability` | String | yes | | H_GAME_LANGUAGE_AVAILABILITY (官方中文 / 中文補丁 / 無中文) |
-| `audio_availability` | JSONB | yes | | A list over H_GAME_AUDIO_AVAILABILITY (一般對話 / H場景), in vocabulary order. `[]` is "none", null "unknown" |
-| `animation_availability` | Boolean | yes | | Null is "unknown" |
-| `h_presentation` | JSONB | yes | | A list over H_GAME_H_PRESENTATIONS (靜圖 / 動圖 / 2D動畫 / 3D動畫 / 3D模型 / 互動) |
+| `language_availability` | String | yes | | H_GAME_LANGUAGE_AVAILABILITY (官方中文 / 非官方中文 / 中文補丁 / 無中文) |
+| `dialogue_audio` | JSONB | yes | | Which parts are voiced: a list over H_GAME_AUDIO_AVAILABILITY (一般對話 / H場景), in vocabulary order. `[]` is "none", null "unknown" |
+| `sound_effect` | JSONB | yes | | Which parts have sound effects: a list over the same vocabulary |
+| `h_presentation` | JSONB | yes | | H 演出形式: a list over H_GAME_H_PRESENTATIONS (靜態 / 動態 / 間接互動 / 直接互動 / null / unknown) |
 | `art_style` | JSONB | yes | | A list over H_GAME_ART_STYLES (2D / 2.5D / 3D / Pixel / Live2D / Live-action-like / Live-action): what the game looks like, independent of `h_presentation` |
+| `h_art_style` | JSONB | yes | | H 演出 art style: a list over H_GAME_H_ART_STYLES (2D / Live2D / 2.5D / 3D模型 / Live-action-like / Live-action / null / unknown): what the H scenes look like |
 | `platform` | JSONB | yes | | A list over H_GAME_PLATFORMS (Steam / DLsite / Nintendo / Other). Hand-set, never filled |
 | `igdb_id` / `igdb_link` | Integer / String | yes | | As on `games` |
 | `steam_appid` / `steam_link` | Integer / String | yes | | As on `games`; the SteamDB reference row is derived from the appid |

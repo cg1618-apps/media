@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 ## What this is for
 
@@ -361,16 +361,16 @@ without any region clear.
 | `female_characters` | names | `fields.female_characters` | **required**; the grouping key |
 | `male_characters` | names | `fields.male_characters` | |
 | `route_scene` | text | `locator` | labelled **Route / Scene**, free text, e.g. `Route A, scene 3` |
-| `audio` | select | `fields.audio` | `H_GAME_AUDIO_AVAILABILITY` |
+| `audio` | select | `fields.audio` | labelled **Dialogue Audio**; `H_GAME_AUDIO_AVAILABILITY` |
 | `h_presentation` | select | `fields.h_presentation` | labelled **H 演出形式**; `H_GAME_H_PRESENTATIONS` |
 | `art_style` | select | `fields.art_style` | `H_GAME_ART_STYLES` |
 | `label` | text | `kind` | free text |
 | `usefulness` | select | `status` | `H_COMIC_USEFULNESS` |
 | `description` | textarea | `content` | |
 
-**Audio, H 演出形式 and art style describe the scene the way the entry
-describes the game**, so each offers the options of the `h_game` column of the
-same meaning (`audio_availability`, `h_presentation`, `art_style`). They are
+**Dialogue audio, H 演出形式 and art style describe the scene the way the
+entry describes the game**, so each offers the options of the `h_game` column
+of the same meaning (`dialogue_audio`, `h_presentation`, `art_style`). They are
 single-choice where the entry's columns are multi-choice: the entry says what
 the game has anywhere, a row says what one scene is. They take the place of
 h-comic's `location`, which an h-game highlight does not have.
