@@ -186,7 +186,8 @@ def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) ->
 
 def apply_single_replace_game(db: Session, game, bulk: bool = False) -> None:
     """
-    Core 'Replace' logic for a single Game or HGame entry: IGDB, then Steam.
+    Core 'Replace' logic for a single Game entry: IGDB, then Steam, then
+    Steam's library capsule if IGDB left the cover empty.
 
     Both sources, in the Fill's order, so the detail page's Autofill button
     finishes an entry in one press - IGDB can supply the appid Steam then keys
@@ -204,6 +205,7 @@ def apply_single_replace_game(db: Session, game, bulk: bool = False) -> None:
     autofill_game_from_igdb(game, db)
     derive_steamdb_source(game, db)
     autofill_game_from_steam(game, db)
+    autofill_cover_from_steam(game)
 
 
 def apply_single_replace_h_game(db: Session, h_game, bulk: bool = False) -> None:

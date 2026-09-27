@@ -468,12 +468,15 @@ def bulk_download_missing_covers(
         else:
             skipped += 1
 
+    # The game fill's cover order: IGDB, then Steam's library capsule while
+    # the cover is still empty.
     game_query = db.query(Game).join(Game.media_row).filter(Media.cover_image_file.isnot(None))
     for game in _collect(game_query, Game, "game"):
         total += 1
-        if game.igdb_id:
+        if game.igdb_id or game.steam_appid:
             game.cover_image_file = None
             autofill_game_from_igdb(game, db)
+            autofill_cover_from_steam(game)
             if game.cover_image_file:
                 downloaded += 1
         else:

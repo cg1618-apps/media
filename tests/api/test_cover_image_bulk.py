@@ -304,7 +304,53 @@ def test_download_missing_covers_refetches_games(db_session, monkeypatch):
     assert "Downloaded 1 of 1" in result["message"]
 
 
+def test_download_missing_covers_falls_back_to_steam_for_games(db_session, monkeypatch):
+    """IGDB first, then Steam's capsule while the cover is still empty - and a
+    game linked only to Steam is re-fetched rather than skipped."""
+    igdb_game, steam_game = uuid.uuid4(), uuid.uuid4()
+    for system_id, links in ((igdb_game, {"igdb_id": 1234}), (steam_game, {})):
+        db_session.add(
+            models.Game(
+                system_id=system_id,
+                game_name_en="Hollow Knight",
+                steam_appid=367520,
+                cover_image_file=cover_key("game", str(system_id)),
+                **links,
+            )
+        )
+    db_session.flush()
+
+    monkeypatch.setattr(
+        calculation, "cover_image_exists", lambda owner_type, sid: False
+    )
+    monkeypatch.setattr(db_session, "commit", lambda: None)
+
+    calls = []
+
+    def fake_igdb(entry, db):
+        # As the real one: no igdb_id, no request.
+        if entry.igdb_id:
+            calls.append(("igdb", entry.system_id))
+
+    def fake_steam(entry):
+        calls.append(("steam", entry.system_id))
+        entry.cover_image_file = cover_key("game", str(entry.system_id))
+
+    monkeypatch.setattr(calculation, "autofill_game_from_igdb", fake_igdb)
+    monkeypatch.setattr(calculation, "autofill_cover_from_steam", fake_steam)
+
+    result = calculation.bulk_download_missing_covers(
+        db_session, system_ids=[str(igdb_game), str(steam_game)]
+    )
+    assert sorted(calls) == sorted(
+        [("igdb", igdb_game), ("steam", igdb_game), ("steam", steam_game)]
+    )
+    assert calls.index(("igdb", igdb_game)) < calls.index(("steam", igdb_game))
+    assert "Downloaded 2 of 2" in result["message"]
+
+
 def test_download_missing_covers_skips_games_without_igdb_id(db_session, monkeypatch):
+    """No igdb_id and no steam_appid: there is nothing to fetch from."""
     game_id = uuid.uuid4()
     db_session.add(
         models.Game(
@@ -323,6 +369,11 @@ def test_download_missing_covers_skips_games_without_igdb_id(db_session, monkeyp
         calculation,
         "autofill_game_from_igdb",
         lambda entry, db: pytest.fail("should not autofill without an igdb_id"),
+    )
+    monkeypatch.setattr(
+        calculation,
+        "autofill_cover_from_steam",
+        lambda entry: pytest.fail("should not autofill without a steam_appid"),
     )
 
     result = calculation.bulk_download_missing_covers(

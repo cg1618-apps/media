@@ -1200,8 +1200,9 @@ def autofill_cover_from_steam(game) -> None:
     Steam's portrait library capsule as the entry's cover, when it has none.
     Does not commit.
 
-    Called by the h-game fill only. autofill_game_from_steam writes no cover,
-    on either table, and a game's cover stays IGDB's.
+    autofill_game_from_steam writes no cover, on either table; this is the
+    one Steam cover source. A game calls it after IGDB, as the fallback; an
+    h-game calls it before IGDB, after DLsite.
     """
     appid = game.steam_appid
     if not appid:
@@ -1286,8 +1287,8 @@ def autofill_game_from_steam(game, db: Session) -> None:
     written: an h-game has no hours_played and no Metacritic score.
 
     Columns only: no tag, no credit and no cover, so this never touches the
-    alias layer and cannot produce an untranslated term. The h-game fill takes
-    a Steam cover separately, through autofill_cover_from_steam. `metacritic_user_score` is
+    alias layer and cannot produce an untranslated term. Both fills take a
+    Steam cover separately, through autofill_cover_from_steam. `metacritic_user_score` is
     deliberately absent — Steam does not publish it.
 
     Unlike the IGDB half this is not fill-only. The current prices and the
