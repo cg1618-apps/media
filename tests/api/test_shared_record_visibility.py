@@ -643,6 +643,79 @@ def test_a_value_scoped_only_to_a_hidden_gated_type_is_hidden(
     assert "Zvornik Gated Genre" in values(admin_client, "/api/options/Genre Main")
 
 
+def _platform(db_session, value, scopes, category="Platform"):
+    option = models.SystemOption(category=category, value=value)
+    option.scopes = [models.SystemOptionScope(scope=s) for s in scopes]
+    db_session.add(option)
+    db_session.flush()
+    return option
+
+
+def _main_source(db_session, entry, option):
+    db_session.add(
+        models.MediaSource(
+            media_id=entry.system_id,
+            kind="access",
+            bucket="main",
+            option_id=option.system_id,
+        )
+    )
+    db_session.flush()
+
+
+def _platforms(c, category="Platform") -> set[str]:
+    response = c.get(f"/api/options/{category}")
+    assert response.status_code == 200, response.text
+    return {row["value"] for row in response.json()}
+
+
+# Platform feeds the Main Sources picker and Reference Source the Reference
+# Sources one; both carry gated scopes on real data (Bahamut, Official site).
+@pytest.mark.parametrize("category", ["Platform", "Reference Source"])
+def test_a_value_also_scoped_to_an_ordinary_type_stays_visible_unused(
+    client, admin_client, db_session, manga_is_gated, category
+):
+    """
+    Bahamut's shape - anime, anime-movie and hentai - before any anime uses
+    it. The gated scope is hidden from the narrow session, but the ordinary
+    one is a visible connection for a vocabulary value, so the anime picker
+    still offers it. The gated-only value beside it is the mirror: same
+    session, same gated scope, and hidden.
+    """
+    _platform(db_session, "Zvornik Mixed", ["anime", "manga"], category)
+    _platform(db_session, "Zvornik Gated", ["manga"], category)
+
+    narrow = _platforms(client, category)
+    assert "Zvornik Mixed" in narrow
+    assert "Zvornik Gated" not in narrow
+    assert {"Zvornik Mixed", "Zvornik Gated"} <= _platforms(admin_client, category)
+    anime_only = client.get(f"/api/options/{category}?scope=anime").json()
+    assert "Zvornik Mixed" in {row["value"] for row in anime_only}
+
+
+def test_a_value_used_as_a_main_source_on_a_visible_entry_stays_visible(
+    client, db_session, sample_anime, manga_is_gated
+):
+    option = _platform(db_session, "Zvornik Platform", ["manga"])
+    # The gated scope alone hides it - the precondition, so the green below
+    # is the main-source row's doing.
+    assert "Zvornik Platform" not in _platforms(client)
+
+    _main_source(db_session, sample_anime, option)
+
+    assert "Zvornik Platform" in _platforms(client)
+
+
+def test_a_value_used_as_a_main_source_only_on_hidden_entries_is_hidden(
+    client, admin_client, db_session, labelled_anime, manga_is_gated
+):
+    option = _platform(db_session, "Zvornik Platform", ["manga"])
+    _main_source(db_session, labelled_anime, option)
+
+    assert "Zvornik Platform" not in _platforms(client)
+    assert "Zvornik Platform" in _platforms(admin_client)
+
+
 def test_a_publisher_scoped_only_to_a_hidden_gated_type_is_hidden(
     client, admin_client, db_session, manga_is_gated
 ):
