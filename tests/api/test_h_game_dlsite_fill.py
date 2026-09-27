@@ -4,8 +4,8 @@ DLsite on an h-game, and the cover order it sits at the front of.
 DLsite fills three things, fill-only: the release date, the circle or brand as
 the studio credit, and the cover. The h-game fill then takes its cover from
 DLsite, else Steam's library capsule, else IGDB - while IGDB still runs before
-Steam so it can hand Steam an appid. Game's fill is untouched: Steam writes no
-cover there.
+Steam so it can hand Steam an appid. A game takes the same two cover sources
+the other way round - IGDB, else Steam's capsule - and never DLsite.
 
 Every fetch and the cover download are patched out - these tests lock down
 behaviour, not the network layer.
@@ -290,32 +290,63 @@ class TestCoverPriority:
         assert PIPELINES["h-game"].replace is not None
 
 
-class TestGameIsUnchanged:
-    def test_steam_writes_no_cover_on_a_game(self, db_session, sources, monkeypatch):
-        def explode(appid):
-            raise AssertionError("a game's cover never comes from Steam")
+def _game(db_session, **kwargs):
+    defaults = dict(system_id=uuid.uuid4(), game_name_en="Game Fill")
+    defaults.update(kwargs)
+    entry = models.Game(**defaults)
+    db_session.add(entry)
+    db_session.flush()
+    return entry
 
-        monkeypatch.setattr(autofill_module, "fetch_steam_library_capsule_url", explode)
-        sources["igdb"] = dict(IGDB, cover_image_url=None)
-        game = models.Game(
-            system_id=uuid.uuid4(), game_name_en="Game Fill", steam_appid=1245620
-        )
-        db_session.add(game)
-        db_session.flush()
 
-        PIPELINES["game"].fill(db_session, game)
-        PIPELINES["game"].replace(db_session, game, False)
+class TestGameCoverFallback:
+    """A game's cover is IGDB's, with Steam's library capsule as the fallback
+    - the reverse of h-game's order, and never DLsite."""
 
-        assert game.cover_image_file is None
-        assert game.price_original_us == Decimal("59.99")
-
-    def test_a_game_takes_igdb_cover_as_before(self, db_session, sources):
-        game = models.Game(system_id=uuid.uuid4(), game_name_en="Game Fill", igdb_id=1029)
-        db_session.add(game)
-        db_session.flush()
+    def test_igdb_wins_over_steam(self, db_session, sources):
+        game = _game(db_session, igdb_id=1029, steam_appid=1245620)
         PIPELINES["game"].fill(db_session, game)
         assert game.cover_image_file == f"stored:{IGDB_COVER}"
+        assert [url for url, _ in sources["downloads"]] == [IGDB_COVER]
         assert not any(c[0] in ("dlsite", "steam_cover") for c in sources["calls"])
+
+    def test_steam_fills_the_cover_igdb_lacks(self, db_session, sources):
+        sources["igdb"] = dict(IGDB, cover_image_url=None)
+        game = _game(db_session, igdb_id=1029, steam_appid=1245620)
+        PIPELINES["game"].fill(db_session, game)
+        assert game.cover_image_file == f"stored:{STEAM_COVER}"
+        assert sources["downloads"] == [(STEAM_COVER, "game")]
+
+    def test_a_game_linked_only_to_steam_takes_the_capsule(self, db_session, sources):
+        game = _game(db_session, steam_appid=1245620)
+        PIPELINES["game"].fill(db_session, game)
+        assert game.cover_image_file == f"stored:{STEAM_COVER}"
+        assert game.price_original_us == Decimal("59.99")
+
+    def test_igdb_hands_steam_the_appid_for_the_fallback(self, db_session, sources):
+        sources["igdb"] = dict(IGDB, cover_image_url=None)
+        game = _game(db_session, igdb_id=1029)
+        PIPELINES["game"].fill(db_session, game)
+        assert game.steam_appid == 1245620
+        assert game.cover_image_file == f"stored:{STEAM_COVER}"
+
+    def test_replace_takes_the_same_fallback(self, db_session, sources):
+        sources["igdb"] = dict(IGDB, cover_image_url=None)
+        game = _game(db_session, igdb_id=1029, steam_appid=1245620)
+        PIPELINES["game"].replace(db_session, game, False)
+        assert game.cover_image_file == f"stored:{STEAM_COVER}"
+
+    def test_an_existing_cover_is_kept(self, db_session, sources):
+        game = _game(
+            db_session,
+            igdb_id=1029,
+            steam_appid=1245620,
+            cover_image_file="library/hand-picked.jpg",
+        )
+        PIPELINES["game"].fill(db_session, game)
+        PIPELINES["game"].replace(db_session, game, False)
+        assert game.cover_image_file == "library/hand-picked.jpg"
+        assert sources["downloads"] == []
 
 
 # ---------------------------------------------------------------------------
