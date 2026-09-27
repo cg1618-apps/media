@@ -108,6 +108,7 @@ other name is accepted.
 | manga | `漫畫櫃 (電腦版)`, `漫畫櫃 (手機版)`, `漫畫人` | `包子漫畫` |
 | novel | - | `bili嗶哩輕小說`, `無限輕小說`, `無限小說`, `輕小說文庫`, `真白萌`, `和圖書`, `小說狂人`, `全本小說` |
 | comic | `BatCave` | `GlobalComix`, `Read Comics Online` |
+| game, h-game | - | - |
 | h-comic | `禁漫天堂`, and six more on KR (below) | - |
 | hentai | `Hanime1` | - |
 
@@ -677,9 +678,11 @@ clear it. Note `coerce: "tristate"` is implemented but unused
 by any field.
 
 **Restricted Prefill** sits under the Sources field on every type that has
-restricted source names: which of the type's fixed names a new entry is
-prefilled with (`restricted_prefill` in the stored config). h-comic has one
-per region, JP and KR; every other type has one. Each is edited as a list of
+one: which restricted source names a new entry is prefilled with
+(`restricted_prefill` in the stored config). h-comic has one per region, JP
+and KR; every other type has one. game and h-game have no built-in names, so
+theirs starts empty and offers nothing while typing, but any name typed is
+prefilled like the others. Each is edited as a list of
 names, with every name the type (or region) has offered as a datalist and a
 **Prefill suggested** button that adds the missing ones. Unpicked, it shows
 the built-in prefill; a pick applies to new entries, to the Prefill button
