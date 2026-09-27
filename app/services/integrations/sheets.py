@@ -149,9 +149,9 @@ def _execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) -
 # ==========================================
 
 
-def _get_google_spreadsheet() -> gspread.Spreadsheet:
+def _get_google_spreadsheet(sheet_id: Optional[str]) -> gspread.Spreadsheet:
     """
-    Authenticates and establishes a connection to the target Google Spreadsheet.
+    Authenticates and opens the spreadsheet `sheet_id`.
     Prioritizes GOOGLE_CREDENTIALS_JSON from env, falling back to local credentials.json.
     """
     scopes = [
@@ -179,8 +179,6 @@ def _get_google_spreadsheet() -> gspread.Spreadsheet:
     client = gspread.authorize(credentials)
 
     # 2. Spreadsheet Targeting
-    # Supports both naming conventions used in deployment history
-    sheet_id = settings.google_sheet_id
     if not sheet_id:
         logger.error("GOOGLE_SHEET_ID environment variable is missing.")
         raise ValueError("GOOGLE_SHEET_ID must be set in environment variables.")
@@ -192,16 +190,27 @@ def _get_google_spreadsheet() -> gspread.Spreadsheet:
         raise e
 
 
-def get_google_sheet_tab(tab_name: str) -> gspread.Worksheet:
+def get_google_sheet_tab(tab_name: str, *, for_read: bool = False) -> gspread.Worksheet:
     """
     Retrieves a specific worksheet by name.
-    If the tab does not exist, it is automatically created with default dimensions.
+
+    Backup's writes always open GOOGLE_SHEET_ID. A read (`for_read`) opens
+    GOOGLE_PULL_SHEET_ID instead when one is set - a development machine
+    reading production's sheet - and that sheet is never written to: a tab
+    missing from it raises rather than being created.
+
+    Otherwise a missing tab is created with default dimensions.
     """
-    spreadsheet = _get_google_spreadsheet()
+    pull_sheet_id = settings.google_pull_sheet_id if for_read else None
+    spreadsheet = _get_google_spreadsheet(pull_sheet_id or settings.google_sheet_id)
 
     try:
         return _execute_with_retry(spreadsheet.worksheet, tab_name)
     except WorksheetNotFound:
+        if pull_sheet_id:
+            raise SheetsUnavailableError(
+                f"The pull sheet (GOOGLE_PULL_SHEET_ID) has no tab '{tab_name}'."
+            )
         logger.info("Worksheet '%s' not found. Creating new tab.", tab_name)
         # Default to 1000 rows and 50 columns for a clean backup canvas
         return _execute_with_retry(
@@ -224,7 +233,7 @@ def get_all_raw_rows(tab_name: str) -> List[List[str]]:
     a tab with nothing in it.
     """
     try:
-        worksheet = get_google_sheet_tab(tab_name)
+        worksheet = get_google_sheet_tab(tab_name, for_read=True)
         raw_data = _execute_with_retry(worksheet.get_all_values)
         return raw_data if raw_data else []
     except SheetsUnavailableError:

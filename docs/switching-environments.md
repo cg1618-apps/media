@@ -267,6 +267,30 @@ tab; Pull All overwrites every table. So:
 - If both databases were edited since the last backup, stop and reconcile by
   hand. There is no merge.
 
+### Refreshing a development database from production
+
+Production backs itself up to **its own** spreadsheet every night at 04:10
+(`media-sheets`, [deployment-selfhost.md](deployment-selfhost.md#backups)), so
+that sheet holds production's data as of last night. A development machine
+reads it through `GOOGLE_PULL_SHEET_ID` and never through `GOOGLE_SHEET_ID`:
+the second is also where Backup writes, and Backup overwrites every tab.
+
+1. Add `GOOGLE_PULL_SHEET_ID=<the production sheet's id>` to this machine's
+   `.env` (the id is `GOOGLE_SHEET_ID` in the box's `.env`). The production
+   sheet is shared with the `client_email` in `credentials.json`
+   ([setup-selfhost.md](setup-selfhost.md#step-17--the-production-google-sheet)
+   step 17); if Pull reports it cannot open the sheet, share it with this
+   machine's service account, as Viewer - reading is all it needs.
+2. `alembic upgrade head`, then restart uvicorn so the setting is read.
+3. `/system` → **Pull All**. It replaces every local table with production's,
+   so anything changed only on this machine is gone. Clean now diffs against
+   production's sheet too.
+4. Remove the line (or leave it, while this machine only ever mirrors
+   production). A **Backup** from here still writes the development sheet.
+
+Passwords do not travel this way either: an account that exists only in
+production needs a password set at `/users` here before it can log in.
+
 ---
 
 ## 3. Leaving an environment (handoff out)

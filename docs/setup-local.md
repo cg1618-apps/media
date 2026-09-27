@@ -128,6 +128,7 @@ list. Variable names are case-insensitive.
 | `ANIDB_CLIENTVER` | unset | AniDB: that client's registered version. Both must be set, or AniDB is off: nothing is requested and no hentai is queued for it. |
 | `GOOGLE_CREDENTIALS_JSON` | unset | Service-account JSON as one line (alternative to `credentials.json`) |
 | `GOOGLE_SHEET_ID` | unset | Spreadsheet used by Backup / Pull |
+| `GOOGLE_PULL_SHEET_ID` | unset | Development only: the spreadsheet Pull and Clean read instead of `GOOGLE_SHEET_ID` - the production sheet, to refresh this database from production. Backup never writes it. The app refuses to start with it set outside `APP_ENV=development`. See [switching-environments.md](switching-environments.md#refreshing-a-development-database-from-production) |
 | `COMPOSE_PROJECT_NAME` | `media` | Pins the docker-compose project, and so the VOLUME name. Compose otherwise derives it from the directory, so a **worktree** mounts a brand-new EMPTY database on the same port while the real data sits untouched. Every checkout needs it, the primary one included. On the home machine the tree is `cg1618\media`, so the derived name and the pinned one now coincide and the setting reads as redundant there - it is not. A worktree is a directory with another name, and that is the case the pin exists for. An empty database is also what blanks the Backup sheet, so this is a data-loss guard, not a convenience |
 
 Minimum for a working local app: the three `POSTGRES_*` values. Everything
