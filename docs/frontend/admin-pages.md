@@ -343,13 +343,27 @@ entry's Ownership is derived from these rows, not typed.
 **Person tab (Entity).** `PersonAddTab.jsx`. No `PersonSubTabBar` here — the
 bar filters a list, and Add has no list; the role × scope matrix inside the
 form already says which types a new person holds. `PersonFields` holds the four name fields with a
-"Display name" select, the **role × scope matrix**, and gender, rating, photo
-key and remark. Ticking a type selects its first legal media type, because a
+"Display name" select, the **role × scope matrix**, then gender and rating as
+closed selects (`GenderRatingFields` from `components/forms/EntityProfileFields.jsx`:
+Gender is "—" plus `GENDERS`, My Rating is "Unrated" plus `MY_RATINGS`; unset
+saves as null), the photo and the remark. Ticking a type selects its first legal media type, because a
 scopeless role is a 422; the legal types per role come from
 `GET /api/person/role-scopes`, so the form cannot offer a pair the API
 rejects. Submit is blocked until at least one name is filled, matching
 `ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
 `PersonFields` is exported so the Modify tab renders the same inputs.
+
+**Character tab (Entity).** `CharacterAddTab.jsx`. `CharacterFields` is the
+person form without the role × scope matrix: the four name fields, the
+"Display name" select, a **Role** select ("—" for none, plus Main, Core,
+Supporting, Other — `CHARACTER_ROLES`), the same Gender and My Rating selects,
+the photo and the remark. The Role is the character's own and is
+independent of the role any casting gives it: neither is derived from nor
+prefilled by the other. It starts
+with gender unset; only a character minted from an entry's cast editor starts
+with one (女 on an h-comic or a hentai — `NEW_CAST_CHARACTER_GENDER`, see
+`CastEditor` in [components.md](components.md)). `CharacterFields` is exported
+so the Modify tab renders the same inputs.
 
 **Options tab.** Two sub-tabs (`OptionSubTabBar`, shared with Modify and
 Delete): **Options** and **Tags**, both creating system options (category +
@@ -496,7 +510,11 @@ holds — a franchise, a series or an entry; see
   and is the one path that may fetch a list the visible tab does not: a link
   naming its type costs that one list, and only if the id is not in it does it
   fall back to searching anime, collection, franchise, series and anime movie
-  in that order.
+  in that order. A link naming `type=character` or `type=person`
+  (`ENTITY_DEEP_LINK_TYPES` in `config/adminEntryLists.js`) fetches no list:
+  the page opens on that tab from the first paint and hands the id to it as
+  `initialId`, and the tab loads that record's editor itself. The id is handed
+  over once — switching tabs drops it, so coming back shows the picker.
 - **Opening a row** seeds the form (`<type>ToForm(...)`), then loads its
   credits/tags (`GET /api/credits/<type>/<id>`) and content labels. A late
   credits response for a row that is no longer open is ignored (request
@@ -588,7 +606,16 @@ holds — a franchise, a series or an entry; see
   client-side over the `roles` each listed person already carries, not the
   endpoint's single-valued `?scope=`. The form then edits the person's whole
   record, every type they hold and not just the sub-tab's one, because `PUT` replaces the role set
-  wholesale.
+  wholesale. Below the photo sits **Photo fallback** (`PhotoFallbackField`):
+  "— Auto (latest with cover) —" or one of the person's entries from
+  `GET /api/person/{id}/entries`, listed once each as `name (year) [type]`;
+  the pick is `photo_fallback_entry_id` on the `PUT`, and the public pages
+  show that entry's cover when the person has no photo.
+- **Character tab (Entity).** `CharacterModifyTab.jsx`, self-contained the
+  same way over `/api/character/` (query key `["characters-admin"]`): a
+  search box over all four names opens a dropdown of matches, and the pick
+  loads `CharacterFields` with the same **Photo fallback** select over
+  `GET /api/character/{id}/entries`. Save is `PUT /api/character/{id}`.
 
 ## /delete (`Delete.jsx`)
 

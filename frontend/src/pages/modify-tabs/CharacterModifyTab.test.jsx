@@ -24,7 +24,19 @@ const CHARACTERS = [
   },
 ];
 
+const C1_ENTRIES = {
+  groups: [
+    {
+      media_type: "anime",
+      entries: [
+        { system_id: "a1", display_name: "Cowboy Bebop", release_date: "1998-04-03" },
+      ],
+    },
+  ],
+};
+
 function respond(url) {
+  if (url === "/api/character/c1/entries") return C1_ENTRIES;
   if (url.startsWith("/api/character/c1")) return CHARACTERS[0];
   if (url.startsWith("/api/character/")) return CHARACTERS;
   return [];
@@ -71,14 +83,14 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function mount() {
+function mount(props = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <CharacterModifyTab />
+        <CharacterModifyTab {...props} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -143,3 +155,92 @@ it("scrolls to the top after a successful save", async () => {
 
   await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 0));
 });
+
+// /modify?id=<system_id>&type=character hands the id in as initialId.
+it("opens the editor for initialId without a search", async () => {
+  mount({ initialId: "c1" });
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Spike Spiegel")).toBeInTheDocument(),
+  );
+  expect(
+    screen.queryByPlaceholderText("Search characters to modify..."),
+  ).not.toBeInTheDocument();
+});
+
+it("saves gender, rating and the photo fallback from their selects", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "c1" });
+  await user.selectOptions(await screen.findByLabelText("Gender"), "男");
+  await user.selectOptions(screen.getByLabelText("My Rating"), "A+");
+  const picker = screen.getByLabelText("Photo fallback");
+  await waitFor(() => expect(picker.options).toHaveLength(2));
+  expect(picker.options[1].textContent).toBe("Cowboy Bebop (1998) [anime]");
+  await user.selectOptions(picker, "a1");
+
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/character/c1",
+      expect.objectContaining({ method: "PUT" }),
+    ),
+  );
+  const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  expect(JSON.parse(init.body)).toMatchObject({
+    gender: "男",
+    my_rating: "A+",
+    photo_fallback_entry_id: "a1",
+  });
+});
+
+// An unsaved character has no entries, so the Add form has no fallback picker.
+it("has no photo fallback picker without an ownerId", async () => {
+  const { CharacterFields } = await import("../add-tabs/CharacterAddTab");
+  const client = new QueryClient();
+  render(
+    <QueryClientProvider client={client}>
+      <CharacterFields characterForm={{}} ucf={() => {}} />
+    </QueryClientProvider>,
+  );
+  expect(screen.queryByLabelText("Photo fallback")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Gender")).toBeInTheDocument();
+});
+
+// A character's own role: "—" (null) plus the four CHARACTER_ROLES. It is
+// never read from or written to a casting's role.
+it("edits the character's own role through a closed select", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "c1" });
+  const role = await screen.findByLabelText("Role");
+  expect([...role.options].map((o) => o.textContent)).toEqual([
+    "—", "Main", "Core", "Supporting", "Other",
+  ]);
+  expect(role).toHaveValue("");
+
+  await user.selectOptions(role, "Core");
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/character/c1",
+      expect.objectContaining({ method: "PUT" }),
+    ),
+  );
+  const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  expect(JSON.parse(init.body)).toMatchObject({ role: "Core" });
+});
+
+it("sends an unset role as null", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "c1" });
+  await screen.findByLabelText("Role");
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  await waitFor(() =>
+    expect(fetch.mock.calls.some(([, o]) => o?.method === "PUT")).toBe(true),
+  );
+  const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  expect(JSON.parse(init.body).role).toBeNull();
+});
+

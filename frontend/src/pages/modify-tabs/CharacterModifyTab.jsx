@@ -7,7 +7,10 @@
 // PersonSubTabBar and no role x scope state - it is closer in shape to
 // StudioModifyTab. Reuses CharacterFields from CharacterAddTab so the input
 // markup isn't duplicated - see the comment on that export.
-import { useMemo, useState } from "react";
+//
+// `initialId` is a deep link's id (/modify?id=<system_id>&type=character, the
+// detail page's Quick edit): that character's editor opens on mount.
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { CharacterFields, CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
@@ -26,14 +29,16 @@ function characterToForm(c) {
     name_jp: c.name_jp || "",
     name_alt: c.name_alt || "",
     display_name_field: c.display_name_field || "",
+    role: c.role || "",
     gender: c.gender || "",
     my_rating: c.my_rating || "",
     photo_file: c.photo_file || "",
     remark: c.remark || "",
+    photo_fallback_entry_id: c.photo_fallback_entry_id || null,
   };
 }
 
-export default function CharacterModifyTab() {
+export default function CharacterModifyTab({ initialId = null } = {}) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -66,19 +71,26 @@ export default function CharacterModifyTab() {
       .slice(0, 10);
   }, [characters, search]);
 
-  async function selectCharacter(character) {
+  function loadCharacter(systemId) {
+    return fetchJson(endpoints.character.detail(systemId))
+      .then((fresh) => {
+        setSelectedId(fresh.system_id);
+        setCharacterForm(characterToForm(fresh));
+      })
+      .catch(() => showToast("error", "Failed to load character."));
+  }
+
+  function selectCharacter(character) {
     setOpen(false);
     setSearch(character.display_name || "");
-    try {
-      const fresh = await fetchJson(
-        endpoints.character.detail(character.system_id),
-      );
-      setSelectedId(fresh.system_id);
-      setCharacterForm(characterToForm(fresh));
-    } catch {
-      showToast("error", "Failed to load character.");
-    }
+    loadCharacter(character.system_id);
   }
+
+  useEffect(() => {
+    if (initialId) loadCharacter(initialId);
+    // Mount only: the deep link opens one editor, once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function closeEditor() {
     setSelectedId(null);
@@ -105,10 +117,12 @@ export default function CharacterModifyTab() {
             name_jp: characterForm.name_jp.trim() || null,
             name_alt: characterForm.name_alt.trim() || null,
             display_name_field: characterForm.display_name_field || null,
+            role: characterForm.role || null,
             gender: characterForm.gender || null,
             my_rating: characterForm.my_rating || null,
             photo_file: characterForm.photo_file || null,
             remark: characterForm.remark || null,
+            photo_fallback_entry_id: characterForm.photo_fallback_entry_id || null,
           }),
         },
       );

@@ -124,6 +124,8 @@ def _constants() -> dict[str, list[str]]:
         "franchise_type": list(c.FRANCHISE_TYPES),
         "franchise_expectation": list(c.FRANCHISE_EXPECTATIONS),
         "my_rating": list(c.MY_RATINGS),
+        # Character and person gender; NULL (not set) is not in the list.
+        "gender": list(c.GENDERS),
         "is_main": list(c.IS_MAIN),
         "movie_type": list(c.MOVIE_TYPES),
         "tv_region": list(c.TV_REGIONS),

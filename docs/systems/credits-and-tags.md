@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 ## What this is for
 
@@ -27,7 +27,7 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 
 | Table | Purpose | Key constraints |
 |---|---|---|
-| `person` | One human credited anywhere, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `gender`, `my_rating`, `photo_file` (GCS key), `remark`, timestamps. Same name shape as `studio`. `gender` sits on the base table on purpose — it is a fact about the person, not a seiyuu-only attribute. | `uq_person_name (name_en, name_cn, name_jp, name_alt)` **NULLS NOT DISTINCT**; `ck_person_has_a_name` (at least one name) |
+| `person` | One human credited anywhere, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `gender` (`GENDERS`), `my_rating` (`MY_RATINGS`), `photo_file` (storage key), `photo_fallback_entry_id` (see [Photo fallback](#photo-fallback)), `remark`, timestamps. Same name shape as `studio`. `gender` sits on the base table on purpose — it is a fact about the person, not a seiyuu-only attribute. | `uq_person_name (name_en, name_cn, name_jp, name_alt)` **NULLS NOT DISTINCT**; `ck_person_has_a_name` (at least one name) |
 | `person_membership` | One artist belonging to one club (a person holding the `club` role): `member_id`, `club_id` (both FK `person`, cascade), `position` (the member's place in the club's list), `created_at`. That the club end holds the `club` role is checked by the API, not the database. | `uq_person_membership (member_id, club_id)`; `ck_person_membership_not_self` |
 | `person_role` | Which dropdowns a person appears in: `person_id` (FK, cascade), `role` (one of `PERSON_ROLES`), `scope` (**NOT NULL**, a hyphenated media-type key, one of `legal_scopes(role)`). Explicit, not derived from credits, so a new director can be offered before their first credit. A person's visibility is the union of their rows; there is no "offered everywhere" state — see [options.md](../options.md) for why this differs from option scope. | `uq_person_role (person_id, role, scope)` (plain — no nullable column left in the key) |
 | `studio` | One **anime** production studio only, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `my_rating`, `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`. Publishers and distributors are **not** here — they are their own `publisher` table (next row), not a vocabulary. Studios deliberately carry **no** scope table, unlike publishers. | `uq_studio_name (name_en, name_cn, name_jp, name_alt)` NULLS NOT DISTINCT; `ck_studio_has_a_name` (at least one name); ISO-8601 CHECKs on both dates |
@@ -35,8 +35,8 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 | `publisher_scope` | Which media types a publisher is offered on: `publisher_id` (FK, cascade), `scope` (**NOT NULL**, a hyphenated media-type key, one of `legal_scopes("publisher")`). Explicit rather than derived from credits, for `person_role`'s reason — a distributor added today must appear in the anime picker before its first credit exists. **No `role` column**: a publisher holds exactly one role, so a column whose value is the constant `publisher` on every row would encode nothing. Zero rows means offered *nowhere*, which is what makes auto-scoping on write purely additive. `studio` has no counterpart — a studio list offering every studio is not wrong the way a distributor list offering 木棉花 on a game would be. | `uq_publisher_scope (publisher_id, scope)` — plain, not NULLS NOT DISTINCT: `scope` is NOT NULL, so nothing in the key is nullable |
 | `media_credit` | One person, studio **or** publisher on one entry: `media_id` FK → `media.system_id` (cascade), `role` (one of `CREDIT_ROLE_KEYS`), `person_id` / `studio_id` / `publisher_id` (all three FK, cascade on delete), `position` (order of the original comma list), `remark`. Exactly one of the three is set. | `ck_media_credit_one_target` CHECK `num_nonnulls(person_id, studio_id, publisher_id) = 1`; `uq_media_credit_row (media_id, role, person_id, studio_id, publisher_id)` NULLS NOT DISTINCT; index on `media_id` |
 | `media_tag` | One vocabulary value on one entry: `media_id` FK → `media.system_id` (cascade), `field` (one of `TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. Column is `field`, not `category`: one category can back several fields, one field maps to exactly one category. | `uq_media_tag_row (media_id, field, option_id)`; index on `media_id` |
-| `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `remark`, timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
-| `character_casting` | THE cast record for one character, in one entry, optionally voiced by one person: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `person_id` (FK, **SET NULL**), `role` (`CHARACTER_ROLES`), `position`, `photo_file`, `remark`. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, media_type, entry_id)`; `ck_casting_voice_scope` (a seiyuu only on `anime`/`anime-movie`/`hentai`); index on `(media_type, entry_id)` |
+| `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `photo_fallback_entry_id`, `role` (overall, `CHARACTER_ROLES`, independent of any casting's role), `remark`, timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
+| `character_casting` | THE cast record for one character, in one entry, optionally voiced by one person: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `person_id` (FK, **SET NULL**), `role` (optional; `CHARACTER_ROLES` or NULL), `position`, `photo_file`, `remark`. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, media_type, entry_id)`; `ck_casting_voice_scope` (a seiyuu only on `anime`/`anime-movie`/`hentai`); index on `(media_type, entry_id)` |
 
 **Why NULLS NOT DISTINCT everywhere.** Postgres treats two NULLs as distinct
 inside a UNIQUE constraint. `name_en` is NULL on essentially every backfilled
@@ -264,13 +264,14 @@ All.
 |---|---|---|
 | `GET /api/credits/{media_type}/{entry_id}` | public (viewer) | `{"credits": {role: [names]}, "tags": {field: [values]}}`, only keys with rows. Unknown type → 400; missing **or hidden** entry → 404 (`entry_visible`). |
 | `PUT /api/credits/{media_type}/{entry_id}` | admin | Body `{credits: {role: [..]}, tags: {field: [..]}}`. Touches only the named roles/fields; an absent key is left alone, an empty list clears. Role/field not valid for the type → 400. |
-| `GET /api/person/?role=&scope=` | public | Sorted by resolved `display_name`; both filters are exact, and a query without `scope` means "holds this role in any media type". `credit_count` counts only entries the viewer may see (`filter_visible_pairs`). Each row carries every `(role, scope)` the person holds, so the admin form can load the whole set in one request. |
+| `GET /api/person/?role=&scope=` | public | Sorted by resolved `display_name`; both filters are exact, and a query without `scope` means "holds this role in any media type". `credit_count`, `display_photo_file`, `media_types` and `restricted` are resolved from only the entries the viewer may see (`filter_visible_pairs`), for the whole list in one pass - see [Photo fallback](#photo-fallback). Each row carries every `(role, scope)` the person holds, so the admin form can load the whole set in one request. |
 | `GET /api/person/role-counts` | public | `{person_role: distinct people}` incl. zeros; declared before `/{system_id}`. |
 | `GET /api/person/role-scopes` | public | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form and the validator cannot drift. Declared before `/{system_id}`. |
 | `GET /api/person/{id}/entries` | public | The entries this person is credited on, grouped by `(media_type, role)` with the derived label, filtered through the same `filter_visible_pairs` as `credit_count`. 404 when the person is hidden — every connection hidden, see [authorization.md](../authorization.md#shared-records); a visible person's credits on label-hidden entries are omitted, group and all. |
 | `GET /api/person/{id}` | public | 404 if absent or hidden. |
 | `POST /api/person/` | admin | **Find-or-create** on normalized name (matches `resolve_person`), then adds any missing roles; metadata of an existing person is untouched. Find-or-create because `ensureSourceValues.js` POSTs whenever a typed name is absent from a *role-filtered* list. The body carries either the four labelled name columns (the admin form) or one unslotted `name` (every other writer), which the endpoint places through `name_slot_for` — a caller holding one typed string cannot know its column, and copying the rule into the frontend would give one name two homes. |
-| `PUT /api/person/{id}` | admin | Full metadata update; replaces the role set. |
+| `PUT /api/person/{id}` | admin | Full metadata update; replaces the role set. `photo_fallback_entry_id` must name an entry the person is linked to and the editor can see (422); a null keeps a stored choice the editor cannot see. |
+| `PATCH /api/person/{id}` | admin | Partial update of the person's own columns (not roles), for inline rating and remark edits. The `PUT` rules - vocabularies, at least one name, the fallback check - are checked first; server columns are a 422. |
 | `DELETE /api/person/{id}?credits=N` | admin | Credits cascade away — wrong fix for a duplicate. `credits` is **required** and is the count the confirmation dialog showed; a mismatch is a 409, because an admin who agreed to destroy three credits did not agree to destroy the five that exist now. |
 | `POST /api/person/{id}/merge` `{source_id}` | admin | Repoints every credit from source onto target (drops ones that would collide on `(media_type, entry_id, role)`), unions `person_role` rows, moves both ends of every club membership (dropping a duplicate or a self-membership), deletes the source. 400 on self-merge. Returns `credits_moved`. |
 | `GET /api/person/{id}/clubs` | public | The clubs this person belongs to, as `MembershipRef` (`system_id`, `public_id`, `display_name`, `position`), ordered by name. Hidden clubs are omitted; 404 when the person is hidden. |
@@ -284,11 +285,12 @@ All.
 | `GET /api/character/?name=` | public | Substring match, case-insensitive, across all four name columns. Sorted by resolved `display_name`. Exists so the cast editor's character combobox never downloads the whole table. |
 | `GET /api/character/{id}`, `GET /{id}/entries` | public | As person/studio, but `/entries` groups only by media type (a character holds no role) and each entry names the seiyuu who voiced them there, if any. |
 | `POST /api/character/` | admin | **Plain create — not find-or-create**, unlike `POST /api/person/` and `POST /api/studio/`. See [Character and character_casting](#character-and-character_casting) for why. |
-| `PUT /api/character/{id}` | admin | Full metadata update. |
+| `PUT /api/character/{id}` | admin | Full metadata update. `photo_fallback_entry_id` must name an entry the character is cast on and the editor can see (422); a null keeps a stored choice the editor cannot see. |
+| `PATCH /api/character/{id}` | admin | Partial update, for inline rating and remark edits; the `PUT` rules are checked first and server columns are a 422. |
 | `DELETE /api/character/{id}?castings=N` | admin | Same count-guard shape as `DELETE /api/person?credits=N`: castings cascade away, and a count that moved underneath the admin is a 409. |
 | `POST /api/character/{id}/merge` `{source_id}` | admin | Repoints every casting from source onto target (drops ones that would collide on `uq_character_casting`), deletes the source. The correct fix for a duplicate, since a delete would cascade the castings away. |
 | `GET /api/casting/{media_type}/{entry_id}` | public (viewer) | The entry's cast, ordered by `position`. Missing or hidden entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
-| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, novel, h-comic, hentai). Rejects (422) a seiyuu on a non-voiced media type - h-comic included - or an unknown role before the row ever reaches `ck_casting_voice_scope`. |
+| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, novel, h-comic, hentai). `role` is optional - null or blank stores no role. Rejects (422) a seiyuu on a non-voiced media type - h-comic included - or a non-blank role outside `CHARACTER_ROLES` before the row ever reaches `ck_casting_voice_scope`. |
 
 **Deleting a publisher removes its logo; deleting a studio does not.** This
 asymmetry is deliberate, not an oversight. `delete_publisher` calls
@@ -379,11 +381,16 @@ Role` tab carries empty scopes and retired role names. The route back is
 Two tables, and the shape is deliberate on three points recorded below.
 
 - `character` — one fictional character, shaped like `person`: four optional
-  names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `remark`.
-  `ck_character_has_a_name` requires at least one name.
+  names, `display_name_field`, `gender`, `my_rating`, `photo_file`,
+  `photo_fallback_entry_id`, `role`, `remark`. `role` is what the character
+  is overall; it is independent of `character_casting.role` - nothing
+  derives, syncs or defaults one from the other. `ck_character_has_a_name` requires at
+  least one name. `gender` and `my_rating` are the same closed vocabularies
+  as on `person` ([options.md](../options.md)); a write outside them is a 422.
 - `character_casting` — THE cast record: one character, in one entry,
-  optionally voiced by one person, with its own `role` (`CHARACTER_ROLES`),
-  `position`, `photo_file` and `remark`. No `media_credit` row with
+  optionally voiced by one person, with its own optional `role`
+  (`CHARACTER_ROLES`, or NULL - a blank role from the cast editor or a
+  Sheets cell is stored as NULL), `position`, `photo_file` and `remark`. No `media_credit` row with
   `role="seiyuu"` exists anywhere; an entry's seiyuu list is derived entirely
   by walking its castings.
 
@@ -430,6 +437,57 @@ one cheap call before designing on top of it, and it needs duplicate-
 resolution rules of its own), a `language` column / dub casts, a `field_group`
 gating cast per role, and characters on the four non-ACG media types.
 
+## Photo fallback
+
+A character or person with no `photo_file` of its own still shows a picture:
+one of the entries it is linked to stands in. The choice is made on the
+server, for the viewer asking, by `app/services/domain/entity_photos.py`, and
+returned as `display_photo_file` on every character and person response (list,
+detail, `PUT`, `PATCH`, and the person bucket of `/api/search`).
+
+Only entries the viewer may see are ever used - the same
+`filter_visible_pairs` pass `casting_count`, `credit_count` and `/entries` go
+through - so a card never shows the cover of an entry its own page would not
+list.
+
+Character, first hit wins:
+
+1. `character.photo_file`.
+2. The chosen `photo_fallback_entry_id` entry's cover (`media.cover_image_file`),
+   while the character is cast on it and it is visible.
+3. That chosen entry's casting `photo_file` - how the character looks there -
+   when the entry has no cover.
+4. The newest visible cast entry that has a cover.
+5. The newest visible casting `photo_file` of this character.
+6. `null`; the SPA draws its placeholder.
+
+Person - a casting photo is the character's picture, not the seiyuu's, so
+there are no casting steps:
+
+1. `person.photo_file`.
+2. The chosen entry's cover, while the person is credited on it or voices a
+   character cast on it, and it is visible.
+3. The newest visible credited or voiced entry that has a cover.
+4. `null`.
+
+"Newest" is the order `/entries` uses: the entry's primary release date
+(`RELEASE_PRIORITY`), descending, undated last, ties in casting or credit
+position order. The chosen id has no FK, like `franchise.cover_entry_id`; one
+that no longer names a visible linked entry - the entry was deleted or
+un-cast, or this viewer cannot see it - falls through to step 4 (character)
+or 3 (person) silently, and the response reports `photo_fallback_entry_id` as
+`null` for that viewer. `PUT` and `PATCH` refuse (422) a non-null id the
+record is not linked to or the editor cannot see, and a null from an editor
+who cannot see the stored choice keeps it, as `PUT /api/person` keeps role
+rows scoped to a hidden type.
+
+The same pass returns `media_types` - the sorted, distinct hyphenated types of
+the visible linked entries - and `restricted`, true when one of them is a
+gated type. Every query in it is per page or per media type, never per row;
+`tests/api/test_entity_photos.py` walks each step, proves a hidden entry's
+cover is not used by reading one record as the guest and as the admin, and
+counts the list's queries.
+
 ## Tests
 
 `tests/unit/test_credit_roles.py`, `test_name_normalize.py`;
@@ -470,3 +528,17 @@ person behaviours are regression-tested in `test_person_router.py`
 column absent on manga/novel), `src/pages/library/CharacterLibrary.test.jsx`,
 `src/pages/detail/Character.test.jsx`, and the `role="seiyuu"` cases in
 `PersonLibrary.test.jsx`.
+
+Vocabularies, PATCH and the photo fallback:
+`tests/unit/test_entity_vocab.py` (the write schemas refuse a gender or rating
+outside its vocabulary, `""` is null, and a Pull folds old free text),
+`tests/api/test_character_person_vocab_migration.py` (the revision's own
+folding and its downgrade), `test_character_person_patch.py` (PATCH on both,
+the at-least-one-name rule, server columns, non-admins refused, and the
+fallback-must-be-linked check on `PUT`, `PATCH` and `POST`),
+`test_entity_photos.py` ([Photo fallback](#photo-fallback)), and in
+`test_casting_router.py` the optional cast role (blank or null stores no role;
+an unknown role is still a 422). `character.role` is covered by the same
+unit file (vocabulary, blank as null, Sheets restore) and by
+`test_character_person_patch.py` (POST / PUT / PATCH, and that setting it
+leaves every casting's role alone).

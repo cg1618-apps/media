@@ -10,37 +10,30 @@
 // character in that entry, since (unlike a person's own credits) knowing who
 // played the part is the point of looking a character up.
 //
-// Like Person.jsx it reads the API with plain fetch. The media detail pages go
-// through TanStack hooks because their payloads are also written back from
-// admin controls; nothing on this page is editable.
+// Like Person.jsx it reads the API with plain fetch. An admin can set my
+// rating and the remark in place, and jump to the full editor; both go
+// through PATCH (components/info/EntityProfileControls.jsx) and the page
+// takes the response as its new state.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
-import { PERSON_NAME_FIELDS } from "../../lib/naming";
+import { mediaTypeLabel } from "../../config/mediaRegistry";
 import InfoCard from "../../components/info/InfoCard";
+import NamingCard from "../../components/info/NamingCard";
+import {
+  AdminToolbar,
+  RatingSelect,
+  RemarkEditor,
+  useEntityPatch,
+} from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
-
-// The entries endpoint carries only the media_type key, not a display label
-// (a character's groups have no role to fold into the label either) — same
-// map WatchOrderGuide.jsx keeps locally for the same hyphenated keys.
-const TYPE_LABELS = {
-  anime: "Anime",
-  "anime-movie": "Anime Movie",
-  movie: "Movie",
-  "tv-show": "TV Show",
-  cartoon: "Cartoon",
-  manga: "Manga",
-  novel: "Novel",
-  comic: "Comic",
-  "h-comic": "H-Comic",
-  hentai: "Hentai",
-};
 
 export default function Character() {
   const { publicId } = useParams();
@@ -48,6 +41,8 @@ export default function Character() {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { isAdmin } = useAuth();
+  const patch = useEntityPatch("character", character?.system_id, setCharacter);
 
   useCanonicalPath("character", character);
 
@@ -102,10 +97,9 @@ export default function Character() {
   }
 
   const name = character.display_name || "Unknown Character";
-  const photoUrl = getCoverUrl(character.photo_file);
-  const otherNames = PERSON_NAME_FIELDS.filter(
-    ({ field }) => character[field]?.trim() && character[field].trim() !== name,
-  );
+  // The server resolves the fallback: the chosen entry's cover, then the
+  // newest visible one, then a casting photo.
+  const photoUrl = getCoverUrl(character.display_photo_file ?? character.photo_file);
   const castingTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
 
   return (
@@ -122,6 +116,10 @@ export default function Character() {
           {name}
         </span>
       </nav>
+
+      {isAdmin && (
+        <AdminToolbar ownerType="character" systemId={character.system_id} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN: the profile ========== */}
@@ -156,26 +154,14 @@ export default function Character() {
             </div>
           </div>
 
-          {otherNames.length > 0 && (
-            <section className="bg-surface border border-border">
-              <h3 className="flex items-center gap-3 px-4 py-2.5 border-b border-border font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
-                Other names
-                <span className="flex-1 border-t border-dotted border-border-strong/60" />
-              </h3>
-              <ul className="p-4 space-y-3" aria-label="Other names">
-                {otherNames.map(({ key, label, field }) => (
-                  <li key={key} className="min-w-0">
-                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
-                      {label}
-                    </div>
-                    <div className="text-sm text-text break-words">
-                      {character[field]}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {isAdmin && (
+            <RatingSelect
+              rating={character.my_rating}
+              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+            />
           )}
+
+          <NamingCard type="character" item={character} />
         </div>
 
         {/* ========== RIGHT COLUMN: facts, then the castings ========== */}
@@ -193,10 +179,22 @@ export default function Character() {
           <InfoCard
             title="Profile"
             fields={[
-              { label: "Gender", value: character.gender },
-              { label: "Remark", value: character.remark },
+              // The character's own role, not any casting's.
+              [
+                { label: "Role", value: character.role },
+                { label: "Gender", value: character.gender },
+              ],
+              ...(isAdmin ? [] : [{ label: "Remark", value: character.remark }]),
             ]}
           />
+
+          {isAdmin && (
+            <RemarkEditor
+              systemId={character.system_id}
+              remark={character.remark}
+              onSave={(v) => patch({ remark: v }, "Remark saved")}
+            />
+          )}
 
           {groups.length === 0 ? (
             <section className="border border-dashed border-border-strong px-4 py-10 text-center">
@@ -207,7 +205,7 @@ export default function Character() {
             groups.map((group) => (
               <section key={group.media_type}>
                 <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
-                  {TYPE_LABELS[group.media_type] || group.media_type}
+                  {mediaTypeLabel(group.media_type)}
                   <span className="text-text-faint">{group.entries.length}</span>
                   <span className="flex-1 border-t border-dotted border-border-strong/60" />
                 </h2>

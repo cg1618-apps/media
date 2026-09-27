@@ -3,6 +3,9 @@ import {
   AIRING_STATUSES,
   CONSTANTS_FALLBACK,
   FRANCHISE_TYPES,
+  CHARACTER_ROLES,
+  GENDERS,
+  castRoleRank,
   MEDIA_TYPES,
   OPTION_CATEGORIES,
   PERSON_ROLES,
@@ -236,3 +239,25 @@ describe("withLegacyProgressDisplay", () => {
     expect(options.map((o) => o.value)).toEqual(["", "vol_tw"]);
   });
 });
+
+describe("gender", () => {
+  it("is wired into applyConstants under /api/constants' gender key", () => {
+    expect(CONSTANTS_FALLBACK.gender).toBe(GENDERS);
+    expect(GENDERS).toEqual(["男", "女", "中性/無性", "雙性混和", "其他"]);
+  });
+});
+
+describe("character roles", () => {
+  it("are wired into applyConstants under character_role, in rank order", () => {
+    expect(CONSTANTS_FALLBACK.character_role).toBe(CHARACTER_ROLES);
+    expect(CHARACTER_ROLES).toEqual(["Main", "Core", "Supporting", "Other"]);
+  });
+
+  it("rank a cast row by that order, with no role or an unknown one last", () => {
+    expect(["Other", null, "Main", "Supporting", "Core", "Extra"]
+      .sort((a, b) => castRoleRank(a) - castRoleRank(b))
+      .slice(0, 4)).toEqual(["Main", "Core", "Supporting", "Other"]);
+    expect(castRoleRank(null)).toBe(CHARACTER_ROLES.length);
+  });
+});
+

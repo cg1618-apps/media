@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
+import { castRoleRank } from "../../config/fieldOptions";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
@@ -43,9 +44,9 @@ const textareaCls =
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
-// Main before Supporting, then whatever order the server already gave —
-// castings unrelated to either role sort last rather than crowding the top.
-const CAST_ROLE_ORDER = { Main: 0, Supporting: 1 };
+// Castings in CHARACTER_ROLES order (Main, Core, Supporting, Other), then
+// whatever order the server already gave; a casting with no role sorts last
+// rather than crowding the top (castRoleRank).
 
 // Read-only cast list, shared shape for every ACG detail page. Renders
 // nothing when the entry has no cast — an empty "Cast" slip would just be a
@@ -56,8 +57,8 @@ const CAST_ROLE_ORDER = { Main: 0, Supporting: 1 };
 function CastSection({ cast }) {
   if (!cast || cast.length === 0) return null;
   const sorted = [...cast].sort((a, b) => {
-    const ra = CAST_ROLE_ORDER[a.role] ?? 2;
-    const rb = CAST_ROLE_ORDER[b.role] ?? 2;
+    const ra = castRoleRank(a.role);
+    const rb = castRoleRank(b.role);
     if (ra !== rb) return ra - rb;
     return (a.position ?? 0) - (b.position ?? 0);
   });

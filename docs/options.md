@@ -96,7 +96,8 @@ type it serves is seeable.
 | `FRANCHISE_TYPES` | `ACG`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
 | `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic` -> `h-comic`, `Hentai` -> `h-comic`, `H-Game` -> `h-game`; any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
 | `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `franchise.franchise_expectation` | `franchise_expectation` |
-| `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on entries, franchise, seasonal, person, studio | `my_rating` |
+| `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on entries, franchise, seasonal, person, character, studio. **Enforced** on `person` and `character`: a write naming anything else is a 422 and `""` is NULL (`app/utils/entity_vocab.py`) | `my_rating` |
+| `GENDERS` | `男`, `女`, `中性/無性`, `雙性混和`, `其他` | `gender` on `person` and `character`. NULL means not set and is not a sixth value. **Enforced**: a write naming anything else is a 422 and `""` is NULL. A Sheets Pull folds an old free-text cell instead of refusing it - `male` -> `男`, `female` -> `女` (trimmed, any case), anything else unreadable -> NULL - and folds `my_rating` by trimming and upper-casing, the same rules the revision that closed both vocabularies applied to the stored rows | `gender` |
 | `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; `comic.is_main_entry` is a Boolean, not this) | `is_main` |
 | `MOVIE_TYPES` | `Reality`, `Animation` | movie type | `movie_type` |
 | `TV_REGIONS` | `歐美劇`, `韓劇`, `日劇`, `陸劇`, `台劇`, `動畫` | `tv_shows.region` (formerly `Region (TV Show)` option category) | `tv_region` |
@@ -117,6 +118,7 @@ type it serves is seeable.
 | `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
 | `MUSIC_STATUSES` | `Need`, `Pending`, `Done` | `note.status` on the `op`, `ed`, `insert_songs`, `ost` sections | `music_status` |
 | `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
+| `CHARACTER_ROLES` (`app/utils/character_roles.py`) | `Main`, `Core`, `Supporting`, `Other` | Two independent columns: `character_casting.role` (what the character is in one entry) and `character.role` (what the character is overall). Neither is derived from, synced with or defaulted from the other. Both are optional - blank or `""` is NULL - and a write naming anything else is a 422; a Sheets Pull restores a value outside the list as blank | `character_role` |
 | `H_COMIC_REGIONS` | `JP`, `KR` | `h_comic.region`, required on every write; decides which columns the entry keeps ([entry-types.md](entry-types.md#h-comic-regions-region_clears-appservicesdomainh_comicpy)) | `h_comic_region` |
 | `H_COMIC_ORIGINALITY` | `原創`, `同人` | `h_comic.originality` (JP only), `hentai.originality` | `h_comic_originality` |
 | `H_COMIC_ANIMATION_STATUSES` | `Not Animated`, `Announced`, `Animated` | `h_comic.animation_status` (JP only): hand-set, or derived from hentai adaptations (`Announced` / `Animated`) | `h_comic_animation_status` |
@@ -672,7 +674,7 @@ twenty in `OPTION_CATEGORIES`:
 | `Label` | anime | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
 | `Quality` | anime | tag field `quality` (品質: production-quality tags; ships with no values, an admin adds them through the Options Add page) |
 | `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie, h-comic) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
-| `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
+| `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; every `game`-scoped value and `Twitter` also carry `h-game` (below); `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
 | `Serialization Platform` | manga, novel | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |
 | `Comic Imprint` | comic | tag field `comic_imprint` |
 | `Comic Continuity` | comic | tag field `comic_continuity` |
@@ -709,6 +711,16 @@ two links Tenrai writes for it. A value carrying no scope rows is left alone,
 since it already reaches every type. The scope is copied once, not derived: a
 `Platform` value later given an `anime` scope needs its `hentai` scope added on
 the Options page too.
+
+**h-game is offered the reference sources game is, plus Twitter** (migration
+`h8g9refsrc0`). Every `Reference Source` value scoped to `game` - `SteamDB`,
+`HowLongToBeat`, `Metacritic`, `Official site` - carries an `h-game` scope as
+well, and so does `Twitter`. A value scoped to `game` alone is not offered on
+h-game: the two are different scopes, and only the unscoped `Wikipedia` and
+`Fandom wiki` reach both without one. The same two rules as hentai hold: an
+unscoped value is left alone, and the scope is copied once, so a value later
+given a `game` scope needs its `h-game` scope added on the Options page too.
+h-game has no `Platform` values: like game, it has no access rows.
 
 **Restricted sources are suggested, not a vocabulary.** A `restricted`
 `media_source` row is free text, so the names each type offers, and which of
@@ -892,8 +904,9 @@ comment asks that the two be kept in step. Seven rows: five person roles plus
 | `Manga Author` · `Novel Illustrator` · `Comic Artist` | `person`, role `illustrator` | 作畫 on a manga, Illustrator on a novel, Artist on a comic. `Manga Author` covered this half too, before the split |
 
 `person.my_rating`, `studio.my_rating` and `publisher.my_rating` reuse
-`MY_RATINGS`, and so does the
-new `character.my_rating`. A `character` / `character_voice` shape was once
+`MY_RATINGS`, and so does `character.my_rating`; on `person` and `character`
+it is enforced, together with `gender` against `GENDERS`
+([above](#apputilsconstantspy)). A `character` / `character_voice` shape was once
 designed but not built (see the old "Deferred" note this replaced in
 [systems/credits-and-tags.md](systems/credits-and-tags.md)); the feature that
 was actually built uses different names and a different shape - `character`

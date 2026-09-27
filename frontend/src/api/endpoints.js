@@ -185,6 +185,8 @@ export const endpoints = {
     detail: (id) => `/api/person/${id}`,
     create: () => "/api/person/",
     update: (id) => `/api/person/${id}`,
+    // PATCH: a partial body - the detail page's rating and remark.
+    patch: (id) => `/api/person/${id}`,
     // The credit count the admin confirmed. Required: the API answers 409 if
     // it no longer matches, so a stale confirmation cannot delete history.
     remove: (id, credits) => `/api/person/${id}?credits=${credits}`,
@@ -209,6 +211,8 @@ export const endpoints = {
     detail: (id) => `/api/character/${id}`,
     create: () => "/api/character/",
     update: (id) => `/api/character/${id}`,
+    // PATCH: a partial body - the detail page's rating and remark.
+    patch: (id) => `/api/character/${id}`,
     // The casting count the admin confirmed. Required: the API answers 409 if
     // it no longer matches, so a stale confirmation cannot delete history.
     remove: (id, castings) => `/api/character/${id}?castings=${castings}`,

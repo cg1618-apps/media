@@ -8,21 +8,29 @@
 // a manga's author, and each group carries the label that credit has on that
 // media type.
 //
-// Like Studio.jsx it reads the API with plain fetch. The media detail pages go
-// through TanStack hooks because their payloads are also written back from
-// admin controls. The one thing editable here is club membership
-// (ClubMembership), which has its own endpoints and no other page to live on.
+// Like Studio.jsx it reads the API with plain fetch. An admin can set my
+// rating and the remark in place and jump to the full editor, the same
+// controls Character.jsx has (components/info/EntityProfileControls.jsx):
+// PATCH, then the response becomes the page's state. Club membership
+// (ClubMembership) is editable here too, through its own endpoints.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
-import { PERSON_NAME_FIELDS } from "../../lib/naming";
 import ClubMembership from "../../components/info/ClubMembership";
 import InfoCard from "../../components/info/InfoCard";
+import NamingCard from "../../components/info/NamingCard";
+import {
+  AdminToolbar,
+  RatingSelect,
+  RemarkEditor,
+  useEntityPatch,
+} from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
 export default function Person() {
@@ -31,6 +39,8 @@ export default function Person() {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { isAdmin } = useAuth();
+  const patch = useEntityPatch("person", person?.system_id, setPerson);
 
   useCanonicalPath("person", person);
 
@@ -85,10 +95,9 @@ export default function Person() {
   }
 
   const name = person.display_name || "Unknown Person";
-  const photoUrl = getCoverUrl(person.photo_file);
-  const otherNames = PERSON_NAME_FIELDS.filter(
-    ({ field }) => person[field]?.trim() && person[field].trim() !== name,
-  );
+  // The server resolves the fallback: the chosen entry's cover, then the
+  // newest visible one.
+  const photoUrl = getCoverUrl(person.display_photo_file ?? person.photo_file);
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
   // The types they are offered under, deduplicated: person_role carries one
   // row per (role, scope) and the label here is the type, not the scope.
@@ -108,6 +117,8 @@ export default function Person() {
           {name}
         </span>
       </nav>
+
+      {isAdmin && <AdminToolbar ownerType="person" systemId={person.system_id} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN: the profile ========== */}
@@ -142,26 +153,14 @@ export default function Person() {
             </div>
           </div>
 
-          {otherNames.length > 0 && (
-            <section className="bg-surface border border-border">
-              <h3 className="flex items-center gap-3 px-4 py-2.5 border-b border-border font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
-                Other names
-                <span className="flex-1 border-t border-dotted border-border-strong/60" />
-              </h3>
-              <ul className="p-4 space-y-3" aria-label="Other names">
-                {otherNames.map(({ key, label, field }) => (
-                  <li key={key} className="min-w-0">
-                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
-                      {label}
-                    </div>
-                    <div className="text-sm text-text break-words">
-                      {person[field]}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {isAdmin && (
+            <RatingSelect
+              rating={person.my_rating}
+              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+            />
           )}
+
+          <NamingCard type="person" item={person} />
         </div>
 
         {/* ========== RIGHT COLUMN: facts, then the credits ========== */}
@@ -183,9 +182,17 @@ export default function Person() {
                 { label: "Gender", value: person.gender },
                 { label: "Types", value: types.join(", ") || null },
               ],
-              { label: "Remark", value: person.remark },
+              ...(isAdmin ? [] : [{ label: "Remark", value: person.remark }]),
             ]}
           />
+
+          {isAdmin && (
+            <RemarkEditor
+              systemId={person.system_id}
+              remark={person.remark}
+              onSave={(v) => patch({ remark: v }, "Remark saved")}
+            />
+          )}
 
           <ClubMembership person={person} />
 

@@ -14,6 +14,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import ImagePicker from "../../components/forms/ImagePicker";
+import {
+  GenderRatingFields,
+  PhotoFallbackField,
+} from "../../components/forms/EntityProfileFields";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../api/client";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
@@ -173,22 +177,7 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
       />
 
       <SectionHeader icon="fa-id-card" title="Profile" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Gender">
-          <input
-            className={inputCls}
-            value={personForm.gender ?? ""}
-            onChange={(e) => upf("gender", e.target.value)}
-          />
-        </Field>
-        <Field label="My Rating">
-          <input
-            className={inputCls}
-            value={personForm.my_rating ?? ""}
-            onChange={(e) => upf("my_rating", e.target.value)}
-          />
-        </Field>
-      </div>
+      <GenderRatingFields form={personForm} update={upf} />
       <Field label="Photo">
         <ImagePicker
           ownerType="staff"
@@ -201,6 +190,14 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
           }}
         />
       </Field>
+      {ownerId && (
+        <PhotoFallbackField
+          ownerType="person"
+          ownerId={ownerId}
+          value={personForm.photo_fallback_entry_id}
+          onChange={(id) => upf("photo_fallback_entry_id", id)}
+        />
+      )}
       <Field label="Remark">
         <textarea
           className={inputCls}

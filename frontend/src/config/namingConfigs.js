@@ -79,4 +79,8 @@ export const NAMING_CONFIGS = {
     "franchise_name_en",
     "franchise_name_alt",
   ],
+  // A character and a person carry four unprefixed name columns, in the
+  // order their forms list them (PERSON_NAME_FIELDS in lib/naming.js).
+  character: ["name_en", "name_cn", "name_jp", "name_alt"],
+  person: ["name_en", "name_cn", "name_jp", "name_alt"],
 };

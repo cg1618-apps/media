@@ -72,7 +72,30 @@ const ROLE_SCOPES = {
   producer: ["anime"],
 };
 
+// A person credited twice on one entry (director and writer) is in two
+// groups; the fallback picker lists the entry once.
+const P1_ENTRIES = {
+  groups: [
+    {
+      media_type: "anime-movie",
+      role: "director",
+      entries: [
+        { system_id: "m1", display_name: "Spirited Away", release_date: "2001-07-20" },
+      ],
+    },
+    {
+      media_type: "anime-movie",
+      role: "screenplay",
+      entries: [
+        { system_id: "m1", display_name: "Spirited Away", release_date: "2001-07-20" },
+        { system_id: "m2", display_name: "Totoro", release_date: null },
+      ],
+    },
+  ],
+};
+
 function respond(url) {
+  if (url === "/api/person/p1/entries") return P1_ENTRIES;
   if (url.startsWith("/api/person/p1")) return DIRECTORS[0];
   if (url.startsWith("/api/person/role-scopes")) return ROLE_SCOPES;
   if (url.startsWith("/api/person/?role=director")) return DIRECTORS;
@@ -83,23 +106,28 @@ function respond(url) {
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
-    vi.fn((url) =>
+    vi.fn((url, options = {}) =>
       Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(respond(String(url))),
+        json: () =>
+          Promise.resolve(
+            options.method === "PUT"
+              ? { ...DIRECTORS[0], ...JSON.parse(options.body) }
+              : respond(String(url)),
+          ),
       }),
     ),
   );
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function mount() {
+function mount(props = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <PersonModifyTab />
+        <PersonModifyTab {...props} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -221,4 +249,50 @@ it("scrolls to the top after a successful save", async () => {
   await user.click(screen.getByRole("button", { name: /save changes/i }));
 
   await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 0));
+});
+
+// /modify?id=<system_id>&type=person hands the id in as initialId.
+it("opens the editor for initialId without a pick", async () => {
+  mount({ initialId: "p1" });
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Hayao Miyazaki")).toBeInTheDocument(),
+  );
+  expect(fetch).toHaveBeenCalledWith("/api/person/p1", expect.anything());
+});
+
+it("offers gender and rating as closed selects", async () => {
+  mount({ initialId: "p1" });
+  const gender = await screen.findByLabelText("Gender");
+  expect([...gender.options].map((o) => o.value)).toEqual([
+    "", "男", "女", "中性/無性", "雙性混和", "其他",
+  ]);
+  const rating = screen.getByLabelText("My Rating");
+  expect([...rating.options].map((o) => o.textContent)).toEqual([
+    "Unrated", "S", "A+", "A", "B", "C", "D", "E", "F",
+  ]);
+});
+
+it("picks a photo fallback from the person's entries, once each, and saves it", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "p1" });
+  const picker = await screen.findByLabelText("Photo fallback");
+  await waitFor(() => expect(picker.options).toHaveLength(3));
+  expect([...picker.options].map((o) => o.textContent)).toEqual([
+    "— Auto (latest with cover) —",
+    "Spirited Away (2001) [anime-movie]",
+    "Totoro [anime-movie]",
+  ]);
+
+  await user.selectOptions(picker, "m2");
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/person/p1",
+      expect.objectContaining({ method: "PUT" }),
+    ),
+  );
+  const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  expect(JSON.parse(init.body)).toMatchObject({ photo_fallback_entry_id: "m2" });
 });

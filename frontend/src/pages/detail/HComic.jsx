@@ -30,7 +30,7 @@ import {
   RatingStamp,
   Slip,
 } from "../../components/ui/primitives";
-import { H_COMIC_USEFULNESS, MY_RATINGS, READING_STATUSES } from "../../config/fieldOptions";
+import { H_COMIC_USEFULNESS, MY_RATINGS, READING_STATUSES, castRoleRank } from "../../config/fieldOptions";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useCasting } from "../../hooks/useCasting";
@@ -47,10 +47,10 @@ import { progressToast } from "../../lib/progressToast";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
-// Main before Supporting, then the server's order - the shape every ACG
+// Castings in CHARACTER_ROLES order (castRoleRank), no role last, then the
+// server's order - the shape every ACG
 // detail page's cast list takes. An h-comic's castings never carry a seiyuu
 // (ck_casting_voice_scope), so a row is the character alone.
-const CAST_ROLE_ORDER = { Main: 0, Supporting: 1 };
 
 const selectCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -93,8 +93,8 @@ function DerivedAnimationStatus({ hComic, adaptations }) {
 function CastSection({ cast }) {
   if (!cast || cast.length === 0) return null;
   const sorted = [...cast].sort((a, b) => {
-    const ra = CAST_ROLE_ORDER[a.role] ?? 2;
-    const rb = CAST_ROLE_ORDER[b.role] ?? 2;
+    const ra = castRoleRank(a.role);
+    const rb = castRoleRank(b.role);
     if (ra !== rb) return ra - rb;
     return (a.position ?? 0) - (b.position ?? 0);
   });
