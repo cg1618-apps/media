@@ -684,7 +684,8 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "6 - the IGDB game and its time-to-beat, three Steam storefronts, "
             "and one achievement call, skipped entirely when "
             "steam_progress_sync is false; the Steam library is fetched once "
-            "a run"
+            "a run. Plus one or two probes of Steam's image CDN when IGDB "
+            "supplied no cover"
         ),
         note=(
             "Two sources keyed on different columns: IGDB on igdb_id, Steam "
@@ -693,8 +694,9 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "Steam itself. The tag writes go through the alias layer: IGDB "
             "speaks English and the vocabulary is Chinese, and a term with "
             "no alias row is logged and skipped, never stored raw - see the "
-            "Alias Conversion page. Steam writes columns only and never "
-            "touches that layer."
+            "Alias Conversion page. Steam never touches that layer: it writes "
+            "columns, plus its library capsule as the cover when IGDB had "
+            "none."
         ),
         sources=(
             SourceBlock(
@@ -811,6 +813,13 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "overwrite",
                         "same two guards as hours_played; an unknown count is "
                         "not a zero",
+                    ),
+                    Write(
+                        "cover_image_file",
+                        "image",
+                        "if-empty",
+                        "the portrait library capsule, from Steam's image CDN; "
+                        "the fallback, tried only after IGDB's cover",
                     ),
                     Write(
                         "metacritic_user_score",

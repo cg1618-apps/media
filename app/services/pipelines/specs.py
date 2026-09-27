@@ -161,7 +161,9 @@ def _fill_novel(db, entry) -> None:
 
 def _fill_game(db, entry) -> None:
     """Both of game's sources, in order: IGDB supplies the appid that Steam
-    then keys off, so a brand-new entry is complete after one pass.
+    then keys off, so a brand-new entry is complete after one pass. The cover
+    is IGDB's, with Steam's library capsule as the fallback when IGDB has
+    none - the reverse of h-game's order.
 
     The SteamDB row is NOT derived here. It used to be, and that put it behind
     `fill_eligible`, which reads columns - so a game Steam had already filled
@@ -170,6 +172,7 @@ def _fill_game(db, entry) -> None:
     IGDB supplied in this pass is picked up either way."""
     autofill_game_from_igdb(entry, db)
     autofill_game_from_steam(entry, db)
+    autofill_cover_from_steam(entry)
 
 
 def _fill_h_game(db, entry) -> None:
