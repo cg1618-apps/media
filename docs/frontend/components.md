@@ -225,8 +225,9 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   section by media type through `accessHeading(mediaType)` — "Where to Watch",
   "Where to Read", or **"Where to Play"** for a game or an h-game — and renders the
   column-backed
-  `malLink`/`ehentaiLink`/`imdbLink`/`comicvineLink`/`openLibraryLink`/`igdbLink`
-  props beside the reference rows (`ehentaiLink` is an h-comic's gallery,
+  `malLink`/`anidbLink`/`ehentaiLink`/`imdbLink`/`comicvineLink`/`openLibraryLink`/`igdbLink`
+  props beside the reference rows (`anidbLink` is a hentai's AniDB page, drawn after MyAnimeList as
+  "AniDB"; `ehentaiLink` is an h-comic's gallery,
   drawn after MyAnimeList as "E-Hentai" with the tag "EH"), `steamLink` (a storefront, not a reference
   database) beside the **access** rows instead — the access section renders
   for a `steamLink` alone, so a game whose only place to play is its Steam

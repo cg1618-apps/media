@@ -104,6 +104,13 @@ class Settings(BaseSettings):
     # connection is a logged connection; STEAM_ENABLED=false stops the traffic
     # at the transport instead of relying on nobody pressing Fill.
     steam_enabled: bool = True
+    # AniDB's HTTP API answers only a registered client: the name and version
+    # the client was registered under at anidb.net. Both unset (the default)
+    # turns AniDB off - no request, and no hentai queued for it. The version
+    # is a string so an empty `ANIDB_CLIENTVER=` line reads as unset rather
+    # than failing to parse as an integer.
+    anidb_client: Optional[str] = None
+    anidb_clientver: Optional[str] = None
 
     # --- Google Sheets (backup / restore) ---
     google_credentials_json: Optional[str] = None
@@ -180,6 +187,18 @@ class Settings(BaseSettings):
         one by default, and gets the hardening rather than escaping it.
         """
         return self.app_env == ENV_DEVELOPMENT
+
+    @property
+    def anidb_enabled(self) -> bool:
+        """
+        True when AniDB has a registered client to identify as.
+
+        Both halves are needed: AniDB refuses a request missing either one,
+        so sending it anyway would only spend a request on an error.
+        """
+        return bool(
+            (self.anidb_client or "").strip() and (self.anidb_clientver or "").strip()
+        )
 
     @property
     def sqlalchemy_database_url(self) -> str:

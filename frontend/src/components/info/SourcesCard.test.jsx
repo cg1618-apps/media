@@ -44,6 +44,15 @@ describe("SourcesCard", () => {
     expect(screen.getByRole("link", { name: /myanimelist/i })).toBeInTheDocument();
   });
 
+  it("renders a hentai's AniDB link under Where to Look Up", () => {
+    render(
+      <SourcesCard sources={[]} mediaType="hentai" anidbLink="https://anidb.net/anime/1" />,
+    );
+    const link = screen.getByRole("link", { name: /anidb/i });
+    expect(link).toHaveAttribute("href", "https://anidb.net/anime/1");
+    expect(screen.getByRole("region", { name: "Where to Look Up" })).toContainElement(link);
+  });
+
   it("renders an h-comic's E-Hentai gallery under Where to Look Up", () => {
     render(
       <SourcesCard
