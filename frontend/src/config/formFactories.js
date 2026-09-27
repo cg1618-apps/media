@@ -649,6 +649,7 @@ export const defaultCharacter = () => ({
   name_jp: "",
   name_alt: "",
   display_name_field: "",
+  role: "",
   gender: "",
   my_rating: "",
   photo_file: "",

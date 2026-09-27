@@ -16,6 +16,32 @@ routers/constants.py still re-exports the name, so its /api/constants payload
 is unchanged.
 """
 
-# From MAL's own two-way split. Nullable on character_casting: an admin
-# entering a cast by hand need not classify.
-CHARACTER_ROLES: tuple[str, ...] = ("Main", "Supporting")
+from typing import Optional
+
+# In dropdown order - /api/constants serves it as `character_role` as is.
+# Used by two independent columns: character_casting.role (what the character
+# is to one entry) and character.role (what the character is overall). Both
+# are nullable: an admin need not classify.
+CHARACTER_ROLES: tuple[str, ...] = ("Main", "Core", "Supporting", "Other")
+
+
+def check_character_role(value: Optional[str]) -> Optional[str]:
+    """A role for a write: one of CHARACTER_ROLES, or None for blank. Raises
+    ValueError on anything else."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    value = str(value).strip()
+    if value not in CHARACTER_ROLES:
+        raise ValueError(
+            f"'{value}' is not a character role. Expected one of: "
+            + ", ".join(CHARACTER_ROLES)
+        )
+    return value
+
+
+def normalize_character_role(value: Optional[str]) -> Optional[str]:
+    """A restored role: kept when it is one of CHARACTER_ROLES, else None."""
+    if value is None:
+        return None
+    value = str(value).strip()
+    return value if value in CHARACTER_ROLES else None

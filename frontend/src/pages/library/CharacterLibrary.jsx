@@ -5,6 +5,10 @@
 // mirroring PersonLibrary.jsx and StudioLibrary.jsx. Characters carry the
 // same four name columns as Person/Studio (and the same display_name_field
 // choice), so the name-field list is shared rather than copied.
+//
+// Search, filters and sort all run client-side over the one list response.
+// The filters are ordinary FilterDefs (lib/entityFilters.js) drawn by the
+// FilterPanel the media libraries use.
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 
@@ -14,6 +18,11 @@ import { endpoints } from "../../api/endpoints";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { Eyebrow } from "../../components/ui/primitives";
 import { entityPath } from "../../lib/entityPath";
+import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
+import { useAuth } from "../../contexts/AuthContext";
+import { useFilterState } from "../../hooks/useFilterState";
+import { applyFilterDefs } from "../../lib/libraryFilters";
+import { characterFilterDefs } from "../../lib/entityFilters";
 
 export default function CharacterLibrary() {
   const [allCharacters, setAllCharacters] = useState([]);
@@ -21,6 +30,12 @@ export default function CharacterLibrary() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("name");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const auth = useAuth();
+  const filterDefs = useMemo(() => characterFilterDefs(auth), [auth]);
+  const { filters, toggleFilter, clearFilters, activeFilterCount } =
+    useFilterState(filterDefs, allCharacters);
 
   useEffect(() => {
     async function load() {
@@ -42,7 +57,7 @@ export default function CharacterLibrary() {
   const filteredAndSorted = useMemo(() => {
     const qClean = cleanString(searchQuery);
 
-    const result = allCharacters.filter((c) => {
+    const searched = allCharacters.filter((c) => {
       if (!qClean) return true;
       // Searches all four name fields, not just the displayed one: someone
       // looking a character up by their Japanese name must find them even
@@ -51,6 +66,7 @@ export default function CharacterLibrary() {
         ({ field }) => c[field] && cleanString(c[field]).includes(qClean),
       );
     });
+    const result = applyFilterDefs(searched, filterDefs, filters);
 
     result.sort((a, b) => {
       if (currentSort === "casting_count") {
@@ -64,7 +80,13 @@ export default function CharacterLibrary() {
     });
 
     return result;
-  }, [allCharacters, searchQuery, currentSort]);
+  }, [allCharacters, searchQuery, currentSort, filterDefs, filters]);
+
+  const narrowed = searchQuery !== "" || activeFilterCount > 0;
+  function resetAll() {
+    setSearchQuery("");
+    clearFilters();
+  }
 
   if (loading) {
     return (
@@ -102,6 +124,7 @@ export default function CharacterLibrary() {
                 {filteredAndSorted.length}{" "}
                 {filteredAndSorted.length === 1 ? "character" : "characters"}
                 {searchQuery && ` matching "${searchQuery}"`}
+                {activeFilterCount > 0 && " (filtered)"}
               </p>
             </div>
 
@@ -133,10 +156,17 @@ export default function CharacterLibrary() {
                   className="bg-surface border border-border-strong px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand transition"
                 >
                   <option value="name">Name</option>
-                  <option value="casting_count">Castings</option>
+                  <option value="casting_count">Appearances</option>
                   <option value="my_rating">My rating</option>
                 </select>
               </label>
+
+              <FilterToggleButton
+                className="py-1.5"
+                open={showFilters}
+                onToggle={() => setShowFilters((o) => !o)}
+                activeFilterCount={activeFilterCount}
+              />
             </div>
           </div>
         </div>
@@ -144,16 +174,26 @@ export default function CharacterLibrary() {
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {showFilters && (
+          <FilterPanel
+            filterDefs={filterDefs}
+            filters={filters}
+            toggleFilter={toggleFilter}
+            clearFilters={clearFilters}
+            activeFilterCount={activeFilterCount}
+            dynamicFilterOptions={{}}
+          />
+        )}
         {filteredAndSorted.length === 0 ? (
           <div className="text-center py-16 border border-dashed border-border-strong">
             <Eyebrow className="mb-1">Empty</Eyebrow>
             <p className="text-text-muted text-sm">No characters found</p>
             <p className="text-sm text-text-faint mt-1">
-              {searchQuery ? (
+              {narrowed ? (
                 <>
-                  Try a different search or{" "}
+                  Try a different search or filter, or{" "}
                   <button
-                    onClick={() => setSearchQuery("")}
+                    onClick={resetAll}
                     className="text-brand hover:underline"
                   >
                     reset
@@ -178,7 +218,11 @@ export default function CharacterLibrary() {
 
 function CharacterCard({ character }) {
   const name = character.display_name || "Unknown Character";
-  const coverUrl = getCoverUrl(character.photo_file);
+  // The server resolves the fallback (the chosen entry's cover, then the
+  // newest visible one); a row from an older payload still has photo_file.
+  const coverUrl = getCoverUrl(
+    character.display_photo_file ?? character.photo_file,
+  );
   const castingCount = character.casting_count ?? 0;
   // Empty when the row carries no public_id: there is no URL to link to, so
   // the card renders as plain markup rather than a link to nowhere.

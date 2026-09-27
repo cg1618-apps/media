@@ -22,6 +22,13 @@ import { useFilterState } from "./useFilterState";
 // Optional on the set types: optionLabel(value) => string, the chip text when
 // it should differ from the stored value.
 //
+// Optional on "set": parent: { label, children: [value, ...] } — one extra
+// chip standing for a group of values, drawn after `options` and boxed with
+// its children (which are NOT repeated in `options`). The children are
+// ordinary values of the same Set; the parent chip only switches them:
+// none or some on → all on, all on → all off (toggleParentValues in
+// lib/libraryFilters.js). It shows active only while every child is on.
+//
 // match signature (called only when the filter is active):
 //   (item, activeValue, franchiseDict, seriesDict) => boolean
 //

@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.utils.credit_roles import PERSON_ROLES, legal_scopes
+from app.utils.entity_vocab import check_gender, check_my_rating
 
 
 class PersonRoleIn(BaseModel):
@@ -68,6 +69,10 @@ class PersonBase(BaseModel):
     gender: Optional[str] = None
     my_rating: Optional[str] = None
     photo_file: Optional[str] = None
+    # The entry whose cover stands in when photo_file is NULL; see
+    # app/services/domain/entity_photos.py. A write must name an entry this
+    # person is credited or cast on (the router checks; 422 otherwise).
+    photo_fallback_entry_id: Optional[UUID] = None
     remark: Optional[str] = None
 
     @model_validator(mode="after")
@@ -77,13 +82,33 @@ class PersonBase(BaseModel):
         return self
 
 
+class PersonWrite(PersonBase):
+    """
+    What Create and Update share: gender and my_rating are closed
+    vocabularies (app/utils/entity_vocab.py), "" meaning NULL.
+
+    Not on PersonBase, which PersonResponse also extends: a response reports
+    what is stored and has no business refusing it.
+    """
+
+    @field_validator("gender")
+    @classmethod
+    def _known_gender(cls, v):
+        return check_gender(v)
+
+    @field_validator("my_rating")
+    @classmethod
+    def _known_rating(cls, v):
+        return check_my_rating(v)
+
+
 def _has_a_name(payload: PersonBase) -> bool:
     return any(
         (payload.name_en, payload.name_cn, payload.name_jp, payload.name_alt)
     )
 
 
-class PersonCreate(PersonBase):
+class PersonCreate(PersonWrite):
     """
     A person to create, either fully slotted or as one unslotted `name`.
 
@@ -109,7 +134,7 @@ class PersonCreate(PersonBase):
         return self
 
 
-class PersonUpdate(PersonBase):
+class PersonUpdate(PersonWrite):
     roles: List[PersonRoleIn] = []
 
     @model_validator(mode="after")
@@ -132,6 +157,14 @@ class PersonResponse(PersonBase):
     # issue a query per legal pair and still guess.
     roles: List[PersonRoleIn] = []
     credit_count: int = 0
+    # Resolved per viewer by app/services/domain/entity_photos.py: the storage
+    # key to show (photo_file, else a visible entry's cover), or None.
+    display_photo_file: Optional[str] = None
+    # Hyphenated media types of the visible entries this person is credited
+    # or cast on, sorted and distinct; restricted is True when one is a gated
+    # type.
+    media_types: List[str] = []
+    restricted: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,17 +1,17 @@
 // Frontend: the chip panel that renders a list of FilterDefs (the shape is
-// documented in hooks/useLibraryState.js). Used by LibraryLayout and the
-// random picker.
+// documented in hooks/useLibraryState.js). Used by LibraryLayout, the random
+// picker and the character and person libraries.
 import { Eyebrow } from "../ui/primitives";
+import { isParentActive, toggleParentValues } from "../../lib/libraryFilters";
 
 // ---------------------------------------------------------------------------
 // FilterTag — chip-shaped button for toggling a set-type filter value
 // ---------------------------------------------------------------------------
-function FilterTag({ filters, toggleFilter, group, value, label }) {
-  const activeSet = filters[group];
-  const active = activeSet instanceof Set && activeSet.has(value);
+function Chip({ active, onClick, children }) {
   return (
     <button
-      onClick={() => toggleFilter(group, value)}
+      type="button"
+      onClick={onClick}
       aria-pressed={active}
       className={`px-2 py-0.5 border font-mono text-[10px] uppercase tracking-[0.12em] transition-colors ${
         active
@@ -19,7 +19,83 @@ function FilterTag({ filters, toggleFilter, group, value, label }) {
           : "bg-surface text-text-muted border-border-strong hover:border-text hover:text-text"
       }`}
     >
+      {children}
+    </button>
+  );
+}
+
+function FilterTag({ filters, toggleFilter, group, value, label }) {
+  const activeSet = filters[group];
+  const active = activeSet instanceof Set && activeSet.has(value);
+  return (
+    <Chip active={active} onClick={() => toggleFilter(group, value)}>
       {label}
+    </Chip>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ParentTag — a def's `parent` chip and its children, boxed together
+// ---------------------------------------------------------------------------
+// The parent reads as on only while every child is on; clicking it applies
+// toggleParentValues. It goes through toggleFilter, one call per child whose
+// state changes, so every caller's existing toggleFilter serves it unchanged.
+function ParentTag({ filters, toggleFilter, fd }) {
+  const { label, children } = fd.parent;
+  if (!children || children.length === 0) return null;
+  const activeSet = filters[fd.key];
+  const onParentClick = () => {
+    const next = toggleParentValues(activeSet, children);
+    for (const child of children) {
+      const wasOn = activeSet instanceof Set && activeSet.has(child);
+      if (wasOn !== next.has(child)) toggleFilter(fd.key, child);
+    }
+  };
+  return (
+    <span
+      role="group"
+      aria-label={label}
+      className="inline-flex flex-wrap items-center gap-1.5 border border-dashed border-border-strong px-1.5 py-1"
+    >
+      <Chip active={isParentActive(activeSet, children)} onClick={onParentClick}>
+        {label}
+      </Chip>
+      {children.map((v) => (
+        <FilterTag
+          key={v}
+          filters={filters}
+          toggleFilter={toggleFilter}
+          group={fd.key}
+          value={v}
+          label={fd.optionLabel ? fd.optionLabel(v) : v}
+        />
+      ))}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FilterToggleButton — the "Filters" button that shows and hides the panel,
+// with the count of chips currently on
+// ---------------------------------------------------------------------------
+export function FilterToggleButton({ open, onToggle, activeFilterCount, className = "py-2" }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className={`flex items-center gap-2 px-3 border text-sm transition-colors ${className} ${
+        open
+          ? "bg-surface-2 border-border-strong text-text"
+          : "bg-surface border-border-strong text-text hover:border-text"
+      }`}
+    >
+      Filters
+      {activeFilterCount > 0 && (
+        <span className="bg-brand text-on-brand font-mono text-[10px] px-1.5 py-0.5 leading-none">
+          {activeFilterCount}
+        </span>
+      )}
     </button>
   );
 }
@@ -90,6 +166,9 @@ export default function FilterPanel({
                   label={fd.optionLabel ? fd.optionLabel(v) : v}
                 />
               ))}
+              {fd.parent && (
+                <ParentTag filters={filters} toggleFilter={toggleFilter} fd={fd} />
+              )}
             </div>
           </div>
         );

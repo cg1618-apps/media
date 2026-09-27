@@ -34,12 +34,17 @@ export function useReplaceCasting() {
     // (Add.jsx/Modify.jsx surface that as "Entry saved, but cast failed to
     // save."). Filtering here, in the one place both callers share, means
     // neither has to remember to do it itself.
+    //
+    // A row's role is optional: CastEditor's "—" choice (and a new row) holds
+    // role "", which is sent as null - "" is not a role.
     mutationFn: ({ mediaType, entryId, cast }) =>
       fetchJson(endpoints.casting.replace(mediaType, entryId), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cast: (cast || []).filter((row) => row && row.character_id),
+          cast: (cast || [])
+            .filter((row) => row && row.character_id)
+            .map((row) => ({ ...row, role: row.role || null })),
         }),
       }),
     onSuccess: (data, variables) => {

@@ -6,7 +6,7 @@ import { useToast } from "../../hooks/useToast";
 import { useLibraryState } from "../../hooks/useLibraryState";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
 import MediaCard from "../cards/MediaCard";
-import FilterPanel from "./FilterPanel";
+import FilterPanel, { FilterToggleButton } from "./FilterPanel";
 import MediaLoadingState from "./MediaLoadingState";
 import { Eyebrow } from "../ui/primitives";
 
@@ -183,22 +183,11 @@ export default function LibraryLayout({
         </select>
 
         {/* Filter toggle */}
-        <button
-          onClick={() => setShowFilters((o) => !o)}
-          aria-expanded={showFilters}
-          className={`flex items-center gap-2 px-3 py-2 border text-sm transition-colors ${
-            showFilters
-              ? "bg-surface-2 border-border-strong text-text"
-              : "bg-surface border-border-strong text-text hover:border-text"
-          }`}
-        >
-          Filters
-          {activeFilterCount > 0 && (
-            <span className="bg-brand text-on-brand font-mono text-[10px] px-1.5 py-0.5 leading-none">
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
+        <FilterToggleButton
+          open={showFilters}
+          onToggle={() => setShowFilters((o) => !o)}
+          activeFilterCount={activeFilterCount}
+        />
 
         {/* View toggle */}
         <div className="flex border border-border-strong">

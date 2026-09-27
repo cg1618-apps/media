@@ -915,9 +915,10 @@ One human credited on a media entry (Tier 3 entity - see
 | `name_jp` | String | yes | | |
 | `name_alt` | String | yes | | The slot for a name that is none of the other three. Never chosen automatically. |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `gender` | String | yes | | On the base table, not a seiyuu extension: a fact about the person, not the role. |
-| `my_rating` | String | yes | | MY_RATINGS |
+| `gender` | String | yes | | GENDERS (`男` / `女` / `中性/無性` / `雙性混和` / `其他`), or NULL for not set. On the base table, not a seiyuu extension: a fact about the person, not the role. |
+| `my_rating` | String | yes | | MY_RATINGS, or NULL |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg` |
+| `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `remark` | Text | yes | | A real column here (not a note row) |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -1155,9 +1156,11 @@ with one intentional deviation - see the constraints note below.
 | `name_jp` | String | yes | | |
 | `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `gender` | String | yes | | |
-| `my_rating` | String | yes | | MY_RATINGS |
+| `gender` | String | yes | | GENDERS, or NULL for not set - the same vocabulary as `person.gender` |
+| `my_rating` | String | yes | | MY_RATINGS, or NULL |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. |
+| `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. Independent of every `character_casting.role`: nothing derives, syncs or defaults one from the other |
+| `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose picture stands in when `photo_file` is NULL; must be an entry the character is cast on. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `remark` | Text | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -1194,7 +1197,7 @@ single answer (Decision A).
 | `media_type` | String | no | | Hyphenated key: one of `anime`, `anime-movie`, `manga`, `novel` |
 | `entry_id` | UUID | no | | FK-less - see [Cross-table references](#cross-table-references-without-foreign-keys) |
 | `person_id` | UUID | yes | | FK `person.system_id` **ON DELETE SET NULL**, indexed |
-| `role` | String | yes | | One of `CHARACTER_ROLES` (`Main`, `Supporting`) |
+| `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Independent of `character.role` |
 | `position` | Integer | no | `0` (server default too) | Display / drag-reorder order |
 | `photo_file` | String | yes | | Storage key: this character as she appears in this entry, usually a library image (`library/<checksum>.jpg`) set through the cast editor's picker. NULL falls back to `character.photo_file` at read time. Not an attachment - castings are re-inserted on every cast save, so their ids cannot own one - so the image library reads this column itself when it asks whether an image is in use. |
 | `remark` | Text | yes | | |

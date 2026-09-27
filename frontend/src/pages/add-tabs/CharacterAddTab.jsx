@@ -13,7 +13,12 @@
 // arrangement StudioFields/PersonFields use.
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ImagePicker from "../../components/forms/ImagePicker";
+import {
+  GenderRatingFields,
+  PhotoFallbackField,
+} from "../../components/forms/EntityProfileFields";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
+import { CHARACTER_ROLES } from "../../config/fieldOptions";
 
 // A character carries the same four name columns and display_name_field
 // choice as a person or studio - see naming.js's STUDIO_NAME_FIELDS comment.
@@ -68,22 +73,24 @@ export function CharacterFields({ characterForm, ucf, ownerId }) {
       </Field>
 
       <SectionHeader icon="fa-id-card" title="Profile" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Gender">
-          <input
-            className={inputCls}
-            value={characterForm.gender ?? ""}
-            onChange={(e) => ucf("gender", e.target.value)}
-          />
-        </Field>
-        <Field label="My Rating">
-          <input
-            className={inputCls}
-            value={characterForm.my_rating ?? ""}
-            onChange={(e) => ucf("my_rating", e.target.value)}
-          />
-        </Field>
-      </div>
+      {/* The character's own role - independent of any casting's role, and
+          never derived from or prefilled by one. */}
+      <Field label="Role">
+        <select
+          aria-label="Role"
+          className={selectCls}
+          value={characterForm.role ?? ""}
+          onChange={(e) => ucf("role", e.target.value)}
+        >
+          <option value="">—</option>
+          {CHARACTER_ROLES.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <GenderRatingFields form={characterForm} update={ucf} />
       <Field label="Photo">
         <ImagePicker
           ownerType="character"
@@ -96,6 +103,14 @@ export function CharacterFields({ characterForm, ucf, ownerId }) {
           }}
         />
       </Field>
+      {ownerId && (
+        <PhotoFallbackField
+          ownerType="character"
+          ownerId={ownerId}
+          value={characterForm.photo_fallback_entry_id}
+          onChange={(id) => ucf("photo_fallback_entry_id", id)}
+        />
+      )}
       <Field label="Remark">
         <textarea
           className={inputCls}

@@ -20,7 +20,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
@@ -35,10 +35,24 @@ router = APIRouter(prefix="/api/casting", tags=["Casting"])
 class CastRowIn(BaseModel):
     character_id: UUID
     person_id: Optional[UUID] = None
+    # Optional: NULL means no role recorded. One of CHARACTER_ROLES otherwise,
+    # checked by casting_service._validate_row.
     role: Optional[str] = None
     position: Optional[int] = None
     photo_file: Optional[str] = None
     remark: Optional[str] = None
+
+    @field_validator("role", mode="before")
+    @classmethod
+    def _blank_role_is_none(cls, v):
+        """
+        A select's empty option arrives as "" - and "" is neither None nor
+        a CHARACTER_ROLES value, so without this one blank role refused the
+        whole cast. Blank or whitespace means no role, as NULL does.
+        """
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
 
 
 class CastIn(BaseModel):

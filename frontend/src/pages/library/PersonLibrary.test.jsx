@@ -4,6 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PersonLibrary from "./PersonLibrary";
 
+// A session that may see every gated type, so the Restricted chip is drawn.
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ visibleGatedTypes: ["h-comic", "h-game", "hentai"] }),
+}));
+
 const PEOPLE = [
   {
     system_id: "1",
@@ -12,6 +17,9 @@ const PEOPLE = [
     display_name: "Jon Favreau",
     credit_count: 3,
     roles: [{ role: "director", scope: "movie" }],
+    media_types: ["movie"],
+    my_rating: "B",
+    gender: "男",
   },
   {
     system_id: "2",
@@ -20,6 +28,9 @@ const PEOPLE = [
     display_name: "渡部高志",
     credit_count: 8,
     roles: [{ role: "director", scope: "anime" }],
+    media_types: ["anime", "h-game"],
+    my_rating: "S",
+    gender: "男",
   },
   {
     system_id: "3",
@@ -28,6 +39,9 @@ const PEOPLE = [
     display_name: "諫山創",
     credit_count: 1,
     roles: [{ role: "author", scope: "manga" }],
+    media_types: ["manga"],
+    my_rating: null,
+    gender: null,
   },
   {
     system_id: "4",
@@ -108,10 +122,56 @@ describe("PersonLibrary", () => {
       expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
     );
 
+    await user.click(screen.getByRole("button", { name: "Filters" }));
     await user.click(screen.getByRole("button", { name: "Author" }));
     const cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards).toHaveLength(1);
     expect(cards[0]).toContain("諫山創");
+  });
+
+  it("offers h-game under Restricted and matches a person credited on it", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("button", { name: "H-Game" }));
+    const cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards).toEqual([expect.stringContaining("渡部高志")]);
+    // One child of three on: the parent is not active.
+    expect(screen.getByRole("button", { name: "Restricted" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("ANDs the person type with rating", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("button", { name: "Director" }));
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: "Unrated" }));
+    expect(screen.queryAllByRole("link")).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "S" }));
+    const cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards).toEqual([expect.stringContaining("渡部高志")]);
+  });
+
+  it("sorts by my rating, best first", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("渡部高志")).toBeInTheDocument(),
+    );
+    await user.selectOptions(screen.getByLabelText(/sort/i), "my_rating");
+    const cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards[0]).toContain("渡部高志");
+    expect(cards[1]).toContain("Jon Favreau");
   });
 
   it("filters to seiyuu when rendered with role=\"seiyuu\"", async () => {

@@ -382,3 +382,20 @@ def test_a_castings_empty_person_round_trips_as_none(anime, character):
         "created_at": "",
     }
     assert f.parse_character_casting_from_sheet(raw)["person_id"] is None
+
+
+def test_a_castings_blank_role_round_trips_as_none(anime, character):
+    """The role is optional; a blank cell is no role, not an invalid one."""
+    raw = {
+        "system_id": str(uuid.uuid4()),
+        "character_id": str(character.system_id),
+        "media_type": "anime",
+        "entry_id": str(anime.system_id),
+        "person_id": "",
+        "role": "  ",
+        "position": "0",
+        "photo_file": "",
+        "remark": "",
+        "created_at": "",
+    }
+    assert f.parse_character_casting_from_sheet(raw)["role"] is None

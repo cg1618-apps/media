@@ -6,7 +6,10 @@
 // collection/franchise/series shapes, not a credited entity like Person).
 // Reuses PersonFields from PersonAddTab so the input markup isn't duplicated
 // - see the comment on that export.
-import { useMemo, useState } from "react";
+//
+// `initialId` is a deep link's id (/modify?id=<system_id>&type=person, the
+// detail page's Quick edit): that person's editor opens on mount.
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import PersonSubTabBar from "../../components/forms/PersonSubTabBar";
@@ -31,10 +34,11 @@ function personToForm(p) {
     my_rating: p.my_rating || "",
     photo_file: p.photo_file || "",
     remark: p.remark || "",
+    photo_fallback_entry_id: p.photo_fallback_entry_id || null,
   };
 }
 
-export default function PersonModifyTab() {
+export default function PersonModifyTab({ initialId = null } = {}) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const legalScopes = useRoleScopes();
@@ -106,18 +110,27 @@ export default function PersonModifyTab() {
     );
   }, [people, search, scopes, subTab]);
 
-  async function selectPerson(person) {
-    try {
-      const fresh = await fetchJson(endpoints.person.detail(person.system_id));
-      setSelectedId(fresh.system_id);
-      setPersonForm(personToForm(fresh));
-      // Every (role, scope) they hold, from the same response - the form edits
-      // the whole set, because PUT replaces it.
-      setRoles(fresh.roles || []);
-    } catch {
-      showToast("error", "Failed to load person.");
-    }
+  function loadPerson(systemId) {
+    return fetchJson(endpoints.person.detail(systemId))
+      .then((fresh) => {
+        setSelectedId(fresh.system_id);
+        setPersonForm(personToForm(fresh));
+        // Every (role, scope) they hold, from the same response - the form
+        // edits the whole set, because PUT replaces it.
+        setRoles(fresh.roles || []);
+      })
+      .catch(() => showToast("error", "Failed to load person."));
   }
+
+  function selectPerson(person) {
+    loadPerson(person.system_id);
+  }
+
+  useEffect(() => {
+    if (initialId) loadPerson(initialId);
+    // Mount only: the deep link opens one editor, once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function closeEditor() {
     setSelectedId(null);
@@ -146,6 +159,7 @@ export default function PersonModifyTab() {
           my_rating: personForm.my_rating || null,
           photo_file: personForm.photo_file || null,
           remark: personForm.remark || null,
+          photo_fallback_entry_id: personForm.photo_fallback_entry_id || null,
           // PUT replaces the whole role set, so this must be every type the
           // person holds, not just the sub-tab's one.
           roles,

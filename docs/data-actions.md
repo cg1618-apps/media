@@ -233,6 +233,17 @@ each end is translated through the Person tab by natural key before the row is
 stored (`DERIVED_IDENTITY_PARENTS` maps one tab to several `(column, parent
 tab)` pairs); its own natural key is `(member_id, club_id)`.
 
+`Person` and `Character` fold `gender` and `my_rating` onto their closed
+vocabularies on the way in rather than refusing the row: `male` / `female`
+(trimmed, any case) become `男` / `女`, a rating is trimmed and upper-cased,
+and anything still outside the vocabulary restores as blank
+(`app/utils/entity_vocab.py`, the same rules the revision that closed the
+vocabularies applied to the stored rows), so a backup from before then cannot
+bring the free text back. Both tabs carry `photo_fallback_entry_id`, a plain
+entry uuid like `cover_entry_id`; a cell that is not a uuid restores as blank.
+`Character` also carries `role` (`CHARACTER_ROLES`); a value outside the list
+restores as blank.
+
 **Entry tables carry no source columns.** There is no `source_baha`,
 `baha_link`, `source_netflix`, `source_other`, `official_link`,
 `twitter_link` or `anilist_link` on `anime`, `anime_movies`, `manga`,

@@ -16,13 +16,16 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.domain.credits import credit_counts, find_person
+from app.routers._entity_patch import prepare_patch, resolve_fallback
+from app.routers._patching import apply_column_patch
+from app.services.domain.credits import find_person
+from app.services.domain.entity_photos import EntityMedia, person_media
 from app.services.domain.membership import (
     clubs_of,
     members_of,
@@ -59,25 +62,21 @@ def _to_response(
     db: Session,
     person: models.Person,
     viewer=None,
-    credit_count: Optional[int] = None,
+    media: Optional[EntityMedia] = None,
     hidden: Optional[frozenset[str]] = None,
 ) -> schemas.PersonResponse:
     # Count credits on entries the viewer may see, from BOTH stores: a seiyuu
     # has no media_credit rows at all (see credit_roles.CreditRole.credited_via)
     # and would otherwise read "0 credits" despite fifty castings. Both stores
     # go through ONE filter_visible_pairs call so the card's number and the
-    # /entries list can never disagree about which pairs are visible.
+    # /entries list can never disagree about which pairs are visible. The
+    # picture and the media types come out of the same pass
+    # (entity_photos.person_media).
     #
-    # `credit_count` is passed in by the list route, which resolves the whole
-    # page in one pass; a single-entity route leaves it None and pays for one.
-    if credit_count is None:
-        credit_count = credit_counts(
-            db,
-            viewer,
-            [person.system_id],
-            models.MediaCredit.person_id,
-            include_castings=True,
-        ).get(person.system_id, 0)
+    # `media` is passed in by the list route, which resolves the whole page
+    # in one pass; a single-entity route leaves it None and pays for one.
+    if media is None:
+        media = person_media(db, viewer, [person])[person.system_id]
     # A role scoped to a gated type the viewer cannot see is a hidden
     # connection, and a visible person omits it rather than naming the type.
     if hidden is None:
@@ -94,12 +93,16 @@ def _to_response(
         gender=person.gender,
         my_rating=person.my_rating,
         photo_file=person.photo_file,
+        photo_fallback_entry_id=media.photo_fallback_entry_id,
         remark=person.remark,
         roles=[
             schemas.PersonRoleIn(role=r.role, scope=r.scope)
             for r in without_hidden_scopes(person.roles, hidden, "scope")
         ],
-        credit_count=credit_count,
+        credit_count=media.count,
+        display_photo_file=media.display_photo_file,
+        media_types=media.media_types,
+        restricted=media.restricted,
     )
 
 
@@ -146,15 +149,9 @@ def get_all_people(
     # Sorted in Python, not SQL: display_name is a property over four columns
     # with a per-row choice, so no single ORDER BY column can express it.
     people.sort(key=lambda p: p.display_name.casefold())
-    counts = credit_counts(
-        db,
-        viewer,
-        [person.system_id for person in people],
-        models.MediaCredit.person_id,
-        include_castings=True,
-    )
+    media = person_media(db, viewer, people)
     return [
-        _to_response(db, person, viewer, counts.get(person.system_id, 0), hidden)
+        _to_response(db, person, viewer, media[person.system_id], hidden)
         for person in people
     ]
 
@@ -525,7 +522,14 @@ def create_person(
     have chosen for the same name.
 
     Metadata on an existing person is left untouched - use PUT to edit it.
+    A photo_fallback_entry_id is a 422: a new person is linked to nothing,
+    and an existing one's metadata is not written here.
     """
+    if payload.photo_fallback_entry_id is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="photo_fallback_entry_id must name an entry this person is linked to.",
+        )
     data = payload.model_dump(exclude={"roles", "name"})
     lookup = payload.name or next(
         n
@@ -561,7 +565,7 @@ def create_person(
 
     db.commit()
     db.refresh(person)
-    return _to_response(db, person)
+    return _to_response(db, person, admin)
 
 
 @router.put(
@@ -578,6 +582,9 @@ def update_person(
 
     Roles scoped to a gated type this editor cannot see are kept: the form
     never showed them, so their absence from the payload is not a removal.
+    photo_fallback_entry_id follows the same rule, and a non-null one must
+    name an entry this person is credited or cast on (422 otherwise) - see
+    _entity_patch.resolve_fallback.
     """
     person = db.get(models.Person, system_id)
     if person is None:
@@ -585,6 +592,9 @@ def update_person(
     require_visible_shared(db, admin, models.Person, system_id, NOT_FOUND)
 
     data = payload.model_dump(exclude={"roles"})
+    data["photo_fallback_entry_id"] = resolve_fallback(
+        db, admin, models.Person, person, data["photo_fallback_entry_id"], "person"
+    )
     for key, value in data.items():
         setattr(person, key, value)
 
@@ -606,7 +616,45 @@ def update_person(
 
     db.commit()
     db.refresh(person)
-    return _to_response(db, person)
+    return _to_response(db, person, admin)
+
+
+@router.patch(
+    "/{system_id}", response_model=schemas.PersonResponse, summary="Patch Person"
+)
+def patch_person(
+    system_id: UUID,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Partially updates a person's own columns - the detail page's inline
+    rating and remark edits. Only the keys sent change; roles are not a
+    column and are edited through PUT.
+
+    The same rules as PUT, checked before anything is written: gender and
+    my_rating are their vocabularies ("" is NULL), display_name_field is en /
+    cn / jp / alt, at least one name survives the patch, and a
+    photo_fallback_entry_id names an entry this person is credited or cast
+    on. Server columns (system_id, public_id, timestamps) are a 422; keys that
+    are not columns are ignored (_patching.apply_column_patch).
+    """
+    person = db.get(models.Person, system_id)
+    if person is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Person, system_id, NOT_FOUND)
+
+    data = prepare_patch(person, payload, "person")
+    if "photo_fallback_entry_id" in data:
+        data["photo_fallback_entry_id"] = resolve_fallback(
+            db, admin, models.Person, person, data["photo_fallback_entry_id"], "person"
+        )
+    apply_column_patch(person, data)
+
+    db.commit()
+    db.refresh(person)
+    return _to_response(db, person, admin)
 
 
 @router.delete("/{system_id}", summary="Delete Person")

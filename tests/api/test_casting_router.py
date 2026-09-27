@@ -105,6 +105,37 @@ def test_a_seiyuu_on_a_manga_casting_is_rejected(admin_client, manga, character,
     assert r.status_code == 422
 
 
+def _stored_roles(db_session, anime):
+    db_session.expire_all()
+    return [
+        c.role
+        for c in db_session.query(models.CharacterCasting).filter_by(entry_id=anime.system_id)
+    ]
+
+
+@pytest.mark.parametrize("blank", ["", "   ", None])
+def test_a_blank_or_null_role_saves_the_row_with_no_role(
+    admin_client, db_session, anime, character, blank
+):
+    """
+    The role is optional. A select's empty option arrives as "", which is
+    neither None nor a CHARACTER_ROLES value - it used to refuse the whole
+    cast. It is stored as NULL, exactly like an explicit null.
+    """
+    body = {"cast": [{"character_id": str(character.system_id), "role": blank}]}
+    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    assert r.status_code == 200, r.text
+    assert _stored_roles(db_session, anime) == [None]
+
+
+def test_an_unknown_role_is_still_a_422(admin_client, db_session, anime, character):
+    """The mirror: blank is forgiven, a real word outside the vocabulary is not."""
+    body = {"cast": [{"character_id": str(character.system_id), "role": "Nonsense"}]}
+    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    assert r.status_code == 422
+    assert _stored_roles(db_session, anime) == []
+
+
 def test_photo_falls_back_to_the_character_portrait(admin_client, anime, character):
     """
     The casting shows how she looks in THIS entry; absent that, her portrait.

@@ -19,3 +19,26 @@ export const MEDIA_CONFIG = {
   franchise:     { statusField: null,              apiEndpoint: "/api/franchise",   navPath: "/franchise",    statusType: null    },
   series:        { statusField: null,              apiEndpoint: "/api/series",      navPath: "/series",       statusType: null    },
 };
+
+// The display label of each media type key, for the surfaces that name a type
+// the API hands them as a bare key (a character's or person's media_types,
+// the groups of their /entries).
+export const MEDIA_TYPE_LABELS = {
+  anime: "Anime",
+  "anime-movie": "Anime Movie",
+  movie: "Movie",
+  "tv-show": "TV Show",
+  cartoon: "Cartoon",
+  manga: "Manga",
+  novel: "Novel",
+  comic: "Comic",
+  game: "Game",
+  "h-comic": "H-Comic",
+  "h-game": "H-Game",
+  hentai: "Hentai",
+};
+
+/** The label of media type `type`, or the key itself when it has none. */
+export function mediaTypeLabel(type) {
+  return MEDIA_TYPE_LABELS[type] ?? type;
+}

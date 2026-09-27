@@ -345,6 +345,42 @@ it("requires an explicit choice before minting a character with an existing name
   );
 });
 
+// NEW_CAST_CHARACTER_GENDER: a character minted from an h-comic's or a
+// hentai's cast starts as 女; every other type leaves gender unset.
+async function mintFrom(mediaType) {
+  const user = userEvent.setup();
+  vi.stubGlobal(
+    "fetch",
+    mockFetch({ createdCharacter: { system_id: "c9", display_name: "Aoi" } }),
+  );
+  render(<Controlled initialRows={[row()]} mediaType={mediaType} onChangeSpy={vi.fn()} />);
+  await user.type(screen.getByPlaceholderText("Character name..."), "Aoi");
+  await user.click(
+    await screen.findByRole("button", { name: 'Create new character named "Aoi"' }),
+  );
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/character/",
+      expect.objectContaining({ method: "POST" }),
+    ),
+  );
+  const [, init] = fetch.mock.calls.find(
+    ([url, i]) => url === "/api/character/" && i?.method === "POST",
+  );
+  return JSON.parse(init.body);
+}
+
+it.each(["h-comic", "hentai"])(
+  "mints a character from a %s cast as 女",
+  async (mediaType) => {
+    expect(await mintFrom(mediaType)).toEqual({ name_en: "Aoi", gender: "女" });
+  },
+);
+
+it("mints a character from an anime cast with no gender", async () => {
+  expect(await mintFrom("anime")).toEqual({ name_en: "Aoi" });
+});
+
 it("shows which entries an existing character already appears in", async () => {
   const user = userEvent.setup();
   vi.stubGlobal(

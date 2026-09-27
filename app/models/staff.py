@@ -103,6 +103,11 @@ class Person(Base, NameFallbackMixin):
     # Storage key under static/covers/, same convention as the media tables'
     # cover_image_file.
     photo_file = Column(String, nullable=True)
+    # The entry whose cover stands in when photo_file is NULL: a
+    # media.system_id this person is credited or cast on. No FK, like
+    # franchise.cover_entry_id - a stale id falls through to the automatic
+    # choice (app/services/domain/entity_photos.py).
+    photo_fallback_entry_id = Column(UUID(as_uuid=True), nullable=True)
     remark = Column(Text, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

@@ -57,3 +57,26 @@ it("drops a blank trailing row (no character_id) before PUTting the cast", async
   expect(sentBody.cast).toHaveLength(1);
   expect(sentBody.cast[0].character_id).toBe("c1");
 });
+
+// Role is optional: the editor's "—" option holds role "", which the server
+// does not accept as a role, so it is sent as null. A chosen role is kept.
+it("sends a blank role as null and keeps a chosen one", async () => {
+  const { result } = renderHook(() => useReplaceCasting(), { wrapper });
+
+  const cast = [
+    { character_id: "c1", role: "", position: 0 },
+    { character_id: "c2", role: "Supporting", position: 1 },
+    { character_id: "c3", role: null, position: 2 },
+  ];
+
+  result.current.mutate({ mediaType: "anime", entryId: "e1", cast });
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+  const [, init] = fetch.mock.calls[0];
+  expect(JSON.parse(init.body).cast.map((r) => r.role)).toEqual([
+    null,
+    "Supporting",
+    null,
+  ]);
+});

@@ -23,6 +23,7 @@ from app import models, schemas
 from app.registry import MEDIA_REGISTRY
 from app.services.domain.content_labels import attach_franchise_content_labels
 from app.services.domain.credits import attach_link_fields
+from app.services.domain.entity_photos import person_media
 from app.services.domain.h_comic import attach_animation_status
 from app.services.domain.plan_next import planned_entry_ids
 from app.services.rbac.enforcement import (
@@ -273,11 +274,10 @@ def _run(
     )
 
 
-# The column on media_credit that points at each staff type. Person also draws
-# on character_casting, because a seiyuu has no media_credit row at all - the
-# same two stores app/routers/person.py counts.
+# The column on media_credit that points at each staff type. People are not
+# here: _person_results counts them, from both of their stores, through
+# entity_photos.person_media.
 _CREDIT_OWNER_COLUMN = {
-    "person": models.MediaCredit.person_id,
     "studio": models.MediaCredit.studio_id,
     "publisher": models.MediaCredit.publisher_id,
 }
@@ -285,8 +285,7 @@ _CREDIT_OWNER_COLUMN = {
 
 def _attach_credit_counts(db: Session, viewer, spec: SearchableType, entries: list):
     """
-    Set `credit_count` on person/studio/publisher rows, for every result at
-    once.
+    Set `credit_count` on studio/publisher rows, for every result at once.
 
     The number the library cards show. person.py and studio.py compute it per
     row because they answer about one; a search answers about up to `limit` of
@@ -305,19 +304,9 @@ def _attach_credit_counts(db: Session, viewer, spec: SearchableType, entries: li
         .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(owner_column.in_(ids))
     ]
-    if spec.key == "person":
-        rows += [
-            (owner, media_type, entry_id)
-            for owner, media_type, entry_id in db.query(
-                models.CharacterCasting.person_id,
-                models.CharacterCasting.media_type,
-                models.CharacterCasting.entry_id,
-            ).filter(models.CharacterCasting.person_id.in_(ids))
-            if media_type and entry_id
-        ]
     visible = filter_visible_pairs(db, viewer, [(mt, eid) for _, mt, eid in rows])
-    # A set per owner, not a tally: a seiyuu credited AND cast on one entry is
-    # one credit, which is what the per-row endpoints report.
+    # A set per owner, not a tally: one entry crediting a studio twice (two
+    # roles) is one credit, which is what the per-row endpoints report.
     counted: dict = {}
     for owner, media_type, entry_id in rows:
         if (media_type, entry_id) in visible:
@@ -326,8 +315,37 @@ def _attach_credit_counts(db: Session, viewer, spec: SearchableType, entries: li
         entry.credit_count = len(counted.get(entry.system_id, ()))
 
 
+def _person_results(db: Session, viewer, entries: list) -> list:
+    """
+    People as GET /api/person/ answers them: credit_count, the picture, the
+    media types and the masked photo_fallback_entry_id all from ONE
+    entity_photos.person_media pass over the whole result.
+
+    Schema instances rather than the ORM rows, because the fallback id is a
+    real column and masking it on the row would be a pending write.
+    """
+    media = person_media(db, viewer, entries)
+    out = []
+    for entry in entries:
+        found = media[entry.system_id]
+        out.append(
+            schemas.PersonResponse.model_validate(entry).model_copy(
+                update={
+                    "credit_count": found.count,
+                    "display_photo_file": found.display_photo_file,
+                    "media_types": found.media_types,
+                    "restricted": found.restricted,
+                    "photo_fallback_entry_id": found.photo_fallback_entry_id,
+                }
+            )
+        )
+    return out
+
+
 def _decorate(db: Session, viewer, spec: SearchableType, entries: list):
     """Attach the non-column fields the list endpoints attach, then field-gate."""
+    if spec.key == "person":
+        return _person_results(db, viewer, entries)
     if spec.key in _CREDIT_OWNER_COLUMN:
         _attach_credit_counts(db, viewer, spec, entries)
         return entries

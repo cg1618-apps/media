@@ -1040,7 +1040,9 @@ searchable across all four name columns and carry the same
 `PersonResponse` / `StudioResponse` / `PublisherResponse` the
 library endpoints return, `credit_count` included — computed here for the whole
 bucket in one `filter_visible_pairs` call rather than per row, so the number
-matches `/api/person/` and `/api/studio/` without the N+1. The rows go through
+matches `/api/person/` and `/api/studio/` without the N+1. A person also
+carries `display_photo_file`, `media_types` and `restricted`, from the same
+one-pass resolver the person list uses. The rows go through
 the same shared-record rule as their lists
 ([authorization.md](authorization.md#shared-records)), so a person, studio or
 publisher whose every connection is hidden is absent from its bucket, and a
@@ -1104,7 +1106,7 @@ value means; this endpoint just serves them.
 
 Keys served: `watching_status`, `reading_status`, `airing_status`,
 `anime_airing_type`, `cartoon_airing_type`, `franchise_type`,
-`franchise_expectation`, `my_rating`, `is_main`, `movie_type`, `tv_region`,
+`franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
 `manga_serialization_status`, `novel_serialization_status`, `day_of_week`,
 `music_status`, `seiyuu_status`, `watch_order_importance`, `h_comic_region`,
@@ -1236,7 +1238,8 @@ derived from `(role, media_type)`, never stored.
 | `GET`    | `/{system_id}`     | Public | Get one person by UUID. 404 if absent or hidden.                                     |
 | `GET`    | `/{system_id}/entries` | Public | The entries this person is credited on, grouped by `(media_type, role)`. 404 if the person is absent or hidden. |
 | `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. A body with no name at all is 422, mirroring `ck_person_has_a_name`. |
-| `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. |
+| `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. |
+| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline rating and remark edits. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The `PUT` rules are checked before anything is written: `gender` and `my_rating` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Returns the full `PersonResponse`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit` and `person_role` rows — no `deleted_record` entry is logged. `credits` is **required**: it is the count the confirmation dialog showed, and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
 | `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit`, unions the `person_role` rows and moves every club membership onto the survivor, then deletes the loser. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
 | `GET`    | `/{system_id}/clubs` | Public | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
@@ -1251,10 +1254,29 @@ not a connection: it never makes a hidden club or artist visible
 
 **Response model:** `PersonResponse` — the four name columns,
 `display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
-`photo_file`, `remark`, `system_id`, `roles` (every `(role, scope)` the person
-holds, so the admin form can load the whole set in one request) and
-`credit_count`, a live count of the `media_credit` rows **the viewer may see**
-(`filter_visible_pairs`), not a stored column.
+`photo_file`, `photo_fallback_entry_id`, `remark`, `system_id`, `roles` (every
+`(role, scope)` the person holds, so the admin form can load the whole set in
+one request) and four fields resolved **for the viewer** from the entries they
+may see (`filter_visible_pairs`), none of them stored:
+
+- `credit_count` — how many visible entries the person is credited on or
+  voices a character in, one per entry.
+- `display_photo_file` — the storage key to show: `photo_file`, else the
+  chosen `photo_fallback_entry_id` entry's cover, else the newest visible
+  credited or voiced entry with a cover, else `null`. A casting photo is never
+  used — it is the character's picture. The order and its rules are in
+  [systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback).
+- `media_types` — the hyphenated media types of those visible entries, sorted
+  and distinct.
+- `restricted` — `true` when one of `media_types` is a gated type (`h-comic`,
+  `hentai`, `h-game`).
+
+`gender` is one of `男`, `女`, `中性/無性`, `雙性混和`, `其他` or null, and
+`my_rating` one of `S`…`F` or null ([options.md](options.md)); a write outside
+either is a 422. `photo_fallback_entry_id` is reported only while it names a
+linked entry the viewer can see, and is null otherwise. The list resolves all
+of this for every row in one pass, so its query count does not grow with the
+number of people; `/api/search` answers its `person` bucket the same way.
 
 **A hidden person is absent.** A person is a shared record
 ([authorization.md](authorization.md#shared-records)): one whose every credit
@@ -1543,15 +1565,34 @@ line for line, plus one deliberate departure — see the `POST` row.
 | `GET`    | `/{system_id}`         | Public | Get one character by UUID. 404 if absent or hidden. |
 | `GET`    | `/{system_id}/entries` | Public | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry names the seiyuu who voiced the character there, if any. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
 | `POST`   | `/`                    | Admin  | Create a character. **Always a plain create, never find-or-create** — unlike `POST /api/person`, which safely resolves two spellings of one director onto one row. Character names carry no unique constraint (see `docs/data-model.md`): the "Yuki" of one anime and the "Yuki" of another are different characters, and silently returning the first match on a POST would fuse two unrelated casts under one `system_id`. Disambiguation happens in the cast editor's combobox instead, which lists existing matches together with the entries they already appear in and requires an explicit "Create new character named X" choice before minting a row. Body: `CharacterCreate`. A body with no name at all is 422, mirroring `ck_character_has_a_name`. |
-| `PUT`    | `/{system_id}`         | Admin  | Fully update a character. Body: `CharacterUpdate`. |
+| `PUT`    | `/{system_id}`         | Admin  | Fully update a character. Body: `CharacterUpdate`. A non-null `photo_fallback_entry_id` must name an entry this character is cast on and the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see. |
+| `PATCH`  | `/{system_id}`         | Admin  | Partially update a character — the detail page's inline rating and remark edits. Body: any subset of the `CharacterBase` columns as a JSON object; only the keys sent change. The `PUT` rules are checked before anything is written: `gender`, `my_rating` and `role` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Returns the full `CharacterResponse`. |
 | `DELETE` | `/{system_id}?castings=N` | Admin | Delete a character. Cascades its `character_casting` rows. `castings` is **required**: the count the confirmation dialog showed, and a mismatch is a **409** — the same guard shape as `DELETE /api/person?credits=N`. |
 | `POST`   | `/{system_id}/merge`   | Admin  | Merge `source_id` into this character: repoints every casting (dropping one that would collide with a casting the survivor already holds on the same entry), then deletes the loser. This — not delete — is the fix for a duplicate, since deleting cascades the castings away. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
 
 **Response model:** `CharacterResponse` — the four name columns,
 `display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
-`photo_file`, `remark`, `system_id`, and `casting_count`, a live count of the
-`character_casting` rows **the viewer may see** (`filter_visible_pairs`), not
-a stored column — the same reasoning as `person.credit_count`.
+`photo_file`, `photo_fallback_entry_id`, `role`, `remark`, `system_id`, and four
+fields resolved **for the viewer** from the entries they may see
+(`filter_visible_pairs`), none of them stored — the same reasoning as
+`person.credit_count`:
+
+- `casting_count` — how many visible entries the character is cast on.
+- `display_photo_file` — the storage key to show: `photo_file`, else the
+  chosen `photo_fallback_entry_id` entry's cover, else that entry's casting
+  `photo_file`, else the newest visible cast entry with a cover, else the
+  newest visible casting `photo_file`, else `null`
+  ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)).
+- `media_types` — the hyphenated media types of those visible entries, sorted
+  and distinct.
+- `restricted` — `true` when one of `media_types` is a gated type.
+
+`gender`, `my_rating` and `photo_fallback_entry_id` follow the same rules as
+on `PersonResponse`, and the list resolves every row in one pass. `role` is
+what the character is overall — `Main`, `Core`, `Supporting`, `Other` or null
+(`CHARACTER_ROLES`, served as `character_role` by `/api/constants`); a write
+outside it is a 422 and `""` is null. It is independent of each casting's own
+`role`: neither is derived from the other.
 
 A character is a shared record
 ([authorization.md](authorization.md#shared-records)) whose connections are
@@ -1576,7 +1617,7 @@ hentai (`VOICED_MEDIA_TYPES`).
 | Method | Path                       | Auth   | Description                                                                    |
 | ------ | -------------------------- | ------ | ------------------------------------------------------------------------------- |
 | `GET`  | `/{media_type}/{entry_id}` | Public | The entry's cast, ordered by `position`. 400 for an unknown `media_type`; missing **or hidden** entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
-| `PUT`  | `/{media_type}/{entry_id}` | Admin  | Replaces the whole cast in the submitted order. Body: `{cast: [{character_id, person_id?, role?, position?, photo_file?, remark?}]}`. `position` defaults to list index when omitted. Rejects (422) a seiyuu (`person_id` set) on a media type outside `anime`/`anime-movie`/`hentai`, or a `role` outside `CHARACTER_ROLES`, in Python — before the row ever reaches `ck_casting_voice_scope` in the database. |
+| `PUT`  | `/{media_type}/{entry_id}` | Admin  | Replaces the whole cast in the submitted order. Body: `{cast: [{character_id, person_id?, role?, position?, photo_file?, remark?}]}`. `position` defaults to list index when omitted. `role` is optional: null, `""` and whitespace all store no role. Rejects (422) a seiyuu (`person_id` set) on a media type outside `anime`/`anime-movie`/`hentai`, or a non-blank `role` outside `CHARACTER_ROLES`, in Python — before the row ever reaches `ck_casting_voice_scope` in the database. |
 
 `media_type` for casting is one of `anime`, `anime-movie`, `manga`, `novel` —
 a subset of the eight `MEDIA_TABLES` keys, matching the four media types a

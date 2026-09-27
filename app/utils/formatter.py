@@ -19,9 +19,16 @@ from app.services.domain.h_game import CHOICE_LISTS, SINGLE_CHOICES, lenient_cho
 from app.services.domain.watch_order import normalize_importance
 from app.utils import release_date
 
+# character.role, kept only when it is one of CHARACTER_ROLES.
+from app.utils.character_roles import normalize_character_role
+
 # The vocabulary the three game completion axes carry. Imported so the sheet
 # parser and the API cannot disagree about what a valid value is.
 from app.utils.constants import GAME_COMPLETION_FLAGS
+
+# Character and person gender / my_rating, folded the way the revision that
+# closed those vocabularies folded the stored rows.
+from app.utils.entity_vocab import normalize_gender, normalize_my_rating
 
 # The scope -> owner column map. plan_next_kinds imports only media_resolver,
 # so there is no cycle.
@@ -1244,9 +1251,12 @@ def parse_person_from_sheet(raw: dict) -> dict:
         "name_jp": parse_from_sheet(raw.get("name_jp"), str),
         "name_alt": parse_from_sheet(raw.get("name_alt"), str),
         "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
-        "gender": parse_from_sheet(raw.get("gender"), str),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        # Folded onto the vocabularies, so a backup from before they existed
+        # cannot bring "Male" or "a+" back - see app/utils/entity_vocab.py.
+        "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
+        "my_rating": normalize_my_rating(parse_from_sheet(raw.get("my_rating"), str)),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
+        "photo_fallback_entry_id": _uuid_or_none(raw.get("photo_fallback_entry_id")),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
@@ -1267,9 +1277,14 @@ def parse_character_from_sheet(raw: dict) -> dict:
         "name_jp": parse_from_sheet(raw.get("name_jp"), str),
         "name_alt": parse_from_sheet(raw.get("name_alt"), str),
         "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
-        "gender": parse_from_sheet(raw.get("gender"), str),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        # Folded onto the vocabularies, so a backup from before they existed
+        # cannot bring "Male" or "a+" back - see app/utils/entity_vocab.py.
+        "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
+        "my_rating": normalize_my_rating(parse_from_sheet(raw.get("my_rating"), str)),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
+        "photo_fallback_entry_id": _uuid_or_none(raw.get("photo_fallback_entry_id")),
+        # Kept when it is one of CHARACTER_ROLES, blank otherwise.
+        "role": normalize_character_role(parse_from_sheet(raw.get("role"), str)),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
