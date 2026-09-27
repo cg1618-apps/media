@@ -337,15 +337,27 @@ def test_download_missing_covers_falls_back_to_steam_for_games(db_session, monke
         entry.cover_image_file = cover_key("game", str(entry.system_id))
 
     monkeypatch.setattr(calculation, "autofill_game_from_igdb", fake_igdb)
+    def fake_header(entry):
+        calls.append(("header", entry.system_id))
+
     monkeypatch.setattr(calculation, "autofill_cover_from_steam", fake_steam)
+    monkeypatch.setattr(calculation, "autofill_cover_from_steam_header", fake_header)
 
     result = calculation.bulk_download_missing_covers(
         db_session, system_ids=[str(igdb_game), str(steam_game)]
     )
-    assert sorted(calls) == sorted(
-        [("igdb", igdb_game), ("steam", igdb_game), ("steam", steam_game)]
+    assert sorted(calls, key=str) == sorted(
+        [
+            ("igdb", igdb_game),
+            ("steam", igdb_game),
+            ("header", igdb_game),
+            ("steam", steam_game),
+            ("header", steam_game),
+        ],
+        key=str,
     )
     assert calls.index(("igdb", igdb_game)) < calls.index(("steam", igdb_game))
+    assert calls.index(("steam", igdb_game)) < calls.index(("header", igdb_game))
     assert "Downloaded 2 of 2" in result["message"]
 
 
@@ -373,6 +385,11 @@ def test_download_missing_covers_skips_games_without_igdb_id(db_session, monkeyp
     monkeypatch.setattr(
         calculation,
         "autofill_cover_from_steam",
+        lambda entry: pytest.fail("should not autofill without a steam_appid"),
+    )
+    monkeypatch.setattr(
+        calculation,
+        "autofill_cover_from_steam_header",
         lambda entry: pytest.fail("should not autofill without a steam_appid"),
     )
 

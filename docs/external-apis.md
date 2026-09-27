@@ -4,7 +4,7 @@ Last verified: 2026-09-27
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Twelve outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios, the columns an h-comic has, and three fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts, the cover and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime, and its library capsule is the cover when IGDB has none; **DLsite** fills an h-game's release date, studio and cover ahead of both; **AniDB** fills whatever of a hentai's cover, release date and airing status MAL left blank; **E-Hentai** fills an h-comic's cover and illustrator after Tenrai, for the doujinshi MAL does not list; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Twelve outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios, the columns an h-comic has, and three fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts, the cover and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime, and its library capsule - else its header image - is the cover when IGDB has none; **DLsite** fills an h-game's release date, studio and cover ahead of both; **AniDB** fills whatever of a hentai's cover, release date and airing status MAL left blank; **E-Hentai** fills an h-comic's cover and illustrator after Tenrai, for the doujinshi MAL does not list; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
@@ -44,7 +44,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 | Comic Vine | `https://comicvine.gamespot.com/api` | `settings.comicvine_api_key` ← `COMICVINE_API_KEY` | `app/services/integrations/comicvine.py` | `app/utils/comicvine_utils.py` | `comic` |
 | Open Library | `https://openlibrary.org` | none | `app/services/integrations/openlibrary.py` | `app/utils/openlibrary_utils.py` | `novel` (no MAL link) |
 | IGDB | `https://api.igdb.com/v4` (token from `https://id.twitch.tv/oauth2/token`) | `settings.igdb_client_id` ← `IGDB_CLIENT_ID` **and** `settings.igdb_client_secret` ← `IGDB_CLIENT_SECRET` | `app/services/integrations/igdb.py` | `app/utils/igdb_utils.py` | `games` |
-| Steam | `https://store.steampowered.com/api` (no key) **and** `https://api.steampowered.com` (`settings.steam_api_key` ← `STEAM_API_KEY`, `settings.steam_id` ← `STEAM_ID`) | `settings.steam_api_key` / `settings.steam_id`, both optional | `app/services/integrations/steam.py` | `app/utils/steam_utils.py` | `games`, including a game's cover when IGDB has none; the cover of an `h_game` |
+| Steam | `https://store.steampowered.com/api` (no key) **and** `https://api.steampowered.com` (`settings.steam_api_key` ← `STEAM_API_KEY`, `settings.steam_id` ← `STEAM_ID`) | `settings.steam_api_key` / `settings.steam_id`, both optional | `app/services/integrations/steam.py` | `app/utils/steam_utils.py` | `games`, including a game's cover when IGDB has none; the cover of an `h_game` (image CDN for the capsule, storefront for the header image) |
 | DLsite | `https://www.dlsite.com/maniax/api/=/product.json` (undocumented) | none | `app/services/integrations/dlsite.py` | `app/utils/dlsite_utils.py` | `h_game` |
 | AniDB | `http://api.anidb.net:9001/httpapi` (XML, gzip) | `settings.anidb_client` ← `ANIDB_CLIENT` **and** `settings.anidb_clientver` ← `ANIDB_CLIENTVER`, a client registered at anidb.net; AniDB is off while either is unset | `app/services/integrations/anidb.py` | `app/utils/anidb_utils.py` | `hentai` |
 | E-Hentai | `https://api.e-hentai.org/api.php` (the official gallery metadata API, `gdata`) | none | `app/services/integrations/ehentai.py` | `app/utils/ehentai_utils.py` | `h_comic` |
@@ -420,7 +420,9 @@ IGDB is an h-game's last cover source rather than its first: IGDB still runs
 before Steam, so it can hand Steam an appid, and its cover is fetched
 afterwards by `autofill_game_cover_from_igdb` - one more IGDB game request,
 made only when neither DLsite nor Steam supplied a cover. Game's fill never
-passes it: a game's cover is IGDB's first, and Steam's only as the fallback. See [DLsite](#dlsite) for the whole h-game order.
+passes it: a game's cover is IGDB's first, and Steam's only as the fallback.
+IGDB's cover still comes before Steam's header image on both tables, because
+that one is landscape. See [DLsite](#dlsite) for the whole h-game order.
 
 **Fill-only throughout**, and the whole body sits in one
 `try: … except Exception as e: logger.error(...)` — the same swallow-and-log
@@ -468,9 +470,11 @@ the row. Getting this backwards was a real bug in an early draft of this
 integration.
 
 **`autofill_game_from_steam` writes no cover**, on either table. Steam's cover
-comes through a separate function, `autofill_cover_from_steam`, which both
-tables' Fill and Replace and the Calculate page's missing-cover tool call, and
-which does nothing while the entry already has a cover. The order is what
+comes through two separate functions, `autofill_cover_from_steam` (the
+portrait capsule) and `autofill_cover_from_steam_header` (the landscape header
+image), which both tables' Fill and Replace and the Calculate page's
+missing-cover tool call, and which do nothing while the entry already has a
+cover - an upload included, which is never replaced. The order is what
 differs: a game calls it after IGDB, so the capsule is only the fallback for a
 game IGDB has no cover for, or one linked to Steam alone; an h-game calls it
 before IGDB's cover (see [DLsite](#dlsite)). It asks
@@ -479,8 +483,20 @@ Steam's image CDN -
 `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>/library_600x900_2x.jpg`,
 then `library_600x900.jpg` - probing each with a `HEAD` and downloading the
 first that answers 200. The CDN is not the storefront, so the probe neither
-spends nor waits on the storefront window. Both answering 404 means no cover:
-an app whose store assets live at a hashed path has none at the unhashed one.
+spends nor waits on the storefront window. Both answering 404 means no
+capsule: an app whose store assets live at a hashed path has none at the
+unhashed one.
+
+That is what the header image is for. `autofill_cover_from_steam_header` runs
+last in both cover chains - after the capsule on a game, after IGDB's cover on
+an h-game - and only while the entry still has no cover, including when the
+capsule existed but its download failed. It asks the storefront for
+`appdetails?cc=us` and reads `header_image` out of the data block
+(`steam_header_image_url` in `app/utils/steam_utils.py`). That URL is handed
+over rather than built, so it names the hashed path a newer app uses: every
+app has one. It is the 460x215 landscape capsule, which is why every portrait
+source comes first. The lookup is one more storefront request, spent only on
+an entry still coverless at that point, and it is throttled like any other.
 
 ### Two hosts, two auth stories
 
@@ -551,6 +567,24 @@ a *refused* connection is still a logged connection. The switch is per-machine
 via `.env`, like the credentials themselves — see
 [switching-environments.md](switching-environments.md).
 
+### Which record in the answer is the app's
+
+`appdetails?appids=N` answers an object of records, each `{"success": …,
+"data": {…}}`, but **the key a record is filed under is not reliably `N`**.
+The storefront files it under another number: `appids=620` answers under
+`"323180"`, `appids=1245620` under `"2855530"`, `appids=4090260` under
+`"5009630"`. The data block still names the app it describes, in
+`data.steam_appid`.
+
+So `fetch_steam_appdetails` does not index the answer by the appid it asked
+for. `_appdetails_entry` takes, in order: the record under `str(appid)` when
+there is one; the record whose `data.steam_appid` equals the appid; and the
+answer's only record, but only when it says `success: true` - a failed record
+has no data to identify it by. An answer with several records and none naming
+the app yields nothing rather than a guess, which would file one game's
+prices on another. A `success: false` record, wherever it is filed, is `None`:
+delisted or region-locked.
+
 ### Requests per game
 
 `appdetails` returns `metacritic`, `achievements` and `price_overview` in one
@@ -598,7 +632,8 @@ fill-only: a hand-entered SteamDB row is left alone. See
 ### Mapping — `map_steam_to_game_data`
 
 Columns only. Steam writes no tag and no credit, so it never touches the
-alias layer.
+alias layer. `header_image` is not mapped here: it is a cover source, read by
+`steam_header_image_url` for `autofill_cover_from_steam_header`.
 
 | Steam field | Column | Rule | Note |
 |---|---|---|---|
@@ -700,7 +735,7 @@ and the image CDN (`img.dlsite.jp`) serves the cover without a `Referer`.
 | `maker_name` | the `studio` credit | The circle of a doujin work, the brand of a commercial one. Written through `replace_credits(db, "h-game", ...)` exactly as IGDB's developer is - a studio of that name already on file is credited, otherwise one is created under its English name - and only when the entry has no studio credit yet. Taken whole, never split. |
 | `image_main.url` (protocol-relative, `//img.dlsite.jp/...`) | `cover_image_file` | Given an `https:` scheme and downloaded under `h-game/`, only when the entry has no cover. |
 
-### The h-game order, and why the cover comes DLsite, Steam, IGDB
+### The h-game order, and why the cover comes DLsite, Steam, IGDB, Steam's header
 
 Every write here is fill-only, so the order the sources run in **is** the
 priority. `_fill_h_game` (`app/services/pipelines/specs.py`) and
@@ -714,11 +749,13 @@ priority. `_fill_h_game` (`app/services/pipelines/specs.py`) and
 4. `autofill_cover_from_steam` - the library capsule, if there is still no
    cover.
 5. `autofill_game_cover_from_igdb` - IGDB's cover, if there is still none.
+6. `autofill_cover_from_steam_header` - Steam's landscape header image, if
+   there is still none.
 
-So the cover is DLsite's, else Steam's, else IGDB's; the release date and the
-studio are DLsite's before IGDB's. The Calculate page's missing-cover tool
-follows the same three cover steps for an h-game with a DLsite id, an appid
-or an `igdb_id`.
+So the cover is DLsite's, else Steam's capsule, else IGDB's, else Steam's
+header image; the release date and the studio are DLsite's before IGDB's. The
+Calculate page's missing-cover tool follows the same four cover steps for an
+h-game with a DLsite id, an appid or an `igdb_id`.
 
 ### Eligibility and Replace
 
@@ -954,10 +991,10 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` + `autofill_from_anilist` when `mal_link` is present, else `autofill_novel_from_openlibrary` alone (nothing for AniList to key on without a `mal_id`) | 1 s | Tenrai **or** Open Library, plus AniList on the Tenrai branch |
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
-| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`), then `autofill_cover_from_steam` while the cover is still empty; in Fill All; Replace (bulk, single, write hook) runs all three, IGDB fill-only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
+| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`), then `autofill_cover_from_steam` and `autofill_cover_from_steam_header` while the cover is still empty; in Fill All; Replace (bulk, single, write hook) runs all four, IGDB fill-only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
 | `h-comic` | `apply_extract_mal_id_manga_novel` | `_fill_h_comic`: `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has - then `autofill_h_comic_from_ehentai` - the cover and illustrator MAL left empty (see [E-Hentai](#e-hentai)); all fill-only; no AniList; in Fill All and Replace All, and Replace (`apply_single_replace_h_comic`) runs the same order and also selects entries linked only to E-Hentai | 1 s | Tenrai, E-Hentai |
 | `hentai` | `apply_extract_hentai_ids` (MAL then AniDB) | `_fill_hentai`: `autofill_hentai_from_mal`, then `autofill_hentai_from_anidb` for what MAL left blank (see [AniDB](#anidb)); stops when `anidb.has_capacity()` is false (an AniDB error answer); in Fill All; Replace (`apply_single_replace_hentai`) runs the same order and also selects entries linked only to AniDB | 1 s, plus AniDB's own 4 s spacing | Tenrai, AniDB (API and image CDN) |
-| `h-game` | as game | `_fill_h_game`: `autofill_h_game_from_dlsite`, then game's two autofills on the `h_game` table writing only what it has (IGDB's cover held back), then `autofill_cover_from_steam` and `autofill_game_cover_from_igdb` - the cover comes DLsite, Steam, IGDB (see [DLsite](#dlsite)); in Fill All; Replace (`apply_single_replace_h_game`) runs the same order and also selects entries linked only to DLsite. `/api/h-game/search-igdb` is game's picker | `STEAM_PAUSE` (0.5 s) | DLsite, IGDB (+ Twitch), Steam (storefront and image CDN) |
+| `h-game` | as game | `_fill_h_game`: `autofill_h_game_from_dlsite`, then game's two autofills on the `h_game` table writing only what it has (IGDB's cover held back), then `autofill_cover_from_steam`, `autofill_game_cover_from_igdb` and `autofill_cover_from_steam_header` - the cover comes DLsite, Steam's capsule, IGDB, Steam's header (see [DLsite](#dlsite)); in Fill All; Replace (`apply_single_replace_h_game`) runs the same order and also selects entries linked only to DLsite. `/api/h-game/search-igdb` is game's picker | `STEAM_PAUSE` (0.5 s) | DLsite, IGDB (+ Twitch), Steam (storefront and image CDN) |
 
 Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page touch local disk and, for missing covers, the autofill functions again.
 
@@ -974,6 +1011,6 @@ Things the code does today that a reader might not expect. None is a documentati
 - AniDB's ban protection - the 24-hour answer cache and the halt - is per-process memory, like the rate limiters: a restart forgets which aids were fetched today.
 - DLsite's product JSON is undocumented: a change to its shape shows up as h-games that stop filling, logged, not as an error anywhere visible.
 - E-Hentai's cover is its 250px-wide gallery thumb, the largest the API names; an h-comic whose cover came from E-Hentai is a small image.
-- Steam's library capsule is looked up at the unhashed CDN path only. Apps whose store assets sit under a hashed path answer 404 there, so their h-game cover falls through to IGDB, and a game IGDB has no cover for stays without one.
+- Steam's library capsule is looked up at the unhashed CDN path only. Apps whose store assets sit under a hashed path answer 404 there, so their h-game cover falls through to IGDB, and a game IGDB has no cover for takes Steam's landscape header image instead - a cover of a different shape from the rest.
 - MAL's `OAD` type maps to `"Other"` even though the app's own vocabulary has an `OAD` value.
 - A single-entry Replace never fires `pre_run`, so AniList's cache is never bulk-primed for it; `anilist_record` falls back to a one-id fetch instead of returning nothing, which is what keeps a one-entry Replace from silently writing no AniList data at all.

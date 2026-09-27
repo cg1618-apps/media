@@ -1,7 +1,8 @@
 """
 steam_utils.py
 Pure helpers for the Steam integration: reading an appid out of a store URL,
-and mapping storefront payloads onto game columns. No I/O lives here.
+mapping storefront payloads onto game columns, and reading the header image
+out of one. No I/O lives here.
 """
 
 import logging
@@ -82,6 +83,18 @@ def _price(block: Optional[Dict[str, Any]], key: str, cc: str) -> Optional[Decim
         return None
 
     return Decimal(int(value)) / PRICE_SCALE
+
+
+def steam_header_image_url(data: Optional[Dict[str, Any]]) -> Optional[str]:
+    """
+    The storefront's `header_image` - the landscape 460x215 capsule - out of
+    one appdetails `data` block, or None.
+
+    Unlike the portrait library capsule, this URL is handed to us rather than
+    built, so it points at the hashed asset path newer apps use and is the one
+    Steam artwork every app has.
+    """
+    return (data or {}).get("header_image") or None
 
 
 def map_steam_to_game_data(payloads: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:

@@ -2,7 +2,11 @@
 
 from decimal import Decimal
 
-from app.utils.steam_utils import extract_steam_appid, map_steam_to_game_data
+from app.utils.steam_utils import (
+    extract_steam_appid,
+    map_steam_to_game_data,
+    steam_header_image_url,
+)
 
 
 def test_a_canonical_store_url_yields_the_appid():
@@ -97,3 +101,14 @@ class TestNonPriceFields:
         mapped = map_steam_to_game_data({})
         assert mapped["metacritic_score"] is None
         assert mapped["price_current_us"] is None
+
+
+class TestHeaderImage:
+    def test_the_header_image_is_read_from_the_data_block(self):
+        url = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4090260/abc/header.jpg?t=1"
+        assert steam_header_image_url({"header_image": url}) == url
+
+    def test_no_data_or_no_header_is_none(self):
+        assert steam_header_image_url(None) is None
+        assert steam_header_image_url({}) is None
+        assert steam_header_image_url({"header_image": ""}) is None

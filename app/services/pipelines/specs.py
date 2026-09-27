@@ -66,6 +66,7 @@ from app.services.domain import (
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
     autofill_cover_from_steam,
+    autofill_cover_from_steam_header,
     autofill_from_anilist,
     autofill_game_cover_from_igdb,
     autofill_game_from_igdb,
@@ -162,8 +163,8 @@ def _fill_novel(db, entry) -> None:
 def _fill_game(db, entry) -> None:
     """Both of game's sources, in order: IGDB supplies the appid that Steam
     then keys off, so a brand-new entry is complete after one pass. The cover
-    is IGDB's, with Steam's library capsule as the fallback when IGDB has
-    none - the reverse of h-game's order.
+    is IGDB's, then Steam's portrait library capsule, then Steam's landscape
+    header image - each only while the cover is still empty.
 
     The SteamDB row is NOT derived here. It used to be, and that put it behind
     `fill_eligible`, which reads columns - so a game Steam had already filled
@@ -173,21 +174,25 @@ def _fill_game(db, entry) -> None:
     autofill_game_from_igdb(entry, db)
     autofill_game_from_steam(entry, db)
     autofill_cover_from_steam(entry)
+    autofill_cover_from_steam_header(entry)
 
 
 def _fill_h_game(db, entry) -> None:
     """Game's two sources with DLsite in front, and the cover taken in
-    priority order: DLsite, then Steam's library capsule, then IGDB.
+    priority order: DLsite, then Steam's library capsule, then IGDB, then
+    Steam's landscape header image.
 
     Every write is fill-only, so the order IS the priority. DLsite goes first.
     IGDB goes second, cover held back, because it may supply the appid Steam
-    keys off. Steam then writes its columns and offers its capsule, and IGDB's
-    cover is fetched last, only for an entry that still has none."""
+    keys off. Steam then writes its columns and offers its capsule, IGDB's
+    cover is fetched for an entry that still has none, and Steam's header
+    image is the last resort."""
     autofill_h_game_from_dlsite(entry, db)
     autofill_game_from_igdb(entry, db, cover=False)
     autofill_game_from_steam(entry, db)
     autofill_cover_from_steam(entry)
     autofill_game_cover_from_igdb(entry)
+    autofill_cover_from_steam_header(entry)
 
 
 def _fill_hentai(db, entry) -> None:
@@ -475,7 +480,7 @@ PIPELINES: dict[str, PipelineSpec] = {
     ),
     # Game's spec on the h-game table plus DLsite: game's two sources, gates
     # and pacing, with DLsite in front and the cover taken DLsite, then
-    # Steam, then IGDB (_fill_h_game). The autofills write only the columns
+    # Steam's capsule, then IGDB, then Steam's header (_fill_h_game). The autofills write only the columns
     # and tags the table has (autofill.py). In Fill All and Replace All, as
     # Game is.
     "h-game": PipelineSpec(
