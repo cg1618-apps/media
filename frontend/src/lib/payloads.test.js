@@ -226,11 +226,11 @@ describe("h-game payloads", () => {
 
   it("keeps an unrecorded list null and an empty one []", () => {
     const body = hGameFieldsPayload({
-      audio_availability: null,
+      dialogue_audio: null,
       h_presentation: [],
       platform: undefined,
     });
-    expect(body.audio_availability).toBeNull();
+    expect(body.dialogue_audio).toBeNull();
     expect(body.h_presentation).toEqual([]);
     expect(body.platform).toBeNull();
   });
@@ -238,14 +238,18 @@ describe("h-game payloads", () => {
   it("sends a list in vocabulary order", () => {
     const body = hGameFieldsPayload({
       platform: ["Other", "Steam"],
-      h_presentation: ["互動", "靜圖"],
-      audio_availability: ["H場景", "一般對話"],
+      h_presentation: ["直接互動", "靜態"],
+      dialogue_audio: ["H場景", "一般對話"],
       art_style: ["Live-action", "2D", "Live2D"],
+      h_art_style: ["unknown", "3D模型"],
+      sound_effect: ["H場景"],
     });
     expect(body.platform).toEqual(["Steam", "Other"]);
     expect(body.art_style).toEqual(["2D", "Live2D", "Live-action"]);
-    expect(body.h_presentation).toEqual(["靜圖", "互動"]);
-    expect(body.audio_availability).toEqual(["一般對話", "H場景"]);
+    expect(body.h_art_style).toEqual(["3D模型", "unknown"]);
+    expect(body.sound_effect).toEqual(["H場景"]);
+    expect(body.h_presentation).toEqual(["靜態", "直接互動"]);
+    expect(body.dialogue_audio).toEqual(["一般對話", "H場景"]);
   });
 
   it("builds the entry body in h_game's columns, not game's", () => {
@@ -255,7 +259,6 @@ describe("h-game payloads", () => {
       game_type: "Base Game",
       base_game_id: "some-id",
       all_cg: "Yes",
-      animation_availability: "false",
       steam_progress_sync: "",
       language_availability: "官方中文",
       usefulness: "實用",
@@ -269,7 +272,7 @@ describe("h-game payloads", () => {
     // ck_h_game_base_no_parent: a Base Game carries no parent.
     expect(body.base_game_id).toBeNull();
     expect(body.all_cg).toBe("Yes");
-    expect(body.animation_availability).toBe(false);
+    expect(body).not.toHaveProperty("animation_availability");
     expect(body.steam_progress_sync).toBeNull();
     expect(body.language_availability).toBe("官方中文");
     expect(body.usefulness).toBe("實用");

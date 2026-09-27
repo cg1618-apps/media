@@ -221,9 +221,10 @@ header, so each travels under its own key, and `highlight_group_order`
 travels as JSON text. `H-Game` follows `H-Comic`, the same way: its credit and
 tag columns (`studio`, `game_genre`, `game_theme`, `h_genre_plot`,
 `h_genre_appearance`, `h_genre_relation`) travel under their own keys, and its
-four list fields (`audio_availability`, `h_presentation`, `art_style`,
-`platform`) as JSON
-text. The parser also reads a comma-separated cell for a list, keeps only
+six list fields (`dialogue_audio`, `sound_effect`, `h_presentation`,
+`art_style`, `h_art_style`, `platform`) as JSON
+text. A tab whose header still reads `audio_availability` - one last backed up
+before the column took its present name - restores into `dialogue_audio`. The parser also reads a comma-separated cell for a list, keeps only
 values inside the field's vocabulary (logging the rest, never failing the tab)
 and orders them as the vocabulary does; a single-choice cell outside its
 vocabulary restores as blank. `Person Membership` follows `Person Role`: both of its

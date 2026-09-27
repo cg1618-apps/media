@@ -1139,8 +1139,14 @@ export const TYPE_FIELD_META = {
       options: H_GAME_LANGUAGE_AVAILABILITY,
       group: "Classification",
     },
-    audio_availability: {
-      label: "Audio",
+    dialogue_audio: {
+      label: "Dialogue Audio",
+      control: "none",
+      defaultable: false,
+      group: "Classification",
+    },
+    sound_effect: {
+      label: "Sound Effect",
       control: "none",
       defaultable: false,
       group: "Classification",
@@ -1157,17 +1163,16 @@ export const TYPE_FIELD_META = {
       defaultable: false,
       group: "Classification",
     },
-    platform: {
-      label: "Platform",
+    h_art_style: {
+      label: "H 演出 Art Style",
       control: "none",
       defaultable: false,
       group: "Classification",
     },
-    animation_availability: {
-      label: "Animation",
-      control: "select",
-      options: TRISTATE,
-      coerce: "tristate",
+    platform: {
+      label: "Platform",
+      control: "none",
+      defaultable: false,
       group: "Classification",
     },
     release_status: {

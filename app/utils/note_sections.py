@@ -766,7 +766,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # An h-game's standout scenes, grouped by the female characters in
         # them. h_comic_highlights' fields, except that a scene is located by
         # route rather than by chapter, and described the way the entry
-        # describes the game rather than by a location: audio, H 演出形式 and
+        # describes the game rather than by a location: dialogue audio, H 演出形式 and
         # art style, each offering the options of the h_game column that means
         # the same thing. Single-choice where the entry's are multi-choice -
         # the entry says what the game has anywhere, a row says what one scene
@@ -799,7 +799,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             ),
             NoteField(
                 key="audio",
-                label="Audio",
+                label="Dialogue Audio",
                 type=FIELD_SELECT,
                 options=H_GAME_AUDIO_AVAILABILITY,
             ),

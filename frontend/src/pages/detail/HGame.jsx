@@ -460,16 +460,17 @@ export default function HGame() {
                   ],
                   [
                     { label: "Language", value: hGame.language_availability },
-                    { label: "Animation", value: yesNo(hGame.animation_availability) },
+                    { label: "Platform", value: choiceText(hGame.platform) },
                   ],
                   [
-                    { label: "Audio", value: choiceText(hGame.audio_availability) },
-                    { label: "H 演出形式", value: choiceText(hGame.h_presentation) },
+                    { label: "Dialogue Audio", value: choiceText(hGame.dialogue_audio) },
+                    { label: "Sound Effect", value: choiceText(hGame.sound_effect) },
                   ],
                   [
                     { label: "Art Style", value: choiceText(hGame.art_style) },
-                    { label: "Platform", value: choiceText(hGame.platform) },
+                    { label: "H 演出 Art Style", value: choiceText(hGame.h_art_style) },
                   ],
+                  { label: "H 演出形式", value: choiceText(hGame.h_presentation) },
                   [
                     { label: "Release Status", value: hGame.release_status },
                     { label: "Release Date", value: hGame.release_date },

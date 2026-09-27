@@ -349,17 +349,34 @@ HENTAI_SOURCE_MATERIALS: tuple[str, ...] = ("Original", "Manga", "Novel")
 # ---------------------------------------------------------------------------
 
 # How the game is played. Single choice.
-H_GAME_PLAYSTYLES: tuple[str, ...] = ("ADV", "RPG", "SLG", "Other")
+H_GAME_PLAYSTYLES: tuple[str, ...] = ("ADV", "VN", "RPG", "SLG", "ACT", "Other")
 
-# Whether it can be played in Chinese: officially, through a fan patch, or
-# not at all. Single choice.
-H_GAME_LANGUAGE_AVAILABILITY: tuple[str, ...] = ("官方中文", "中文補丁", "無中文")
+# Whether it can be played in Chinese: officially, in a Chinese edition the
+# developer did not make, through a fan patch, or not at all. Single choice.
+H_GAME_LANGUAGE_AVAILABILITY: tuple[str, ...] = ("官方中文", "非官方中文", "中文補丁", "無中文")
 
-# Which parts are voiced. Multi-choice.
+# Which parts of the game carry a sound: dialogue_audio (voiced) and
+# sound_effect both answer over this list. Multi-choice.
 H_GAME_AUDIO_AVAILABILITY: tuple[str, ...] = ("一般對話", "H場景")
 
-# H 演出形式 - how the H scenes are presented. Multi-choice.
-H_GAME_H_PRESENTATIONS: tuple[str, ...] = ("靜圖", "動圖", "2D動畫", "3D動畫", "3D模型", "互動")
+# H 演出形式 - how the H scenes are presented, from a still picture to scenes
+# the player acts on directly. Multi-choice. "null" and "unknown" are answers
+# the owner picks, stored as the strings; they are not the column's NULL.
+H_GAME_H_PRESENTATIONS: tuple[str, ...] = ("靜態", "動態", "間接互動", "直接互動", "null", "unknown")
+
+# H 演出 art style - what the H scenes look like, recorded beside
+# H_GAME_ART_STYLES, which is the whole game's look. Multi-choice, with
+# "null" and "unknown" as on H_GAME_H_PRESENTATIONS.
+H_GAME_H_ART_STYLES: tuple[str, ...] = (
+    "2D",
+    "Live2D",
+    "2.5D",
+    "3D模型",
+    "Live-action-like",
+    "Live-action",
+    "null",
+    "unknown",
+)
 
 # What the game looks like - independent of H_GAME_H_PRESENTATIONS, which is
 # how the H scenes are delivered. Multi-choice.

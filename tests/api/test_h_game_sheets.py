@@ -45,11 +45,12 @@ def test_the_parser_types_every_column():
             "playstyle": "SLG",
             "release_date": "2024",
             "all_cg": "TRUE",
-            "animation_availability": "FALSE",
-            "language_availability": "中文補丁",
-            "audio_availability": '["H場景", "一般對話"]',
-            "h_presentation": "3D動畫, 靜圖",
+            "language_availability": "非官方中文",
+            "dialogue_audio": '["H場景", "一般對話"]',
+            "sound_effect": "H場景",
+            "h_presentation": "直接互動, 靜態",
             "art_style": "Pixel, 2D",
+            "h_art_style": "unknown, Live2D",
             "platform": '["DLsite"]',
             "price_original_jp": "1980",
             "highlight_group_order": '["Ana", "Bea"]',
@@ -59,13 +60,30 @@ def test_the_parser_types_every_column():
     assert parsed["series_number"] == 2
     assert parsed["playstyle"] == "SLG"
     assert parsed["all_cg"] == "Yes"
-    assert parsed["animation_availability"] is False
-    assert parsed["audio_availability"] == ["一般對話", "H場景"]
-    assert parsed["h_presentation"] == ["靜圖", "3D動畫"]
+    assert "animation_availability" not in parsed
+    assert parsed["language_availability"] == "非官方中文"
+    assert parsed["dialogue_audio"] == ["一般對話", "H場景"]
+    assert parsed["sound_effect"] == ["H場景"]
+    assert parsed["h_presentation"] == ["靜態", "直接互動"]
     assert parsed["art_style"] == ["2D", "Pixel"]
+    assert parsed["h_art_style"] == ["Live2D", "unknown"]
     assert parsed["platform"] == ["DLsite"]
     assert parsed["highlight_group_order"] == ["Ana", "Bea"]
     assert parsed["studio"] == "Studio A"
+
+
+def test_the_parser_reads_dialogue_audio_under_its_old_header():
+    """A sheet last backed up before the rename heads the column audio_availability."""
+    parsed = parse_h_game_from_sheet({"audio_availability": "H場景"})
+    assert parsed["dialogue_audio"] == ["H場景"]
+
+
+def test_the_new_header_wins_over_the_old_one():
+    """The mirror: once both exist, the old header is ignored."""
+    parsed = parse_h_game_from_sheet(
+        {"dialogue_audio": "一般對話", "audio_availability": "H場景"}
+    )
+    assert parsed["dialogue_audio"] == ["一般對話"]
 
 
 def test_the_parser_drops_values_outside_a_vocabulary():

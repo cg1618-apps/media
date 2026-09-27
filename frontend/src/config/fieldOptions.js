@@ -247,13 +247,16 @@ export const H_COMIC_USEFULNESS = ["非常實用", "實用", "特定情況實用
 
 // The h-game vocabularies (app/utils/constants.py), served the same way: only
 // to a session that can see the gated type. Fixed vocabularies, not system
-// options. The last four are multi-choice: the entry holds a list over the
-// vocabulary, [] for "none of these" and null for "not recorded". An h-game's
-// usefulness is H_COMIC_USEFULNESS.
-export const H_GAME_PLAYSTYLES = ["ADV", "RPG", "SLG", "Other"];
-export const H_GAME_LANGUAGE_AVAILABILITY = ["官方中文", "中文補丁", "無中文"];
+// options. All but the first two are multi-choice: the entry holds a list over
+// the vocabulary, [] for "none of these" and null for "not recorded". The
+// "null" and "unknown" options of H 演出形式 and H 演出 art style are answers
+// stored as those strings, not the column's null. Dialogue audio and sound
+// effect share H_GAME_AUDIO_AVAILABILITY. An h-game's usefulness is
+// H_COMIC_USEFULNESS.
+export const H_GAME_PLAYSTYLES = ["ADV", "VN", "RPG", "SLG", "ACT", "Other"];
+export const H_GAME_LANGUAGE_AVAILABILITY = ["官方中文", "非官方中文", "中文補丁", "無中文"];
 export const H_GAME_AUDIO_AVAILABILITY = ["一般對話", "H場景"];
-export const H_GAME_H_PRESENTATIONS = ["靜圖", "動圖", "2D動畫", "3D動畫", "3D模型", "互動"];
+export const H_GAME_H_PRESENTATIONS = ["靜態", "動態", "間接互動", "直接互動", "null", "unknown"];
 export const H_GAME_ART_STYLES = [
   "2D",
   "2.5D",
@@ -262,6 +265,16 @@ export const H_GAME_ART_STYLES = [
   "Live2D",
   "Live-action-like",
   "Live-action",
+];
+export const H_GAME_H_ART_STYLES = [
+  "2D",
+  "Live2D",
+  "2.5D",
+  "3D模型",
+  "Live-action-like",
+  "Live-action",
+  "null",
+  "unknown",
 ];
 export const H_GAME_PLATFORMS = ["Steam", "DLsite", "Nintendo", "Other"];
 
@@ -387,6 +400,7 @@ export const CONSTANTS_FALLBACK = {
   h_game_audio_availability: H_GAME_AUDIO_AVAILABILITY,
   h_game_h_presentation: H_GAME_H_PRESENTATIONS,
   h_game_art_style: H_GAME_ART_STYLES,
+  h_game_h_art_style: H_GAME_H_ART_STYLES,
   h_game_platform: H_GAME_PLATFORMS,
   hentai_source_material: HENTAI_SOURCE_MATERIALS,
   day_of_week: WEEKDAYS,

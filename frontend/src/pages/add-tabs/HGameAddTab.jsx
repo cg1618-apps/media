@@ -34,6 +34,7 @@ import {
   H_COMIC_USEFULNESS,
   H_GAME_ART_STYLES,
   H_GAME_AUDIO_AVAILABILITY,
+  H_GAME_H_ART_STYLES,
   H_GAME_H_PRESENTATIONS,
   H_GAME_LANGUAGE_AVAILABILITY,
   H_GAME_PLATFORMS,
@@ -236,18 +237,19 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         </Field>
       </div>
 
-      {/* The fixed vocabularies. Language and animation are one answer each;
-          the other four are sets, where None and Unknown are two different
-          answers (ChoiceChips). Platform is where it is sold, set by hand -
+      {/* The fixed vocabularies. Language is one answer; the rest are sets,
+          where None and Unknown are two different answers (ChoiceChips).
+          Dialogue audio and sound effect share one vocabulary. Platform is where it is sold, set by hand -
           not Game's hardware Platform tag, and never filled from IGDB. */}
       <SectionHeader icon="fa-layer-group" title="Content" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {select("language_availability", "Language", H_GAME_LANGUAGE_AVAILABILITY)}
-        {tristate("animation_availability", "Animation", "Whether it has animated scenes")}
       </div>
-      {choices("audio_availability", "Audio", H_GAME_AUDIO_AVAILABILITY, "Which parts are voiced")}
+      {choices("dialogue_audio", "Dialogue Audio", H_GAME_AUDIO_AVAILABILITY, "Which parts are voiced")}
+      {choices("sound_effect", "Sound Effect", H_GAME_AUDIO_AVAILABILITY, "Which parts have sound effects")}
       {choices("h_presentation", "H 演出形式", H_GAME_H_PRESENTATIONS)}
       {choices("art_style", "Art Style", H_GAME_ART_STYLES, "What the game looks like")}
+      {choices("h_art_style", "H 演出 Art Style", H_GAME_H_ART_STYLES, "What the H scenes look like")}
       {choices("platform", "Platform", H_GAME_PLATFORMS, "Where it is sold")}
 
       <SectionHeader icon="fa-star" title="Rating" />

@@ -531,9 +531,9 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 `playstyle`, `game_type`, `base_game_id`, `release_status`, `release_date`,
 `current_patch`, `completion_level`, `all_endings`, `all_cg`,
 `steam_progress_sync`, `achievements_earned` / `_total`, the three `hltb_*`,
-the six `price_*`, `language_availability`, `audio_availability` (list),
-`animation_availability` (boolean), `h_presentation` (list), `art_style`
-(list), `platform` (list), `igdb_id` / `igdb_link`, `steam_appid` / `steam_link`,
+the six `price_*`, `language_availability`, `dialogue_audio` (list),
+`sound_effect` (list), `h_presentation` (list), `art_style` (list),
+`h_art_style` (list), `platform` (list), `igdb_id` / `igdb_link`, `steam_appid` / `steam_link`,
 `dlsite_link_jp` / `_tw`, `highlight_group_order` (list of strings),
 `type_slots`, `cover_image_file`, the personal `playing_status` (default
 `Might Play`), `my_rating`, `usefulness`, `completed_at`, the plan flags
@@ -542,8 +542,8 @@ the six `price_*`, `language_availability`, `audio_availability` (list),
 
 `playstyle`, `language_availability` and `usefulness` are single values from
 their vocabularies ([options.md](options.md)); a blank string reads as `null`.
-`audio_availability`, `h_presentation`, `art_style` and `platform` are lists
-over theirs,
+`dialogue_audio`, `sound_effect`, `h_presentation`, `art_style`,
+`h_art_style` and `platform` are lists over theirs,
 de-duplicated and stored in vocabulary order - `[]` is kept, and differs from
 `null`. A value outside a vocabulary, or a list field sent as anything but a
 list, is **422**.
@@ -1111,7 +1111,7 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `h_comic_originality`, `h_comic_animation_status`, `h_comic_usefulness`,
 `hentai_source_material`, `h_game_playstyle`, `h_game_language_availability`,
 `h_game_audio_availability`, `h_game_h_presentation`, `h_game_art_style`,
-`h_game_platform`,
+`h_game_h_art_style`, `h_game_platform`,
 `person_role`, `media_type`, `option_categories`, `tag_categories`. The
 payload is viewer-scoped on the gated types: a key that serves gated types
 only (`TYPE_ONLY_VOCABULARIES`) is served while at least one of its types is

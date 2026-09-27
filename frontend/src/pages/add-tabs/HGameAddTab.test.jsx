@@ -63,11 +63,17 @@ beforeEach(() => {
 describe("HGameAddTab", () => {
   it("offers h-game's fields and none of the ones h_game lacks", () => {
     renderTab();
-    for (const label of ["Play Style", "Language", "Animation", "All CG", "Usefulness"]) {
+    for (const label of ["Play Style", "Language", "All CG", "Usefulness"]) {
       expect(screen.getByRole("combobox", { name: label })).toBeInTheDocument();
     }
-    expect(screen.getByRole("group", { name: "Audio" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "H 演出形式" })).toBeInTheDocument();
+    for (const label of [
+      "Dialogue Audio",
+      "Sound Effect",
+      "H 演出形式",
+      "H 演出 Art Style",
+    ]) {
+      expect(screen.getByRole("group", { name: label })).toBeInTheDocument();
+    }
     expect(screen.getByRole("group", { name: "Platform" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "DLsite Link (JP)" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "DLsite Link (TW)" })).toBeInTheDocument();
@@ -76,6 +82,7 @@ describe("HGameAddTab", () => {
       /Metacritic/,
       /All Achievements/,
       /All Collected/,
+      /^Animation$/,
       /Publisher/,
       /Director/,
       /Composer/,
@@ -94,7 +101,9 @@ describe("HGameAddTab", () => {
     await user.click(within(platform).getByRole("button", { name: "DLsite" }));
     expect(latest.platform).toEqual(["DLsite"]);
     // The other lists were never touched.
-    expect(latest.audio_availability).toBeNull();
+    expect(latest.dialogue_audio).toBeNull();
+    expect(latest.sound_effect).toBeNull();
+    expect(latest.h_art_style).toBeNull();
     expect(latest.h_presentation).toBeNull();
     expect(latest.art_style).toBeNull();
   });

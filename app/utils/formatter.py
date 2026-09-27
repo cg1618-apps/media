@@ -1130,16 +1130,22 @@ def parse_h_game_from_sheet(raw: dict) -> dict:
         "language_availability": _single_choice_from_sheet(
             raw.get("language_availability"), "language_availability"
         ),
-        "audio_availability": _choice_list_from_sheet(
-            raw.get("audio_availability"), "audio_availability"
+        # A sheet last backed up before the column took this name still heads
+        # it audio_availability; read that rather than lose the column.
+        "dialogue_audio": _choice_list_from_sheet(
+            raw.get("dialogue_audio", raw.get("audio_availability")),
+            "dialogue_audio",
         ),
-        "animation_availability": parse_from_sheet(
-            raw.get("animation_availability"), bool
+        "sound_effect": _choice_list_from_sheet(
+            raw.get("sound_effect"), "sound_effect"
         ),
         "h_presentation": _choice_list_from_sheet(
             raw.get("h_presentation"), "h_presentation"
         ),
         "art_style": _choice_list_from_sheet(raw.get("art_style"), "art_style"),
+        "h_art_style": _choice_list_from_sheet(
+            raw.get("h_art_style"), "h_art_style"
+        ),
         "platform": _choice_list_from_sheet(raw.get("platform"), "platform"),
         "igdb_id": parse_from_sheet(raw.get("igdb_id"), int),
         "igdb_link": parse_from_sheet(raw.get("igdb_link"), str),

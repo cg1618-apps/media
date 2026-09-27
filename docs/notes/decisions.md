@@ -2118,7 +2118,7 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   shares its id with its media row, so no value changed; the column kept its
   name because the `Game Copy` sheet tab is headed by it. With the FK off
   `games`, both `Game.copies` and `HGame.copies` spell out their join.
-- **Fixed vocabularies, checked on every path.** The five h-game vocabularies
+- **Fixed vocabularies, checked on every path.** The h-game vocabularies
   live in `constants.py`, not in `system_option`: they are closed, and a
   closed list the code checks is a constant. The write schemas and the
   registry's progress hook (the tracker PATCH has no schema) refuse an
@@ -2127,8 +2127,7 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
 - **A multi-choice list is stored in vocabulary order, and `[]` is an
   answer.** Two ways of ticking the same boxes store the same list. An empty
   list ("no voiced scenes", "none of these presentations") is kept and is
-  different from null ("not recorded"), the way `animation_availability`'s
-  null means unknown rather than no.
+  different from null ("not recorded").
 - **No invariant pass of its own.** H-Game has no region and nothing derived,
   so the label is the only thing a restore could break, and the pass every
   gated type shares (`enforce_gated_label_invariants`) covers it. Its pipeline
@@ -2158,6 +2157,24 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   difference the column keeps is one the form can express.
 - **Usefulness sits in the completion block**, beside Completion Level, All
   Endings and All CG, because the shared tracker card has no per-type slot.
+- **The field revamp (revision `h4g5amefx6`).** Playstyle gained `VN` and
+  `ACT` (DLsite's デジタルノベル and アクション, the two genres `Other` was
+  absorbing); language gained `非官方中文`. `audio_availability` became
+  `dialogue_audio` once `sound_effect` arrived over the same vocabulary, so
+  the name says which half it is. `animation_availability` was dropped with
+  its data rather than folded into anything - `h_presentation`'s `動態`
+  answers the same question. H 演出形式 took a new vocabulary (靜態 / 動態 /
+  間接互動 / 直接互動) that no old value maps onto, so the revision cleared
+  it on every entry and on every highlight note, where a stale value would
+  422 the row's next edit. `h_art_style` was added beside `art_style` rather
+  than replacing it: one is the whole game's look, the other the H scenes'.
+  Revision is `irreversible`; a sheet still headed `audio_availability`
+  restores into `dialogue_audio`.
+- **`null` and `unknown` are literal options on the two H 演出 lists, by the
+  owner's choice.** The column's own null ("not recorded") and `[]` ("none of
+  these") already exist through ChoiceChips' Unknown and None chips; the
+  strings are a separate, deliberate answer the owner wanted on those two
+  lists, and the vocabulary check treats them as ordinary values.
 - **Its nav row is under Restricted**, with H-Comic's, not in the Library.
 
 ### The scope reconcile leaves unscoped options alone (2026-09-25)
