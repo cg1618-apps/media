@@ -5,6 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getRatingWeight } from "../../utils/media";
 import DashboardCard from "../../components/tracker/DashboardCard";
+import { progressToast } from "../../lib/progressToast";
 import RatingDistributionBlock from "../../components/info/RatingDistributionBlock";
 import { Eyebrow, ProgressRule, RatingStamp, Slip } from "../../components/ui/primitives";
 
@@ -167,6 +168,7 @@ export default function SeasonalDetail() {
   }
 
   async function handleEpChange(sysId, newVal, prevVal) {
+    const before = animeData.find((a) => a.system_id === sysId);
     setAnimeData((prev) =>
       prev.map((a) =>
         a.system_id === sysId
@@ -182,7 +184,13 @@ export default function SeasonalDetail() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to sync");
-      showToast("success", "Episodes updated!");
+      const saved = await res.json().catch(() => null);
+      if (saved) {
+        setAnimeData((prev) =>
+          prev.map((a) => (a.system_id === sysId ? { ...a, ...saved } : a)),
+        );
+      }
+      showToast("success", progressToast(before, saved, "Episodes updated!"));
     } catch {
       setAnimeData((prev) =>
         prev.map((a) =>

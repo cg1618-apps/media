@@ -14,6 +14,10 @@ MAX_FIELD_COUNT = 200
 MAX_LIST_LENGTH = 50
 MAX_FIELD_KEY_LENGTH = 64
 _FIELD_KEY_RE = re.compile(r"^[a-z0-9_]+$")
+# A restricted-prefill variant is "all", or an h-comic region ("JP", "KR").
+MAX_PREFILL_VARIANTS = 10
+MAX_SOURCE_NAME_LENGTH = 100
+_VARIANT_KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
 # Far more currencies than a personal collection will ever be priced in,
 # low enough that the config row stays a row.
 MAX_FX_RATES = 40
@@ -282,6 +286,11 @@ class FormDefaultsPayload(BaseModel):
     SPARSE per-field override map — an absent key means "use the frontend's
     built-in factory value". `autofill` is null-or-complete: null means "use the
     built-in autofill field list", while [] genuinely means "copy nothing".
+    `restricted_prefill` picks which of the type's fixed restricted source
+    names a new entry starts with, per variant (`all`, or h-comic's region).
+    null, or a variant absent from the map, means that variant's built-in
+    prefill; [] genuinely means "prefill nothing". The names themselves live
+    in frontend/src/lib/restrictedSources.js, which drops any it no longer has.
 
     Values mirror FRONTEND FORM-STATE types, not DB column types (numbers are
     stored as strings, multi-selects as string lists, repeater fields such as
@@ -293,6 +302,7 @@ class FormDefaultsPayload(BaseModel):
     version: int = 1
     defaults: Dict[str, Any] = {}
     autofill: Optional[List[str]] = None
+    restricted_prefill: Optional[Dict[str, List[str]]] = None
 
     @field_validator("defaults")
     @classmethod
@@ -347,6 +357,28 @@ class FormDefaultsPayload(BaseModel):
             raise ValueError(f"Cannot autofill more than {MAX_FIELD_COUNT} fields.")
         for key in v:
             _check_field_key(key)
+        return v
+
+    @field_validator("restricted_prefill")
+    @classmethod
+    def _check_restricted_prefill(
+        cls, v: Optional[Dict[str, List[str]]]
+    ) -> Optional[Dict[str, List[str]]]:
+        if v is None:
+            return v
+        if len(v) > MAX_PREFILL_VARIANTS:
+            raise ValueError(
+                f"Cannot configure more than {MAX_PREFILL_VARIANTS} prefill variants."
+            )
+        for key, names in v.items():
+            if len(key) > MAX_FIELD_KEY_LENGTH or not _VARIANT_KEY_RE.match(key):
+                raise ValueError(f"Invalid prefill variant '{key[:20]}'.")
+            if len(names) > MAX_LIST_LENGTH:
+                raise ValueError(
+                    f"Prefill for '{key}' cannot hold more than {MAX_LIST_LENGTH} names."
+                )
+            if any(len(name) > MAX_SOURCE_NAME_LENGTH for name in names):
+                raise ValueError(f"A prefill name for '{key}' is too long.")
         return v
 
 

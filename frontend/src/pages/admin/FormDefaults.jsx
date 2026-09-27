@@ -1,7 +1,9 @@
 // Frontend: admin page for configuring Add/Modify form defaults.
 //
-// Two things per media type: the initial value of each form field, and which
-// fields the "auto-fill from existing entry" search copies.
+// Three things per media type: the initial value of each form field, which
+// fields the "auto-fill from existing entry" search copies, and which of the
+// type's restricted source names a new entry is prefilled with (per region on
+// h-comic - lib/restrictedSources.js).
 //
 // Stored defaults are SPARSE — only fields the admin actually overrode are
 // saved, so the built-in factory values stay the baseline and a field reverts
@@ -20,6 +22,7 @@ import { fetchAllSources } from "../../lib/sources";
 const emptyDraft = (type) => ({
   defaults: {},
   autofill: [...(BUILTIN_AUTOFILL[type] ?? [])],
+  restricted_prefill: null,
 });
 
 /** Builds the editable draft for one type from what the server returned. */
@@ -29,6 +32,11 @@ function toDraft(type, stored) {
     // null means "not configured" — fall back to the built-in field set.
     // An empty array is a real choice and must be preserved.
     autofill: [...(stored?.autofill ?? BUILTIN_AUTOFILL[type] ?? [])],
+    // null means "not configured" — every variant prefills its built-ins. A
+    // variant absent from the map is built-in too; [] prefills nothing.
+    restricted_prefill: stored?.restricted_prefill
+      ? JSON.parse(JSON.stringify(stored.restricted_prefill))
+      : null,
   };
 }
 
@@ -140,6 +148,24 @@ export default function FormDefaults() {
     });
   }
 
+  function setPrefill(variant, names) {
+    patchDraft((d) => ({
+      ...d,
+      restricted_prefill: { ...(d.restricted_prefill ?? {}), [variant]: names },
+    }));
+  }
+
+  function clearPrefill(variant) {
+    patchDraft((d) => {
+      const next = { ...(d.restricted_prefill ?? {}) };
+      delete next[variant];
+      return {
+        ...d,
+        restricted_prefill: Object.keys(next).length ? next : null,
+      };
+    });
+  }
+
   function toggleAutofill(key) {
     patchDraft((d) => ({
       ...d,
@@ -169,6 +195,7 @@ export default function FormDefaults() {
           version: 1,
           defaults: draft.defaults,
           autofill: draft.autofill,
+          restricted_prefill: draft.restricted_prefill,
         }),
       });
       if (!res.ok) {
@@ -227,7 +254,9 @@ export default function FormDefaults() {
     );
   }
 
-  const overrideCount = Object.keys(draft.defaults).length;
+  const overrideCount =
+    Object.keys(draft.defaults).length +
+    Object.keys(draft.restricted_prefill ?? {}).length;
   const autofillCount = draft.autofill.filter((k) =>
     getFieldRegistry(activeTab).some((f) => f.key === k),
   ).length;
@@ -265,6 +294,8 @@ export default function FormDefaults() {
         clearFieldDefault={clearFieldDefault}
         toggleAutofill={toggleAutofill}
         setGroupAutofill={setGroupAutofill}
+        setPrefill={setPrefill}
+        clearPrefill={clearPrefill}
         sources={sources}
       />
 

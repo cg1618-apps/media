@@ -22,6 +22,7 @@ import { useApiQuery } from "../../hooks/useApiQuery";
 import { endpoints } from "../../api/endpoints";
 import { Eyebrow } from "../../components/ui/primitives";
 import { parseSeason, seasonAfter, seasonOfDate } from "../../lib/comingNext";
+import { progressToast } from "../../lib/progressToast";
 
 const RATING_WEIGHT = {
   S: 0,
@@ -612,6 +613,21 @@ export default function Index() {
     );
   }
 
+  // A progress write can finish the entry on the server (the counter reached
+  // its total), so the saved row replaces the optimistic one: its status is
+  // the part the stepper could not have guessed. `list` is the pre-write
+  // data, read for the status the entry had before.
+  async function settleProgress(type, list, sysId, res, savedMessage) {
+    const before = list.find((x) => x.system_id === sysId);
+    const saved = await res.json().catch(() => null);
+    if (saved) {
+      updateCachedList(type, (x) =>
+        x.system_id === sysId ? { ...x, ...saved } : x,
+      );
+    }
+    showToast("success", progressToast(before, saved, savedMessage));
+  }
+
   // Track which section is in view to highlight TOC
   useEffect(() => {
     if (loading) return;
@@ -669,7 +685,7 @@ export default function Index() {
           credentials: "include",
         });
         if (!res.ok) throw new Error("Failed to sync");
-        showToast("success", "Episodes updated!");
+        await settleProgress("tv-show", tvData, sysId, res, "Episodes updated!");
       } catch {
         updateCachedList("tv-show", (t) =>
           t.system_id === sysId ? { ...t, ep_fin: prevVal } : t,
@@ -688,7 +704,7 @@ export default function Index() {
           credentials: "include",
         });
         if (!res.ok) throw new Error("Failed to sync");
-        showToast("success", "Episodes updated!");
+        await settleProgress("cartoon", cartoonData, sysId, res, "Episodes updated!");
       } catch {
         updateCachedList("cartoon", (c) =>
           c.system_id === sysId ? { ...c, ep_fin: prevVal } : c,
@@ -713,7 +729,7 @@ export default function Index() {
           credentials: "include",
         });
         if (!res.ok) throw new Error("Failed to sync");
-        showToast("success", "Episodes updated!");
+        await settleProgress("anime", animeData, sysId, res, "Episodes updated!");
       } catch {
         updateCachedList("anime", (a) =>
           a.system_id === sysId
@@ -754,7 +770,7 @@ export default function Index() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to sync");
-      showToast("success", "Chapters updated!");
+      await settleProgress("manga", mangaData, sysId, res, "Chapters updated!");
     } catch {
       updateCachedList("manga", (m) =>
         m.system_id === sysId ? { ...m, ch_fin: prevVal } : m,
@@ -779,7 +795,7 @@ export default function Index() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to sync");
-      showToast("success", "Progress updated!");
+      await settleProgress("novel", novelData, sysId, res, "Progress updated!");
     } catch {
       updateCachedList("novel", (n) =>
         n.system_id === sysId ? { ...n, ...prevFieldUpdates } : n,
@@ -804,7 +820,7 @@ export default function Index() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to sync");
-      showToast("success", "Progress updated!");
+      await settleProgress("comic", comicData, sysId, res, "Progress updated!");
     } catch {
       updateCachedList("comic", (c) =>
         c.system_id === sysId ? { ...c, ...prevFieldUpdates } : c,

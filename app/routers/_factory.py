@@ -25,6 +25,7 @@ from app.services.domain import (
     pop_remark,
     upsert_remark,
 )
+from app.services.domain.completion import reached_total
 from app.services.domain.content_labels import attach_content_labels
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.game_copies import attach_own_copies
@@ -128,17 +129,38 @@ def make_media_router(spec) -> APIRouter:
             db.rollback()
             logger.exception("%s write hook failed for %s", spec.label, entry.system_id)
 
-    def _write_list(db: Session, entry, personal: dict, viewer) -> None:
+    def _mark_completed(entry, row) -> None:
+        """Finish the entry: the work's catalogue half, and the acting user's
+        own row when there is one. Shared by /complete and by a PATCH that
+        carries the progress counter to its total."""
+        spec.mark_completed(entry)
+        if row is None:
+            return
+        spec.mark_completed_list(row, entry)
+        if row.completed_at is None:
+            row.completed_at = get_taipei_now()
+        row.updated_at = get_taipei_now()
+
+    def _write_list(
+        db: Session, entry, personal: dict, viewer, complete_on_total: bool = False
+    ) -> None:
         """Apply the personal half of a payload to the acting user's row.
 
         Called for every write, including one with an
         empty personal half: a brand-new entry needs its default-status row to
         exist so the detail page has something to read and to edit.
+
+        `complete_on_total` is the tracker's rule, and only patch asks for it:
+        a write that carries the progress counter up to its total finishes the
+        entry, exactly as Mark completed would. A payload that names a status
+        of its own is left alone - the writer said what the status is.
         """
         user_id = acting_user_id(db, viewer)
         if user_id is None:
             return
         row = ensure_list_row(db, user_id, entry.system_id, spec.owner_type)
+        counter = spec.progress_counter if complete_on_total else None
+        fin_before = counter(row, entry)[0] if counter else None
         apply_list_payload(row, personal, spec.owner_type)
         apply_list_completion_timestamp(
             row, personal.get(STATUS_FIELD[spec.owner_type])
@@ -147,6 +169,10 @@ def make_media_router(spec) -> APIRouter:
         # writer just sent through the work's arc widths.
         if spec.progress_hook_list is not None:
             spec.progress_hook_list(row, entry)
+        if counter and STATUS_FIELD[spec.owner_type] not in personal:
+            fin_after, total = counter(row, entry)
+            if reached_total(fin_before, fin_after, total):
+                _mark_completed(entry, row)
 
     def _finish(db: Session, entry, viewer=None):
         user_id = acting_user_id(db, viewer)
@@ -423,7 +449,7 @@ def make_media_router(spec) -> APIRouter:
                 db, spec.owner_type, entry.system_id, remark, viewer.user_id
             )
 
-        _write_list(db, entry, personal, viewer)
+        _write_list(db, entry, personal, viewer, complete_on_total=True)
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
@@ -438,7 +464,6 @@ def make_media_router(spec) -> APIRouter:
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id, viewer)
-        spec.mark_completed(entry)
         # Finishing something is one person's fact: it lands on the acting
         # user's row, and the shared entry keeps only what mark_completed
         # said about the work itself.
@@ -447,12 +472,12 @@ def make_media_router(spec) -> APIRouter:
         # through the old fallback to the lowest-username admin - so with two
         # admins, one pressing Complete wrote to the other's list.
         user_id = acting_user_id(db, viewer)
-        if user_id is not None:
-            row = ensure_list_row(db, user_id, entry.system_id, spec.owner_type)
-            spec.mark_completed_list(row, entry)
-            if row.completed_at is None:
-                row.completed_at = get_taipei_now()
-            row.updated_at = get_taipei_now()
+        row = (
+            ensure_list_row(db, user_id, entry.system_id, spec.owner_type)
+            if user_id is not None
+            else None
+        )
+        _mark_completed(entry, row)
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)

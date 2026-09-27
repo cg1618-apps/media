@@ -43,6 +43,7 @@ import { adaptingHentai, isDerivedAnimationStatus } from "../../lib/hComicAnimat
 import { progressFor, showsField } from "../../lib/hComicRegion";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HComicNotes from "./HComicNotes";
+import { progressToast } from "../../lib/progressToast";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -363,8 +364,10 @@ export default function HComic() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Sync failed");
-      showToast("success", msg || "Saved");
       const updated = await res.json();
+      // `hComic` is still the pre-write row here: this closure never saw the
+      // optimistic update. A progress step can finish the entry.
+      showToast("success", progressToast(hComic, updated, msg || "Saved"));
       setHComic(updated);
       setMediaItem(updated);
     } catch {

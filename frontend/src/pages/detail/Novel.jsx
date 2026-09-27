@@ -36,6 +36,7 @@ import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
+import { progressToast } from "../../lib/progressToast";
 
 const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -265,8 +266,10 @@ export default function Novel() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Sync failed");
-      showToast("success", msg || "Saved");
       const updated = await res.json();
+      // `novel` is still the pre-write row here: this closure never saw the
+      // optimistic update. A progress step can finish the entry.
+      showToast("success", progressToast(novel, updated, msg || "Saved"));
       setNovel(updated);
       setMediaItem(updated);
     } catch {

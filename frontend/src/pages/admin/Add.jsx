@@ -14,6 +14,7 @@ import {
 } from "../../utils/media";
 import { clearedForRegion } from "../../lib/hComicRegion";
 import { mergeHComicAutofill } from "../../lib/restrictedSources";
+import { RestrictedPrefillProvider } from "../../contexts/RestrictedPrefillContext";
 import { hComicSourceFields } from "../../lib/hComicForm";
 import { hGameSourceFields } from "../../lib/hGameForm";
 import { hentaiSourceFields } from "../../lib/hentaiForm";
@@ -86,6 +87,7 @@ import AddedEntryNotes from "../add-tabs/AddedEntryNotes";
 import {
   autofillFields,
   fetchFormDefaults,
+  prefillPicks,
   resolveDefaults,
 } from "../../hooks/useFormDefaults";
 import { buildAutofillPatch } from "../../lib/autofill";
@@ -634,7 +636,8 @@ export default function Add() {
   const applyHComicEntryAutofill = applyEntryAutofill(
     setHcf,
     "h-comic",
-    mergeHComicAutofill,
+    (p, patch) =>
+      mergeHComicAutofill(p, patch, prefillPicks("h-comic", formDefaults)),
   );
   const applyHGameEntryAutofill = applyEntryAutofill(setHgf, "h-game");
   const applyHentaiEntryAutofill = applyEntryAutofill(setHtf, "hentai");
@@ -3312,6 +3315,7 @@ export default function Add() {
   }
 
   return (
+    <RestrictedPrefillProvider config={formDefaults}>
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-6">
@@ -3782,5 +3786,6 @@ export default function Add() {
         />
       )}
     </div>
+    </RestrictedPrefillProvider>
   );
 }

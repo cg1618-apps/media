@@ -48,7 +48,13 @@ from app.services.domain import (
     write_novel_units,
 )
 from app.services.domain.anime_write import prepare_anime_write
+from app.services.domain.completion import (
+    chapter_counter,
+    episode_counter,
+    issue_counter,
+)
 from app.services.domain.h_comic import (
+    h_comic_counter,
     h_comic_progress_hook,
     h_comic_progress_hook_list,
     mark_h_comic_catalog,
@@ -105,6 +111,11 @@ class MediaTypeSpec:
     # /complete endpoint. Kept beside its
     # catalogue twin so a type can never declare one without the other.
     mark_completed_list: Optional[Callable] = None
+    # (row, entry) -> (finished, total): the counter the tracker steps
+    # through. A PATCH that carries it up to its total finishes the entry, as
+    # though Mark completed had been pressed. None for a type with no counter
+    # (movies, games, hentai), which a PATCH never finishes.
+    progress_counter: Optional[Callable] = None
     write_hook: Optional[Callable] = None   # async (db, id_str, action_type, log_action), after commit
     pre_commit_hook: Optional[Callable] = None  # (db, entry) inside the create/update transaction
     # Payload key -> writer(db, entry, value, viewer), popped before the
@@ -198,6 +209,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         # combined helper until Tasks 12 and 13.
         mark_completed=mark_tv_catalog,
         mark_completed_list=mark_tv_list,
+        progress_counter=episode_counter,
         pre_commit_hook=prepare_anime_write,
         extra_filters=_anime_airing_season,
         nested_collections={"sources": media_sources_writer("anime")},
@@ -258,6 +270,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_tv_show_parent_hierarchy,
         mark_completed=mark_tv_catalog,
         mark_completed_list=mark_tv_list,
+        progress_counter=episode_counter,
         write_hook=execute_replace_single_tv_show,
         nested_collections={"sources": media_sources_writer("tv-show")},
     ),
@@ -277,6 +290,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_cartoon_parent_hierarchy,
         mark_completed=mark_tv_catalog,
         mark_completed_list=mark_tv_list,
+        progress_counter=episode_counter,
         write_hook=execute_replace_single_cartoon,
         nested_collections={"sources": media_sources_writer("cartoon")},
     ),
@@ -297,6 +311,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_manga_parent_hierarchy,
         mark_completed=mark_reading_catalog,
         mark_completed_list=mark_reading_list,
+        progress_counter=chapter_counter,
         write_hook=execute_replace_single_manga,
         nested_collections={"sources": media_sources_writer("manga")},
     ),
@@ -317,6 +332,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_novel_parent_hierarchy,
         mark_completed=mark_novel_catalog,
         mark_completed_list=mark_novel_list,
+        progress_counter=chapter_counter,
         write_hook=execute_replace_single_novel,
         nested_collections={
             "units": write_novel_units,
@@ -341,6 +357,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_comic_parent_hierarchy,
         mark_completed=mark_comic_catalog,
         mark_completed_list=mark_comic_list,
+        progress_counter=issue_counter,
         write_hook=execute_replace_single_comic,
         nested_collections={"sources": media_sources_writer("comic")},
     ),
@@ -393,6 +410,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_h_comic_parent_hierarchy,
         mark_completed=mark_h_comic_catalog,
         mark_completed_list=mark_h_comic_list,
+        progress_counter=h_comic_counter,
         # Fetches nothing: there is no external API. It re-runs the h-comic
         # sync, which is the net under the two hooks below.
         write_hook=execute_replace_single_h_comic,

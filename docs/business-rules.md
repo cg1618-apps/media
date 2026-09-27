@@ -288,16 +288,38 @@ exist yet. `apply_list_completion_timestamp` stamps `completed_at` on the list
 row the first time a write moves it into a completed status, and never
 overwrites an existing stamp.
 
-### There are no automatic completion checks
+### Reaching the total completes
 
-Nothing concludes "`ep_fin == ep_total`, therefore this is Completed". A
-pipeline that did would be deciding one person's fact from numbers, and once
-`ep_fin` is one reader's position that conclusion is not the pipeline's to
-draw. What a pipeline may say is that the **work** has finished airing, and
-only when the source it fetched from says so — which `autofill` writes.
+A `PATCH` that carries the acting user's progress counter **up to** its total
+finishes the entry exactly as `POST /{id}/complete` would: both halves above,
+and the `completed_at` stamp. This is the tracker's stepper - pressing `+` on
+9 / 10, or typing 10 - and it holds on every page that has one: the detail
+pages, the dashboard, and the seasonal pages.
 
-The same answers the manga case: a rule requiring both `完結` and a count
-match would still be a pipeline deciding somebody's reading for them.
+- **The counter** is the type's `progress_counter` in `app/registry.py`:
+  `ep_fin / ep_total` for anime, TV show and cartoon, `ch_fin / ch_total` for
+  manga and novel, `issue_fin / issue_total` for comic, and the region's own
+  counter for h-comic (`page_fin / page_total` for JP, `ch_fin / ch_total` for
+  KR). Movies, games, h-games and hentai have none, so a `PATCH` never
+  finishes them.
+- **It is a crossing, not a level** (`reached_total`): the counter was below
+  the total before the write and is at or above it after. Re-saving a counter
+  that already sat at its total - a rewatch left at 10 / 10 - changes nothing,
+  and neither does an unknown total.
+- **A status in the same payload wins.** The Modify form sends the status it
+  shows, so a form save that reaches the total while saying `Dropped` stays
+  `Dropped`.
+- **`PATCH` only.** `POST` and `PUT` never finish an entry by count.
+
+The response carries the new status, and the frontend's toast says "Marked as
+Completed!" rather than "Episodes updated!" when a write changed the status
+into Completed (`frontend/src/lib/progressToast.js`).
+
+**A pipeline never draws this conclusion.** Fill, Replace, Pull and autofill
+do not decide "`ep_fin == ep_total`, therefore Completed": `ep_fin` is one
+reader's position and only that reader's own write may conclude from it. What
+a pipeline may say is that the **work** has finished airing, and only when the
+source it fetched from says so — which `autofill` writes.
 
 ### A game has five completion axes, and they are independent
 
