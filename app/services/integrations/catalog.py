@@ -685,7 +685,8 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "and one achievement call, skipped entirely when "
             "steam_progress_sync is false; the Steam library is fetched once "
             "a run. Plus one or two probes of Steam's image CDN when IGDB "
-            "supplied no cover"
+            "supplied no cover, and one more storefront call for the header "
+            "image when the capsule is missing too"
         ),
         note=(
             "Two sources keyed on different columns: IGDB on igdb_id, Steam "
@@ -696,7 +697,8 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "no alias row is logged and skipped, never stored raw - see the "
             "Alias Conversion page. Steam never touches that layer: it writes "
             "columns, plus its library capsule as the cover when IGDB had "
-            "none."
+            "none, and its landscape header image when the capsule is missing "
+            "too."
         ),
         sources=(
             SourceBlock(
@@ -818,8 +820,10 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "cover_image_file",
                         "image",
                         "if-empty",
-                        "the portrait library capsule, from Steam's image CDN; "
-                        "the fallback, tried only after IGDB's cover",
+                        "the portrait library capsule, from Steam's image CDN, "
+                        "tried only after IGDB's cover; then the storefront's "
+                        "landscape header_image, the last resort for an app "
+                        "whose capsule is not at the unhashed path",
                     ),
                     Write(
                         "metacritic_user_score",
@@ -833,13 +837,6 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "never",
                         "IGDB already owns the game vocabulary through the "
                         "alias layer; a second one would fight it",
-                    ),
-                    Write(
-                        "cover_image_file",
-                        "none",
-                        "never",
-                        "a game's cover is IGDB's; Steam's library capsule is "
-                        "taken for an h-game only",
                     ),
                 ),
             ),
@@ -940,8 +937,9 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "7 to 10 - one DLsite product, then as for a game: the IGDB game "
             "and its time-to-beat, three Steam storefronts, and one "
             "achievement call, skipped when steam_progress_sync is false; "
-            "plus up to two Steam capsule checks and one more IGDB game "
-            "request while the entry still has no cover"
+            "plus up to two Steam capsule checks, one more IGDB game request "
+            "and one more Steam storefront call for the header image while "
+            "the entry still has no cover"
         ),
         note=(
             "Game's fill, generalised over the table, with DLsite in front. "
@@ -952,8 +950,9 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "platform; Steam writes prices and achievements, not hours or a "
             "Metacritic score, which h_game has no column for. Every source "
             "is fill-only for the cover, and they run in the order DLsite, "
-            "IGDB (cover held back), Steam, IGDB's cover - so the cover comes "
-            "from DLsite, then Steam's library capsule, then IGDB, and the "
+            "IGDB (cover held back), Steam, IGDB's cover, Steam's header - so "
+            "the cover comes from DLsite, then Steam's library capsule, then "
+            "IGDB, then Steam's landscape header image, and the "
             "release date and studio from DLsite before IGDB. The DLC parent "
             "is looked up among h-games only."
         ),
@@ -1041,8 +1040,10 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "image",
                         "if-empty",
                         "the portrait library capsule (library_600x900_2x, then "
-                        "1x), tried after DLsite and before IGDB; an app whose "
-                        "capsule is not at the unhashed path gives no cover",
+                        "1x), tried after DLsite and before IGDB; the "
+                        "storefront's landscape header_image after IGDB, the "
+                        "last resort for an app whose capsule is not at the "
+                        "unhashed path",
                     ),
                 ),
             ),

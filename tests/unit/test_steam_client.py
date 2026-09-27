@@ -53,6 +53,58 @@ class TestAppDetails:
         data = steam.fetch_steam_appdetails(1245620)
         assert data["metacritic"]["score"] == 96
 
+    def test_a_record_filed_under_another_key_is_still_found(self, monkeypatch):
+        """
+        The storefront answers under a number other than the one asked for:
+        appids=620 comes back keyed "323180", with steam_appid 620 inside.
+        Looking up str(appid) alone returned None for every game, silently.
+        """
+        payload = {
+            "323180": {
+                "success": True,
+                "data": {"name": "Portal 2", "steam_appid": 620, "metacritic": {"score": 95}},
+            }
+        }
+        monkeypatch.setattr(steam.requests, "get", lambda url, **k: FakeResponse(200, payload))
+        data = steam.fetch_steam_appdetails(620)
+        assert data is not None
+        assert data["name"] == "Portal 2"
+
+    def test_among_several_records_the_one_naming_this_appid_wins(self, monkeypatch):
+        payload = {
+            "111": {"success": True, "data": {"name": "Other", "steam_appid": 111}},
+            "2855530": {"success": True, "data": {"name": "ELDEN RING", "steam_appid": 1245620}},
+        }
+        monkeypatch.setattr(steam.requests, "get", lambda url, **k: FakeResponse(200, payload))
+        assert steam.fetch_steam_appdetails(1245620)["name"] == "ELDEN RING"
+
+    def test_the_requested_key_is_preferred_when_present(self, monkeypatch):
+        payload = {
+            "999": {"success": True, "data": {"name": "Decoy", "steam_appid": 1245620}},
+            "1245620": {"success": True, "data": {"name": "ELDEN RING"}},
+        }
+        monkeypatch.setattr(steam.requests, "get", lambda url, **k: FakeResponse(200, payload))
+        assert steam.fetch_steam_appdetails(1245620)["name"] == "ELDEN RING"
+
+    def test_a_sole_successful_record_without_an_appid_is_taken(self, monkeypatch):
+        payload = {"5009630": {"success": True, "data": {"name": "Lifeguard Holic"}}}
+        monkeypatch.setattr(steam.requests, "get", lambda url, **k: FakeResponse(200, payload))
+        assert steam.fetch_steam_appdetails(4090260)["name"] == "Lifeguard Holic"
+
+    def test_a_sole_unsuccessful_record_under_another_key_is_a_none(self, monkeypatch):
+        payload = {"5009630": {"success": False}}
+        monkeypatch.setattr(steam.requests, "get", lambda url, **k: FakeResponse(200, payload))
+        assert steam.fetch_steam_appdetails(4090260) is None
+
+    def test_several_records_none_naming_this_appid_is_a_none(self, monkeypatch):
+        """Guessing between two unrelated apps would file one's prices on the other."""
+        payload = {
+            "111": {"success": True, "data": {"name": "A", "steam_appid": 111}},
+            "222": {"success": True, "data": {"name": "B", "steam_appid": 222}},
+        }
+        monkeypatch.setattr(steam.requests, "get", lambda url, **k: FakeResponse(200, payload))
+        assert steam.fetch_steam_appdetails(620) is None
+
     def test_the_region_is_sent_as_cc(self, monkeypatch):
         seen = {}
 

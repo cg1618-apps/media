@@ -38,6 +38,7 @@ from app.services.domain import (
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
     autofill_cover_from_steam,
+    autofill_cover_from_steam_header,
     autofill_game_cover_from_igdb,
     autofill_game_from_igdb,
     autofill_h_comic_from_ehentai,
@@ -468,8 +469,8 @@ def bulk_download_missing_covers(
         else:
             skipped += 1
 
-    # The game fill's cover order: IGDB, then Steam's library capsule while
-    # the cover is still empty.
+    # The game fill's cover order: IGDB, then Steam's library capsule, then
+    # Steam's header image, each only while the cover is still empty.
     game_query = db.query(Game).join(Game.media_row).filter(Media.cover_image_file.isnot(None))
     for game in _collect(game_query, Game, "game"):
         total += 1
@@ -477,6 +478,7 @@ def bulk_download_missing_covers(
             game.cover_image_file = None
             autofill_game_from_igdb(game, db)
             autofill_cover_from_steam(game)
+            autofill_cover_from_steam_header(game)
             if game.cover_image_file:
                 downloaded += 1
         else:
@@ -512,7 +514,8 @@ def bulk_download_missing_covers(
             downloaded += 1
 
     # The h-game fill's cover order: DLsite, then Steam's library capsule,
-    # then IGDB. Each source writes only while the cover is still empty.
+    # then IGDB, then Steam's header image. Each source writes only while the
+    # cover is still empty.
     h_game_query = db.query(HGame).join(HGame.media_row).filter(Media.cover_image_file.isnot(None))
     for h_game in _collect(h_game_query, HGame, "h-game"):
         total += 1
@@ -521,6 +524,7 @@ def bulk_download_missing_covers(
             autofill_h_game_from_dlsite(h_game, db)
             autofill_cover_from_steam(h_game)
             autofill_game_cover_from_igdb(h_game)
+            autofill_cover_from_steam_header(h_game)
             if h_game.cover_image_file:
                 downloaded += 1
         else:

@@ -254,6 +254,34 @@ def _web_request(path: str, params: Dict[str, Any], context: str) -> Optional[An
         raise
 
 
+def _appdetails_entry(payload: Dict[str, Any], appid: int) -> Dict[str, Any]:
+    """
+    The one record in an appdetails response that belongs to `appid`, or {}.
+
+    The storefront does not reliably key its answer by the appid asked for:
+    appids=620 comes back under "323180", with `steam_appid: 620` inside the
+    data. So the requested key is tried first, then the record whose
+    `data.steam_appid` names this app, and last a response's only record -
+    trusted only when it says `success: true`, since a failed record carries
+    no data to identify it by. Several records, none naming this app, is {}:
+    guessing would file one game's prices on another.
+    """
+    entry = payload.get(str(appid))
+    if isinstance(entry, dict):
+        return entry
+
+    records = [e for e in payload.values() if isinstance(e, dict)]
+    for record in records:
+        data = record.get("data") or {}
+        if str(data.get("steam_appid")) == str(appid):
+            return record
+
+    if len(records) == 1 and records[0].get("success"):
+        return records[0]
+
+    return {}
+
+
 @retry(
     stop=stop_after_attempt(5),
     wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -267,9 +295,10 @@ def fetch_steam_appdetails(appid: int, cc: str = "us") -> Optional[Dict[str, Any
     """
     Fetches one app's storefront record for one country.
 
-    The response is keyed by the appid as a string and carries its own success
-    flag; a delisted or region-locked app answers `success: false`, which is an
-    ordinary outcome and returns None.
+    The record carries its own success flag; a delisted or region-locked app
+    answers `success: false`, which is an ordinary outcome and returns None.
+    Which key the record is filed under is not reliable - see
+    _appdetails_entry.
     """
     payload = _store_request(
         "appdetails",
@@ -279,7 +308,7 @@ def fetch_steam_appdetails(appid: int, cc: str = "us") -> Optional[Dict[str, Any
     if not payload:
         return None
 
-    entry = payload.get(str(appid)) or {}
+    entry = _appdetails_entry(payload, appid)
     if not entry.get("success"):
         logger.info("Steam has no storefront record for app %s in %s.", appid, cc)
         return None
