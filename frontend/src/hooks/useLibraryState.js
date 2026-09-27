@@ -1,7 +1,9 @@
 // Frontend: state hook for library page filters and selections.
 import { useState, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { applyFilterDefs } from "../lib/libraryFilters";
 import { cleanString } from "../utils/media";
+import { useFilterState } from "./useFilterState";
 
 // ---------------------------------------------------------------------------
 // FilterDef type reference
@@ -16,6 +18,9 @@ import { cleanString } from "../utils/media";
 //   "set-grouped"  — options are group labels; match uses a groupMap to normalise
 //                    the raw item field value before comparing
 //   "boolean"      — single toggle; filter.key is a boolean
+//
+// Optional on the set types: optionLabel(value) => string, the chip text when
+// it should differ from the stored value.
 //
 // match signature (called only when the filter is active):
 //   (item, activeValue, franchiseDict, seriesDict) => boolean
@@ -36,65 +41,21 @@ import { cleanString } from "../utils/media";
 export function useLibraryState(type, config, data, franchiseDict, seriesDict) {
   const queryClient = useQueryClient();
 
-  // -------------------------------------------------------------------------
-  // Filter state — shape is derived from config.filterDefs
-  // -------------------------------------------------------------------------
-  const initFilters = useCallback(
-    () =>
-      Object.fromEntries(
-        config.filterDefs.map((fd) => [
-          fd.key,
-          fd.type === "boolean" ? false : new Set(),
-        ]),
-      ),
-    [config.filterDefs],
-  );
-
   const [searchQuery, setSearchQuery]   = useState("");
   const [currentSort, setCurrentSort]   = useState(config.defaultSort ?? "title");
   const [currentView, setCurrentView]   = useState("grid");
   const [showFilters, setShowFilters]   = useState(false);
-  const [filters, setFilters]           = useState(initFilters);
 
   // -------------------------------------------------------------------------
-  // Dynamic filter options — computed once from data for "set-dynamic" defs
+  // Filter state — shape is derived from config.filterDefs
   // -------------------------------------------------------------------------
-  const dynamicFilterOptions = useMemo(
-    () =>
-      Object.fromEntries(
-        config.filterDefs
-          .filter((fd) => fd.type === "set-dynamic")
-          .map((fd) => [fd.key, fd.deriveOptions(data)]),
-      ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, config.filterDefs],
-  );
-
-  // -------------------------------------------------------------------------
-  // Filter helpers
-  // -------------------------------------------------------------------------
-  const toggleFilter = useCallback((group, value) => {
-    setFilters((prev) => {
-      const current = prev[group];
-      if (typeof current === "boolean") {
-        return { ...prev, [group]: !current };
-      }
-      const next = new Set(current);
-      next.has(value) ? next.delete(value) : next.add(value);
-      return { ...prev, [group]: next };
-    });
-  }, []);
-
-  const clearFilters = useCallback(() => setFilters(initFilters()), [initFilters]);
-
-  const activeFilterCount = useMemo(
-    () =>
-      Object.values(filters).reduce(
-        (n, v) => n + (v instanceof Set ? v.size : v ? 1 : 0),
-        0,
-      ),
-    [filters],
-  );
+  const {
+    filters,
+    toggleFilter,
+    clearFilters,
+    activeFilterCount,
+    dynamicFilterOptions,
+  } = useFilterState(config.filterDefs, data);
 
   // -------------------------------------------------------------------------
   // Cache-patch callback — used by grid MediaCard onUpdated prop
@@ -129,17 +90,7 @@ export function useLibraryState(type, config, data, franchiseDict, seriesDict) {
       : [...data];
 
     // 2. Filter — only apply active FilterDefs
-    for (const fd of config.filterDefs) {
-      const activeValue = filters[fd.key];
-      const isActive =
-        activeValue instanceof Set ? activeValue.size > 0 : !!activeValue;
-
-      if (!isActive) continue;
-
-      result = result.filter((item) =>
-        fd.match(item, activeValue, franchiseDict, seriesDict),
-      );
-    }
+    result = applyFilterDefs(result, config.filterDefs, filters, franchiseDict, seriesDict);
 
     // 3. Sort
     const sortDef = config.sortDefs.find((s) => s.key === currentSort);
