@@ -551,6 +551,24 @@ a *refused* connection is still a logged connection. The switch is per-machine
 via `.env`, like the credentials themselves — see
 [switching-environments.md](switching-environments.md).
 
+### Which record in the answer is the app's
+
+`appdetails?appids=N` answers an object of records, each `{"success": …,
+"data": {…}}`, but **the key a record is filed under is not reliably `N`**.
+The storefront files it under another number: `appids=620` answers under
+`"323180"`, `appids=1245620` under `"2855530"`, `appids=4090260` under
+`"5009630"`. The data block still names the app it describes, in
+`data.steam_appid`.
+
+So `fetch_steam_appdetails` does not index the answer by the appid it asked
+for. `_appdetails_entry` takes, in order: the record under `str(appid)` when
+there is one; the record whose `data.steam_appid` equals the appid; and the
+answer's only record, but only when it says `success: true` - a failed record
+has no data to identify it by. An answer with several records and none naming
+the app yields nothing rather than a guess, which would file one game's
+prices on another. A `success: false` record, wherever it is filed, is `None`:
+delisted or region-locked.
+
 ### Requests per game
 
 `appdetails` returns `metacritic`, `achievements` and `price_overview` in one
