@@ -270,3 +270,125 @@ class TestCompleteManga:
     def test_nonexistent_id_returns_404(self, admin_client):
         response = admin_client.post(f"/api/manga/{uuid.uuid4()}/complete")
         assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# PATCH carrying the progress counter to its total finishes the entry
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def airing_anime(db_session, sample_franchise, list_row):
+    """Nine of ten watched and still airing, so both halves of Mark completed
+    have something to change."""
+    entry = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Nearly Done Anime",
+        airing_type="TV",
+        airing_status="Currently Airing",
+        ep_total=10,
+    )
+    db_session.add(entry)
+    db_session.flush()
+    list_row(entry, status="Watching", ep_fin=9)
+    return entry
+
+
+class TestProgressReachingTotalCompletes:
+    def test_stepping_to_the_total_marks_completed(self, admin_client, airing_anime):
+        response = admin_client.patch(
+            f"/api/anime/{airing_anime.system_id}", json={"ep_fin": 10}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ep_fin"] == 10
+        assert data["watching_status"] == "Completed"
+        assert data["airing_status"] == "Finished Airing"
+
+    def test_completion_stamps_completed_at(self, admin_client, db_session, admin_user, airing_anime):
+        admin_client.patch(f"/api/anime/{airing_anime.system_id}", json={"ep_fin": 10})
+        row = (
+            db_session.query(models.UserMediaList)
+            .filter_by(user_id=admin_user.id, media_id=airing_anime.system_id)
+            .one()
+        )
+        assert row.completed_at is not None
+
+    def test_stepping_below_the_total_does_not(self, admin_client, airing_anime):
+        # The mirror case: the same fixture, one short of the total.
+        response = admin_client.patch(
+            f"/api/anime/{airing_anime.system_id}", json={"ep_fin": 8}
+        )
+        data = response.json()
+        assert data["watching_status"] == "Watching"
+        assert data["airing_status"] == "Currently Airing"
+
+    def test_an_explicit_status_in_the_same_write_wins(self, admin_client, airing_anime):
+        response = admin_client.patch(
+            f"/api/anime/{airing_anime.system_id}",
+            json={"ep_fin": 10, "watching_status": "Dropped"},
+        )
+        data = response.json()
+        assert data["watching_status"] == "Dropped"
+        assert data["airing_status"] == "Currently Airing"
+
+    def test_a_counter_already_at_its_total_is_not_refinished(
+        self, admin_client, db_session, sample_franchise, list_row
+    ):
+        # At 10/10 but Watching (a rewatch, say): re-saving 10 is no crossing.
+        entry = models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            anime_name_en="Rewatching Anime",
+            airing_status="Currently Airing",
+            ep_total=10,
+        )
+        db_session.add(entry)
+        db_session.flush()
+        list_row(entry, status="Watching", ep_fin=10)
+        response = admin_client.patch(f"/api/anime/{entry.system_id}", json={"ep_fin": 10})
+        assert response.json()["watching_status"] == "Watching"
+
+    def test_an_unknown_total_never_completes(
+        self, admin_client, db_session, sample_franchise, list_row
+    ):
+        entry = models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            anime_name_en="Open-ended Anime",
+            airing_status="Currently Airing",
+            ep_total=None,
+        )
+        db_session.add(entry)
+        db_session.flush()
+        list_row(entry, status="Watching", ep_fin=9)
+        response = admin_client.patch(f"/api/anime/{entry.system_id}", json={"ep_fin": 10})
+        assert response.json()["watching_status"] == "Watching"
+
+    def test_tv_show(self, admin_client, sample_tv_show):
+        response = admin_client.patch(
+            f"/api/tv-shows/{sample_tv_show.system_id}", json={"ep_fin": 10}
+        )
+        assert response.json()["watching_status"] == "Completed"
+
+    def test_manga_chapters(self, admin_client, sample_manga):
+        response = admin_client.patch(
+            f"/api/manga/{sample_manga.system_id}", json={"ch_fin": 50}
+        )
+        data = response.json()
+        assert data["reading_status"] == "Completed"
+        # The rest of Mark completed comes with it.
+        assert data["vol_fin"] == 5
+
+    def test_comic_issues(self, admin_client, db_session, sample_franchise, list_row):
+        entry = models.Comic(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            comic_name_en="Test Comic",
+            issue_total=12,
+        )
+        db_session.add(entry)
+        db_session.flush()
+        list_row(entry, status="Reading", issue_fin=11)
+        response = admin_client.patch(f"/api/comic/{entry.system_id}", json={"issue_fin": 12})
+        assert response.json()["reading_status"] == "Completed"

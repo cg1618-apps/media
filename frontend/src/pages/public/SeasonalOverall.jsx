@@ -5,6 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getRatingWeight } from "../../utils/media";
 import DashboardCard from "../../components/tracker/DashboardCard";
+import { progressToast } from "../../lib/progressToast";
 import RatingDistributionBlock from "../../components/info/RatingDistributionBlock";
 import { Chip, Eyebrow, ProgressRule, RatingStamp, Slip } from "../../components/ui/primitives";
 
@@ -363,8 +364,9 @@ export default function SeasonalOverall() {
     }
   }
 
-  function handleEpChange(setter) {
+  function handleEpChange(list, setter) {
     return async (sysId, newVal, prevVal) => {
+      const before = list.find((a) => a.system_id === sysId);
       setter((prev) =>
         prev.map((a) =>
           a.system_id === sysId
@@ -384,7 +386,13 @@ export default function SeasonalOverall() {
           credentials: "include",
         });
         if (!res.ok) throw new Error();
-        showToast("success", "Episodes updated!");
+        const saved = await res.json().catch(() => null);
+        if (saved) {
+          setter((prev) =>
+            prev.map((a) => (a.system_id === sysId ? { ...a, ...saved } : a)),
+          );
+        }
+        showToast("success", progressToast(before, saved, "Episodes updated!"));
       } catch {
         setter((prev) =>
           prev.map((a) =>
@@ -481,7 +489,7 @@ export default function SeasonalOverall() {
               animeData={thisAnime}
               franchiseMap={franchiseMap}
               isAdmin={isAdmin}
-              onEpChange={handleEpChange(setThisAnime)}
+              onEpChange={handleEpChange(thisAnime, setThisAnime)}
               onRatingChange={handleRatingChange}
               showRatingDistribution
             />
@@ -511,7 +519,7 @@ export default function SeasonalOverall() {
               animeData={nextAnime}
               franchiseMap={franchiseMap}
               isAdmin={isAdmin}
-              onEpChange={handleEpChange(setNextAnime)}
+              onEpChange={handleEpChange(nextAnime, setNextAnime)}
               onRatingChange={handleRatingChange}
               sections={NEXT_SECTIONS}
             />

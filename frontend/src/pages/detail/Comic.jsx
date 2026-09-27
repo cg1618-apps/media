@@ -38,6 +38,7 @@ import { READING_STATUSES } from "../../config/fieldOptions";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
+import { progressToast } from "../../lib/progressToast";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -123,8 +124,10 @@ export default function Comic() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Sync failed");
-      showToast("success", msg || "Saved");
       const updated = await res.json();
+      // `comic` is still the pre-write row here: this closure never saw the
+      // optimistic update. A progress step can finish the entry.
+      showToast("success", progressToast(comic, updated, msg || "Saved"));
       setComic(updated);
       setMediaItem(updated);
     } catch {
