@@ -1268,6 +1268,7 @@ export default function Add() {
         name_jp: characterForm.name_jp.trim() || null,
         name_alt: characterForm.name_alt.trim() || null,
         display_name_field: characterForm.display_name_field || null,
+        role: characterForm.role || null,
         gender: characterForm.gender || null,
         my_rating: characterForm.my_rating || null,
         photo_file: characterForm.photo_file || null,

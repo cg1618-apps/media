@@ -104,7 +104,9 @@ def test_person_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
     rows = db_session.query(models.Person).filter_by(name_cn="新房昭之").all()
     assert len(rows) == 1
     assert rows[0].system_id == local_id
-    assert rows[0].gender == "Male"
+    # The sheet's old free text is folded onto the gender vocabulary on the
+    # way in (app/utils/entity_vocab.py) - the cell still reached the row.
+    assert rows[0].gender == "男"
 
 
 def test_studio_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):

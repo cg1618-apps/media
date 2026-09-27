@@ -36,6 +36,8 @@ import {
   MANGA_SERIALIZATION_STATUSES,
   MOVIE_TYPES,
   MY_RATINGS,
+  GENDERS,
+  CHARACTER_ROLES,
   NOVEL_REGIONS,
   NOVEL_SERIALIZATION_STATUSES,
   GAME_RELEASE_STATUSES,
@@ -1544,8 +1546,13 @@ export const TYPE_FIELD_META = {
       group: "Names",
       autofillable: false,
     },
-    // Free text on the Add form: there is no gender vocabulary to select from.
-    gender: { label: "Gender", group: "Classification", autofillable: false },
+    gender: {
+      label: "Gender",
+      control: "select",
+      options: GENDERS,
+      group: "Classification",
+      autofillable: false,
+    },
     my_rating: { autofillable: false },
     photo_file: {
       label: "Photo File",
@@ -1569,7 +1576,21 @@ export const TYPE_FIELD_META = {
       group: "Names",
       autofillable: false,
     },
-    gender: { label: "Gender", group: "Classification", autofillable: false },
+    // The character's own role, independent of any casting's role.
+    role: {
+      label: "Role",
+      control: "select",
+      options: CHARACTER_ROLES,
+      group: "Classification",
+      autofillable: false,
+    },
+    gender: {
+      label: "Gender",
+      control: "select",
+      options: GENDERS,
+      group: "Classification",
+      autofillable: false,
+    },
     my_rating: { autofillable: false },
     photo_file: {
       label: "Photo File",

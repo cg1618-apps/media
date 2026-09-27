@@ -43,3 +43,36 @@ export function applyFilterDefs(items, filterDefs, filters, franchiseDict, serie
   }
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// Parent chips
+// ---------------------------------------------------------------------------
+// A "set" def may carry `parent: { label, children: [...] }`: one chip that
+// stands for a group of option values (the gated media types under
+// "Restricted"). The children are ordinary values of the same Set, drawn as
+// their own chips beside the parent, so matching never needs to know the
+// parent exists.
+
+/** True when every one of `children` is in `active` (and there is at least one). */
+export function isParentActive(active, children) {
+  return (
+    children.length > 0 &&
+    active instanceof Set &&
+    children.every((child) => active.has(child))
+  );
+}
+
+/**
+ * `active` after a click on the parent chip of `children`. With every child
+ * on, the click turns them all off; with none or only some on, it turns the
+ * rest on. Values outside `children` are left alone. Returns a new Set.
+ */
+export function toggleParentValues(active, children) {
+  const next = new Set(active instanceof Set ? active : []);
+  if (isParentActive(next, children)) {
+    children.forEach((child) => next.delete(child));
+  } else {
+    children.forEach((child) => next.add(child));
+  }
+  return next;
+}

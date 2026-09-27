@@ -60,3 +60,9 @@ export const DEEP_LINK_FALLBACK_TYPES = [
   "series",
   "anime-movie",
 ];
+
+// The entity tabs a deep link can open straight into (?id=<system_id>&type=).
+// Their editors own their own fetch, so the link needs no entry list: Modify
+// opens the tab and hands it the id. The type is required for these - an id
+// alone is only ever looked for in DEEP_LINK_FALLBACK_TYPES.
+export const ENTITY_DEEP_LINK_TYPES = ["character", "person"];

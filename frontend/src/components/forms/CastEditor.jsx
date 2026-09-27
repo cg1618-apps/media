@@ -10,8 +10,7 @@ import ImagePicker from "./ImagePicker";
 import { useConstants } from "../../config/useConstants";
 import { endpoints } from "../../api/endpoints";
 import { buildCreateRequest } from "../../lib/ensureSourceValues";
-
-const FALLBACK_CHARACTER_ROLES = ["Main", "Supporting"];
+import { CHARACTER_ROLES, NEW_CAST_CHARACTER_GENDER } from "../../config/fieldOptions";
 
 // A synthetic ComboBox item id, distinguishable from every real
 // character's UUID, that stands for "mint a brand new character with this
@@ -37,6 +36,13 @@ const SEIYUU_MEDIA_TYPES = new Set(["anime", "anime-movie", "hentai"]);
 const cellCls =
   "border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface";
 
+// The POST body for a character minted from this editor: the typed name,
+// plus the gender NEW_CAST_CHARACTER_GENDER gives this media type, if any.
+export function newCharacterBody(name, mediaType) {
+  const gender = NEW_CAST_CHARACTER_GENDER[mediaType];
+  return gender ? { name_en: name, gender } : { name_en: name };
+}
+
 function emptyRow(position) {
   return {
     system_id: undefined,
@@ -55,17 +61,14 @@ export default function CastEditor({ mediaType, value, onChange }) {
   const rows = value || [];
   const showSeiyuu = SEIYUU_MEDIA_TYPES.has(mediaType);
 
-  // CHARACTER_ROLES is served under /api/constants (see useConstants), but
-  // it is not one of the arrays CONSTANTS_FALLBACK pre-declares, so the very
-  // first paint (before that fetch resolves) would read undefined. Rather
-  // than add a key to the shared fieldOptions.js fallback table — a file
-  // other in-flight sessions may also be touching — this falls back to a
-  // local literal that matches app/routers/constants.py's CHARACTER_ROLES.
+  // CHARACTER_ROLES (config/fieldOptions.js) is the fallback until
+  // /api/constants answers, and is refreshed in place from its
+  // `character_role` key; the constants payload wins when it has one.
   const constants = useConstants();
   const roleOptions =
     constants.character_role && constants.character_role.length
       ? constants.character_role
-      : FALLBACK_CHARACTER_ROLES;
+      : CHARACTER_ROLES;
 
   // Per-row character search results, keyed by row index: {system_id,
   // display_name, entryNames}[]. Populated only by typing (see
@@ -226,7 +229,7 @@ export default function CastEditor({ mediaType, value, onChange }) {
         const res = await fetch(endpoints.character.create(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name_en: name }),
+          body: JSON.stringify(newCharacterBody(name, mediaType)),
           credentials: "include",
         });
         if (!res.ok) return;

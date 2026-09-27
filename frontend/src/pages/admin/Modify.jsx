@@ -80,6 +80,7 @@ import {
 import {
   MODIFY_TAB_LISTS,
   DEEP_LINK_FALLBACK_TYPES,
+  ENTITY_DEEP_LINK_TYPES,
   listsForTab,
 } from "../../config/adminEntryLists";
 import { enrichEntry } from "../../lib/enrich";
@@ -298,7 +299,20 @@ export default function Modify() {
   // Content labels are the same eight keys for every media type, so they
   // live on the page rather than in each per-type form object.
   const [contentLabels, setContentLabels] = useState([]);
-  const [activeTab, setActiveTab] = useState("anime");
+  // An entity deep link (?type=character|person) opens on its tab from the
+  // first paint; the tab itself loads the id (entityDeepLink below).
+  const [activeTab, setActiveTab] = useState(() => {
+    const urlType = searchParams.get("type");
+    return ENTITY_DEEP_LINK_TYPES.includes(urlType) ? urlType : "anime";
+  });
+  // Handed to that tab once: leaving the tab drops it, so coming back opens
+  // the picker rather than the linked record again.
+  const [entityDeepLink, setEntityDeepLink] = useState(() => {
+    const urlType = searchParams.get("type");
+    return ENTITY_DEEP_LINK_TYPES.includes(urlType)
+      ? { type: urlType, id: searchParams.get("id") }
+      : null;
+  });
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [editingType, setEditingType] = useState("anime");
@@ -537,6 +551,9 @@ export default function Modify() {
     const urlId = searchParams.get("id");
     if (!urlId) return undefined;
     const urlType = searchParams.get("type");
+    // An entity tab opened itself (activeTab's initial state) and loads the
+    // id on its own; there is no entry list to search.
+    if (ENTITY_DEEP_LINK_TYPES.includes(urlType)) return undefined;
     let cancelled = false;
 
     function openFrom(fetched, order) {
@@ -3879,6 +3896,7 @@ export default function Modify() {
         activeTab={activeTab}
         onSelect={(key) => {
           setActiveTab(key);
+          setEntityDeepLink(null);
           if (!editorOpen) setSearchQuery("");
         }}
       />
@@ -3902,13 +3920,21 @@ export default function Modify() {
       {/* ═══ PERSON TAB — bypasses search/edit pattern for the same reason
           Studio does; a person is a credited entity with its own role x scope
           matrix (see PersonModifyTab.jsx). ═══ */}
-      {activeTab === "person" && <PersonModifyTab />}
+      {activeTab === "person" && (
+        <PersonModifyTab
+          initialId={entityDeepLink?.type === "person" ? entityDeepLink.id : null}
+        />
+      )}
 
       {/* ═══ CHARACTER TAB — bypasses search/edit pattern for the same
           reason Studio does; a character holds no roles, so unlike
           PersonModifyTab it needs no role x scope matrix (see
           CharacterModifyTab.jsx). ═══ */}
-      {activeTab === "character" && <CharacterModifyTab />}
+      {activeTab === "character" && (
+        <CharacterModifyTab
+          initialId={entityDeepLink?.type === "character" ? entityDeepLink.id : null}
+        />
+      )}
 
       {/* ═══ ALIAS TAB — bypasses search/edit pattern; an alias row has no
           record of its own to search for, so the tab picks the option that

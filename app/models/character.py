@@ -83,6 +83,16 @@ class Character(Base, NameFallbackMixin):
     # override it with its own photo_file for how the character looks in that
     # entry.
     photo_file = Column(String, nullable=True)
+    # The entry whose picture stands in when photo_file is NULL: a
+    # media.system_id this character is cast on. No FK, like
+    # franchise.cover_entry_id - a stale id falls through to the automatic
+    # choice (app/services/domain/entity_photos.py).
+    photo_fallback_entry_id = Column(UUID(as_uuid=True), nullable=True)
+    # One of character_roles.CHARACTER_ROLES, or NULL: what the character is
+    # to their story overall. Independent of character_casting.role, which is
+    # what they are in one entry - neither is derived from, synced with or
+    # defaulted from the other.
+    role = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

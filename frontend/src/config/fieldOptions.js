@@ -117,6 +117,33 @@ export const IS_MAIN = ["本傳", "外傳", "前傳", "後傳", "總集篇"];
 
 export const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
+// A character's role in a cast (CHARACTER_ROLES in app/utils/constants.py,
+// /api/constants key "character_role"), in rank order. The same vocabulary
+// serves a casting's role and a character's own role; the two are
+// independent and neither is derived from the other.
+export const CHARACTER_ROLES = ["Main", "Core", "Supporting", "Other"];
+
+/**
+ * Where a cast row with this role sorts: CHARACTER_ROLES order, then a row
+ * with no role or an unknown one.
+ */
+export function castRoleRank(role) {
+  const i = CHARACTER_ROLES.indexOf(role);
+  return i === -1 ? CHARACTER_ROLES.length : i;
+}
+
+// A character's or a person's gender (GENDERS in app/utils/constants.py,
+// /api/constants key "gender"). Unset is null, not a sixth value.
+export const GENDERS = ["男", "女", "中性/無性", "雙性混和", "其他"];
+
+// The gender a character starts with when the cast editor mints it for an
+// entry of this media type. A type not listed leaves it unset. Only that
+// create path reads this - the Add page's character form starts unset.
+export const NEW_CAST_CHARACTER_GENDER = {
+  "h-comic": "女",
+  hentai: "女",
+};
+
 export const ANIME_AIRING_TYPES = [
   "TV",
   "Movie",
@@ -375,6 +402,8 @@ export const CONSTANTS_FALLBACK = {
   franchise_type: FRANCHISE_TYPES,
   franchise_expectation: FRANCHISE_EXPECTATIONS,
   my_rating: MY_RATINGS,
+  gender: GENDERS,
+  character_role: CHARACTER_ROLES,
   is_main: IS_MAIN,
   movie_type: MOVIE_TYPES,
   tv_region: TV_REGIONS,

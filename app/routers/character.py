@@ -14,12 +14,15 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
+from app.routers._entity_patch import prepare_patch, resolve_fallback
+from app.routers._patching import apply_column_patch
+from app.services.domain.entity_photos import EntityMedia, character_media
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
     label_hidden_entry_ids,
@@ -29,6 +32,7 @@ from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
     require_visible_shared,
 )
+from app.utils.character_roles import check_character_role
 from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
@@ -41,21 +45,21 @@ NOT_FOUND = "Character not found."
 
 
 def _to_response(
-    db: Session, character: models.Character, viewer=None
+    db: Session,
+    character: models.Character,
+    viewer=None,
+    media: Optional[EntityMedia] = None,
 ) -> schemas.CharacterResponse:
-    casting_rows = (
-        db.query(models.CharacterCasting.media_type, models.CharacterCasting.entry_id)
-        .filter(models.CharacterCasting.character_id == character.system_id)
-        .all()
-    )
-    # Count only castings on entries the viewer may see, exactly as
-    # person._to_response counts credit_count - a number is a smaller leak
-    # than a title, but "cast in 3 things, you can see 2" is still one.
-    casting_count = len(
-        filter_visible_pairs(
-            db, viewer, [(mt, eid) for mt, eid in casting_rows if mt and eid]
-        )
-    )
+    # casting_count, the picture and the media types all count only castings
+    # on entries the viewer may see, exactly as person._to_response counts
+    # credit_count - a number is a smaller leak than a title, but "cast in 3
+    # things, you can see 2" is still one.
+    #
+    # `media` is passed in by the list route, which resolves the whole page
+    # in one pass (entity_photos.character_media); a single-entity route
+    # leaves it None and pays for one.
+    if media is None:
+        media = character_media(db, viewer, [character])[character.system_id]
     return schemas.CharacterResponse(
         system_id=character.system_id,
         public_id=character.public_id,
@@ -68,8 +72,13 @@ def _to_response(
         gender=character.gender,
         my_rating=character.my_rating,
         photo_file=character.photo_file,
+        photo_fallback_entry_id=media.photo_fallback_entry_id,
+        role=character.role,
         remark=character.remark,
-        casting_count=casting_count,
+        casting_count=media.count,
+        display_photo_file=media.display_photo_file,
+        media_types=media.media_types,
+        restricted=media.restricted,
     )
 
 
@@ -120,7 +129,11 @@ def get_all_characters(
     # Sorted in Python, not SQL: display_name is a property over four columns
     # with a per-row choice, so no single ORDER BY column can express it.
     characters.sort(key=lambda c: c.display_name.casefold())
-    return [_to_response(db, character, viewer) for character in characters]
+    media = character_media(db, viewer, characters)
+    return [
+        _to_response(db, character, viewer, media[character.system_id])
+        for character in characters
+    ]
 
 
 @router.get(
@@ -276,12 +289,20 @@ def create_character(
     row by name. Disambiguation belongs in the cast editor's combobox, which
     lets the admin pick "existing" or "new" explicitly - never in a silent
     server-side match here.
+
+    A new character is cast on nothing, so any photo_fallback_entry_id is a
+    422 - resolve_fallback has no link to find.
     """
+    if payload.photo_fallback_entry_id is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="photo_fallback_entry_id must name an entry this character is linked to.",
+        )
     character = models.Character(**payload.model_dump())
     db.add(character)
     db.commit()
     db.refresh(character)
-    return _to_response(db, character)
+    return _to_response(db, character, admin)
 
 
 @router.put(
@@ -293,18 +314,69 @@ def update_character(
     db: Session = Depends(get_db),
     admin: Viewer = Depends(require_manage_catalog),
 ):
-    """Fully updates a character's metadata."""
+    """
+    Fully updates a character's metadata.
+
+    photo_fallback_entry_id must name an entry this character is cast on
+    (422 otherwise); a null keeps a choice this editor cannot see - see
+    _entity_patch.resolve_fallback.
+    """
     character = db.get(models.Character, system_id)
     if character is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Character, system_id, NOT_FOUND)
 
-    for key, value in payload.model_dump().items():
+    data = payload.model_dump()
+    data["photo_fallback_entry_id"] = resolve_fallback(
+        db, admin, models.Character, character,
+        data["photo_fallback_entry_id"], "character",
+    )
+    for key, value in data.items():
         setattr(character, key, value)
 
     db.commit()
     db.refresh(character)
-    return _to_response(db, character)
+    return _to_response(db, character, admin)
+
+
+@router.patch(
+    "/{system_id}", response_model=schemas.CharacterResponse, summary="Patch Character"
+)
+def patch_character(
+    system_id: UUID,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Partially updates a character - the detail page's inline rating and
+    remark edits. Only the keys sent change.
+
+    The same rules as PUT, checked before anything is written: gender,
+    my_rating and role are their vocabularies ("" is NULL), display_name_field
+    is en / cn / jp / alt, at least one name survives the patch, and a
+    photo_fallback_entry_id names an entry this character is cast on. Server
+    columns (system_id, public_id, timestamps) are a 422; keys that are not
+    columns are ignored (_patching.apply_column_patch).
+    """
+    character = db.get(models.Character, system_id)
+    if character is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Character, system_id, NOT_FOUND)
+
+    data = prepare_patch(
+        character, payload, "character", {"role": check_character_role}
+    )
+    if "photo_fallback_entry_id" in data:
+        data["photo_fallback_entry_id"] = resolve_fallback(
+            db, admin, models.Character, character,
+            data["photo_fallback_entry_id"], "character",
+        )
+    apply_column_patch(character, data)
+
+    db.commit()
+    db.refresh(character)
+    return _to_response(db, character, admin)
 
 
 @router.delete("/{system_id}", summary="Delete Character")

@@ -1,8 +1,13 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import CharacterLibrary from "./CharacterLibrary";
+
+// A session that may see every gated type, so the Restricted chip is drawn.
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ visibleGatedTypes: ["h-comic", "h-game", "hentai"] }),
+}));
 
 const CHARACTERS = [
   {
@@ -11,6 +16,11 @@ const CHARACTERS = [
     name_en: "Yuki Nagato",
     display_name: "Yuki Nagato",
     casting_count: 3,
+    media_types: ["anime", "novel"],
+    my_rating: "A",
+    gender: "女",
+    role: "Main",
+    display_photo_file: "library/yuki.jpg",
   },
   {
     system_id: "2",
@@ -18,6 +28,9 @@ const CHARACTERS = [
     name_cn: "渡部高志",
     display_name: "渡部高志",
     casting_count: 8,
+    media_types: ["hentai"],
+    my_rating: null,
+    gender: "男",
   },
   {
     system_id: "3",
@@ -25,6 +38,10 @@ const CHARACTERS = [
     name_jp: "諫山創",
     display_name: "諫山創",
     casting_count: 1,
+    media_types: ["h-comic", "manga"],
+    my_rating: "S",
+    gender: null,
+    role: "Core",
   },
   {
     system_id: "4",
@@ -32,6 +49,9 @@ const CHARACTERS = [
     name_alt: "Nickname Only",
     display_name: "Nickname Only",
     casting_count: 0,
+    media_types: [],
+    my_rating: "B",
+    gender: "其他",
   },
 ];
 
@@ -99,5 +119,97 @@ describe("CharacterLibrary", () => {
     await user.selectOptions(screen.getByLabelText(/sort/i), "casting_count");
     const cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards[0]).toContain("渡部高志");
+  });
+
+  it("sorts by my rating, best first, unrated last", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
+    );
+    await user.selectOptions(screen.getByLabelText(/sort/i), "my_rating");
+    const cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards[0]).toContain("諫山創");
+    expect(cards[3]).toContain("渡部高志");
+  });
+
+  it("shows the server-resolved display photo on the card", async () => {
+    renderLibrary();
+    const card = (await screen.findByText("Yuki Nagato")).closest("a");
+    expect(card.querySelector("img")).toHaveAttribute(
+      "src",
+      "/static/library/yuki.jpg",
+    );
+  });
+
+  it("filters by entry type, OR within the group and AND across groups", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+
+    await user.click(screen.getByRole("button", { name: "Manga" }));
+    await user.click(screen.getByRole("button", { name: "Novel" }));
+    let cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "S" }));
+    cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toContain("諫山創");
+  });
+
+  it("turns on every restricted type from the Restricted chip, and Clear all resets", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    // Characters are never cast on an h-game, so it is not offered.
+    expect(screen.queryByRole("button", { name: "H-Game" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Restricted" }));
+    const cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Hentai" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(screen.getAllByRole("link")).toHaveLength(4);
+  });
+
+  it("filters by gender, with Not set for an unset gender", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    const genderGroup = screen.getByText("Gender").parentElement;
+    await user.click(within(genderGroup).getByRole("button", { name: "Not set" }));
+    const cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards).toEqual([expect.stringContaining("諫山創")]);
+  });
+
+  it("filters by the character's own role, with Not set for none", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    const roleGroup = screen.getByText("Role").parentElement;
+    await user.click(within(roleGroup).getByRole("button", { name: "Core" }));
+    let cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards).toEqual([expect.stringContaining("諫山創")]);
+
+    await user.click(within(roleGroup).getByRole("button", { name: "Not set" }));
+    cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards).toHaveLength(3);
   });
 });

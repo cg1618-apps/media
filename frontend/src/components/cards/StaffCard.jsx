@@ -71,7 +71,9 @@ export function PersonCard({ person }) {
       to={entityPath("person", person)}
       label="Person"
       name={person.display_name || "Unknown Person"}
-      imageFile={person.photo_file}
+      // The server resolves the fallback (the chosen entry's cover, then the
+      // newest visible one); a payload without it still has photo_file.
+      imageFile={person.display_photo_file ?? person.photo_file}
       imageAlt="Photo"
       creditCount={person.credit_count}
     />

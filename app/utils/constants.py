@@ -116,6 +116,11 @@ class FranchiseType(str, Enum):
 
 MY_RATINGS: tuple[str, ...] = ("S", "A+", "A", "B", "C", "D", "E", "F")
 
+# A character's or a person's gender. NULL means not set; it is not a sixth
+# value. Enforced by the character and person schemas, and by the Sheets Pull
+# through app/utils/entity_vocab.py.
+GENDERS: tuple[str, ...] = ("男", "女", "中性/無性", "雙性混和", "其他")
+
 FRANCHISE_EXPECTATIONS: tuple[str, ...] = ("Highest", "High", "Medium", "Low")
 
 # Formerly the "Main / Spinoff" system option category.

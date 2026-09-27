@@ -336,7 +336,10 @@ navigating away resets the page. Filtering is entirely client-side over the
 picker: `hooks/useFilterState.js` holds the chip and toggle values,
 `lib/libraryFilters.js` applies them (`applyFilterDefs`), and
 `components/layout/FilterPanel.jsx` draws them. A set-type def may carry
-`optionLabel(value)` when its chip text should differ from the stored value.
+`optionLabel(value)` when its chip text should differ from the stored value,
+and a `set` def may carry a **parent chip**, `parent: { label, children }` —
+see `components.md`, "FilterPanel". The character and person libraries use
+the same machinery.
 
 A sort may also name the figure a **grid card** shows in its score slot,
 through `cardScoreField` on the sortDef: `LibraryLayout` reads it off the
@@ -470,13 +473,32 @@ File `pages/library/PersonLibrary.jsx`. Same shape and the same reasoning as
 outside `LIBRARY_CONFIGS` with its route declared before `/library/:type`.
 
 Raw `fetch` of `/api/person/` alone: the response carries `display_name`,
-`credit_count`, `photo_file` and the `roles` each person holds, which is what
-lets the **type filter** (All plus the `PERSON_SUB_TABS`; the Club tab only for a session that can see h-comic) run client-side
-— one request serves every filter, where a per-type request would refetch on
-each click. Search runs over all four name columns (`PERSON_NAME_FIELDS`), not
-just the displayed one. Sort `name (default) | credit_count | my_rating`. Each
-`PersonCard` (`components/cards/StaffCard.jsx`, shared with `/search`) shows
-the photo, display name and credit count, and links to `/person/:system_id`.
+`credit_count`, `display_photo_file`, `media_types`, `my_rating`, `gender`
+and the `roles` each person holds, which is what lets every filter run
+client-side — one request serves every filter, where a per-filter request
+would refetch on each click. Search runs over all four name columns
+(`PERSON_NAME_FIELDS`), not just the displayed one. Sort
+`name (default) | credit_count | my_rating`.
+
+The **Filters** button (`FilterToggleButton`, with the active-chip count)
+opens a `FilterPanel` over `personFilterDefs(auth)` from
+`lib/entityFilters.js`; OR within a group, AND across groups, and **Clear
+all** empties every group:
+
+- **Type** — the `PERSON_SUB_TABS` roles, matched against `roles`; the Club
+  chip only for a session that can see h-comic.
+- **Entry type** — every non-gated media type, then a **Restricted** parent
+  chip over h-comic, hentai and h-game, matched against `media_types` (the
+  types of the entries the viewer can see the person credited or cast on).
+  A gated child the session cannot see is left out, and the parent with it
+  once none is left.
+- **My Rating** — `MY_RATINGS` plus Unrated (null).
+- **Gender** — `GENDERS` plus Not set (null).
+
+Each `PersonCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
+shows `display_photo_file` — the photo, or the server-resolved fallback
+cover — with the display name and credit count, and links to
+`/person/:system_id`.
 
 `/library/seiyuu` renders the same component with `role="seiyuu"`, which adds
 `?role=seiyuu` to the `/api/person/` fetch server-side rather than filtering
@@ -492,23 +514,45 @@ File `pages/library/CharacterLibrary.jsx`. Same shape as `PersonLibrary` and
 sits outside `LIBRARY_CONFIGS` with its route declared before `/library/:type`.
 
 Raw `fetch` of `/api/character/` alone (server-side `?name=` search is what
-the cast editor's combobox uses instead; this page filters client-side over
-all four name columns). Sort `name (default) | casting_count | my_rating`.
-Each `CharacterCard` shows the photo, display name and casting count, and
+the cast editor's combobox uses instead; this page searches client-side over
+all four name columns). Sort `name (default) | casting_count` ("Appearances")
+`| my_rating`.
+
+The **Filters** button opens a `FilterPanel` over
+`characterFilterDefs(auth)` (`lib/entityFilters.js`), the person library's
+groups without Type: **Entry type** — anime, anime movie, manga, novel, then
+a **Restricted** parent chip over h-comic and hentai (not h-game: nobody is
+cast on an h-game) — then **Role** — Main, Core, Supporting, Other, plus Not
+set for null, matched against the character's own `role` field and never
+against the roles its castings carry — then **My Rating** and **Gender**,
+with the same OR/AND rule and Clear all.
+
+Each `CharacterCard` shows `display_photo_file` — the photo, or the
+server-resolved fallback — with the display name and casting count, and
 links to `/character/:system_id`.
 
 ### Person — `/person/:system_id`
 
 File `pages/detail/Person.jsx`. The public profile for one person, built the
-same way as the studio page below and for the same reasons: two raw fetches in
-one `Promise.all` (`GET /api/person/{id}` and `.../entries`), the profile call
-failing is the page's 404 while the entries call failing is not, and nothing on
-the page is editable.
+same way as the studio page below: two raw fetches — `GET /api/person/{id}`
+by the URL's public id, then `.../entries` by the `system_id` it returns —
+where the profile call failing is the page's 404 while the entries call
+failing is not.
 
-Layout: breadcrumb → left column with the photo, rating stamp and an "Other
-names" card → right column with the display name, credited-entry count, a
-"Profile" `InfoCard` (gender, the types they are offered under, remark), then
-one section per group.
+Layout: breadcrumb → (admin) the dashed **Admin** strip with **Quick edit**,
+linking to `/modify?id=<system_id>&type=person` → left column with the photo
+(`display_photo_file`: the photo, else the server-resolved fallback cover,
+else `FALLBACK_SVG`) and rating stamp, (admin) a **My rating** select, and a
+**Naming** card (`NamingCard`, all four names) → right column with the
+display name, credited-entry count, a "Profile" `InfoCard` (gender, the types
+they are offered under, and for a non-admin the remark), (admin) a
+**Remarks** textarea, then one section per group.
+
+The admin controls are `components/info/EntityProfileControls.jsx`, shared
+with the character page. The rating select PATCHes `{my_rating}` on change
+(Unrated sends null); the remark PATCHes `{remark}` on blur, an emptied one
+as null and an untouched one not at all. Both go to
+`PATCH /api/person/{system_id}`, and the response becomes the page's state.
 
 The one difference from the studio page: a person may hold several roles, so
 `/entries` groups by **(media type, role)** and each heading is the group's
@@ -518,8 +562,7 @@ not from the page. A group the viewer may see no entries of still renders, with
 `CreditCard`, not `MediaCard`, for the reason spelled out below.
 
 **Club membership** (`components/info/ClubMembership.jsx`, under the Profile
-card) is the one editable thing on the page, and it is drawn only for a
-session that can see h-comic. A club - a person holding the `club` role -
+card) is drawn only for a session that can see h-comic. A club - a person holding the `club` role -
 shows its **Members** in the club's order (`GET /api/person/{id}/members`); an
 artist shows the **Clubs** they belong to (`.../clubs`, ordered by name). For
 an admin each list has an Edit button: remove, add from a search, and on the
@@ -532,9 +575,16 @@ every director's page.
 File `pages/detail/Character.jsx`. The public profile for one character,
 hand-built beside `Person.jsx` and `Studio.jsx` rather than reusing a media
 detail shape — the header is a profile and the body is the entries this
-character is cast in. Two raw fetches in one `Promise.all`
-(`GET /api/character/{id}` and `.../entries`); the character call failing is
-the page's 404, the entries call failing is not, and nothing is editable.
+character is cast in. Two raw fetches, the profile then `.../entries` by the
+`system_id` it returns; the character call failing is the page's 404, the
+entries call failing is not. The Profile card shows the character's own
+**Role** beside Gender — its own field, not derived from any casting's role.
+The layout and the admin controls — Quick edit
+to `/modify?id=<system_id>&type=character`, the My rating select, the
+Remarks textarea, all PATCHing `/api/character/{system_id}` — are the person
+page's, as is the Naming card in place of a list of other names. The photo
+is `display_photo_file`: the photo, else the chosen or newest visible
+entry's cover, else a casting photo, else `FALLBACK_SVG`.
 
 The one structural difference from the person page: `GET
 /api/character/{id}/entries` groups **by media type only**, because a
@@ -697,8 +747,9 @@ Top to bottom:
    hard-codes 台灣代理商 or 發行商 and the fallback literal only shows on an
    entry with no publisher credited yet — a **Cast** slip (Anime, AnimeMovie, Manga, Novel; GET
    `/api/casting/{media_type}/{entry_id}` via `useCasting`), rendered only
-   when the entry has a cast, one row per casting sorted Main before
-   Supporting then by `position`: a small cover-or-portrait thumbnail, a role
+   when the entry has a cast, one row per casting sorted by role in
+   `CHARACTER_ROLES` order — Main, Core, Supporting, Other, then no role
+   (`castRoleRank`) — then by `position`: a small cover-or-portrait thumbnail, a role
    chip, a link to `/character/{character_id}`, and — on Anime/AnimeMovie
    only, where `character_casting.person_id` may be set — "voiced by" plus a
    link to `/person/{person_id}` — a remark textarea (blur-saves; rendered only when
