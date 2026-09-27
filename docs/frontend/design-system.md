@@ -116,8 +116,8 @@ Two of those flex rather than fork for a type that does not fit the shape:
 - `SourcesCard`'s access heading is chosen by media type — "Where to Watch",
   "Where to Read", or **"Where to Play"** for a game — above a single
   "Where to Look Up" reference section that also renders the column-backed
-  `malLink` / `anidbLink` / `imdbLink` / `comicvineLink` / `openLibraryLink` /
-  `igdbLink` props.
+  `malLink` / `anidbLink` / `ehentaiLink` / `imdbLink` / `comicvineLink` /
+  `openLibraryLink` / `igdbLink` props.
 
 ## Page anatomy
 

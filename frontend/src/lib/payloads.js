@@ -433,6 +433,7 @@ export function hComicFieldsPayload(f) {
     // hook derives the id from it, and clearing the link clears the id.
     mal_link: f.mal_link || null,
     mal_id: f.mal_link ? int(f.mal_id) : null,
+    ehentai_link: f.ehentai_link || null,
     reading_status: f.reading_status || "Might Read",
     my_rating: f.my_rating || null,
     usefulness: f.usefulness || null,

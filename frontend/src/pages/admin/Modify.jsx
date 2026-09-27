@@ -980,6 +980,7 @@ export default function Modify() {
       end_date: h.end_date ?? "",
       mal_id: h.mal_id ?? "",
       mal_link: h.mal_link || "",
+      ehentai_link: h.ehentai_link || "",
       reading_status: h.reading_status || md("h-comic").reading_status,
       my_rating: h.my_rating || "",
       usefulness: h.usefulness || "",

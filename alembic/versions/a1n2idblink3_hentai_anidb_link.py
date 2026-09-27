@@ -7,7 +7,7 @@ from it on every write and at the start of every run. Both nullable with no
 default: an existing row has no AniDB link.
 
 Revision ID: a1n2idblink3
-Revises: h6n7otesect8
+Revises: h9e0hentai11
 Create Date: 2026-09-27 00:00:00.000000
 
 """
@@ -18,7 +18,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "a1n2idblink3"
-down_revision: Union[str, Sequence[str], None] = "h6n7otesect8"
+down_revision: Union[str, Sequence[str], None] = "h9e0hentai11"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

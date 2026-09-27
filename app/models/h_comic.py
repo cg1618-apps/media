@@ -105,6 +105,9 @@ class HComic(Base, NameFallbackMixin):
     # mal_link, as for manga.
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
+    # The E-Hentai gallery the second fill source reads, after MAL. No id
+    # column: the gallery id and token are read out of the URL.
+    ehentai_link = Column(String, nullable=True)
 
     # The owner's order of the KR highlight GROUPS (one group per female
     # character name): a list of names, read and written whole. Names absent

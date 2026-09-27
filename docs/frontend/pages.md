@@ -749,11 +749,13 @@ with the region deciding what shows (`lib/hComicRegion.js`):
 Both regions carry the tracker's reading status, rating, **usefulness**
 (personal, like the rating) and Read Next / To Reread; a **Genres** card (Genre
 Plot / Appearance / Relation); `SourcesCard` with the KR official source as its
-tag and the MAL link; `RelationsSection`; a **Cast** slip (characters only -
+tag, and the MAL link and the E-Hentai gallery (`ehentaiLink`, tag "EH")
+under "Where to Look Up"; `RelationsSection`; a **Cast** slip (characters only -
 an h-comic casting never carries a seiyuu); the series number beside the
 series link on JP. The admin toolbar has Quick edit, Mark completed and
 **Autofill & update**, which runs `POST /replace/h-comic/{id}` - Tenrai's
-manga record, fill-only.
+manga record, then the E-Hentai gallery's cover and illustrator where still
+blank, all fill-only.
 
 A JP entry's **Animation Status** is hand-set or derived, as
 `animation_status_source` says (`lib/hComicAnimation.js`). While a hentai

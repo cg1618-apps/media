@@ -226,6 +226,43 @@ def test_unrestricted_is_told_about_h_comic(admin_client):
     assert "h-comic" in {e["key"] for e in body["media"]}
 
 
+def test_a_narrow_catalogue_editor_is_not_told_through_the_services_either(
+    catalog_writer, db_session
+):
+    """
+    The refusal, on the services list. The h-comic and h-game labels exist
+    (seeded session-wide) and the mode carries none - asserted, so there is a
+    hidden type to narrow by. A service that feeds gated types only is gone,
+    and a shared one no longer names them. The mirror is the next test.
+    """
+    from app import models
+
+    assert db_session.query(models.ContentLabel).filter(
+        models.ContentLabel.key.in_(["h-comic", "h-game", "hentai"])
+    ).count() == 3
+    body = catalog_writer().get("/api/constants/external-apis").json()
+    services = {s["key"]: s for s in body["services"]}
+    assert "ehentai" not in services
+    assert "dlsite" not in services
+    assert "h-comic" not in services["tenrai"]["feeds"]
+    assert "hentai" not in services["tenrai"]["feeds"]
+    # Nothing ungated went with them.
+    assert "anime" in services["tenrai"]["feeds"]
+    assert "igdb" in services
+
+
+def test_unrestricted_is_told_about_the_gated_services(admin_client):
+    body = admin_client.get("/api/constants/external-apis").json()
+    services = {s["key"]: s for s in body["services"]}
+    assert services["ehentai"]["feeds"] == ["h-comic"]
+    assert services["dlsite"]["feeds"] == ["h-game"]
+    assert "h-comic" in services["tenrai"]["feeds"]
+    h_comic = next(e for e in body["media"] if e["key"] == "h-comic")
+    ehentai = next(s for s in h_comic["sources"] if s["source"] == "ehentai")
+    written = {w["field"]: w["rule"] for w in ehentai["writes"] if w["rule"] != "never"}
+    assert written == {"illustrator": "if-absent", "cover_image_file": "if-empty"}
+
+
 def test_a_catalogue_editor_who_cannot_see_hentai_is_not_told_it_exists(
     catalog_writer, db_session
 ):

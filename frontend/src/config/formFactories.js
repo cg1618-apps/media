@@ -412,6 +412,7 @@ export const defaultHComic = () => ({
   end_date: "",
   mal_id: "",
   mal_link: "",
+  ehentai_link: "",
   reading_status: "Might Read",
   my_rating: "",
   usefulness: "",
