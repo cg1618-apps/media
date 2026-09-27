@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-09-21
+Last verified: 2026-09-27
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -124,6 +124,8 @@ list. Variable names are case-insensitive.
 | `COMICVINE_API_KEY` | unset | Comic Vine: comic run metadata and covers |
 | `IGDB_CLIENT_ID` | unset | IGDB (games): Twitch application client id |
 | `IGDB_CLIENT_SECRET` | unset | IGDB (games): Twitch application client secret. Both must be set or IGDB calls are skipped. |
+| `ANIDB_CLIENT` | unset | AniDB (hentai covers): the name of a client registered at anidb.net |
+| `ANIDB_CLIENTVER` | unset | AniDB: that client's registered version. Both must be set, or AniDB is off: nothing is requested and no hentai is queued for it. |
 | `GOOGLE_CREDENTIALS_JSON` | unset | Service-account JSON as one line (alternative to `credentials.json`) |
 | `GOOGLE_SHEET_ID` | unset | Spreadsheet used by Backup / Pull |
 | `COMPOSE_PROJECT_NAME` | `media` | Pins the docker-compose project, and so the VOLUME name. Compose otherwise derives it from the directory, so a **worktree** mounts a brand-new EMPTY database on the same port while the real data sits untouched. Every checkout needs it, the primary one included. On the home machine the tree is `cg1618\media`, so the derived name and the pinned one now coincide and the setting reads as redundant there - it is not. A worktree is a directory with another name, and that is the case the pin exists for. An empty database is also what blanks the Backup sheet, so this is a data-loss guard, not a convenience |
@@ -144,6 +146,12 @@ for the integrations you have not configured.
   a bearer token and refreshes it on its own — nothing to rotate by hand. Set
   **both** or the client logs `"IGDB_CLIENT_ID / IGDB_CLIENT_SECRET are not
   both set."` and skips every call.
+- **AniDB**: there is no key, but the HTTP API answers only a **registered
+  client**. Register one on anidb.net (your profile, then "Add client", for
+  the HTTP API) and put its name and version in `ANIDB_CLIENT` and
+  `ANIDB_CLIENTVER`. Never borrow another program's client name: AniDB bans
+  by client, and it bans a client that floods it or re-fetches an anime
+  within a day. Unset, AniDB is simply off.
 - **Tenrai** (MAL metadata) and **Open Library** need no key.
 
 ### Google service account (`credentials.json`)

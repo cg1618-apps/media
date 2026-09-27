@@ -8,6 +8,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session, selectinload
 
+from app.config import settings
 from app.models import (
     Anime,
     AnimeMovies,
@@ -39,8 +40,10 @@ from app.services.domain import (
     autofill_cover_from_steam,
     autofill_game_cover_from_igdb,
     autofill_game_from_igdb,
+    autofill_h_comic_from_ehentai,
     autofill_h_comic_from_mal,
     autofill_h_game_from_dlsite,
+    autofill_hentai_from_anidb,
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -68,6 +71,7 @@ from app.services.integrations.image_manager import (
 )
 from app.utils.data_control_utils import log_data_control
 from app.utils.dlsite_utils import dlsite_product_id_for
+from app.utils.ehentai_utils import ehentai_gallery_key_for
 from app.utils.tenrai_utils import ALLOWED_AIRING_TYPES
 
 # Every table that owns a stored image, as (owner_type, model, column). The
@@ -475,28 +479,32 @@ def bulk_download_missing_covers(
         else:
             skipped += 1
 
-    # Tenrai's manga record, as for a manga; one with no MAL id is counted
-    # and skipped.
+    # The h-comic fill's cover order: Tenrai's manga record, then E-Hentai
+    # while the cover is still empty. One with neither source is counted and
+    # skipped.
     h_comic_query = db.query(HComic).join(HComic.media_row).filter(Media.cover_image_file.isnot(None))
     for hc in _collect(h_comic_query, HComic, "h-comic"):
         total += 1
-        if not hc.mal_id:
+        if not hc.mal_id and not ehentai_gallery_key_for(hc):
             skipped += 1
             continue
         hc.cover_image_file = None
         autofill_h_comic_from_mal(hc, db=db)
+        autofill_h_comic_from_ehentai(hc, db)
         if hc.cover_image_file:
             downloaded += 1
-    # Hentai re-fetches from Tenrai like an anime movie; one with no MAL id is
+    # Hentai's fill order: Tenrai, then AniDB while the cover is still empty.
+    # One with neither a MAL id nor an AniDB id (with AniDB enabled) is
     # counted and skipped.
     hentai_query = db.query(Hentai).join(Hentai.media_row).filter(Media.cover_image_file.isnot(None))
     for he in _collect(hentai_query, Hentai, "hentai"):
         total += 1
-        if not he.mal_id:
+        if not he.mal_id and not (he.anidb_id and settings.anidb_enabled):
             skipped += 1
             continue
         he.cover_image_file = None
         autofill_hentai_from_mal(he, db=db)
+        autofill_hentai_from_anidb(he, db=db)
         if he.cover_image_file:
             downloaded += 1
 

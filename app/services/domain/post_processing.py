@@ -24,8 +24,10 @@ from app.services.domain.autofill import (
     autofill_game_cover_from_igdb,
     autofill_game_from_igdb,
     autofill_game_from_steam,
+    autofill_h_comic_from_ehentai,
     autofill_h_comic_from_mal,
     autofill_h_game_from_dlsite,
+    autofill_hentai_from_anidb,
     autofill_hentai_from_mal,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -41,6 +43,7 @@ from app.services.domain.checking import (
 from app.services.domain.derivation import (
     apply_calculate_seasonal_from_month,
     apply_extract_game_ids,
+    apply_extract_hentai_ids,
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
@@ -97,22 +100,27 @@ def apply_single_replace_anime_movie(
 def apply_single_replace_h_comic(db: Session, h_comic, bulk: bool = False) -> None:
     """
     Core 'Replace' logic for a single h-comic entry: manga's Tenrai fields,
+    then E-Hentai's cover and illustrator for whatever MAL left empty, all
     fill-only. No AniList, and nothing derived afterwards - the region rule
     and the label are the spec's syncs. `bulk` is kept for signature parity
     with the other media types.
     """
     apply_extract_mal_id_manga_novel(h_comic)
     autofill_h_comic_from_mal(h_comic, db=db)
+    autofill_h_comic_from_ehentai(h_comic, db)
 
 
 def apply_single_replace_hentai(db: Session, hentai, bulk: bool = False) -> None:
     """
     Core 'Replace' logic for a single hentai entry: Tenrai's three fields,
-    fill-only like anime's. No AniList, and nothing derived afterwards.
-    `bulk` is kept for signature parity with the other media types.
+    fill-only like anime's, then AniDB for whatever MAL left blank - fill-only
+    too, so Replace never overwrites from AniDB. No AniList, and nothing
+    derived afterwards. `bulk` is kept for signature parity with the other
+    media types.
     """
-    apply_extract_mal_id_anime(hentai)
+    apply_extract_hentai_ids(hentai)
     autofill_hentai_from_mal(hentai, db=db)
+    autofill_hentai_from_anidb(hentai, db=db)
 
 
 def apply_single_replace_movie(db: Session, movie: Movies, bulk: bool = False) -> None:

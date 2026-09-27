@@ -78,6 +78,7 @@ const ENTRY = {
   usefulness: "實用",
   h_genre_plot: "Plot A",
   mal_link: "https://myanimelist.net/anime/1/x",
+  anidb_link: "https://anidb.net/anime/1",
 };
 
 describe("Hentai detail page", () => {
@@ -94,6 +95,10 @@ describe("Hentai detail page", () => {
     // One entry is one episode: nothing to count.
     expect(screen.queryByRole("spinbutton")).toBeNull();
     expect(screen.queryByText(/episodes/i)).toBeNull();
+    expect(screen.getByRole("link", { name: /anidb/i })).toHaveAttribute(
+      "href",
+      "https://anidb.net/anime/1",
+    );
   });
 
   it("draws the shared notes page", async () => {

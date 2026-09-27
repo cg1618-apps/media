@@ -1088,6 +1088,15 @@ export const TYPE_FIELD_META = {
     // Derived from mal_link by the write hook; the form shows it read-only.
     mal_id: { hidden: true },
     mal_link: { autofillable: false },
+    // No id column beside it: the E-Hentai fill reads the gallery id and
+    // token out of the link itself.
+    ehentai_link: {
+      label: "E-Hentai Link",
+      control: "url",
+      defaultable: false,
+      autofillable: false,
+      group: "Links",
+    },
   },
 
   // Game's presentation for the columns the two share, plus h-game's own.
@@ -1373,6 +1382,9 @@ export const TYPE_FIELD_META = {
     // Derived from mal_link by the write hook; the form never shows it.
     mal_id: { hidden: true },
     mal_link: { autofillable: false },
+    // Derived from anidb_link by the write hook, as mal_id is.
+    anidb_id: { hidden: true },
+    anidb_link: { label: "AniDB Link", control: "url", group: "Links", autofillable: false },
   },
 
   collection: {

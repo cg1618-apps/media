@@ -220,6 +220,31 @@ SERVICES: dict[str, Service] = {
         rate_limit="none published; 1 s between requests as a courtesy",
         docs_anchor="dlsite",
     ),
+    "anidb": Service(
+        key="anidb",
+        label="AniDB",
+        module="app.services.integrations.anidb",
+        base_url="http://api.anidb.net:9001/httpapi",
+        auth=(
+            "ANIDB_CLIENT + ANIDB_CLIENTVER, a client registered at anidb.net; "
+            "AniDB is off while either is unset"
+        ),
+        rate_limit=(
+            "bans above ~1 request / 2 s and for re-fetching an anime within a "
+            "day; paced 4 s apart, each answer cached 24 h, and a run stops at "
+            "the first error"
+        ),
+        docs_anchor="anidb",
+    ),
+    "ehentai": Service(
+        key="ehentai",
+        label="E-Hentai",
+        module="app.services.integrations.ehentai",
+        base_url="https://api.e-hentai.org/api.php",
+        auth="None - the official gallery metadata API (gdata)",
+        rate_limit="a few sequential requests / second, documented; 1 s between requests",
+        docs_anchor="e-hentai",
+    ),
 }
 
 # A missing key is never fatal: the client logs and returns None, so the run
@@ -811,17 +836,23 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             ),
         ),
     ),
-    # Manga's Tenrai record, for the columns h_comic has.
+    # Manga's Tenrai record, for the columns h_comic has, then E-Hentai for
+    # what it left empty.
     Coverage(
         key="h-comic",
         keyed_by="mal_id",
-        combination="single",
-        requests_per_entry="1 Tenrai",
+        combination="merged",
+        requests_per_entry="2 - one Tenrai, one E-Hentai gallery",
         note=(
             "The same Tenrai manga record as Manga, read for the columns an "
-            "h-comic has. Every run and the single-entry hook end in the "
-            "h-comic sync, which clears the region's unused columns, and the "
-            "gated label sync, which keeps the h-comic label on."
+            "h-comic has, then the E-Hentai gallery in ehentai_link, keyed on "
+            "the gallery id and token read out of the URL. Both are "
+            "fill-only and Tenrai runs first, so E-Hentai supplies only what "
+            "MAL left empty - usually the cover of a doujinshi MAL does not "
+            "list. An entry with only an E-Hentai link is filled too. Every "
+            "run and the single-entry hook end in the h-comic sync, which "
+            "clears the region's unused columns, and the gated label sync, "
+            "which keeps the h-comic label on."
         ),
         sources=(
             SourceBlock(
@@ -854,6 +885,37 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "none",
                         "never",
                         "h_comic has no rating column",
+                    ),
+                ),
+            ),
+            SourceBlock(
+                source="ehentai",
+                writes=(
+                    Write(
+                        "illustrator",
+                        "credit",
+                        "if-absent",
+                        "the gallery's artist: tags, title-cased",
+                    ),
+                    Write(
+                        "cover_image_file",
+                        "image",
+                        "if-empty",
+                        "the gallery thumb, 250px wide - the same image the "
+                        "gallery page shows; tried after Tenrai's",
+                    ),
+                    Write(
+                        "release_date",
+                        "none",
+                        "never",
+                        "posted is the gallery's upload date, not the work's release",
+                    ),
+                    Write(
+                        "h_comic_name_jp",
+                        "none",
+                        "never",
+                        "a gallery title is the uploader's, and names are the "
+                        "entry's identity",
                     ),
                 ),
             ),
@@ -980,11 +1042,19 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
     Coverage(
         key="hentai",
         keyed_by="mal_id",
-        combination="single",
-        requests_per_entry="1 Tenrai",
+        combination="merged",
+        requests_per_entry=(
+            "1 Tenrai, plus 1 AniDB while something is still blank after it "
+            "(none when AniDB is disabled, or the aid was fetched in the last "
+            "24 hours)"
+        ),
         note=(
             "The same Tenrai anime record as Anime, read for three fields and "
-            "the two reference links. "
+            "the two reference links, then AniDB - keyed on anidb_id, from "
+            "anidb_link - for whichever of the three MAL left blank. Both are "
+            "fill-only, so MAL's value wins wherever both have one; AniDB "
+            "covers the OVAs MAL does not list. An entry with only an AniDB "
+            "link is filled while AniDB is enabled. "
             "Every run and the single-entry hook end in the hentai sync, which "
             "keeps the hentai label on."
         ),
@@ -1013,6 +1083,37 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "none",
                         "never",
                         "credited by hand; Tenrai's studios are not read here",
+                    ),
+                ),
+            ),
+            SourceBlock(
+                source="anidb",
+                writes=(
+                    Write(
+                        "airing_status",
+                        "column",
+                        "fill-only",
+                        "derived from startdate / enddate / episodecount - "
+                        "AniDB publishes no status",
+                    ),
+                    Write("release_date", "column", "fill-only", "startdate"),
+                    Write(
+                        "cover_image_file",
+                        "image",
+                        "if-empty",
+                        "picture, from AniDB's image CDN; after MAL's",
+                    ),
+                    Write(
+                        "Official site",
+                        "source",
+                        "if-absent",
+                        "a reference media_source row, from the anime's url",
+                    ),
+                    Write(
+                        "hentai_name_en",
+                        "none",
+                        "never",
+                        "no name is ever written: the names are the entry's identity",
                     ),
                 ),
             ),

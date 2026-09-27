@@ -16,10 +16,19 @@ from app.models import (
     Studio,
     TVShows,
 )
-from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
+from app.services.domain.credits import (
+    AmbiguousNameError,
+    credit_names,
+    find_person,
+    replace_credits,
+    replace_tags,
+    tag_values,
+)
+from app.services.integrations.anidb import fetch_anidb_anime
 from app.services.integrations.anilist import anilist_record
 from app.services.integrations.comicvine import fetch_comicvine_volume
 from app.services.integrations.dlsite import fetch_dlsite_product
+from app.services.integrations.ehentai import fetch_ehentai_gallery
 from app.services.integrations.igdb import fetch_igdb_game, fetch_igdb_time_to_beat
 from app.services.integrations.image_manager import (
     cover_needs_download,
@@ -39,10 +48,12 @@ from app.services.integrations.tenrai import (
     fetch_tenrai_producer_data,
 )
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
+from app.utils.anidb_utils import map_anidb_to_hentai_data
 from app.utils.anilist_utils import map_anilist_record
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
 from app.utils.constants import H_COMIC_REGION_KR
 from app.utils.dlsite_utils import dlsite_product_id_for, map_dlsite_to_h_game_data
+from app.utils.ehentai_utils import ehentai_gallery_key_for, map_ehentai_to_h_comic_data
 from app.utils.igdb_utils import map_igdb_to_game_data
 from app.utils.imdb_utils import (
     _derive_tv_season_airing_status,
@@ -250,6 +261,68 @@ def autofill_hentai_from_mal(hentai, db: Session = None) -> None:
         )
 
 
+def autofill_hentai_from_anidb(hentai, db: Session = None) -> None:
+    """
+    Fills what MAL left blank on a hentai entry from its AniDB anime record.
+    Does not commit - caller is responsible.
+
+    Runs after autofill_hentai_from_mal and is fill-only throughout, so MAL's
+    values - its cover above all - win whenever both have one. Writes the
+    release date (`startdate`), the airing status (derived from the dates),
+    the cover (`picture`) and the Official site reference row (`url`). Never
+    the names: they are the entry's identity.
+
+    Spends no request when the three columns are already filled, and none
+    when AniDB is disabled or halted (app/services/integrations/anidb.py).
+    """
+    anidb_id = hentai.anidb_id
+    if not anidb_id:
+        return
+    needs_cover = cover_needs_download(
+        hentai.cover_image_file, "hentai", str(hentai.system_id)
+    )
+    if hentai.airing_status and hentai.release_date and not needs_cover:
+        return
+
+    try:
+        record = fetch_anidb_anime(anidb_id)
+        if record is None:
+            return
+
+        a_data = map_anidb_to_hentai_data(record)
+
+        if not hentai.airing_status and a_data.get("airing_status"):
+            hentai.airing_status = a_data["airing_status"]
+        if not hentai.release_date and a_data.get("release_date"):
+            hentai.release_date = a_data["release_date"]
+        if db is not None:
+            from app.services.domain.sources import upsert_main_source
+            from app.utils.source_fields import OFFICIAL_SITE_VALUE
+
+            upsert_main_source(
+                db, hentai.system_id, "reference", OFFICIAL_SITE_VALUE,
+                a_data.get("official_link"),
+            )
+
+        # Last, so a download failure cannot cost us the cheap columns above.
+        if a_data.get("cover_image_url") and cover_needs_download(
+            hentai.cover_image_file, "hentai", str(hentai.system_id)
+        ):
+            key = download_cover_image(
+                a_data["cover_image_url"], "hentai", str(hentai.system_id)
+            )
+            if key:
+                hentai.cover_image_file = key
+
+    except Exception as e:
+        logger.error(
+            "AniDB Autofill failed for Hentai ID %s (AniDB %s): %s",
+            hentai.system_id,
+            anidb_id,
+            e,
+        )
+
+
 def autofill_h_comic_from_mal(h_comic, db: Session = None) -> None:
     """
     Fetches Tenrai data for a single h-comic entry. Does not commit - caller
@@ -301,6 +374,69 @@ def autofill_h_comic_from_mal(h_comic, db: Session = None) -> None:
             "MAL Autofill failed for H-Comic ID %s (MAL %s): %s",
             h_comic.system_id,
             mal_id,
+            e,
+        )
+
+
+def autofill_h_comic_from_ehentai(h_comic, db: Session) -> None:
+    """
+    Enriches a single h-comic entry from its E-Hentai gallery. Does not
+    commit - the caller is responsible.
+
+    The h-comic fill's second source, run after MAL and fill-only, so it
+    supplies only what MAL left empty. Keyed by the gallery id and token in
+    ehentai_link. Two things only: the cover, which is what MAL most often
+    lacks for a doujinshi, and the `artist:` tags as the illustrator (繪師)
+    credit, written only when the entry has no illustrator yet.
+
+    Nothing else is read: the gallery's `posted` is its upload date, not the
+    work's release, and its title is an uploader's, not the entry's name.
+    """
+    key = ehentai_gallery_key_for(h_comic)
+    if not key:
+        return
+    gid, token = key
+
+    try:
+        record = fetch_ehentai_gallery(gid, token)
+        if not record:
+            return
+
+        e_data = map_ehentai_to_h_comic_data(record)
+
+        artists = e_data.get("artists")
+        if artists and not credit_names(db, h_comic.system_id, "illustrator"):
+            try:
+                # Every name is checked before anything is written, so an
+                # ambiguous second artist cannot leave the first credited.
+                for name in artists:
+                    find_person(db, name)
+                replace_credits(db, "h-comic", h_comic.system_id, "illustrator", artists)
+            except AmbiguousNameError as e:
+                # Two people already answer to a name. Leave the credit for
+                # the owner to pick, and still take the cover below.
+                logger.warning(
+                    "E-Hentai illustrator skipped for H-Comic ID %s: %s",
+                    h_comic.system_id,
+                    e,
+                )
+
+        # Last, so a download failure cannot cost us the credit above.
+        if (
+            cover_needs_download(h_comic.cover_image_file, "h-comic", str(h_comic.system_id))
+            and e_data.get("cover_image_url")
+        ):
+            cover = download_cover_image(
+                e_data.get("cover_image_url"), "h-comic", str(h_comic.system_id)
+            )
+            if cover:
+                h_comic.cover_image_file = cover
+
+    except Exception as e:
+        logger.error(
+            "E-Hentai Autofill failed for H-Comic ID %s (gallery %s): %s",
+            h_comic.system_id,
+            gid,
             e,
         )
 

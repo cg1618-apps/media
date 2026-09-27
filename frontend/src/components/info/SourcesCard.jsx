@@ -99,6 +99,8 @@ export default function SourcesCard({
   sources = [],
   mediaType,
   malLink,
+  anidbLink,
+  ehentaiLink,
   imdbLink,
   comicvineLink,
   openLibraryLink,
@@ -129,6 +131,8 @@ export default function SourcesCard({
     hasStorefront ||
     referenceRows.length > 0 ||
     Boolean(malLink) ||
+    Boolean(anidbLink) ||
+    Boolean(ehentaiLink) ||
     Boolean(imdbLink) ||
     Boolean(comicvineLink) ||
     Boolean(openLibraryLink) ||
@@ -187,6 +191,8 @@ export default function SourcesCard({
       )}
       {(referenceRows.length > 0 ||
         malLink ||
+        anidbLink ||
+        ehentaiLink ||
         imdbLink ||
         comicvineLink ||
         openLibraryLink ||
@@ -201,6 +207,17 @@ export default function SourcesCard({
           {malLink && (
             <SourceLink href={malLink} tag="MAL">
               MyAnimeList
+            </SourceLink>
+          )}
+          {anidbLink && (
+            <SourceLink href={anidbLink} tag="AniDB">
+              AniDB
+            </SourceLink>
+          )}
+          {/* An h-comic's gallery, the second fill source after MAL. */}
+          {ehentaiLink && (
+            <SourceLink href={ehentaiLink} tag="EH">
+              E-Hentai
             </SourceLink>
           )}
           {imdbLink && (

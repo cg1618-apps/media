@@ -159,11 +159,14 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
         {select("usefulness", "Usefulness", H_COMIC_USEFULNESS)}
       </div>
 
-      {/* The MAL id is not typed in: the write hook derives it from the
-          link, and Tenrai fills the airing status, release date and cover
-          from it where they are blank. */}
+      {/* Neither id is typed in: the write hook derives each from its link.
+          Tenrai fills the airing status, release date and cover from the MAL
+          link where they are blank, then AniDB fills what MAL left blank. */}
       <SectionHeader icon="fa-external-link-alt" title="Links" />
-      {text("mal_link", "MAL Link", "https://myanimelist.net/anime/...", "url")}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {text("mal_link", "MAL Link", "https://myanimelist.net/anime/...", "url")}
+        {text("anidb_link", "AniDB Link", "https://anidb.net/anime/...", "url")}
+      </div>
 
       <SectionHeader icon="fa-broadcast-tower" title="Sources" />
       <SourcesEditor

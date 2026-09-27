@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 ## What this is for
 
@@ -2255,3 +2255,77 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   unhashed CDN path, and a 404 there is "no cover", which leaves an app with
   hashed store assets to IGDB rather than adding a storefront request to find
   the hashed path.
+
+### Hentai fills from AniDB after MAL (2026-09-27)
+
+- **Why AniDB.** Hentai filled from MAL alone, through Tenrai, and MAL does
+  not list many hentai OVAs - the cover is what goes missing most. AniDB
+  catalogues them, publishes a documented HTTP API and serves covers from an
+  open CDN. It is a second source in the DLsite mould: fill-only, keyed off a
+  pasted link, and run after the first source so it only fills gaps.
+- **MAL first, then AniDB, both fill-only.** The order is the priority, as it
+  is for h-game's covers. AniDB also fills the release date (`startdate`), an
+  airing status derived from its dates (AniDB publishes no status), and the
+  Official site row - whatever MAL's hentai autofill writes and AniDB can
+  supply. Never a name: the names are the entry's identity.
+- **An `anidb_id` column beside `anidb_link`.** Unlike DLsite, whose product
+  id is read out of the link on every use, hentai already has the MAL pair -
+  `mal_id` extracted from `mal_link` by the write hook and at the start of a
+  run - and AniDB follows that pair rather than DLsite's shape.
+- **A registered client, and off without one.** AniDB answers only a client
+  registered on the site. `ANIDB_CLIENT` / `ANIDB_CLIENTVER` carry it;
+  unset, nothing is sent and, unlike Steam's switch, fill eligibility turns
+  false too, so an unconfigured machine does not queue entries nothing would
+  fill. No client name was invented or borrowed: AniDB bans by client.
+- **Pacing is set by AniDB's bans, not by a rate limit.** AniDB bans a
+  client that asks more than about once every two seconds, and one that
+  fetches the same anime twice in a day. So requests are 4 s apart, every
+  answer is cached for 24 hours in-process, and the first error answer other
+  than a not-found halts the client and becomes the hentai spec's `budget`:
+  the run stops, and the rest is reported as left for the next run. That
+  stops the MAL half of the remaining entries as well - accepted, because the
+  run is short, the message says why, and continuing to call a banning server
+  is what extends a ban. The next run's `pre_run` lifts the halt.
+
+### H-Comic fills from E-Hentai after MAL, mainly for the cover (2026-09-27)
+
+- **Why E-Hentai.** MAL lists few doujinshi, so most `同人` h-comics had no
+  source at all and no cover, where an E-Hentai gallery usually exists. It is
+  a second source, run after Tenrai and fill-only like it, so it supplies only
+  what MAL left empty; an entry with only a gallery link is filled too
+  (`has_missing_values_h_comic_ehentai`, ORed onto the MAL clause). One
+  column, `ehentai_link`, and no id column: the gallery id and token are read
+  out of the URL, as DLsite's product id is out of an h-game's links. An
+  `exhentai.org` URL is accepted, since the two hosts share one id space.
+- **The official `gdata` API, and no scraping.** `api.e-hentai.org/api.php`
+  answers a gallery's metadata with no key and no cookie. Its `thumb` was
+  checked live on 2026-09-27: a 250×353 WebP at `ehgt.org/w/...webp`, the same
+  URL the gallery page itself shows as its cover. No larger variant exists on
+  that path (`_l`, `_250` and `.jpg` all 404), and the CDN serves it with no
+  `Referer` and with a foreign one, so fetching the gallery HTML would buy
+  nothing - the API already names the cover the page shows. The WebP is
+  stored under the usual `.jpg` key, as Tenrai's WebP is.
+- **`posted` and the titles are not mapped.** `posted` is when the gallery
+  was uploaded, not when the work came out, so it would be a
+  wrong `release_date` that fill-only would then keep forever. A gallery's
+  titles are an uploader's filename-style string (`(Event) [Circle (Artist)]
+  Title (Parody) [Language]`), and an entry's names are its identity; nothing
+  writes a name.
+- **`artist:` becomes the illustrator (繪師); `group:` is left alone.** The
+  `artist:` tags name who drew the work, which on an h-comic is the
+  `illustrator` credit - held by both regions, where `author` is KR-only. The
+  names are title-cased (the tags are lowercase romanisation) and written only
+  when the entry has no illustrator; every name is checked with `find_person`
+  first, so one ambiguous name skips the whole credit rather than crediting
+  half of it, and the cover still lands. The `group:` tag is the circle,
+  which on an h-comic is the `club` credit - a person row with memberships -
+  and was kept out of this change: the source was added for the cover, and
+  the illustrator is the one credit the tags name directly.
+- **The External APIs catalogue stopped leaking gated types through its
+  services list.** `GET /api/constants/external-apis` already dropped a
+  hidden gated type's row from `media`, but `services[].feeds` still named
+  it, and the DLsite service - which feeds h-game only - was listed whole, so
+  a catalogue editor in a narrower mode could learn that h-game, h-comic and
+  hentai exist, and E-Hentai would have been a second such service. The
+  services are now filtered the same way: a hidden type leaves every
+  `feeds`, and a service left feeding nothing visible is dropped.

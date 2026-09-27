@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 ## What this is for
 
@@ -832,7 +832,7 @@ a second gated type needs no edit to them:
 | `GET /api/person/role-scopes`, `/role-counts` | the gated type from every role's scopes, and a role scoped only to it (`club`) entirely |
 | `GET /api/notes/sections?owner_type=h-comic` (or `h-game`, `hentai`) | the whole answer: 400, as for an unknown owner type. No other owner type lists `h_comic_highlights` / `h_game_highlights` |
 | `GET /api/auth/me` | the type from `visible_gated_types` |
-| `GET /api/constants/external-apis` | the type's row in `media` |
+| `GET /api/constants/external-apis` | the type's row in `media`, the type from every service's `feeds`, and a service feeding only hidden types (DLsite with h-game, E-Hentai with h-comic) entirely |
 | `GET /api/search` | the type's bucket key from `results` - absent, not empty |
 
 The mirror is `unrestricted`, which is told everything. The SPA adds nothing

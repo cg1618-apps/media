@@ -24,6 +24,7 @@ from app.models import (
     TVShows,
 )
 from app.utils import release_date
+from app.utils.anidb_utils import extract_anidb_aid
 from app.utils.comicvine_utils import extract_comicvine_id
 from app.utils.constants import AnimeAiringType
 from app.utils.igdb_utils import extract_igdb_id
@@ -59,6 +60,24 @@ def apply_extract_mal_id_anime(anime: Anime) -> bool:
         anime.mal_id = mal_id
         return True
     return False
+
+
+def apply_extract_anidb_id(entry) -> bool:
+    """Extracts the AniDB anime id from anidb_link onto anidb_id. True if set."""
+    aid = extract_anidb_aid(entry.anidb_link)
+    if aid:
+        entry.anidb_id = aid
+        return True
+    return False
+
+
+def apply_extract_hentai_ids(entry) -> bool:
+    """Both of a hentai's external ids. An entry can carry a MAL link, an
+    AniDB link, or both, so this returns True when either extractor did,
+    rather than short-circuiting on the first - as apply_extract_game_ids."""
+    mal = apply_extract_mal_id_anime(entry)
+    anidb = apply_extract_anidb_id(entry)
+    return mal or anidb
 
 
 def apply_extract_mal_id_studio(studio: Studio) -> bool:

@@ -193,9 +193,16 @@ def get_external_api_coverage(
 
     Viewer-scoped the way GET /api/constants is: a gated type the viewer
     cannot see has no row in `media`, so a catalogue editor in a narrower mode
-    is not told the type exists (gated_types.py).
+    is not told the type exists (gated_types.py). The same goes for the
+    services: a hidden type is dropped from every service's `feeds`, and a
+    service that feeds hidden types only (DLsite, E-Hentai) is dropped whole.
     """
     hidden = unseeable_gated_types(db, viewer)
     payload = catalog_payload()
     payload["media"] = [m for m in payload["media"] if m["key"] not in hidden]
+    payload["services"] = [
+        {**s, "feeds": [k for k in s["feeds"] if k not in hidden]}
+        for s in payload["services"]
+        if not s["feeds"] or any(k not in hidden for k in s["feeds"])
+    ]
     return payload

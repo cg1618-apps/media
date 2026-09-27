@@ -315,6 +315,14 @@ describe("h-comic animation_status", () => {
   });
 });
 
+describe("h-comic ehentai_link", () => {
+  it("is sent as typed, and a blank one as null", () => {
+    const link = "https://e-hentai.org/g/618395/0439fa3666/";
+    expect(hComicFieldsPayload({ region: "JP", ehentai_link: link }).ehentai_link).toBe(link);
+    expect(hComicFieldsPayload({ region: "JP", ehentai_link: "" }).ehentai_link).toBeNull();
+  });
+});
+
 describe("hentai", () => {
   it("sends studio and director as credits and the three genres as tags", () => {
     const payload = buildCreditsPayload("hentai", {
@@ -371,6 +379,18 @@ describe("hentai", () => {
     const body = hentaiFieldsPayload({ mal_link: "", mal_id: "5" });
     expect(body.mal_link).toBeNull();
     expect(body.mal_id).toBeNull();
+  });
+
+  it("sends the AniDB link, and its id only beside it", () => {
+    const linked = hentaiFieldsPayload({
+      anidb_link: "https://anidb.net/anime/1",
+      anidb_id: "1",
+    });
+    expect(linked.anidb_link).toBe("https://anidb.net/anime/1");
+    expect(linked.anidb_id).toBe(1);
+    const cleared = hentaiFieldsPayload({ anidb_link: "", anidb_id: "5" });
+    expect(cleared.anidb_link).toBeNull();
+    expect(cleared.anidb_id).toBeNull();
   });
 });
 
