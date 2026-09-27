@@ -13,7 +13,7 @@ when missing, because Tenrai's first write for any type creates it, and an
 h-game-only one made here would then be the value anime's Fill resolves to.
 
 Revision ID: h8g9refsrc0
-Revises: a1n2idblink3
+Revises: h4g5amefx6
 """
 
 from typing import Sequence, Union
@@ -23,7 +23,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "h8g9refsrc0"
-down_revision: Union[str, Sequence[str], None] = "a1n2idblink3"
+down_revision: Union[str, Sequence[str], None] = "h4g5amefx6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
