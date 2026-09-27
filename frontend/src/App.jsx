@@ -56,6 +56,7 @@ const SeasonalOverall = lazy(() => import("./pages/public/SeasonalOverall"));
 const Statistics = lazy(() => import("./pages/public/Statistics"));
 const FutureReleases = lazy(() => import("./pages/public/FutureReleases"));
 const Completions = lazy(() => import("./pages/public/Completions"));
+const RandomPicker = lazy(() => import("./pages/public/RandomPicker"));
 const Quotes = lazy(() => import("./pages/public/Quotes"));
 const Memes = lazy(() => import("./pages/public/Memes"));
 const Settings = lazy(() => import("./pages/public/Settings"));
@@ -65,6 +66,7 @@ const Add = lazy(() => import("./pages/admin/Add"));
 const Modify = lazy(() => import("./pages/admin/Modify"));
 const Delete = lazy(() => import("./pages/admin/Delete"));
 const FormDefaults = lazy(() => import("./pages/admin/FormDefaults"));
+const PickerDefaults = lazy(() => import("./pages/admin/PickerDefaults"));
 const DataHistory = lazy(() => import("./pages/admin/DataHistory"));
 const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
 const CleanOrphans = lazy(() => import("./pages/admin/CleanOrphans"));
@@ -140,6 +142,10 @@ export default function App() {
                     element={<Library type="h-comic" />}
                   />
                   <Route
+                    path="/random/h-comic"
+                    element={<RandomPicker type="h-comic" />}
+                  />
+                  <Route
                     path="/h-comic/:publicId/:slug?"
                     element={<HComic />}
                   />
@@ -149,6 +155,10 @@ export default function App() {
                   <Route
                     path="/library/h-game"
                     element={<Library type="h-game" />}
+                  />
+                  <Route
+                    path="/random/h-game"
+                    element={<RandomPicker type="h-game" />}
                   />
                   <Route
                     path="/h-game/:publicId/:slug?"
@@ -162,12 +172,18 @@ export default function App() {
                     element={<Library type="hentai" />}
                   />
                   <Route
+                    path="/random/hentai"
+                    element={<RandomPicker type="hentai" />}
+                  />
+                  <Route
                     path="/hentai/:publicId/:slug?"
                     element={<Hentai />}
                   />
                 </Route>
                 <Route path="/library/:type" element={<Library />} />
                 <Route path="/future-releases" element={<FutureReleases />} />
+                <Route path="/random" element={<RandomPicker />} />
+                <Route path="/random/:type" element={<RandomPicker />} />
                 <Route path="/anime/:publicId/:slug?" element={<Anime />} />
                 <Route
                   path="/anime-movie/:publicId/:slug?"
@@ -237,6 +253,7 @@ export default function App() {
                   <Route path="/modify" element={<Modify />} />
                   <Route path="/delete" element={<Delete />} />
                   <Route path="/defaults" element={<FormDefaults />} />
+                  <Route path="/random-defaults" element={<PickerDefaults />} />
                   <Route path="/watch-orders" element={<WatchOrders />} />
                   <Route path="/relations" element={<Relations />} />
                   <Route path="/options" element={<SystemOptions />} />

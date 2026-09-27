@@ -40,6 +40,8 @@ src/
 | `hooks/useMediaCacheUpdate(type, id)` | `setMediaItem`, `fetchMediaItem`, `invalidateMedia` for optimistic detail updates. |
 | `hooks/useStatusToggle(type)` | PATCHes one field and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
+| `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker and Picker Defaults; the defs and `initial` are read once, so a caller whose defs change remounts. |
+| `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs, and its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none). Shared by the picker and Picker Defaults. |
 | `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
 | `pages/plan/usePlanData` | The Plan page's lists (franchise, series and the twelve entry types - `h-comic`, `h-game` and `hentai` each fetched only for a session that can see it) plus `["plan-next"]`. |
@@ -145,7 +147,8 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 - **`components/layout`** — `Layout` (canvas shell: Nav, outlet, footer, toast,
   scroll buttons), `Nav` + `NavSearch`, `ProtectedRoute`, `Toast`,
   `MediaLoadingState`, `LibraryLayout` (search / sort / filters / grid-table
-  scaffold), `libraryColumns.jsx` (column and sort factories:
+  scaffold), `FilterPanel` (the chip panel for a list of FilterDefs, used by
+  `LibraryLayout`, the random picker and Picker Defaults), `libraryColumns.jsx` (column and sort factories:
   `franchiseColumn`, `airingStatusColumn`, `myRatingColumn`, `malRatingColumn`,
   `imdbRatingColumn`, `watchButtonColumn`, `readButtonColumn`,
   `planFlagColumn`, `myRatingSort`, `malRatingSort`, `imdbRatingSort`,
@@ -322,6 +325,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
   `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
+- **`components/picker`** — `ModeStrip` (the random picker's All-plus-types strip: links on `/random`, buttons with an unsaved dot on `/random-defaults`).
 - **`components/relations`** — `RelationGraph`, `RelationNode`, `FanEdge`,
   `ConnectPopup`, `EdgeInspector`, `NodePanel`, `RelationForm`,
   `RelationTypeFilter`.
@@ -492,13 +496,13 @@ another:
 
 | Surface | How it asks |
 |---|---|
-| `App.jsx` routes `/library/h-comic`, `/h-comic/:publicId/:slug?`, `/library/h-game`, `/h-game/:publicId/:slug?`, `/library/hentai` and `/hentai/:publicId/:slug?` | `<ProtectedRoute gatedType="h-comic">` / `gatedType="h-game"` / `gatedType="hentai"`, declared before `/library/:type` - a signed-in narrow session is sent home, a signed-out visitor to login |
+| `App.jsx` routes `/library/h-comic`, `/h-comic/:publicId/:slug?`, `/random/h-comic`, `/library/h-game`, `/h-game/:publicId/:slug?`, `/random/h-game`, `/library/hentai`, `/hentai/:publicId/:slug?` and `/random/hentai` | `<ProtectedRoute gatedType="h-comic">` / `gatedType="h-game"` / `gatedType="hentai"`, declared before `/library/:type` and `/random/:type` - a signed-in narrow session is sent home, a signed-out visitor to login |
 | Nav rows (Restricted → H-Comic, H-Game, Hentai) | `gatedType` on each item in `config/navigation.js`; `visibleSections(sections, has, canSeeType)` drops it, and drops the Restricted tab once no gated row is left in it. Both permission surfaces ask the same helper, and `navigation.test.js` pins the pair |
 | Add / Modify / Delete / Form Defaults tab | `AdminTabBar` filters every tab list through `visibleByType` |
-| Nav search scope, Plan tabs, Completions tabs, Quotes filter, image owner-type filter, watch-order type filter, Control Center Fill (and, for h-game and hentai, Replace) button, `PersonSubTabBar` Club tab, Franchise Library filter chip | `visibleByType` / `canSeeGatedType` at the list |
+| Nav search scope, Plan tabs, Completions tabs, Random Picker mode strip and media-type chips, Quotes filter, image owner-type filter, watch-order type filter, Control Center Fill (and, for h-game and hentai, Replace) button, `PersonSubTabBar` Club tab, Franchise Library filter chip | `visibleByType` / `canSeeGatedType` at the list |
 | Favourite grids (the h-game franchise and entry grids) | `gatedType` on the grid in `config/favoriteGrids.js`; `visibleFavoriteGrids(auth)` filters them for the statistics page and the admin 3x3 editor, and the statistics sidebar drops their links the same way |
 | Options scope picker (`ScopePicker`, both Options tabs) | `visibleMediaTypes` over the list it is handed, so the `MEDIA_TYPES` fallback drawn before `/api/constants` answers does not name a hidden gated type either |
-| Lists fetched only when visible | `usePlanData`, `Completions`, `useStatisticsData` (the h-comic, h-game and hentai rating cards and the h-game favourite grids), `SeriesPage` (h-games only under an `H-Game` parent franchise, hentai only under one of the h-comic family) and `FranchiseLibrary` (which waits for `/api/auth/me`) |
+| Lists fetched only when visible | `usePlanData`, `Completions`, `RandomPicker`, `useStatisticsData` (the h-comic, h-game and hentai rating cards and the h-game favourite grids), `SeriesPage` (h-games only under an `H-Game` parent franchise, hentai only under one of the h-comic family) and `FranchiseLibrary` (which waits for `/api/auth/me`) |
 | Club membership on the person page | `ClubMembership` renders, and fetches, nothing for a narrow session |
 
 What a gated type's surface does **not** filter is what the server already
@@ -521,9 +525,9 @@ content-label endpoints refuse (422) a set that drops it.
 3. `pages/library/configs/<type>.jsx` + register in `configs/index.js` — filters, sorts, columns (reuse `libraryColumns`).
 4. `pages/detail/<Type>.jsx` (+ `<Type>Notes.jsx`) and the two routes in `App.jsx` (the detail one is `/<type>/:publicId/:slug?`); note sections in `app/utils/note_sections.py`. Give the model a `public_id` and its sequence, add it to the response schema, read the route's `publicId` for the initial fetch only, call `useCanonicalPath(type, data)`, and link to the new type through `entityPath` — the `noUuidLinks` guard fails the build otherwise.
 5. `pages/add-tabs/<Type>AddTab.jsx`, `pages/modify-tabs/<Type>ModifyTab.jsx`, entries in `config/adminTabs.js`, `formFactories.js`, `formFields/fieldMeta.js`, `lib/payloads.js`, and the submit/save handlers in `Add.jsx` / `Modify.jsx`. Export the field body from the Add tab and render it from the Modify tab, the way `GameModifyTab` renders `GameAddTab`'s `GameFormBody` and `GameLineageFields` — the comic pair keeps two near-identical files and can drift.
-6. `Delete.jsx` `MEDIA_KEYS`, `pages/plan/usePlanData.js`, `pages/statistics/useStatisticsData.js` (+ `StatsCompletions.jsx`, `utils/statsUtils.js`), `Index.jsx` divisions, `Completions.jsx`, `Search.jsx`, `NavSearch.jsx` scopes and quotas, `GroupedEntryPage.jsx` `MEDIA_TYPE_FILTERS`, `navigation.js`, `lib/status.js`, `libraryColumns.jsx`, `planNextGroups.js`, `mediaTypeColors.js`, and `scopeColors.js` plus the three `--c-scope-*` palettes in `index.css`.
+6. `Delete.jsx` `MEDIA_KEYS`, `pages/plan/usePlanData.js`, `pages/statistics/useStatisticsData.js` (+ `StatsCompletions.jsx`, `utils/statsUtils.js`), `Index.jsx` divisions, `Completions.jsx`, `Search.jsx`, `NavSearch.jsx` scopes and quotas, `GroupedEntryPage.jsx` `MEDIA_TYPE_FILTERS`, `navigation.js`, `lib/status.js`, `lib/randomPicker.js` `PICKER_TYPES`, `libraryColumns.jsx`, `planNextGroups.js`, `mediaTypeColors.js`, and `scopeColors.js` plus the three `--c-scope-*` palettes in `index.css`.
 7. Backend first: registry spec, pipeline spec, sheet tab — see [../entry-types.md](../entry-types.md).
-8. A **gated** type (one naming a required label) also needs its key in `GATED_TYPES` (and a franchise type stamped only for it in `GATED_FRANCHISE_TYPES`) in `lib/gatedTypes.js`, its nav row given `gatedType`, both routes wrapped in `<ProtectedRoute gatedType>`, and every list above that names it rendered through the helper - see [Gated media types](#gated-media-types). `h-comic` is the worked example, and `h-game` the second: a gated type that is another type's copy (Game's) reuses that type's components - `IgdbSearchBox` takes a `searchUrl`, `GameCompletionBlock` takes `axes`, `SourcesCard` takes the extra storefront links - rather than forking them. `hentai` is the third, and the first to share a franchise family with another type: a gated type whose franchise may hold another family member's entries lists its franchise type in `FRANCHISE_FAMILY_FOR_TYPE`, uses `FamilyLineageFields` for its pickers, and has the hubs ask `inFranchiseFamily` rather than test the franchise type.
+8. A **gated** type (one naming a required label) also needs its key in `GATED_TYPES` (and a franchise type stamped only for it in `GATED_FRANCHISE_TYPES`) in `lib/gatedTypes.js`, its nav row given `gatedType`, its library, detail and `/random/<type>` routes wrapped in `<ProtectedRoute gatedType>`, and every list above that names it rendered through the helper - see [Gated media types](#gated-media-types). `h-comic` is the worked example, and `h-game` the second: a gated type that is another type's copy (Game's) reuses that type's components - `IgdbSearchBox` takes a `searchUrl`, `GameCompletionBlock` takes `axes`, `SourcesCard` takes the extra storefront links - rather than forking them. `hentai` is the third, and the first to share a franchise family with another type: a gated type whose franchise may hold another family member's entries lists its franchise type in `FRANCHISE_FAMILY_FOR_TYPE`, uses `FamilyLineageFields` for its pickers, and has the hubs ask `inFranchiseFamily` rather than test the franchise type.
 
 ## Entity components (person, studio and character)
 

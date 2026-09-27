@@ -1754,7 +1754,9 @@ backed up through the `System Option Alias` tab.
 
 Persistent key/value settings. Model: `SystemConfigs`. Holds announcements,
 the per-media-type **form defaults** (`config_key =
-"form_defaults:<media_type>"`, value = JSON blob; `app/routers/form_defaults.py`)
+"form_defaults:<media_type>"`, value = JSON blob; `app/routers/form_defaults.py`),
+the **random picker defaults** (`config_key = "random_picker_defaults:<mode>"`,
+value = JSON blob; `app/routers/random_picker_defaults.py`)
 and the **exchange rates** the Statistics page converts game spend with
 (`config_key = "fx_rates"`, value = `{base, as_of, rates}` as JSON;
 `app/routers/fx_rates.py`). None has a table of its own.
