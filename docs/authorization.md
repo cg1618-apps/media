@@ -685,7 +685,7 @@ carries a content label. They are hidden by what they are connected to, in
 | character | `character_casting` rows |
 | studio | `media_credit` rows |
 | publisher | `media_credit` rows, `publisher_scope` scopes |
-| vocabulary value | `media_tag` rows, `system_option_scope` scopes |
+| vocabulary value | `media_tag` rows, `media_source` rows (a main or reference source naming the value), `system_option_scope` scopes |
 
 A connection is one of three kinds:
 
@@ -699,10 +699,16 @@ A connection is one of three kinds:
   type*: every entry of it carries that label. A viewer can see a gated type
   when its required label is not in the viewer's hidden set
   (`can_see_gated_type`). A scope row naming a gated type is a connection,
-  hidden when the viewer cannot see that type. **A scope naming an ordinary
-  type is not a connection at all** — every credit writes a matching role row,
-  so counting ordinary scopes would keep visible every person whose only
-  credits are hidden. The gated types are `h-comic`, `h-game` and `hentai`, so
+  hidden when the viewer cannot see that type. **For a person or a publisher,
+  a scope naming an ordinary type is not a connection at all** — every credit
+  writes a matching role row, so counting ordinary scopes would keep visible
+  every person whose only credits are hidden. **For a vocabulary value it is
+  one, and always visible** (`Scope(..., ordinary=True)`): an option scoped
+  to anime was offered on anime by an admin, so Bahamut, Crunchyroll or
+  Official site — scoped to anime and to hentai or h-comic — stay in the
+  anime Main and Reference Sources pickers of a session that cannot see the
+  gated type, used or not. An option scoped to gated types alone is still
+  hidden by its scope. The gated types are `h-comic`, `h-game` and `hentai`, so
   a person role, a publisher scope or an option scope naming one is a hidden
   connection for a session that cannot see that type: a club created before
   its first credit (its `club` role is scoped to h-comic alone) and an unused

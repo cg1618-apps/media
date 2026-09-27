@@ -13,17 +13,23 @@ hidden by one directly. They are hidden by what they are connected to:
 A connection is one of three things:
 
   appearance   a row placing the record on an entry - a `media_credit`, a
-               `character_casting`, a `media_tag`. Hidden when the ENTRY is
-               label-hidden, by its own label or its franchise's. A media-type
+               `character_casting`, a `media_tag`, a `media_source` naming a
+               vocabulary value (Bahamut as a main source). Hidden when the
+               ENTRY is label-hidden, by its own label or its franchise's. A media-type
                permission gap does NOT hide an appearance: a guest lacking
                `media_type.game` still sees a person credited only on games.
   scope        a row declaring which media types the record belongs to - a
                `person_role`, a `publisher_scope`, a `system_option_scope`.
                Only a scope naming a GATED type (`gated_types.py`) is a
                connection, and it is hidden when the viewer cannot see that
-               type. A scope naming an ordinary type is not a connection at
-               all: it would otherwise keep visible every person whose only
-               credits are hidden, since every credit writes a matching role.
+               type. For people and publishers a scope naming an ordinary
+               type is not a connection at all: it would otherwise keep
+               visible every person whose only credits are hidden, since
+               every credit writes a matching role. A vocabulary value's
+               ordinary scope IS one, and always visible (`Scope.ordinary`):
+               an admin offered that value on that type, and Bahamut, scoped
+               to anime and hentai, must stay in the anime picker of a
+               session that cannot see hentai before any anime uses it.
 
   declared     a vocabulary value's own category, when every tag field using
                that category serves gated types only (the h-comic genres).
@@ -73,11 +79,16 @@ class Appearance:
 
 @dataclass(frozen=True)
 class Scope:
-    """A row naming a media type the record belongs to."""
+    """
+    A row naming a media type the record belongs to. `ordinary` makes a scope
+    naming an ordinary type a visible connection; without it only gated
+    scopes count (see the module docstring).
+    """
 
     table: type
     record_column: str
     scope_column: str
+    ordinary: bool = False
 
 
 @dataclass(frozen=True)
@@ -116,7 +127,8 @@ CONNECTIONS: dict[type, tuple[Connection, ...]] = {
     ),
     models.SystemOption: (
         Appearance(models.MediaTag, "option_id", "media_id"),
-        Scope(models.SystemOptionScope, "option_id", "scope"),
+        Appearance(models.MediaSource, "option_id", "media_id"),
+        Scope(models.SystemOptionScope, "option_id", "scope", ordinary=True),
         DeclaredScope("category"),
     ),
 }
@@ -192,6 +204,8 @@ def _hidden_condition(model, hiding: _Hiding):
             visible_connection.append(
                 sa.exists().where(owns, scope.in_(visible_types))
             )
+        if connection.ordinary:
+            visible_connection.append(sa.exists().where(owns, scope.notin_(gated)))
     condition = sa.or_(*any_connection)
     if visible_connection:
         condition = sa.and_(condition, ~sa.or_(*visible_connection))
