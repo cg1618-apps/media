@@ -672,7 +672,7 @@ twenty in `OPTION_CATEGORIES`:
 | `Label` | anime | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
 | `Quality` | anime | tag field `quality` (品質: production-quality tags; ships with no values, an admin adds them through the Options Add page) |
 | `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie, h-comic) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
-| `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
+| `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; every `game`-scoped value and `Twitter` also carry `h-game` (below); `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
 | `Serialization Platform` | manga, novel | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |
 | `Comic Imprint` | comic | tag field `comic_imprint` |
 | `Comic Continuity` | comic | tag field `comic_continuity` |
@@ -709,6 +709,16 @@ two links Tenrai writes for it. A value carrying no scope rows is left alone,
 since it already reaches every type. The scope is copied once, not derived: a
 `Platform` value later given an `anime` scope needs its `hentai` scope added on
 the Options page too.
+
+**h-game is offered the reference sources game is, plus Twitter** (migration
+`h8g9refsrc0`). Every `Reference Source` value scoped to `game` - `SteamDB`,
+`HowLongToBeat`, `Metacritic`, `Official site` - carries an `h-game` scope as
+well, and so does `Twitter`. A value scoped to `game` alone is not offered on
+h-game: the two are different scopes, and only the unscoped `Wikipedia` and
+`Fandom wiki` reach both without one. The same two rules as hentai hold: an
+unscoped value is left alone, and the scope is copied once, so a value later
+given a `game` scope needs its `h-game` scope added on the Options page too.
+h-game has no `Platform` values: like game, it has no access rows.
 
 **Restricted sources are suggested, not a vocabulary.** A `restricted`
 `media_source` row is free text, so the names each type offers, and which of
