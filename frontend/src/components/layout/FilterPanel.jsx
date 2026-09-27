@@ -39,7 +39,8 @@ export default function FilterPanel({
     <div className="border-y border-border py-4 mb-4 space-y-3">
       <div className="flex items-center justify-between">
         <Eyebrow as="h3" className="text-text-muted">Filters</Eyebrow>
-        {activeFilterCount > 0 && (
+        {/* A caller with its own clear control leaves clearFilters out. */}
+        {clearFilters && activeFilterCount > 0 && (
           <button
             onClick={clearFilters}
             className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint hover:text-danger transition"

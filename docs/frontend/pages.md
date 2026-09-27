@@ -1019,7 +1019,10 @@ no filters and no pick.
 
 Within one filter the chosen chips OR; across filters they AND, exactly as
 on the library page. **Pick** draws uniformly from the pool; **Pick again**
-never repeats the entry on screen while the pool holds another. The pick is
+never repeats the entry on screen while the pool holds another. **Clear all**,
+beside it, turns every filter off and drops the pick; the panel has no clear
+link of its own here (`FilterPanel` draws one only when handed
+`clearFilters`). The pick is
 a `MediaCard` (with its type named above it in All mode) whose `onUpdated`
 patches the `["media-list", type]` cache, and the page reads the pick back
 from that cache by key, so a status change made on the card shows at once.

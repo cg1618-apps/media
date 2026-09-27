@@ -148,6 +148,12 @@ function PickerBody({ type, typesKey }) {
     setPickedKey(next ? entryKey(next) : null);
   }, [pool, picked]);
 
+  // Every filter off and the pick gone: back to the page as it opened.
+  const clearAll = useCallback(() => {
+    clearFilters();
+    setPickedKey(null);
+  }, [clearFilters]);
+
   const handleUpdated = useCallback(
     (cardType) => (updatedItem) => {
       queryClient.setQueriesData({ queryKey: ["media-list", cardType] }, (old) =>
@@ -176,17 +182,21 @@ function PickerBody({ type, typesKey }) {
         filterDefs={filterDefs}
         filters={filters}
         toggleFilter={toggleFilter}
-        clearFilters={clearFilters}
         activeFilterCount={activeFilterCount}
         dynamicFilterOptions={dynamicFilterOptions}
       />
 
       <section aria-label="Pick" className="space-y-3 lg:order-none order-first">
         <div className="flex items-center justify-between gap-3">
-          <Button kind="primary" onClick={draw} disabled={pool.length === 0}>
-            <i className="fas fa-dice" aria-hidden="true" />
-            {picked ? "Pick again" : "Pick"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button kind="primary" onClick={draw} disabled={pool.length === 0}>
+              <i className="fas fa-dice" aria-hidden="true" />
+              {picked ? "Pick again" : "Pick"}
+            </Button>
+            <Button onClick={clearAll} disabled={activeFilterCount === 0 && !picked}>
+              Clear all
+            </Button>
+          </div>
           <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
             {pool.length} in the pool
           </span>

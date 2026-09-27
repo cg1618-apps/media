@@ -112,3 +112,20 @@ it("sends an unknown type back to the general mode", async () => {
   await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
   expect(screen.getByRole("link", { name: "All" })).toHaveAttribute("aria-current", "page");
 });
+
+it("clears every filter and the pick with Clear all", async () => {
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  const clear = screen.getByRole("button", { name: "Clear all" });
+  expect(clear).toBeDisabled();
+
+  fireEvent.click(screen.getByRole("button", { name: "Special" }));
+  fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
+  expect(await screen.findByText("Mushishi Special")).toBeInTheDocument();
+
+  fireEvent.click(clear);
+  expect(screen.getByText("2 in the pool")).toBeInTheDocument();
+  expect(screen.queryByText("Mushishi Special")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Special" })).toHaveAttribute("aria-pressed", "false");
+  expect(clear).toBeDisabled();
+});
