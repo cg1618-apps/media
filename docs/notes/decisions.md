@@ -2351,3 +2351,34 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   Steam-only game whose Steam columns are filled is not re-queued for its
   cover alone - the same gate h-game has, and it keeps an app with no
   capsule from being re-requested on every run.
+
+### Steam's header image is every game-cover chain's last resort (2026-09-27)
+
+- **Owner's decision: the portrait capsule first, the storefront's
+  `header_image` after it.** The capsule matches every other cover's shape,
+  and older apps serve it (`620` answers 200). Newer ones do not: an app
+  whose store assets moved to a hashed path answers 404 at the unhashed
+  capsule URL, and `header_image` is the only Steam artwork URL the
+  storefront hands over for it. "Lifeguard Holic" (`4090260`), which IGDB
+  does not list at all, is the case that prompted it - it had no cover
+  source.
+- **Last, after IGDB too, on both tables.** The header is landscape, so
+  every portrait source outranks it. A game runs IGDB, capsule, header; an
+  h-game runs DLsite, capsule, IGDB, header. That is why the header is its
+  own function, `autofill_cover_from_steam_header`, rather than a second
+  step inside `autofill_cover_from_steam`: folded in, it would have jumped
+  ahead of IGDB's cover on an h-game.
+- **Chained on the cover, not on the capsule lookup.** It runs whenever the
+  entry is still coverless, so a capsule that exists but fails to download
+  falls through to it as well. `cover_needs_download` guards it like every
+  other source, so an upload is never replaced.
+- **One more storefront request, and not a cached one.** The header reads
+  `appdetails?cc=us` again rather than reusing the payload
+  `autofill_game_from_steam` fetched a moment earlier, which keeps the two
+  functions independent - the missing-covers repair calls the cover
+  functions without the column fill. It is spent only on an entry still
+  coverless after every portrait source.
+- **Eligibility is unchanged,** for the reason the entry above gives: a
+  Steam-only game whose Steam columns are filled is not re-queued for its
+  cover alone. Replace selects every entry with a `steam_appid`, so it
+  reaches such a game.

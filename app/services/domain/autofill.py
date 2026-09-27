@@ -64,7 +64,11 @@ from app.utils.imdb_utils import (
 )
 from app.utils.name_normalize import split_names
 from app.utils.openlibrary_utils import map_openlibrary_to_novel_data
-from app.utils.steam_utils import REGIONS, map_steam_to_game_data
+from app.utils.steam_utils import (
+    REGIONS,
+    map_steam_to_game_data,
+    steam_header_image_url,
+)
 from app.utils.tenrai_utils import (
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
@@ -1200,9 +1204,10 @@ def autofill_cover_from_steam(game) -> None:
     Steam's portrait library capsule as the entry's cover, when it has none.
     Does not commit.
 
-    autofill_game_from_steam writes no cover, on either table; this is the
-    one Steam cover source. A game calls it after IGDB, as the fallback; an
-    h-game calls it before IGDB, after DLsite.
+    autofill_game_from_steam writes no cover, on either table; this and
+    autofill_cover_from_steam_header are the Steam cover sources. A game calls
+    it after IGDB, as the fallback; an h-game calls it before IGDB, after
+    DLsite.
     """
     appid = game.steam_appid
     if not appid:
@@ -1215,6 +1220,31 @@ def autofill_cover_from_steam(game) -> None:
         _fill_game_cover(game, fetch_steam_library_capsule_url(appid))
     except Exception as e:
         logger.error("Steam cover fill failed for app %s: %s", appid, e)
+
+
+def autofill_cover_from_steam_header(game) -> None:
+    """
+    Steam's landscape header image as the entry's cover, when it still has
+    none - every game-cover chain's last resort. Does not commit.
+
+    The portrait capsule is preferred but lives at an unhashed CDN path that
+    newer apps no longer serve; the storefront's `header_image` names the
+    hashed path, so it is the one Steam artwork every app has. It is
+    landscape, which is why it comes after every portrait source, IGDB's
+    included. Costs one storefront request, and none at all when the entry
+    already has a cover or no appid.
+    """
+    appid = game.steam_appid
+    if not appid:
+        return
+    owner_type = _game_owner_type(game)
+    if not cover_needs_download(game.cover_image_file, owner_type, str(game.system_id)):
+        return
+
+    try:
+        _fill_game_cover(game, steam_header_image_url(fetch_steam_appdetails(appid, cc="us")))
+    except Exception as e:
+        logger.error("Steam header cover fill failed for app %s: %s", appid, e)
 
 
 def autofill_h_game_from_dlsite(h_game, db: Session) -> None:

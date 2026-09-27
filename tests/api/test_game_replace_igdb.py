@@ -74,6 +74,8 @@ def calls(monkeypatch):
     monkeypatch.setattr(autofill_module, "map_steam_to_game_data", lambda p: dict(STEAM))
     monkeypatch.setattr(autofill_module, "fetch_owned_games", lambda: {})
     monkeypatch.setattr(autofill_module, "fetch_player_achievements", lambda appid: None)
+    # No capsule, so the cover chain never reaches Steam's image CDN.
+    monkeypatch.setattr(autofill_module, "fetch_steam_library_capsule_url", lambda appid: None)
     return seen
 
 
@@ -106,7 +108,10 @@ class TestSingleReplaceRunsBothSources:
         assert entry.hltb_main == 5.0
         assert entry.steam_appid == 1245620
         assert entry.price_current_us == Decimal("35.99")
-        assert [source for source, _ in calls] == ["igdb", "steam", "steam", "steam"]
+        # Three storefront regions, then one more storefront call: the entry
+        # is still coverless (neither IGDB nor the capsule has one here), so
+        # Steam's header image is asked for last.
+        assert [source for source, _ in calls] == ["igdb", "steam", "steam", "steam", "steam"]
 
     def test_the_igdb_id_is_derived_from_a_pasted_link(self, key, db_session, calls):
         entry = MAKERS[key](db_session, igdb_link="https://api.igdb.com/v4/games/1029")

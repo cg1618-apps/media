@@ -3,9 +3,9 @@ DLsite on an h-game, and the cover order it sits at the front of.
 
 DLsite fills three things, fill-only: the release date, the circle or brand as
 the studio credit, and the cover. The h-game fill then takes its cover from
-DLsite, else Steam's library capsule, else IGDB - while IGDB still runs before
-Steam so it can hand Steam an appid. A game takes the same two cover sources
-the other way round - IGDB, else Steam's capsule - and never DLsite.
+DLsite, else Steam's library capsule, else IGDB, else Steam's landscape header
+image - while IGDB still runs before Steam so it can hand Steam an appid. A
+game takes IGDB, else Steam's capsule, else Steam's header, and never DLsite.
 
 Every fetch and the cover download are patched out - these tests lock down
 behaviour, not the network layer.
@@ -37,6 +37,7 @@ DLSITE_RECORD = {
 }
 DLSITE_COVER = "https://img.dlsite.jp/RJ173356_img_main.jpg"
 STEAM_COVER = "https://steam.example/library_600x900_2x.jpg"
+STEAM_HEADER = "https://steam.example/abc123hash/header.jpg?t=1700000000"
 IGDB_COVER = "https://images.igdb.com/big.jpg"
 
 IGDB = {
@@ -82,9 +83,13 @@ def sources(monkeypatch):
     state = {
         "dlsite": dict(DLSITE_RECORD),
         "steam_cover": STEAM_COVER,
+        "steam_header": STEAM_HEADER,
         "igdb": dict(IGDB),
         "calls": [],
         "downloads": [],
+        # URLs whose download fails, as download_cover_image answers an HTTP
+        # error: None, and nothing stored.
+        "failing": set(),
     }
 
     def fetch_dlsite(product_id):
@@ -101,10 +106,12 @@ def sources(monkeypatch):
 
     def appdetails(appid, cc="us"):
         state["calls"].append(("steam", appid, cc))
-        return {"x": 1}
+        return {"x": 1, "header_image": state["steam_header"]}
 
     def download(url, owner_type, sid):
         state["downloads"].append((url, owner_type))
+        if url in state["failing"]:
+            return None
         return f"stored:{url}"
 
     monkeypatch.setattr(autofill_module, "fetch_dlsite_product", fetch_dlsite)
@@ -229,6 +236,23 @@ def _fill(db_session, entry):
 
 
 class TestCoverPriority:
+    def test_the_steam_header_is_the_last_resort(self, db_session, sources):
+        sources["dlsite"] = None
+        sources["steam_cover"] = None
+        sources["igdb"] = dict(IGDB, cover_image_url=None)
+        entry = _h_game(db_session, dlsite_link_jp=JP_LINK, igdb_id=1029)
+        _fill(db_session, entry)
+        assert entry.cover_image_file == f"stored:{STEAM_HEADER}"
+        assert sources["downloads"] == [(STEAM_HEADER, "h-game")]
+
+    def test_replace_takes_the_steam_header_last(self, db_session, sources):
+        sources["dlsite"] = None
+        sources["steam_cover"] = None
+        sources["igdb"] = dict(IGDB, cover_image_url=None)
+        entry = _h_game(db_session, dlsite_link_jp=JP_LINK, igdb_id=1029)
+        apply_single_replace_h_game(db_session, entry)
+        assert entry.cover_image_file == f"stored:{STEAM_HEADER}"
+
     def test_dlsite_wins_over_steam_and_igdb(self, db_session, sources):
         entry = _h_game(db_session, dlsite_link_jp=JP_LINK, igdb_id=1029)
         _fill(db_session, entry)
@@ -242,7 +266,8 @@ class TestCoverPriority:
         assert entry.cover_image_file == f"stored:{STEAM_COVER}"
         assert [url for url, _ in sources["downloads"]] == [STEAM_COVER]
 
-    def test_igdb_is_the_last_resort(self, db_session, sources):
+    def test_igdb_beats_the_steam_header(self, db_session, sources):
+        """IGDB's portrait cover is preferred over Steam's landscape header."""
         sources["dlsite"] = None
         sources["steam_cover"] = None
         entry = _h_game(db_session, dlsite_link_jp=JP_LINK, igdb_id=1029)
@@ -335,6 +360,58 @@ class TestGameCoverFallback:
         game = _game(db_session, igdb_id=1029, steam_appid=1245620)
         PIPELINES["game"].replace(db_session, game, False)
         assert game.cover_image_file == f"stored:{STEAM_COVER}"
+
+    def test_the_header_fills_a_cover_the_capsule_lacks(self, db_session, sources):
+        """No IGDB cover and no capsule at the unhashed path - an app whose
+        store assets moved to a hashed one - leaves the header image."""
+        sources["igdb"] = dict(IGDB, cover_image_url=None)
+        sources["steam_cover"] = None
+        game = _game(db_session, igdb_id=1029, steam_appid=4090260)
+        PIPELINES["game"].fill(db_session, game)
+        assert game.cover_image_file == f"stored:{STEAM_HEADER}"
+        assert sources["downloads"] == [(STEAM_HEADER, "game")]
+
+    def test_a_capsule_that_fails_to_download_falls_through_to_the_header(
+        self, db_session, sources
+    ):
+        sources["igdb"] = dict(IGDB, cover_image_url=None)
+        sources["failing"] = {STEAM_COVER}
+        game = _game(db_session, igdb_id=1029, steam_appid=1245620)
+        PIPELINES["game"].fill(db_session, game)
+        assert game.cover_image_file == f"stored:{STEAM_HEADER}"
+        assert [url for url, _ in sources["downloads"]] == [STEAM_COVER, STEAM_HEADER]
+
+    def test_the_capsule_beats_the_header(self, db_session, sources):
+        sources["igdb"] = dict(IGDB, cover_image_url=None)
+        game = _game(db_session, igdb_id=1029, steam_appid=1245620)
+        PIPELINES["game"].fill(db_session, game)
+        assert game.cover_image_file == f"stored:{STEAM_COVER}"
+        assert STEAM_HEADER not in [url for url, _ in sources["downloads"]]
+
+    def test_replace_takes_the_header_fallback(self, db_session, sources):
+        sources["igdb"] = dict(IGDB, cover_image_url=None)
+        sources["steam_cover"] = None
+        game = _game(db_session, igdb_id=1029, steam_appid=4090260)
+        PIPELINES["game"].replace(db_session, game, False)
+        assert game.cover_image_file == f"stored:{STEAM_HEADER}"
+
+    def test_an_upload_is_kept_when_only_the_header_is_left(self, db_session, sources):
+        """
+        The header path is the one that would fire - no IGDB cover, no capsule
+        - so the refusal has something to refuse. The mirror is
+        test_the_header_fills_a_cover_the_capsule_lacks: same sources, no
+        upload, and the header is stored.
+        """
+        sources["igdb"] = dict(IGDB, cover_image_url=None)
+        sources["steam_cover"] = None
+        upload = f"library/{uuid.uuid4()}.jpg"
+        game = _game(
+            db_session, igdb_id=1029, steam_appid=4090260, cover_image_file=upload
+        )
+        PIPELINES["game"].fill(db_session, game)
+        PIPELINES["game"].replace(db_session, game, False)
+        assert game.cover_image_file == upload
+        assert sources["downloads"] == []
 
     def test_an_existing_cover_is_kept(self, db_session, sources):
         game = _game(
