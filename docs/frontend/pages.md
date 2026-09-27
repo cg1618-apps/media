@@ -90,7 +90,7 @@ about styling.
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions`, Random Picker `/random` (whose `/random/<type>` pages light it too) |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
-| `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults` |
+| `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` |
 | `note` | Note | flat, `requires: "admin"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described |
 | `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue ┃ Users, Roles, Content Labels |
 
@@ -998,14 +998,19 @@ by that date, so a full date precedes a bare year. Cards are `MediaCard` with
 
 ### RandomPicker — `/random` · `/random/:type`
 
-Files `pages/public/RandomPicker.jsx`, `lib/randomPicker.js`. Open to
+Files `pages/public/RandomPicker.jsx`, `lib/randomPicker.js`,
+`hooks/usePickerData.js`, `components/picker/ModeStrip.jsx`. Open to
 everyone; it draws from the same lists the library pages read, so it can
 only offer what the viewer may already see.
 
 A strip of mode links runs across the top: **All**, then one per media type
 the session may see (`visibleMediaTypes`). Each mode has its own filters,
-rendered by the library's `FilterPanel`, and switching mode starts over with
-no filters and no pick.
+rendered by the library's `FilterPanel`. Each mode opens on its **default
+filters**, saved on the admin Picker Defaults page
+([admin-pages.md](admin-pages.md#random-defaults-pickerdefaultsjsx)) and read
+from `/api/random-picker-defaults/<mode>` by everyone; a mode with none saved,
+or whose defaults cannot be read, opens with every filter empty. Switching
+mode starts over from that mode's defaults, with no pick.
 
 - **All** (`/random`) fetches every visible type and filters on what all
   types share: media type, status (the watch, read and play groups renamed
@@ -1020,7 +1025,8 @@ no filters and no pick.
 Within one filter the chosen chips OR; across filters they AND, exactly as
 on the library page. **Pick** draws uniformly from the pool; **Pick again**
 never repeats the entry on screen while the pool holds another. **Clear all**,
-beside it, turns every filter off and drops the pick; the panel has no clear
+beside it, turns every filter off and drops the pick, and **Defaults** (shown
+only when the mode has some) puts the saved defaults back and drops the pick; the panel has no clear
 link of its own here (`FilterPanel` draws one only when handed
 `clearFilters`). The pick is
 a `MediaCard` (with its type named above it in All mode) whose `onUpdated`

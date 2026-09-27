@@ -17,6 +17,7 @@ import {
   WATCHING_STATUS_GROUP,
 } from "../config/statusGroups";
 import { LIBRARY_CONFIGS } from "../pages/library/configs";
+import { initialFilters } from "./libraryFilters";
 import { primaryReleaseValue, releaseYear } from "./releaseDate";
 
 // Every type the picker offers, in the nav's order. Gated types are listed
@@ -173,4 +174,48 @@ export function pickRandom(pool, previous = null, random = Math.random) {
       : pool;
   if (candidates.length === 0) return null;
   return candidates[Math.floor(random() * candidates.length)];
+}
+
+/** Every mode the picker has: "all", then each type. */
+export const PICKER_MODES = ["all", ...PICKER_TYPES.map((t) => t.type)];
+
+/** A mode's defs: the general ones for "all", else that type's. */
+export function filterDefsForMode(mode, types) {
+  return mode === "all" ? generalFilterDefs(types) : typeFilterDefs(mode);
+}
+
+/**
+ * A filter state for `filterDefs` seeded from stored defaults (the sparse
+ * `filters` map /api/random-picker-defaults returns). A key no def has any
+ * more is dropped, and so is a chip a fixed-option def no longer offers; a
+ * dynamic def's chips are kept, since its options come from the data.
+ */
+export function resolveDefaultFilters(filterDefs, stored) {
+  const state = initialFilters(filterDefs);
+  for (const fd of filterDefs) {
+    const value = stored?.[fd.key];
+    if (value === undefined) continue;
+    if (fd.type === "boolean") {
+      state[fd.key] = value === true;
+      continue;
+    }
+    if (!Array.isArray(value)) continue;
+    const offered =
+      fd.type === "set" ? fd.options : fd.type === "set-grouped" ? fd.groupOptions : null;
+    state[fd.key] = new Set(offered ? value.filter((v) => offered.includes(v)) : value);
+  }
+  return state;
+}
+
+/** The sparse `filters` map to store for a filter state: only what is on. */
+export function toStoredFilters(filters) {
+  const stored = {};
+  for (const [key, value] of Object.entries(filters)) {
+    if (value instanceof Set) {
+      if (value.size > 0) stored[key] = [...value];
+    } else if (value) {
+      stored[key] = true;
+    }
+  }
+  return stored;
 }

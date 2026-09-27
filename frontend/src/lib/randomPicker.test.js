@@ -6,8 +6,10 @@ import {
   entryKey,
   generalFilterDefs,
   pickRandom,
+  resolveDefaultFilters,
   statusGroupOf,
   toEntries,
+  toStoredFilters,
   typeFilterDefs,
 } from "./randomPicker";
 import { LIBRARY_CONFIGS } from "../pages/library/configs";
@@ -116,5 +118,34 @@ describe("pickRandom", () => {
   it("repeats the only entry, and draws nothing from an empty pool", () => {
     expect(pickRandom([pool[0]], pool[0])).toBe(pool[0]);
     expect(pickRandom([])).toBeNull();
+  });
+});
+
+describe("stored defaults", () => {
+  it("seeds a filter state, dropping what the defs no longer offer", () => {
+    const defs = typeFilterDefs("anime");
+    const state = resolveDefaultFilters(defs, {
+      airingType: ["TV", "Hologram"], // Hologram is not an anime airing type
+      bahaOnly: true,
+      decade: ["2010s"], // dynamic: kept, its options come from the data
+      retiredFilter: ["x"],
+    });
+    expect([...state.airingType]).toEqual(["TV"]);
+    expect(state.bahaOnly).toBe(true);
+    expect([...state.decade]).toEqual(["2010s"]);
+    expect(state).not.toHaveProperty("retiredFilter");
+    expect(state.myRating.size).toBe(0);
+  });
+
+  it("seeds an empty state from nothing stored", () => {
+    const defs = generalFilterDefs(["anime"]);
+    expect(resolveDefaultFilters(defs, undefined)).toEqual(initialFilters(defs));
+  });
+
+  it("stores only what is on, and round-trips", () => {
+    const defs = typeFilterDefs("anime");
+    const stored = { airingType: ["TV", "OVA"], bahaOnly: true };
+    const state = resolveDefaultFilters(defs, stored);
+    expect(toStoredFilters(state)).toEqual(stored);
   });
 });
