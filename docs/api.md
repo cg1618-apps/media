@@ -67,6 +67,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Casting — `/api/casting`](#casting--apicasting)
 - [Announcements — `/api/announcements`](#announcements--apiannouncements)
 - [Form Defaults — `/api/form-defaults`](#form-defaults--apiform-defaults)
+- [Random Picker Defaults — `/api/random-picker-defaults`](#random-picker-defaults--apirandom-picker-defaults)
 - [Data Control — `/api/data-control`](#data-control--apidata-control)
 - [System — `/api/system`](#system--apisystem)
 - [Watch Order — Sections](#watch-order--sections)
@@ -1679,6 +1680,42 @@ Unlike announcements, reads are admin-only: there is no guest surface for form c
 A row whose JSON fails to parse is logged and treated as unconfigured, never a 500.
 
 **Response model:** `AnnouncementResponse` (`{title, body}`)
+
+---
+
+## Random Picker Defaults — `/api/random-picker-defaults`
+
+The filters each Random Picker mode opens with, edited on the admin **Picker
+Defaults** page (`/random-defaults`) and read by the picker (`/random`). One
+`system_configs` row per mode, keyed `random_picker_defaults:<mode>`, JSON in
+`config_value`; `app/routers/random_picker_defaults.py`.
+
+`mode` is `all` or one of the twelve media slugs; anything else is 400. A gated
+type's mode (`h-comic`, `h-game`, `hentai`) answers **404** on every verb to a
+session that may not see the type, so the endpoint does not say it exists.
+
+| Method   | Path      | Auth           | Description                                                           |
+| -------- | --------- | -------------- | --------------------------------------------------------------------- |
+| `GET`    | `/{mode}` | Anyone         | One mode. Unconfigured returns **200 with `filters: {}`**, never 404.  |
+| `PUT`    | `/{mode}` | manage.catalog | Full-replacement upsert. Body: `RandomPickerDefaultsPayload`.          |
+| `DELETE` | `/{mode}` | manage.catalog | Delete the row, so the mode opens with no filters. Idempotent.         |
+
+**Response model:** `RandomPickerDefaultsResponse` (`RandomPickerDefaultsPayload` + `mode`)
+
+```json
+{ "mode": "anime", "version": 1, "filters": { "airingType": ["TV", "OVA"], "bahaOnly": true } }
+```
+
+- `filters` is **sparse**: a filter absent from the map opens empty. Keys are the
+  frontend's FilterDef keys (camelCase); a value is the chips switched on, or `true`
+  for a toggle.
+- Reads are open because the picker is: every viewer opens on the same defaults.
+- **Validation** is shape and size only: ≤50 keys matching `^[A-Za-z0-9_]{1,64}$`,
+  each value a boolean or a list of ≤100 strings of ≤100 characters, serialized
+  JSON ≤32 KB. The key and chip vocabularies live in
+  `frontend/src/lib/randomPicker.js`, whose `resolveDefaultFilters()` drops a key
+  or fixed-option chip it no longer has on read.
+- A row whose JSON fails to parse is logged and read as no filters, never a 500.
 
 ---
 

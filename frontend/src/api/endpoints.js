@@ -174,6 +174,12 @@ export const endpoints = {
     reset: (type) => `/api/form-defaults/${type}`,
   },
 
+  randomPickerDefaults: {
+    detail: (mode) => `/api/random-picker-defaults/${mode}`,
+    update: (mode) => `/api/random-picker-defaults/${mode}`,
+    reset: (mode) => `/api/random-picker-defaults/${mode}`,
+  },
+
   person: {
     list: (qs = "") => `/api/person/${qs ? `?${qs}` : ""}`,
     detail: (id) => `/api/person/${id}`,

@@ -1,30 +1,28 @@
 // Frontend: the random picker. /random draws from every visible media type
 // with the filters all types share; /random/<type> draws from one type with
-// that type's own library filters. The filters and the draw are
-// lib/randomPicker.js; this file fetches, holds the pick and renders.
+// that type's own library filters. Each mode opens with the default filters
+// saved on the Picker Defaults page. The filters and the draw are
+// lib/randomPicker.js, the data hooks/usePickerData.js; this file holds the
+// pick and renders.
 import { useCallback, useMemo, useState } from "react";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { Navigate, useParams } from "react-router-dom";
 
 import MediaCard from "../../components/cards/MediaCard";
 import FilterPanel from "../../components/layout/FilterPanel";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import ModeStrip from "../../components/picker/ModeStrip";
 import { Button, Eyebrow } from "../../components/ui/primitives";
-import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { useAuth } from "../../contexts/AuthContext";
 import { useFilterState } from "../../hooks/useFilterState";
-import { LIST_OPTIONS, mediaListQueryKey } from "../../hooks/useMediaList";
-import { buildUrl, fetchJson } from "../../hooks/queryUtils";
+import { usePickerData } from "../../hooks/usePickerData";
 import { visibleMediaTypes } from "../../lib/gatedTypes";
-import { applyFilterDefs } from "../../lib/libraryFilters";
+import { applyFilterDefs, countActiveFilters } from "../../lib/libraryFilters";
 import {
   PICKER_TYPES,
   entryKey,
-  generalFilterDefs,
   pickRandom,
   pickerTypeLabel,
-  toEntries,
-  typeFilterDefs,
 } from "../../lib/randomPicker";
 
 const ALL_TYPES = PICKER_TYPES.map((t) => t.type);
@@ -39,6 +37,7 @@ export default function RandomPicker({ type: typeProp }) {
 
   if (type && !ALL_TYPES.includes(type)) return <Navigate to="/random" replace />;
 
+  const mode = type ?? "all";
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <header>
@@ -51,84 +50,59 @@ export default function RandomPicker({ type: typeProp }) {
         </p>
       </header>
 
-      <ModeStrip current={type} types={visibleTypes} />
-
-      {/* Keyed on the mode: each mode has its own defs, so switching starts
-          with fresh filters and no pick rather than carrying either over. */}
-      <PickerBody
-        key={type ?? "all"}
-        type={type}
-        typesKey={type ?? visibleTypes.join(",")}
+      <ModeStrip
+        current={mode}
+        types={visibleTypes}
+        linkTo={(m) => (m === "all" ? "/random" : `/random/${m}`)}
       />
+
+      {/* Keyed on the mode: each mode has its own defs and defaults, so
+          switching starts from that mode's defaults with no pick. */}
+      <PickerBody key={mode} mode={mode} typesKey={type ?? visibleTypes.join(",")} />
     </div>
   );
 }
 
-// "All" and one link per visible type.
-function ModeStrip({ current, types }) {
-  const modes = [{ to: "/random", label: "All", active: !current }].concat(
-    types.map((t) => ({ to: `/random/${t}`, label: pickerTypeLabel(t), active: current === t })),
+function PickerBody({ mode, typesKey }) {
+  const { entries, filterDefs, defaultFilters, isLoading, error } = usePickerData(
+    mode,
+    typesKey,
   );
+
+  if (isLoading || error) {
+    return (
+      <MediaLoadingState
+        isLoading={isLoading}
+        error={error}
+        loadingText="Loading the pool..."
+        errorTitle="Database Error"
+      />
+    );
+  }
+
+  // Mounted only once the defaults are in, so the filters open on them.
   return (
-    <nav aria-label="Picker mode" className="flex flex-wrap gap-1.5 border-b border-border pb-4">
-      {modes.map((m) => (
-        <Link
-          key={m.to}
-          to={m.to}
-          aria-current={m.active ? "page" : undefined}
-          className={`px-2.5 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
-            m.active
-              ? "bg-brand text-on-brand border-brand"
-              : "bg-surface text-text-muted border-border-strong hover:border-text hover:text-text"
-          }`}
-        >
-          {m.label}
-        </Link>
-      ))}
-    </nav>
+    <PickerPool
+      mode={mode}
+      entries={entries}
+      filterDefs={filterDefs}
+      defaultFilters={defaultFilters}
+    />
   );
 }
 
-// Lists fetched for a mode, merged into one result. Module-level so its
-// identity is stable, which lets useQueries keep the merged result between
-// renders until a list actually changes.
-function combineLists(results) {
-  return {
-    lists: results.map((r) => r.data),
-    isLoading: results.some((r) => r.isLoading),
-    error: results.find((r) => r.error)?.error?.message ?? null,
-  };
-}
-
-// `typesKey` is the comma-joined list of types this mode draws from: a
-// string, so the memos below see a change of types and not a new array.
-function PickerBody({ type, typesKey }) {
+function PickerPool({ mode, entries, filterDefs, defaultFilters }) {
   const queryClient = useQueryClient();
-  const types = useMemo(() => typesKey.split(",").filter(Boolean), [typesKey]);
+  const {
+    filters,
+    toggleFilter,
+    clearFilters,
+    resetFilters,
+    activeFilterCount,
+    dynamicFilterOptions,
+  } = useFilterState(filterDefs, entries, defaultFilters);
 
-  // The same cache entries the library pages fill, so a library visit makes
-  // the picker instant and the reverse.
-  const { lists, isLoading, error } = useQueries({
-    queries: types.map((t) => ({
-      queryKey: mediaListQueryKey(t, LIST_OPTIONS.params),
-      queryFn: () => fetchJson(buildUrl(`${MEDIA_CONFIG[t].apiEndpoint}/`, LIST_OPTIONS.params)),
-      staleTime: 30_000,
-    })),
-    combine: combineLists,
-  });
-
-  const entries = useMemo(
-    () => types.flatMap((t, i) => toEntries(t, lists[i])),
-    [types, lists],
-  );
-
-  const filterDefs = useMemo(
-    () => (type ? typeFilterDefs(type) : generalFilterDefs(types)),
-    [type, types],
-  );
-
-  const { filters, toggleFilter, clearFilters, activeFilterCount, dynamicFilterOptions } =
-    useFilterState(filterDefs, entries);
+  const hasDefaults = countActiveFilters(defaultFilters) > 0;
 
   const pool = useMemo(
     () => applyFilterDefs(entries, filterDefs, filters),
@@ -148,11 +122,17 @@ function PickerBody({ type, typesKey }) {
     setPickedKey(next ? entryKey(next) : null);
   }, [pool, picked]);
 
-  // Every filter off and the pick gone: back to the page as it opened.
+  // Every filter off and the pick gone.
   const clearAll = useCallback(() => {
     clearFilters();
     setPickedKey(null);
   }, [clearFilters]);
+
+  // Back to the mode's saved defaults, with the pick gone.
+  const restoreDefaults = useCallback(() => {
+    resetFilters();
+    setPickedKey(null);
+  }, [resetFilters]);
 
   const handleUpdated = useCallback(
     (cardType) => (updatedItem) => {
@@ -165,17 +145,6 @@ function PickerBody({ type, typesKey }) {
     [queryClient],
   );
 
-  if (isLoading || error) {
-    return (
-      <MediaLoadingState
-        isLoading={isLoading}
-        error={error}
-        loadingText="Loading the pool..."
-        errorTitle="Database Error"
-      />
-    );
-  }
-
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_16rem]">
       <FilterPanel
@@ -187,20 +156,23 @@ function PickerBody({ type, typesKey }) {
       />
 
       <section aria-label="Pick" className="space-y-3 lg:order-none order-first">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Button kind="primary" onClick={draw} disabled={pool.length === 0}>
-              <i className="fas fa-dice" aria-hidden="true" />
-              {picked ? "Pick again" : "Pick"}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button kind="primary" onClick={draw} disabled={pool.length === 0}>
+            <i className="fas fa-dice" aria-hidden="true" />
+            {picked ? "Pick again" : "Pick"}
+          </Button>
+          <Button onClick={clearAll} disabled={activeFilterCount === 0 && !picked}>
+            Clear all
+          </Button>
+          {hasDefaults && (
+            <Button kind="ghost" onClick={restoreDefaults}>
+              Defaults
             </Button>
-            <Button onClick={clearAll} disabled={activeFilterCount === 0 && !picked}>
-              Clear all
-            </Button>
-          </div>
-          <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-            {pool.length} in the pool
-          </span>
+          )}
         </div>
+        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+          {pool.length} in the pool
+        </p>
 
         {pool.length === 0 ? (
           <div className="border border-dashed border-border-strong px-4 py-12 text-center">
@@ -211,7 +183,9 @@ function PickerBody({ type, typesKey }) {
           </div>
         ) : picked ? (
           <div className="max-w-[16rem]">
-            {!type && <Eyebrow className="mb-1.5">{pickerTypeLabel(picked.type)}</Eyebrow>}
+            {mode === "all" && (
+              <Eyebrow className="mb-1.5">{pickerTypeLabel(picked.type)}</Eyebrow>
+            )}
             <MediaCard
               type={picked.type}
               data={picked.item}

@@ -2,7 +2,7 @@
 
 import re
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -384,6 +384,50 @@ class FormDefaultsPayload(BaseModel):
 
 class FormDefaultsResponse(FormDefaultsPayload):
     media_type: str
+
+
+# Random picker defaults. A filter key is a FilterDef `key` from the frontend
+# (camelCase, e.g. "airingType"), a value either the chips switched on or a
+# boolean toggle. Options are spelled by the frontend's vocabularies and
+# derived lists, so they are checked for size only.
+MAX_PICKER_FILTERS = 50
+MAX_PICKER_VALUES = 100
+MAX_PICKER_VALUE_LENGTH = 100
+_PICKER_KEY_RE = re.compile(r"^[A-Za-z0-9_]{1,64}$")
+
+
+class RandomPickerDefaultsPayload(BaseModel):
+    """The filters one random picker mode opens with.
+
+    Stored in system_configs as 'random_picker_defaults:<mode>'. `filters` is
+    SPARSE: a filter absent from the map opens empty. The authoritative key
+    list is each mode's FilterDefs in frontend/src/lib/randomPicker.js, and
+    the frontend drops any key or chip it no longer has on read.
+    """
+
+    version: int = 1
+    filters: Dict[str, Union[bool, List[str]]] = {}
+
+    @field_validator("filters")
+    @classmethod
+    def _check_filters(
+        cls, v: Dict[str, Union[bool, List[str]]]
+    ) -> Dict[str, Union[bool, List[str]]]:
+        if len(v) > MAX_PICKER_FILTERS:
+            raise ValueError(f"Cannot configure more than {MAX_PICKER_FILTERS} filters.")
+        for key, value in v.items():
+            if not _PICKER_KEY_RE.match(key):
+                raise ValueError(f"Invalid filter key '{key[:20]}'.")
+            if isinstance(value, list):
+                if len(value) > MAX_PICKER_VALUES:
+                    raise ValueError(f"Filter '{key}' has too many values.")
+                if any(len(item) > MAX_PICKER_VALUE_LENGTH for item in value):
+                    raise ValueError(f"Filter '{key}' has a value that is too long.")
+        return v
+
+
+class RandomPickerDefaultsResponse(RandomPickerDefaultsPayload):
+    mode: str
 
 
 class SeasonalBase(BaseModel):

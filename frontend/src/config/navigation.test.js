@@ -96,6 +96,7 @@ describe("NAV_SECTIONS", () => {
       "/modify",
       "/delete",
       "/defaults",
+      "/random-defaults",
       "/images",
     ]);
   });

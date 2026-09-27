@@ -58,6 +58,7 @@ from app.routers import (
     profile,
     publisher,
     quote,
+    random_picker_defaults,
     roles,
     search,
     seasonal,
@@ -280,6 +281,7 @@ app.include_router(announcements.router)
 app.include_router(images.router)
 app.include_router(covers.router)
 app.include_router(form_defaults.router)
+app.include_router(random_picker_defaults.router)
 
 app.include_router(data_control.router)
 app.include_router(system.router)
