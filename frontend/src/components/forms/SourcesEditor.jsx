@@ -17,6 +17,7 @@ import { useId } from "react";
 import { inputCls, selectCls } from "./FormField";
 import { getSourceValues } from "../../lib/formatters";
 import { restrictedSourcesFor } from "../../lib/restrictedSources";
+import { usePrefillPicks } from "../../contexts/RestrictedPrefillContext";
 
 function updateRow(value, index, patch) {
   return value.map((row, j) => (j === index ? { ...row, ...patch } : row));
@@ -210,8 +211,13 @@ function FreeTextRows({
 }
 
 // `restrictedSources` is `{ prefill, suggestions }` for the restricted bucket
-// (lib/restrictedSources.js), looked up from `mediaType` unless given - h-comic
+// (lib/restrictedSources.js), looked up from `mediaType` and the picked
+// prefill (contexts/RestrictedPrefillContext.jsx) unless given - h-comic
 // passes its own, since its list depends on the region.
+//
+// `showRestricted` false drops the restricted group: /defaults picks those
+// names separately (RestrictedPrefillEditor below), so its `sources` default
+// holds every other row.
 //
 // `showAccess` false drops the access group entirely - games have no "where
 // can I play this" source: that is the Platform tag, and which copy was bought
@@ -224,9 +230,11 @@ export default function SourcesEditor({
   mediaType,
   sources,
   showAccess = true,
+  showRestricted = true,
   restrictedSources,
 }) {
-  const restricted = restrictedSources || restrictedSourcesFor(mediaType);
+  const picks = usePrefillPicks(mediaType);
+  const restricted = restrictedSources || restrictedSourcesFor(mediaType, "", picks);
   const rows = value || [];
   const mainIndices = [];
   const referenceIndices = [];
@@ -309,16 +317,40 @@ export default function SourcesEditor({
         onChange={onChange}
         value={rows}
       />
-      <FreeTextRows
-        indices={restrictedIndices}
-        bucket="restricted"
-        label="Restricted Sources"
-        addLabel="Add restricted source"
-        onChange={onChange}
-        value={rows}
-        suggestions={restricted.suggestions}
-        prefill={restricted.prefill}
-      />
+      {showRestricted && (
+        <FreeTextRows
+          indices={restrictedIndices}
+          bucket="restricted"
+          label="Restricted Sources"
+          addLabel="Add restricted source"
+          onChange={onChange}
+          value={rows}
+          suggestions={restricted.suggestions}
+          prefill={restricted.prefill}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * The names one prefill variant starts a new entry with, edited on /defaults
+ * as restricted rows: every name the variant has is offered while typing,
+ * and the prefill button adds whichever are missing. `value` is the list of
+ * names; blank rows are kept while editing and ignored when resolved.
+ */
+export function RestrictedPrefillEditor({ label, value, onChange, names }) {
+  const rows = (value || []).map((name) => addRow("restricted", "access", name));
+  return (
+    <FreeTextRows
+      indices={rows.map((_, i) => i)}
+      bucket="restricted"
+      label={label}
+      addLabel="Add prefilled source"
+      onChange={(next) => onChange(next.map((row) => row.name))}
+      value={rows}
+      suggestions={names}
+      prefill={names}
+    />
   );
 }

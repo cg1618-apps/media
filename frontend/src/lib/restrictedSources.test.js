@@ -7,7 +7,9 @@ import {
   defaultRestrictedSources,
   followRegion,
   mergeHComicAutofill,
+  prefillVariants,
   restrictedSourcesFor,
+  startingSources,
   withRestrictedSources,
 } from "./restrictedSources";
 
@@ -65,6 +67,60 @@ describe("restrictedSourcesFor", () => {
   });
 });
 
+describe("restrictedSourcesFor with picks", () => {
+  it("prefills the picked names and still suggests every name, picked first", () => {
+    expect(restrictedSourcesFor("manga", "", { all: ["包子漫畫"] })).toEqual({
+      prefill: ["包子漫畫"],
+      suggestions: ["包子漫畫", "漫畫櫃 (電腦版)", "漫畫櫃 (手機版)", "漫畫人"],
+    });
+  });
+
+  it("drops blank and repeated picks", () => {
+    expect(restrictedSourcesFor("anime", "", { all: ["", " Gimy ", "Gimy"] }).prefill).toEqual([
+      "Gimy",
+    ]);
+  });
+
+  it("keeps the built-in prefill for a variant the picks do not name", () => {
+    const picks = { JP: [] };
+    expect(restrictedSourcesFor("h-comic", "JP", picks).prefill).toEqual([]);
+    expect(restrictedSourcesFor("h-comic", "KR", picks).prefill).toEqual(["禁漫天堂", ...KR_ONLY]);
+  });
+
+  it("gives an unset h-comic region what both regions prefill", () => {
+    const picks = { JP: ["禁漫天堂", "ToonGod"], KR: ["ToonGod", "MANGA18"] };
+    expect(restrictedSourcesFor("h-comic", "", picks).prefill).toEqual(["ToonGod"]);
+  });
+});
+
+describe("prefillVariants", () => {
+  it("offers one variant per region on h-comic, with every name it has", () => {
+    expect(prefillVariants("h-comic")).toEqual([
+      { key: "JP", label: "JP", names: ["禁漫天堂"], builtIn: ["禁漫天堂"] },
+      { key: "KR", label: "KR", names: ["禁漫天堂", ...KR_ONLY], builtIn: ["禁漫天堂", ...KR_ONLY] },
+    ]);
+  });
+
+  it("offers one variant on every other type, optional names included", () => {
+    expect(prefillVariants("novel")).toEqual([
+      { key: "all", label: "Every entry", names: NOVEL, builtIn: [] },
+    ]);
+  });
+
+  it("offers none on a type with no restricted names", () => {
+    expect(prefillVariants("game")).toEqual([]);
+  });
+});
+
+describe("startingSources", () => {
+  it("replaces the rows' restricted sources with the region's prefill", () => {
+    const other = { ...restricted("Somewhere"), bucket: "other" };
+    const out = startingSources("h-comic", [other, restricted("Old")], "KR");
+    expect(out[0]).toBe(other);
+    expect(names(out.slice(1))).toEqual(["禁漫天堂", ...KR_ONLY]);
+  });
+});
+
 describe("defaultRestrictedSources", () => {
   it("starts a new entry with one untouched row per prefilled name only", () => {
     // Manga has an optional name too; it must not be prefilled.
@@ -119,6 +175,15 @@ describe("followRegion", () => {
 
   it("never drops 禁漫天堂, which every region has", () => {
     expect(names(followRegion([restricted("禁漫天堂")], "KR", "JP"))).toEqual(["禁漫天堂"]);
+  });
+});
+
+describe("followRegion with picks", () => {
+  it("adds and drops the picked names, not the built-in ones", () => {
+    const picks = { JP: ["禁漫天堂"], KR: ["ToonGod"] };
+    const kr = followRegion([restricted("禁漫天堂")], "JP", "KR", picks);
+    expect(names(kr)).toEqual(["ToonGod"]);
+    expect(names(followRegion(kr, "KR", "JP", picks))).toEqual(["禁漫天堂"]);
   });
 });
 

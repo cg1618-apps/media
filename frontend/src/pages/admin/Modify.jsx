@@ -66,6 +66,7 @@ import AdminTabBar from "../../components/layout/AdminTabBar";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
+import { RestrictedPrefillProvider } from "../../contexts/RestrictedPrefillContext";
 import {
   fetchFormDefaults,
   resolveDefaults,
@@ -519,8 +520,9 @@ export default function Modify() {
           people: {},
         })),
       ]);
-      setSources(srcData);
+      // Before the state updates, whose render reads it (the prefill picks).
       formDefaultsRef.current = fd;
+      setSources(srcData);
       setSourcesLoading(false);
     }
     load();
@@ -3859,6 +3861,7 @@ export default function Modify() {
     );
 
   return (
+    <RestrictedPrefillProvider config={formDefaultsRef.current}>
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-black text-text flex items-center gap-3">
@@ -4467,5 +4470,6 @@ export default function Modify() {
         />
       )}
     </div>
+    </RestrictedPrefillProvider>
   );
 }

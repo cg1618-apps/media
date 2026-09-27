@@ -60,6 +60,7 @@ export default function DefaultValueControl({
         mediaType={mediaType}
         sources={sources}
         showAccess={field.showAccess ?? true}
+        showRestricted={false}
       />
     );
   }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   autofillFields,
   coerceToShape,
+  prefillPicks,
   resolveDefaults,
 } from "./useFormDefaults";
 import {
@@ -10,6 +11,16 @@ import {
   defaultStudio,
 } from "../config/formFactories";
 import { BUILTIN_AUTOFILL } from "../config/formFields";
+
+const names = (rows) => rows.map((r) => r.name);
+const restricted = (name, url = "") => ({
+  kind: "access",
+  bucket: "restricted",
+  name,
+  url,
+  available: null,
+});
+const KR_ONLY = ["污汙漫畫", "漫小肆ikanhm", "ToonGod", "Anime Planet", "MANGA18", "MANGADNA"];
 
 describe("resolveDefaults", () => {
   it("returns the built-in factory values when nothing is configured", () => {
@@ -128,7 +139,9 @@ describe("repeater defaults", () => {
     ];
     const resolved = resolveDefaults("anime", { anime: { defaults: { sources: rows } } });
 
-    expect(resolved.sources).toEqual(rows);
+    // The configured rows come first; the prefilled restricted rows still follow.
+    expect(resolved.sources.slice(0, 1)).toEqual(rows);
+    expect(names(resolved.sources.slice(1))).toEqual(["Gimy", "Anime1"]);
   });
 
   it("carries configured game copies into a fresh form", () => {
@@ -150,5 +163,66 @@ describe("repeater defaults", () => {
     });
 
     expect(resolved.copies).toEqual([{ storefront: "Steam" }]);
+  });
+});
+
+describe("restricted prefill", () => {
+  it("prefills the picked names instead of the built-in ones", () => {
+    const resolved = resolveDefaults("anime", {
+      anime: { restricted_prefill: { all: ["Anime1"] } },
+    });
+    expect(resolved.sources).toEqual([restricted("Anime1")]);
+  });
+
+  it("prefills nothing on an empty pick", () => {
+    // Made non-empty on purpose: the built-in prefill has two names, so an
+    // empty result proves the pick removed them.
+    expect(defaultAnime().sources).toHaveLength(2);
+    const resolved = resolveDefaults("anime", { anime: { restricted_prefill: { all: [] } } });
+    expect(resolved.sources).toEqual([]);
+  });
+
+  it("lets the pick, not the sources default, decide the restricted rows", () => {
+    const reference = {
+      kind: "reference",
+      bucket: "main",
+      name: "Official Site",
+      url: "",
+      available: null,
+    };
+    const resolved = resolveDefaults("anime", {
+      anime: {
+        defaults: { sources: [reference, restricted("Gimy"), restricted("Stale")] },
+        restricted_prefill: { all: ["Anime1"] },
+      },
+    });
+    expect(resolved.sources).toEqual([reference, restricted("Anime1")]);
+  });
+
+  it("gives a KR region default the KR prefill", () => {
+    const resolved = resolveDefaults("h-comic", {
+      "h-comic": { defaults: { region: "KR" } },
+    });
+    expect(resolved.region).toBe("KR");
+    expect(names(resolved.sources)).toEqual(["禁漫天堂", ...KR_ONLY]);
+  });
+
+  it("uses the picks of the defaulted region", () => {
+    const resolved = resolveDefaults("h-comic", {
+      "h-comic": {
+        defaults: { region: "KR" },
+        restricted_prefill: { JP: ["禁漫天堂"], KR: ["ToonGod"] },
+      },
+    });
+    expect(names(resolved.sources)).toEqual(["ToonGod"]);
+  });
+});
+
+describe("prefillPicks", () => {
+  it("is the stored pick map, or null when unconfigured", () => {
+    expect(prefillPicks("anime", {})).toBeNull();
+    expect(prefillPicks("anime", { anime: { restricted_prefill: { all: [] } } })).toEqual({
+      all: [],
+    });
   });
 });

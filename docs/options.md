@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-26
+Last verified: 2026-09-27
 
 ## What this is for
 
@@ -710,13 +710,14 @@ since it already reaches every type. The scope is copied once, not derived: a
 the Options page too.
 
 **Restricted sources are suggested, not a vocabulary.** A `restricted`
-`media_source` row is free text, so the names each type is prefilled with and
-offers - `Gimy` on the watch types, `Anime1` on anime, `BatCave` on comic,
+`media_source` row is free text, so the names each type offers, and which of
+them it prefills by default - `Gimy` on the watch types, `Anime1` on anime, `BatCave` on comic,
 the novel sites, `禁漫天堂` and the six KR names on h-comic, `Hanime1` on
 hentai, and the rest - live in the frontend (`lib/restrictedSources.js`; the
 full table is in [Admin Pages](frontend/admin-pages.md#add-addjsx)), not in
 `system_option`. The server never checks them, and any other name is still
-accepted.
+accepted. Which names a new entry is actually prefilled with is picked per
+type on `/defaults` and stored with the form defaults.
 
 **The game vocabulary is seeded from code, not inline SQL.**
 `app/utils/game_vocabulary.py` holds `GAME_VOCABULARY` (the five tag

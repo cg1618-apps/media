@@ -66,6 +66,7 @@ def test_get_unconfigured_type_returns_empty_payload_not_404(admin_client):
         "version": 1,
         "defaults": {},
         "autofill": None,
+        "restricted_prefill": None,
     }
 
 
@@ -125,6 +126,49 @@ def test_empty_autofill_list_is_preserved(admin_client):
         "/api/form-defaults/anime", json={"defaults": {}, "autofill": []}
     )
     assert admin_client.get("/api/form-defaults/anime").json()["autofill"] == []
+
+
+def test_restricted_prefill_round_trips_per_variant(admin_client):
+    """The picked prefill names are stored per variant: h-comic's two regions."""
+    picks = {"JP": ["禁漫天堂"], "KR": ["禁漫天堂", "ToonGod"]}
+    admin_client.put(
+        "/api/form-defaults/h-comic", json={"restricted_prefill": picks}
+    )
+    assert admin_client.get("/api/form-defaults/h-comic").json()[
+        "restricted_prefill"
+    ] == picks
+
+
+def test_restricted_prefill_is_null_until_configured(admin_client):
+    """null means 'use the built-in prefill'; an empty pick list is a choice."""
+    admin_client.put("/api/form-defaults/anime", json={"defaults": {}})
+    assert admin_client.get("/api/form-defaults/anime").json()[
+        "restricted_prefill"
+    ] is None
+
+    admin_client.put(
+        "/api/form-defaults/anime", json={"restricted_prefill": {"all": []}}
+    )
+    assert admin_client.get("/api/form-defaults/anime").json()[
+        "restricted_prefill"
+    ] == {"all": []}
+
+
+@pytest.mark.parametrize(
+    "picks",
+    [
+        {"Bad Key!": ["Gimy"]},
+        {"all": [1]},
+        {"all": ["x" * 101]},
+        {"all": [f"n{i}" for i in range(51)]},
+        {f"k{i}": [] for i in range(11)},
+    ],
+)
+def test_malformed_restricted_prefill_rejected(admin_client, picks):
+    res = admin_client.put(
+        "/api/form-defaults/anime", json={"restricted_prefill": picks}
+    )
+    assert res.status_code == 422
 
 
 def test_various_value_types_are_accepted(admin_client):
