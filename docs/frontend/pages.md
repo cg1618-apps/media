@@ -57,6 +57,9 @@ are a large share of the bundle and never needed on first paint.
 | `/future-releases` | `public/FutureReleases.jsx` | lazy |
 | `/statistics` | `public/Statistics.jsx` | lazy, **login required** |
 | `/completions` | `public/Completions.jsx` | lazy |
+| `/random` | `public/RandomPicker.jsx` — the general mode | lazy |
+| `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` (matched before `/random/:type`) | lazy, **gated** |
+| `/random/:type` | `RandomPicker` — one type's mode; an unknown type redirects to `/random` | lazy |
 | `/plan` | `public/Plan.jsx` | lazy, **login required** |
 | `/quote` | `public/Quotes.jsx` | lazy |
 | `/meme` | `public/Memes.jsx` | lazy |
@@ -85,7 +88,7 @@ about styling.
 |---|---|---|---|
 | `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`), Seiyuu `/library/seiyuu` · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
-| `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions` |
+| `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions`, Random Picker `/random` (whose `/random/<type>` pages light it too) |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults` |
 | `note` | Note | flat, `requires: "admin"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described |
@@ -329,7 +332,11 @@ the filter panel toggle and the filter values — **none of it is persisted**;
 navigating away resets the page. Filtering is entirely client-side over the
 ≤2000 rows: search (`config.buildSearchString`, normalised by `cleanString`)
 → active `filterDefs` (`match(item, value, franchiseDict, seriesDict)`) →
-`sortDefs[currentSort].compare`.
+`sortDefs[currentSort].compare`. The filter half is shared with the random
+picker: `hooks/useFilterState.js` holds the chip and toggle values,
+`lib/libraryFilters.js` applies them (`applyFilterDefs`), and
+`components/layout/FilterPanel.jsx` draws them. A set-type def may carry
+`optionLabel(value)` when its chip text should differ from the stored value.
 
 A sort may also name the figure a **grid card** shows in its score slot,
 through `cardScoreField` on the sortDef: `LibraryLayout` reads it off the
@@ -988,6 +995,40 @@ year; TV also includes "Airing". Games keep `release_status` of `Rumored` or
 grouped by the year of `release_date` with TBD last, and sorted inside a year
 by that date, so a full date precedes a bare year. Cards are `MediaCard` with
 `isAdmin`; `onUpdated` patches the `["media-list", type]` caches.
+
+### RandomPicker — `/random` · `/random/:type`
+
+Files `pages/public/RandomPicker.jsx`, `lib/randomPicker.js`. Open to
+everyone; it draws from the same lists the library pages read, so it can
+only offer what the viewer may already see.
+
+A strip of mode links runs across the top: **All**, then one per media type
+the session may see (`visibleMediaTypes`). Each mode has its own filters,
+rendered by the library's `FilterPanel`, and switching mode starts over with
+no filters and no pick.
+
+- **All** (`/random`) fetches every visible type and filters on what all
+  types share: media type, status (the watch, read and play groups renamed
+  onto one set - Planned, In Progress, Completed, Dropped, Might; an unset
+  status is Might, as the library counts it), my rating (`S`…`F`, or
+  Unrated), and release decade (from each type's primary release column,
+  newest first, Unknown last). A gated type the session may see is in the
+  pool like any other; untick it with the media-type chips.
+- **One type** (`/random/<type>`) fetches only that type and offers its
+  library page's own `filterDefs`, then my rating and release decade.
+
+Within one filter the chosen chips OR; across filters they AND, exactly as
+on the library page. **Pick** draws uniformly from the pool; **Pick again**
+never repeats the entry on screen while the pool holds another. **Clear all**,
+beside it, turns every filter off and drops the pick; the panel has no clear
+link of its own here (`FilterPanel` draws one only when handed
+`clearFilters`). The pick is
+a `MediaCard` (with its type named above it in All mode) whose `onUpdated`
+patches the `["media-list", type]` cache, and the page reads the pick back
+from that cache by key, so a status change made on the card shows at once.
+The lists share the library pages' cache keys (`mediaListQueryKey(type,
+LIST_OPTIONS.params)`), so visiting either one warms the other. Nothing is
+persisted.
 
 ### Plan — `/plan`
 

@@ -195,6 +195,9 @@ export const NAV_SECTIONS = [
         to: "/future-releases",
       },
       { label: "Completions", icon: "fas fa-history", to: "/completions" },
+      // Open to everyone, like Future Releases: the pool is the library lists
+      // the viewer may already read. /random/<type> lights the row up too.
+      { label: "Random Picker", icon: "fas fa-dice", to: "/random" },
     ],
   },
   {
