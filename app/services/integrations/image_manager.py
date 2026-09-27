@@ -89,16 +89,21 @@ def is_own_download(current_key: Optional[str], owner_type: str, system_id: str)
     """
     Whether `current_key` names the file downloaded FOR this owner.
 
-    Two spellings mean the same file: `<owner_type>/<id>.jpg`, which a download
-    writes, and `covers/<owner_type>/<id>.jpg`, which is the storage key of a
-    backfilled `image` row and lands in the column when that row is attached.
+    Three spellings mean the owner's own download: `<owner_type>/<id>.jpg`,
+    which a download writes; `covers/<owner_type>/<id>.jpg`, which is the
+    storage key of a backfilled `image` row and lands in the column when that
+    row is attached; and the bare `<id>.jpg` of the flat layout, which a Pull
+    can still bring in. No file ever answers to the bare spelling - the root
+    is not an owner folder - but it is named after this owner's own id, so it
+    cannot be an upload or another entry's file, and the next download
+    replaces it with the canonical key.
     Anything else - a `library/` upload, another entry's download - is not
     this owner's and must never be overwritten by one of its downloads.
     """
     if not current_key:
         return False
     key = cover_key(owner_type, str(system_id))
-    return current_key in (key, f"covers/{key}")
+    return current_key in (key, f"covers/{key}", f"{system_id}.jpg")
 
 
 def cover_needs_download(
