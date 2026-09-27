@@ -34,6 +34,7 @@ import {
 import { isDerivedAnimationStatus } from "../../lib/hComicAnimation";
 import { showsField } from "../../lib/hComicRegion";
 import { followRegion, restrictedSourcesFor } from "../../lib/restrictedSources";
+import { usePrefillPicks } from "../../contexts/RestrictedPrefillContext";
 import { getDisplayName, getSourceValues } from "../../utils/media";
 
 export { defaultHComic } from "../../config/formFactories";
@@ -88,6 +89,7 @@ export function HComicRegionField({ f, u }) {
  */
 export function HComicFormBody({ f, u, sources, ownerId }) {
   const shows = (field) => showsField(f.region, field);
+  const picks = usePrefillPicks("h-comic");
 
   const tagField = (key, source, placeholder) => (
     <MultiSelect
@@ -321,7 +323,7 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         onChange={(rows) => u("sources", rows)}
         mediaType="h-comic"
         sources={sources}
-        restrictedSources={restrictedSourcesFor("h-comic", f.region)}
+        restrictedSources={restrictedSourcesFor("h-comic", f.region, picks)}
       />
 
       <SectionHeader icon="fa-flag" title="Flags" />
@@ -409,9 +411,10 @@ export default function HComicAddTab({
   // A new entry's untouched suggested restricted sources follow the region
   // (lib/restrictedSources.js). Only on Add: an existing entry's rows
   // are the owner's, and Modify offers the prefill button instead.
+  const picks = usePrefillPicks("h-comic");
   const setRegion = (key, value) => {
     uhc(key, value);
-    uhc("sources", followRegion(hcf.sources, hcf.region, value));
+    uhc("sources", followRegion(hcf.sources, hcf.region, value, picks));
   };
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">

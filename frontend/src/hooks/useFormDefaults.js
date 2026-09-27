@@ -14,6 +14,7 @@
 import { FORM_FACTORIES } from "../config/formFactories";
 import { BUILTIN_AUTOFILL, getFieldMap } from "../config/formFields";
 import { endpoints } from "../api/endpoints";
+import { prefillVariants, startingSources } from "../lib/restrictedSources";
 
 /** Forces a stored value into the shape the form state expects. */
 export function coerceToShape(builtIn, value) {
@@ -44,8 +45,7 @@ export function resolveDefaults(type, config) {
   if (!factory) return {};
 
   const base = factory();
-  const stored = config?.[type]?.defaults;
-  if (!stored) return base;
+  const stored = config?.[type]?.defaults ?? {};
 
   const fieldMap = getFieldMap(type);
   const resolved = { ...base };
@@ -56,7 +56,28 @@ export function resolveDefaults(type, config) {
     if (fieldMap[key]?.defaultable === false) continue;
     resolved[key] = coerceToShape(base[key], value);
   }
+
+  // The restricted source rows are the prefill pick's, never the `sources`
+  // default's - and h-comic's follow the region the form starts on, so a KR
+  // region default starts with the KR names.
+  if ("sources" in base && prefillVariants(type).length > 0) {
+    const region = type === "h-comic" ? resolved.region : "";
+    resolved.sources = startingSources(
+      type,
+      resolved.sources,
+      region,
+      prefillPicks(type, config),
+    );
+  }
   return resolved;
+}
+
+/**
+ * The restricted source names `type` prefills, per variant, as picked on
+ * /defaults - or null for the built-ins (lib/restrictedSources.js).
+ */
+export function prefillPicks(type, config) {
+  return config?.[type]?.restricted_prefill ?? null;
 }
 
 /**

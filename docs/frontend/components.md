@@ -18,7 +18,7 @@ src/
   index.css           Tailwind v4 import, theme tokens, light/dark palettes
   api/                client.js (fetchJson), endpoints.js (every URL)
   hooks/              react-query and UI hooks
-  contexts/           AuthContext, ThemeContext
+  contexts/           AuthContext, ThemeContext, RestrictedPrefillContext
   config/             registries and vocab tables (see "Config catalog")
   lib/                pure helpers (naming, dates, layout, payloads…)
   utils/              media.js barrel, planNext.js, statsUtils.js
@@ -40,7 +40,7 @@ src/
 | `hooks/useMediaCacheUpdate(type, id)` | `setMediaItem`, `fetchMediaItem`, `invalidateMedia` for optimistic detail updates. |
 | `hooks/useStatusToggle(type)` | PATCHes one field and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
-| `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. |
+| `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
 | `pages/plan/usePlanData` | The Plan page's lists (franchise, series and the twelve entry types - `h-comic`, `h-game` and `hentai` each fetched only for a session that can see it) plus `["plan-next"]`. |
 
@@ -74,6 +74,10 @@ toggled inside a hub does not update the library cache until it goes stale.
   first paint (no flash). `useThemeOrLight()` returns `"light"` when no
   provider is mounted (leaf components rendered in isolation, e.g. the
   relations canvas).
+- **`RestrictedPrefillContext`** — the form-defaults config, provided by the
+  Add and Modify pages, so the Sources editors deep inside each tab prefill
+  the names picked on `/defaults`. `usePrefillPicks(mediaType)` returns the
+  type's `restricted_prefill`, or `null` (the built-ins) with no provider.
 
 ## Theming: light and dark mode
 
@@ -262,10 +266,15 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   since `usage` is Platform-only; `showAccess={false}` drops the access group
   outright, which is how a game gets a Sources card with references only;
   `restrictedSources` - `{ prefill, suggestions }`, looked up from
-  `mediaType` in `lib/restrictedSources.js` unless passed, which h-comic does
-  for its region - offers `suggestions` on the restricted rows as a datalist
-  and a **Prefill suggested** button that adds the missing `prefill` names,
-  without restricting what may be typed),
+  `mediaType` and the picked prefill (`RestrictedPrefillContext`) in
+  `lib/restrictedSources.js` unless passed, which h-comic does for its
+  region - offers `suggestions` on the restricted rows as a datalist and a
+  **Prefill suggested** button that adds the missing `prefill` names, without
+  restricting what may be typed; `showRestricted={false}` drops the
+  restricted group, which `/defaults` does since it picks those names
+  separately. The same file exports `RestrictedPrefillEditor`, one prefill
+  pick on `/defaults`: a list of names edited as restricted rows, every
+  available name offered),
   `DefaultValueControl` (one field's editor on `/defaults`; for the repeater
   fields — `sources` everywhere, `copies` on game — it renders `SourcesEditor`
   and `GameCopiesEditor` themselves, so the default rows are built in the same
@@ -419,7 +428,7 @@ is a second place to keep in step.
 | `gatedTypes.js` | The gated-type question - see [Gated media types](#gated-media-types). `GATED_TYPES`, `canSeeGatedType`, the list filters, and `REQUIRED_LABEL_FOR_TYPE` (mirrors the backend's) with `requiredLabelsForType` / `requiredLabelsForFranchiseType`. `FRANCHISE_FAMILY_FOR_TYPE` mirrors the backend's franchise families - `H-Comic` and `Hentai` are one family, `h-comic` - and `inFranchiseFamily(franchiseType, family)` asks whether a comma-joined `franchise_type` names a type of it |
 | `hComicAnimation.js` | An h-comic's animation status, hand-set or derived. `isDerivedAnimationStatus(entry)` (`animation_status_source === "derived"`: a hentai adapts it) and `adaptingHentai(rows)` (the stored, reverse-direction `adaptation` rows of a relation card whose far end is a hentai, as their `other` endpoints) |
 | `hComicRegion.js` | Which h-comic fields a region uses, the novelUnits pattern for a variant-dependent form. `REGION_ONLY_FIELDS` (JP: `h_comic_name_jp`, originality, animation status, series number, page total and `page_fin`; KR: `h_comic_name_kr`, chapter total, `ch_behind`, `ch_fin`, author, official source, `highlight_group_order` - the catalogue and reader columns mirror the server's `REGION_CLEARS` / `LIST_REGION_CLEARS`), `showsField(region, field)` (a region-only field shows on its region and on none while the region is unset), `clearedForRegion(form)` (blanks the other region's fields before a save; names are kept, and the KR-only author and official source - credits the server does not clear - are cleared here), `progressFor(entry)` (pages on JP, chapters on KR) |
-| `restrictedSources.js` | The restricted sources each media type is prefilled with and offers - the table is in [Admin Pages](admin-pages.md#add-addjsx). `restrictedSourcesFor(mediaType, region)` (`{ prefill, suggestions }`: the names every entry has, then those plus the ones only offered; `region` matters only to h-comic, whose KR entries have six more), `withRestrictedSources(rows, names)` (adds the missing ones), `defaultRestrictedSources(mediaType)` (a new entry's rows; the `formFactories.js` factory of every type with a list starts from it) and `followRegion(rows, from, to)` (h-comic's Add form region change: drops the old region's prefilled names only while untouched - no url - and adds the new region's) |
+| `restrictedSources.js` | The restricted sources each media type offers, fixed in code, per variant (`all`, or h-comic's `JP` and `KR`), with each variant's built-in prefill - the table is in [Admin Pages](admin-pages.md#add-addjsx). `picks` below is the type's `restricted_prefill` from `/defaults` (null for the built-ins). `prefillVariants(mediaType)` (`[{ key, label, names, builtIn }]`, for `/defaults`), `restrictedSourcesFor(mediaType, region, picks)` (`{ prefill, suggestions }`: the picked names, then those plus every other name; `region` matters only to h-comic, where an unset region gets what both regions prefill), `withRestrictedSources(rows, names)` (adds the missing ones), `defaultRestrictedSources(mediaType)` (the built-in rows every `formFactories.js` factory with a list starts from), `startingSources(mediaType, rows, region, picks)` (a configured `sources` default with its restricted rows replaced by the pick), `followRegion(rows, from, to, picks)` (h-comic's Add form region change: drops the old region's prefilled names only while untouched - no url - and adds the new region's) and `mergeHComicAutofill(form, patch, picks)` |
 | `hComicForm.js` | `hComicSourceFields(form, split)`: the credit and tag fields the h-comic Add and Modify saves hand to `ensureSourceValues`, each person source with its role and `h-comic` scope |
 | `hGameForm.js` | `hGameSourceFields(form, split)`: the same for h-game - the developer (a studio) and the five tag fields, every option source scoped to `h-game` |
 | `hentaiForm.js` | `HENTAI_SOURCES` and `hentaiSourceFields(form, split)`: the same for hentai - the studio (unscoped), the director (role and `hentai` scope) and h-comic's three H genre vocabularies asked for under the `hentai` scope. `fieldMeta.js` reads `HENTAI_SOURCES` too, so the defaults page suggests from the lists the form does |

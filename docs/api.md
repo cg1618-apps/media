@@ -1641,7 +1641,8 @@ SPA tabs.
 {
   "version": 1,
   "defaults": { "watching_status": "Plan to Watch", "ep_total": "12" },
-  "autofill": ["anime_name_en", "franchise_id", "studio"]
+  "autofill": ["anime_name_en", "franchise_id", "studio"],
+  "restricted_prefill": { "all": ["Gimy"] }
 }
 ```
 
@@ -1649,6 +1650,10 @@ SPA tabs.
   frontend's built-in factory value", which is what makes per-field revert a key deletion.
 - `autofill` is **null-or-complete**. `null`/omitted → use the built-in field set; `[]`
   genuinely means "copy nothing". The two are not interchangeable.
+- `restricted_prefill` picks which of the type's restricted source names a new entry
+  starts with, per variant: `all`, or on `h-comic` its regions `JP` and `KR`. `null`, or a
+  variant absent from the map, means that variant's built-in prefill; `[]` prefills
+  nothing. The names are fixed in `frontend/src/lib/restrictedSources.js`, not here.
 - Values mirror **frontend form-state** types, not DB column types — numbers are stored as
   strings, checkboxes as booleans.
 - **Repeater fields** (`sources` on every media type, `copies` on game) store their rows:
@@ -1663,7 +1668,9 @@ SPA tabs.
 **Validation.** Shape and size only: scalar values limited to string/number/bool/null;
 a list value must be **uniform** — every item a string (multi-select) or every item a flat
 object (repeater row) whose own values are scalars, no mixing and no nesting — and hold
-≤50 items; ≤200 keys, keys matching `^[a-z0-9_]+$` and ≤64 chars, serialized JSON ≤32 KB. The router
+≤50 items; ≤200 keys, keys matching `^[a-z0-9_]+$` and ≤64 chars, serialized JSON ≤32 KB.
+`restricted_prefill` holds ≤10 variants, keys matching `^[A-Za-z0-9_]+$`, each a list of
+≤50 strings of ≤100 characters. The router
 deliberately does **not** mirror the ~280 form field names — that list lives in
 `frontend/src/config/formFactories.js`, and duplicating it in Python would guarantee drift.
 The frontend's `resolveDefaults()` drops stored keys it no longer recognizes on read.

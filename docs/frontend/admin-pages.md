@@ -92,13 +92,15 @@ tab is a form component in `pages/add-tabs/`; the page owns the state objects,
 submit handlers and the shared modals.
 
 **Restricted sources start prefilled.** A new entry's Sources block starts
-with one restricted row for every name its type has on every entry, and the
-restricted name field offers that type's other names as a datalist
-(`lib/restrictedSources.js`). The names are suggestions, not a vocabulary:
-choosing one only fills that row's text, which can still be edited for this
-entry, and any other name is accepted.
+with one restricted row for every name its type prefills, and the restricted
+name field offers all of that type's names as a datalist
+(`lib/restrictedSources.js`). The names are fixed in code; which of them are
+prefilled is picked per type on `/defaults`, and the table below is the
+built-in pick. The names are suggestions, not a vocabulary: choosing one only
+fills that row's text, which can still be edited for this entry, and any
+other name is accepted.
 
-| Type | Prefilled on every entry | Offered as well |
+| Type | Prefilled (built-in) | Offered as well |
 | --- | --- | --- |
 | anime, anime movie | `Gimy`, `Anime1` | - |
 | movie, TV show, cartoon | `Gimy` | - |
@@ -109,8 +111,10 @@ entry, and any other name is accepted.
 | hentai | `Hanime1` | - |
 
 Modify starts from the entry's stored rows and adds nothing, but the editor's
-**Prefill suggested** button adds whichever prefilled names are missing. A
-`sources` default set on `/defaults` replaces the prefill outright.
+**Prefill suggested** button adds whichever prefilled names are missing. The
+restricted rows a new entry starts with are always the pick's: a `sources`
+default set on `/defaults` supplies the main, reference and other rows, and
+none of its own restricted rows.
 
 The **System** group holds the vocabulary tables themselves rather than
 anything a visitor browses. System Option moved here out of Structure, which
@@ -259,11 +263,14 @@ needs a region and a CN or EN name, blanks what the region does not use
 (`clearedForRegion` - names are kept), quick-creates the typed people and genre
 values through `hComicSourceFields`, then `POST /api/h-comic/`, the credits,
 the cast and the labels; the write hook then fills from Tenrai when a MAL
-link was given, and from E-Hentai when a gallery link was. The form starts with the restricted source `禁漫天堂`, and
-choosing KR adds the six KR names (`污汙漫畫`, `漫小肆ikanhm`, `ToonGod`,
-`Anime Planet`, `MANGA18`, `MANGADNA`) - rows that are still untouched (a
-suggested name with no url) follow the region, and anything typed stays
-(`lib/restrictedSources.js`). Modify offers the same names through the
+link was given, and from E-Hentai when a gallery link was. The restricted
+sources h-comic prefills are picked per region, and the form starts with what
+both regions prefill - built-in, `禁漫天堂` on JP, and that plus the six KR
+names (`污汙漫畫`, `漫小肆ikanhm`, `ToonGod`, `Anime Planet`, `MANGA18`,
+`MANGADNA`) on KR. Choosing a region adds its missing names and drops the old
+region's while they are still untouched (a prefilled name with no url);
+anything typed stays (`lib/restrictedSources.js`). A `region` default starts
+the form on that region's prefill. Modify offers the same names through the
 editor's **Prefill suggested** button instead. The Links section holds the
 MAL Link, the MAL ID beside it - read-only: the write hook derives it from the
 link - and the **E-Hentai Link**, the gallery URL the second fill source reads
@@ -302,8 +309,8 @@ picker.
 **Hentai tab.** `HentaiAddTab.jsx`, gated like the H-Comic tab. It exports
 `HentaiLineageFields` and `HentaiFormBody`, which the Modify tab renders too,
 and it is simpler than h-comic's: no region and no progress - one entry is
-one episode. The form starts with the restricted source `Hanime1`, which the
-Sources editor also offers as a suggestion (and Modify through **Prefill
+one episode. The form starts with the restricted source `Hanime1` (the
+built-in pick), which the Sources editor also offers as a suggestion (and Modify through **Prefill
 suggested**) - `lib/restrictedSources.js`. Its **Cast** section is `CastEditor` with the seiyuu column, as
 on anime, saved through `PUT /api/casting/hentai/{id}` after the entry by both
 the Add and the Modify page. The franchise picker is `FamilyLineageFields` over the
@@ -667,6 +674,17 @@ any field marked `defaultable: false`, so one saved before the field became
 undefaultable stops applying rather than lingering where the page cannot
 clear it. Note `coerce: "tristate"` is implemented but unused
 by any field.
+
+**Restricted Prefill** sits under the Sources field on every type that has
+restricted source names: which of the type's fixed names a new entry is
+prefilled with (`restricted_prefill` in the stored config). h-comic has one
+per region, JP and KR; every other type has one. Each is edited as a list of
+names, with every name the type (or region) has offered as a datalist and a
+**Prefill suggested** button that adds the missing ones. Unpicked, it shows
+the built-in prefill; a pick applies to new entries, to the Prefill button
+on Add and Modify, and to h-comic's region change, and the undo button returns
+it to the built-in. The Sources field on this page leaves the restricted group
+out, since those rows are the pick's.
 
 `h-comic`, `h-game` and `hentai` are present here for a session that can see
 them, and their auto-fill ticks drive each Add form's copy-an-existing-entry

@@ -5,7 +5,8 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import SourcesEditor from "./SourcesEditor";
+import SourcesEditor, { RestrictedPrefillEditor } from "./SourcesEditor";
+import { RestrictedPrefillProvider } from "../../contexts/RestrictedPrefillContext";
 
 const sources = {
   options: [
@@ -226,6 +227,32 @@ describe("SourcesEditor", () => {
       ).toHaveAttribute("list");
     });
 
+    it("prefills the names picked on /defaults, not the built-in ones", () => {
+      // Built-in manga prefills three names; the pick narrows it to 包子漫畫,
+      // so a button still reading the built-ins would count 3.
+      const onChange = vi.fn();
+      render(
+        <RestrictedPrefillProvider config={{ manga: { restricted_prefill: { all: ["包子漫畫"] } } }}>
+          <SourcesEditor value={[]} onChange={onChange} mediaType="manga" sources={sources} />
+        </RestrictedPrefillProvider>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: /prefill suggested \(1\)/i }));
+      expect(onChange).toHaveBeenCalledWith([row("包子漫畫")]);
+    });
+
+    it("leaves the restricted group out when asked to", () => {
+      render(
+        <SourcesEditor
+          value={[row("Gimy")]}
+          onChange={vi.fn()}
+          mediaType="anime"
+          sources={sources}
+          showRestricted={false}
+        />,
+      );
+      expect(screen.queryByText("Restricted Sources")).toBeNull();
+    });
+
     it("offers neither on a type with no list", () => {
       render(
         <SourcesEditor value={[row("")]} onChange={vi.fn()} mediaType="game" sources={sources} />,
@@ -235,5 +262,47 @@ describe("SourcesEditor", () => {
         screen.getByRole("textbox", { name: "Restricted Sources name" }),
       ).not.toHaveAttribute("list");
     });
+  });
+});
+
+describe("RestrictedPrefillEditor", () => {
+  const KR = ["禁漫天堂", "污汙漫畫", "ToonGod"];
+
+  function renderPrefill(value, onChange = vi.fn()) {
+    render(
+      <RestrictedPrefillEditor
+        label="Prefilled restricted sources"
+        value={value}
+        onChange={onChange}
+        names={KR}
+      />,
+    );
+    return onChange;
+  }
+
+  it("offers every available name while typing", () => {
+    renderPrefill([""]);
+    const input = screen.getByRole("combobox", { name: "Prefilled restricted sources name" });
+    const list = document.getElementById(input.getAttribute("list"));
+    expect([...list.options].map((o) => o.value)).toEqual(KR);
+  });
+
+  it("edits a list of names", () => {
+    const onChange = renderPrefill(["禁漫天堂", ""]);
+    const inputs = screen.getAllByRole("combobox", { name: "Prefilled restricted sources name" });
+    fireEvent.change(inputs[1], { target: { value: "ToonGod" } });
+    expect(onChange).toHaveBeenCalledWith(["禁漫天堂", "ToonGod"]);
+  });
+
+  it("adds the available names it does not hold yet", () => {
+    const onChange = renderPrefill(["ToonGod"]);
+    fireEvent.click(screen.getByRole("button", { name: /prefill suggested \(2\)/i }));
+    expect(onChange).toHaveBeenCalledWith(["ToonGod", "禁漫天堂", "污汙漫畫"]);
+  });
+
+  it("removes a name", () => {
+    const onChange = renderPrefill(["禁漫天堂", "ToonGod"]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Remove source" })[0]);
+    expect(onChange).toHaveBeenCalledWith(["ToonGod"]);
   });
 });
