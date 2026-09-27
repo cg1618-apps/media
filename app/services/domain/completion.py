@@ -135,6 +135,37 @@ def mark_novel_list(row, entry) -> None:
         row.ch_fin = max(ch_vals)
 
 
+# ---------------------------------------------------------------------------
+# Progress counters: the (finished, total) pair a type's tracker steps through.
+# A PATCH that carries the counter up to its total finishes the entry - see
+# reached_total and the patch endpoint in app/routers/_factory.py.
+# ---------------------------------------------------------------------------
+
+
+def episode_counter(row, entry) -> tuple:
+    return row.ep_fin, entry.ep_total
+
+
+def chapter_counter(row, entry) -> tuple:
+    return row.ch_fin, entry.ch_total
+
+
+def issue_counter(row, entry) -> tuple:
+    return row.issue_fin, entry.issue_total
+
+
+def reached_total(fin_before, fin_after, total) -> bool:
+    """True when this write carried the counter from below its total to it.
+
+    A crossing, not a level: an entry already at its total, or one whose
+    total is unknown, is left alone, so re-saving a finished counter never
+    re-finishes it.
+    """
+    if not total or fin_after is None:
+        return False
+    return (fin_before or 0) < total <= fin_after
+
+
 def apply_list_completion_timestamp(row, status_value: Optional[str]) -> None:
     """
     Sets the list row's completed_at the first time this user reaches a

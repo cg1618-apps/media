@@ -35,6 +35,7 @@ import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
+import { progressToast } from "../../lib/progressToast";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -411,8 +412,10 @@ export default function Manga() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Sync failed");
-      showToast("success", msg || "Saved");
       const updated = await res.json();
+      // `manga` is still the pre-write row here: this closure never saw the
+      // optimistic update. A progress step can finish the entry.
+      showToast("success", progressToast(manga, updated, msg || "Saved"));
       setManga(updated);
       setMediaItem(updated);
     } catch {

@@ -225,6 +225,15 @@ def mark_h_comic_list(row, entry) -> None:
         row.ch_fin = entry.ch_total
 
 
+def h_comic_counter(row, entry) -> tuple:
+    """The region's own counter, the one the detail page's stepper moves."""
+    if entry.region == H_COMIC_REGION_JP:
+        return row.page_fin, entry.page_total
+    if entry.region == H_COMIC_REGION_KR:
+        return row.ch_fin, entry.ch_total
+    return None, None
+
+
 # ---------------------------------------------------------------------------
 # The label
 # ---------------------------------------------------------------------------
