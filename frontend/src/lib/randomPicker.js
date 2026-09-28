@@ -1,5 +1,5 @@
-// Frontend: the random picker's filters and draw, kept free of React so they
-// can be tested directly.
+// Frontend: the random picker's filters, kept free of React so they can be
+// tested directly. The draw is lib/pickerWeights.js.
 //
 // The picker works on ENTRIES, `{ type, item }`, so one pool can mix media
 // types. It has two modes:
@@ -160,20 +160,6 @@ export function toEntries(type, items) {
 /** A stable identity for an entry across types. */
 export function entryKey(entry) {
   return `${entry.type}:${entry.item.system_id}`;
-}
-
-/**
- * One entry drawn at random from `pool`, or null when it is empty. When the
- * pool holds more than one, `previous` is not drawn again, so a reroll always
- * changes the pick.
- */
-export function pickRandom(pool, previous = null, random = Math.random) {
-  const candidates =
-    previous && pool.length > 1
-      ? pool.filter((e) => entryKey(e) !== entryKey(previous))
-      : pool;
-  if (candidates.length === 0) return null;
-  return candidates[Math.floor(random() * candidates.length)];
 }
 
 /** Every mode the picker has: "all", then each type. */
