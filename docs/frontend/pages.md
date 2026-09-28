@@ -63,6 +63,7 @@ are a large share of the bundle and never needed on first paint.
 | `/plan` | `public/Plan.jsx` | lazy, **login required** |
 | `/quote` | `public/Quotes.jsx` | lazy |
 | `/meme` | `public/Memes.jsx` | lazy |
+| `/resources` | `public/Resources.jsx` | lazy |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
 
 **Gated routes.** The two h-comic routes sit inside
@@ -89,7 +90,7 @@ about styling.
 | `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`), Seiyuu `/library/seiyuu` · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions`, Random Picker `/random` (whose `/random/<type>` pages light it too) |
-| `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
+| `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme`, Resources `/resources` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` |
 | `note` | Note | flat, `requires: "admin"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described |
 | `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue ┃ Users, Roles, Content Labels |
@@ -1146,6 +1147,47 @@ owner card (cover or tier icon; "Unlinked / deleted owner" when missing).
 Row actions: copy text/image for everyone; **admin-only** favourite toggle,
 edit (`QuoteForm` / `MemeForm`, PATCH `/api/quote/{id}` / `/api/meme/{id}`)
 and delete, followed by `invalidateQueries` on the grouped key.
+
+### Resources — `/resources`
+
+Files `pages/public/Resources.jsx`, `components/resources/ResourceTree.jsx`,
+`components/resources/ResourceMarkdown.jsx`, helpers `lib/resourceTree.js`,
+writes `api/mutations/useResourceMutations.js`. One site-wide page of notes,
+read by everyone who can open Quotes: no `ProtectedRoute`, no `requires` on
+the nav row. `useApiQuery(["resources"], "/api/resources")` returns the
+top-level nodes with `children` nested to any depth, every level already in
+`sort_index` order with groups and items interleaved; the page draws them in
+that order and sorts nothing.
+
+- **Reading.** A group is a collapsible heading (chevron, title, child count;
+  open by default, collapse state not kept). Top-level groups are bordered
+  slips with an `h2`; each level down is indented behind a rule and one
+  heading level deeper, capped at `h6`. An item shows its optional title and
+  its Markdown `content` through `ResourceMarkdown` (`react-markdown` +
+  `remark-gfm`: inline links, autolinked bare URLs, lists, tables). Raw HTML is
+  dropped, a `javascript:` link renders without an executable href, and every
+  link opens in a new tab with `rel="noopener noreferrer"`. Why Markdown:
+  [decisions](../notes/decisions.md), "A Resources item's body is Markdown".
+- **Editing** (`has("manage.catalog")` only; the server refuses writes from
+  anyone else). **Add group** at the top; **Add item** / **Add subgroup** at
+  the foot of every group; each row's hover toolbar has move up/down arrows,
+  a **Move to…** list, **Edit** and **Delete**. Edit is inline: a group's
+  title, or an item's title and a Markdown textarea with a Write / Preview
+  switch. Delete asks in `ConfirmModal`, and for a group says what goes with
+  it ("3 items and 1 subgroup"). POST `/api/resources`, PATCH
+  `/api/resources/{id}`, DELETE `/api/resources/{id}`.
+- **Moving.** Every move is one PATCH `/api/resources/reorder` with
+  `{parent_id, ordered_ids}` - the complete new child list of the parent the
+  node lands in (the old parent's remaining children keep their order, so it
+  needs no request). The arrows swap a node with its neighbour. Rows and
+  group headers are draggable: dropping on a row takes that row's slot in its
+  parent, dropping on a group's body appends to that group, and while
+  dragging a "Drop here to move it to the top level" strip appears at the
+  foot of the page. **Move to…** lists the top level and every group the node
+  may enter. A group is never offered itself or any group inside it - the
+  drop is refused (`canDropInto`) and the option is left out. A reorder is
+  applied to the cache first and rolled back if the request fails; every
+  write then invalidates `["resources"]`.
 
 ### Login — `/login`
 

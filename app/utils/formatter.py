@@ -1683,6 +1683,25 @@ def parse_meme_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_resource_node_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Resources sheet into typed data ready for
+    the Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        # The self-referential tree link. Strict, like every plain pointer: a
+        # junk cell becomes None (top level) rather than reaching the FK.
+        "parent_id": _uuid_or_none(raw.get("parent_id")),
+        "kind": parse_from_sheet(raw.get("kind"), str),
+        "title": parse_from_sheet(raw.get("title"), str),
+        "content": parse_from_sheet(raw.get("content"), str),
+        "sort_index": parse_from_sheet(raw.get("sort_index"), float),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_note_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Note sheet into typed data ready for the

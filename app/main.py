@@ -59,6 +59,7 @@ from app.routers import (
     publisher,
     quote,
     random_picker_defaults,
+    resources,
     roles,
     search,
     seasonal,
@@ -274,6 +275,7 @@ app.include_router(media_relation.router)
 app.include_router(plan_next.router)
 app.include_router(quote.router)
 app.include_router(meme.router)
+app.include_router(resources.router)
 app.include_router(seasonal.router)
 app.include_router(search.router)
 

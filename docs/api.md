@@ -51,6 +51,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
 - [Quote — `/api/quote`](#quote--apiquote)
 - [Meme — `/api/meme`](#meme--apimeme)
+- [Resources — `/api/resources`](#resources--apiresources)
 - [Covers — `/api/covers`](#covers--apicovers)
 - [Images — `/api/images`](#images--apiimages)
 - [Note — `/api/notes`](#note--apinotes)
@@ -812,6 +813,31 @@ the frontend hides the quote-link control in that case.
 **Hidden owners.** A meme whose owner is hidden from the viewer is dropped from
 every read, and its `/{meme_id}` and writes answer 404: a label-hidden entry,
 a label-hidden franchise, or a series in one. A collection carries no labels.
+
+---
+
+## Resources — `/api/resources`
+
+The site-wide Resources page: one tree of groups and items (links, plain text,
+text with inline links). Reads take the same gate as the Quote list - any
+viewer, guests included; every write needs `manage.catalog`. See
+[systems/resources.md](systems/resources.md).
+
+| Method   | Path            | Auth             | Description |
+| -------- | --------------- | ---------------- | ----------- |
+| `GET`    | (root)          | Public           | The whole page as a tree: the top-level nodes, each with `children` nested to any depth, every level sorted by `sort_index` (groups and items interleaved). |
+| `POST`   | (root)          | `manage.catalog` | Create. Body: `{kind, parent_id?, title?, content?}`. **201** with the node (`children: []`), appended after its siblings (`max(sort_index) + 1`). **422** when a group has no title or has content, an item has no content, `kind` is not `group`/`item`, or `parent_id` names no node or an item. |
+| `PATCH`  | `/reorder`      | `manage.catalog` | Body: `{parent_id: uuid\|null, ordered_ids: [uuid, ...]}`. Moves every listed node under `parent_id` and sets its `sort_index` to its position (0.0, 1.0, …), so it both reorders and moves between groups. **422** on a duplicate id, an unknown id, a parent that is missing or an item, a list that leaves out any node already under that parent, or a group moved inside itself or its own descendant. Returns `{"status": "success", "reordered": n}`. |
+| `PATCH`  | `/{system_id}`  | `manage.catalog` | Edit `title` and/or `content`. `kind` and `parent_id` are not editable here (extra keys are ignored); moves go through `/reorder`. Same **422** shape rules as create; **404** on an unknown id. |
+| `DELETE` | `/{system_id}`  | `manage.catalog` | Delete the node and, by the cascading `parent_id` FK, everything under it. Logs to `deleted_record` as type "Resource". Returns `{"status": "success", "message": ...}`. |
+
+**Response model:** `ResourceNodeResponse` - `system_id`, `parent_id`, `kind`,
+`title`, `content`, `sort_index`, `created_at`, `updated_at`, `children`.
+
+`/reorder` is declared before `/{system_id}`, because FastAPI matches in
+declaration order and the dynamic route would otherwise take "reorder" as an
+id. A caller without `manage.catalog` gets the usual **401** from
+`require_permission`.
 
 ---
 

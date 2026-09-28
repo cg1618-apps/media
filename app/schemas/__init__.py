@@ -196,6 +196,12 @@ from app.schemas.rbac import (
     UserAccessModeGrant,
     UserAccessModes,
 )
+from app.schemas.resource import (
+    ResourceNodeCreate,
+    ResourceNodeResponse,
+    ResourceNodeUpdate,
+    ResourceReorder,
+)
 from app.schemas.staff import (
     ClubsReplace,
     MembershipRef,
@@ -451,6 +457,10 @@ __all__ = [
     "NoteUpdate",
     "NoteResponse",
     "NoteReorder",
+    "ResourceNodeCreate",
+    "ResourceNodeResponse",
+    "ResourceNodeUpdate",
+    "ResourceReorder",
     "NoteSectionOut",
     "PersonRoleIn",
     "MembershipRef",

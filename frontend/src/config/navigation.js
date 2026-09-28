@@ -209,6 +209,7 @@ export const NAV_SECTIONS = [
       { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics", requires: "self.list" },
       { label: "Quotes", icon: "fas fa-quote-left", to: "/quote" },
       { label: "Memes", icon: "fas fa-face-grin-squint", to: "/meme" },
+      { label: "Resources", icon: "fas fa-bookmark", to: "/resources" },
       // Relations and Watch Orders are ways of reading the collection, so they
       // belong here rather than in Admin — but both pages write through
       // catalogue endpoints (mediaRelation/watchOrder + resource CRUD), so the

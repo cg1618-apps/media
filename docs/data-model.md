@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-27
+Last verified: 2026-09-28
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -24,6 +24,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_casting, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
+- [Resources page](#resources-page): resource_node
 - [Image library](#image-library): image, image_attachment
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item
 - [Planning](#planning): plan_next
@@ -1465,6 +1466,33 @@ gag often spans a franchise). Sibling of Quote, not a variant of it. Model: `Mem
 `owner_type` and `owner_id` are derived read-only properties over the four
 owner columns, exactly as on [`note`](#note); the API and the Meme sheet tab
 still speak the pair.
+
+---
+
+## Resources page
+
+### `resource_node`
+
+One node of the site-wide Resources page: a `group`, or an `item` inside
+one. The whole page is this one table - no owner, no author, one tree for
+the whole site. Groups nest to any depth through `parent_id`, and groups and
+items share one `sort_index` order inside their parent. Model:
+`ResourceNode`. See [systems/resources.md](systems/resources.md).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK, indexed |
+| `parent_id` | UUID | yes | | FK `resource_node.system_id` ON DELETE CASCADE, **DEFERRABLE INITIALLY DEFERRED**, indexed. NULL is the top level. Deferred so a Pull can restore a child row before its parent |
+| `kind` | String | no | | `group` or `item` (`ck_resource_node_kind`) |
+| `title` | String | yes | | A group's name - required and non-blank; an item's optional heading |
+| `content` | Text | yes | | An item's Markdown body - required and non-blank; always NULL on a group |
+| `sort_index` | Float | yes | | Order among the siblings of one parent |
+| `created_at` / `updated_at` | DateTime | yes | now | Taipei time |
+
+`ck_resource_node_group_shape` and `ck_resource_node_item_shape` CHECK the
+two shapes. That a parent is a group, and that a group is not moved under
+itself, read another row, so the router enforces them rather than a
+constraint.
 
 ---
 
