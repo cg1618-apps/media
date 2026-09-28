@@ -253,15 +253,26 @@ tracker divisions):
 | `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
 
-**Coming Next** shows what the viewer is waiting on or has planned for the
-**next season** — the season after the admin-set current season
-(`system_configs.current_season`), or after the calendar's current season while
-none is set. It has two sub-sections, each grouped by media type (Anime, Anime
-Movie, Movie, TV Show, Cartoon, Game; a type with nothing is omitted) and
+**Coming Next** shows what the viewer is waiting on or has planned, in two
+separate blocks that never share an entry:
+
+1. **This season · not yet out** — the current season's entries that have not
+   aired or released yet. The current season is the admin-set
+   `system_configs.current_season`, or the calendar's while none is set.
+2. **Next season** — every entry of the season after it.
+
+Each block has the same two sub-sections, each grouped by media type (Anime,
+Anime Movie, Movie, TV Show, Cartoon, Game; a type with nothing is omitted) and
 sorted by release date:
 
 - **Watch when airs** — `Watch When Airs`, and `Play When Released` for games.
 - **Planned to** — `Plan to Watch`, and `Plan to Play` for games.
+
+"Not out yet" (`isUnreleased`) reads the entry's `airing_status` —
+`Not Yet Aired` or `Rumored` — or, for games, its `release_status` —
+`Unreleased` or `Rumored`; any other set status means it is out. An entry with
+no status falls back to its primary release date lying after today, a date
+missing its day or month counting from the first of that period.
 
 An entry's season is its `release_season` plus the year of its `release_date`
 for anime, and for every other type the calendar quarter of its primary

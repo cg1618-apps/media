@@ -31,20 +31,20 @@ function ComingEntry({ item, type }) {
   );
 }
 
-function SubSection({ title, groups, season }) {
-  const count = groups.reduce((sum, g) => sum + g.items.length, 0);
+const countOf = (groups) => groups.reduce((sum, g) => sum + g.items.length, 0);
+
+function SubSection({ title, groups, empty }) {
+  const count = countOf(groups);
   return (
     <div>
       <div className="flex items-baseline justify-between px-4 py-2 border-b border-border">
-        <h4 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+        <h5 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
           {title}
-        </h4>
+        </h5>
         <span className="font-mono text-[10px] text-text-faint">{count}</span>
       </div>
       {count === 0 ? (
-        <p className="px-4 py-6 text-center text-sm text-text-faint">
-          Nothing for {formatSeason(season)}.
-        </p>
+        <p className="px-4 py-6 text-center text-sm text-text-faint">{empty}</p>
       ) : (
         // One column per media type, scrolling horizontally like the day
         // columns of the weekly schedule.
@@ -55,9 +55,9 @@ function SubSection({ title, groups, season }) {
               className="w-64 shrink-0 p-3 border-r border-border last:border-r-0"
             >
               <div className="flex items-baseline justify-between mb-2 pb-2 border-b border-border">
-                <h5 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                <h6 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
                   {label}
-                </h5>
+                </h6>
                 <span className="font-mono text-[10px] text-text-faint">
                   {items.length}
                 </span>
@@ -75,24 +75,64 @@ function SubSection({ title, groups, season }) {
   );
 }
 
+/** One season's block: its heading, then the two sub-sections. */
+function SeasonPart({ title, sections, empty }) {
+  const count = SUBSECTIONS.reduce((n, { key }) => n + countOf(sections[key]), 0);
+  return (
+    <section aria-label={title}>
+      <div className="flex items-baseline justify-between px-4 py-2 border-b border-border bg-surface-2">
+        <h4 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text">
+          {title}
+        </h4>
+        <span className="font-mono text-[10px] text-text-faint">{count}</span>
+      </div>
+      <div className="divide-y divide-border">
+        {SUBSECTIONS.map(({ key, title: subTitle }) => (
+          <SubSection
+            key={key}
+            title={subTitle}
+            groups={sections[key]}
+            empty={empty}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /**
  * What the viewer is waiting on (Watch When Airs / Play When Released) and has
- * planned (Plan to Watch / Plan to Play) for `season`, grouped by media type.
- * `lists` maps a media-type slug to its entries. Collapsed until opened.
+ * planned (Plan to Watch / Plan to Play), grouped by media type, in two
+ * separate blocks: `currentSeason`'s entries that have not aired or released
+ * by `today`, then `season`'s (next season's) entries. `lists` maps a
+ * media-type slug to its entries. Collapsed until opened.
  */
-export default function ComingNext({ id, lists, season }) {
+export default function ComingNext({ id, lists, currentSeason, season, today }) {
   const [collapsed, setCollapsed] = useState(true);
-  const sections = selectComingNext(lists, season);
-  const total = SUBSECTIONS.reduce(
-    (sum, { key }) =>
-      sum + sections[key].reduce((n, g) => n + g.items.length, 0),
+  const parts = [
+    {
+      key: "this",
+      title: `This season · ${formatSeason(currentSeason)} · not yet out`,
+      sections: selectComingNext(lists, currentSeason, today),
+      empty: `Nothing still to come in ${formatSeason(currentSeason)}.`,
+    },
+    {
+      key: "next",
+      title: `Next season · ${formatSeason(season)}`,
+      sections: selectComingNext(lists, season),
+      empty: `Nothing for ${formatSeason(season)}.`,
+    },
+  ];
+  const total = parts.reduce(
+    (sum, { sections }) =>
+      sum + SUBSECTIONS.reduce((n, { key }) => n + countOf(sections[key]), 0),
     0,
   );
 
   const actions = (
     <>
       <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
-        Next season · {formatSeason(season)}
+        {formatSeason(currentSeason)} · {formatSeason(season)}
       </span>
       <Chip tone="ink">{total}</Chip>
       <button
@@ -124,13 +164,8 @@ export default function ComingNext({ id, lists, season }) {
           className="divide-y divide-border"
           onClick={(e) => e.stopPropagation()}
         >
-          {SUBSECTIONS.map(({ key, title }) => (
-            <SubSection
-              key={key}
-              title={title}
-              groups={sections[key]}
-              season={season}
-            />
+          {parts.map(({ key, ...part }) => (
+            <SeasonPart key={key} {...part} />
           ))}
         </div>
       )}
