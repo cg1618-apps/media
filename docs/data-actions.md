@@ -400,6 +400,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
    - **Singleton notes** (`remark`, `ost`): a `Note` row in a singleton section is retargeted at the owner's existing row in that section (`ix_note_one_remark_per_owner` and `ix_note_one_ost_per_owner` allow only one), keeping the local `system_id`. A sheet holding two `ost` rows for one anime therefore folds into one, the later row winning.
+   - **Note twins under another uuid**: a `Note` row whose `system_id` is unknown locally is retargeted at a local row with the same owner, section and content (`parent_id`, `locator`, `kind`, `status`, `title`, `content`, `links`, `entries`, `fields`), keeping the local `system_id` (`_match_note_twin` in `pull.py`). It exists because the OP and ED rows were minted by a migration once per database, so the same row has a different uuid on every machine and would otherwise arrive as a second copy. Two guards keep genuinely separate identical rows apart: a local row whose own id is in the sheet is never a candidate, and each local row is claimed by at most one sheet row.
    - **The Note and Meme tabs carry four owner columns**, not an
      `owner_type` / `owner_id` pair: `media_id`, `collection_id`,
      `franchise_id` and `series_id`, exactly one set per row and a CHECK

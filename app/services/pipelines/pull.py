@@ -485,6 +485,72 @@ def _note_owner_filters(payload: dict) -> list:
     return _owner_column_filters(Note, payload)
 
 
+# What a note says, as opposed to who owns it or which id it travels under.
+# Two rows agreeing on all of these are the same note.
+_NOTE_CONTENT_COLUMNS = (
+    "parent_id",
+    "locator",
+    "kind",
+    "status",
+    "title",
+    "content",
+    "links",
+    "entries",
+    "fields",
+)
+
+
+def _sheet_ids(headers: list, data_rows: list) -> set:
+    """Every system_id the tab carries, so a local row can be told apart from
+    one that has its own copy in the sheet."""
+    if "system_id" not in headers:
+        return set()
+    index = headers.index("system_id")
+    ids = set()
+    for row in data_rows:
+        try:
+            ids.add(uuid.UUID(str(row[index]).strip()))
+        except (IndexError, ValueError):
+            continue
+    return ids
+
+
+def _match_note_twin(
+    db: Session, payload: dict, sheet_ids: set, claimed: set
+) -> Optional[Note]:
+    """
+    The local row a sheet note is a copy of under another uuid, or None.
+
+    A note created by a migration was minted once per database, so the same
+    OP row carries a different system_id on every machine, and matching on the
+    id alone inserts the sheet's copy beside the local one. This matches on
+    owner, section and content instead - but only against local rows whose own
+    id is absent from the sheet (a row with its own sheet copy is somebody
+    else's match) and not already claimed by an earlier sheet row. That keeps
+    two genuinely separate identical notes, such as two unnamed OPs, as two.
+
+    Compared in Python rather than in SQL because a JSONB column holds either
+    SQL NULL or JSON null for "empty", depending on how the row was written.
+    """
+    owner = _note_owner_filters(payload)
+    section = payload.get("section")
+    if not owner or not section:
+        return None
+    candidates = (
+        db.query(Note)
+        .filter(*owner, Note.section == section)
+        .order_by(Note.created_at, Note.system_id)
+        .all()
+    )
+    compared = [c for c in _NOTE_CONTENT_COLUMNS if c in payload]
+    for local in candidates:
+        if local.system_id in sheet_ids or local.system_id in claimed:
+            continue
+        if all(getattr(local, c) == payload[c] for c in compared):
+            return local
+    return None
+
+
 def _resolve_owner_columns(db: Session, tab_name: str, payload: dict):
     """
     Turn a Note or Meme row's owner into exactly one of its four FK columns.
@@ -788,6 +854,11 @@ def execute_pull_specific(
     parent_refs = DERIVED_IDENTITY_PARENTS.get(tab_name, ())
     # One map per parent tab, however many columns cite it.
     foreign_uuids: dict[str, dict[str, object]] = {}
+
+    # For the Note tab's twin match (see _match_note_twin): which ids the sheet
+    # carries, and which local rows an earlier sheet row has already claimed.
+    note_sheet_ids = _sheet_ids(headers, data_rows) if tab_name == "Note" else set()
+    claimed_note_twins: set = set()
 
     for row_index, row in enumerate(data_rows):
         if not row or not any(row):
@@ -1580,6 +1651,18 @@ def execute_pull_specific(
                 )
                 .first()
             )
+
+        # A note whose uuid is unknown here may be this database's own row
+        # under a uuid each database minted separately - the OP and ED rows
+        # are. Retarget it and keep the LOCAL uuid, as below.
+        if tab_name == "Note" and existing is None and pk_value:
+            twin = _match_note_twin(
+                db, clean_header_dict, note_sheet_ids, claimed_note_twins
+            )
+            if twin is not None:
+                clean_header_dict.pop(pk_field, None)
+                claimed_note_twins.add(twin.system_id)
+                existing = twin
 
         # A derived-identity row whose uuid is unknown here is almost never a
         # new row - it is this database's own copy under a locally minted uuid
