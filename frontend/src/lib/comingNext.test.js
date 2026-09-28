@@ -5,6 +5,7 @@ import {
   seasonOfDate,
   seasonAfter,
   entrySeason,
+  isUnreleased,
   selectComingNext,
 } from "./comingNext";
 
@@ -153,5 +154,65 @@ describe("selectComingNext", () => {
 
   it("tolerates a type whose list has not loaded", () => {
     expect(selectComingNext({}, FAL_2026)).toEqual({ airs: [], planned: [] });
+  });
+
+  it("keeps only entries not out yet by `today`, when given one", () => {
+    const SUM_2026 = { code: "SUM", year: 2026 };
+    const today = new Date(2026, 8, 28);
+    const summer = {
+      anime: [
+        { system_id: "aired", release_season: "SUM", release_date: "2026-07-02", airing_status: "Finished Airing", watching_status: "Watch When Airs" },
+        { system_id: "pending", release_season: "SUM", release_date: "2026-09-30", airing_status: "Not Yet Aired", watching_status: "Watch When Airs" },
+      ],
+      game: [
+        { system_id: "out", release_date: "2026-08-01", release_status: "Released", playing_status: "Plan to Play" },
+        { system_id: "soon", release_date: "2026-09-29", release_status: "Unreleased", playing_status: "Plan to Play" },
+      ],
+    };
+    const { airs, planned } = selectComingNext(summer, SUM_2026, today);
+    expect(ids(airs)).toEqual([["anime", ["pending"]]]);
+    expect(ids(planned)).toEqual([["game", ["soon"]]]);
+    // Without `today` the season's whole list stands, aired or not.
+    expect(ids(selectComingNext(summer, SUM_2026).airs)).toEqual([
+      ["anime", ["aired", "pending"]],
+    ]);
+  });
+});
+
+describe("isUnreleased", () => {
+  const today = new Date(2026, 8, 28);
+
+  it("reads airing_status for the watched types", () => {
+    expect(isUnreleased({ airing_status: "Not Yet Aired" }, "anime", today)).toBe(true);
+    expect(isUnreleased({ airing_status: "Rumored" }, "movie", today)).toBe(true);
+    expect(isUnreleased({ airing_status: "Airing" }, "tv-show", today)).toBe(false);
+    expect(isUnreleased({ airing_status: "Finished Airing" }, "cartoon", today)).toBe(false);
+    expect(isUnreleased({ airing_status: "Canceled" }, "anime", today)).toBe(false);
+  });
+
+  it("reads release_status for games", () => {
+    expect(isUnreleased({ release_status: "Unreleased" }, "game", today)).toBe(true);
+    expect(isUnreleased({ release_status: "Rumored" }, "game", today)).toBe(true);
+    expect(isUnreleased({ release_status: "Early Access" }, "game", today)).toBe(false);
+    expect(isUnreleased({ release_status: "Released" }, "game", today)).toBe(false);
+  });
+
+  it("lets a set status win over the date", () => {
+    // Stale date, fresh status: the status is what Fill keeps current.
+    expect(
+      isUnreleased({ airing_status: "Not Yet Aired", release_date: "2026-07-01" }, "anime", today),
+    ).toBe(true);
+    expect(
+      isUnreleased({ airing_status: "Airing", release_date: "2026-12-01" }, "anime", today),
+    ).toBe(false);
+  });
+
+  it("falls back to the release date lying after today when no status is set", () => {
+    expect(isUnreleased({ release_date: "2026-09-29" }, "anime", today)).toBe(true);
+    expect(isUnreleased({ release_date: "2026-09-28" }, "anime", today)).toBe(false);
+    expect(isUnreleased({ release_date_tw: "2026-10-01" }, "movie", today)).toBe(true);
+    // A month-only date counts from the first of the month.
+    expect(isUnreleased({ release_date: "2026-09" }, "game", today)).toBe(false);
+    expect(isUnreleased({ release_date: null }, "game", today)).toBe(false);
   });
 });

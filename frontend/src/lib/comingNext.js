@@ -1,5 +1,6 @@
 // The dashboard's Coming Next section: what the viewer is waiting on or has
-// planned that releases in the season after the current one.
+// planned that releases in the season after the current one, and — kept
+// apart from it — what in the current season has not aired or released yet.
 //
 // Seasons are calendar quarters (WIN Jan–Mar, SPR Apr–Jun, SUM Jul–Sep,
 // FAL Oct–Dec), matching calculate_seasonal_from_month on the backend. Anime
@@ -75,18 +76,53 @@ function inSeason(entry, mediaType, season) {
   return !!s && s.code === season.code && s.year === season.year;
 }
 
+// The airing / release statuses that mean "not out yet". Games carry
+// release_status (GAME_RELEASE_STATUSES); the watched types airing_status.
+const UNRELEASED_STATUSES = {
+  airing_status: ["Not Yet Aired", "Rumored"],
+  release_status: ["Unreleased", "Rumored"],
+};
+
+function dateScore(date) {
+  return (
+    date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate()
+  );
+}
+
+/**
+ * Whether the entry has not aired or released yet as of `today`. Its
+ * airing_status (release_status for games) decides when set; an entry with no
+ * status falls back to its primary release date lying after today, where a
+ * date missing its day or month counts from the first of that period.
+ */
+export function isUnreleased(entry, mediaType, today) {
+  const field = mediaType === "game" ? "release_status" : "airing_status";
+  const status = entry[field];
+  if (status) return UNRELEASED_STATUSES[field].includes(status);
+  return (
+    releaseScore(primaryReleaseValue(mediaType, entry)) > dateScore(today)
+  );
+}
+
 /**
  * Splits `lists` ({ [mediaType]: entries }) into the two sub-sections for
  * `season`. Each is an array of { type, label, items } in COMING_NEXT_TYPES
- * order, sorted by release date, with empty types omitted.
+ * order, sorted by release date, with empty types omitted. With `today`,
+ * only entries that have not aired or released by then are kept — the
+ * current season's view.
  */
-export function selectComingNext(lists, season) {
+export function selectComingNext(lists, season, today = null) {
   const section = (key) =>
     COMING_NEXT_TYPES.map(({ type, label }) => {
       const field = STATUS_FIELD[type] || "watching_status";
       const status = SUBSECTION_STATUS[key][field];
       const items = (lists[type] || [])
-        .filter((e) => e[field] === status && inSeason(e, type, season))
+        .filter(
+          (e) =>
+            e[field] === status &&
+            inSeason(e, type, season) &&
+            (!today || isUnreleased(e, type, today)),
+        )
         .sort(
           (a, b) =>
             releaseScore(primaryReleaseValue(type, a)) -
