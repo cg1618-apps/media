@@ -1,5 +1,6 @@
 // Frontend: everything one random picker mode draws on - the lists of its
-// types as picker entries, its FilterDefs, and its stored default filters.
+// types as picker entries, its FilterDefs, its stored default filters, and
+// whether it draws weighted by default.
 // Shared by the picker and the defaults editor, which must agree on all three.
 import { useMemo } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
@@ -47,7 +48,10 @@ export function usePickerData(mode, typesKey) {
   const defaultsQuery = useQuery({
     queryKey: pickerDefaultsQueryKey(mode),
     queryFn: () =>
-      fetchJson(endpoints.randomPickerDefaults.detail(mode)).catch(() => ({ filters: {} })),
+      fetchJson(endpoints.randomPickerDefaults.detail(mode)).catch(() => ({
+        filters: {},
+        weighted: true,
+      })),
     staleTime: 30_000,
   });
 
@@ -66,6 +70,8 @@ export function usePickerData(mode, typesKey) {
     entries,
     filterDefs,
     defaultFilters,
+    // Weighted unless a mode was saved otherwise.
+    defaultWeighted: defaultsQuery.data?.weighted ?? true,
     isLoading: listsLoading || defaultsQuery.isLoading,
     error,
   };

@@ -134,4 +134,12 @@ describe("named endpoint groups", () => {
     expect(endpoints.dataControl.checkDuplicates()).toBe("/api/data-control/check/duplicates");
     expect(endpoints.dataControl.checkRemarks()).toBe("/api/data-control/check/remarks");
   });
+
+  it("resources", () => {
+    expect(endpoints.resources.list()).toBe("/api/resources");
+    expect(endpoints.resources.create()).toBe("/api/resources");
+    expect(endpoints.resources.patch("X")).toBe("/api/resources/X");
+    expect(endpoints.resources.remove("X")).toBe("/api/resources/X");
+    expect(endpoints.resources.reorder()).toBe("/api/resources/reorder");
+  });
 });

@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-09-20
+Last verified: 2026-09-28
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -37,6 +37,7 @@ right and the doc needs the fix.
 | [systems/plan-next.md](systems/plan-next.md) | watch-next / read-next / rewatch, size buckets, the Plan page |
 | [systems/notes.md](systems/notes.md) | the note registry, sections, validation, the Notes card, remark-as-note |
 | [systems/quotes-memes.md](systems/quotes-memes.md) | quotes and memes, pickers, pages |
+| [systems/resources.md](systems/resources.md) | the site-wide Resources page: groups and items, reorder and move, the Resources tab |
 | [systems/credits-and-tags.md](systems/credits-and-tags.md) | people, studios, credits, tags (Tier 3 entities) |
 
 ## Access

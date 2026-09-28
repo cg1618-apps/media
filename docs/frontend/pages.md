@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-27
+Last verified: 2026-09-28
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -63,6 +63,7 @@ are a large share of the bundle and never needed on first paint.
 | `/plan` | `public/Plan.jsx` | lazy, **login required** |
 | `/quote` | `public/Quotes.jsx` | lazy |
 | `/meme` | `public/Memes.jsx` | lazy |
+| `/resources` | `public/Resources.jsx` | lazy |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
 
 **Gated routes.** The two h-comic routes sit inside
@@ -89,7 +90,7 @@ about styling.
 | `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`), Seiyuu `/library/seiyuu` · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions`, Random Picker `/random` (whose `/random/<type>` pages light it too) |
-| `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
+| `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme`, Resources `/resources` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` |
 | `note` | Note | flat, `requires: "admin"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described |
 | `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue ┃ Users, Roles, Content Labels |
@@ -1050,7 +1051,8 @@ by that date, so a full date precedes a bare year. Cards are `MediaCard` with
 ### RandomPicker — `/random` · `/random/:type`
 
 Files `pages/public/RandomPicker.jsx`, `lib/randomPicker.js`,
-`hooks/usePickerData.js`, `components/picker/ModeStrip.jsx`. Open to
+`lib/pickerWeights.js`, `hooks/usePickerData.js`,
+`components/picker/ModeStrip.jsx`, `components/picker/PickerWeights.jsx`. Open to
 everyone; it draws from the same lists the library pages read, so it can
 only offer what the viewer may already see.
 
@@ -1074,10 +1076,14 @@ mode starts over from that mode's defaults, with no pick.
   library page's own `filterDefs`, then my rating and release decade.
 
 Within one filter the chosen chips OR; across filters they AND, exactly as
-on the library page. **Pick** draws uniformly from the pool; **Pick again**
-never repeats the entry on screen while the pool holds another. **Clear all**,
-beside it, turns every filter off and drops the pick, and **Defaults** (shown
-only when the mode has some) puts the saved defaults back and drops the pick; the panel has no clear
+on the library page. **Pick** draws from the pool, weighted or evenly as the
+**Weighted** checkbox beside the pool count says (see below), and the pick
+shows the chance it had ("1 in 37 (2.7%) chance"); **Pick again** never
+repeats the entry on screen while the pool holds another, and its chance is
+out of the pool without it. **Clear all**, beside it, turns every filter off
+and drops the pick, and **Defaults** (shown only when the mode saved filters,
+or saved weighting off) puts the saved filters and weighting back and drops
+the pick; the panel has no clear
 link of its own here (`FilterPanel` draws one only when handed
 `clearFilters`). The pick is
 a `MediaCard` (with its type named above it in All mode) whose `onUpdated`
@@ -1086,6 +1092,27 @@ from that cache by key, so a status change made on the card shows at once.
 The lists share the library pages' cache keys (`mediaListQueryKey(type,
 LIST_OPTIONS.params)`), so visiting either one warms the other. Nothing is
 persisted.
+
+**The weighted draw** (`lib/pickerWeights.js`, on unless the mode saved it
+off) has two stages. First a status group is chosen among the groups the
+filtered pool holds, in fixed proportions (In Progress, Planned, Might,
+Completed, Dropped, heaviest first), so a group's share of the draw does not
+grow with its size. The weighting groups statuses as the Status filter does,
+except that Temp Dropped counts as In Progress and Watch When Airs and Play
+When Released as Might. Then one entry of that group is chosen by the product
+of its entry factors: my rating and a summary completion (Completed only),
+the larger of its plan marks (next over rewatch, whether marked on the entry,
+its series or its franchise), release decade (2000s and later over earlier or
+undated), and, in the manga, novel and h-comic modes only, serialization
+status. Because every entry factor applies inside the group already chosen,
+none can move an entry into another group's share. A status, rating or
+serialization value the tables do not name weighs 1. Status, rating and plan
+marks are the viewer's own, so a signed-out pick is weighted by decade and
+serialization only: the page asks `/api/plan-next/` for the series and
+franchise marks (under the Plan page's `["plan-next"]` key) only for a
+signed-in session. The numbers are the tables in `lib/pickerWeights.js`, and
+the **Weights** tab (`?tab=weights`, `PickerWeights.jsx`) renders those same
+tables, so it lists exactly what the draw uses.
 
 ### Plan — `/plan`
 
@@ -1120,6 +1147,47 @@ owner card (cover or tier icon; "Unlinked / deleted owner" when missing).
 Row actions: copy text/image for everyone; **admin-only** favourite toggle,
 edit (`QuoteForm` / `MemeForm`, PATCH `/api/quote/{id}` / `/api/meme/{id}`)
 and delete, followed by `invalidateQueries` on the grouped key.
+
+### Resources — `/resources`
+
+Files `pages/public/Resources.jsx`, `components/resources/ResourceTree.jsx`,
+`components/resources/ResourceMarkdown.jsx`, helpers `lib/resourceTree.js`,
+writes `api/mutations/useResourceMutations.js`. One site-wide page of notes,
+read by everyone who can open Quotes: no `ProtectedRoute`, no `requires` on
+the nav row. `useApiQuery(["resources"], "/api/resources")` returns the
+top-level nodes with `children` nested to any depth, every level already in
+`sort_index` order with groups and items interleaved; the page draws them in
+that order and sorts nothing.
+
+- **Reading.** A group is a collapsible heading (chevron, title, child count;
+  open by default, collapse state not kept). Top-level groups are bordered
+  slips with an `h2`; each level down is indented behind a rule and one
+  heading level deeper, capped at `h6`. An item shows its optional title and
+  its Markdown `content` through `ResourceMarkdown` (`react-markdown` +
+  `remark-gfm`: inline links, autolinked bare URLs, lists, tables). Raw HTML is
+  dropped, a `javascript:` link renders without an executable href, and every
+  link opens in a new tab with `rel="noopener noreferrer"`. Why Markdown:
+  [decisions](../notes/decisions.md), "A Resources item's body is Markdown".
+- **Editing** (`has("manage.catalog")` only; the server refuses writes from
+  anyone else). **Add group** at the top; **Add item** / **Add subgroup** at
+  the foot of every group; each row's hover toolbar has move up/down arrows,
+  a **Move to…** list, **Edit** and **Delete**. Edit is inline: a group's
+  title, or an item's title and a Markdown textarea with a Write / Preview
+  switch. Delete asks in `ConfirmModal`, and for a group says what goes with
+  it ("3 items and 1 subgroup"). POST `/api/resources`, PATCH
+  `/api/resources/{id}`, DELETE `/api/resources/{id}`.
+- **Moving.** Every move is one PATCH `/api/resources/reorder` with
+  `{parent_id, ordered_ids}` - the complete new child list of the parent the
+  node lands in (the old parent's remaining children keep their order, so it
+  needs no request). The arrows swap a node with its neighbour. Rows and
+  group headers are draggable: dropping on a row takes that row's slot in its
+  parent, dropping on a group's body appends to that group, and while
+  dragging a "Drop here to move it to the top level" strip appears at the
+  foot of the page. **Move to…** lists the top level and every group the node
+  may enter. A group is never offered itself or any group inside it - the
+  drop is refused (`canDropInto`) and the option is left out. A reorder is
+  applied to the cache first and rolled back if the request fails; every
+  write then invalidates `["resources"]`.
 
 ### Login — `/login`
 

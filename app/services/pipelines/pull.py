@@ -2,6 +2,7 @@
 
 import json
 import logging
+import uuid
 from typing import Optional
 
 from sqlalchemy import Sequence, or_, text
@@ -22,6 +23,7 @@ from app.models import (
     Movies,
     Note,
     Quote,
+    ResourceNode,
     Role,
     Series,
     SystemConfigs,
@@ -585,6 +587,71 @@ def _foreign_uuid_map(db: Session, parent_tab: str) -> dict[str, object]:
     return mapping
 
 
+def _unrestorable_resource_rows(
+    db: Session, headers: list, data_rows: list
+) -> dict[int, str]:
+    """
+    {row index: why} for the Resources rows that cannot restore.
+
+    The tab restores in one commit, so a single bad row would roll back the
+    whole page. A row is refused when its own shape breaks a CHECK (a group
+    with no title or with content, an item with no content, an unknown kind),
+    or when its parent is neither on the tab nor already here, or is not a
+    group. Refusal propagates: a row whose parent is refused is refused too,
+    because it would otherwise name a parent that never lands.
+
+    Decided before the row loop rather than per row, because a child may
+    precede its parent on the tab - parent_id is DEFERRABLE for exactly that -
+    so a row cannot be judged until every row has been read.
+    """
+    rows: dict[int, dict] = {}
+    for index, row in enumerate(data_rows):
+        if not row or not any(row):
+            continue
+        raw = parse_row_to_dict(headers, row)
+        rows[index] = TAB_PARSERS["Resources"](raw)
+
+    kind_of_id: dict = {
+        system_id: kind
+        for system_id, kind in db.query(ResourceNode.system_id, ResourceNode.kind)
+    }
+    index_of_id: dict = {}
+    for index, payload in rows.items():
+        if isinstance(payload.get("system_id"), uuid.UUID):
+            index_of_id[payload["system_id"]] = index
+            kind_of_id[payload["system_id"]] = payload.get("kind")
+
+    refused: dict[int, str] = {}
+    for index, payload in rows.items():
+        kind = payload.get("kind")
+        title = (payload.get("title") or "").strip()
+        content = (payload.get("content") or "").strip()
+        if kind not in ("group", "item"):
+            refused[index] = f"kind {kind!r} is neither group nor item"
+        elif kind == "group" and (not title or payload.get("content") is not None):
+            refused[index] = "a group needs a title and no content"
+        elif kind == "item" and not content:
+            refused[index] = "an item needs content"
+
+    changed = True
+    while changed:
+        changed = False
+        for index, payload in rows.items():
+            parent = payload.get("parent_id")
+            if index in refused or parent is None:
+                continue
+            if parent not in kind_of_id:
+                refused[index] = f"parent {parent} is on neither the tab nor here"
+            elif kind_of_id[parent] != "group":
+                refused[index] = f"parent {parent} is not a group"
+            elif index_of_id.get(parent) in refused:
+                refused[index] = f"parent {parent} was itself refused"
+            else:
+                continue
+            changed = True
+    return refused
+
+
 def execute_pull_specific(
     db: Session,
     tab_name: str,
@@ -707,6 +774,14 @@ def execute_pull_specific(
             f"{tab_name}: column {stale!r} is not on this model any more"
         )
 
+    # Resources rows that would break the tab's single commit, decided up front
+    # because a child row may come before its parent. Empty for every other tab.
+    refused_resources = (
+        _unrestorable_resource_rows(db, headers, data_rows)
+        if tab_name == "Resources"
+        else {}
+    )
+
     # Built on first use, and only for the two tabs that need it: reading the
     # parent tab costs a Sheets round trip, so a tab that cites no derived
     # identity never pays for one.
@@ -714,8 +789,16 @@ def execute_pull_specific(
     # One map per parent tab, however many columns cite it.
     foreign_uuids: dict[str, dict[str, object]] = {}
 
-    for row in data_rows:
+    for row_index, row in enumerate(data_rows):
         if not row or not any(row):
+            continue
+
+        if row_index in refused_resources:
+            unresolved_refs.append(
+                f"Resources: row {row_index + 2} skipped - "
+                f"{refused_resources[row_index]}"
+            )
+            rows_skipped += 1
             continue
 
         raw_header_dict = parse_row_to_dict(headers, row)

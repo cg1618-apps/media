@@ -37,7 +37,7 @@ def _row(db_session, mode):
 def test_a_guest_reads_an_unconfigured_mode_as_no_filters(client):
     res = client.get(f"{ROUTE}/all")
     assert res.status_code == 200
-    assert res.json() == {"mode": "all", "version": 1, "filters": {}}
+    assert res.json() == {"mode": "all", "version": 1, "filters": {}, "weighted": True}
 
 
 def test_a_guest_cannot_save(client):
@@ -72,6 +72,22 @@ def test_save_replaces_wholesale(admin_client):
     admin_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["S"], "decade": ["2010s"]}})
     admin_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["A"]}})
     assert admin_client.get(f"{ROUTE}/all").json()["filters"] == {"myRating": ["A"]}
+
+
+def test_weighting_is_on_unless_saved_off(admin_client, client, db_session):
+    # A row saved before the flag existed carries no "weighted" key, and
+    # reads as weighted, like a mode with nothing saved.
+    db_session.add(
+        models.SystemConfigs(
+            config_key="random_picker_defaults:novel", config_value='{"filters": {}}'
+        )
+    )
+    db_session.commit()
+    assert client.get(f"{ROUTE}/novel").json()["weighted"] is True
+
+    admin_client.put(f"{ROUTE}/anime", json={"filters": {}, "weighted": False})
+    assert client.get(f"{ROUTE}/anime").json()["weighted"] is False
+    assert client.get(f"{ROUTE}/all").json()["weighted"] is True
 
 
 def test_reset_deletes_the_row_and_is_idempotent(admin_client, db_session):

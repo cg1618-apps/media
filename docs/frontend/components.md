@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-27
+Last verified: 2026-09-28
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -33,7 +33,8 @@ src/
 | Piece | What it does |
 |---|---|
 | `api/client.js` `fetchJson(url, init)` | `fetch` with `credentials: "include"`; parses JSON; **throws** on `!res.ok` with the server `detail`. There is no automatic redirect on 401 — a stale session surfaces as a thrown error. |
-| `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, announcements, watchOrder, mediaRelation, formDefaults, person, studio, credits, system, quotes, memes, dataControl. |
+| `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, announcements, watchOrder, mediaRelation, formDefaults, person, studio, credits, system, quotes, memes, resources (the Resources tree - plural, because `resource` is the media builder), dataControl. |
+| `api/mutations/useResourceMutations.js` | `useCreateResource`, `usePatchResource`, `useDeleteResource`, `useReorderResources`: `useMutation` wrappers for `/api/resources` that invalidate `RESOURCES_QUERY_KEY` (`["resources"]`) when they settle. The reorder one also applies the move to the cache first (`applyReorder`) and restores the previous tree on failure. |
 | `hooks/useApiQuery(key, url, {params})` | `useQuery` wrapper; key becomes `[...key, params]` when params exist. |
 | `hooks/useMediaList(type, {params})` | List query keyed `["media-list", type, params]`; `LIST_OPTIONS = { params: { limit: 2000 } }` is the full-table convention. |
 | `hooks/useMediaItem(type, id)` | Detail query keyed by `mediaItemQueryKey`. |
@@ -41,18 +42,18 @@ src/
 | `hooks/useStatusToggle(type)` | PATCHes one field and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
 | `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker, Picker Defaults and the character and person libraries; the defs and `initial` are read once, so a caller whose defs change remounts. |
-| `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs, and its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none). Shared by the picker and Picker Defaults. |
+| `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs, its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none), and `defaultWeighted` (true unless saved off). Shared by the picker and Picker Defaults. |
 | `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
 | `pages/plan/usePlanData` | The Plan page's lists (franchise, series and the twelve entry types - `h-comic`, `h-game` and `hentai` each fetched only for a session that can see it) plus `["plan-next"]`. |
 
 Query defaults (`main.jsx`): `staleTime` 30 s, `retry` 1, no refetch on window
 focus. Query keys in use: `["media-list", type(, params)]`, media item keys,
-`["plan-next"]`, `["quotes-grouped"]`, `["memes-grouped"]`, `["announcements"]`,
+`["plan-next"]`, `["quotes-grouped"]`, `["memes-grouped"]`, `["resources"]`, `["announcements"]`,
 `["api","search",{q,scope}]`.
 
 Two data idioms still coexist: react-query hooks (libraries, detail pages,
-statistics, plan, quotes/memes, search) and raw `fetch` in `useEffect`
+statistics, plan, quotes/memes, resources, search) and raw `fetch` in `useEffect`
 (hub pages, Collection/Franchise libraries, seasonal pages, most admin
 pages). Writes in the raw-fetch pages update local state only, so a status
 toggled inside a hub does not update the library cache until it goes stale.
@@ -354,9 +355,17 @@ the gated media types.
   compact and without an owner, each `CastEditor` row. No image field is
   typed by hand anywhere).
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
-  `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`.
+  `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`,
+  `ConfirmModal` (a yes/no question in the same chrome - `title`, body as
+  children, `confirmLabel`, `danger` for a destructive confirm, Escape
+  cancels; the Resources page's delete prompt).
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
-- **`components/picker`** — `ModeStrip` (the random picker's All-plus-types strip: links on `/random`, buttons with an unsaved dot on `/random-defaults`).
+- **`components/resources`** — `ResourceTree` (the `/resources` tree: nested
+  collapsible groups, items, and for a manage.catalog holder every add, edit,
+  delete and move control, sharing drag state through a context) and
+  `ResourceMarkdown` (one item body through `react-markdown` + `remark-gfm`,
+  no raw HTML, links to a new tab, prose styled with token classes only).
+- **`components/picker`** — `ModeStrip` (the random picker's All-plus-types strip: links on `/random`, buttons with an unsaved dot on `/random-defaults`) and `PickerWeights` (the picker's Weights tab, rendered from the tables in `lib/pickerWeights.js`).
 - **`components/relations`** — `RelationGraph`, `RelationNode`, `FanEdge`,
   `ConnectPopup`, `EdgeInspector`, `NodePanel`, `RelationForm`,
   `RelationTypeFilter`.
@@ -460,6 +469,7 @@ is a second place to keep in step.
 | `relationLayout.js`, `relationHandles.js`, `relationUndo.js` | pure graph layout (union-find contraction, dagre), handle geometry, undo stack |
 | `textFit.js` | width measurement for `FittedName` |
 | `clipboardImage.js` | copy an image to the clipboard (quotes/memes) |
+| `resourceTree.js` | The Resources tree's move arithmetic, pure: `findNode`, `parentIdOf`, `childrenOf`, `countDescendants`, `countByKind`, `flattenGroups`, `canDropInto` (refuses a group into itself or any descendant, and an item as a parent), `moveAmongSiblings` and `moveInto` (each returns the reorder body `{parent_id, ordered_ids}` - the complete new child list - or `null`), and `applyReorder` for the optimistic cache update |
 | `gatedTypes.js` | The gated-type question - see [Gated media types](#gated-media-types). `GATED_TYPES`, `canSeeGatedType`, the list filters, and `REQUIRED_LABEL_FOR_TYPE` (mirrors the backend's) with `requiredLabelsForType` / `requiredLabelsForFranchiseType`. `FRANCHISE_FAMILY_FOR_TYPE` mirrors the backend's franchise families - `H-Comic` and `Hentai` are one family, `h-comic` - and `inFranchiseFamily(franchiseType, family)` asks whether a comma-joined `franchise_type` names a type of it |
 | `hComicAnimation.js` | An h-comic's animation status, hand-set or derived. `isDerivedAnimationStatus(entry)` (`animation_status_source === "derived"`: a hentai adapts it) and `adaptingHentai(rows)` (the stored, reverse-direction `adaptation` rows of a relation card whose far end is a hentai, as their `other` endpoints) |
 | `hComicRegion.js` | Which h-comic fields a region uses, the novelUnits pattern for a variant-dependent form. `REGION_ONLY_FIELDS` (JP: `h_comic_name_jp`, originality, animation status, series number, page total and `page_fin`; KR: `h_comic_name_kr`, chapter total, `ch_behind`, `ch_fin`, author, official source, `highlight_group_order` - the catalogue and reader columns mirror the server's `REGION_CLEARS` / `LIST_REGION_CLEARS`), `showsField(region, field)` (a region-only field shows on its region and on none while the region is unset), `clearedForRegion(form)` (blanks the other region's fields before a save; names are kept, and the KR-only author and official source - credits the server does not clear - are cleared here), `progressFor(entry)` (pages on JP, chapters on KR) |

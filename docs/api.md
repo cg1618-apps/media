@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-27
+Last verified: 2026-09-28
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -51,6 +51,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
 - [Quote — `/api/quote`](#quote--apiquote)
 - [Meme — `/api/meme`](#meme--apimeme)
+- [Resources — `/api/resources`](#resources--apiresources)
 - [Covers — `/api/covers`](#covers--apicovers)
 - [Images — `/api/images`](#images--apiimages)
 - [Note — `/api/notes`](#note--apinotes)
@@ -812,6 +813,31 @@ the frontend hides the quote-link control in that case.
 **Hidden owners.** A meme whose owner is hidden from the viewer is dropped from
 every read, and its `/{meme_id}` and writes answer 404: a label-hidden entry,
 a label-hidden franchise, or a series in one. A collection carries no labels.
+
+---
+
+## Resources — `/api/resources`
+
+The site-wide Resources page: one tree of groups and items (links, plain text,
+text with inline links). Reads take the same gate as the Quote list - any
+viewer, guests included; every write needs `manage.catalog`. See
+[systems/resources.md](systems/resources.md).
+
+| Method   | Path            | Auth             | Description |
+| -------- | --------------- | ---------------- | ----------- |
+| `GET`    | (root)          | Public           | The whole page as a tree: the top-level nodes, each with `children` nested to any depth, every level sorted by `sort_index` (groups and items interleaved). |
+| `POST`   | (root)          | `manage.catalog` | Create. Body: `{kind, parent_id?, title?, content?}`. **201** with the node (`children: []`), appended after its siblings (`max(sort_index) + 1`). **422** when a group has no title or has content, an item has no content, `kind` is not `group`/`item`, or `parent_id` names no node or an item. |
+| `PATCH`  | `/reorder`      | `manage.catalog` | Body: `{parent_id: uuid\|null, ordered_ids: [uuid, ...]}`. Moves every listed node under `parent_id` and sets its `sort_index` to its position (0.0, 1.0, …), so it both reorders and moves between groups. **422** on a duplicate id, an unknown id, a parent that is missing or an item, a list that leaves out any node already under that parent, or a group moved inside itself or its own descendant. Returns `{"status": "success", "reordered": n}`. |
+| `PATCH`  | `/{system_id}`  | `manage.catalog` | Edit `title` and/or `content`. `kind` and `parent_id` are not editable here (extra keys are ignored); moves go through `/reorder`. Same **422** shape rules as create; **404** on an unknown id. |
+| `DELETE` | `/{system_id}`  | `manage.catalog` | Delete the node and, by the cascading `parent_id` FK, everything under it. Logs to `deleted_record` as type "Resource". Returns `{"status": "success", "message": ...}`. |
+
+**Response model:** `ResourceNodeResponse` - `system_id`, `parent_id`, `kind`,
+`title`, `content`, `sort_index`, `created_at`, `updated_at`, `children`.
+
+`/reorder` is declared before `/{system_id}`, because FastAPI matches in
+declaration order and the dynamic route would otherwise take "reorder" as an
+id. A caller without `manage.catalog` gets the usual **401** from
+`require_permission`.
 
 ---
 
@@ -1737,19 +1763,22 @@ session that may not see the type, so the endpoint does not say it exists.
 
 | Method   | Path      | Auth           | Description                                                           |
 | -------- | --------- | -------------- | --------------------------------------------------------------------- |
-| `GET`    | `/{mode}` | Anyone         | One mode. Unconfigured returns **200 with `filters: {}`**, never 404.  |
+| `GET`    | `/{mode}` | Anyone         | One mode. Unconfigured returns **200 with `filters: {}`, `weighted: true`**, never 404. |
 | `PUT`    | `/{mode}` | manage.catalog | Full-replacement upsert. Body: `RandomPickerDefaultsPayload`.          |
-| `DELETE` | `/{mode}` | manage.catalog | Delete the row, so the mode opens with no filters. Idempotent.         |
+| `DELETE` | `/{mode}` | manage.catalog | Delete the row, so the mode opens with no filters, weighted. Idempotent. |
 
 **Response model:** `RandomPickerDefaultsResponse` (`RandomPickerDefaultsPayload` + `mode`)
 
 ```json
-{ "mode": "anime", "version": 1, "filters": { "airingType": ["TV", "OVA"], "bahaOnly": true } }
+{ "mode": "anime", "version": 1, "filters": { "airingType": ["TV", "OVA"], "bahaOnly": true }, "weighted": true }
 ```
 
 - `filters` is **sparse**: a filter absent from the map opens empty. Keys are the
   frontend's FilterDef keys (camelCase); a value is the chips switched on, or `true`
   for a toggle.
+- `weighted` says whether the mode draws by the weights in
+  `frontend/src/lib/pickerWeights.js` or evenly. It defaults to `true`, so a
+  row that never saved it reads as weighted.
 - Reads are open because the picker is: every viewer opens on the same defaults.
 - **Validation** is shape and size only: ≤50 keys matching `^[A-Za-z0-9_]{1,64}$`,
   each value a boolean or a list of ≤100 strings of ≤100 characters, serialized
