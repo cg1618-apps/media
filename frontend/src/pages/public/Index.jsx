@@ -852,10 +852,10 @@ export default function Index() {
   );
 
   // The admin-set current season, or the calendar's while none is set.
-  const comingSeason = seasonAfter(
-    parseSeason(currentSeasonQuery.data?.current_season) ||
-      seasonOfDate(new Date()),
-  );
+  const today = new Date();
+  const thisSeason =
+    parseSeason(currentSeasonQuery.data?.current_season) || seasonOfDate(today);
+  const comingSeason = seasonAfter(thisSeason);
   const comingLists = {
     anime: animeData,
     "anime-movie": animeMovieQuery.data || [],
@@ -1018,7 +1018,9 @@ export default function Index() {
                 <ComingNext
                   id="schedule-coming"
                   lists={comingLists}
+                  currentSeason={thisSeason}
                   season={comingSeason}
+                  today={today}
                 />
               )}
             </div>
