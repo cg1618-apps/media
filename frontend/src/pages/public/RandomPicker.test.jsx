@@ -9,12 +9,14 @@ import RandomPicker from "./RandomPicker";
 
 let visibleGatedTypes = [];
 let storedDefaults = {};
+let storedWeighted = {};
+let username = null;
 
 function respond(url) {
   if (url.startsWith("/api/auth/me")) {
     return {
       is_admin: false,
-      username: null,
+      username,
       role: "guest",
       is_root: false,
       permissions: [],
@@ -28,7 +30,12 @@ function respond(url) {
     ];
   if (url.startsWith("/api/random-picker-defaults/")) {
     const mode = url.split("/").pop();
-    return { mode, version: 1, filters: storedDefaults[mode] ?? {} };
+    return {
+      mode,
+      version: 1,
+      filters: storedDefaults[mode] ?? {},
+      weighted: storedWeighted[mode] ?? true,
+    };
   }
   if (url.startsWith("/api/manga/")) return [{ system_id: "m1", manga_name_en: "Yotsuba" }];
   return [];
@@ -37,6 +44,8 @@ function respond(url) {
 beforeEach(() => {
   visibleGatedTypes = [];
   storedDefaults = {};
+  storedWeighted = {};
+  username = null;
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(respond(String(url))) }))
@@ -153,4 +162,53 @@ it("offers no Defaults button for a mode with none saved", async () => {
   mount("/random/anime");
   await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
   expect(screen.queryByRole("button", { name: "Defaults" })).not.toBeInTheDocument();
+});
+
+it("draws weighted by default, and says the chance the pick had", async () => {
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.getByRole("checkbox", { name: "Weighted" })).toBeChecked();
+
+  fireEvent.click(screen.getByRole("button", { name: "Special" }));
+  fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
+  expect(await screen.findByText(/1 in 1 \(100\.0%\) chance/)).toBeInTheDocument();
+});
+
+it("opens a mode saved unweighted as unweighted, and Defaults brings that back", async () => {
+  storedWeighted = { anime: false };
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  const weighted = screen.getByRole("checkbox", { name: "Weighted" });
+  expect(weighted).not.toBeChecked();
+
+  fireEvent.click(weighted);
+  expect(weighted).toBeChecked();
+  fireEvent.click(screen.getByRole("button", { name: "Defaults" }));
+  expect(weighted).not.toBeChecked();
+});
+
+// Same page and mocks both times; only the session differs, so the guest's
+// missing request is the page's choice and not a mock that never answers.
+it("asks a guest for no plan marks, since a plan is private", async () => {
+  mount("/random");
+  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  expect(fetched().some((u) => u.startsWith("/api/plan-next"))).toBe(false);
+});
+
+it("asks a signed-in session for its plan marks", async () => {
+  username = "reader";
+  mount("/random");
+  await waitFor(() =>
+    expect(fetched().some((u) => u.startsWith("/api/plan-next"))).toBe(true),
+  );
+});
+
+it("lists every weight on the Weights tab", async () => {
+  mount("/random?tab=weights");
+  expect(await screen.findByText("Step 1 · Status group")).toBeInTheDocument();
+  expect(screen.getByText("Serialization · Manga mode only")).toBeInTheDocument();
+  expect(screen.queryByText(/in the pool/)).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Picker" }));
+  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
 });

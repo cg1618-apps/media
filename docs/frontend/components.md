@@ -42,7 +42,7 @@ src/
 | `hooks/useStatusToggle(type)` | PATCHes one field and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
 | `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker, Picker Defaults and the character and person libraries; the defs and `initial` are read once, so a caller whose defs change remounts. |
-| `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs, and its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none). Shared by the picker and Picker Defaults. |
+| `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs, its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none), and `defaultWeighted` (true unless saved off). Shared by the picker and Picker Defaults. |
 | `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
 | `pages/plan/usePlanData` | The Plan page's lists (franchise, series and the twelve entry types - `h-comic`, `h-game` and `hentai` each fetched only for a session that can see it) plus `["plan-next"]`. |
@@ -365,7 +365,7 @@ the gated media types.
   delete and move control, sharing drag state through a context) and
   `ResourceMarkdown` (one item body through `react-markdown` + `remark-gfm`,
   no raw HTML, links to a new tab, prose styled with token classes only).
-- **`components/picker`** — `ModeStrip` (the random picker's All-plus-types strip: links on `/random`, buttons with an unsaved dot on `/random-defaults`).
+- **`components/picker`** — `ModeStrip` (the random picker's All-plus-types strip: links on `/random`, buttons with an unsaved dot on `/random-defaults`) and `PickerWeights` (the picker's Weights tab, rendered from the tables in `lib/pickerWeights.js`).
 - **`components/relations`** — `RelationGraph`, `RelationNode`, `FanEdge`,
   `ConnectPopup`, `EdgeInspector`, `NodePanel`, `RelationForm`,
   `RelationTypeFilter`.

@@ -4,7 +4,8 @@
 // The filters are the picker's own (usePickerData), drawn with the same
 // FilterPanel, so what is saved here is exactly what the picker shows. Stored
 // defaults are SPARSE: only filters that are on are saved, and a mode with
-// none saved opens with every filter empty.
+// none saved opens with every filter empty. Each mode also saves whether it
+// draws weighted (lib/pickerWeights.js), on unless saved off.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -46,9 +47,9 @@ export default function PickerDefaults() {
           <i className="fas fa-dice text-brand"></i> Picker Defaults
         </h1>
         <p className="text-sm text-text-faint mt-1">
-          Choose the filters each Random Picker mode opens with. They apply to
-          everyone who opens the picker; anyone can still change or clear them
-          there.
+          Choose the filters each Random Picker mode opens with, and whether it
+          draws weighted. They apply to everyone who opens the picker; anyone
+          can still change them there.
         </p>
       </div>
 
@@ -70,10 +71,8 @@ export default function PickerDefaults() {
 }
 
 function ModeEditor({ mode, typesKey, onDirtyChange }) {
-  const { entries, filterDefs, defaultFilters, isLoading, error } = usePickerData(
-    mode,
-    typesKey,
-  );
+  const { entries, filterDefs, defaultFilters, defaultWeighted, isLoading, error } =
+    usePickerData(mode, typesKey);
 
   if (isLoading || error) {
     return (
@@ -93,12 +92,20 @@ function ModeEditor({ mode, typesKey, onDirtyChange }) {
       entries={entries}
       filterDefs={filterDefs}
       defaultFilters={defaultFilters}
+      defaultWeighted={defaultWeighted}
       onDirtyChange={onDirtyChange}
     />
   );
 }
 
-function DefaultsForm({ mode, entries, filterDefs, defaultFilters, onDirtyChange }) {
+function DefaultsForm({
+  mode,
+  entries,
+  filterDefs,
+  defaultFilters,
+  defaultWeighted,
+  onDirtyChange,
+}) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -112,7 +119,9 @@ function DefaultsForm({ mode, entries, filterDefs, defaultFilters, onDirtyChange
 
   const draft = useMemo(() => toStoredFilters(filters), [filters]);
   const saved = useMemo(() => toStoredFilters(defaultFilters), [defaultFilters]);
-  const isDirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const [weighted, setWeighted] = useState(defaultWeighted);
+  const isDirty =
+    JSON.stringify(draft) !== JSON.stringify(saved) || weighted !== defaultWeighted;
 
   useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
 
@@ -123,11 +132,12 @@ function DefaultsForm({ mode, entries, filterDefs, defaultFilters, onDirtyChange
 
   // The picker reads the same key, so it opens on the new defaults at once.
   const storeLocally = useCallback(
-    (stored) =>
+    (stored, storedWeighted) =>
       queryClient.setQueryData(pickerDefaultsQueryKey(mode), {
         mode,
         version: 1,
         filters: stored,
+        weighted: storedWeighted,
       }),
     [queryClient, mode],
   );
@@ -138,9 +148,9 @@ function DefaultsForm({ mode, entries, filterDefs, defaultFilters, onDirtyChange
       await fetchJson(endpoints.randomPickerDefaults.update(mode), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ version: 1, filters: draft }),
+        body: JSON.stringify({ version: 1, filters: draft, weighted }),
       });
-      storeLocally(draft);
+      storeLocally(draft, weighted);
       showToast("success", `Picker defaults for ${modeLabel(mode)} saved.`);
     } catch (err) {
       showToast("error", err.message || "Save failed.");
@@ -150,12 +160,13 @@ function DefaultsForm({ mode, entries, filterDefs, defaultFilters, onDirtyChange
   }
 
   async function handleReset() {
-    if (!window.confirm(`Remove every saved default for ${modeLabel(mode)}?`)) return;
+    if (!window.confirm(`Remove every saved default for ${modeLabel(mode)}? It will open with no filters, weighted.`)) return;
     setSaving(true);
     try {
       await fetchJson(endpoints.randomPickerDefaults.reset(mode), { method: "DELETE" });
       clearFilters();
-      storeLocally({});
+      setWeighted(true);
+      storeLocally({}, true);
       showToast("success", `${modeLabel(mode)} opens with no filters.`);
     } catch (err) {
       showToast("error", err.message || "Reset failed.");
@@ -176,6 +187,15 @@ function DefaultsForm({ mode, entries, filterDefs, defaultFilters, onDirtyChange
       />
 
       <div className="sticky bottom-4 flex flex-wrap items-center gap-3 bg-surface/95 backdrop-blur border border-border px-4 py-3">
+        <label className="inline-flex items-center gap-1.5 text-xs font-bold text-text-muted cursor-pointer">
+          <input
+            type="checkbox"
+            checked={weighted}
+            onChange={(e) => setWeighted(e.target.checked)}
+            className="accent-brand"
+          />
+          Weighted
+        </label>
         <span className="text-xs font-bold text-text-faint">
           {activeFilterCount} chip{activeFilterCount === 1 ? "" : "s"} on · {matching} matching
           now
@@ -189,7 +209,7 @@ function DefaultsForm({ mode, entries, filterDefs, defaultFilters, onDirtyChange
         <div className="ml-auto flex items-center gap-2">
           <Button
             onClick={handleReset}
-            disabled={saving || countActiveFilters(defaultFilters) === 0}
+            disabled={saving || (countActiveFilters(defaultFilters) === 0 && defaultWeighted)}
           >
             Reset to none
           </Button>

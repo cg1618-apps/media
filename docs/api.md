@@ -1763,19 +1763,22 @@ session that may not see the type, so the endpoint does not say it exists.
 
 | Method   | Path      | Auth           | Description                                                           |
 | -------- | --------- | -------------- | --------------------------------------------------------------------- |
-| `GET`    | `/{mode}` | Anyone         | One mode. Unconfigured returns **200 with `filters: {}`**, never 404.  |
+| `GET`    | `/{mode}` | Anyone         | One mode. Unconfigured returns **200 with `filters: {}`, `weighted: true`**, never 404. |
 | `PUT`    | `/{mode}` | manage.catalog | Full-replacement upsert. Body: `RandomPickerDefaultsPayload`.          |
-| `DELETE` | `/{mode}` | manage.catalog | Delete the row, so the mode opens with no filters. Idempotent.         |
+| `DELETE` | `/{mode}` | manage.catalog | Delete the row, so the mode opens with no filters, weighted. Idempotent. |
 
 **Response model:** `RandomPickerDefaultsResponse` (`RandomPickerDefaultsPayload` + `mode`)
 
 ```json
-{ "mode": "anime", "version": 1, "filters": { "airingType": ["TV", "OVA"], "bahaOnly": true } }
+{ "mode": "anime", "version": 1, "filters": { "airingType": ["TV", "OVA"], "bahaOnly": true }, "weighted": true }
 ```
 
 - `filters` is **sparse**: a filter absent from the map opens empty. Keys are the
   frontend's FilterDef keys (camelCase); a value is the chips switched on, or `true`
   for a toggle.
+- `weighted` says whether the mode draws by the weights in
+  `frontend/src/lib/pickerWeights.js` or evenly. It defaults to `true`, so a
+  row that never saved it reads as weighted.
 - Reads are open because the picker is: every viewer opens on the same defaults.
 - **Validation** is shape and size only: ≤50 keys matching `^[A-Za-z0-9_]{1,64}$`,
   each value a boolean or a list of ≤100 strings of ≤100 characters, serialized

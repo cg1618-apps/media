@@ -5,7 +5,6 @@ import {
   decadeOf,
   entryKey,
   generalFilterDefs,
-  pickRandom,
   resolveDefaultFilters,
   statusGroupOf,
   toEntries,
@@ -98,26 +97,6 @@ describe("one-type mode", () => {
     const gameType = typeFilterDefs("game").find((d) => d.key === "gameType");
     const entries = toEntries("game", [{ game_type: "RPG" }, { game_type: "ACT" }, {}]);
     expect(gameType.deriveOptions(entries)).toEqual(["ACT", "RPG"]);
-  });
-});
-
-describe("pickRandom", () => {
-  const pool = toEntries("anime", [{ system_id: "a" }, { system_id: "b" }, { system_id: "c" }]);
-
-  it("draws by the random source", () => {
-    expect(entryKey(pickRandom(pool, null, () => 0))).toBe("anime:a");
-    expect(entryKey(pickRandom(pool, null, () => 0.99))).toBe("anime:c");
-  });
-
-  it("never repeats the previous pick while there is another", () => {
-    for (const r of [0, 0.5, 0.99]) {
-      expect(entryKey(pickRandom(pool, pool[0], () => r))).not.toBe("anime:a");
-    }
-  });
-
-  it("repeats the only entry, and draws nothing from an empty pool", () => {
-    expect(pickRandom([pool[0]], pool[0])).toBe(pool[0]);
-    expect(pickRandom([])).toBeNull();
   });
 });
 

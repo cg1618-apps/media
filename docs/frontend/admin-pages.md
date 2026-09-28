@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-27
+Last verified: 2026-09-28
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -757,9 +757,10 @@ each mode loads through `usePickerData`, the same hook the picker uses, so the
 panel shows exactly the picker's filters - including the chips of a dynamic
 filter, derived from the current lists - opened on what is saved. The footer
 counts the chips on and how many entries match them now, marks unsaved
-changes, and offers **Save** (`PUT /api/random-picker-defaults/<mode>` with
-only the chips that are on) and **Reset to none** (`DELETE`, after a
-confirm). Saving writes the new defaults into the picker's query cache, so
+changes, and offers a **Weighted** checkbox (whether the mode draws
+weighted, on unless saved off), **Save** (`PUT /api/random-picker-defaults/<mode>`
+with only the chips that are on, and `weighted`) and **Reset to none**
+(`DELETE`, after a confirm, which leaves the mode unfiltered and weighted). Saving writes the new defaults into the picker's query cache, so
 the picker opens on them at once. One mode is edited at a time: leaving a
 mode with unsaved changes asks first, and discards them on yes.
 
