@@ -115,9 +115,10 @@ identity. The Entry, Note and Admin tabs are gated by `has("admin")` from
 **`components/layout/Nav.jsx`** renders two rows: an "ink" row (logo → `/`,
 `<NavSearch/>`, session controls) and a paper tab strip. Mega-panel behaviour:
 click-outside closes, Escape returns focus to the trigger, ArrowUp/Down cycle
-links inside `[data-nav-panel]`, any route change closes the panel and the
-mobile drawer. Session controls: theme toggle (moon/sun, `useTheme().toggle`,
-`aria-pressed`), a session indicator, and a theme toggle. The indicator always renders: the
+links inside `[data-nav-panel]`, any route change closes the panel, the
+mobile drawer and the phone search. Session controls: a session indicator, the
+access-mode switcher, and a theme toggle (moon/sun, `useTheme().toggle`,
+`aria-pressed`). The indicator always renders: the
 account's `username` when signed in, **Guest** when not. It is a value, so it
 keeps the body face and its own casing - the mono uppercase treatment belongs
 to labels. The **Admin** chip beside it is a capability and stays gated on
@@ -127,8 +128,30 @@ to labels. The **Admin** chip beside it is a capability and stays gated on
 load of the page it is on, so nothing cached for the outgoing account
 survives) follows the indicator rather than the chip: it renders for any
 signed-in account, because a strip naming you with no way out is a dead end.
-Guests get **Log in** → `/login?next=<current path>`. The mobile drawer
-repeats all of it, indicator first.
+Guests get **Log in** → `/login?next=<current path>`.
+
+The nav narrows in three steps:
+
+| Width | Ink row | Tab strip | Search |
+| --- | --- | --- | --- |
+| lg and up | everything | shown | inline slot |
+| md to lg | everything, plus the menu button | drawer | inline slot |
+| below md | mark, Log in (guests), search button, menu button; from sm up also the indicator, log out, mode switcher and theme | drawer | search button |
+
+The **drawer** (`[data-nav-drawer]`) fills the screen under the bar, scrolls
+on its own and locks the page scroll behind it. It closes when the viewport
+grows past lg. Each section is one fold: opening the drawer unfolds only the
+section the current route sits in, and the rest collapse to one row each.
+Library's columns render as labelled two-up grids. Rows are taller than in the
+desktop panels so they are easier to tap. Below the sections it repeats the
+session controls, indicator first. On a phone that footer is the only place
+log out, the mode switcher and the theme toggle appear.
+
+The **search button** opens `<NavSearch variant="sheet"/>` as a full-width
+overlay under the bar. It is an overlay rather than a nav row so `--nav-h`
+stays true and sticky page headers do not move. Opening search closes the
+drawer, and opening the drawer closes search. Escape closes it, and so does
+any search that navigates.
 
 **`components/layout/NavSearch.jsx`** is the universal search box. It
 debounces 250 ms, discards stale responses by request id, and calls
@@ -151,7 +174,9 @@ result click routes to the entry's page (`/seasonal/<encoded id>` for seasons,
 `/person/:id`, `/studio/:id` and `/publisher/:id` for entities). Comic display
 names are EN-first; a person, studio or publisher row shows the
 server-resolved `display_name` and its credit count as the secondary line. **Characters are not searchable** — by design,
-there is no character scope.
+there is no character scope. The `sheet` variant (the phone overlay) fills its
+row, focuses itself, and uses a 16px input so iOS does not zoom the page on
+focus. It calls `onDone` after any search that navigates.
 
 **Theme.** `ThemeContext` keeps `light | dark | system` in
 `localStorage["cg1618:theme"]` and stamps `<html data-theme>`; `index.html`
