@@ -80,6 +80,10 @@ function renderNav(route = "/") {
   );
 }
 
+function drawer() {
+  return document.querySelector("[data-nav-drawer]");
+}
+
 function tab(name) {
   return screen.getByRole("button", { name: new RegExp(name, "i") });
 }
@@ -349,5 +353,92 @@ describe("Nav - who the strip says you are", () => {
     expect(screen.getByText("cg1618")).toBeTruthy();
     expect(screen.getAllByTitle("Your role")[0]).toHaveTextContent(/^super$/i);
     expect(screen.getByRole("button", { name: /log out/i })).toBeTruthy();
+  });
+});
+
+describe("Nav - the phone drawer", () => {
+  async function openDrawer(user) {
+    await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
+    return within(drawer());
+  }
+
+  // The drawer used to print every section's every link at once, so Track
+  // and Insights sat several screens below Library on a phone. Both halves
+  // are asserted: the current section open alone would pass for a drawer
+  // that opens everything.
+  it("opens with only the current section unfolded", async () => {
+    const user = userEvent.setup();
+    renderNav("/plan");
+    const d = await openDrawer(user);
+
+    expect(d.getByRole("button", { name: /^track$/i })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(d.getByRole("link", { name: /plan/i })).toBeInTheDocument();
+    expect(d.getByRole("button", { name: /^library$/i })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(d.queryByRole("link", { name: /^manga$/i })).toBeNull();
+  });
+
+  it("unfolds a section on tap and folds it on a second tap", async () => {
+    const user = userEvent.setup();
+    renderNav("/plan");
+    const d = await openDrawer(user);
+
+    await user.click(d.getByRole("button", { name: /^library$/i }));
+    expect(d.getByRole("link", { name: /^manga$/i })).toBeInTheDocument();
+
+    await user.click(d.getByRole("button", { name: /^library$/i }));
+    expect(d.queryByRole("link", { name: /^manga$/i })).toBeNull();
+  });
+
+  it("locks the page behind it and releases it on close", async () => {
+    const user = userEvent.setup();
+    renderNav("/");
+    await openDrawer(user);
+    expect(document.body.style.overflow).toBe("hidden");
+
+    await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
+    expect(drawer()).toBeNull();
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  // The ink row drops log out below sm, so the drawer is the only way out
+  // on a phone and must carry it.
+  it("carries log out for a signed-in account", async () => {
+    auth.username = "bob";
+    const user = userEvent.setup();
+    renderNav("/");
+    const d = await openDrawer(user);
+    expect(d.getByRole("button", { name: /log out/i })).toBeInTheDocument();
+  });
+});
+
+describe("Nav - the phone search", () => {
+  // The inline search slot is md-and-up only, so below md this button is
+  // the only way into the universal search.
+  it("opens a search field from the ink row, focused", async () => {
+    const user = userEvent.setup();
+    renderNav("/");
+    await user.click(screen.getByRole("button", { name: /^search$/i }));
+
+    const fields = screen.getAllByRole("textbox", {
+      name: /search the collection/i,
+    });
+    expect(fields).toHaveLength(2);
+    expect(fields[1]).toHaveFocus();
+  });
+
+  it("closes the drawer when search opens, so the two never stack", async () => {
+    const user = userEvent.setup();
+    renderNav("/");
+    await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
+    expect(drawer()).not.toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /^search$/i }));
+    expect(drawer()).toBeNull();
   });
 });
