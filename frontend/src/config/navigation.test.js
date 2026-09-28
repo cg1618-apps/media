@@ -128,6 +128,21 @@ describe("NAV_SECTIONS", () => {
     expect(itemRequirement({ to: "/statistics" })).toBeNull();
   });
 
+  it("lists Resources in Insights right after Memes, ungated like Quotes", () => {
+    // The page is read by everyone who can open Quotes; only its edit
+    // controls ask for manage.catalog, and they ask inside the page.
+    expect(ownersOf("/resources")).toEqual(["insights"]);
+    const insights = NAV_SECTIONS.find((s) => s.key === "insights");
+    const items = sectionItems(insights);
+    const tos = items.map((i) => i.to);
+    expect(tos.indexOf("/resources")).toBe(tos.indexOf("/meme") + 1);
+    const row = (to) => items.find((i) => i.to === to);
+    expect(itemRequirement(row("/resources"))).toBe(
+      itemRequirement(row("/quote")),
+    );
+    expect(itemRequirement(row("/resources"))).toBeNull();
+  });
+
   it("splits the pipeline pages from the accounts/authz pages", () => {
     // Control Center, Data History, Review Queue and Clean Orphans call only
     // /api/system/* and /api/data-control/*  (manage.pipelines); Users,

@@ -163,6 +163,15 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
                 if src:
                     franchise_cn = src.display_name
 
+        elif entry_type == "Resource":
+            # A group is named by its title; an item by its heading, or by the
+            # start of its body when it has none.
+            body = (
+                getattr(entry, "title", None) or getattr(entry, "content", None) or ""
+            ).strip()
+            name_cn = (body[:80] + "...") if len(body) > 80 else (body or None)
+            category = getattr(entry, "kind", None)
+
         elif entry_type == "Note":
             # A note has no name of its own, so its content stands in for one.
             from app.utils.media_resolver import OWNER_TABLES

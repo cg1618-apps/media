@@ -299,6 +299,10 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # Memes name quotes, so after them.
     SheetTab("Meme", models.Meme, f.parse_meme_from_sheet),
     SheetTab("Note", models.Note, f.parse_note_from_sheet),
+    # The Resources page. Cites nothing outside itself; its only reference is
+    # its own parent_id, which is DEFERRABLE, so a child row may precede its
+    # parent on the tab and still restore.
+    SheetTab("Resources", models.ResourceNode, f.parse_resource_node_from_sheet),
     # After every media tab and after System Options: cites an entry by id and
     # an option by (category, value) rather than by option_id, which is
     # database-local (see pull.py's DERIVED_IDENTITY_KEYS).

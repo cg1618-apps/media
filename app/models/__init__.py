@@ -41,6 +41,7 @@ from app.models.note import Note
 from app.models.novel import Novel, NovelUnit
 from app.models.plan_next import PlanNext
 from app.models.quote import Quote
+from app.models.resource import ResourceNode
 from app.models.staff import (
     Person,
     PersonMembership,
@@ -116,6 +117,7 @@ __all__ = [
     "Quote",
     "Meme",
     "Note",
+    "ResourceNode",
     "SystemOption",
     "SystemOptionAlias",
     "SystemOptionScope",

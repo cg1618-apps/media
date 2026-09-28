@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-27
+Last verified: 2026-09-28
 
 ## What this is for
 
@@ -137,10 +137,11 @@ test.
 | 40 | `Character Casting` | `CharacterCasting` |  |
 | 41 | `Meme` | `Meme` |  |
 | 42 | `Note` | `Note` |  |
-| 43 | `Media Source` | `MediaSource` |  |
-| 44 | `Media Content Label` | `MediaContentLabel` |  |
-| 45 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 46 | `Seasonal` | `Seasonal` |  |
+| 43 | `Resources` | `ResourceNode` |  |
+| 44 | `Media Source` | `MediaSource` |  |
+| 45 | `Media Content Label` | `MediaContentLabel` |  |
+| 46 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 47 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -190,6 +191,18 @@ filed under somebody else. `seasonal`'s
 primary key **is** the `(user_id, seasonal)` pair, so the user is not
 decoration there: without it a Pull updates whichever user's row for that
 season happened to be first.
+
+**`Resources`** is the Resources page (`resource_node`), every column as it
+stands. It cites nothing outside itself, so its position is free; its one
+reference is its own `parent_id`, and that FK is `DEFERRABLE INITIALLY
+DEFERRED`, so a child row may precede its parent on the tab and the tab's one
+commit decides. What a deferred check cannot save is a row that will never be
+valid, and one such row would roll back the whole page - so Pull reads the tab
+once before its row loop (`_unrestorable_resource_rows` in `pull.py`) and
+**skips and reports** in `unresolved_refs` every row that breaks a shape CHECK
+(a group with no title or with content, an item with no content, an unknown
+`kind`), whose parent is neither on the tab nor already here, or whose parent
+is an item - and, transitively, every row under one of those.
 
 Note the tab for the `anime_movies` table is named `Anime Movie` (singular), while `Movies`, `TV Shows` and `Cartoons` are plural. Derived lookups: `TAB_BY_NAME`, `TAB_NAMES`, `TAB_MODELS`, `TAB_PARSERS`, `MEDIA_TYPE_FOR_TAB` (only the twelve entry tabs).
 
