@@ -403,10 +403,15 @@ class RandomPickerDefaultsPayload(BaseModel):
     SPARSE: a filter absent from the map opens empty. The authoritative key
     list is each mode's FilterDefs in frontend/src/lib/randomPicker.js, and
     the frontend drops any key or chip it no longer has on read.
+
+    `weighted` says whether the mode draws by the weights in
+    frontend/src/lib/pickerWeights.js or evenly. It defaults to on, so a row
+    that never saved it opens weighted.
     """
 
     version: int = 1
     filters: Dict[str, Union[bool, List[str]]] = {}
+    weighted: bool = True
 
     @field_validator("filters")
     @classmethod

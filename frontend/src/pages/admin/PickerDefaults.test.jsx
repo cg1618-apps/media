@@ -8,6 +8,7 @@ import { ToastProvider } from "../../hooks/useToast";
 import PickerDefaults from "./PickerDefaults";
 
 let storedDefaults = {};
+let storedWeighted = {};
 
 function respond(url, init) {
   if (url.startsWith("/api/auth/me")) {
@@ -23,7 +24,12 @@ function respond(url, init) {
   if (url.startsWith("/api/random-picker-defaults/")) {
     const mode = url.split("/").pop();
     if (init?.method === "PUT") return { message: "saved", mode };
-    return { mode, version: 1, filters: storedDefaults[mode] ?? {} };
+    return {
+      mode,
+      version: 1,
+      filters: storedDefaults[mode] ?? {},
+      weighted: storedWeighted[mode] ?? true,
+    };
   }
   if (url.startsWith("/api/anime/"))
     return [
@@ -35,6 +41,7 @@ function respond(url, init) {
 
 beforeEach(() => {
   storedDefaults = {};
+  storedWeighted = {};
   vi.stubGlobal(
     "fetch",
     vi.fn((url, init) =>
@@ -86,6 +93,29 @@ it("saves only the chips that are on", async () => {
   await waitFor(() => expect(puts()).toHaveLength(1));
   const [url, init] = puts()[0];
   expect(String(url)).toBe("/api/random-picker-defaults/anime");
-  expect(JSON.parse(init.body)).toEqual({ version: 1, filters: { airingType: ["TV"] } });
+  expect(JSON.parse(init.body)).toEqual({
+    version: 1,
+    filters: { airingType: ["TV"] },
+    weighted: true,
+  });
   await waitFor(() => expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument());
+});
+
+it("saves a mode's weighting, and opens on what was saved", async () => {
+  storedWeighted = { all: true, anime: false };
+  mount();
+  const weighted = await screen.findByRole("checkbox", { name: "Weighted" });
+  expect(weighted).toBeChecked();
+
+  fireEvent.click(weighted);
+  expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(puts()).toHaveLength(1));
+  expect(JSON.parse(puts()[0][1].body)).toEqual({ version: 1, filters: {}, weighted: false });
+
+  // The mode strip's Anime, not the Media Type chip of the same name.
+  fireEvent.click(screen.getAllByRole("button", { name: "Anime" })[0]);
+  await waitFor(() =>
+    expect(screen.getByRole("checkbox", { name: "Weighted" })).not.toBeChecked(),
+  );
 });

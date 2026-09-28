@@ -2399,3 +2399,39 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   Steam-only game whose Steam columns are filled is not re-queued for its
   cover alone. Replace selects every entry with a `steam_appid`, so it
   reaches such a game.
+
+### The random picker draws a status group first, then an entry (2026-09-28)
+
+- **Owner's decision: weighted by default, in two stages.** The weights
+  began as one product per entry - status, rating, plan mark, decade,
+  serialization, multiplied. That makes each in-progress entry likelier than
+  each completed one, but not in-progress picks likelier than completed
+  picks: a group's share of the draw is its weight times its head count, so
+  thirty entries in progress at 1.5 lose to six hundred completed at ~0.75,
+  ten to one. So the status group is drawn first, in fixed proportions among
+  the groups the pool holds, and the other factors choose inside it. The
+  shares then stay put as the library grows.
+- **Rating orders Completed only, below every other group.** The owner's rule
+  was that a completed S must not outrank anything in progress on rating.
+  In two stages that holds by construction, because the rating factor never
+  leaves the group; the other factors still apply within a group, and an old
+  completed entry marked for rewatch can still be the likeliest *completed*
+  pick.
+- **Where the weighting regroups a status.** Temp Dropped is a pause, not a
+  drop. Watch When Airs and Play When Released wait on a release, and a pick
+  that cannot be started yet is no more use than a "might". Won't Watch
+  shares Dropped's weight rather than being excluded, so a pool filtered to
+  it can still be drawn from.
+- **Group plan marks are read, not just entry flags.** Anime rewatches only at
+  franchise scope and cartoon has no entry rewatch at all, so entry flags
+  alone would give those types no rewatch weight. The page reads the viewer's
+  `/api/plan-next/` rows for series and franchise marks. It is one request,
+  shared with the Plan page's cache.
+- **The weights are constants in code, not settings.** An admin editor for
+  them was considered and not built: the tables are small, and the Weights
+  tab renders them straight from `lib/pickerWeights.js`, so the page cannot
+  disagree with the draw. Only the per-mode on/off travels, as `weighted` on
+  the picker defaults row.
+- **Two values were set here, not by the owner.** Novel's `可能更多` and `未出` (1.3 and 0.3) were
+  set by analogy with manga's `連載中` and `腰斬`; anime's airing status is not
+  weighted. Both are the owner's to revise.
