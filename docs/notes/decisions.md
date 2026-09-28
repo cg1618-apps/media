@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-27
+Last verified: 2026-09-28
 
 ## What this is for
 
@@ -2399,3 +2399,25 @@ driven by `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` rather than by the
   Steam-only game whose Steam columns are filled is not re-queued for its
   cover alone. Replace selects every entry with a `steam_appid`, so it
   reaches such a game.
+
+### A Resources item's body is Markdown (2026-09-28)
+
+An item on the Resources page (`/resources`) is one Markdown `content` field
+plus an optional `title`, rendered with `react-markdown` and `remark-gfm`.
+
+- **Chosen over structured fields** (a title, a text and a link per item)
+  **so a link can sit inside a sentence.** The notes this page holds are
+  mostly of the shape "use X for Y, but read Z first", with the links in the
+  prose. A single link column cannot say that, and several link columns
+  would still lose where each link sits in the text.
+- **`remark-gfm`** so a pasted bare URL links itself - the commonest way a
+  resource is written down - and so tables and lists read as expected.
+- **No raw HTML.** There is no `rehype-raw`, so HTML in the source is dropped
+  rather than rendered, and `react-markdown`'s default URL transform is kept,
+  which blanks any link whose protocol is not http(s), mailto, irc(s) or
+  xmpp - a `javascript:` link renders inert. Every link opens in a new tab
+  with `rel="noopener noreferrer"`. Only manage.catalog holders write items,
+  but everyone reads them, so the renderer is what stands between an item
+  and a reader's session.
+- **The cost** is a ~175 kB (54 kB gzip) route chunk, loaded only by
+  `/resources` because the page is lazy.

@@ -291,6 +291,16 @@ export const endpoints = {
     remove: (id) => `/api/meme/${id}`,
   },
 
+  // The site-wide Resources page: a tree of groups and Markdown items. Plural
+  // because `resource` (above) already names the per-media-type CRUD builder.
+  resources: {
+    list: () => "/api/resources",
+    create: () => "/api/resources",
+    patch: (id) => `/api/resources/${id}`,
+    remove: (id) => `/api/resources/${id}`,
+    reorder: () => "/api/resources/reorder",
+  },
+
   // Game CRUD comes from resource("game"); this group holds the one endpoint
   // that is not CRUD — the admin's IGDB picker, which answers with IGDB's raw
   // game objects (id, name, first_release_date, cover.url, url).

@@ -59,6 +59,7 @@ const Completions = lazy(() => import("./pages/public/Completions"));
 const RandomPicker = lazy(() => import("./pages/public/RandomPicker"));
 const Quotes = lazy(() => import("./pages/public/Quotes"));
 const Memes = lazy(() => import("./pages/public/Memes"));
+const Resources = lazy(() => import("./pages/public/Resources"));
 const Settings = lazy(() => import("./pages/public/Settings"));
 const Profile = lazy(() => import("./pages/public/Profile"));
 const Admin = lazy(() => import("./pages/admin/Admin"));
@@ -207,6 +208,9 @@ export default function App() {
                 <Route path="/completions" element={<Completions />} />
                 <Route path="/quote" element={<Quotes />} />
                 <Route path="/meme" element={<Memes />} />
+                {/* Readable by everyone who can open /quote; the edit controls
+                    inside ask for manage.catalog themselves. */}
+                <Route path="/resources" element={<Resources />} />
                 {/* Public: the server answers 404 for a list the caller may
                     not read, so no ProtectedRoute belongs here. */}
                 <Route path="/user/:username" element={<Profile />} />

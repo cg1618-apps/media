@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-27
+Last verified: 2026-09-28
 
 ## What this is for
 
@@ -194,7 +194,7 @@ short-circuit deliberately does not cover.
 | rate a season | — | yes | yes | **never** |
 | change their own account settings | — | yes | yes | **never** |
 | write a personal note — a review or a remark | — | yes | yes | **never** |
-| write the catalogue — entries, groups, people, credits, options, relations, watch orders, quotes, memes, catalogue notes | **409 if granted** | grantable | **always** | implicit |
+| write the catalogue — entries, groups, people, credits, options, relations, watch orders, quotes, memes, catalogue notes, the Resources page | **409 if granted** | grantable | **always** | implicit |
 | run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | **409 if granted** | **always** | implicit |
 | restore accounts, content labels and label assignments on a Pull | — | — | **no** — those four tabs are skipped | implicit |
 | create roles and change what they hold | **409 if granted** | — | — | implicit |
@@ -294,7 +294,7 @@ handed the catalogue, or vice versa:
 | Name | Meaning | Source of keys |
 |---|---|---|
 | `admin.authz` | may **change who may do what** — roles, accounts, and the content-label **vocabulary** (minting, renaming, deleting a label) | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
-| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, catalogue notes, and **which labels an entry or franchise carries** | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, catalogue notes, the Resources page, and **which labels an entry or franchise carries** | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
 | `field_group.<key>` | may see the fields in one `FIELD_GROUPS` entry | `app/services/rbac/field_groups.py` |
@@ -858,6 +858,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | quotes (list, grouped, by id) | `routers/quote.py` (`drop_hidden_rows`) |
 | memes (list, grouped, by id) | `routers/meme.py` — a meme on a hidden entry, franchise or series is dropped; writes use `require_visible_owner` |
 | plan-next rows | `routers/plan_next.py` |
+| the Resources page | `routers/resources.py` — nothing to filter: a node names no entry, franchise or label, so every viewer reads the whole tree (the Quote list's gate, `get_viewer`) and every write is `require_manage_catalog` |
 | relations `for-entry`, `scope`, `graph` | `routers/media_relation.py` — hidden anchor → 404; an edge naming a hidden entry is dropped whole; graph is viewer-filtered |
 | attaching an image to a media entry or an entity | `routers/images.py` → 404 "Entry not found." An entity owner is asked through `shared_record_visible`; quote/meme owners carry no label and are not checked |
 | serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404. The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible`; its folder is read from the path, which is safe because the folder names the file |
@@ -1438,6 +1439,7 @@ matters is enforced server-side.
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |
+| `tests/api/test_resources.py` | the Resources page: a guest and a `user` read it and are refused every write (401) against a populated tree, and the same writes succeed for `super` (by grant) and `admin` (root) |
 | `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` still answers |
 | `tests/api/test_viewer_user_id.py` | `Viewer.user_id`, and that `acting_user_id` does **not** fall back |
 | `tests/api/test_note_scope_reads.py`, `test_note_scope_writes.py` | personal note sections filter by author; catalogue sections do not; who may write which |
