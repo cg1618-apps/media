@@ -7,6 +7,12 @@
 //
 // Every link comes from `config/navigation.js`; the desktop strip and the
 // mobile drawer render the same tree, so there is one place to edit.
+//
+// Below lg the tab strip gives way to a drawer, and below sm the ink row keeps
+// only the mark, a search button and the menu button - everything else
+// (access mode, theme, back up, log out) moves into the drawer's footer, where
+// a phone has the width to show it. A phone has no room for the search slot
+// either, so the search button opens it as a full-width row under the bar.
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import ModeSwitcher from "./ModeSwitcher";
@@ -28,8 +34,9 @@ function itemHref(item) {
   return item.dev ? "/under-development" : item.to;
 }
 
-// One row inside an open panel. Text only - the label is the link.
-function PanelLink({ item, current, onNavigate }) {
+// One row inside an open panel. Text only - the label is the link. `roomy`
+// is the drawer's size: a finger needs a taller row than a pointer does.
+function PanelLink({ item, current, onNavigate, roomy = false }) {
   if (item.divider) {
     return <div className="border-t border-border my-1.5" role="separator" />;
   }
@@ -39,7 +46,7 @@ function PanelLink({ item, current, onNavigate }) {
       onClick={onNavigate}
       aria-current={current ? "page" : undefined}
       title={item.dev ? "Under development" : undefined}
-      className={`flex items-center px-2.5 py-1.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+      className={`flex items-center px-2.5 ${roomy ? "py-2.5" : "py-1.5"} text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
         item.dev
           ? "text-text-faint hover:bg-surface-2"
           : current
@@ -97,7 +104,45 @@ const INK_ICON_BTN =
 
 // Text row in the mobile drawer.
 const DRAWER_ROW =
-  "flex w-full items-center px-2.5 py-2 text-sm text-text hover:bg-surface-2 transition";
+  "flex w-full items-center px-2.5 py-2.5 text-sm text-text hover:bg-surface-2 transition";
+
+// The drawer's body for one section. Library's columns become labelled
+// two-up grids, so its links take half the rows a single list would.
+function DrawerSection({ section, currentItem, onNavigate }) {
+  if (section.columns) {
+    return section.columns.map((col) => (
+      <div key={col.heading} className="pb-1">
+        <div className="px-2.5 pt-2 pb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-faint">
+          {col.heading}
+        </div>
+        <div className="grid grid-cols-2 gap-x-2">
+          {col.items.map((item) => (
+            <PanelLink
+              key={item.label}
+              item={item}
+              current={item === currentItem}
+              onNavigate={onNavigate}
+              roomy
+            />
+          ))}
+        </div>
+      </div>
+    ));
+  }
+  return (
+    <div className="space-y-0.5">
+      {section.items.map((item, i) => (
+        <PanelLink
+          key={item.label ?? `divider-${i}`}
+          item={item}
+          current={item === currentItem}
+          onNavigate={onNavigate}
+          roomy
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function Nav() {
   const { theme, toggle: toggleTheme } = useTheme();
@@ -106,6 +151,11 @@ export default function Nav() {
   const { showToast } = useToast();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  // Which drawer sections are unfolded. Opening the drawer resets it to the
+  // section the reader is in, so the links they most likely want are the
+  // ones already showing and the rest fold down to one row each.
+  const [expanded, setExpanded] = useState(() => new Set());
   const [openKey, setOpenKey] = useState(null);
   const [backingUp, setBackingUp] = useState(false);
   const stripRef = useRef(null);
@@ -121,7 +171,47 @@ export default function Nav() {
   useEffect(() => {
     setOpenKey(null);
     setMobileOpen(false);
+    setSearchOpen(false);
   }, [location.pathname, location.search]);
+
+  // The drawer covers the page, so the page must not scroll behind it: on a
+  // phone a swipe that reaches the end of the drawer would otherwise carry on
+  // into the page underneath. Growing past lg hides the drawer, so it closes
+  // then too rather than leaving the page locked behind something unseen.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const wide = window.matchMedia?.("(min-width: 64rem)");
+    const onWide = (e) => e.matches && setMobileOpen(false);
+    wide?.addEventListener?.("change", onWide);
+    return () => {
+      document.body.style.overflow = previous;
+      wide?.removeEventListener?.("change", onWide);
+    };
+  }, [mobileOpen]);
+
+  function toggleDrawer() {
+    if (!mobileOpen) {
+      setExpanded(new Set(currentSection ? [currentSection] : []));
+      setSearchOpen(false);
+    }
+    setMobileOpen((o) => !o);
+  }
+
+  function toggleSearch() {
+    if (!searchOpen) setMobileOpen(false);
+    setSearchOpen((o) => !o);
+  }
+
+  function toggleSection(key) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   // Clicking away from the strip closes the open panel.
   useEffect(() => {
@@ -259,7 +349,7 @@ export default function Nav() {
                   onClick={handleLogout}
                   title="Log out"
                   aria-label="Log out"
-                  className={`${INK_ICON_BTN} hover:text-danger`}
+                  className={`hidden sm:inline-block ${INK_ICON_BTN} hover:text-danger`}
                 >
                   <i className="fas fa-sign-out-alt text-sm"></i>
                 </button>
@@ -276,7 +366,9 @@ export default function Nav() {
                   access mode, and reads no permission - every signed-in
                   account holds one, and gating it would hide it from the
                   `user` role that most needs to narrow itself. */}
-              <ModeSwitcher />
+              <div className="hidden sm:block">
+                <ModeSwitcher />
+              </div>
 
               <button
                 type="button"
@@ -284,17 +376,27 @@ export default function Nav() {
                 title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                 aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                 aria-pressed={theme === "dark"}
-                className={INK_ICON_BTN}
+                className={`hidden sm:inline-block ${INK_ICON_BTN}`}
               >
                 <i className={`fas ${theme === "dark" ? "fa-sun" : "fa-moon"} text-sm`}></i>
               </button>
 
               <button
                 type="button"
-                onClick={() => setMobileOpen((o) => !o)}
+                onClick={toggleSearch}
+                aria-expanded={searchOpen}
+                aria-label="Search"
+                className={`md:hidden px-3 py-2.5 ${INK_ICON_BTN}`}
+              >
+                <i className={`fas ${searchOpen ? "fa-xmark" : "fa-search"}`}></i>
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleDrawer}
                 aria-expanded={mobileOpen}
                 aria-label="Toggle navigation"
-                className={`lg:hidden ${INK_ICON_BTN}`}
+                className={`lg:hidden px-3 py-2.5 ${INK_ICON_BTN}`}
               >
                 <i className={`fas ${mobileOpen ? "fa-xmark" : "fa-bars"}`}></i>
               </button>
@@ -302,6 +404,18 @@ export default function Nav() {
           </div>
         </div>
       </div>
+
+      {/* Phone search - an overlay under the bar rather than a row of it, so
+          the nav keeps its --nav-h height and sticky page headers do not
+          jump when it opens. */}
+      {searchOpen && (
+        <div
+          className="md:hidden absolute inset-x-0 top-full bg-ink px-4 pb-3 pt-1 shadow-lg"
+          onKeyDown={(e) => e.key === "Escape" && setSearchOpen(false)}
+        >
+          <NavSearch variant="sheet" onDone={() => setSearchOpen(false)} />
+        </div>
+      )}
 
       {/* Row 2 — the index tabs. The active tab drops its bottom edge and
           merges into the page canvas below. */}
@@ -359,47 +473,49 @@ export default function Nav() {
         </div>
       </div>
 
-      {/* Mobile drawer — same tree, stacked */}
+      {/* Mobile drawer — same tree, one fold per section. It fills the
+          screen under the bar and scrolls on its own, so every section is
+          reachable however long the tree is. */}
       {mobileOpen && (
-        <div className="lg:hidden bg-surface border-b border-border shadow-lg max-h-[80vh] overflow-y-auto">
-          <div className="px-4 py-3 space-y-4">
-            {sections.map((section) => (
-              <div key={section.key}>
-                <div className="px-2.5 pb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted">
-                  {section.label}
-                </div>
-                {section.columns ? (
-                  section.columns.map((col) => (
-                    <div key={col.heading} className="pl-2">
-                      <div className="px-2.5 pt-1.5 pb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-faint">
-                        {col.heading}
-                      </div>
-                      {col.items.map((item) => (
-                        <PanelLink
-                          key={item.label}
-                          item={item}
-                          current={item === currentItem}
-                          onNavigate={() => setMobileOpen(false)}
-                        />
-                      ))}
-                    </div>
-                  ))
-                ) : (
-                  <div className="space-y-0.5">
-                    {section.items.map((item, i) => (
-                      <PanelLink
-                        key={item.label ?? `divider-${i}`}
-                        item={item}
-                        current={item === currentItem}
+        <div
+          data-nav-drawer
+          className="lg:hidden fixed inset-x-0 top-14 bottom-0 bg-surface border-t border-border overflow-y-auto overscroll-contain"
+        >
+          <div className="px-4 pt-1 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {sections.map((section) => {
+              const isOpen = expanded.has(section.key);
+              const isCurrent = section.key === currentSection;
+              return (
+                <div key={section.key} className="border-b border-border">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.key)}
+                    aria-expanded={isOpen}
+                    className={`flex w-full items-center justify-between px-2.5 py-3 font-mono text-[11px] uppercase tracking-[0.12em] transition ${
+                      isCurrent ? "text-brand" : "text-text-muted hover:text-text"
+                    }`}
+                  >
+                    {section.label}
+                    <i
+                      className={`fas fa-chevron-down text-[10px] transition-transform ${
+                        isOpen ? "rotate-180" : ""
+                      }`}
+                    ></i>
+                  </button>
+                  {isOpen && (
+                    <div className="pb-2">
+                      <DrawerSection
+                        section={section}
+                        currentItem={currentItem}
                         onNavigate={() => setMobileOpen(false)}
                       />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
-            <div className="border-t border-border pt-3">
+            <div className="pt-3">
               {/* The same three states as the desktop strip, and the theme
                   toggle sits outside them: reading the site in the dark is
                   not an administrative act. */}
@@ -415,6 +531,10 @@ export default function Nav() {
                     {role}
                   </span>
                 )}
+              </div>
+
+              <div className="px-2.5 pb-2">
+                <ModeSwitcher id="access-mode-drawer" />
               </div>
 
               <button type="button" onClick={toggleTheme} className={DRAWER_ROW}>

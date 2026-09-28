@@ -26,7 +26,9 @@ function ScrollButtons() {
     "w-9 h-9 bg-surface border border-border-strong text-text-muted flex items-center justify-center hover:border-text hover:text-text transition";
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-1">
+    // Under the nav (z-50), so the phone drawer covers these rather than
+    // wearing them.
+    <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-1">
       {showTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}

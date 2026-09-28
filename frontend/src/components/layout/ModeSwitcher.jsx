@@ -28,7 +28,9 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { hardNavigate } from "../../lib/hardNavigate";
 
-export default function ModeSwitcher() {
+// `id` ties the hidden label to its select; the nav mounts one copy in the ink
+// row and another in the phone drawer, and two elements cannot share an id.
+export default function ModeSwitcher({ id = "access-mode" }) {
   const { mode, modes } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
@@ -77,12 +79,12 @@ export default function ModeSwitcher() {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <label className="sr-only" htmlFor="access-mode">
+    <div className="flex flex-wrap items-center gap-2">
+      <label className="sr-only" htmlFor={id}>
         Access mode
       </label>
       <select
-        id="access-mode"
+        id={id}
         value={mode?.id ?? ""}
         disabled={busy}
         onChange={(e) => choose(e.target.value)}

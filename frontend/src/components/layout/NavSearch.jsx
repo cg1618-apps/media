@@ -141,7 +141,13 @@ function mergeBuckets(buckets, quotas) {
   return out;
 }
 
-export default function NavSearch() {
+// Two placements share this one component. `inline` (the default) is the slot
+// in the ink row from md up. `sheet` is the full-width row a phone opens from
+// the search button: it focuses itself, uses a 16px input so iOS does not zoom
+// the page on focus, and calls `onDone` once a search has taken the reader
+// somewhere, so the row can close behind them.
+export default function NavSearch({ variant = "inline", onDone }) {
+  const sheet = variant === "sheet";
   const navigate = useNavigate();
   const scopes = visibleByType(useAuth(), SCOPES);
   const [searchQuery, setSearchQuery] = useState("");
@@ -271,6 +277,7 @@ export default function NavSearch() {
       setSearchQuery("");
       setSearchResults([]);
       setShowResults(false);
+      onDone?.();
       const params = new URLSearchParams({ q });
       if (searchScope !== "all") params.set("scope", searchScope);
       navigate(`/search?${params.toString()}`);
@@ -283,6 +290,7 @@ export default function NavSearch() {
     // Seasonal is not an entity: it routes by the season string itself.
     if (item.type === "seasonal") {
       navigate(`/seasonal/${encodeURIComponent(item.seasonal)}`);
+      onDone?.();
       return;
     }
     // Every other bucket key is already the route segment; anything unexpected
@@ -290,6 +298,7 @@ export default function NavSearch() {
     const type = DETAIL_TYPES.has(item.type) ? item.type : "anime";
     const path = entityPath(type, item);
     if (path) navigate(path);
+    onDone?.();
   }
 
   const scopeLabel = scopes.find((s) => s.key === searchScope)?.label;
@@ -299,7 +308,9 @@ export default function NavSearch() {
     // paper once focused.
     <div
       ref={searchRef}
-      className="group relative hidden md:flex items-center w-56 lg:w-80 xl:w-96 bg-ink-text/[0.06] ring-1 ring-inset ring-ink-text/15 focus-within:bg-surface focus-within:ring-2 focus-within:ring-brand transition"
+      className={`group relative items-center ${
+        sheet ? "flex w-full" : "hidden md:flex w-56 lg:w-80 xl:w-96"
+      } bg-ink-text/[0.06] ring-1 ring-inset ring-ink-text/15 focus-within:bg-surface focus-within:ring-2 focus-within:ring-brand transition`}
     >
       {/* Scope selector */}
       <div className="relative shrink-0">
@@ -354,13 +365,16 @@ export default function NavSearch() {
         onChange={(e) => setSearchQuery(e.target.value)}
         onKeyDown={handleSearchKey}
         onFocus={() => searchResults.length > 0 && setShowResults(true)}
-        className="flex-1 min-w-0 bg-transparent pr-3 py-1.5 text-sm text-ink-text placeholder:text-ink-text/50 focus:outline-none focus:text-text focus:placeholder:text-text-faint"
+        autoFocus={sheet}
+        className={`flex-1 min-w-0 bg-transparent pr-3 ${
+          sheet ? "py-2 text-base" : "py-1.5 text-sm"
+        } text-ink-text placeholder:text-ink-text/50 focus:outline-none focus:text-text focus:placeholder:text-text-faint`}
         autoComplete="off"
       />
 
       {/* Results */}
       {showResults && searchResults.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border shadow-xl overflow-hidden max-h-[80vh] overflow-y-auto z-50">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border shadow-xl overflow-hidden max-h-[70dvh] overflow-y-auto overscroll-contain z-50">
           {searchResults.map((item, i) => {
             const secondary =
               item.type === "franchise"
