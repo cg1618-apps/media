@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-28
+Last verified: 2026-09-29
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -615,7 +615,9 @@ holds — a franchise, a series or an entry; see
   same way over `/api/character/` (query key `["characters-admin"]`): a
   search box over all four names opens a dropdown of matches, and the pick
   loads `CharacterFields` with the same **Photo fallback** select over
-  `GET /api/character/{id}/entries`. Save is `PUT /api/character/{id}`.
+  `GET /api/character/{id}/entries`; for a character the chosen entry lends
+  its casting photo first and its cover only when the casting has none, and
+  the hint says so. Save is `PUT /api/character/{id}`.
 
 ## /delete (`Delete.jsx`)
 
