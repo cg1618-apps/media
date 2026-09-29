@@ -60,7 +60,7 @@ SERIALIZATION_CATEGORY = "Serialization Platform"
 # The one Platform value code branches on: Check derives a Bahamut row's
 # `available` from its url the way it used to derive source_baha from
 # baha_link. Every other platform is pure vocabulary.
-BAHAMUT_VALUE = "Bahamut"
+BAHAMUT_VALUE = "動畫瘋"
 
 # Reference Source values a pipeline writes rows for: the two links Tenrai
 # returns, AniList's own page, and SteamDB - which is alone in being derived

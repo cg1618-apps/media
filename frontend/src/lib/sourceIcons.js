@@ -38,7 +38,7 @@ const ICON_SLUGS = Object.freeze({
   "Prime Video": "prime-video",
   "Apple TV+": "apple-tv",
   Crunchyroll: "crunchyroll",
-  Bahamut: "bahamut",
+  動畫瘋: "bahamut",
   Bilibili: "bilibili",
   DLsite: "dlsite",
   "DLsite TW": "dlsite",

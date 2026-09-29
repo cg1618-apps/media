@@ -1328,7 +1328,7 @@ export default function SeriesPage() {
                 }
                 className="rounded"
               />
-              Baha only
+              動畫瘋 only
             </label>
           </div>
 
