@@ -665,7 +665,7 @@ admin-only, matching watch orders. Replaces the per-entry `prequel_id` /
 
 | Method   | Path                                     | Auth   | Description                                                                                                               |
 | -------- | ---------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/kinds`                                 | Public | The relation vocabulary: `key`, `label`, `inverse_label`, `family` (`timeline`, `equivalence`, `branch`, `derivation`), `symmetric`, `stored_as`. Eleven entries — the ten stored kinds (`sequel`, `alternative`, `corresponding`, `renew`, `directors_cut`, `extended`, `side_story`, `spin_off`, `setting`, `adaptation`) plus `prequel`, which is stored as a swapped `sequel`. |
+| `GET`    | `/kinds`                                 | Public | The relation vocabulary: `key`, `label`, `inverse_label`, `family` (`timeline`, `equivalence`, `branch`, `derivation`), `symmetric`, `stored_as`. Fifteen entries — the fourteen stored kinds (`sequel`, `alternative`, `corresponding`, `renew`, `directors_cut`, `extended`, `remake`, `remaster`, `side_story`, `spin_off`, `setting`, `dlc`, `related`, `adaptation`) plus `prequel`, which is stored as a swapped `sequel`. |
 | `GET`    | `/for-entry?media_type=&entry_id=`       | Public | Every relation touching one entry, from **both** endpoints, each resolved to the far entry's display data and labelled for the side being viewed. |
 | `GET`    | `/?franchise_id=` or `?collection_id=`   | Public | Every relation with at least one endpoint among a scope's entries. Backs the admin page's count badges in one request. Exactly one scope param, else 400. |
 | `GET`    | `/graph?franchise_id=`, `?collection_id=` or `?series_id=` | Public | Everything the `/relations` canvas draws for one scope, in one request: `{nodes, edges}`. Exactly one scope param, else 400. A series scope resolves against `series_id` directly (an anime movie has no `series_id`, so it can only appear as a ghost). **Viewer-filtered**: nodes and edges touching an entry the viewer may not see are dropped. |
@@ -685,9 +685,9 @@ admin-only, matching watch orders. Replaces the per-entry `prequel_id` /
 }
 ```
 
-`kind` accepts any of the eleven user-facing keys. `prequel` is stored as a
-`sequel` row with the endpoints swapped; a symmetric `alternative` has its two
-`(type, id)` pairs sorted. Both rewrites exist so one fact is one row.
+`kind` accepts any of the fifteen user-facing keys. `prequel` is stored as a
+`sequel` row with the endpoints swapped; a symmetric kind (`alternative`,
+`corresponding`, `related`) has its two `(type, id)` pairs sorted. Both rewrites exist so one fact is one row.
 
 **Errors**
 

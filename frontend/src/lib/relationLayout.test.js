@@ -5,6 +5,7 @@
 // canvas.
 import {
   GRID,
+  kindRank,
   layoutGraph,
   mergePositions,
   NODE_HEIGHT,
@@ -700,5 +701,34 @@ describe("mergePositions", () => {
       positioned,
     );
     expect(merged[0].position).toEqual({ x: 60, y: 700 });
+  });
+});
+
+describe("kindRank", () => {
+  // Mirrors the key order of RELATION_KINDS in app/utils/relation_kinds.py.
+  // A stored kind missing here would silently sort last in every fan.
+  const STORED = [
+    "sequel",
+    "alternative",
+    "corresponding",
+    "renew",
+    "directors_cut",
+    "extended",
+    "remake",
+    "remaster",
+    "side_story",
+    "spin_off",
+    "setting",
+    "dlc",
+    "related",
+    "adaptation",
+  ];
+
+  it("ranks every stored kind in the registry's order", () => {
+    expect(STORED.map(kindRank)).toEqual(STORED.map((_, i) => i));
+  });
+
+  it("sorts an unknown kind after every known one", () => {
+    expect(kindRank("not_a_kind")).toBe(STORED.length);
   });
 });

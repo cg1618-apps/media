@@ -205,7 +205,7 @@ the JP/KR-vs-TW pairing with `vol_total_tw` ("Total Volumes (TW)") explicit.
 ### Relation kinds (`app/utils/relation_kinds.py`)
 
 The vocabulary of `media_relation.relation_type`, served at
-`GET /api/media-relation/kinds`. Twelve stored kinds; `prequel` is accepted on
+`GET /api/media-relation/kinds`. Fourteen stored kinds; `prequel` is accepted on
 write (`INPUT_ONLY_KINDS = {"prequel": "sequel"}`) and stored as a `sequel`
 row with the endpoints swapped. How chains and inverses are read is in
 [business-rules.md section 13](business-rules.md#13-media-relations-media_relationpy-apputilsrelation_kindspy)
@@ -217,6 +217,11 @@ and [systems/relations.md](systems/relations.md).
 remaster reissues it) and share `renew`'s inverse label, `Original`. Neither
 is media-type-scoped - relation kinds never are - so both are offered on
 every type.
+
+`dlc` points a DLC at its base game (inverse label `Base Game`). `related` is
+the loose link for two works that are connected when no other kind says how:
+symmetric, because neither end is the origin, and not transitive, because it
+claims no sameness.
 
 | Key | Label | Inverse label | Family | Symmetric | Transitive |
 |---|---|---|---|:-:|:-:|
@@ -231,6 +236,8 @@ every type.
 | `side_story` | Side Story | Parent Story | `branch` | | |
 | `spin_off` | Spin-off | Main Story | `branch` | | |
 | `setting` | Setting | Main Story | `branch` | | |
+| `dlc` | DLC | Base Game | `branch` | | |
+| `related` | Related | Related | `branch` | yes | |
 | `adaptation` | Adaptation | Source | `derivation` | | |
 
 ### Note sections (`app/utils/note_sections.py`)

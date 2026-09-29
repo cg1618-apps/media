@@ -865,6 +865,8 @@ Relations are rows in `media_relation` — `from (type, id) —kind→ to (type,
 | `side_story`    | Side Story        | Parent Story            | branch      |           |            |
 | `spin_off`      | Spin-off          | Main Story              | branch      |           |            |
 | `setting`       | Setting           | Main Story              | branch      |           |            |
+| `dlc`           | DLC               | Base Game               | branch      |           |            |
+| `related`       | Related           | Related                 | branch      | yes       |            |
 | `adaptation`    | Adaptation        | Source                  | derivation  |           |            |
 
 ### Normalisation on write (`normalize_relation`)

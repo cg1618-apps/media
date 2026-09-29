@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-28
+Last verified: 2026-09-29
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1576,7 +1576,7 @@ label ("Prequel") is derived at read time, never stored.
 | `system_id` | UUID | no | uuid4 | PK |
 | `from_type` | String | no | | MEDIA_TYPE_KEYS |
 | `from_id` | UUID | no | | FK-less |
-| `relation_type` | String | no | | One of the **10 stored** RELATION_KEYS (the dropdown offers 11: `prequel` is accepted and normalised to a swapped `sequel`) |
+| `relation_type` | String | no | | One of the **14 stored** RELATION_KEYS (the dropdown offers 15: `prequel` is accepted and normalised to a swapped `sequel`) |
 | `to_type` | String | no | | |
 | `to_id` | UUID | no | | FK-less |
 | `remark` | Text | yes | | e.g. "covers ep 1-12 only" |
@@ -2236,7 +2236,7 @@ models - use this file instead:
 | `created_at` / `updated_at` are NOT NULL | Nullable on every model; only a Python default. |
 | An "at least one name" CHECK exists on entries | No such constraint; every name column is nullable. |
 | `manga` has no `series_id` | It does. Only `anime_movies` lacks one. |
-| Relation kinds: 11 | 10 stored kinds, 11 dropdown labels (`prequel` → swapped `sequel`). |
+| Relation kinds: 11 | 14 stored kinds, 15 dropdown labels (`prequel` → swapped `sequel`). |
 | `plan_next.kind` has no default | `server_default="next"`, and it is load-bearing for Pull. |
 | `role` / `content_label` have no timestamps | Both have `created_at` / `updated_at`. |
 | `cartoon.airing_type` values TV / Movie / Other | `CARTOON_AIRING_TYPES` = TV, Movie, OVA, Special. |
