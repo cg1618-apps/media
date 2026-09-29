@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-27
+Last verified: 2026-09-29
 
 ## What this is for
 
@@ -280,6 +280,7 @@ out. What the three gated types keep is in
 | `remark` | text | 備註 Remark | All | | singleton |
 | `remark_list` | text_links | 備註列表 Remark List | All | | Personal scope, many rows - 備註 is the singleton block |
 | `reviews_and_comments` | text | 評論 Reviews and Comments | h-comic, hentai, h-game | flat; **reviews** for h-game | personal scope; in place of 大眾評價 and 我的評價 |
+| `introduction` | text_links | 介紹 Introduction | All but h-comic, hentai | reviews | First in the 評論 card; shaped and scoped like 解析 |
 | `advantages` | text | 優點 Advantages | All but h-comic, hentai | reviews | |
 | `disadvantages` | text | 缺點 Disadvantages | All but h-comic, hentai | reviews | |
 | `double_edged` | text | 優缺點 | All but h-comic, hentai | reviews | |
@@ -303,12 +304,12 @@ out. What the three gated types keep is in
 | `guide_notes` | text | 攻略筆記 Guide Notes | game, h-game | guides | no links |
 | `trivia` | text_links | 小知識 Trivia | game | guides | |
 | `stats_and_points` | structured | 屬性&配點 Stats & Points | game, h-game | builds | name, min/rec/soft-cap, my value (quick-edit), description |
-| `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links |
+| `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links; groupable by type |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game, h-game | builds | name, five nested lists, description, links |
 | `team_composition` | structured | 隊伍組成 Team Composition | game, h-game | builds | name, members list (name, 定位, build, notes), description, links |
-| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`) |
-| `items` | structured | 道具 Items | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`) |
-| `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`) |
+| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
+| `items` | structured | 道具 Items | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
+| `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
 | `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group, name, alias, description |
 | `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`) |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
