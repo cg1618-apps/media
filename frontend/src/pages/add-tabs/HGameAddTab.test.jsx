@@ -142,3 +142,16 @@ describe("HGameAddTab - auto-fill from an existing entry", () => {
     expect(onPick).toHaveBeenCalledWith(entries[0]);
   });
 });
+
+describe("HGameAddTab is_main", () => {
+  it("offers the game-only Main / Remake / Remaster, starting on Main", async () => {
+    const user = userEvent.setup();
+    renderTab();
+    const select = screen.getByRole("combobox", { name: "Main / Remake" });
+    expect(select).toHaveValue("Main");
+    const values = [...select.options].map((o) => o.value);
+    expect(values).toEqual(["", "Main", "Remake", "Remaster"]);
+    await user.selectOptions(select, "Remaster");
+    expect(latest.is_main).toBe("Remaster");
+  });
+});

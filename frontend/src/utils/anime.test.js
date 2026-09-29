@@ -189,7 +189,7 @@ describe("isBaha", () => {
     expect(
       isBaha({
         sources: [
-          { kind: "access", bucket: "main", name: "Bahamut", available: true },
+          { kind: "access", bucket: "main", name: "動畫瘋", available: true },
         ],
       }),
     ).toBe(true);
@@ -199,7 +199,7 @@ describe("isBaha", () => {
     expect(
       isBaha({
         sources: [
-          { kind: "access", bucket: "main", name: "Bahamut", available: false },
+          { kind: "access", bucket: "main", name: "動畫瘋", available: false },
         ],
       }),
     ).toBe(false);

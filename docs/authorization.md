@@ -704,7 +704,7 @@ A connection is one of three kinds:
   writes a matching role row, so counting ordinary scopes would keep visible
   every person whose only credits are hidden. **For a vocabulary value it is
   one, and always visible** (`Scope(..., ordinary=True)`): an option scoped
-  to anime was offered on anime by an admin, so Bahamut, Crunchyroll or
+  to anime was offered on anime by an admin, so 動畫瘋, Crunchyroll or
   Official site — scoped to anime and to hentai or h-comic — stay in the
   anime Main and Reference Sources pickers of a session that cannot see the
   gated type, used or not. An option scoped to gated types alone is still

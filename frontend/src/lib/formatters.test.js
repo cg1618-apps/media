@@ -203,7 +203,7 @@ describe("getSourceValues — usage", () => {
     options: [
       { category: "Platform", value: "Netflix", scopes: [], usages: [] },
       { category: "Platform", value: "Fox", scopes: [], usages: ["origin"] },
-      { category: "Platform", value: "Bahamut", scopes: ["anime"], usages: [] },
+      { category: "Platform", value: "動畫瘋", scopes: ["anime"], usages: [] },
       { category: "Platform", value: "Crunchyroll", scopes: ["manga"] },
     ],
   };
@@ -359,7 +359,7 @@ describe("getBahaRow", () => {
   it("falls back to the name when the caller has no option id", () => {
     const entry = {
       sources: [
-        { kind: "access", bucket: "main", option_id: ID, name: "Bahamut" },
+        { kind: "access", bucket: "main", option_id: ID, name: "動畫瘋" },
       ],
     };
     expect(getBahaRow(entry)).toBeTruthy();
@@ -368,16 +368,16 @@ describe("getBahaRow", () => {
   it("falls back to the name for a row whose option was deleted", () => {
     const entry = {
       sources: [
-        { kind: "access", bucket: "main", option_id: null, name: "Bahamut" },
+        { kind: "access", bucket: "main", option_id: null, name: "動畫瘋" },
       ],
     };
     expect(getBahaRow(entry, ID)).toBeTruthy();
   });
 
-  it("ignores a free-form row that happens to be typed 'Bahamut'", () => {
+  it("ignores a free-form row that happens to be typed '動畫瘋'", () => {
     const entry = {
       sources: [
-        { kind: "access", bucket: "other", name: "Bahamut", available: true },
+        { kind: "access", bucket: "other", name: "動畫瘋", available: true },
       ],
     };
     expect(getBahaRow(entry)).toBeUndefined();
@@ -385,7 +385,7 @@ describe("getBahaRow", () => {
 
   it("ignores a reference row", () => {
     const entry = {
-      sources: [{ kind: "reference", bucket: "main", name: "Bahamut" }],
+      sources: [{ kind: "reference", bucket: "main", name: "動畫瘋" }],
     };
     expect(getBahaRow(entry)).toBeUndefined();
   });

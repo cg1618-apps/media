@@ -21,6 +21,7 @@ GUIDE_CARDS = {
     # How to build, in the order the decisions are made.
     "builds": [
         "stats_and_points",
+        "classes",
         "skills",
         "builds_and_styles",
         "team_composition",

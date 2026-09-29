@@ -110,9 +110,13 @@ const KIND_ORDER = [
   "renew",
   "directors_cut",
   "extended",
+  "remake",
+  "remaster",
   "side_story",
   "spin_off",
   "setting",
+  "dlc",
+  "related",
   "adaptation",
 ];
 

@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-27
+Last verified: 2026-09-29
 
 ## What this is for
 
@@ -98,7 +98,7 @@ type it serves is seeable.
 | `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `franchise.franchise_expectation` | `franchise_expectation` |
 | `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on entries, franchise, seasonal, person, character, studio. **Enforced** on `person` and `character`: a write naming anything else is a 422 and `""` is NULL (`app/utils/entity_vocab.py`) | `my_rating` |
 | `GENDERS` | `男`, `女`, `中性/無性`, `雙性混和`, `其他` | `gender` on `person` and `character`. NULL means not set and is not a sixth value. **Enforced**: a write naming anything else is a 422 and `""` is NULL. A Sheets Pull folds an old free-text cell instead of refusing it - `male` -> `男`, `female` -> `女` (trimmed, any case), anything else unreadable -> NULL - and folds `my_rating` by trimming and upper-casing, the same rules the revision that closed both vocabularies applied to the stored rows | `gender` |
-| `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; `comic.is_main_entry` is a Boolean, not this) | `is_main` |
+| `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; `comic.is_main_entry` is a Boolean, not this; games read `GAME_IS_MAIN`) | `is_main` |
 | `MOVIE_TYPES` | `Reality`, `Animation` | movie type | `movie_type` |
 | `TV_REGIONS` | `歐美劇`, `韓劇`, `日劇`, `陸劇`, `台劇`, `動畫` | `tv_shows.region` (formerly `Region (TV Show)` option category) | `tv_region` |
 | `MANGA_REGIONS` | `日漫`, `韓漫`, `國漫`, `台漫`, `其他` | `manga.region` (formerly `Region (Manga)` option category) | `manga_region` |
@@ -106,6 +106,7 @@ type it serves is seeable.
 | `NOVEL_TYPES` | `Light Novel`, `Novel`, `Web`, `Other` | `novel.novel_type`; also the Plan page novel grouping | `novel_type` |
 | `COMIC_TYPES` | `Ongoing`, `Limited`, `One-Shot`, `Annual` | `comic.comic_type` | `comic_type` |
 | `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`, `h_game.game_type`; `Base Game` is the value `ck_games_base_no_parent` / `ck_h_game_base_no_parent` name | `game_type` |
+| `GAME_IS_MAIN` | `Main`, `Remake`, `Remaster` | `games.is_main`, `h_game.is_main` - the game types' own `is_main` vocabulary in place of `IS_MAIN`. A plain label with no tie to the `remake` / `remaster` relation kinds. **Enforced** on both types: a write naming anything else is a 422 (on h-game's tracker PATCH too), and the Sheets parser drops an unknown cell to NULL. The Add form starts a new entry on `Main` | `game_is_main` |
 | `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`, `h_game.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | `completion_level` |
 | `GAME_RELEASE_STATUSES` | `Rumored`, `Unreleased`, `Early Access`, `Released`, `Ongoing`, `Discontinued`, `Cancelled` | `games.release_status`, `h_game.release_status` | `game_release_status` |
 | `GAME_COMPLETION_FLAGS` | `Yes`, `No`, `Inapplicable` | `games.all_endings`, `games.all_achievements`, `games.all_collected`, `h_game.all_endings`, `h_game.all_cg`. `NULL` is outside the vocabulary and means "not recorded yet"; `Inapplicable` means the game has none of that thing to find. `games.steam_progress_sync` is **not** one of these - it is a boolean lock on Steam writes | `game_completion_flag` |
@@ -141,9 +142,9 @@ and [systems/credits-and-tags.md](systems/credits-and-tags.md)), do not read
 one as evidence for the other: an anime can show `seiyuu: Done` while having
 zero castings, and vice versa.
 
-**All eight game lists reach `/api/constants`.** `get_constants()`
+**All nine game lists reach `/api/constants`.** `get_constants()`
 (`app/routers/constants.py`) returns `playing_status`, `game_type`,
-`completion_level`, `game_release_status`, `game_storefront`,
+`game_is_main`, `completion_level`, `game_release_status`, `game_storefront`,
 `game_ownership`, `game_copy_format` and `game_acquisition`. The four
 `game_copy` vocabularies are prefixed `game_` because the column name alone
 (storefront, ownership, acquisition) would not say which table it belongs to
@@ -158,9 +159,9 @@ under `hentai_source_material`. Every h-game vocabulary is checked on every
 write path - a value outside it is a 422 through the API, and dropped (logged)
 by the Sheets parser.
 
-Only `playing_status` is wired into the frontend fallback map, though. It is
-the one game list in `CONSTANTS_FALLBACK` in
-`frontend/src/config/fieldOptions.js`, so it is the one `applyConstants()`
+Only `playing_status` and `game_is_main` are wired into the frontend fallback
+map, though. They are the game lists in `CONSTANTS_FALLBACK` in
+`frontend/src/config/fieldOptions.js`, so they are the ones `applyConstants()`
 overwrites from the endpoint; `GAME_TYPES`, `COMPLETION_LEVELS`,
 `GAME_RELEASE_STATUSES`, `GAME_COMPLETION_FLAGS` and the four `game_copy`
 arrays are still hand-maintained literals in that file, kept matching
@@ -205,7 +206,7 @@ the JP/KR-vs-TW pairing with `vol_total_tw` ("Total Volumes (TW)") explicit.
 ### Relation kinds (`app/utils/relation_kinds.py`)
 
 The vocabulary of `media_relation.relation_type`, served at
-`GET /api/media-relation/kinds`. Twelve stored kinds; `prequel` is accepted on
+`GET /api/media-relation/kinds`. Fourteen stored kinds; `prequel` is accepted on
 write (`INPUT_ONLY_KINDS = {"prequel": "sequel"}`) and stored as a `sequel`
 row with the endpoints swapped. How chains and inverses are read is in
 [business-rules.md section 13](business-rules.md#13-media-relations-media_relationpy-apputilsrelation_kindspy)
@@ -217,6 +218,11 @@ and [systems/relations.md](systems/relations.md).
 remaster reissues it) and share `renew`'s inverse label, `Original`. Neither
 is media-type-scoped - relation kinds never are - so both are offered on
 every type.
+
+`dlc` points a DLC at its base game (inverse label `Base Game`). `related` is
+the loose link for two works that are connected when no other kind says how:
+symmetric, because neither end is the origin, and not transitive, because it
+claims no sameness.
 
 | Key | Label | Inverse label | Family | Symmetric | Transitive |
 |---|---|---|---|:-:|:-:|
@@ -231,6 +237,8 @@ every type.
 | `side_story` | Side Story | Parent Story | `branch` | | |
 | `spin_off` | Spin-off | Main Story | `branch` | | |
 | `setting` | Setting | Main Story | `branch` | | |
+| `dlc` | DLC | Base Game | `branch` | | |
+| `related` | Related | Related | `branch` | yes | |
 | `adaptation` | Adaptation | Source | `derivation` | | |
 
 ### Note sections (`app/utils/note_sections.py`)
@@ -262,6 +270,7 @@ can only hold URLs and `text_links` has no title, so neither could say
 | `story` | 劇情 Story (for an h-game, the four Story List strands and 結局) |
 | `story_list` | 劇情列表 Story List (game only) |
 | `worldbuilding` | 世界觀 Worldbuilding (game only) |
+| `ng_plus` | NG 多周目 |
 | `todo` | 待辦 Todo (rendered inside the game page's Progress slip) |
 | `music` | 音樂 Music |
 | `tools` | 資源&工具 Tools & Resources |
@@ -280,6 +289,7 @@ out. What the three gated types keep is in
 | `remark` | text | 備註 Remark | All | | singleton |
 | `remark_list` | text_links | 備註列表 Remark List | All | | Personal scope, many rows - 備註 is the singleton block |
 | `reviews_and_comments` | text | 評論 Reviews and Comments | h-comic, hentai, h-game | flat; **reviews** for h-game | personal scope; in place of 大眾評價 and 我的評價 |
+| `introduction` | text_links | 介紹 Introduction | All but h-comic, hentai | reviews | First in the 評論 card; shaped and scoped like 解析 |
 | `advantages` | text | 優點 Advantages | All but h-comic, hentai | reviews | |
 | `disadvantages` | text | 缺點 Disadvantages | All but h-comic, hentai | reviews | |
 | `double_edged` | text | 優缺點 | All but h-comic, hentai | reviews | |
@@ -303,12 +313,13 @@ out. What the three gated types keep is in
 | `guide_notes` | text | 攻略筆記 Guide Notes | game, h-game | guides | no links |
 | `trivia` | text_links | 小知識 Trivia | game | guides | |
 | `stats_and_points` | structured | 屬性&配點 Stats & Points | game, h-game | builds | name, min/rec/soft-cap, my value (quick-edit), description |
-| `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links |
+| `classes` | structured | 職業 Classes | game, h-game | builds | type, name, 定位 role, 解鎖條件 unlock, 核心屬性 key stats, description, links; groupable by type |
+| `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links; groupable by type |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game, h-game | builds | name, five nested lists, description, links |
 | `team_composition` | structured | 隊伍組成 Team Composition | game, h-game | builds | name, members list (name, 定位, build, notes), description, links |
-| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`) |
-| `items` | structured | 道具 Items | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`) |
-| `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`) |
+| `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
+| `items` | structured | 道具 Items | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
+| `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
 | `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group, name, alias, description |
 | `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`) |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
@@ -326,6 +337,10 @@ out. What the three gated types keep is in
 | `timeline` | text_links | 時間線 Timeline | game | worldbuilding | |
 | `mysteries` | text_links | 未解之謎 Mysteries | game | worldbuilding | |
 | `story_other` | text_links | 其他 Other | game | worldbuilding | |
+| `ng_flow` | structured | 流程 Flow | game, h-game | ng_plus | name, description, points (list of text), links |
+| `ng_carried_over` | structured | 繼承內容 Carried Over | game, h-game | ng_plus | type, name, description, points (list of text), links; groupable by type |
+| `ng_reset` | structured | 重置內容 Reset | game, h-game | ng_plus | type, name, description, points (list of text), links; groupable by type |
+| `ng_before_starting` | structured | 新周目前需完成 Before Starting | game, h-game | ng_plus | type, name, description, points (list of text), links; groupable by type |
 | `todo_now` | text_links | 現在進行 Doing now | game, h-game | todo | personal scope |
 | `todo_next` | text_links | 接下來 To do next | game, h-game | todo | personal scope |
 | `todo_later` | text_links | 未來 To do in the future | game, h-game | todo | personal scope |

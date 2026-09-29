@@ -40,12 +40,11 @@ def sample_manga_entry(db_session, sample_franchise):
 # ---------------------------------------------------------------------------
 
 
-def test_kinds_lists_the_thirteen_user_facing_choices(client):
-    # Was eleven before Remake and Remaster joined for games.
+def test_kinds_lists_the_fifteen_user_facing_choices(client):
     res = client.get("/api/media-relation/kinds")
     assert res.status_code == 200
     body = res.json()
-    assert len(body) == 13
+    assert len(body) == 15
     keys = {k["key"] for k in body}
     assert "prequel" in keys
     prequel = next(k for k in body if k["key"] == "prequel")
@@ -57,6 +56,15 @@ def test_kinds_lists_the_thirteen_user_facing_choices(client):
     corresponding = next(k for k in body if k["key"] == "corresponding")
     assert corresponding["inverse_label"] == "Corresponding"
     assert corresponding["family"] == "equivalence"
+    dlc = next(k for k in body if k["key"] == "dlc")
+    assert dlc["label"] == "DLC"
+    assert dlc["inverse_label"] == "Base Game"
+    assert dlc["family"] == "branch"
+    assert dlc["symmetric"] is False
+    related = next(k for k in body if k["key"] == "related")
+    assert related["inverse_label"] == "Related"
+    assert related["family"] == "branch"
+    assert related["symmetric"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +166,97 @@ def test_the_same_corresponding_entered_from_either_side_is_one_row(
     assert second.status_code == 409
     assert "already" in second.json()["detail"].lower()
     assert db_session.query(models.MediaRelation).count() == 1
+
+
+def test_the_same_related_entered_from_either_side_is_one_row(
+    admin_client, db_session, sample_anime, second_anime
+):
+    # Related is symmetric, so it collapses the way Alternative does: the loose
+    # link entered from the other end is the same fact, not a second row.
+    first = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(sample_anime.system_id),
+            "kind": "related",
+            "to_type": "anime", "to_id": str(second_anime.system_id),
+        },
+    )
+    assert first.status_code == 201, first.text
+    assert first.json()["relation_type"] == "related"
+
+    second = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(second_anime.system_id),
+            "kind": "related",
+            "to_type": "anime", "to_id": str(sample_anime.system_id),
+        },
+    )
+    assert second.status_code == 409
+    assert "already" in second.json()["detail"].lower()
+    assert db_session.query(models.MediaRelation).count() == 1
+
+
+def test_a_related_chain_does_not_expand_on_the_entry_page(
+    admin_client, client, db_session, sample_franchise, sample_anime, second_anime
+):
+    # Related claims no sameness, so unlike Corresponding a chain of them
+    # implies nothing: the entry page shows the stored neighbour only.
+    third = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Third Work",
+    )
+    db_session.add(third)
+    db_session.flush()
+
+    for left, right in ((sample_anime, second_anime), (second_anime, third)):
+        res = admin_client.post(
+            "/api/media-relation/",
+            json={
+                "from_type": "anime", "from_id": str(left.system_id),
+                "kind": "related",
+                "to_type": "anime", "to_id": str(right.system_id),
+            },
+        )
+        assert res.status_code == 201, res.text
+
+    entry = client.get(
+        "/api/media-relation/for-entry",
+        params={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
+    )
+    assert entry.status_code == 200
+    rows = entry.json()
+    assert [r["other"]["entry_id"] for r in rows] == [str(second_anime.system_id)]
+    assert rows[0]["label"] == "Related"
+
+
+def test_a_dlc_reads_as_base_game_from_the_other_side(
+    admin_client, client, sample_anime, second_anime
+):
+    # Directional: the row stores the DLC as `from`, and the base game's page
+    # reads the same row back through the inverse label.
+    res = admin_client.post(
+        "/api/media-relation/",
+        json={
+            "from_type": "anime", "from_id": str(second_anime.system_id),
+            "kind": "dlc",
+            "to_type": "anime", "to_id": str(sample_anime.system_id),
+        },
+    )
+    assert res.status_code == 201, res.text
+    assert res.json()["relation_type"] == "dlc"
+
+    base = client.get(
+        "/api/media-relation/for-entry",
+        params={"media_type": "anime", "entry_id": str(sample_anime.system_id)},
+    ).json()
+    dlc = client.get(
+        "/api/media-relation/for-entry",
+        params={"media_type": "anime", "entry_id": str(second_anime.system_id)},
+    ).json()
+    assert [r["label"] for r in base] == ["DLC"]
+    assert [r["label"] for r in dlc] == ["Base Game"]
 
 
 def test_corresponding_and_alternative_are_separate_rows_on_one_pair(

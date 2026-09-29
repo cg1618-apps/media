@@ -10,6 +10,8 @@ import {
   planFlagColumn,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
+import { BAHAMUT_VALUE } from "../../../lib/formatters";
+import { sourceIconUrl } from "../../../lib/sourceIcons";
 import { getBahaRow, isBaha, WATCHING_STATUS_GROUP } from "../../../utils/media";
 
 // ---------------------------------------------------------------------------
@@ -80,7 +82,7 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
     },
     {
       key: "bahaOnly",
-      label: "Bahamut source only",
+      label: "動畫瘋 source only",
       type: "boolean",
       match: (item) => isBaha(item),
     },
@@ -140,7 +142,7 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
     },
     {
       key: "baha",
-      header: "Baha",
+      header: "動畫瘋",
       tdClass: "text-center",
       stopPropagation: true,
       render: (item) => {
@@ -149,9 +151,9 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
         const logo = (
           <img
             loading="lazy"
-            src="https://i2.bahamut.com.tw/anime/logo.svg"
-            className={`h-4 inline-block ${bahaRow?.url ? "opacity-90" : "opacity-50 grayscale"}`}
-            alt="Baha"
+            src={sourceIconUrl(BAHAMUT_VALUE)}
+            className={`w-4 h-4 rounded-sm bg-white object-contain inline-block ${bahaRow?.url ? "" : "opacity-50 grayscale"}`}
+            alt={BAHAMUT_VALUE}
           />
         );
         return bahaRow?.url

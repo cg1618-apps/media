@@ -53,7 +53,10 @@ const chevron = (collapsed) => (
 
 const countCls = "font-mono text-[10px] text-text-faint tabular-nums";
 
-export function SectionCard({ label, count, isAdmin, onAdd, children }) {
+// `actions` are extra header controls drawn before Add - a section's view
+// toggles. They sit in the header's click-shielded strip, so pressing one
+// never collapses the card.
+export function SectionCard({ label, count, isAdmin, onAdd, actions, children }) {
   const [collapsed, setCollapsed] = useCollapsed(count);
   return (
     <div className="bg-surface border border-border">
@@ -70,6 +73,7 @@ export function SectionCard({ label, count, isAdmin, onAdd, children }) {
           className="flex items-center gap-2 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
+          {actions}
           {isAdmin && onAdd && (
             <Button
               type="button"

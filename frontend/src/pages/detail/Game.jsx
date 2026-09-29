@@ -501,6 +501,7 @@ export default function Game() {
                 fields={[
                   [
                     { label: "Type", value: game.game_type },
+                    { label: "Main / Remake", value: game.is_main },
                     {
                       label: "Base Game",
                       value: game.base_game ? (

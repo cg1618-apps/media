@@ -138,8 +138,8 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 | `navigation.js` | `NAV_SECTIONS` (Library mega-panel, Restricted, Track, Insights, then Entry, Note and Admin with `requires: "admin"`), `activeItem`, `visibleSections(sections, has, canSeeType)` (filters rows as well as sections — Insights carries two `requires: "admin"` rows, and the Restricted section's H-Comic, H-Game and Hentai rows carry `gatedType: "h-comic"` / `"h-game"` / `"hentai"`, each dropped unless `canSeeType` says yes for its own type; left out, every gated row is dropped, and with them the Restricted tab, which holds nothing else). |
 | `statusGroups.js` | `WATCHING_STATUS_GROUP`, `READING_STATUS_GROUP`, `PLAYING_STATUS_GROUP`, `AIRING_STATUS_CLS`; plus the picker groups (`STATUS_PICKER_GROUP`, `groupStatusOptions()`) that `components/ui/StatusOptions.jsx` renders as `<optgroup>`s. Filter buckets and picker groups are separate splits of the same vocabulary — and one `STATUS_PICKER_GROUP` map covers all three status axes, because no value means something different between them (Paused is Paused whether you watch, read or play). |
 | `planNextGroups.js` | Size buckets and labels — a hand-kept copy of `app/utils/plan_next_kinds.py`; keep them in sync. `game` and `h-game` have **no** `SIZE_GROUPS` entry (as `anime-movie` has an empty one): there is no count a game groups by, so each Plan tab renders one ungrouped list. Their `ALLOWED_SCOPES` are entry/series/franchise for both `next` and `rewatch`. `h-comic` and `hentai` are absent from `SIZE_GROUPS` the same way, and are queued at entry scope only for both kinds. |
-| `fieldOptions.js` + `useConstants.js` | Fallback enum arrays, overwritten in place by `/api/constants` once on mount — but only the arrays listed in `CONSTANTS_FALLBACK`. The seven game vocabularies (`GAME_TYPES`, `COMPLETION_LEVELS`, `GAME_RELEASE_STATUSES`, `GAME_STOREFRONTS`, `GAME_OWNERSHIP_KINDS`, `GAME_COPY_FORMATS`, `GAME_ACQUISITION_KINDS`) are **not** in that map, so they stay hand-maintained literals that must be kept matching `app/utils/constants.py` by hand — even though `/api/constants` does serve all eight game keys now. `PLAYING_STATUSES` is the one game list that is a real fallback. `PRICE_CURRENCIES` is frontend-only: `game_copy.price_currency` is a free string on the backend. The seven h-game vocabularies (`H_GAME_PLAYSTYLES`, `H_GAME_LANGUAGE_AVAILABILITY`, `H_GAME_AUDIO_AVAILABILITY`, `H_GAME_H_PRESENTATIONS`, `H_GAME_ART_STYLES`, `H_GAME_H_ART_STYLES`, `H_GAME_PLATFORMS`) **are** in the map, under the `h_game_*` keys `/api/constants` serves only to a session that can see the type, and so is hentai's own `HENTAI_SOURCE_MATERIALS`, under `hentai_source_material`; a hentai also reads h-comic's originality and usefulness lists and anime's `AIRING_STATUSES`. `GENDERS` (a character's or person's gender, `/api/constants` key `gender`) is in the map; `CHARACTER_ROLES` (Main, Core, Supporting, Other; `/api/constants` key `character_role`) is in the map too, and serves both a casting's role and a character's own role; `castRoleRank(role)` is the cast-list sort every ACG detail page uses (that order, no role last). `NEW_CAST_CHARACTER_GENDER` is the per-media-type gender `CastEditor` gives a character it mints (女 for h-comic and hentai, unset otherwise). |
-| `formFactories.js` | `freshForm(type)` defaults per form. `defaultHComic` starts with `region: ""`, so the form shows no region-only field until one is chosen. `defaultHGame` starts its six multi-choice fields (`dialogue_audio`, `sound_effect`, `h_presentation`, `art_style`, `h_art_style`, `platform`) at `null` - "not recorded", distinct from `[]` - and its nullable boolean `steam_progress_sync` at the `""` tristate. `defaultHentai` has no progress field (one entry is one episode) and no typed `mal_id`: the write hook derives it from `mal_link`. |
+| `fieldOptions.js` + `useConstants.js` | Fallback enum arrays, overwritten in place by `/api/constants` once on mount — but only the arrays listed in `CONSTANTS_FALLBACK`. The seven game vocabularies (`GAME_TYPES`, `COMPLETION_LEVELS`, `GAME_RELEASE_STATUSES`, `GAME_STOREFRONTS`, `GAME_OWNERSHIP_KINDS`, `GAME_COPY_FORMATS`, `GAME_ACQUISITION_KINDS`) are **not** in that map, so they stay hand-maintained literals that must be kept matching `app/utils/constants.py` by hand — even though `/api/constants` does serve all nine game keys now. `PLAYING_STATUSES` and `GAME_IS_MAIN` (key `game_is_main`, game and h-game's own `is_main` vocabulary - Main, Remake, Remaster - beside the shared `IS_MAIN`) are the game lists that are a real fallback. `PRICE_CURRENCIES` is frontend-only: `game_copy.price_currency` is a free string on the backend. The seven h-game vocabularies (`H_GAME_PLAYSTYLES`, `H_GAME_LANGUAGE_AVAILABILITY`, `H_GAME_AUDIO_AVAILABILITY`, `H_GAME_H_PRESENTATIONS`, `H_GAME_ART_STYLES`, `H_GAME_H_ART_STYLES`, `H_GAME_PLATFORMS`) **are** in the map, under the `h_game_*` keys `/api/constants` serves only to a session that can see the type, and so is hentai's own `HENTAI_SOURCE_MATERIALS`, under `hentai_source_material`; a hentai also reads h-comic's originality and usefulness lists and anime's `AIRING_STATUSES`. `GENDERS` (a character's or person's gender, `/api/constants` key `gender`) is in the map; `CHARACTER_ROLES` (Main, Core, Supporting, Other; `/api/constants` key `character_role`) is in the map too, and serves both a casting's role and a character's own role; `castRoleRank(role)` is the cast-list sort every ACG detail page uses (that order, no role last). `NEW_CAST_CHARACTER_GENDER` is the per-media-type gender `CastEditor` gives a character it mints (女 for h-comic and hentai, unset otherwise). |
+| `formFactories.js` | `freshForm(type)` defaults per form. `defaultGame` and `defaultHGame` start `is_main` on `"Main"` (`GAME_IS_MAIN`, where the other types start on `本傳`). `defaultHComic` starts with `region: ""`, so the form shows no region-only field until one is chosen. `defaultHGame` starts its six multi-choice fields (`dialogue_audio`, `sound_effect`, `h_presentation`, `art_style`, `h_art_style`, `platform`) at `null` - "not recorded", distinct from `[]` - and its nullable boolean `steam_progress_sync` at the `""` tristate. `defaultHentai` has no progress field (one entry is one episode) and no typed `mal_id`: the write hook derives it from `mal_link`. |
 | `formFields/fieldMeta.js`, `formFields/index.js` | Field metadata (label, control, option source, coerce) for defaults and autofill. |
 | `mediaTypeColors.js`, `namingConfigs.js`, `adminTabs.js`, `weekdays.js`, `broadcastTimes.js` | Media-type chip classes (one ink chip for every type — colour never encodes a category); name-field order per type; the Add/Modify tab bar; schedule constants. |
 
@@ -206,6 +206,10 @@ the gated media types.
   novel, the cover stamp on an anime movie — reads whichever column
   `scoreField` names, defaulting to `mal_rating`, so a library sorted by an
   AniList figure can point every card at `anilist_rating` instead),
+  `PlatformIcons` (an entry's available `main` access platforms — 動畫瘋,
+  Netflix, Disney+ and the rest — drawn as their `lib/sourceIcons.js` icons on
+  `MediaCard`'s poster and `DashboardCard`'s chip row; a row with a url links
+  to it, one without is faded, and a value with no icon is skipped),
   `FranchiseCard`, `CollectionCard`, and `StaffCard`
   (`PersonCard` / `StudioCard` over one shared body — the person and studio
   libraries and the `/search` staff sections all draw it; `PersonCard` shows
@@ -267,7 +271,7 @@ the gated media types.
   `malLink`/`anidbLink`/`ehentaiLink`/`imdbLink`/`comicvineLink`/`openLibraryLink`/`igdbLink`
   props beside the reference rows (`anidbLink` is a hentai's AniDB page, drawn after MyAnimeList as
   "AniDB"; `ehentaiLink` is an h-comic's gallery,
-  drawn after MyAnimeList as "E-Hentai" with the tag "EH"), `steamLink` (a storefront, not a reference
+  drawn after MyAnimeList as "E-Hentai"), `steamLink` (a storefront, not a reference
   database) beside the **access** rows instead — the access section renders
   for a `steamLink` alone, so a game whose only place to play is its Steam
   page still gets one; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
@@ -287,7 +291,8 @@ the gated media types.
   `Other`, or a vocabulary value added later — keeps an empty 16 px slot, so
   the names in a section stay aligned. A new `Platform` or `Reference Source`
   value gets an icon by saving its favicon there and adding its name to the
-  map.
+  map. The icon is what names the site, so no source link carries a `Tag`
+  box beside it — the `Tag` chips are only the tag-field row above.
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
   `MultiSelect` (two caps that read alike: `limit` is how many options the
   dropdown *shows* — `null` for all — and `max` is how many values can be
@@ -423,7 +428,11 @@ the gated media types.
   groups reorderable by dragging a header or with its arrows through
   `onGroupOrderChange`, the rows inside a group not reorderable at all. The
   provider passes both in from the owner page; `NotesContext` also drops a
-  section whose `owner_where` the owner row fails (`ownerMatches`).
+  section whose `owner_where` the owner row fails (`ownerMatches`). A section
+  with `groupable_by` gets a **Group by type** toggle (`SectionCard`'s
+  `actions`) over the same grouped view, one group per `select` value; its
+  groups and rows move with arrows, and each move goes to `onReorder` as the
+  section's whole row order, grouped - nothing else stores the group order.
   `NotesTemplate`'s `SHAPES` map covers all nine stored shapes.
   Every list section shows its first three rows and folds the rest behind
   "Show all (N)" - `useEntryCap` and `ShowAllToggle` in `ui.jsx`, one hook

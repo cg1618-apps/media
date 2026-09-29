@@ -29,6 +29,7 @@ import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import {
   COMPLETION_LEVELS,
   GAME_COMPLETION_FLAGS,
+  GAME_IS_MAIN,
   GAME_RELEASE_STATUSES,
   GAME_TYPES,
   H_COMIC_USEFULNESS,
@@ -170,8 +171,9 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
       </div>
 
       <SectionHeader icon="fa-sitemap" title="Classification" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {select("game_type", "Game Type", GAME_TYPES)}
+        {select("is_main", "Main / Remake", GAME_IS_MAIN)}
         {/* A base game only makes sense for a DLC, expansion or bundle -
             ck_h_game_base_no_parent rejects one on a Base Game row. */}
         <Field

@@ -340,7 +340,7 @@ nested `copies` collection.
 | `GET`    | `/`                    | Public | List all games. Optional params: `franchise_id`, `series_id`, `playing_status`, `release_status`, `game_type`, `search_query`, plus **`ownership`** (see below). |
 | `GET`    | `/{entry_id}`          | Public | One game by UUID. |
 | `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_replace_single_game` after creation, which calls `apply_single_replace_game` (IGDB fill-only, keyed on `igdb_id`, then Steam, keyed on `steam_appid`; both ids derived from their links first) and re-extracts system options, then logs the write. |
-| `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `GameUpdate`. Same write hook. |
+| `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `GameUpdate`. Same write hook. `GameCreate` and `GameUpdate` check `is_main` against `GAME_IS_MAIN` (422 otherwise). |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. `copies` is honoured here too — the nested writer coerces a copy's `system_id` from a JSON string, since a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets `playing_status = "Completed"` and **nothing else**: `completion_level`, the three `all_*` flags and the achievement pair are independent axes only the user can judge. |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete. Cascades to `game_copy`; logs to `deleted_record` under type `Game`. |
@@ -529,7 +529,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 
 **Payload fields** (`HGameBase`): `franchise_id`, `series_id`,
 `h_game_name_cn` / `_en` / `_jp` / `_roman` / `_alt`, `series_number`,
-`playstyle`, `game_type`, `base_game_id`, `release_status`, `release_date`,
+`playstyle`, `game_type`, `is_main`, `base_game_id`, `release_status`, `release_date`,
 `current_patch`, `completion_level`, `all_endings`, `all_cg`,
 `steam_progress_sync`, `achievements_earned` / `_total`, the three `hltb_*`,
 the six `price_*`, `language_availability`, `dialogue_audio` (list),
@@ -665,7 +665,7 @@ admin-only, matching watch orders. Replaces the per-entry `prequel_id` /
 
 | Method   | Path                                     | Auth   | Description                                                                                                               |
 | -------- | ---------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/kinds`                                 | Public | The relation vocabulary: `key`, `label`, `inverse_label`, `family` (`timeline`, `equivalence`, `branch`, `derivation`), `symmetric`, `stored_as`. Eleven entries — the ten stored kinds (`sequel`, `alternative`, `corresponding`, `renew`, `directors_cut`, `extended`, `side_story`, `spin_off`, `setting`, `adaptation`) plus `prequel`, which is stored as a swapped `sequel`. |
+| `GET`    | `/kinds`                                 | Public | The relation vocabulary: `key`, `label`, `inverse_label`, `family` (`timeline`, `equivalence`, `branch`, `derivation`), `symmetric`, `stored_as`. Fifteen entries — the fourteen stored kinds (`sequel`, `alternative`, `corresponding`, `renew`, `directors_cut`, `extended`, `remake`, `remaster`, `side_story`, `spin_off`, `setting`, `dlc`, `related`, `adaptation`) plus `prequel`, which is stored as a swapped `sequel`. |
 | `GET`    | `/for-entry?media_type=&entry_id=`       | Public | Every relation touching one entry, from **both** endpoints, each resolved to the far entry's display data and labelled for the side being viewed. |
 | `GET`    | `/?franchise_id=` or `?collection_id=`   | Public | Every relation with at least one endpoint among a scope's entries. Backs the admin page's count badges in one request. Exactly one scope param, else 400. |
 | `GET`    | `/graph?franchise_id=`, `?collection_id=` or `?series_id=` | Public | Everything the `/relations` canvas draws for one scope, in one request: `{nodes, edges}`. Exactly one scope param, else 400. A series scope resolves against `series_id` directly (an anime movie has no `series_id`, so it can only appear as a ghost). **Viewer-filtered**: nodes and edges touching an entry the viewer may not see are dropped. |
@@ -685,9 +685,9 @@ admin-only, matching watch orders. Replaces the per-entry `prequel_id` /
 }
 ```
 
-`kind` accepts any of the eleven user-facing keys. `prequel` is stored as a
-`sequel` row with the endpoints swapped; a symmetric `alternative` has its two
-`(type, id)` pairs sorted. Both rewrites exist so one fact is one row.
+`kind` accepts any of the fifteen user-facing keys. `prequel` is stored as a
+`sequel` row with the endpoints swapped; a symmetric kind (`alternative`,
+`corresponding`, `related`) has its two `(type, id)` pairs sorted. Both rewrites exist so one fact is one row.
 
 **Errors**
 
@@ -950,7 +950,8 @@ entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
 `locator_required`, `singleton`, `desc_required`, and for a structured section
 `fields` - each field's `type` may be `names`, a list of strings stored under
 `fields[key]` - `require_any`, `hierarchical`, `group_by` (the `names` field
-the read view groups by, or `null`) and `owner_where` (`{owner column:
+the read view groups by, or `null`), `groupable_by` (the `select` field the
+reader may toggle a one-group-per-value view on, or `null`) and `owner_where` (`{owner column:
 [allowed values]}`, `{}` for none)).
 
 A section with `owner_where` refuses a row on any other owner with **422**, on
@@ -1132,7 +1133,7 @@ value means; this endpoint just serves them.
 
 Keys served: `watching_status`, `reading_status`, `airing_status`,
 `anime_airing_type`, `cartoon_airing_type`, `franchise_type`,
-`franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `movie_type`, `tv_region`,
+`franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `game_is_main`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
 `manga_serialization_status`, `novel_serialization_status`, `day_of_week`,
 `music_status`, `seiyuu_status`, `watch_order_importance`, `h_comic_region`,

@@ -257,6 +257,10 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # what happens and to whom. After 劇情列表 rather than between the two,
     # because 劇情 and 劇情列表 are one story told twice and read as a pair.
     NoteGroup(key="worldbuilding", label="世界觀 Worldbuilding", icon="fa-earth-asia"),
+    # What happens when the game is started over: how a new cycle runs, what
+    # it keeps, what it takes away, and what to finish before starting one.
+    # After 世界觀 because it is read once the story has been seen through.
+    NoteGroup(key="ng_plus", label="NG 多周目", icon="fa-rotate"),
     # NOT "進度 Progress": Game.jsx already renders a <Slip title="Progress">
     # (playtime and achievements) on the same page, and two cards with one name
     # is the `resources` / `builds_and_mods` collision again.
@@ -356,6 +360,13 @@ class NoteSection:
     # the GROUPS is the owner entry's, not this registry's (for h-comic and
     # h-game, `highlight_group_order` on the entry). Checked at import.
     group_by: str | None = None
+    # The key of a `select` field the reader MAY group rows by: the card gets a
+    # toggle, and turned on it draws one group per value of that field, in the
+    # order each value first appears, with the rows carrying none last. Unlike
+    # `group_by` it is a way of reading the list rather than its layout, so the
+    # flat list - the one rows are reordered in - stays one click away, and no
+    # group order is stored anywhere. Checked at import.
+    groupable_by: str | None = None
     # Owner-entry columns this section is limited to: {column: allowed
     # values}. The note router refuses (422) a row on an owner whose column
     # holds anything else, and the page renders no card for it. Empty means
@@ -520,6 +531,41 @@ def _plot_fields() -> tuple["NoteField", ...]:
     )
 
 
+def _ng_plus_fields(typed: bool = True) -> tuple["NoteField", ...]:
+    """
+    The four NG 多周目 sections: a named thing, a body, a list of short
+    points, and its sources.
+
+    流程 Flow is the one without a type - it is the cycle itself, told in
+    order, where the other three are sets of things that fall into kinds
+    (equipment, levels, flags). The type is free text for the reason
+    `_named_thing_fields` gives. `points` is a list of one-line texts rather
+    than a second body: "keeps weapon upgrades", "keeps money" read as a
+    list, and a list keeps each one reorderable on its own.
+    """
+    return (
+        *(
+            (NoteField(key="type", label="Type", type=FIELD_SELECT, column="kind"),)
+            if typed
+            else ()
+        ),
+        NoteField(key="name", label="Name", column="title"),
+        NoteField(
+            key="description",
+            label="Description",
+            type=FIELD_TEXTAREA,
+            column="content",
+        ),
+        NoteField(
+            key="points",
+            label="Points",
+            type=FIELD_LIST,
+            item_fields=(NoteField(key="text", label="Text"),),
+        ),
+        NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+    )
+
+
 # The four strands a story is listed along. Kept as data rather than four
 # spelled-out entries because they differ ONLY in key and label: four copies
 # of one eight-line spec is four places for them to drift apart.
@@ -599,6 +645,20 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="備註列表 Remark List",
         owners=ALL_OWNERS,
         scope=SCOPE_PERSONAL,
+    ),
+    NoteSection(
+        # What the work IS, before anything is said about it: the first
+        # subsection of 評論 Reviews and Comments, declared first so it reads
+        # first. Shaped and scoped like 解析 Analysis - a body with its
+        # sources, shared rather than personal - and held by the same owners,
+        # so it lands wherever 評論 is a card. An h-comic or a hentai has no
+        # such card, only one flat list, so it has no introduction either.
+        key="introduction",
+        shape=SHAPE_TEXT_LINKS,
+        label="介紹 Introduction",
+        owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
+        scope=SCOPE_CATALOG,
+        group="reviews",
     ),
     NoteSection(
         # The gated types' reviews: one list of what I thought, one row per
@@ -1022,6 +1082,36 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         ),
     ),
     NoteSection(
+        # What you play AS, chosen before the skills that come with it - hence
+        # between 屬性&配點 and 技能. Flat and groupable by type rather than a
+        # tree of advancements: most games offer classes from a menu, and a
+        # prerequisite fits in 解鎖條件 as prose. Type is free text for the
+        # reason `_named_thing_fields` gives (初階 / 進階 / 隱藏 are one game's
+        # words); `key_stats` names the stats it scales on, which is the link
+        # to 屬性&配點 above.
+        key="classes",
+        shape=SHAPE_STRUCTURED,
+        label="職業 Classes",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="builds",
+        fields=(
+            NoteField(key="type", label="Type", type=FIELD_SELECT, column="kind"),
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(key="role", label="定位 Role"),
+            NoteField(key="unlock", label="解鎖條件 Unlock"),
+            NoteField(key="key_stats", label="核心屬性 Key stats"),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
+        groupable_by="type",
+    ),
+    NoteSection(
         key="skills",
         shape=SHAPE_STRUCTURED,
         label="技能 Skills",
@@ -1029,6 +1119,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="builds",
         fields=_named_thing_fields(),
+        groupable_by="type",
     ),
     NoteSection(
         # One row is one whole build, and the five lists inside it are what
@@ -1149,6 +1240,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="gear",
         fields=_named_thing_fields(variant=True, collected=True),
+        groupable_by="type",
     ),
     NoteSection(
         key="items",
@@ -1158,6 +1250,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="gear",
         fields=_named_thing_fields(variant=True, collected=True),
+        groupable_by="type",
     ),
     NoteSection(
         key="collectibles",
@@ -1167,6 +1260,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="gear",
         fields=_named_thing_fields(variant=True, collected=True),
+        groupable_by="type",
     ),
     # --- 圖鑑與名詞 Compendium & Terms ------------------------------------
     # Who you meet, and the words you meet: the game's own and the players'.
@@ -1401,6 +1495,49 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="worldbuilding",
+    ),
+    # --- NG 多周目 --------------------------------------------------------
+    # Starting the game over. Unlike 世界觀 above it describes how the game
+    # PLAYS, so it reaches h-game too, where a new cycle is how the remaining
+    # routes and scenes are reached.
+    NoteSection(
+        key="ng_flow",
+        shape=SHAPE_STRUCTURED,
+        label="流程 Flow",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="ng_plus",
+        fields=_ng_plus_fields(typed=False),
+    ),
+    NoteSection(
+        key="ng_carried_over",
+        shape=SHAPE_STRUCTURED,
+        label="繼承內容 Carried Over",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="ng_plus",
+        fields=_ng_plus_fields(),
+        groupable_by="type",
+    ),
+    NoteSection(
+        key="ng_reset",
+        shape=SHAPE_STRUCTURED,
+        label="重置內容 Reset",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="ng_plus",
+        fields=_ng_plus_fields(),
+        groupable_by="type",
+    ),
+    NoteSection(
+        key="ng_before_starting",
+        shape=SHAPE_STRUCTURED,
+        label="新周目前需完成 Before Starting",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="ng_plus",
+        fields=_ng_plus_fields(),
+        groupable_by="type",
     ),
     # --- 待辦 Todo --------------------------------------------------------
     # Four sections rather than one section with a kind, because ordering is
@@ -1690,8 +1827,23 @@ def _check_group_by(section: NoteSection) -> None:
         )
 
 
+def _check_groupable_by(section: NoteSection) -> None:
+    """A section's `groupable_by` must name one of its own `select` fields."""
+    if section.groupable_by is None:
+        return
+    target = next(
+        (f for f in section.fields if f.key == section.groupable_by), None
+    )
+    if target is None or target.type != FIELD_SELECT:
+        raise ValueError(
+            f"Section '{section.key}' is groupable by '{section.groupable_by}', "
+            "which is not one of its `select` fields."
+        )
+
+
 for _section in NOTE_SECTIONS:
     _check_group_by(_section)
+    _check_groupable_by(_section)
 
 PERSONAL_SECTIONS: frozenset[str] = frozenset(
     s.key for s in NOTE_SECTIONS if s.scope == SCOPE_PERSONAL

@@ -14,6 +14,12 @@
 //     drops out of the order the next time it is saved;
 //   - a row naming nobody (the field is required, so only a hand-edited or
 //     restored row) is not lost: it lands in one trailing group with no name.
+//
+// A section naming `groupable_by` (a `select` field, e.g. a skill's Type) is
+// grouped the same way, one group per value, when the reader turns grouping
+// on. There the value lives in a column rather than in `fields`, a row has
+// exactly one, and no order is stored: the groups follow the rows'
+// `sort_index`, which is how moving a group is saved (`groupedIds`).
 
 /** A `names` value as a clean list: strings only, trimmed, blanks dropped. */
 export function namesOf(value) {
@@ -24,17 +30,24 @@ export function namesOf(value) {
     .filter(Boolean);
 }
 
+/** The group names one row files under: a `names` list, or a column's value. */
+function groupNamesOf(note, groupBy, column) {
+  if (column) return namesOf([note[column]]);
+  return [...new Set(namesOf((note.fields || {})[groupBy]))];
+}
+
 /**
- * Split `notes` into groups by the names in `fields[groupBy]`.
+ * Split `notes` into groups by the names in `fields[groupBy]` - or, given a
+ * `column`, by that column's single value.
  *
  * Returns `[{ name, notes }]`. `name` is `null` for the trailing group of rows
  * that name nobody, which is present only when such rows exist.
  */
-export function groupNotes(notes, groupBy, order = []) {
+export function groupNotes(notes, groupBy, order = [], column = null) {
   const byName = new Map();
   const unnamed = [];
   for (const note of notes) {
-    const names = [...new Set(namesOf((note.fields || {})[groupBy]))];
+    const names = groupNamesOf(note, groupBy, column);
     if (!names.length) {
       unnamed.push(note);
       continue;
@@ -77,4 +90,24 @@ export function movedGroupOrder(groups, from, to) {
   const [moved] = next.splice(from, 1);
   next.splice(to, 0, moved);
   return next;
+}
+
+/**
+ * The row ids of `groups` in drawn order - what PATCH /api/notes/reorder
+ * takes. Only for single-valued grouping, where each row is in one group:
+ * saving it makes the groups contiguous in `sort_index`, so their first-
+ * appearance order IS the new group order.
+ */
+export function groupedIds(groups) {
+  return groups.flatMap((g) => g.notes.map((n) => n.system_id));
+}
+
+/** `groups` with the row at `from` in group `gi` swapped with the one at `to`. */
+export function movedRow(groups, gi, from, to) {
+  return groups.map((g, i) => {
+    if (i !== gi || to < 0 || to >= g.notes.length) return g;
+    const notes = [...g.notes];
+    [notes[from], notes[to]] = [notes[to], notes[from]];
+    return { ...g, notes };
+  });
 }

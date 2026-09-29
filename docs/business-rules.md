@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-27
+Last verified: 2026-09-29
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -493,10 +493,13 @@ The link checks (`_link_missing`) read `media_credit` / `media_tag` through
 
 The episode version is skipped entirely when both values are `None`.
 
-### Bahamut availability
+### 動畫瘋 (Bahamut) availability
 
-`apply_check_baha` (anime, anime movie): a Bahamut link means the entry is
-available on Bahamut. The verdict lives on the entry's Bahamut `main`
+`apply_check_baha` (anime, anime movie): a 動畫瘋 link means the entry is
+available on Bahamut's 動畫瘋. The `Platform` value is `動畫瘋`, and code
+finds it by that name (`BAHAMUT_VALUE`), so renaming it on the Options page
+breaks this rule — rename it in a migration that changes the constant too.
+The verdict lives on the entry's 動畫瘋 `main`
 `access` row in `media_source` — if that row's `url` is set and its
 `available` is `None`, set `available = True`. Never overwrites an existing
 verdict.
@@ -641,6 +644,9 @@ b.get_all_names()` is non-empty (case-insensitive, every name column).
 | `manga`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
 | `novel`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
 | `comic`           | with a franchise                       | `(franchise_id, series_id, is_main_entry)`                                  | shared name **or** same non-null `comicvine_id` (two unfilled rows sharing NULL is not a match)         |
+| `game`            | with a franchise                       | `(franchise_id, series_id, game_type, is_main)` - a DLC shares its base game's name stem, and a remake or remaster its original's name | shared name |
+| `h_comic`         | with a franchise                       | `(franchise_id, series_id, region, series_number)` | shared name |
+| `h_game`          | with a franchise                       | `(franchise_id, series_id, game_type, is_main, series_number)` | shared name |
 | `hentai`          | with a franchise                       | `(franchise_id, series_id, series_number)` - one entry is one episode, and a series' episodes share its name | shared name |
 | `system_options`  | all options                            | `(category lower, value lower)`                                             | always — catches `Netflix` vs `netflix`, which the exact UNIQUE cannot                                  |
 | `entities`        | persons, studios (scanned separately)  | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: all four of `name_en` / `name_cn` / `name_jp` / `name_alt`, for a person as for a studio |
@@ -862,6 +868,8 @@ Relations are rows in `media_relation` — `from (type, id) —kind→ to (type,
 | `side_story`    | Side Story        | Parent Story            | branch      |           |            |
 | `spin_off`      | Spin-off          | Main Story              | branch      |           |            |
 | `setting`       | Setting           | Main Story              | branch      |           |            |
+| `dlc`           | DLC               | Base Game               | branch      |           |            |
+| `related`       | Related           | Related                 | branch      | yes       |            |
 | `adaptation`    | Adaptation        | Source                  | derivation  |           |            |
 
 ### Normalisation on write (`normalize_relation`)
@@ -1040,27 +1048,16 @@ the reading types than on the watching ones: a viewer holding neither
 `sources_other` nor `sources_restricted` sees a manga's Sources card with
 reference links only and **no reading sources at all** (manga, comic and game have
 no `main`-bucket access platforms — see [entry-types.md](entry-types.md)),
-where the same role still sees Bahamut and Netflix on an anime. That
+where the same role still sees 動畫瘋 and Netflix on an anime. That
 asymmetry is the intent of the restricted tier, not an oversight.
 
-See [Known issue](#known-issue-mediacarddashboardcard-match-a-source-by-name-not-by-a-stable-key)
-below for a follow-up this design surfaced but did not fix.
-
-### Known issue: `MediaCard`/`DashboardCard` match a source by name, not by a stable key
-
-`frontend/src/components/cards/MediaCard.jsx` and
-`frontend/src/components/tracker/DashboardCard.jsx` find the Bahamut / Netflix
-badge rows with `s.kind === "access" && s.name === "Bahamut"` (and
-`"Netflix"`) — string-matched against the vocabulary's human `value`.
-`SourceRef` (`app/schemas/sources.py`) exposes `system_id`, `kind`, `bucket`,
-`name`, `available`, `url`, `position` and no stable vocabulary key, so the
-frontend has nothing sturdier to match on today. Renaming the `Bahamut` or
-`Netflix` `Platform` option on the admin Options page silently drops the
-badge on every card, with no error anywhere. The fix is a deliberate
-cross-layer API change — adding `option_id` to `SourceRef`, to
-`attach_sources`, and to both cards — not a tail-end patch, so it is recorded
-here rather than applied inline. Failure mode is a missing badge, not data
-loss or a wrong value.
+The entry cards draw every available `main` access row as its icon
+(`components/cards/PlatformIcons.jsx`), matching on `bucket`, not on a name.
+The icon itself is looked up by the vocabulary value's name in
+`lib/sourceIcons.js`, so renaming a `Platform` value on the admin Options page
+drops its icon until the map is updated — a missing icon, not lost data. The
+one name code *branches* on is 動畫瘋's (above), and `getBahaRow` prefers the
+row's `option_id` where a caller has it.
 
 ---
 

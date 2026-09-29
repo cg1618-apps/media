@@ -15,8 +15,7 @@ from app.utils.relation_kinds import (
 )
 
 
-def test_twelve_stored_kinds():
-    # Was ten before Remake and Remaster joined for games.
+def test_fourteen_stored_kinds():
     assert set(RELATION_KEYS) == {
         "sequel",
         "alternative",
@@ -30,6 +29,8 @@ def test_twelve_stored_kinds():
         "adaptation",
         "remake",
         "remaster",
+        "dlc",
+        "related",
     }
 
 
@@ -50,12 +51,12 @@ def test_symmetric_is_true_exactly_when_label_equals_inverse_label():
         assert kind.symmetric == (kind.label == kind.inverse_label)
 
 
-def test_only_the_two_peer_kinds_are_symmetric():
-    # Both name a pair with no origin between them, which is what lets the
+def test_only_the_three_peer_kinds_are_symmetric():
+    # Each names a pair with no origin between them, which is what lets the
     # service sort the endpoints before writing and collapse A-x-B and B-x-A
     # into one row.
     symmetric = {k for k, v in RELATION_KINDS.items() if v.symmetric}
-    assert symmetric == {"alternative", "corresponding"}
+    assert symmetric == {"alternative", "corresponding", "related"}
 
 
 def test_corresponding_is_a_symmetric_equivalence_kind():
@@ -108,9 +109,9 @@ def test_prequel_is_input_only_and_maps_to_sequel():
     assert "prequel" in ACCEPTED_INPUT_KINDS
 
 
-def test_accepted_input_kinds_covers_the_thirteen_user_facing_choices():
-    # The twelve stored kinds plus `prequel`, which is input-only.
-    assert len(ACCEPTED_INPUT_KINDS) == 13
+def test_accepted_input_kinds_covers_the_fifteen_user_facing_choices():
+    # The fourteen stored kinds plus `prequel`, which is input-only.
+    assert len(ACCEPTED_INPUT_KINDS) == 15
     assert set(RELATION_KEYS).issubset(set(ACCEPTED_INPUT_KINDS))
 
 
@@ -123,3 +124,25 @@ def test_setting_is_a_directional_branch_kind():
     assert setting.label == "Setting"
     assert setting.inverse_label == "Main Story"
     assert setting.symmetric is False
+
+
+def test_dlc_is_a_directional_branch_kind():
+    # A DLC hangs off the game it extends and never the other way round, so it
+    # is directional and what it points at reads as the Base Game.
+    dlc = RELATION_KINDS["dlc"]
+    assert dlc.family == "branch"
+    assert dlc.label == "DLC"
+    assert dlc.inverse_label == "Base Game"
+    assert dlc.symmetric is False
+    assert dlc.transitive is False
+
+
+def test_related_is_a_symmetric_but_not_transitive_branch_kind():
+    # The loose link for when no other kind fits. It has no origin, so it is
+    # symmetric, but it claims no sameness, so a chain of them implies nothing.
+    related = RELATION_KINDS["related"]
+    assert related.family == "branch"
+    assert related.label == related.inverse_label == "Related"
+    assert related.symmetric is True
+    assert related.transitive is False
+    assert "related" not in TRANSITIVE_KEYS

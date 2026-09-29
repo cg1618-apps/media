@@ -12,7 +12,7 @@ import { effectiveProgressDisplay } from "./novelUnits";
 // the Platform option id should match on. The name match is the fallback:
 // for a caller with no options bag to hand, and for a row whose option was
 // deleted out from under it.
-export const BAHAMUT_VALUE = "Bahamut";
+export const BAHAMUT_VALUE = "動畫瘋";
 
 export function getBahaRow(entry, bahamutOptionId) {
   const rows = (entry.sources || []).filter(

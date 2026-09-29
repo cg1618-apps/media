@@ -5,6 +5,7 @@
 // left in the shared "Status" group would split the three verdict fields
 // across two pages that are meant to match.
 import { describe, expect, it } from "vitest";
+import { GAME_IS_MAIN, IS_MAIN } from "../fieldOptions";
 import { getFieldGroups, getFieldMap } from "./index";
 
 describe("game field groups", () => {
@@ -20,5 +21,21 @@ describe("game field groups", () => {
     expect(groups.indexOf("Ratings")).toBeGreaterThan(
       groups.indexOf("Classification"),
     );
+  });
+});
+
+describe("is_main on the game types", () => {
+  it("offers the game-only vocabulary on game and h-game", () => {
+    expect(GAME_IS_MAIN).toEqual(["Main", "Remake", "Remaster"]);
+    for (const type of ["game", "h-game"]) {
+      const meta = getFieldMap(type).is_main;
+      expect(meta, type).toBeDefined();
+      expect(meta.control).toBe("select");
+      expect(meta.options).toBe(GAME_IS_MAIN);
+    }
+  });
+
+  it("keeps the shared vocabulary everywhere else", () => {
+    expect(getFieldMap("anime").is_main.options).toBe(IS_MAIN);
   });
 });

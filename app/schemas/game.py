@@ -5,12 +5,13 @@ from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from app.schemas.link_fields import GameLinkFields, GameRef
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
 from app.services.domain.game_copies import derive_game_ownership
+from app.services.domain.h_game import check_game_is_main
 
 
 class GameCopyIO(BaseModel):
@@ -48,6 +49,9 @@ class GameBase(BaseModel):
     game_name_alt: Optional[str] = None
 
     game_type: Optional[str] = None
+    # GAME_IS_MAIN - Main / Remake / Remaster. Checked on a write by
+    # GameWriteChecks; not the shared IS_MAIN the other types read.
+    is_main: Optional[str] = None
     base_game_id: Optional[UUID] = None
 
     playing_status: str = "Might Play"
@@ -102,13 +106,26 @@ class GameBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date")
 
 
-class GameCreate(GameBase, SourceWriteFields):
+class GameWriteChecks(BaseModel):
+    """
+    The game vocabulary checked on a write, shared with h-game's write checks.
+    Response schemas do not mix this in: a stored row is served as it is, and
+    a read must never 500 on a value a Pull restored.
+    """
+
+    @field_validator("is_main", check_fields=False)
+    @classmethod
+    def _is_main(cls, v):
+        return check_game_is_main(v)
+
+
+class GameCreate(GameWriteChecks, GameBase, SourceWriteFields):
     # None means "not supplied", [] means "clear them" - the contract
     # write_novel_units established for a nested collection.
     copies: Optional[List[GameCopyIO]] = None
 
 
-class GameUpdate(GameBase, SourceWriteFields):
+class GameUpdate(GameWriteChecks, GameBase, SourceWriteFields):
     copies: Optional[List[GameCopyIO]] = None
 
 

@@ -40,6 +40,7 @@ import {
   CHARACTER_ROLES,
   NOVEL_REGIONS,
   NOVEL_SERIALIZATION_STATUSES,
+  GAME_IS_MAIN,
   GAME_RELEASE_STATUSES,
   GAME_TYPES,
   H_COMIC_ANIMATION_STATUSES,
@@ -779,6 +780,13 @@ export const TYPE_FIELD_META = {
       options: GAME_TYPES,
       group: "Classification",
     },
+    // Overrides the common is_main: games read GAME_IS_MAIN, not IS_MAIN.
+    is_main: {
+      label: "Main / Remake",
+      control: "select",
+      options: GAME_IS_MAIN,
+      group: "Classification",
+    },
     // The parent a DLC or expansion hangs off. An entity picker over the
     // games list, so there is nothing sensible to default it to.
     base_game_id: {
@@ -1127,6 +1135,13 @@ export const TYPE_FIELD_META = {
       label: "Game Type",
       control: "select",
       options: GAME_TYPES,
+      group: "Classification",
+    },
+    // GAME_IS_MAIN, as on Game.
+    is_main: {
+      label: "Main / Remake",
+      control: "select",
+      options: GAME_IS_MAIN,
       group: "Classification",
     },
     base_game_id: {
@@ -1764,6 +1779,7 @@ export const BUILTIN_AUTOFILL = {
     "franchise_id",
     "series_id",
     "game_type",
+    "is_main",
     "base_game_id",
     "release_status",
   ],
@@ -1789,6 +1805,7 @@ export const BUILTIN_AUTOFILL = {
     "franchise_id",
     "series_id",
     "game_type",
+    "is_main",
     "base_game_id",
     "release_status",
     "playstyle",

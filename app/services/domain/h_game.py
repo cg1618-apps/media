@@ -4,8 +4,8 @@ The rules that make an h-game an h-game, on every write path.
 Two invariants, and one place that keeps them:
 
   values    The fixed-choice fields carry closed vocabularies from
-            app/utils/constants.py: playstyle and language_availability are
-            single choices, dialogue_audio, sound_effect, h_presentation,
+            app/utils/constants.py: playstyle, language_availability and
+            is_main are single choices, dialogue_audio, sound_effect, h_presentation,
             art_style, h_art_style and platform lists. An unknown value is refused (422) on a write through the
             API; a list is de-duplicated and kept in vocabulary order, so two
             ways of ticking the same boxes store the same list. An empty list
@@ -43,6 +43,7 @@ from app.services.domain.gated_labels import ensure_entry_label
 from app.services.domain.h_comic import check_usefulness, normalize_group_order
 from app.services.domain.hierarchy import check_entry_franchise_family
 from app.utils.constants import (
+    GAME_IS_MAIN,
     H_GAME_ART_STYLES,
     H_GAME_AUDIO_AVAILABILITY,
     H_GAME_H_ART_STYLES,
@@ -73,6 +74,8 @@ CHOICE_LISTS: dict[str, tuple[tuple[str, ...], str]] = {
 SINGLE_CHOICES: dict[str, tuple[tuple[str, ...], str]] = {
     "playstyle": (H_GAME_PLAYSTYLES, "playstyle"),
     "language_availability": (H_GAME_LANGUAGE_AVAILABILITY, "language availability"),
+    # Game's vocabulary, shared with it - see check_game_is_main.
+    "is_main": (GAME_IS_MAIN, "is_main"),
 }
 
 
@@ -118,6 +121,12 @@ def normalize_choice_list(value, allowed: tuple[str, ...], label: str) -> Option
 
 def check_playstyle(value) -> Optional[str]:
     return check_choice(value, H_GAME_PLAYSTYLES, "playstyle")
+
+
+def check_game_is_main(value) -> Optional[str]:
+    """GAME_IS_MAIN, for game and h-game alike - app/schemas/game.py's write
+    check calls it too, so the two types refuse the same values."""
+    return check_choice(value, GAME_IS_MAIN, "is_main")
 
 
 def check_language_availability(value) -> Optional[str]:
