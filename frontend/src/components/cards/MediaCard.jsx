@@ -23,9 +23,9 @@ import {
   parseTypes,
   MEDIA_CONFIG,
   getNovelProgress,
-  getBahaRow,
 } from "../../utils/media";
 import { Chip, RatingStamp } from "../ui/primitives";
+import PlatformIcons from "./PlatformIcons";
 
 const SPINE_LABEL = {
   anime: "Anime",
@@ -97,11 +97,10 @@ function MetaLine({ children, className = "" }) {
   );
 }
 
+// The tile the platform icons sit on over cover art.
+const PLATFORM_BOX_CLS = "bg-surface/95 px-1 py-0.5 border border-border";
+
 function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
-  const bahaRow = getBahaRow(data);
-  const bahaFlag =
-    (type === "anime" || type === "anime-movie") && bahaRow?.available === true;
-  const hasBahaLink = bahaFlag && bahaRow?.url;
   const franchise = franchiseDict?.[data.franchise_id];
   const expectation = franchise?.franchise_expectation;
 
@@ -118,35 +117,10 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
             {data.airing_type}
           </div>
         )}
-        {bahaFlag &&
-          (hasBahaLink ? (
-            <a
-              href={bahaRow.url}
-              target="_blank"
-              rel="noreferrer"
-              className="absolute bottom-1 left-1 bg-surface/95 px-1.5 py-0.5 z-10 border border-border flex items-center justify-center"
-              title="Watch on Bahamut"
-            >
-              <img
-                loading="lazy"
-                src="https://i2.bahamut.com.tw/anime/logo.svg"
-                className="h-3 opacity-90"
-                alt="Baha"
-              />
-            </a>
-          ) : (
-            <div
-              className="absolute bottom-1 left-1 bg-surface/95 px-1.5 py-0.5 z-10 border border-border flex items-center justify-center"
-              title="Available on Bahamut (no link)"
-            >
-              <img
-                loading="lazy"
-                src="https://i2.bahamut.com.tw/anime/logo.svg"
-                className="h-3 opacity-30 grayscale"
-                alt="Baha"
-              />
-            </div>
-          ))}
+        <PlatformIcons
+          sources={data.sources}
+          className={`absolute bottom-1 left-1 z-10 ${PLATFORM_BOX_CLS}`}
+        />
       </>
     );
   }
@@ -202,19 +176,11 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
           {data.comic_type}
         </div>
       )}
-      {bahaFlag && (
-        <div
-          className="absolute bottom-1 left-1 bg-surface/95 px-1.5 py-0.5 z-10 border border-border flex items-center justify-center"
-          title="Available on Bahamut"
-        >
-          <img
-            loading="lazy"
-            src="https://i2.bahamut.com.tw/anime/logo.svg"
-            className="h-3 opacity-90"
-            alt="Baha"
-          />
-        </div>
-      )}
+      <PlatformIcons
+        sources={data.sources}
+        linked={false}
+        className={`absolute bottom-1 left-1 z-10 ${PLATFORM_BOX_CLS}`}
+      />
     </>
   );
 }

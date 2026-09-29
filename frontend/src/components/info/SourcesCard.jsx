@@ -38,7 +38,7 @@ function SourceIcon({ src }) {
   );
 }
 
-function SourceLink({ href, icon, tag, children, title }) {
+function SourceLink({ href, icon, children, title }) {
   return (
     <a
       href={href}
@@ -49,7 +49,6 @@ function SourceLink({ href, icon, tag, children, title }) {
     >
       <span className="flex items-center gap-2 min-w-0">
         <SourceIcon src={icon} />
-        {tag && <Tag>{tag}</Tag>}
         <span className="truncate">{children}</span>
       </span>
       <i
@@ -60,12 +59,11 @@ function SourceLink({ href, icon, tag, children, title }) {
   );
 }
 
-function SourceRow({ icon, tag, children, muted = false }) {
+function SourceRow({ icon, children, muted = false }) {
   return (
     <div className={`${PLAIN_CLS} ${muted ? "text-text-faint" : ""}`}>
       <span className="flex items-center gap-2 min-w-0">
         <SourceIcon src={icon} />
-        {tag && <Tag>{tag}</Tag>}
         <span className="truncate">{children}</span>
       </span>
     </div>
@@ -209,7 +207,6 @@ export default function SourcesCard({
             <SourceLink
               href={steamLink}
               icon={sourceIconUrl("Steam")}
-              tag="Steam"
             >
               Steam store page
             </SourceLink>
@@ -220,7 +217,6 @@ export default function SourcesCard({
             <SourceLink
               href={dlsiteLinkJp}
               icon={sourceIconUrl("DLsite")}
-              tag="DLsite"
             >
               DLsite (JP)
             </SourceLink>
@@ -229,7 +225,6 @@ export default function SourcesCard({
             <SourceLink
               href={dlsiteLinkTw}
               icon={sourceIconUrl("DLsite")}
-              tag="DLsite"
             >
               DLsite (TW)
             </SourceLink>
@@ -255,7 +250,6 @@ export default function SourcesCard({
             <SourceLink
               href={malLink}
               icon={sourceIconUrl("MyAnimeList")}
-              tag="MAL"
             >
               MyAnimeList
             </SourceLink>
@@ -264,7 +258,6 @@ export default function SourcesCard({
             <SourceLink
               href={anidbLink}
               icon={sourceIconUrl("AniDB")}
-              tag="AniDB"
             >
               AniDB
             </SourceLink>
@@ -274,13 +267,12 @@ export default function SourcesCard({
             <SourceLink
               href={ehentaiLink}
               icon={sourceIconUrl("E-Hentai")}
-              tag="EH"
             >
               E-Hentai
             </SourceLink>
           )}
           {imdbLink && (
-            <SourceLink href={imdbLink} icon={sourceIconUrl("IMDb")} tag="IMDb">
+            <SourceLink href={imdbLink} icon={sourceIconUrl("IMDb")}>
               IMDb page
             </SourceLink>
           )}
@@ -288,7 +280,6 @@ export default function SourcesCard({
             <SourceLink
               href={comicvineLink}
               icon={sourceIconUrl("Comic Vine")}
-              tag="CV"
             >
               Comic Vine
             </SourceLink>
@@ -297,13 +288,12 @@ export default function SourcesCard({
             <SourceLink
               href={openLibraryLink}
               icon={sourceIconUrl("Open Library")}
-              tag="OL"
             >
               Open Library
             </SourceLink>
           )}
           {igdbLink && (
-            <SourceLink href={igdbLink} icon={sourceIconUrl("IGDB")} tag="IGDB">
+            <SourceLink href={igdbLink} icon={sourceIconUrl("IGDB")}>
               IGDB page
             </SourceLink>
           )}

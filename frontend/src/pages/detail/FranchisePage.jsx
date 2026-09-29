@@ -1670,7 +1670,7 @@ export default function FranchisePage() {
                   }
                   className="rounded"
                 />
-                Baha only
+                動畫瘋 only
               </label>
 
               <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>

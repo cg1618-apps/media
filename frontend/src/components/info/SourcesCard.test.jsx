@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import SourcesCard, { accessHeading } from "./SourcesCard";
 
 const rows = [
-  { system_id: "1", kind: "access", bucket: "main", name: "Bahamut", url: "https://b.test", available: true },
+  { system_id: "1", kind: "access", bucket: "main", name: "動畫瘋", url: "https://b.test", available: true },
   { system_id: "2", kind: "access", bucket: "main", name: "Netflix", url: null, available: false },
   { system_id: "3", kind: "access", bucket: "restricted", name: "Elsewhere", url: "https://e.test" },
   { system_id: "4", kind: "reference", bucket: "main", name: "Wikipedia", url: "https://w.test" },
@@ -17,7 +17,7 @@ describe("SourcesCard", () => {
   it("splits access rows from reference rows", () => {
     render(<SourcesCard sources={rows} mediaType="anime" />);
     const watch = screen.getByRole("region", { name: /where to watch/i });
-    expect(within(watch).getByText("Bahamut")).toBeInTheDocument();
+    expect(within(watch).getByText("動畫瘋")).toBeInTheDocument();
     expect(within(watch).queryByText("Wikipedia")).not.toBeInTheDocument();
   });
 
@@ -29,7 +29,7 @@ describe("SourcesCard", () => {
   it("keeps the server's order", () => {
     render(<SourcesCard sources={rows} mediaType="anime" />);
     const names = screen.getAllByTestId("source-name").map((n) => n.textContent);
-    expect(names.slice(0, 2)).toEqual(["Bahamut", "Netflix"]);
+    expect(names.slice(0, 2)).toEqual(["動畫瘋", "Netflix"]);
   });
 
   it("renders an unavailable platform as text, not a link", () => {
@@ -50,8 +50,8 @@ describe("SourcesCard", () => {
       { system_id: "5", kind: "reference", bucket: "main", name: "Official site", url: "https://o.test" },
     ];
     render(<SourcesCard sources={sources} mediaType="anime" />);
-    const bahamut = screen.getByRole("link", { name: /bahamut/i });
-    expect(within(bahamut).getByTestId("source-icon")).toHaveAttribute(
+    const baha = screen.getByRole("link", { name: /動畫瘋/ });
+    expect(within(baha).getByTestId("source-icon")).toHaveAttribute(
       "src",
       expect.stringContaining("bahamut"),
     );
@@ -71,6 +71,23 @@ describe("SourcesCard", () => {
     expect(restricted).toHaveAttribute("href", "https://r.test");
     expect(within(restricted).queryByTestId("source-icon")).toBeNull();
     expect(within(main).getByTestId("source-icon")).toBeInTheDocument();
+  });
+
+  // The icon names the site, so no link carries a tag box beside it -
+  // including the column-backed ones, and one whose site has no icon.
+  it("draws no tag box on any source link", () => {
+    render(
+      <SourcesCard
+        sources={rows}
+        mediaType="game"
+        steamLink="https://store.steampowered.com/app/1/"
+        igdbLink="https://igdb.test"
+        malLink="https://mal.test"
+      />,
+    );
+    for (const tag of ["Steam", "IGDB", "MAL"]) {
+      expect(screen.queryByText(tag, { exact: true })).toBeNull();
+    }
   });
 
   it("draws the site's icon on a column-backed link", () => {
