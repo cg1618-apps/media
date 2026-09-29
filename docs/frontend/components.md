@@ -278,6 +278,16 @@ the gated media types.
   [business-rules.md](../business-rules.md#18-media-sources-appservicesdomainsourcespy-apputilscredit_rolespy).
   An `available === false` row still renders (muted, no link) — that state
   means "known not to be there", not "hide this row".
+  Each row leads with its site's icon, looked up by exact name in
+  `lib/sourceIcons.js` — the favicons are files under
+  `src/assets/source-icons/`, bundled with the SPA and never fetched from the
+  sites. Only `main` rows and the column-backed links are looked up: an
+  Other or Restricted row's name is typed text, so it never gets an icon even
+  when it matches one. A name with no entry — `Official site`, `Cinema`,
+  `Other`, or a vocabulary value added later — keeps an empty 16 px slot, so
+  the names in a section stay aligned. A new `Platform` or `Reference Source`
+  value gets an icon by saving its favicon there and adding its name to the
+  map.
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
   `MultiSelect` (two caps that read alike: `limit` is how many options the
   dropdown *shows* — `null` for all — and `max` is how many values can be
