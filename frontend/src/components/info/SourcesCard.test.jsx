@@ -44,6 +44,44 @@ describe("SourcesCard", () => {
     expect(screen.getByRole("link", { name: /myanimelist/i })).toBeInTheDocument();
   });
 
+  it("draws a main row's own icon, and none for a name without one", () => {
+    const sources = [
+      ...rows,
+      { system_id: "5", kind: "reference", bucket: "main", name: "Official site", url: "https://o.test" },
+    ];
+    render(<SourcesCard sources={sources} mediaType="anime" />);
+    const bahamut = screen.getByRole("link", { name: /bahamut/i });
+    expect(within(bahamut).getByTestId("source-icon")).toHaveAttribute(
+      "src",
+      expect.stringContaining("bahamut"),
+    );
+    const official = screen.getByRole("link", { name: /official site/i });
+    expect(within(official).queryByTestId("source-icon")).toBeNull();
+  });
+
+  // The restricted row carries a name that HAS an icon, so a missing icon
+  // proves the bucket check refused it rather than the lookup finding nothing.
+  it("never draws an icon on a restricted row, even under an iconed name", () => {
+    const sources = [
+      { system_id: "1", kind: "access", bucket: "restricted", name: "Bilibili", url: "https://r.test" },
+      { system_id: "2", kind: "access", bucket: "main", name: "Bilibili", url: "https://m.test" },
+    ];
+    render(<SourcesCard sources={sources} mediaType="anime" />);
+    const [restricted, main] = screen.getAllByRole("link", { name: /bilibili/i });
+    expect(restricted).toHaveAttribute("href", "https://r.test");
+    expect(within(restricted).queryByTestId("source-icon")).toBeNull();
+    expect(within(main).getByTestId("source-icon")).toBeInTheDocument();
+  });
+
+  it("draws the site's icon on a column-backed link", () => {
+    render(<SourcesCard sources={[]} mediaType="anime" malLink="https://mal.test" />);
+    const mal = screen.getByRole("link", { name: /myanimelist/i });
+    expect(within(mal).getByTestId("source-icon")).toHaveAttribute(
+      "src",
+      expect.stringContaining("myanimelist"),
+    );
+  });
+
   it("renders a hentai's AniDB link under Where to Look Up", () => {
     render(
       <SourcesCard sources={[]} mediaType="hentai" anidbLink="https://anidb.net/anime/1" />,
