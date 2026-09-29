@@ -84,7 +84,7 @@ describe("MediaCard — novel progress (Decision G)", () => {
 
 // The Bahamut badge must come from the one shared predicate in
 // lib/formatters.js (kind "access" AND bucket "main"), not from a name match
-// re-implemented here - a typed free-form row named "Bahamut" is somebody's
+// re-implemented here - a typed free-form row named "動畫瘋" is somebody's
 // note, not the platform.
 describe("MediaCard - the Bahamut badge", () => {
   const base = {
@@ -99,27 +99,43 @@ describe("MediaCard - the Bahamut badge", () => {
       {
         ...base,
         sources: [
-          { kind: "access", bucket: "main", name: "Bahamut", available: true },
+          { kind: "access", bucket: "main", name: "動畫瘋", available: true },
         ],
       },
       "anime",
     );
-    expect(await screen.findByAltText("Baha")).toBeInTheDocument();
+    expect(await screen.findByAltText("動畫瘋")).toBeInTheDocument();
   });
 
-  it("does not show for a free-form row typed 'Bahamut'", async () => {
+  it("shows every available main platform with an icon, not only 動畫瘋", async () => {
     mockAuthFetch();
     mount(
       {
         ...base,
         sources: [
-          { kind: "access", bucket: "other", name: "Bahamut", available: true },
+          { kind: "access", bucket: "main", name: "Netflix", available: true },
+          { kind: "access", bucket: "main", name: "Disney+", available: false },
+        ],
+      },
+      "tv-show",
+    );
+    expect(await screen.findByAltText("Netflix")).toBeInTheDocument();
+    expect(screen.queryByAltText("Disney+")).toBeNull();
+  });
+
+  it("does not show for a free-form row typed '動畫瘋'", async () => {
+    mockAuthFetch();
+    mount(
+      {
+        ...base,
+        sources: [
+          { kind: "access", bucket: "other", name: "動畫瘋", available: true },
         ],
       },
       "anime",
     );
     await screen.findByText("Test Anime");
-    expect(screen.queryByAltText("Baha")).toBeNull();
+    expect(screen.queryByAltText("動畫瘋")).toBeNull();
   });
 });
 
@@ -167,7 +183,7 @@ describe("MediaCard - the card is a link", () => {
           {
             kind: "access",
             bucket: "main",
-            name: "Bahamut",
+            name: "動畫瘋",
             available: true,
             url: "https://ani.gamer.com.tw/x",
           },
@@ -178,7 +194,7 @@ describe("MediaCard - the card is a link", () => {
       "future",
     );
     const cardLink = await screen.findByRole("link", { name: /Test Anime/ });
-    const baha = screen.getByAltText("Baha").closest("a");
+    const baha = screen.getByAltText("動畫瘋").closest("a");
     expect(baha).not.toBeNull();
     expect(cardLink.contains(baha)).toBe(false);
   });

@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-27
+Last verified: 2026-09-29
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -493,10 +493,13 @@ The link checks (`_link_missing`) read `media_credit` / `media_tag` through
 
 The episode version is skipped entirely when both values are `None`.
 
-### Bahamut availability
+### 動畫瘋 (Bahamut) availability
 
-`apply_check_baha` (anime, anime movie): a Bahamut link means the entry is
-available on Bahamut. The verdict lives on the entry's Bahamut `main`
+`apply_check_baha` (anime, anime movie): a 動畫瘋 link means the entry is
+available on Bahamut's 動畫瘋. The `Platform` value is `動畫瘋`, and code
+finds it by that name (`BAHAMUT_VALUE`), so renaming it on the Options page
+breaks this rule — rename it in a migration that changes the constant too.
+The verdict lives on the entry's 動畫瘋 `main`
 `access` row in `media_source` — if that row's `url` is set and its
 `available` is `None`, set `available = True`. Never overwrites an existing
 verdict.
@@ -1040,27 +1043,16 @@ the reading types than on the watching ones: a viewer holding neither
 `sources_other` nor `sources_restricted` sees a manga's Sources card with
 reference links only and **no reading sources at all** (manga, comic and game have
 no `main`-bucket access platforms — see [entry-types.md](entry-types.md)),
-where the same role still sees Bahamut and Netflix on an anime. That
+where the same role still sees 動畫瘋 and Netflix on an anime. That
 asymmetry is the intent of the restricted tier, not an oversight.
 
-See [Known issue](#known-issue-mediacarddashboardcard-match-a-source-by-name-not-by-a-stable-key)
-below for a follow-up this design surfaced but did not fix.
-
-### Known issue: `MediaCard`/`DashboardCard` match a source by name, not by a stable key
-
-`frontend/src/components/cards/MediaCard.jsx` and
-`frontend/src/components/tracker/DashboardCard.jsx` find the Bahamut / Netflix
-badge rows with `s.kind === "access" && s.name === "Bahamut"` (and
-`"Netflix"`) — string-matched against the vocabulary's human `value`.
-`SourceRef` (`app/schemas/sources.py`) exposes `system_id`, `kind`, `bucket`,
-`name`, `available`, `url`, `position` and no stable vocabulary key, so the
-frontend has nothing sturdier to match on today. Renaming the `Bahamut` or
-`Netflix` `Platform` option on the admin Options page silently drops the
-badge on every card, with no error anywhere. The fix is a deliberate
-cross-layer API change — adding `option_id` to `SourceRef`, to
-`attach_sources`, and to both cards — not a tail-end patch, so it is recorded
-here rather than applied inline. Failure mode is a missing badge, not data
-loss or a wrong value.
+The entry cards draw every available `main` access row as its icon
+(`components/cards/PlatformIcons.jsx`), matching on `bucket`, not on a name.
+The icon itself is looked up by the vocabulary value's name in
+`lib/sourceIcons.js`, so renaming a `Platform` value on the admin Options page
+drops its icon until the map is updated — a missing icon, not lost data. The
+one name code *branches* on is 動畫瘋's (above), and `getBahaRow` prefers the
+row's `option_id` where a caller has it.
 
 ---
 

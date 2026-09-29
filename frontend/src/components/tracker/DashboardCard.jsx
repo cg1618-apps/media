@@ -5,11 +5,11 @@ import {
   getCoverUrl,
   FALLBACK_SVG,
   getDisplayName,
-  getBahaRow,
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { EntryRow } from "./DashboardTable";
 import { entityPath } from "../../lib/entityPath";
+import PlatformIcons from "../cards/PlatformIcons";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center w-14 px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -48,12 +48,6 @@ export default function DashboardCard({
   const navigatePath = entityPath(titleType, anime);
 
   const imageUrl = getCoverUrl(anime.cover_image_file);
-  const bahaRow = getBahaRow(anime);
-  const netflixRow = (anime.sources || []).find(
-    (s) => s.kind === "access" && s.name === "Netflix",
-  );
-  const bahaFlag =
-    isTV || isCartoon || isReading ? false : bahaRow?.available === true;
 
   const prevEps = isTV || isCartoon || isReading ? 0 : anime.ep_previous || 0;
   const localFin = isReading ? anime.ch_fin || 0 : anime.ep_fin || 0;
@@ -179,37 +173,7 @@ export default function DashboardCard({
             {!isTV && !isCartoon && !isReading && (
               <Chip tone="ink">{anime.airing_type || "TV"}</Chip>
             )}
-            {bahaFlag && bahaRow?.url && (
-              <a
-                href={bahaRow.url}
-                target="_blank"
-                rel="noreferrer"
-                className="relative z-10 inline-block"
-                title="Watch on Bahamut"
-              >
-                <img
-                  loading="lazy"
-                  src="https://i2.bahamut.com.tw/anime/logo.svg"
-                  className="h-3.5 opacity-90"
-                  alt="Baha"
-                />
-              </a>
-            )}
-            {bahaFlag && !bahaRow?.url && (
-              <span className="inline-block" title="Available on Bahamut">
-                <img
-                  loading="lazy"
-                  src="https://i2.bahamut.com.tw/anime/logo.svg"
-                  className="h-3.5 opacity-50 grayscale"
-                  alt="Baha"
-                />
-              </span>
-            )}
-            {!isTV && netflixRow?.available && (
-              <Chip tone="ink" title="Available on Netflix">
-                Netflix
-              </Chip>
-            )}
+            <PlatformIcons sources={anime.sources} />
           </div>
         </div>
       </div>

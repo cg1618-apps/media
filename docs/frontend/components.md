@@ -206,6 +206,10 @@ the gated media types.
   novel, the cover stamp on an anime movie — reads whichever column
   `scoreField` names, defaulting to `mal_rating`, so a library sorted by an
   AniList figure can point every card at `anilist_rating` instead),
+  `PlatformIcons` (an entry's available `main` access platforms — 動畫瘋,
+  Netflix, Disney+ and the rest — drawn as their `lib/sourceIcons.js` icons on
+  `MediaCard`'s poster and `DashboardCard`'s chip row; a row with a url links
+  to it, one without is faded, and a value with no icon is skipped),
   `FranchiseCard`, `CollectionCard`, and `StaffCard`
   (`PersonCard` / `StudioCard` over one shared body — the person and studio
   libraries and the `/search` staff sections all draw it; `PersonCard` shows
@@ -267,7 +271,7 @@ the gated media types.
   `malLink`/`anidbLink`/`ehentaiLink`/`imdbLink`/`comicvineLink`/`openLibraryLink`/`igdbLink`
   props beside the reference rows (`anidbLink` is a hentai's AniDB page, drawn after MyAnimeList as
   "AniDB"; `ehentaiLink` is an h-comic's gallery,
-  drawn after MyAnimeList as "E-Hentai" with the tag "EH"), `steamLink` (a storefront, not a reference
+  drawn after MyAnimeList as "E-Hentai"), `steamLink` (a storefront, not a reference
   database) beside the **access** rows instead — the access section renders
   for a `steamLink` alone, so a game whose only place to play is its Steam
   page still gets one; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
@@ -287,7 +291,8 @@ the gated media types.
   `Other`, or a vocabulary value added later — keeps an empty 16 px slot, so
   the names in a section stay aligned. A new `Platform` or `Reference Source`
   value gets an icon by saving its favicon there and adding its name to the
-  map.
+  map. The icon is what names the site, so no source link carries a `Tag`
+  box beside it — the `Tag` chips are only the tag-field row above.
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
   `MultiSelect` (two caps that read alike: `limit` is how many options the
   dropdown *shows* — `null` for all — and `max` is how many values can be
