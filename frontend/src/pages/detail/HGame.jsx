@@ -442,6 +442,7 @@ export default function HGame() {
                 fields={[
                   [
                     { label: "Type", value: hGame.game_type },
+                    { label: "Main / Remake", value: hGame.is_main },
                     {
                       label: "Base Game",
                       value: hGame.base_game ? (

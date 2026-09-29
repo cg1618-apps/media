@@ -237,7 +237,8 @@ coerces both to ints
 identifier is per-entry by definition.
 
 The rest of the form is `GameFormBody`, exported from the same file: the five
-names, classification (game type plus a **Base Game** `ComboBox` that never
+names, classification (game type, **Main / Remake** - `is_main` over
+`GAME_IS_MAIN`, starting on Main - plus a **Base Game** `ComboBox` that never
 offers the row being edited — `ck_games_not_self_parent` — and the four game
 vocabularies), status, progress and the three HLTB tiers, credits (Developer is
 a **studio** row, Publisher a **publisher** row; director and composer are
@@ -290,8 +291,8 @@ renders too. The franchise picker offers **H-Game franchises only**, and a new
 franchise typed there is created as `H-Game` - H-Game is a franchise family of
 its own, and the server refuses an h-game anywhere else. The **Base Game**
 picker offers h-games only (the self-FK is on `h_game`) and never the row
-being edited. The body has the five names; classification (game type, base
-game, **play style**, series number, Genre and Theme scoped to `h-game`, and
+being edited. The body has the five names; classification (game type, Main /
+Remake, base game, **play style**, series number, Genre and Theme scoped to `h-game`, and
 the three H Genre fields); a **Content** section - **Language** (one choice),
 **Animation** (yes / no / unset) and three `ChoiceChips` lists, **Audio**, **H
 演出形式** and **Platform** (where it is sold; not Game's hardware Platform

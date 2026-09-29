@@ -340,7 +340,7 @@ nested `copies` collection.
 | `GET`    | `/`                    | Public | List all games. Optional params: `franchise_id`, `series_id`, `playing_status`, `release_status`, `game_type`, `search_query`, plus **`ownership`** (see below). |
 | `GET`    | `/{entry_id}`          | Public | One game by UUID. |
 | `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_replace_single_game` after creation, which calls `apply_single_replace_game` (IGDB fill-only, keyed on `igdb_id`, then Steam, keyed on `steam_appid`; both ids derived from their links first) and re-extracts system options, then logs the write. |
-| `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `GameUpdate`. Same write hook. |
+| `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `GameUpdate`. Same write hook. `GameCreate` and `GameUpdate` check `is_main` against `GAME_IS_MAIN` (422 otherwise). |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. `copies` is honoured here too — the nested writer coerces a copy's `system_id` from a JSON string, since a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets `playing_status = "Completed"` and **nothing else**: `completion_level`, the three `all_*` flags and the achievement pair are independent axes only the user can judge. |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete. Cascades to `game_copy`; logs to `deleted_record` under type `Game`. |
@@ -529,7 +529,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 
 **Payload fields** (`HGameBase`): `franchise_id`, `series_id`,
 `h_game_name_cn` / `_en` / `_jp` / `_roman` / `_alt`, `series_number`,
-`playstyle`, `game_type`, `base_game_id`, `release_status`, `release_date`,
+`playstyle`, `game_type`, `is_main`, `base_game_id`, `release_status`, `release_date`,
 `current_patch`, `completion_level`, `all_endings`, `all_cg`,
 `steam_progress_sync`, `achievements_earned` / `_total`, the three `hltb_*`,
 the six `price_*`, `language_availability`, `dialogue_audio` (list),
@@ -1133,7 +1133,7 @@ value means; this endpoint just serves them.
 
 Keys served: `watching_status`, `reading_status`, `airing_status`,
 `anime_airing_type`, `cartoon_airing_type`, `franchise_type`,
-`franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `movie_type`, `tv_region`,
+`franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `game_is_main`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
 `manga_serialization_status`, `novel_serialization_status`, `day_of_week`,
 `music_status`, `seiyuu_status`, `watch_order_importance`, `h_comic_region`,

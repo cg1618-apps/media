@@ -205,16 +205,18 @@ def find_duplicate_comic(db: Session) -> list[list[dict]]:
 
 
 def find_duplicate_game(db: Session) -> list[list[dict]]:
-    """Same franchise, series, game type + a shared name.
+    """Same franchise, series, game type, is_main + a shared name.
 
     game_type is part of the key because a DLC or expansion shares its base
     game's franchise and usually its name stem ("Elden Ring" / "Elden Ring:
     Shadow of the Erdtree"), and the two are separate entries by design.
+    is_main is in it for the same reason: a remake or remaster usually shares
+    its original's name exactly.
     """
     return _find(
         _with_franchise(db, Game),
-        key=lambda g: (str(g.franchise_id), _ref(g.series_id), g.game_type),
-        fields=("franchise_id", "series_id", "game_type", "game_name_en",
+        key=lambda g: (str(g.franchise_id), _ref(g.series_id), g.game_type, g.is_main),
+        fields=("franchise_id", "series_id", "game_type", "is_main", "game_name_en",
                 "game_name_cn", "game_name_roman", "game_name_jp", "game_name_alt"),
     )
 
@@ -250,15 +252,16 @@ def find_duplicate_hentai(db: Session) -> list[list[dict]]:
 
 
 def find_duplicate_h_game(db: Session) -> list[list[dict]]:
-    """Game's rule - same franchise, series, game type + a shared name - with
-    the series number in the key too, because a numbered run shares its
-    series' name."""
+    """Game's rule - same franchise, series, game type, is_main + a shared
+    name - with the series number in the key too, because a numbered run
+    shares its series' name."""
     return _find(
         _with_franchise(db, HGame),
         key=lambda h: (
-            str(h.franchise_id), _ref(h.series_id), h.game_type, h.series_number
+            str(h.franchise_id), _ref(h.series_id), h.game_type, h.is_main,
+            h.series_number,
         ),
-        fields=("franchise_id", "series_id", "game_type", "series_number",
+        fields=("franchise_id", "series_id", "game_type", "is_main", "series_number",
                 "h_game_name_cn", "h_game_name_en", "h_game_name_roman",
                 "h_game_name_jp", "h_game_name_alt"),
     )

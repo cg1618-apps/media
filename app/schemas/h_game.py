@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
-from app.schemas.game import GameCopyIO
+from app.schemas.game import GameCopyIO, GameWriteChecks
 from app.schemas.link_fields import GameRef, HGameLinkFields
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
@@ -39,6 +39,8 @@ class HGameBase(BaseModel):
     playstyle: Optional[str] = None
 
     game_type: Optional[str] = None
+    # GAME_IS_MAIN, as on Game.
+    is_main: Optional[str] = None
     base_game_id: Optional[UUID] = None
 
     release_status: Optional[str] = None
@@ -102,9 +104,10 @@ class HGameBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date")
 
 
-class _WriteChecks(BaseModel):
+class _WriteChecks(GameWriteChecks):
     """
-    The h-game vocabularies, checked on a write. Response schemas do not mix
+    The h-game vocabularies, checked on a write - Game's is_main check
+    included, by inheritance. Response schemas do not mix
     this in: a stored row is served as it is, and a read must never 500 on a
     value a Pull restored. The tracker PATCH has no schema, so the registry's
     progress hook checks the same things again there

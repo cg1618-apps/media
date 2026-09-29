@@ -329,6 +329,8 @@ export const defaultGame = () => ({
   series_id: null,
   series_text: "",
   game_type: "",
+  // GAME_IS_MAIN, not the shared IS_MAIN: a new game is the main release.
+  is_main: "Main",
   base_game_id: null,
   playing_status: "Might Play",
   completion_level: "",
@@ -454,6 +456,8 @@ export const defaultHGame = () => ({
   series_number: "",
   playstyle: "",
   game_type: "",
+  // GAME_IS_MAIN, as on Game.
+  is_main: "Main",
   base_game_id: null,
   playing_status: "Might Play",
   completion_level: "",

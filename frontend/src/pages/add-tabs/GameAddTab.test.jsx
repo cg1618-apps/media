@@ -96,3 +96,13 @@ describe("GameAddTab IGDB search", () => {
     expect(applyGameAutofill).toHaveBeenCalledWith(ELDEN);
   });
 });
+
+describe("GameAddTab is_main", () => {
+  it("offers the game-only Main / Remake / Remaster, starting on Main", () => {
+    renderTab();
+    const select = screen.getByRole("combobox", { name: "Main / Remake" });
+    expect(select).toHaveValue("Main");
+    const values = [...select.options].map((o) => o.value);
+    expect(values).toEqual(["", "Main", "Remake", "Remaster"]);
+  });
+});
