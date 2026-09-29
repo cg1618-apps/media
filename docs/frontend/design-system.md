@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-09-27
+Last verified: 2026-09-29
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -117,7 +117,11 @@ Two of those flex rather than fork for a type that does not fit the shape:
   "Where to Read", or **"Where to Play"** for a game — above a single
   "Where to Look Up" reference section that also renders the column-backed
   `malLink` / `anidbLink` / `ehentaiLink` / `imdbLink` / `comicvineLink` /
-  `openLibraryLink` / `igdbLink` props.
+  `openLibraryLink` / `igdbLink` props. Each row leads with the site's own
+  icon — the one place a site's brand colours appear on the page, since the
+  rows themselves stay ink. The icon sits on a white 16 px tile, because many
+  favicons are dark-on-transparent and would vanish in dark mode. Other and
+  Restricted rows have no icon, only the empty slot.
 
 ## Page anatomy
 
