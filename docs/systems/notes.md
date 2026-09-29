@@ -78,7 +78,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `quick_edit` | Render an inline editor in the read view, saving on blur without opening the row. For a value that changes while playing rather than while writing. |
 | `placeholder` | Overrides the label in the input. |
 
-Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`groupable_by`** names one of the section's `select` fields - 技能 Skills and the three 物品 sections name `type`. The card then carries a **Group by type** toggle (on by default, remembered per section in the reader's browser) that draws one group per value, in the order each value first appears, with the rows carrying none in a trailing group. Unlike `group_by`, no group order is stored anywhere: the groups follow the rows' `sort_index`, so moving a group or a row within one saves the whole section's row order through `PATCH /api/notes/reorder`, grouped. It is checked at import the same way. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
+Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`groupable_by`** names one of the section's `select` fields - 職業 Classes, 技能 Skills and the three 物品 sections name `type`. The card then carries a **Group by type** toggle (on by default, remembered per section in the reader's browser) that draws one group per value, in the order each value first appears, with the rows carrying none in a trailing group. Unlike `group_by`, no group order is stored anywhere: the groups follow the rows' `sort_index`, so moving a group or a row within one saves the whole section's row order through `PATCH /api/notes/reorder`, grouped. It is checked at import the same way. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
 
 **Why one JSONB column and not a column per field.** Most of what the structured sections need already has a column — a name is `title`, a description is `content`, a dropdown is `kind` or `status` — so `fields` carries only the leftovers and the nested lists. A column per field would put a dozen mostly-blank columns on a table all twelve owner types share, and those columns are also the Google Sheets Note tab; the nested lists would need JSONB regardless. The cost, stated plainly: the leftover scalars have no database-level type and no column to filter on. The values worth filtering (a beaten status, a completion status) land in the real `status` column, which is why that cost stays theoretical.
 
@@ -102,7 +102,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `reviews` | 評論 Reviews and Comments | `fa-comments` |
 | `analysis_group` | 解析 Analysis and Cinematography | `fa-clapperboard` (keyed `analysis_group` because a section already owns `analysis`) |
 | `guides` | 攻略 Guides | `fa-map` — game and h-game only: gameplay systems, controls, guide notes, and for game also beginner and trivia. The way in, not the content |
-| `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game and h-game only: stats, skills, builds, team composition |
+| `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game and h-game only: stats, classes, skills, builds, team composition |
 | `gear` | 物品 Items & Gear | `fa-sack-xmark` — game and h-game only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
 | `compendium` | 圖鑑與名詞 Compendium & Terms | `fa-dragon` — game and h-game only: characters, enemies, game terms, and for game also player terms |
 | `tools` | 資源&工具 Tools & Resources | `fa-screwdriver-wrench` — game and h-game only: mods and tools, guide resources. Renders beside the site-wide Resources card, not with the 攻略 run |
@@ -254,6 +254,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `guide_notes` | 攻略筆記 Guide Notes | text | guides | game, h-game | — | — | — | no | no | no |
 | `trivia` | 小知識 Trivia | text_links | guides | game | — | — | — | no | no | no |
 | `stats_and_points` | 屬性&配點 Stats & Points | **structured** | builds | game, h-game | — | — | — | no | no | no |
+| `classes` | 職業 Classes | **structured** | builds | game, h-game | — | — | — | no | no | no |
 | `skills` | 技能 Skills | **structured** | builds | game, h-game | — | — | — | no | no | no |
 | `builds_and_styles` | 配裝&流派 Builds & Styles | **structured** | builds | game, h-game | — | — | — | no | no | no |
 | `team_composition` | 隊伍組成 Team Composition | **structured** | builds | game, h-game | — | — | — | no | no | no |
@@ -407,6 +408,7 @@ column a field claims; a field with no arrow lives in `fields`.
 | --- | --- |
 | `controls` | control → `title`, description → `content`, links → `links` |
 | `stats_and_points` | name → `title`, min_value, rec_value, softmax_value, **my_value** *(quick-edit)*, description → `content` |
+| `classes` | type → `kind` (free-text select), name → `title`, role, unlock, key_stats, description → `content`, links → `links`; `groupable_by = "type"` |
 | `builds_and_styles` | name → `title`, **stats** *(list: name, min_value, rec_value)*, **armor** *(list: body_part, name, special)*, **weapons** *(list: range_type, type, name, special)*, **items** *(list: type, name, amount)*, **skills** *(list: type, name)*, description → `content`, links → `links` |
 | `team_composition` | name → `title`, **members** *(list: name, role 定位, build, description)*, description → `content`, links → `links` |
 | `skills` | type → `kind`, name → `title`, description → `content`, links → `links` |
@@ -451,7 +453,7 @@ Every section declares a **`scope`**, and the field has **no default** — a sec
 
 | Scope | Sections | Meaning |
 | --- | --- | --- |
-| `catalog` | 52 | One shared set of rows, read by everyone unfiltered |
+| `catalog` | 53 | One shared set of rows, read by everyone unfiltered |
 | `personal` | 13 — `remark`, `remark_list`, `reviews_and_comments`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions`, and the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe` | One set per user; a viewer sees their own rows and nobody else's |
 | `None` | `quotes`, `memes` | The two `external` sections, backed by their own tables. Quotes and memes are **universal** — shared, unfiltered, no per-user copies — so scope does not apply |
 

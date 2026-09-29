@@ -304,6 +304,7 @@ out. What the three gated types keep is in
 | `guide_notes` | text | 攻略筆記 Guide Notes | game, h-game | guides | no links |
 | `trivia` | text_links | 小知識 Trivia | game | guides | |
 | `stats_and_points` | structured | 屬性&配點 Stats & Points | game, h-game | builds | name, min/rec/soft-cap, my value (quick-edit), description |
+| `classes` | structured | 職業 Classes | game, h-game | builds | type, name, 定位 role, 解鎖條件 unlock, 核心屬性 key stats, description, links; groupable by type |
 | `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links; groupable by type |
 | `builds_and_styles` | structured | 配裝&流派 Builds & Styles | game, h-game | builds | name, five nested lists, description, links |
 | `team_composition` | structured | 隊伍組成 Team Composition | game, h-game | builds | name, members list (name, 定位, build, notes), description, links |

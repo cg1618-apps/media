@@ -1043,6 +1043,36 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         ),
     ),
     NoteSection(
+        # What you play AS, chosen before the skills that come with it - hence
+        # between 屬性&配點 and 技能. Flat and groupable by type rather than a
+        # tree of advancements: most games offer classes from a menu, and a
+        # prerequisite fits in 解鎖條件 as prose. Type is free text for the
+        # reason `_named_thing_fields` gives (初階 / 進階 / 隱藏 are one game's
+        # words); `key_stats` names the stats it scales on, which is the link
+        # to 屬性&配點 above.
+        key="classes",
+        shape=SHAPE_STRUCTURED,
+        label="職業 Classes",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="builds",
+        fields=(
+            NoteField(key="type", label="Type", type=FIELD_SELECT, column="kind"),
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(key="role", label="定位 Role"),
+            NoteField(key="unlock", label="解鎖條件 Unlock"),
+            NoteField(key="key_stats", label="核心屬性 Key stats"),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+            ),
+            NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+        ),
+        groupable_by="type",
+    ),
+    NoteSection(
         key="skills",
         shape=SHAPE_STRUCTURED,
         label="技能 Skills",

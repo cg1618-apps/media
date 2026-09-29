@@ -541,6 +541,7 @@ CATALOG_KEYS = {
     "story_list_event",
     "builds_and_styles",
     "stats_and_points",
+    "classes",
     "skills",
     "collectibles",
     "items",
@@ -608,7 +609,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 65
+    assert len(stored) == 66
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
