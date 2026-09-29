@@ -428,7 +428,11 @@ the gated media types.
   groups reorderable by dragging a header or with its arrows through
   `onGroupOrderChange`, the rows inside a group not reorderable at all. The
   provider passes both in from the owner page; `NotesContext` also drops a
-  section whose `owner_where` the owner row fails (`ownerMatches`).
+  section whose `owner_where` the owner row fails (`ownerMatches`). A section
+  with `groupable_by` gets a **Group by type** toggle (`SectionCard`'s
+  `actions`) over the same grouped view, one group per `select` value; its
+  groups and rows move with arrows, and each move goes to `onReorder` as the
+  section's whole row order, grouped - nothing else stores the group order.
   `NotesTemplate`'s `SHAPES` map covers all nine stored shapes.
   Every list section shows its first three rows and folds the rest behind
   "Show all (N)" - `useEntryCap` and `ShowAllToggle` in `ui.jsx`, one hook

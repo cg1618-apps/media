@@ -114,6 +114,7 @@ def test_every_group_is_a_known_group():
 def test_the_reviews_group_holds_every_evaluative_section():
     grouped = [s.key for s in ns.NOTE_SECTIONS if s.group == "reviews"]
     assert grouped == [
+        "introduction",
         "advantages",
         "disadvantages",
         "double_edged",
@@ -170,8 +171,14 @@ def test_the_music_group_holds_the_five_music_sections():
 def test_grouped_sections_are_adjacent():
     # The page no longer walks a consecutive run, but a group scattered through
     # the order hides what belongs together from anyone reading the registry.
+    #
+    # An ungrouped section that lands in the current run's group for SOME
+    # owner does not break the run: 評論 Reviews and Comments is flat for an
+    # h-comic but opens the 評論 card for an h-game, below 介紹 Introduction.
     runs = []
     for sec in ns.NOTE_SECTIONS:
+        if not sec.group and runs and runs[-1] in sec.groups_by_owner.values():
+            continue
         if sec.group and (not runs or runs[-1] != sec.group):
             runs.append(sec.group)
         elif not sec.group and runs and runs[-1] is not None:
@@ -230,6 +237,7 @@ def test_anime_sections_in_registry_order():
     assert keys == [
         "remark",
         "remark_list",
+        "introduction",
         "advantages",
         "disadvantages",
         "double_edged",
@@ -262,6 +270,7 @@ def test_collection_gets_the_narrow_set():
     assert keys == [
         "remark",
         "remark_list",
+        "introduction",
         "advantages",
         "disadvantages",
         "double_edged",
@@ -498,6 +507,7 @@ PERSONAL_KEYS = {
 }
 
 CATALOG_KEYS = {
+    "introduction",
     "op",
     "ed",
     "insert_songs",
@@ -531,6 +541,7 @@ CATALOG_KEYS = {
     "story_list_event",
     "builds_and_styles",
     "stats_and_points",
+    "classes",
     "skills",
     "collectibles",
     "items",
@@ -598,7 +609,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 64
+    assert len(stored) == 66
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 

@@ -19,12 +19,22 @@
 //   - a section naming `group_by` reads as one group per name of that field
 //     (groupedRows.js). The GROUPS are ordered - by the owner's stored order,
 //     `groupOrder`, which a drag of a group header rewrites through
-//     `onGroupOrderChange` - and the rows inside a group are not.
-// Neither names a section: any section declaring them gets them.
+//     `onGroupOrderChange` - and the rows inside a group are not;
+//   - a section naming `groupable_by` (a `select` field) gets a toggle that
+//     reads it one group per value. Nothing extra is stored for it: the
+//     groups follow the rows' `sort_index`, so moving a group or a row within
+//     one saves the whole section's row order through `onReorder`.
+// None of them names a section: any section declaring them gets them.
 import { useState } from "react";
 
 import NamesInput from "./NamesInput";
-import { groupNotes, movedGroupOrder, namesOf } from "./groupedRows";
+import {
+  groupNotes,
+  groupedIds,
+  movedGroupOrder,
+  movedRow,
+  namesOf,
+} from "./groupedRows";
 
 import {
   EmptyHint,
@@ -404,7 +414,9 @@ function NamesView({ field, note, omit }) {
   );
 }
 
-function StructuredRow({ section, note, isAdmin, onUpdate, groupName }) {
+// `groupedBy` is the key of the field the row is drawn grouped by, if any: its
+// value is the group header, so the row does not repeat it.
+function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy }) {
   const heading = rowHeading(section, note);
   const headingKey = heading?.field.key;
   const namesFields = section.fields.filter((f) => f.type === "names");
@@ -414,6 +426,7 @@ function StructuredRow({ section, note, isAdmin, onUpdate, groupName }) {
   const tags = section.fields.filter(
     (f) =>
       f.key !== headingKey &&
+      f.key !== groupedBy &&
       !f.quick_edit &&
       (f.type === "text" || f.type === "select") &&
       !isBlank(readValue(f, note)),
@@ -455,7 +468,7 @@ function StructuredRow({ section, note, isAdmin, onUpdate, groupName }) {
               key={f.key}
               field={f}
               note={note}
-              omit={f.key === section.group_by ? groupName : undefined}
+              omit={f.key === groupedBy ? groupName : undefined}
             />
           ))}
         </div>
@@ -523,12 +536,19 @@ function buildTree(notes, hierarchical) {
 // group header stays on screen. The headers are what a reader scans and what
 // drags, and a header folded out of sight could be neither found nor dropped
 // on.
+//
+// Grouped by a `select` field instead (`groupBy` is `section.groupable_by`),
+// a row is in exactly one group and `onRowsReorder` is given: then the rows
+// get arrows too, and a group move and a row move both save the section's
+// whole row order in grouped order - which is what the groups' order is.
 function GroupedRows({
   section,
   notes,
   isAdmin,
+  groupBy = section.group_by,
   groupOrder,
   onGroupOrderChange,
+  onRowsReorder,
   onUpdate,
   onDelete,
   nameSuggestions,
@@ -547,18 +567,29 @@ function GroupedRows({
   const order =
     pending && pending.base === groupOrder ? pending.order : groupOrder || [];
 
-  const groups = groupNotes(notes, section.group_by, order);
+  const groupField = section.fields.find((f) => f.key === groupBy);
+  const column = groupField?.type === "select" ? groupField.column : null;
+  const groups = groupNotes(notes, groupBy, order, column);
   const named = groups.filter((g) => g.name !== null);
-  const canMove = isAdmin && Boolean(onGroupOrderChange) && named.length > 1;
-  const groupField = section.fields.find((f) => f.key === section.group_by);
+  const saveOrder = onRowsReorder || onGroupOrderChange;
+  const canMove = isAdmin && Boolean(saveOrder) && named.length > 1;
   const noName = `No ${(groupField?.label || "name").toLowerCase()}`;
 
   const move = (from, to) => {
     if (from === to) return;
     const next = movedGroupOrder(groups, from, to);
+    if (onRowsReorder) {
+      const byName = new Map(groups.map((g) => [g.name, g]));
+      const unnamed = groups.filter((g) => g.name === null);
+      onRowsReorder(groupedIds([...next.map((n) => byName.get(n)), ...unnamed]));
+      return;
+    }
     setPending({ base: groupOrder, order: next });
     onGroupOrderChange(next);
   };
+
+  const moveRow = (gi, from, to) =>
+    onRowsReorder(groupedIds(movedRow(groups, gi, from, to)));
 
   const endDrag = () => {
     setDragging(null);
@@ -661,14 +692,24 @@ function GroupedRows({
                     </div>
                   );
                 }
+                const ri = group.notes.indexOf(n);
                 return (
                   <div key={key} className="flex gap-2 items-start">
+                    {isAdmin && onRowsReorder && group.notes.length > 1 && (
+                      <MoveButtons
+                        atTop={ri === 0}
+                        atBottom={ri === group.notes.length - 1}
+                        onUp={() => moveRow(gi, ri, ri - 1)}
+                        onDown={() => moveRow(gi, ri, ri + 1)}
+                      />
+                    )}
                     <StructuredRow
                       section={section}
                       note={n}
                       isAdmin={isAdmin}
                       onUpdate={onUpdate}
                       groupName={group.name}
+                      groupedBy={groupBy}
                     />
                     <ItemActions
                       isAdmin={isAdmin}
@@ -696,6 +737,29 @@ function GroupedRows({
 
 // --- Section --------------------------------------------------------------
 
+// Whether a `groupable_by` section is read grouped: on until the reader turns
+// it off, and remembered per section in this browser. Storage can be missing
+// or refuse (a private window, blocked site data), which leaves the default.
+function useGroupToggle(sectionKey) {
+  const storageKey = `notes.grouped.${sectionKey}`;
+  const [on, setOn] = useState(() => {
+    try {
+      return localStorage.getItem(storageKey) !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const set = (next) => {
+    setOn(next);
+    try {
+      localStorage.setItem(storageKey, next ? "1" : "0");
+    } catch {
+      // Not remembered; the toggle still works for this visit.
+    }
+  };
+  return [on, set];
+}
+
 export default function StructuredSection({
   section,
   notes,
@@ -714,6 +778,11 @@ export default function StructuredSection({
   const [draft, setDraft] = useState(() => emptyDraft(section));
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState({});
+  const groupableField =
+    section.groupable_by && !section.hierarchical
+      ? section.fields.find((f) => f.key === section.groupable_by)
+      : null;
+  const [groupedByField, setGroupedByField] = useGroupToggle(section.key);
 
   const closeDraft = () => {
     setDraft(emptyDraft(section));
@@ -875,6 +944,50 @@ export default function StructuredSection({
           setDraft(emptyDraft(section));
           setAddingUnder(null);
         };
+
+  if (groupableField) {
+    const on = groupedByField;
+    return (
+      <SectionCard
+        label={section.label}
+        count={notes.length}
+        isAdmin={isAdmin}
+        onAdd={openDraft}
+        actions={
+          notes.length > 0 && (
+            <button
+              type="button"
+              aria-pressed={on}
+              onClick={() => setGroupedByField(!on)}
+              className={`${on ? brandTagCls : tagCls} cursor-pointer`}
+            >
+              {`Group by ${groupableField.label.toLowerCase()}`}
+            </button>
+          )
+        }
+      >
+        {on ? (
+          <GroupedRows
+            section={section}
+            notes={notes}
+            isAdmin={isAdmin}
+            groupBy={section.groupable_by}
+            onRowsReorder={onReorder ? (ids) => onReorder(section.key, ids) : undefined}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            nameSuggestions={nameSuggestions}
+          />
+        ) : (
+          <>
+            {renderNodes(tree, 0)}
+            <ShowAllToggle {...cap.toggle} />
+          </>
+        )}
+        {addingUnder === null && renderDraft()}
+        {!notes.length && addingUnder === false && <EmptyHint />}
+      </SectionCard>
+    );
+  }
 
   if (section.group_by && !section.hierarchical) {
     return (

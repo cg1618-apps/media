@@ -950,7 +950,8 @@ entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
 `locator_required`, `singleton`, `desc_required`, and for a structured section
 `fields` - each field's `type` may be `names`, a list of strings stored under
 `fields[key]` - `require_any`, `hierarchical`, `group_by` (the `names` field
-the read view groups by, or `null`) and `owner_where` (`{owner column:
+the read view groups by, or `null`), `groupable_by` (the `select` field the
+reader may toggle a one-group-per-value view on, or `null`) and `owner_where` (`{owner column:
 [allowed values]}`, `{}` for none)).
 
 A section with `owner_where` refuses a row on any other owner with **422**, on
