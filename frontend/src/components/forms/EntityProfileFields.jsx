@@ -74,9 +74,11 @@ export function entryOptionLabel(entry) {
 }
 
 /**
- * Which entry's cover stands in for a missing photo. Only on Modify: an
+ * Which entry's picture stands in for a missing photo. Only on Modify: an
  * unsaved character or person has no entries to choose from. Empty is auto -
- * the server picks the newest visible entry with a cover.
+ * the server picks the newest visible entry with a picture. For a character
+ * an entry's picture is its casting photo first, then its cover; a person
+ * only ever borrows covers.
  */
 export function PhotoFallbackField({ ownerType, ownerId, value, onChange }) {
   const { data } = useQuery({
@@ -86,12 +88,13 @@ export function PhotoFallbackField({ ownerType, ownerId, value, onChange }) {
     staleTime: 10_000,
   });
   const entries = uniqueGroupEntries(data?.groups);
+  const hint =
+    ownerType === "character"
+      ? "Which entry's cast picture (else its cover) to show when there is no photo — leave on auto to use the latest cast picture, else the latest cover"
+      : "Whose cover to show when there is no photo — leave on auto to use the latest entry with a cover";
 
   return (
-    <Field
-      label="Photo fallback"
-      hint="Whose cover to show when there is no photo — leave on auto to use the latest entry with a cover"
-    >
+    <Field label="Photo fallback" hint={hint}>
       <select
         aria-label="Photo fallback"
         className={selectCls}

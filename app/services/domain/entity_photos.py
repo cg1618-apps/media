@@ -10,14 +10,15 @@ Only entries the viewer may see are ever used - the same filter_visible_pairs
 pass /entries and casting_count / credit_count already go through, so a card
 can never show the cover of an entry its own page would not list.
 
-Character picture, first hit wins:
+Character picture, first hit wins. A casting photo is how the character
+looks in that entry, so it beats the entry's cover at every step:
 
   1. character.photo_file
-  2. the chosen photo_fallback_entry_id entry's cover - only while the
-     character is still cast on it and it is visible
-  3. that chosen entry's casting photo_file, when the entry has no cover
-  4. the newest visible cast entry that has a cover
-  5. the newest visible casting photo_file of this character
+  2. the chosen photo_fallback_entry_id entry's casting photo_file - only
+     while the character is still cast on it and it is visible
+  3. that chosen entry's cover, when its casting has no photo
+  4. the newest visible casting photo_file of this character
+  5. the newest visible cast entry that has a cover
   6. None - the SPA draws its placeholder
 
 Person picture - a casting photo is a character's picture, so it has no
@@ -119,6 +120,19 @@ def _newest_first(links: list[_Link], released: dict[UUID, str]) -> list[_Link]:
     return sorted(links, key=lambda link: released.get(link.entry_id, ""), reverse=True)
 
 
+def _first_picture(
+    links: list[_Link], covers: dict[UUID, Optional[str]], use_casting_photos: bool
+) -> Optional[str]:
+    """The first casting photo in `links`, else the first entry cover."""
+    if use_casting_photos:
+        photo = next((link.photo_file for link in links if link.photo_file), None)
+        if photo:
+            return photo
+    return next(
+        (covers[link.entry_id] for link in links if covers.get(link.entry_id)), None
+    )
+
+
 def _summarise(
     links: list[_Link],
     visible: set[tuple[str, UUID]],
@@ -141,24 +155,12 @@ def _summarise(
 
     photo = own_photo
     if not photo and chosen_visible is not None:
-        photo = covers.get(chosen_visible)
-        if not photo and use_casting_photos:
-            photo = next(
-                (
-                    link.photo_file
-                    for link in shown
-                    if link.entry_id == chosen_visible and link.photo_file
-                ),
-                None,
-            )
+        chosen_links = [link for link in shown if link.entry_id == chosen_visible]
+        photo = _first_picture(chosen_links, covers, use_casting_photos)
     if not photo:
-        newest = _newest_first(shown, released)
-        photo = next(
-            (covers[link.entry_id] for link in newest if covers.get(link.entry_id)),
-            None,
+        photo = _first_picture(
+            _newest_first(shown, released), covers, use_casting_photos
         )
-        if not photo and use_casting_photos:
-            photo = next((link.photo_file for link in newest if link.photo_file), None)
 
     return EntityMedia(
         display_photo_file=photo or None,

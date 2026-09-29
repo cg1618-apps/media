@@ -97,8 +97,8 @@ export default function Character() {
   }
 
   const name = character.display_name || "Unknown Character";
-  // The server resolves the fallback: the chosen entry's cover, then the
-  // newest visible one, then a casting photo.
+  // The server resolves the fallback: the chosen entry's casting photo, then
+  // its cover, then the newest visible casting photo, then the newest cover.
   const photoUrl = getCoverUrl(character.display_photo_file ?? character.photo_file);
   const castingTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
 
