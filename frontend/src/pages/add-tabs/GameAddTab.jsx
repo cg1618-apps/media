@@ -23,6 +23,7 @@ import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import {
   COMPLETION_LEVELS,
   GAME_COMPLETION_FLAGS,
+  GAME_IS_MAIN,
   GAME_RELEASE_STATUSES,
   GAME_TYPES,
   MY_RATINGS,
@@ -271,7 +272,7 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
       </div>
 
       <SectionHeader icon="fa-sitemap" title="Classification" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Game Type">
           <select
             className={selectCls}
@@ -280,6 +281,23 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
           >
             <option value="">—</option>
             {GAME_TYPES.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {/* GAME_IS_MAIN - a label of its own, independent of game_type and of
+            the Remake / Remaster relation kinds. */}
+        <Field label="Main / Remake">
+          <select
+            className={selectCls}
+            aria-label="Main / Remake"
+            value={f.is_main ?? ""}
+            onChange={(e) => u("is_main", e.target.value)}
+          >
+            <option value="">—</option>
+            {GAME_IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

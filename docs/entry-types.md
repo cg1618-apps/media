@@ -96,9 +96,9 @@ Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_re
 | `manga` | `manga` | "Manga, manhwa, and manhua entries." |
 | `novel` | `novel` | "Light novel, web novel, and book entries." `novel_type` is `"Light Novel"`, `"Novel"`, `"Web"` or `"Other"`. |
 | `comic` | `comic` | "Western comic runs, Marvel-focused. One entry is one numbered run." `comic_type` is `"Ongoing"`, `"Limited"`, `"One-Shot"` or `"Annual"`. |
-| `game` | `games` | One **purchasable**, not one work: `game_type` is `"Base Game"`, `"DLC"`, `"Expansion"` or `"Bundle"`, and a DLC is a row in this same table with a `base_game_id`. Ownership is not a column - it is derived from the `game_copy` rows. |
+| `game` | `games` | One **purchasable**, not one work: `game_type` is `"Base Game"`, `"DLC"`, `"Expansion"` or `"Bundle"`, and a DLC is a row in this same table with a `base_game_id`. `is_main` is `"Main"`, `"Remake"` or `"Remaster"` (`GAME_IS_MAIN`, not the other types' 本傳 / 外傳 list), a label independent of `game_type` and of the relation kinds. Ownership is not a column - it is derived from the `game_copy` rows. |
 | `h-comic` | `h_comic` | Adult comics, seen in the `unrestricted` access mode only. One table, two variants keyed on `region` (`"JP"` or `"KR"`, required): the columns a region does not use are cleared on every write path (see "H-Comic regions" below). A **gated type** - every entry carries the `h-comic` content label ([authorization.md](authorization.md)). Its `animation_status` is derived from hentai adaptations when it has any (see "H-Comic animation status" below). |
-| `h-game` | `h_game` | Adult games, seen in the `unrestricted` access mode only: to `game` what `h-comic` is to `manga`. One purchasable per row as for game (`game_type`, a `base_game_id` self-FK for DLC), with Game's fill plus DLsite, purchase records (`game_copy`) and note sections. Its own fields: `playstyle`, `all_cg`, `language_availability`, `dialogue_audio`, `sound_effect`, `h_presentation`, `h_art_style`, `platform`, `dlsite_link_jp` / `_tw` (see "H-Game fields" below). A **gated type** - every entry carries the `h-game` content label. |
+| `h-game` | `h_game` | Adult games, seen in the `unrestricted` access mode only: to `game` what `h-comic` is to `manga`. One purchasable per row as for game (`game_type`, `is_main`, a `base_game_id` self-FK for DLC), with Game's fill plus DLsite, purchase records (`game_copy`) and note sections. Its own fields: `playstyle`, `all_cg`, `language_availability`, `dialogue_audio`, `sound_effect`, `h_presentation`, `h_art_style`, `platform`, `dlsite_link_jp` / `_tw` (see "H-Game fields" below). A **gated type** - every entry carries the `h-game` content label. |
 | `hentai` | `hentai` | Adult anime, seen in the `unrestricted` access mode only. **One entry is one episode**: no episode count, and watch orders treat it as whole. `source_material` is `"Original"`, `"Manga"` or `"Novel"`; `originality` reuses h-comic's `原創` / `同人`; `airing_status` is anime's vocabulary. A **gated type** - every entry carries the `hentai` content label. Cast like anime, seiyuu included. No notes section of its own. |
 
 All twelve have their own router under `app/routers/` and a detail page in `frontend/src/App.jsx`. H-Comic's, H-Game's and Hentai's library and detail routes are gated: they, their nav rows and every other surface of each type in the SPA are drawn only for a session that can see that type ([frontend/components.md](frontend/components.md#gated-media-types)).
@@ -373,9 +373,9 @@ Every finder is the same rule: rows that agree exactly on the key **and** share 
 | `manga` | `franchise_id`, `series_id`, `is_main` | — |
 | `novel` | `franchise_id`, `series_id`, `is_main` | — |
 | `comic` | `franchise_id`, `series_id`, `is_main_entry` | a shared name **or** the same non-null `comicvine_id` |
-| `game` | `franchise_id`, `series_id`, `game_type` | — |
+| `game` | `franchise_id`, `series_id`, `game_type`, `is_main` | — |
 | `h-comic` | `franchise_id`, `series_id`, `region`, `series_number` | — |
-| `h-game` | `franchise_id`, `series_id`, `game_type`, `series_number` | — |
+| `h-game` | `franchise_id`, `series_id`, `game_type`, `is_main`, `series_number` | — |
 | `hentai` | `franchise_id`, `series_id`, `series_number` | — |
 
 All entry finders except anime skip rows whose `franchise_id` is null. Report keys in `find_all_duplicates` use underscores (`anime_movie`, `tv_show`, `h_comic`, `h_game`); hentai's is `hentai`. The rule text is in [business-rules.md](business-rules.md).

@@ -62,6 +62,11 @@ export const PLAYING_STATUSES = [
 // the pre-fetch fallback like every list above - see CONSTANTS_FALLBACK.
 export const GAME_TYPES = ["Base Game", "DLC", "Expansion", "Bundle"];
 
+// Game and h-game's is_main (GAME_IS_MAIN in app/utils/constants.py). Their own
+// vocabulary, not the shared IS_MAIN below, and a plain label: nothing ties it
+// to the Remake / Remaster relation kinds.
+export const GAME_IS_MAIN = ["Main", "Remake", "Remaster"];
+
 export const COMPLETION_LEVELS = [
   "Main Story",
   "Main + Extras",
@@ -405,6 +410,7 @@ export const CONSTANTS_FALLBACK = {
   gender: GENDERS,
   character_role: CHARACTER_ROLES,
   is_main: IS_MAIN,
+  game_is_main: GAME_IS_MAIN,
   movie_type: MOVIE_TYPES,
   tv_region: TV_REGIONS,
   manga_region: MANGA_REGIONS,

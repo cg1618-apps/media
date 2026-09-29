@@ -98,7 +98,7 @@ type it serves is seeable.
 | `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `franchise.franchise_expectation` | `franchise_expectation` |
 | `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on entries, franchise, seasonal, person, character, studio. **Enforced** on `person` and `character`: a write naming anything else is a 422 and `""` is NULL (`app/utils/entity_vocab.py`) | `my_rating` |
 | `GENDERS` | `男`, `女`, `中性/無性`, `雙性混和`, `其他` | `gender` on `person` and `character`. NULL means not set and is not a sixth value. **Enforced**: a write naming anything else is a 422 and `""` is NULL. A Sheets Pull folds an old free-text cell instead of refusing it - `male` -> `男`, `female` -> `女` (trimmed, any case), anything else unreadable -> NULL - and folds `my_rating` by trimming and upper-casing, the same rules the revision that closed both vocabularies applied to the stored rows | `gender` |
-| `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; `comic.is_main_entry` is a Boolean, not this) | `is_main` |
+| `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; `comic.is_main_entry` is a Boolean, not this; games read `GAME_IS_MAIN`) | `is_main` |
 | `MOVIE_TYPES` | `Reality`, `Animation` | movie type | `movie_type` |
 | `TV_REGIONS` | `歐美劇`, `韓劇`, `日劇`, `陸劇`, `台劇`, `動畫` | `tv_shows.region` (formerly `Region (TV Show)` option category) | `tv_region` |
 | `MANGA_REGIONS` | `日漫`, `韓漫`, `國漫`, `台漫`, `其他` | `manga.region` (formerly `Region (Manga)` option category) | `manga_region` |
@@ -106,6 +106,7 @@ type it serves is seeable.
 | `NOVEL_TYPES` | `Light Novel`, `Novel`, `Web`, `Other` | `novel.novel_type`; also the Plan page novel grouping | `novel_type` |
 | `COMIC_TYPES` | `Ongoing`, `Limited`, `One-Shot`, `Annual` | `comic.comic_type` | `comic_type` |
 | `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`, `h_game.game_type`; `Base Game` is the value `ck_games_base_no_parent` / `ck_h_game_base_no_parent` name | `game_type` |
+| `GAME_IS_MAIN` | `Main`, `Remake`, `Remaster` | `games.is_main`, `h_game.is_main` - the game types' own `is_main` vocabulary in place of `IS_MAIN`. A plain label with no tie to the `remake` / `remaster` relation kinds. **Enforced** on both types: a write naming anything else is a 422 (on h-game's tracker PATCH too), and the Sheets parser drops an unknown cell to NULL. The Add form starts a new entry on `Main` | `game_is_main` |
 | `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`, `h_game.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | `completion_level` |
 | `GAME_RELEASE_STATUSES` | `Rumored`, `Unreleased`, `Early Access`, `Released`, `Ongoing`, `Discontinued`, `Cancelled` | `games.release_status`, `h_game.release_status` | `game_release_status` |
 | `GAME_COMPLETION_FLAGS` | `Yes`, `No`, `Inapplicable` | `games.all_endings`, `games.all_achievements`, `games.all_collected`, `h_game.all_endings`, `h_game.all_cg`. `NULL` is outside the vocabulary and means "not recorded yet"; `Inapplicable` means the game has none of that thing to find. `games.steam_progress_sync` is **not** one of these - it is a boolean lock on Steam writes | `game_completion_flag` |
@@ -141,9 +142,9 @@ and [systems/credits-and-tags.md](systems/credits-and-tags.md)), do not read
 one as evidence for the other: an anime can show `seiyuu: Done` while having
 zero castings, and vice versa.
 
-**All eight game lists reach `/api/constants`.** `get_constants()`
+**All nine game lists reach `/api/constants`.** `get_constants()`
 (`app/routers/constants.py`) returns `playing_status`, `game_type`,
-`completion_level`, `game_release_status`, `game_storefront`,
+`game_is_main`, `completion_level`, `game_release_status`, `game_storefront`,
 `game_ownership`, `game_copy_format` and `game_acquisition`. The four
 `game_copy` vocabularies are prefixed `game_` because the column name alone
 (storefront, ownership, acquisition) would not say which table it belongs to
@@ -158,9 +159,9 @@ under `hentai_source_material`. Every h-game vocabulary is checked on every
 write path - a value outside it is a 422 through the API, and dropped (logged)
 by the Sheets parser.
 
-Only `playing_status` is wired into the frontend fallback map, though. It is
-the one game list in `CONSTANTS_FALLBACK` in
-`frontend/src/config/fieldOptions.js`, so it is the one `applyConstants()`
+Only `playing_status` and `game_is_main` are wired into the frontend fallback
+map, though. They are the game lists in `CONSTANTS_FALLBACK` in
+`frontend/src/config/fieldOptions.js`, so they are the ones `applyConstants()`
 overwrites from the endpoint; `GAME_TYPES`, `COMPLETION_LEVELS`,
 `GAME_RELEASE_STATUSES`, `GAME_COMPLETION_FLAGS` and the four `game_copy`
 arrays are still hand-maintained literals in that file, kept matching
@@ -205,7 +206,7 @@ the JP/KR-vs-TW pairing with `vol_total_tw` ("Total Volumes (TW)") explicit.
 ### Relation kinds (`app/utils/relation_kinds.py`)
 
 The vocabulary of `media_relation.relation_type`, served at
-`GET /api/media-relation/kinds`. Twelve stored kinds; `prequel` is accepted on
+`GET /api/media-relation/kinds`. Fourteen stored kinds; `prequel` is accepted on
 write (`INPUT_ONLY_KINDS = {"prequel": "sequel"}`) and stored as a `sequel`
 row with the endpoints swapped. How chains and inverses are read is in
 [business-rules.md section 13](business-rules.md#13-media-relations-media_relationpy-apputilsrelation_kindspy)
@@ -217,6 +218,11 @@ and [systems/relations.md](systems/relations.md).
 remaster reissues it) and share `renew`'s inverse label, `Original`. Neither
 is media-type-scoped - relation kinds never are - so both are offered on
 every type.
+
+`dlc` points a DLC at its base game (inverse label `Base Game`). `related` is
+the loose link for two works that are connected when no other kind says how:
+symmetric, because neither end is the origin, and not transitive, because it
+claims no sameness.
 
 | Key | Label | Inverse label | Family | Symmetric | Transitive |
 |---|---|---|---|:-:|:-:|
@@ -231,6 +237,8 @@ every type.
 | `side_story` | Side Story | Parent Story | `branch` | | |
 | `spin_off` | Spin-off | Main Story | `branch` | | |
 | `setting` | Setting | Main Story | `branch` | | |
+| `dlc` | DLC | Base Game | `branch` | | |
+| `related` | Related | Related | `branch` | yes | |
 | `adaptation` | Adaptation | Source | `derivation` | | |
 
 ### Note sections (`app/utils/note_sections.py`)

@@ -921,6 +921,7 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "game_name_jp": parse_from_sheet(raw.get("game_name_jp"), str),
         "game_name_alt": parse_from_sheet(raw.get("game_name_alt"), str),
         "game_type": parse_from_sheet(raw.get("game_type"), str),
+        "is_main": _single_choice_from_sheet(raw.get("is_main"), "is_main"),
         "base_game_id": parse_from_sheet(raw.get("base_game_id"), UUID),
         "completion_level": parse_from_sheet(raw.get("completion_level"), str),
         "all_endings": parse_completion_flag(raw.get("all_endings")),
@@ -1083,7 +1084,8 @@ def _choice_list_from_sheet(val: Any, column: str) -> Optional[list]:
 
 
 def _single_choice_from_sheet(val: Any, column: str) -> Optional[str]:
-    """One h-game single-choice cell; a value outside the vocabulary is None."""
+    """One h-game single-choice cell - or a game's is_main, whose vocabulary
+    h-game shares - where a value outside the vocabulary is None."""
     value = parse_from_sheet(val, str)
     allowed, _label = SINGLE_CHOICES[column]
     return value if value in allowed else None
@@ -1113,6 +1115,7 @@ def parse_h_game_from_sheet(raw: dict) -> dict:
         "series_number": parse_from_sheet(raw.get("series_number"), int),
         "playstyle": _single_choice_from_sheet(raw.get("playstyle"), "playstyle"),
         "game_type": parse_from_sheet(raw.get("game_type"), str),
+        "is_main": _single_choice_from_sheet(raw.get("is_main"), "is_main"),
         "base_game_id": parse_from_sheet(raw.get("base_game_id"), UUID),
         "release_status": parse_from_sheet(raw.get("release_status"), str),
         "release_date": release_date.normalize(

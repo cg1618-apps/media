@@ -96,6 +96,11 @@ describe("admin-form vocabularies served from /api/constants", () => {
     expect(CONSTANTS_FALLBACK.h_game_platform).toEqual(["Steam", "DLsite", "Nintendo", "Other"]);
   });
 
+  it("carries the game-only is_main vocabulary beside the shared one", () => {
+    expect(CONSTANTS_FALLBACK.game_is_main).toEqual(["Main", "Remake", "Remaster"]);
+    expect(CONSTANTS_FALLBACK.is_main).toEqual(["本傳", "外傳", "前傳", "後傳", "總集篇"]);
+  });
+
   it("uses the hyphenated media type keys, not person-role scopes", () => {
     expect(MEDIA_TYPES).toContain("anime-movie");
     expect(MEDIA_TYPES).toContain("tv-show");

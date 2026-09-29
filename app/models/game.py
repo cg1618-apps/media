@@ -91,6 +91,10 @@ class Game(Base, NameFallbackMixin):
     game_name_alt = Column(String, nullable=True)
 
     game_type = Column(String, nullable=True)
+    # GAME_IS_MAIN - Main / Remake / Remaster. The game types' own vocabulary,
+    # not the shared IS_MAIN, and independent of the relation kinds of the
+    # same names: no CHECK constraint, matching game_type.
+    is_main = Column(String, nullable=True)
     # Self-reference. SET NULL rather than CASCADE: deleting a base game must
     # not silently delete the DLC rows that were bought separately.
     base_game_id = Column(

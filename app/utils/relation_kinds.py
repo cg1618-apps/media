@@ -1,8 +1,8 @@
 """
 The vocabulary of `media_relation.relation_type`.
 
-Eleven user-facing labels compress to ten stored kinds, because Prequel is
-Sequel read backwards. Storing both directions as distinct kinds would let one
+Fifteen user-facing labels compress to fourteen stored kinds, because Prequel
+is Sequel read backwards. Storing both directions as distinct kinds would let one
 fact exist as two rows that no unique index could catch, so `prequel` is
 accepted on write and immediately normalized into a `sequel` row with the two
 endpoints swapped.
@@ -111,6 +111,16 @@ RELATION_KINDS: dict[str, RelationKind] = {
     "setting": RelationKind(
         "setting", "Setting", "Main Story", "branch"
     ),
+    # Downloadable content for a game. It extends the base game and is never
+    # extended by it, so it is directional: what it points at is the Base Game.
+    "dlc": RelationKind("dlc", "DLC", "Base Game", "branch"),
+    # The loose link, for two works that are connected when no other kind
+    # says how. Symmetric because neither end is the origin, but deliberately
+    # NOT transitive: it claims no sameness, so a chain of Related rows
+    # implies nothing about its two ends.
+    "related": RelationKind(
+        "related", "Related", "Related", "branch", symmetric=True
+    ),
     "adaptation": RelationKind(
         "adaptation", "Adaptation", "Source", "derivation"
     ),
@@ -138,6 +148,6 @@ TRANSITIVE_KEYS: tuple[str, ...] = tuple(
 # choosing A writes the row A -sequel-> B.
 INPUT_ONLY_KINDS: dict[str, str] = {"prequel": "sequel"}
 
-# What POST /api/media-relation and PATCH will accept as `kind`: the ten
-# stored kinds plus `prequel`, which is the eleven choices the dropdown offers.
+# What POST /api/media-relation and PATCH will accept as `kind`: the fourteen
+# stored kinds plus `prequel`, which is the fifteen choices the dropdown offers.
 ACCEPTED_INPUT_KINDS: tuple[str, ...] = RELATION_KEYS + tuple(INPUT_ONLY_KINDS)

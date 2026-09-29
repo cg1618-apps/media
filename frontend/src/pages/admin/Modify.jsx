@@ -856,6 +856,7 @@ export default function Modify() {
       series_id: g.series_id || null,
       series_text: s ? getDisplayName(s, "series") : "",
       game_type: g.game_type || "",
+      is_main: g.is_main || "",
       base_game_id: g.base_game_id || null,
       // studio, publisher, director, composer and the four tag vocabularies:
       // see the comment in animeToForm - loaded from GET /api/credits/game/{id}
@@ -926,6 +927,7 @@ export default function Modify() {
       series_number: g.series_number ?? "",
       playstyle: g.playstyle || "",
       game_type: g.game_type || "",
+      is_main: g.is_main || "",
       base_game_id: g.base_game_id || null,
       playing_status: g.playing_status || md("h-game").playing_status,
       completion_level: g.completion_level || "",

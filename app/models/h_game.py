@@ -106,6 +106,8 @@ class HGame(Base, NameFallbackMixin):
     # GAME_TYPES. Self-reference, SET NULL for Game's reason: deleting a base
     # game must not delete the DLC rows that were bought separately.
     game_type = Column(String, nullable=True)
+    # GAME_IS_MAIN, as on Game.
+    is_main = Column(String, nullable=True)
     base_game_id = Column(
         UUID(as_uuid=True),
         ForeignKey("h_game.system_id", ondelete="SET NULL"),

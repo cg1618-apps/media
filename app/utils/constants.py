@@ -243,6 +243,13 @@ ANIME_AIRING_TYPES: tuple[str, ...] = (
 
 GAME_TYPES: tuple[str, ...] = ("Base Game", "DLC", "Expansion", "Bundle")
 
+# games.is_main and h_game.is_main: whether this entry is the main release or a
+# remake or remaster of one. The game types' own vocabulary, not IS_MAIN - the
+# 本傳 / 外傳 question the other types answer is not the one a game asks. Like
+# game_type it is a plain label: nothing derives it from, or syncs it to, the
+# remake / remaster relation kinds.
+GAME_IS_MAIN: tuple[str, ...] = ("Main", "Remake", "Remaster")
+
 # How deep a finish went. Deliberately a ladder of content depth only: whether
 # every ending was seen, every achievement earned and every collectible found
 # (games.all_endings / all_achievements / all_collected, which carry

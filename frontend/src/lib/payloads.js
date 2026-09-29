@@ -335,6 +335,7 @@ export function gameFieldsPayload(f) {
     game_name_jp: f.game_name_jp || null,
     game_name_alt: f.game_name_alt || null,
     game_type: f.game_type || null,
+    is_main: f.is_main || null,
     // ck_games_base_no_parent: a Base Game may never carry one.
     base_game_id: f.game_type === "Base Game" ? null : f.base_game_id || null,
     completion_level: f.completion_level || null,
@@ -519,6 +520,7 @@ export function hGameFieldsPayload(f) {
     series_number: int(f.series_number),
     playstyle: f.playstyle || null,
     game_type: f.game_type || null,
+    is_main: f.is_main || null,
     // ck_h_game_base_no_parent: a Base Game may never carry one.
     base_game_id: f.game_type === "Base Game" ? null : f.base_game_id || null,
     completion_level: f.completion_level || null,

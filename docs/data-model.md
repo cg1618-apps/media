@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-28
+Last verified: 2026-09-29
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -557,6 +557,7 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 |---|---|:-:|---|---|
 | `game_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | `display_name` order CN -> EN -> Alt -> Roman -> JP |
 | `game_type` | String | yes | | GAME_TYPES (Base Game / DLC / Expansion / Bundle) |
+| `is_main` | String | yes | | GAME_IS_MAIN (Main / Remake / Remaster) - the game types' own vocabulary, not the shared IS_MAIN the other types' `is_main` reads. A plain label, independent of `game_type` and of the `remake` / `remaster` relation kinds; nothing derives or syncs it. Part of the duplicate key, because a remake usually shares its original's name |
 | `base_game_id` | UUID | yes | | Self-FK `games.system_id` ON DELETE **SET NULL** - deleting a base game must not delete the DLC rows bought separately. Deliberately nullable even for a DLC: a DLC is often entered before its base game exists, and a link filled in later beats a write that fails on entry order. |
 | `completion_level` | String | yes | | COMPLETION_LEVELS (Main Story / Main + Extras / Post-game / Completionist). Independent of `playing_status`. |
 | `all_endings` | String | yes | | GAME_COMPLETION_FLAGS (Yes / No / Inapplicable), orthogonal to `completion_level`. `NULL` is the fourth state, "not recorded yet"; `Inapplicable` is the game having no endings at all, which is an answer rather than an absence of one |
@@ -705,6 +706,7 @@ CHECK, matching `games`; they are checked on every write path
 | `series_number` | Integer | yes | | The entry's position in its series |
 | `playstyle` | String | yes | | H_GAME_PLAYSTYLES (ADV / VN / RPG / SLG / ACT / Other) |
 | `game_type` | String | yes | | GAME_TYPES |
+| `is_main` | String | yes | | GAME_IS_MAIN, as on `games` |
 | `base_game_id` | UUID | yes | | FK `h_game.system_id` ON DELETE SET NULL. A DLC's base game, among h-games |
 | `release_status` | String | yes | | GAME_RELEASE_STATUSES |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_h_game_release_date_iso` |
@@ -1576,7 +1578,7 @@ label ("Prequel") is derived at read time, never stored.
 | `system_id` | UUID | no | uuid4 | PK |
 | `from_type` | String | no | | MEDIA_TYPE_KEYS |
 | `from_id` | UUID | no | | FK-less |
-| `relation_type` | String | no | | One of the **10 stored** RELATION_KEYS (the dropdown offers 11: `prequel` is accepted and normalised to a swapped `sequel`) |
+| `relation_type` | String | no | | One of the **14 stored** RELATION_KEYS (the dropdown offers 15: `prequel` is accepted and normalised to a swapped `sequel`) |
 | `to_type` | String | no | | |
 | `to_id` | UUID | no | | FK-less |
 | `remark` | Text | yes | | e.g. "covers ep 1-12 only" |
@@ -2236,7 +2238,7 @@ models - use this file instead:
 | `created_at` / `updated_at` are NOT NULL | Nullable on every model; only a Python default. |
 | An "at least one name" CHECK exists on entries | No such constraint; every name column is nullable. |
 | `manga` has no `series_id` | It does. Only `anime_movies` lacks one. |
-| Relation kinds: 11 | 10 stored kinds, 11 dropdown labels (`prequel` → swapped `sequel`). |
+| Relation kinds: 11 | 14 stored kinds, 15 dropdown labels (`prequel` → swapped `sequel`). |
 | `plan_next.kind` has no default | `server_default="next"`, and it is load-bearing for Pull. |
 | `role` / `content_label` have no timestamps | Both have `created_at` / `updated_at`. |
 | `cartoon.airing_type` values TV / Movie / Other | `CARTOON_AIRING_TYPES` = TV, Movie, OVA, Special. |

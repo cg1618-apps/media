@@ -1,6 +1,6 @@
 # Media Relations
 
-Last verified: 2026-09-25
+Last verified: 2026-09-29
 
 ## What this is for
 
@@ -19,7 +19,7 @@ One row is one fact, read as **`from` is the {label} of `to`**. With `relation_t
 | `system_id` | UUID | no | PK, indexed |
 | `from_type` | String | no | Hyphenated key from `MEDIA_TABLES` (`app/utils/media_resolver.py`), e.g. `anime`, `anime-movie` |
 | `from_id` | UUID | no | Row id in that table |
-| `relation_type` | String | no | One of the ten stored kinds below. Plain string, not a DB enum — validated in the API so adding a kind needs no migration |
+| `relation_type` | String | no | One of the fourteen stored kinds below. Plain string, not a DB enum — validated in the API so adding a kind needs no migration |
 | `to_type` | String | no | |
 | `to_id` | UUID | no | |
 | `remark` | Text | yes | Free text scoping the link, e.g. "covers ep 1–12 only" |
@@ -34,7 +34,7 @@ One row is one fact, read as **`from` is the {label} of `to`**. With `relation_t
 
 ### Kind registry — `app/utils/relation_kinds.py`
 
-Eleven labels in the dropdown, ten kinds in the column: **Prequel is Sequel read backwards**, so `prequel` is accepted on input and stored as a swapped `sequel` row (`INPUT_ONLY_KINDS = {"prequel": "sequel"}`). The registry is the single source of truth; the frontend fetches it from `GET /api/media-relation/kinds` rather than keeping a copy.
+Fifteen labels in the dropdown, fourteen kinds in the column: **Prequel is Sequel read backwards**, so `prequel` is accepted on input and stored as a swapped `sequel` row (`INPUT_ONLY_KINDS = {"prequel": "sequel"}`). The registry is the single source of truth; the frontend fetches it from `GET /api/media-relation/kinds` rather than keeping a copy.
 
 | Stored key | Label (on `from`) | Inverse label (on `to`) | Family | Symmetric | Transitive |
 | --- | --- | --- | --- | --- | --- |
@@ -44,17 +44,23 @@ Eleven labels in the dropdown, ten kinds in the column: **Prequel is Sequel read
 | `renew` | Renew | Original | equivalence | | |
 | `directors_cut` | Director's Cut | Original | equivalence | | |
 | `extended` | Extended | Original | equivalence | | |
+| `remake` | Remake | Original | equivalence | | |
+| `remaster` | Remaster | Original | equivalence | | |
 | `side_story` | Side Story | Parent Story | branch | | |
 | `spin_off` | Spin-off | Main Story | branch | | |
 | `setting` | Setting | Main Story | branch | | |
+| `dlc` | DLC | Base Game | branch | | |
+| `related` | Related | Related | branch | yes | |
 | `adaptation` | Adaptation | Source | derivation | | |
 | *(input only)* `prequel` | Prequel | Sequel | timeline | | stored as `sequel`, endpoints swapped |
 
 - `RELATION_FAMILIES = (timeline, equivalence, branch, derivation)` — how the admin page groups rows and how the canvas styles edges.
-- **Symmetric** kinds mean the same thing both ways, so the service sorts their endpoints before writing and A-alt-B / B-alt-A collapse to one row.
+- **Symmetric** kinds (Alternative, Corresponding, Related) mean the same thing both ways, so the service sorts their endpoints before writing and A-alt-B / B-alt-A collapse to one row.
 - **Transitive** kinds carry along a chain (A-alt-B, B-alt-C ⇒ A and C related). `TRANSITIVE_KEYS` is derived from the registry *in declaration order, strongest first*: Alternative (essentially the same work) beats Corresponding (the same story told differently). Only the detail-page read expands chains; the canvas draws stored rows alone.
 - `ACCEPTED_INPUT_KINDS = RELATION_KEYS + ("prequel",)` is what POST/PATCH accept as `kind`.
 - "Setting" means a companion volume about a work (設定集, 公式書, 畫冊); it shares Spin-off's inverse "Main Story".
+- "DLC" points downloadable content at its base game; the base game reads it back as "Base Game".
+- "Related" is the loose link for two works that are connected when no other kind says how. Symmetric, but not transitive: it claims no sameness, so a chain of Related rows implies nothing about its two ends.
 
 ## Rules
 
@@ -98,7 +104,7 @@ Router: `app/routers/media_relation.py`, prefix `/api/media-relation`. Reads are
 
 | Method & path | Auth | Params / body | Response | Errors |
 | --- | --- | --- | --- | --- |
-| `GET /kinds` | public | — | `RelationKindResponse[]`: `key, label, inverse_label, family, symmetric, stored_as`. Ten stored kinds plus `prequel` (label "Prequel", `stored_as: "sequel"`) | — |
+| `GET /kinds` | public | — | `RelationKindResponse[]`: `key, label, inverse_label, family, symmetric, stored_as`. Fourteen stored kinds plus `prequel` (label "Prequel", `stored_as: "sequel"`) | — |
 | `GET /for-entry` | public, viewer-filtered | query `media_type`, `entry_id` | `MediaRelationResolved[]`: `system_id, relation_type, label, family, direction, remark, other{media_type, entry_id, missing, display_name, label, cover_image_file, franchise_id, nav_path}, created_at, updated_at, derived, via` | `400` unknown media type; `404` entry hidden or unknown |
 | `GET /` | public, viewer-filtered | exactly one of `franchise_id`, `collection_id` | `MediaRelationResponse[]` (raw rows) — backs the admin page's per-entry count badges. A row naming any hidden endpoint is dropped whole | `400` if not exactly one scope |
 | `GET /graph` | public, viewer-filtered | exactly one of `franchise_id`, `collection_id`, `series_id` | `RelationGraphResponse` `{nodes, edges}`. Node: `key, media_type, entry_id, in_scope, missing, display_name, search_names, cover_image_file, franchise_id, nav_path, type_label`. Edge: `system_id, from, to, relation_type, label, inverse_label, family, remark` (`from`/`to` are node keys) | `400` if not exactly one scope |
