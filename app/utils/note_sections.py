@@ -257,6 +257,10 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # what happens and to whom. After 劇情列表 rather than between the two,
     # because 劇情 and 劇情列表 are one story told twice and read as a pair.
     NoteGroup(key="worldbuilding", label="世界觀 Worldbuilding", icon="fa-earth-asia"),
+    # What happens when the game is started over: how a new cycle runs, what
+    # it keeps, what it takes away, and what to finish before starting one.
+    # After 世界觀 because it is read once the story has been seen through.
+    NoteGroup(key="ng_plus", label="NG 多周目", icon="fa-rotate"),
     # NOT "進度 Progress": Game.jsx already renders a <Slip title="Progress">
     # (playtime and achievements) on the same page, and two cards with one name
     # is the `resources` / `builds_and_mods` collision again.
@@ -522,6 +526,41 @@ def _plot_fields() -> tuple["NoteField", ...]:
             label="Description",
             type=FIELD_TEXTAREA,
             column="content",
+        ),
+        NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
+    )
+
+
+def _ng_plus_fields(typed: bool = True) -> tuple["NoteField", ...]:
+    """
+    The four NG 多周目 sections: a named thing, a body, a list of short
+    points, and its sources.
+
+    流程 Flow is the one without a type - it is the cycle itself, told in
+    order, where the other three are sets of things that fall into kinds
+    (equipment, levels, flags). The type is free text for the reason
+    `_named_thing_fields` gives. `points` is a list of one-line texts rather
+    than a second body: "keeps weapon upgrades", "keeps money" read as a
+    list, and a list keeps each one reorderable on its own.
+    """
+    return (
+        *(
+            (NoteField(key="type", label="Type", type=FIELD_SELECT, column="kind"),)
+            if typed
+            else ()
+        ),
+        NoteField(key="name", label="Name", column="title"),
+        NoteField(
+            key="description",
+            label="Description",
+            type=FIELD_TEXTAREA,
+            column="content",
+        ),
+        NoteField(
+            key="points",
+            label="Points",
+            type=FIELD_LIST,
+            item_fields=(NoteField(key="text", label="Text"),),
         ),
         NoteField(key="links", label="Links", type=FIELD_LINKS, column="links"),
     )
@@ -1456,6 +1495,49 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="worldbuilding",
+    ),
+    # --- NG 多周目 --------------------------------------------------------
+    # Starting the game over. Unlike 世界觀 above it describes how the game
+    # PLAYS, so it reaches h-game too, where a new cycle is how the remaining
+    # routes and scenes are reached.
+    NoteSection(
+        key="ng_flow",
+        shape=SHAPE_STRUCTURED,
+        label="流程 Flow",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="ng_plus",
+        fields=_ng_plus_fields(typed=False),
+    ),
+    NoteSection(
+        key="ng_carried_over",
+        shape=SHAPE_STRUCTURED,
+        label="繼承內容 Carried Over",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="ng_plus",
+        fields=_ng_plus_fields(),
+        groupable_by="type",
+    ),
+    NoteSection(
+        key="ng_reset",
+        shape=SHAPE_STRUCTURED,
+        label="重置內容 Reset",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="ng_plus",
+        fields=_ng_plus_fields(),
+        groupable_by="type",
+    ),
+    NoteSection(
+        key="ng_before_starting",
+        shape=SHAPE_STRUCTURED,
+        label="新周目前需完成 Before Starting",
+        owners=GAME_OWNERS,
+        scope=SCOPE_CATALOG,
+        group="ng_plus",
+        fields=_ng_plus_fields(),
+        groupable_by="type",
     ),
     # --- 待辦 Todo --------------------------------------------------------
     # Four sections rather than one section with a kind, because ordering is

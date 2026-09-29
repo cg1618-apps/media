@@ -562,6 +562,11 @@ CATALOG_KEYS = {
     "timeline",
     "mysteries",
     "story_other",
+    # NG 多周目
+    "ng_flow",
+    "ng_carried_over",
+    "ng_reset",
+    "ng_before_starting",
 }
 
 
@@ -609,7 +614,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 66
+    assert len(stored) == 70
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
