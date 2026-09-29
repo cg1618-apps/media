@@ -164,7 +164,12 @@ function ListEditor({ field, rows, onChange }) {
             onUp={() => move(i, -1)}
             onDown={() => move(i, 1)}
           />
-          <div className="flex-1 min-w-0 grid grid-cols-2 gap-1">
+          {/* A one-column list is a list of texts; half a row would clip it. */}
+          <div
+            className={`flex-1 min-w-0 grid gap-1 ${
+              field.item_fields.length > 1 ? "grid-cols-2" : "grid-cols-1"
+            }`}
+          >
             {field.item_fields.map((item) => (
               <ScalarInput
                 key={item.key}

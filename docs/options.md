@@ -270,6 +270,7 @@ can only hold URLs and `text_links` has no title, so neither could say
 | `story` | 劇情 Story (for an h-game, the four Story List strands and 結局) |
 | `story_list` | 劇情列表 Story List (game only) |
 | `worldbuilding` | 世界觀 Worldbuilding (game only) |
+| `ng_plus` | NG 多周目 |
 | `todo` | 待辦 Todo (rendered inside the game page's Progress slip) |
 | `music` | 音樂 Music |
 | `tools` | 資源&工具 Tools & Resources |
@@ -336,6 +337,10 @@ out. What the three gated types keep is in
 | `timeline` | text_links | 時間線 Timeline | game | worldbuilding | |
 | `mysteries` | text_links | 未解之謎 Mysteries | game | worldbuilding | |
 | `story_other` | text_links | 其他 Other | game | worldbuilding | |
+| `ng_flow` | structured | 流程 Flow | game, h-game | ng_plus | name, description, points (list of text), links |
+| `ng_carried_over` | structured | 繼承內容 Carried Over | game, h-game | ng_plus | type, name, description, points (list of text), links; groupable by type |
+| `ng_reset` | structured | 重置內容 Reset | game, h-game | ng_plus | type, name, description, points (list of text), links; groupable by type |
+| `ng_before_starting` | structured | 新周目前需完成 Before Starting | game, h-game | ng_plus | type, name, description, points (list of text), links; groupable by type |
 | `todo_now` | text_links | 現在進行 Doing now | game, h-game | todo | personal scope |
 | `todo_next` | text_links | 接下來 To do next | game, h-game | todo | personal scope |
 | `todo_later` | text_links | 未來 To do in the future | game, h-game | todo | personal scope |

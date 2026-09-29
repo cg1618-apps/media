@@ -17,7 +17,16 @@ import pytest
 from app.schemas.note import section_out, sections_out
 from app.utils import note_sections as ns
 
-GROUPABLE = ("classes", "skills", "weapons_and_gear", "items", "collectibles")
+GROUPABLE = (
+    "classes",
+    "skills",
+    "weapons_and_gear",
+    "items",
+    "collectibles",
+    "ng_carried_over",
+    "ng_reset",
+    "ng_before_starting",
+)
 
 
 # --- groupable_by ---------------------------------------------------------

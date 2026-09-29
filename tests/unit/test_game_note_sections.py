@@ -62,6 +62,8 @@ def test_the_groups_exist_in_order():
         # The world the story happens in. After 劇情列表 so the two tellings
         # of the story stay a pair.
         "worldbuilding",
+        # Starting over, read once the story has been seen through.
+        "ng_plus",
         "todo",
         "music",
         # Renders near the end, beside the site-wide Resources card.

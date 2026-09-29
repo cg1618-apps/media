@@ -74,11 +74,11 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `options` | The values a `select` accepts. **A select with no options is free text** — the guide sections' type, group and tier are open vocabularies stored in the columns a closed dropdown would use. |
 | `required` | This field alone may not be blank. |
 | `default` | What a **new** row starts this field on — the row-level twin of `NoteSection.default_kind`, which the structured shape does not use. Only ever on a `select` with options, and the value has to be one of them; tests assert both. A defaulted field is **excluded from the emptiness check** (see below). |
-| `item_fields` | For `list` only: the shape of one nested row. A `list` field is never column-backed — no column can hold a list of rows. |
+| `item_fields` | For `list` only: the shape of one nested row. A `list` field is never column-backed — no column can hold a list of rows. A single item field makes it a list of texts (the NG 多周目 `points`), and its editor then gives each text the full width rather than half a row. |
 | `quick_edit` | Render an inline editor in the read view, saving on blur without opening the row. For a value that changes while playing rather than while writing. |
 | `placeholder` | Overrides the label in the input. |
 
-Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`groupable_by`** names one of the section's `select` fields - 職業 Classes, 技能 Skills and the three 物品 sections name `type`. The card then carries a **Group by type** toggle (on by default, remembered per section in the reader's browser) that draws one group per value, in the order each value first appears, with the rows carrying none in a trailing group. Unlike `group_by`, no group order is stored anywhere: the groups follow the rows' `sort_index`, so moving a group or a row within one saves the whole section's row order through `PATCH /api/notes/reorder`, grouped. It is checked at import the same way. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
+Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`groupable_by`** names one of the section's `select` fields - 職業 Classes, 技能 Skills, the three 物品 sections and the three typed NG 多周目 sections name `type`. The card then carries a **Group by type** toggle (on by default, remembered per section in the reader's browser) that draws one group per value, in the order each value first appears, with the rows carrying none in a trailing group. Unlike `group_by`, no group order is stored anywhere: the groups follow the rows' `sort_index`, so moving a group or a row within one saves the whole section's row order through `PATCH /api/notes/reorder`, grouped. It is checked at import the same way. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
 
 **Why one JSONB column and not a column per field.** Most of what the structured sections need already has a column — a name is `title`, a description is `content`, a dropdown is `kind` or `status` — so `fields` carries only the leftovers and the nested lists. A column per field would put a dozen mostly-blank columns on a table all twelve owner types share, and those columns are also the Google Sheets Note tab; the nested lists would need JSONB regardless. The cost, stated plainly: the leftover scalars have no database-level type and no column to filter on. The values worth filtering (a beaten status, a completion status) land in the real `status` column, which is why that cost stays theoretical.
 
@@ -109,6 +109,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `story` | 劇情 Story | `fa-book-open` — game and h-game only. Game: main plot, side stories, character arcs, endings. H-game: the four Story List strands, then endings. What happens |
 | `story_list` | 劇情列表 Story List | `fa-list-ol` — game only, 4 **hierarchical** strands (an h-game's render in 劇情) |
 | `worldbuilding` | 世界觀 Worldbuilding | `fa-earth-asia` — game only: lore, story terms, timeline, mysteries, other. The world it happens in |
+| `ng_plus` | NG 多周目 | `fa-rotate` — game and h-game only: flow, carried over, reset, before starting. What starting over keeps and takes away |
 | `todo` | 待辦 Todo | `fa-list-check` — game and h-game only, 4 personal-scope buckets |
 | `music` | 音樂 Music | `fa-music` |
 | `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` — every owner but h-comic, hentai and h-game |
@@ -278,6 +279,10 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `timeline` | 時間線 Timeline | text_links | worldbuilding | game | — | — | — | no | no | no |
 | `mysteries` | 未解之謎 Mysteries | text_links | worldbuilding | game | — | — | — | no | no | no |
 | `story_other` | 其他 Other | text_links | worldbuilding | game | — | — | — | no | no | no |
+| `ng_flow` | 流程 Flow | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
+| `ng_carried_over` | 繼承內容 Carried Over | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
+| `ng_reset` | 重置內容 Reset | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
+| `ng_before_starting` | 新周目前需完成 Before Starting | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
 | `todo_now` | 現在進行 Doing now | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `todo_next` | 接下來 To do next | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `todo_later` | 未來 To do in the future | text_links | todo | game, h-game | — | — | — | no | no | no |
@@ -418,6 +423,8 @@ column a field claims; a field with no arrow lives in `fields`.
 | `endings` | name → `title`, completion → `status`, description → `content`, links → `links` |
 | `mods_and_tools` | type → `kind`, name → `title`, developer, description → `content`, status → `status` |
 | `guide_resources` | name → `title`, description → `content`, links → `links` |
+| `ng_flow` | name → `title`, description → `content`, **points** *(list: text)*, links → `links` |
+| `ng_carried_over` / `ng_reset` / `ng_before_starting` | type → `kind` (free-text select), name → `title`, description → `content`, **points** *(list: text)*, links → `links`; `groupable_by = "type"` |
 | `main_plot` / `side_plot` | chapter → `locator` *(placeholder "Chapter / Part, e.g. Ch 3")*, description → `content`, links → `links` |
 | the four `story_list_*` strands | order → `locator`, name → `title`, description → `content`, links → `links`; `hierarchical`, `require_any = (("order", "name"),)` |
 
@@ -453,7 +460,7 @@ Every section declares a **`scope`**, and the field has **no default** — a sec
 
 | Scope | Sections | Meaning |
 | --- | --- | --- |
-| `catalog` | 53 | One shared set of rows, read by everyone unfiltered |
+| `catalog` | 57 | One shared set of rows, read by everyone unfiltered |
 | `personal` | 13 — `remark`, `remark_list`, `reviews_and_comments`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions`, and the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe` | One set per user; a viewer sees their own rows and nobody else's |
 | `None` | `quotes`, `memes` | The two `external` sections, backed by their own tables. Quotes and memes are **universal** — shared, unfiltered, no per-user copies — so scope does not apply |
 
