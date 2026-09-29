@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-28
+Last verified: 2026-09-29
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1605,9 +1605,9 @@ fields resolved **for the viewer** from the entries they may see
 
 - `casting_count` — how many visible entries the character is cast on.
 - `display_photo_file` — the storage key to show: `photo_file`, else the
-  chosen `photo_fallback_entry_id` entry's cover, else that entry's casting
-  `photo_file`, else the newest visible cast entry with a cover, else the
-  newest visible casting `photo_file`, else `null`
+  chosen `photo_fallback_entry_id` entry's casting `photo_file`, else that
+  entry's cover, else the newest visible casting `photo_file`, else the newest
+  visible cast entry with a cover, else `null`
   ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)).
 - `media_types` — the hyphenated media types of those visible entries, sorted
   and distinct.

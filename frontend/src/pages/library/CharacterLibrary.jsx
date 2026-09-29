@@ -218,8 +218,8 @@ export default function CharacterLibrary() {
 
 function CharacterCard({ character }) {
   const name = character.display_name || "Unknown Character";
-  // The server resolves the fallback (the chosen entry's cover, then the
-  // newest visible one); a row from an older payload still has photo_file.
+  // The server resolves the fallback (casting photos before entry covers);
+  // a row from an older payload still has photo_file.
   const coverUrl = getCoverUrl(
     character.display_photo_file ?? character.photo_file,
   );

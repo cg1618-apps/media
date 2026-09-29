@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-28
+Last verified: 2026-09-29
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -620,8 +620,9 @@ The layout and the admin controls — Quick edit
 to `/modify?id=<system_id>&type=character`, the My rating select, the
 Remarks textarea, all PATCHing `/api/character/{system_id}` — are the person
 page's, as is the Naming card in place of a list of other names. The photo
-is `display_photo_file`: the photo, else the chosen or newest visible
-entry's cover, else a casting photo, else `FALLBACK_SVG`.
+is `display_photo_file`: the photo, else a casting photo (the chosen entry's,
+then the newest visible), else an entry cover (the same order), else
+`FALLBACK_SVG`.
 
 The one structural difference from the person page: `GET
 /api/character/{id}/entries` groups **by media type only**, because a

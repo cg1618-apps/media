@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-27
+Last verified: 2026-09-29
 
 ## What this is for
 
@@ -450,15 +450,16 @@ Only entries the viewer may see are ever used - the same
 through - so a card never shows the cover of an entry its own page would not
 list.
 
-Character, first hit wins:
+Character, first hit wins. A casting `photo_file` is how the character looks
+in that entry, so it beats the entry's cover at every step:
 
 1. `character.photo_file`.
-2. The chosen `photo_fallback_entry_id` entry's cover (`media.cover_image_file`),
-   while the character is cast on it and it is visible.
-3. That chosen entry's casting `photo_file` - how the character looks there -
-   when the entry has no cover.
-4. The newest visible cast entry that has a cover.
-5. The newest visible casting `photo_file` of this character.
+2. The chosen `photo_fallback_entry_id` entry's casting `photo_file`, while the
+   character is cast on it and it is visible.
+3. That chosen entry's cover (`media.cover_image_file`), when its casting has
+   no photo.
+4. The newest visible casting `photo_file` of this character.
+5. The newest visible cast entry that has a cover.
 6. `null`; the SPA draws its placeholder.
 
 Person - a casting photo is the character's picture, not the seiyuu's, so
