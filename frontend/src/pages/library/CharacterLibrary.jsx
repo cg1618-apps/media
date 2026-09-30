@@ -8,7 +8,7 @@
 //
 // Search, filters and sort all run client-side over the one list response.
 // The filters are ordinary FilterDefs (lib/entityFilters.js) drawn by the
-// FilterPanel the media libraries use.
+// FilterPanel the media libraries use, opening on defaultEntityFilters.
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 
@@ -20,7 +20,7 @@ import { Eyebrow } from "../../components/ui/primitives";
 import { entityPath } from "../../lib/entityPath";
 import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
 import { useAuth } from "../../contexts/AuthContext";
-import { useFilterState } from "../../hooks/useFilterState";
+import { useEntityFilterState } from "../../hooks/useFilterState";
 import { applyFilterDefs } from "../../lib/libraryFilters";
 import { characterFilterDefs } from "../../lib/entityFilters";
 
@@ -30,12 +30,19 @@ export default function CharacterLibrary() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("name");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
   const auth = useAuth();
   const filterDefs = useMemo(() => characterFilterDefs(auth), [auth]);
-  const { filters, toggleFilter, clearFilters, activeFilterCount } =
-    useFilterState(filterDefs, allCharacters);
+  const {
+    filters,
+    toggleFilter,
+    clearFilters,
+    resetFilters,
+    isDefault,
+    activeFilterCount,
+    dynamicFilterOptions,
+  } = useEntityFilterState(filterDefs, allCharacters);
 
   useEffect(() => {
     async function load() {
@@ -83,7 +90,9 @@ export default function CharacterLibrary() {
   }, [allCharacters, searchQuery, currentSort, filterDefs, filters]);
 
   const narrowed = searchQuery !== "" || activeFilterCount > 0;
-  function resetAll() {
+  // The empty state's way out: no search and no filter, not the default -
+  // the default may be exactly what left nothing to show.
+  function showEverything() {
     setSearchQuery("");
     clearFilters();
   }
@@ -180,8 +189,9 @@ export default function CharacterLibrary() {
             filters={filters}
             toggleFilter={toggleFilter}
             clearFilters={clearFilters}
+            resetFilters={isDefault ? undefined : resetFilters}
             activeFilterCount={activeFilterCount}
-            dynamicFilterOptions={{}}
+            dynamicFilterOptions={dynamicFilterOptions}
           />
         )}
         {filteredAndSorted.length === 0 ? (
@@ -193,10 +203,10 @@ export default function CharacterLibrary() {
                 <>
                   Try a different search or filter, or{" "}
                   <button
-                    onClick={resetAll}
+                    onClick={showEverything}
                     className="text-brand hover:underline"
                   >
-                    reset
+                    show everything
                   </button>
                 </>
               ) : (

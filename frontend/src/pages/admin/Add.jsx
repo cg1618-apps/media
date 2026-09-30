@@ -1224,6 +1224,7 @@ export default function Add() {
         gender: personForm.gender || null,
         my_rating: personForm.my_rating || null,
         photo_file: personForm.photo_file || null,
+        mal_link: personForm.mal_link?.trim() || null,
         remark: personForm.remark || null,
         roles: personRoles,
       }),

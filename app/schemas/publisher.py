@@ -5,7 +5,7 @@ has no record of a games publisher or a Taiwanese distributor, so there is
 nothing to autofill from and nothing to link to.
 """
 
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
@@ -80,5 +80,10 @@ class PublisherResponse(PublisherBase):
     public_id: int
     display_name: str = ""
     credit_count: int = 0
+    # Hyphenated media types of the visible entries this publisher is
+    # credited on, sorted and distinct; restricted is True when one is a
+    # gated type. Same semantics as StudioResponse's.
+    media_types: List[str] = []
+    restricted: bool = False
 
     model_config = ConfigDict(from_attributes=True)

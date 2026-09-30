@@ -12,6 +12,8 @@ way "the user removed one name" can be expressed.
 """
 
 import logging
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from typing import Optional, Sequence
 from uuid import UUID
 
@@ -1148,31 +1150,44 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
             entry.publisher_refs = publisher_refs_by_entry.get(entry.system_id, [])
 
 
-def credit_counts(
+@dataclass(frozen=True)
+class CreditSummary:
+    """What a studio or publisher card shows beyond its own columns."""
+
+    count: int = 0
+    # Hyphenated media types of the visible credited entries, sorted and
+    # distinct.
+    media_types: list[str] = dataclass_field(default_factory=list)
+    # True when one of media_types is a gated type.
+    restricted: bool = False
+
+
+def credit_summaries(
     db: Session,
     viewer,
     entity_ids: Sequence[UUID],
     fk_column,
-    include_castings: bool = False,
-) -> dict[UUID, int]:
+) -> dict[UUID, CreditSummary]:
     """
-    How many visible entries each of `entity_ids` is credited on, in one pass.
+    How many visible entries each of `entity_ids` is credited on, and in which
+    media types, in one pass.
 
-    `fk_column` is the media_credit column naming the entity - person_id,
-    studio_id or publisher_id. `include_castings` unions character_casting in
-    as well, which only people need: a seiyuu has no media_credit rows at all
-    (see credit_roles.CreditRole.credited_via) and would otherwise read zero.
+    `fk_column` is the media_credit column naming the entity - studio_id or
+    publisher_id. People are summarised by entity_photos.person_media, which
+    also walks character_casting and resolves a picture.
 
     Counting is per entity but VISIBILITY is resolved once for every pair in
     the page, because filter_visible_pairs is already a batch call - asking it
-    per row is the N+1 this function exists to remove. Each entity's pairs are
-    a set, so an entry that both credits and casts one person counts once,
-    exactly as the per-row version counted it.
+    per row is an N+1. Each entity's pairs are a set, so an entry crediting
+    one studio under two roles counts once. The count and the media types come
+    from the same visible pairs, so a card can never name a type its count
+    leaves out.
     """
     # Imported here rather than at module scope: enforcement imports this
     # module for credit resolution, and a top-level import would close the
     # cycle.
     from app.services.rbac.enforcement import filter_visible_pairs
+    from app.services.rbac.gated_types import gated_types
 
     ids = list(entity_ids)
     if not ids:
@@ -1184,16 +1199,6 @@ def credit_counts(
         .filter(fk_column.in_(ids))
         .all()
     )
-    if include_castings:
-        rows = list(rows) + list(
-            db.query(
-                models.CharacterCasting.person_id,
-                models.CharacterCasting.media_type,
-                models.CharacterCasting.entry_id,
-            )
-            .filter(models.CharacterCasting.person_id.in_(ids))
-            .all()
-        )
 
     by_entity: dict[UUID, set] = {entity_id: set() for entity_id in ids}
     every_pair: set = set()
@@ -1204,6 +1209,14 @@ def credit_counts(
         every_pair.add((media_type, entry_id))
 
     visible = filter_visible_pairs(db, viewer, every_pair)
-    return {
-        entity_id: len(pairs & visible) for entity_id, pairs in by_entity.items()
-    }
+    gated = gated_types()
+    out: dict[UUID, CreditSummary] = {}
+    for entity_id, pairs in by_entity.items():
+        shown = pairs & visible
+        media_types = sorted({media_type for media_type, _ in shown})
+        out[entity_id] = CreditSummary(
+            count=len(shown),
+            media_types=media_types,
+            restricted=bool(set(media_types) & gated),
+        )
+    return out

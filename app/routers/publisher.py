@@ -15,12 +15,18 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.domain.credits import credit_counts, find_publisher
+from app.routers._entity_patch import prepare_patch
+from app.routers._patching import apply_column_patch
+from app.services.domain.credits import (
+    CreditSummary,
+    credit_summaries,
+    find_publisher,
+)
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
@@ -45,18 +51,19 @@ def _to_response(
     db: Session,
     publisher: models.Publisher,
     viewer=None,
-    credit_count: Optional[int] = None,
+    summary: Optional[CreditSummary] = None,
     hidden: Optional[frozenset[str]] = None,
 ) -> schemas.PublisherResponse:
     # Count only credits on entries the viewer may see. A number is a smaller
     # leak than a title, but "published 3 things, you can see 2" is still one.
+    # The media types come out of the same visible pairs.
     #
-    # `credit_count` is passed in by the list route, which resolves the whole
-    # page in one pass; a single-entity route leaves it None and pays for one.
-    if credit_count is None:
-        credit_count = credit_counts(
+    # `summary` is passed in by the list route, which resolves the whole page
+    # in one pass; a single-entity route leaves it None and pays for one.
+    if summary is None:
+        summary = credit_summaries(
             db, viewer, [publisher.system_id], models.MediaCredit.publisher_id
-        ).get(publisher.system_id, 0)
+        )[publisher.system_id]
     # A scope naming a gated type the viewer cannot see is a hidden
     # connection; a visible publisher omits it rather than naming the type.
     if hidden is None:
@@ -80,7 +87,9 @@ def _to_response(
         scopes=sorted(
             without_hidden_scopes((s.scope for s in publisher.scopes), hidden)
         ),
-        credit_count=credit_count,
+        credit_count=summary.count,
+        media_types=summary.media_types,
+        restricted=summary.restricted,
     )
 
 
@@ -112,7 +121,7 @@ def get_all_publishers(
     if scope and scope in hidden:
         return []
     # scopes is read by _to_response for every row, so it is preloaded rather
-    # than lazy-loaded per publisher - the same N+1 credit_counts exists to
+    # than lazy-loaded per publisher - the same N+1 credit_summaries exists to
     # remove, one relationship over.
     query = db.query(models.Publisher).options(
         selectinload(models.Publisher.scopes)
@@ -124,16 +133,14 @@ def get_all_publishers(
         )
     publishers = query.all()
     publishers.sort(key=lambda p: p.display_name.casefold())
-    counts = credit_counts(
+    summaries = credit_summaries(
         db,
         viewer,
         [publisher.system_id for publisher in publishers],
         models.MediaCredit.publisher_id,
     )
     return [
-        _to_response(
-            db, publisher, viewer, counts.get(publisher.system_id, 0), hidden
-        )
+        _to_response(db, publisher, viewer, summaries[publisher.system_id], hidden)
         for publisher in publishers
     ]
 
@@ -266,7 +273,7 @@ def create_publisher(
             )
     db.commit()
     db.refresh(publisher)
-    return _to_response(db, publisher)
+    return _to_response(db, publisher, admin)
 
 
 @router.put(
@@ -312,7 +319,41 @@ def update_publisher(
 
     db.commit()
     db.refresh(publisher)
-    return _to_response(db, publisher)
+    return _to_response(db, publisher, admin)
+
+
+@router.patch(
+    "/{system_id}",
+    response_model=schemas.PublisherResponse,
+    summary="Patch Publisher",
+)
+def patch_publisher(
+    system_id: UUID,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Partially updates a publisher's own columns - the detail page's inline
+    rating and remark edits. Only the keys sent change; scopes are not a
+    column and are edited through PUT.
+
+    The same rules as PUT, checked before anything is written: my_rating is
+    its vocabulary ("" is NULL), display_name_field is en / cn / jp / alt, and
+    at least one name survives the patch. Server columns (system_id,
+    public_id, timestamps) are a 422; keys that are not columns are ignored
+    (_patching.apply_column_patch).
+    """
+    publisher = db.get(models.Publisher, system_id)
+    if publisher is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Publisher, system_id, NOT_FOUND)
+
+    apply_column_patch(publisher, prepare_patch(publisher, payload, "publisher"))
+
+    db.commit()
+    db.refresh(publisher)
+    return _to_response(db, publisher, admin)
 
 
 @router.delete("/{system_id}", summary="Delete Publisher")

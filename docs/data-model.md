@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-29
+Last verified: 2026-09-30
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -920,9 +920,11 @@ One human credited on a media entry (Tier 3 entity - see
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `gender` | String | yes | | GENDERS (`男` / `女` / `中性/無性` / `雙性混和` / `其他`), or NULL for not set. On the base table, not a seiyuu extension: a fact about the person, not the role. |
 | `my_rating` | String | yes | | MY_RATINGS, or NULL |
-| `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg` |
+| `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for a seiyuu with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data) |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `remark` | Text | yes | | A real column here (not a note row) |
+| `mal_id` | Integer | yes | | MAL people id. Derived from `mal_link` by `extract_mal_id_person` on every write and on the Seiyuu Fill, or typed directly. Held by any person; only a person holding the `seiyuu` role is ever filled from it |
+| `mal_link` | String | yes | | `myanimelist.net/people/<id>/<slug>` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraints: `uq_person_name` UNIQUE (`name_en`, `name_cn`, `name_jp`,

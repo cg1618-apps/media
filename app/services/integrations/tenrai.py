@@ -205,7 +205,7 @@ def fetch_tenrai_producer_data(mal_id: int) -> Optional[Dict[str, Any]]:
     Producers are a different resource from anime and manga - they carry a
     logo, an `established` timestamp and an `external` link list, and no
     score or rank - but the throttle and retry policy are identical, so the
-    same TenraiRateLimiter budget covers all three fetchers.
+    same TenraiRateLimiter budget covers every fetcher here.
     """
     if not mal_id:
         return None
@@ -244,6 +244,66 @@ def fetch_tenrai_producer_data(mal_id: int) -> Optional[Dict[str, Any]]:
     except requests.exceptions.RequestException as e:
         logger.error(
             "Network/Timeout Error connecting to Tenrai for Producer MAL ID %s: %s",
+            mal_id,
+            e,
+        )
+        raise
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=(
+        retry_if_exception_type(requests.exceptions.RequestException)
+        | retry_if_exception_type(RateLimitExceeded)
+    ),
+    reraise=False,
+)
+def fetch_tenrai_person_data(mal_id: int) -> Optional[Dict[str, Any]]:
+    """
+    Fetches raw person (MAL "people") details from Tenrai - a seiyuu's names,
+    alternate names and photo.
+
+    Same throttle and retry policy as the other fetchers, so one
+    TenraiRateLimiter budget covers all four.
+    """
+    if not mal_id:
+        return None
+
+    tenrai_rate_limiter.wait_if_needed()
+
+    url = f"{TENRAI_BASE_URL}/people/{mal_id}/full"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0"
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+
+        if response.status_code == 429:
+            logger.warning("Tenrai Rate Limit (429) for People MAL ID %s.", mal_id)
+            raise RateLimitExceeded("429 Too Many Requests")
+
+        if response.status_code == 404:
+            logger.warning("Person not found (404) on Tenrai for MAL ID %s", mal_id)
+            return None
+
+        if response.status_code >= 500:
+            logger.warning(
+                "Tenrai server error (%s) for People MAL ID %s — skipping retries.",
+                response.status_code,
+                mal_id,
+            )
+            return None
+
+        response.raise_for_status()
+
+        return response.json().get("data", {})
+
+    except requests.exceptions.RequestException as e:
+        logger.error(
+            "Network/Timeout Error connecting to Tenrai for People MAL ID %s: %s",
             mal_id,
             e,
         )

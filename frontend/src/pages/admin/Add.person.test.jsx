@@ -142,4 +142,38 @@ describe("Add page — Person tab image attach", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("carries the MAL link in the create payload", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch({ system_id: "person-3", display_name: "Kana Hanazawa" }),
+    );
+    const user = userEvent.setup();
+
+    mount();
+    await goToPersonTab(user);
+
+    const [nameInput] = screen.getAllByRole("textbox");
+    await user.type(nameInput, "Kana Hanazawa");
+    await user.type(
+      screen.getByPlaceholderText("https://myanimelist.net/people/..."),
+      "https://myanimelist.net/people/185",
+    );
+    await user.click(screen.getByRole("button", { name: /append entry/i }));
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/person/",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const [, init] = fetch.mock.calls.find(
+      ([u, o]) => u === "/api/person/" && o?.method === "POST",
+    );
+    expect(JSON.parse(init.body)).toMatchObject({
+      mal_link: "https://myanimelist.net/people/185",
+    });
+
+    vi.unstubAllGlobals();
+  });
 });

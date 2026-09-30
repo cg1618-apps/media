@@ -21,6 +21,22 @@ export function countActiveFilters(filters) {
   );
 }
 
+/** True when two filter states hold the same values in every group. */
+export function sameFilters(a, b) {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) {
+    const x = a[key];
+    const y = b[key];
+    if (x instanceof Set || y instanceof Set) {
+      if (!(x instanceof Set && y instanceof Set) || x.size !== y.size) return false;
+      for (const v of x) if (!y.has(v)) return false;
+    } else if (!!x !== !!y) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /** The options of every "set-dynamic" def, derived from `data`. */
 export function deriveDynamicOptions(filterDefs, data) {
   return Object.fromEntries(

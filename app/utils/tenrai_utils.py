@@ -395,3 +395,55 @@ def map_tenrai_to_studio_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "name_jp": _producer_title(raw_data.get("titles", []), "Japanese"),
         "website_url": _producer_website(raw_data.get("external", [])),
     }
+
+
+# MAL's stand-in for a person with no photo. Storing it would give every such
+# seiyuu the same grey question mark in place of the SPA's own placeholder.
+MAL_PLACEHOLDER_IMAGE_MARKER = "questionmark"
+
+
+def _western_order(name: Optional[str]) -> Optional[str]:
+    """
+    "Hanazawa, Kana" -> "Kana Hanazawa". MAL lists a person family name
+    first, separated by one ", "; anything else - a single-word stage name,
+    or a name with more than one comma - is kept as MAL wrote it rather than
+    guessed at.
+    """
+    if not name or not isinstance(name, str):
+        return None
+    name = name.strip()
+    parts = name.split(", ")
+    if len(parts) == 2 and all(p.strip() for p in parts):
+        return f"{parts[1].strip()} {parts[0].strip()}"
+    return name or None
+
+
+def map_tenrai_to_person_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transforms a raw Tenrai people payload into the flat dict the seiyuu
+    autofill writes from.
+
+    Deliberately dropped: `birthday`, `website_url` and `about` - the person
+    table has no columns for them, and the owner chose not to add any. The
+    Japanese name is family then given with no space, as it is written.
+    """
+    photo_url = raw_data.get("images", {}).get("jpg", {}).get("image_url")
+    if photo_url and MAL_PLACEHOLDER_IMAGE_MARKER in photo_url:
+        photo_url = None
+    name_jp = "".join(
+        part.strip()
+        for part in (raw_data.get("family_name"), raw_data.get("given_name"))
+        if isinstance(part, str) and part.strip()
+    )
+    alternates = [
+        a.strip()
+        for a in raw_data.get("alternate_names") or []
+        if isinstance(a, str) and a.strip()
+    ]
+    return {
+        "photo_url": photo_url,
+        "mal_link": raw_data.get("url"),
+        "name_en": _western_order(raw_data.get("name")),
+        "name_jp": name_jp or None,
+        "name_alt": ", ".join(alternates) or None,
+    }

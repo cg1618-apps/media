@@ -299,7 +299,7 @@ export default function Modify() {
   // Content labels are the same eight keys for every media type, so they
   // live on the page rather than in each per-type form object.
   const [contentLabels, setContentLabels] = useState([]);
-  // An entity deep link (?type=character|person) opens on its tab from the
+  // An entity deep link (?type=character|person|studio|publisher) opens on its tab from the
   // first paint; the tab itself loads the id (entityDeepLink below).
   const [activeTab, setActiveTab] = useState(() => {
     const urlType = searchParams.get("type");
@@ -3912,12 +3912,20 @@ export default function Modify() {
       {/* ═══ STUDIO TAB — bypasses search/edit pattern; Studio is a public
           entity, not a media entry/collection/franchise/series shape, so it
           owns its own picker/load/save (see StudioModifyTab.jsx). ═══ */}
-      {activeTab === "studio" && <StudioModifyTab />}
+      {activeTab === "studio" && (
+        <StudioModifyTab
+          initialId={entityDeepLink?.type === "studio" ? entityDeepLink.id : null}
+        />
+      )}
 
       {/* ═══ PUBLISHER TAB — bypasses search/edit pattern for the same reason
           Studio does; a publisher is a public entity with its own picker,
           load and save (see PublisherModifyTab.jsx). ═══ */}
-      {activeTab === "publisher" && <PublisherModifyTab />}
+      {activeTab === "publisher" && (
+        <PublisherModifyTab
+          initialId={entityDeepLink?.type === "publisher" ? entityDeepLink.id : null}
+        />
+      )}
 
       {/* ═══ PERSON TAB — bypasses search/edit pattern for the same reason
           Studio does; a person is a credited entity with its own role x scope

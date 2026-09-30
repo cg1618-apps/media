@@ -17,6 +17,7 @@ MAL_MANGA_ID_PATTERN = re.compile(r"myanimelist\.net/manga/(\d+)")
 # cannot match it ("producer" is not digits) and this one cannot match a
 # plain anime link. The two never poach each other.
 MAL_PRODUCER_ID_PATTERN = re.compile(r"myanimelist\.net/anime/producer/(\d+)")
+MAL_PERSON_ID_PATTERN = re.compile(r"myanimelist\.net/people/(\d+)")
 IMDB_ID_PATTERN = re.compile(r"imdb\.com/title/tt(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
 SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
@@ -65,6 +66,16 @@ STUDIO_FIELDS_TO_FILL = [
     "name_jp",
     "website_url",
     "logo_file",
+]
+
+# What the Tenrai people endpoint fills on a seiyuu. Birthday, website and
+# the about blurb are absent on purpose: the owner keeps those by hand.
+PERSON_FIELDS_TO_FILL = [
+    "mal_link",
+    "name_en",
+    "name_jp",
+    "name_alt",
+    "photo_file",
 ]
 
 # What Tenrai fills on a hentai - the owner's three, and nothing else.
@@ -321,6 +332,22 @@ def extract_mal_id_producer(url: str) -> Optional[int]:
         return None
 
     match = MAL_PRODUCER_ID_PATTERN.search(url)
+    if match:
+        return int(match.group(1))
+
+    return None
+
+
+def extract_mal_id_person(url: str) -> Optional[int]:
+    """
+    Extracts the numeric ID from a MyAnimeList people URL, e.g.
+    https://myanimelist.net/people/185/Kana_Hanazawa -> 185.
+    Returns None if the URL is invalid or the ID cannot be found.
+    """
+    if not url:
+        return None
+
+    match = MAL_PERSON_ID_PATTERN.search(url)
     if match:
         return int(match.group(1))
 

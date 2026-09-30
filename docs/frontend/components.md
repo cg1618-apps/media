@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-29
+Last verified: 2026-09-30
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -41,7 +41,7 @@ src/
 | `hooks/useMediaCacheUpdate(type, id)` | `setMediaItem`, `fetchMediaItem`, `invalidateMedia` for optimistic detail updates. |
 | `hooks/useStatusToggle(type)` | PATCHes one field and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
-| `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker, Picker Defaults and the character and person libraries; the defs and `initial` are read once, so a caller whose defs change remounts. |
+| `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker and Picker Defaults; the defs and `initial` are read once, so a caller whose defs change remounts. `useEntityFilterState(filterDefs, data)` beside it is the entity libraries' (character, person, studio, publisher) form: `initial` is `defaultEntityFilters(filterDefs)`, and it adds `isDefault` (`sameFilters` against that default) so the page hands `FilterPanel` its `resetFilters` only once the state has moved off it. |
 | `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs, its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none), and `defaultWeighted` (true unless saved off). Shared by the picker and Picker Defaults. |
 | `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
@@ -147,7 +147,10 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 
 `components/layout/FilterPanel.jsx` draws a list of FilterDefs (the shape is
 documented in `hooks/useLibraryState.js`) as rows of chips, one row per def,
-with **Clear all** when the caller passes `clearFilters`. Within a def the
+with **Clear all** when the caller passes `clearFilters` and a chip is on,
+and **Reset** beside it when the caller passes `resetFilters` — the entity
+libraries do while their state is off its default. Clear all empties every
+group; Reset puts the caller's opening state back. Within a def the
 chosen values OR; across defs they AND (`applyFilterDefs` in
 `lib/libraryFilters.js`).
 
@@ -166,8 +169,8 @@ toggles only itself, and the parent shows active only while every child is on
 (`isParentActive`). The panel reaches that state through the caller's own
 `toggleFilter`, one call per child that changes, so any `useFilterState`
 caller gets parent chips with no extra wiring. A parent with no children is
-not drawn. The character and person libraries use it for **Restricted** over
-the gated media types.
+not drawn. The character, person and studio libraries use it for
+**Restricted** over the gated media types.
 
 ## Shared components by folder
 
@@ -175,8 +178,8 @@ the gated media types.
   scroll buttons), `Nav` + `NavSearch`, `ProtectedRoute`, `Toast`,
   `MediaLoadingState`, `LibraryLayout` (search / sort / filters / grid-table
   scaffold), `FilterPanel` (the chip panel for a list of FilterDefs, used by
-  `LibraryLayout`, the random picker, Picker Defaults and the character and
-  person libraries; see [FilterPanel](#filterpanel)) with its
+  `LibraryLayout`, the random picker, Picker Defaults and the entity
+  libraries; see [FilterPanel](#filterpanel)) with its
   `FilterToggleButton` (the "Filters" button and active-chip count), `libraryColumns.jsx` (column and sort factories:
   `franchiseColumn`, `airingStatusColumn`, `myRatingColumn`, `malRatingColumn`,
   `imdbRatingColumn`, `watchButtonColumn`, `readButtonColumn`,
@@ -260,8 +263,9 @@ the gated media types.
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`,
   `ClubMembership` (see [Entity components](#entity-components-person-studio-and-character)).
   `NamingCard` shows an h-comic's own region's name only (JP or KR), and a
-  character's or person's four unprefixed names (`NAMING_CONFIGS.character`
-  / `.person`).
+  character's, person's, studio's or publisher's four unprefixed names —
+  the displayed one included — (`NAMING_CONFIGS.character` / `.person` /
+  `.studio` / `.publisher`).
   `SourcesCard` reads the entry's `sources` array (server-ordered — access
   rows in `sort_order`/insertion order, never re-sorted client-side), splits
   it into `access`/`reference` sections by `row.kind`, titles the access
@@ -598,8 +602,8 @@ content-label endpoints refuse (422) a set that drops it.
 | `forms/OptionCategorySelect.jsx` | The Tier 2 category dropdown on all three admin pages — Add's Category field, Modify's and Delete's "select a category" filter. A closed `<select>`, so Add can no longer coin a category by typing one; its `<optgroup>`s come from `groupTier2Categories` (`lib/optionsPageGroups.js`), the same arrangement `/options` reads, and a list yielding one section renders flat. |
 | `add-tabs/PersonAddTab.jsx` | Exports `PersonFields` (the editor) and `useRoleScopes` (the legal role → media-type map from `GET /api/person/role-scopes`), both reused by `modify-tabs/PersonModifyTab.jsx`. |
 | `forms/EntityProfileFields.jsx` | The profile inputs `CharacterFields` and `PersonFields` share: `GenderRatingFields` (Gender — "—" plus `GENDERS` — and My Rating — "Unrated" plus `MY_RATINGS` — as closed selects storing `""` for unset, which the savers send as null) and, on Modify only (an unsaved row has no entries), `PhotoFallbackField`: "— Auto (latest with cover) —" plus the row's entries from `GET /api/{character\|person}/{id}/entries`, once each (`uniqueGroupEntries`), labelled `name (year) [type]` like the franchise cover picker. Its hint follows `ownerType`: a character's chosen entry lends its casting photo before its cover, a person's only its cover. It writes `photo_fallback_entry_id`, which the Modify tab's `PUT` carries. |
-| `info/EntityProfileControls.jsx` | The admin controls the character and person detail pages share: `AdminToolbar` (the dashed Admin strip with **Quick edit** to `/modify?id=<system_id>&type=<character\|person>`), `RatingSelect` (Unrated plus `MY_RATINGS`, saving on change), `RemarkEditor` (a textarea saving on blur — emptied is null, untouched saves nothing) and `useEntityPatch(ownerType, systemId, onSaved)`, which PATCHes the partial body to `endpoints.{character\|person}.patch(id)`, hands the response to `onSaved` and toasts. |
-| `lib/entityFilters.js` | The character and person libraries' FilterDefs: `characterFilterDefs(auth)` (Entry type, Role — the character's own `role`, with Not set for null — My Rating, Gender) and `personFilterDefs(auth)` (the same plus Type, the `PERSON_SUB_TABS` roles). Entry type matches a row's `media_types` and carries a **Restricted** parent over the gated types the entity can have — h-comic and hentai for a character, those and h-game for a person — keeping only the ones `canSeeGatedType` allows; rating, gender and a character's role add Unrated / Not set for null. |
+| `info/EntityProfileControls.jsx` | The admin controls every entity detail page shares — character, person, studio and publisher: `AdminToolbar` (the dashed Admin strip with **Quick edit** to `/modify?id=<system_id>&type=<character\|person\|studio\|publisher>`), `RatingSelect` (Unrated plus `MY_RATINGS`, saving on change), `RemarkEditor` (a textarea saving on blur — emptied is null, untouched saves nothing) and `useEntityPatch(ownerType, systemId, onSaved)`, which PATCHes the partial body to `endpoints.{character\|person\|studio\|publisher}.patch(id)`, hands the response to `onSaved` and toasts. |
+| `lib/entityFilters.js` | The entity libraries' FilterDefs and their shared default. `characterFilterDefs(auth)` (Entry type, Role — the character's own `role`, with Not set for null — My Rating, Gender); `personFilterDefs(auth, role?)` (Type — the `PERSON_SUB_TABS` roles — then Entry type, My Rating, Gender; with a `role`, as on `/library/seiyuu`, no Type group); `studioFilterDefs(auth)` and `publisherFilterDefs(auth)` (Entry type, My Rating, and **Country** — a `set-dynamic` def over the countries on record, plus Not set when a row has none). Entry type offers the entity's plain types, then **No entries**, which matches a row whose `media_types` is empty, then a **Restricted** parent over the gated types the entity can have — h-comic and hentai for a character, those and h-game for a person, hentai and h-game for a studio, none for a publisher — keeping only the ones `canSeeGatedType` allows. It matches `media_types`, and for a publisher `media_types` ∪ `scopes`, so one offered on a type but not yet credited on it is still found there. Rating, gender, role and country add Unrated / Not set for null. `defaultEntityFilters(defs)` is the state every entity library opens on: Entry type holds its plain options and No entries, so the restricted types start off, and every other group is empty. |
 | `info/PersonLinks.jsx` | `creditValue(item, role, legacyValue)` for an InfoCard credit row: links built from `credit_refs` when the entry has them, the legacy comma-joined string when it does not — which is also what a viewer without the Credits permission sees. `creditLabel(item, role, fallback)` takes the heading from the ref, so 原作 / Author / Writer stays owned by `credit_label()` on the backend. |
 | `info/StudioLinks.jsx` | The same pair for `studio_refs`, without a role key. Generalised over its detail route rather than copied for the third entity: `StudioLinks` takes a `base` prop (default `/studio`), `studioValue(item)` reads `studio_refs`, and `publisherValue(item)` reads `publisher_refs` with `base="/publisher"`. A game's Production card uses both — Developer through `studioValue` (a developer *is* a studio), the publisher row through `publisherValue`, and the same publisher row now appears on Anime, AnimeMovie, Manga, Novel and Comic. `publisherLabel(item, fallback)` beside them returns `publisher_refs[0].label` — the backend's `credit_label("publisher", media_type)` — so no page hard-codes 台灣代理商 or 發行商; the fallback literal is only reached on an entry with no publisher credited yet. The duplicate `info/PublisherLinks.jsx` was **deleted**: nothing imported it, and a second label mechanism beside this one is how the two drift apart. |
 | `forms/PublisherScopePills.jsx` | One row of media-type pills (Anime, Anime Movie, Manga, Novel, Comic, Game) on the Publisher Add and Modify tabs, writing the `scopes` list the POST/PUT body carries. `PersonRoleMatrix`'s shape with no role axis to cross it against — a publisher holds exactly one role. Clicking a held pill removes it; this is the only path that *narrows* a publisher, since credit writes and `POST /api/publisher` are additive. The toggle rebuilds the list in the component's own order rather than appending, so the value posted does not depend on click order. Mirrors `legal_scopes("publisher")` in `app/utils/credit_roles.py`: a seventh media type added there must be added here. |

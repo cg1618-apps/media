@@ -23,6 +23,7 @@ from app.models import (
     Manga,
     Movies,
     Novel,
+    Person,
     Studio,
     TVShows,
 )
@@ -48,6 +49,7 @@ from app.services.domain import (
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
+    apply_extract_mal_id_person,
     apply_extract_mal_id_studio,
     apply_extract_novel_ids,
     apply_single_replace_anime,
@@ -80,6 +82,7 @@ from app.services.domain import (
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
     autofill_novel_from_openlibrary,
+    autofill_person_from_mal,
     autofill_studio_from_mal,
     autofill_tv_show_from_imdb,
     cartoon_post_processing,
@@ -100,6 +103,7 @@ from app.services.domain import (
     has_missing_values_movie,
     has_missing_values_novel,
     has_missing_values_novel_openlibrary,
+    has_missing_values_person,
     has_missing_values_studio,
     has_missing_values_tv_show,
     manga_post_processing,
@@ -124,6 +128,20 @@ MAL_PAUSE = 1
 COMICVINE_PAUSE = 1
 IGDB_PAUSE = 0.25
 STEAM_PAUSE = 0.5
+
+
+def _is_seiyuu_to_fill(db, person) -> bool:
+    """
+    A seiyuu - any person_role row with role seiyuu, whatever its scope - with
+    a MAL id and something left to fill. The role is checked last: most
+    people carry no mal_id, so their roles are never loaded. A director or
+    author with a MAL link is never filled, which is the owner's rule.
+    """
+    return (
+        person.mal_id is not None
+        and has_missing_values_person(person)
+        and any(role.role == "seiyuu" for role in person.roles)
+    )
 
 
 def _linked(model, *columns):
@@ -525,6 +543,18 @@ PIPELINES: dict[str, PipelineSpec] = {
         extract_id=apply_extract_mal_id_studio,
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_studio(e),
         fill=lambda db, e: autofill_studio_from_mal(e),
+        fill_sleep=MAL_PAUSE,
+        fill_only=True,
+        in_replace_all=False,
+    ),
+    "seiyuu": PipelineSpec(
+        key="seiyuu", label="Seiyuu", model=Person,
+        # Not a media entry either, and not every person: only a seiyuu is
+        # filled (_is_seiyuu_to_fill). The id is derived for every person, so
+        # a director's pasted people URL still yields a mal_id.
+        extract_id=apply_extract_mal_id_person,
+        fill_eligible=_is_seiyuu_to_fill,
+        fill=lambda db, e: autofill_person_from_mal(e, db),
         fill_sleep=MAL_PAUSE,
         fill_only=True,
         in_replace_all=False,

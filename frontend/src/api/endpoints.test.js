@@ -142,4 +142,9 @@ describe("named endpoint groups", () => {
     expect(endpoints.resources.remove("X")).toBe("/api/resources/X");
     expect(endpoints.resources.reorder()).toBe("/api/resources/reorder");
   });
+
+  it("studio and publisher take a partial PATCH, like person and character", () => {
+    expect(endpoints.studio.patch("X")).toBe("/api/studio/X");
+    expect(endpoints.publisher.patch("X")).toBe("/api/publisher/X");
+  });
 });

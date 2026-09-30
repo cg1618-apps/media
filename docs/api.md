@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-29
+Last verified: 2026-09-30
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1067,9 +1067,10 @@ searchable across all four name columns and carry the same
 `PersonResponse` / `StudioResponse` / `PublisherResponse` the
 library endpoints return, `credit_count` included — computed here for the whole
 bucket in one `filter_visible_pairs` call rather than per row, so the number
-matches `/api/person/` and `/api/studio/` without the N+1. A person also
-carries `display_photo_file`, `media_types` and `restricted`, from the same
-one-pass resolver the person list uses. The rows go through
+matches `/api/person/` and `/api/studio/` without the N+1. Every row also
+carries `media_types` and `restricted`, and a person `display_photo_file`, from
+the same one-pass resolver its own list uses (`entity_photos.person_media` for
+people, `credits.credit_summaries` for studios and publishers). The rows go through
 the same shared-record rule as their lists
 ([authorization.md](authorization.md#shared-records)), so a person, studio or
 publisher whose every connection is hidden is absent from its bucket, and a
@@ -1264,9 +1265,9 @@ derived from `(role, media_type)`, never stored.
 | `GET`    | `/role-scopes`     | Public | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form cannot offer a pair the API rejects. Declared before `/{system_id}` for the same reason `role-counts` is. |
 | `GET`    | `/{system_id}`     | Public | Get one person by UUID. 404 if absent or hidden.                                     |
 | `GET`    | `/{system_id}/entries` | Public | The entries this person is credited on, grouped by `(media_type, role)`. 404 if the person is absent or hidden. |
-| `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. A body with no name at all is 422, mirroring `ck_person_has_a_name`. |
-| `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. |
-| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline rating and remark edits. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The `PUT` rules are checked before anything is written: `gender` and `my_rating` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Returns the full `PersonResponse`. |
+| `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. A body with no name at all is 422, mirroring `ck_person_has_a_name`. Only on the create branch, `mal_id` is derived from `mal_link` and a seiyuu is enriched from MAL (see below). |
+| `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. `mal_id` is derived from `mal_link`, and a seiyuu is enriched from MAL after the payload is copied (see below). |
+| `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline rating and remark edits. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The `PUT` rules are checked before anything is written: `gender` and `my_rating` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit` and `person_role` rows — no `deleted_record` entry is logged. `credits` is **required**: it is the count the confirmation dialog showed, and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
 | `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit`, unions the `person_role` rows and moves every club membership onto the survivor, then deletes the loser. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
 | `GET`    | `/{system_id}/clubs` | Public | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
@@ -1281,7 +1282,7 @@ not a connection: it never makes a hidden club or artist visible
 
 **Response model:** `PersonResponse` — the four name columns,
 `display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
-`photo_file`, `photo_fallback_entry_id`, `remark`, `system_id`, `roles` (every
+`photo_file`, `photo_fallback_entry_id`, `remark`, `mal_id`, `mal_link`, `system_id`, `roles` (every
 `(role, scope)` the person holds, so the admin form can load the whole set in
 one request) and four fields resolved **for the viewer** from the entries they
 may see (`filter_visible_pairs`), none of them stored:
@@ -1315,6 +1316,21 @@ visible person's `roles` omit a role scoped to a gated type the viewer cannot
 see, `role-scopes` omits such types, a `?scope=` naming one answers `[]`, and
 `PUT` keeps the role rows the editor cannot see. A role scoped only to such
 types (`club`) is absent from `role-scopes` and `role-counts` altogether.
+
+**A seiyuu with a `mal_id` is enriched from MAL on save.** Every person write
+derives `mal_id` from `mal_link` (`apply_extract_mal_id_person`, pattern
+`myanimelist\.net/people/(\d+)`), so pasting
+`https://myanimelist.net/people/185/Kana_Hanazawa` is enough on its own. When
+the saved person holds the `seiyuu` role (any scope) and has a `mal_id`,
+`POST` (create branch only) and `PUT` then run `autofill_person_from_mal`,
+which fills `photo_file`, `mal_link`, `name_en`, `name_jp` and `name_alt` —
+**only the columns that are empty**. The names are skipped together, with a
+warning, when the filled names would equal another person's (`uq_person_name`);
+the photo and link still land. A person without the seiyuu role keeps its MAL
+link and is never fetched. A Tenrai failure is logged and swallowed — the save
+still succeeds. The bulk equivalent is `POST /api/data-control/fill/seiyuu`;
+the field mapping is in
+[external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data).
 
 ### `GET /api/person/{system_id}/entries`
 
@@ -1355,13 +1371,27 @@ role/scope filter — studios have no `person_role` concept.
 | `GET`    | `/{system_id}/entries`| Public | The entries this studio is credited on, grouped by media type. 404 if the studio is absent or hidden. |
 | `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`); metadata on an existing row is left untouched. Body: `StudioCreate`. Only on the create branch, a payload carrying `mal_id` is enriched from MAL first (see below). |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Every credit points at the row by id, so a rename here changes what every credited entry shows — there is no propagation step. Body: `StudioUpdate`. The MAL enrichment runs after the payload is copied, so your values win. |
+| `PATCH`  | `/{system_id}`        | Admin  | Partially update a studio's own columns — the detail page's inline rating and remark edits. Body: any subset of the `StudioBase` columns as a JSON object. Only the keys sent change. The `PUT` rules are checked before anything is written: `my_rating` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `StudioResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. |
 | `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Body: `MergeRequest`. 400 if merging into self. |
 
 **Response model:** `StudioResponse` — `StudioBase` fields (the four names,
 `display_name_field`, `my_rating`, `logo_file`, `remark`, `founded_date`,
 `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`) plus
-`system_id`, the resolved `display_name`, and `credit_count`.
+`system_id`, the resolved `display_name`, and three fields resolved **for the
+viewer** from the entries they may see, none of them stored:
+
+- `credit_count` — how many visible entries the studio is credited on, one
+  per entry.
+- `media_types` — the hyphenated media types of those visible entries, sorted
+  and distinct.
+- `restricted` — `true` when one of `media_types` is a gated type (`h-comic`,
+  `hentai`, `h-game`).
+
+All three come from one `credits.credit_summaries` pass over the same visible
+`(media_type, entry_id)` pairs, so a card can never name a type its count
+leaves out. The list resolves every row in one pass, so its query count does
+not grow with the number of studios; a write answers for the writer.
 
 `StudioBase` rejects a payload with no name at all and a `display_name_field`
 outside `en` / `cn` / `jp` / `alt` with a 422, mirroring
@@ -1446,7 +1476,7 @@ answers **404** here, on `/{system_id}`, `PUT`, `DELETE` and `merge`.
 Tier 3 entity CRUD for publishers and distributors — a games publisher, or a
 Taiwanese licensor — plus the reverse-credit read the public publisher page
 uses. `app/routers/publisher.py` mirrors `/api/studio` endpoint for endpoint,
-with two differences noted below.
+`PATCH` included, with two differences noted below.
 
 | Method   | Path                  | Auth   | Description                                                                       |
 | -------- | --------------------- | ------ | ------------------------------------------------------------------------------------ |
@@ -1455,6 +1485,7 @@ with two differences noted below.
 | `GET`    | `/{system_id}/entries`| Public | The entries this publisher is credited on, grouped by media type. 404 if the publisher is absent or hidden. |
 | `POST`   | `/`                   | Admin  | Create a publisher, **or return the existing one** under that name — find-or-create for the same reason as studio: the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list, so a second row would split the credits. Matching is on the normalized name (`find_publisher`); metadata on an existing row is left untouched. Body: `PublisherCreate`. |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a publisher. Every credit points at the row by id, so a rename here changes what every credited entry shows — no propagation step. Body: `PublisherUpdate`. |
+| `PATCH`  | `/{system_id}`        | Admin  | Partially update a publisher's own columns — the detail page's inline rating and remark edits. Body: any subset of the `PublisherBase` columns as a JSON object; `scopes` is not a column (edit it through `PUT`). Only the keys sent change. The `PUT` rules are checked before anything is written: `my_rating` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). Returns the full `PublisherResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a publisher. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. **Also deletes the publisher's logo object** (see below). |
 | `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this publisher: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Body: `MergeRequest`. 400 if merging into self. Returns `credits_moved`. |
 
@@ -1462,7 +1493,9 @@ with two differences noted below.
 `PublisherBase` fields (the four names, `display_name_field`, `my_rating`,
 `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`,
 `website_url`, `scopes`) plus `system_id`, the resolved `display_name`, and
-`credit_count`. `PublisherBase` rejects a payload with no name at all and a
+the three viewer-resolved fields `StudioResponse` carries — `credit_count`,
+`media_types` and `restricted` — from the same `credit_summaries` pass.
+`PublisherBase` rejects a payload with no name at all and a
 `display_name_field` outside `en` / `cn` / `jp` / `alt` with a 422, mirroring
 `ck_publisher_has_a_name`.
 
@@ -1829,6 +1862,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/fill/h-game`      | Game's Fill on the h-game table: IGDB (columns, the `studio` credit, `game_genre` / `game_theme`) and Steam (prices, achievements), then `run_sync_game` and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/hentai`      | Fill `airing_status`, `release_date` and the cover (plus the Official site / Twitter reference rows) from Tenrai for every hentai with a MAL id that is missing one of the three, then from AniDB for whatever is still blank - also for a hentai with only an AniDB link, while AniDB is enabled - fill-only, 1 s between entries and 4 s between AniDB requests; an AniDB error answer (a ban) stops the run with the rest reported as skipped; then `run_sync_hentai` (system options) and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/studio`      | Fill missing logo, MAL link, founding date, Japanese name and website for every studio that has a MAL id, from Tenrai's producers endpoint. Fill-only; there is no `/replace/studio`. Streams SSE progress. |
+| `POST` | `/fill/seiyuu`      | Fill missing photo, MAL link, English, Japanese and alternate names for every person holding the `seiyuu` role that has a MAL id, from Tenrai's people endpoint. Nobody without the seiyuu role is filled. Fill-only; there is no `/replace/seiyuu`. Part of Fill All. Streams SSE progress. |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
 ### Replace

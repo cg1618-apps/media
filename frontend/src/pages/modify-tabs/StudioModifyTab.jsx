@@ -6,7 +6,10 @@
 // collection/franchise/series shapes, not a public entity like Studio).
 // Reuses StudioFields from StudioAddTab so the input markup isn't
 // duplicated - see the comment on that export.
-import { useMemo, useState } from "react";
+//
+// `initialId` is a deep link's id (/modify?id=<system_id>&type=studio, the
+// detail page's Quick edit): that studio's editor opens on mount.
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StudioFields } from "../add-tabs/StudioAddTab";
 import { endpoints } from "../../api/endpoints";
@@ -45,7 +48,7 @@ function studioToForm(s) {
   };
 }
 
-export default function StudioModifyTab() {
+export default function StudioModifyTab({ initialId = null } = {}) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -82,17 +85,24 @@ export default function StudioModifyTab() {
     );
   }, [studios, search]);
 
-  async function selectStudio(studio) {
-    try {
-      const fresh = await fetchJson(
-        endpoints.studio.detail(studio.system_id),
-      );
-      setSelectedId(fresh.system_id);
-      setStudioForm(studioToForm(fresh));
-    } catch {
-      showToast("error", "Failed to load studio.");
-    }
+  function loadStudio(systemId) {
+    return fetchJson(endpoints.studio.detail(systemId))
+      .then((fresh) => {
+        setSelectedId(fresh.system_id);
+        setStudioForm(studioToForm(fresh));
+      })
+      .catch(() => showToast("error", "Failed to load studio."));
   }
+
+  function selectStudio(studio) {
+    loadStudio(studio.system_id);
+  }
+
+  useEffect(() => {
+    if (initialId) loadStudio(initialId);
+    // Mount only: the deep link opens one editor, once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function closeEditor() {
     setSelectedId(null);
