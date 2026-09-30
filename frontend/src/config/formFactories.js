@@ -641,6 +641,7 @@ export const defaultPerson = () => ({
   my_rating: "",
   photo_file: "",
   pending_image_id: null,
+  mal_link: "",
   remark: "",
 });
 

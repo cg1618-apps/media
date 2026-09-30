@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-29
+Last verified: 2026-09-30
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -51,7 +51,10 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   **Hentai** buttons (`/fill/hentai`, `/replace/hentai`) are gated the same
   way too; both fetch Tenrai's airing status, release date and cover over the
   hentai table, then AniDB's for whatever MAL left blank, and both are fill-only - Replace completes what is blank and
-  overwrites nothing.
+  overwrites nothing. The Fill box ends on the two entity buttons, which have
+  no Replace twin: **Studio** (`/fill/studio`, a studio's logo and founding
+  facts from MAL's producer record) and **Seiyuu** (`/fill/seiyuu`, the people
+  holding the seiyuu role, from MAL's people record). Fill All runs both.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
 - **Announcements.** Create / edit / delete the dashboard board
@@ -347,7 +350,9 @@ form already says which types a new person holds. `PersonFields` holds the four 
 "Display name" select, the **role × scope matrix**, then gender and rating as
 closed selects (`GenderRatingFields` from `components/forms/EntityProfileFields.jsx`:
 Gender is "—" plus `GENDERS`, My Rating is "Unrated" plus `MY_RATINGS`; unset
-saves as null), the photo and the remark. Ticking a type selects its first legal media type, because a
+saves as null), a **MAL Link** (`mal_link`; the server reads the MAL id from
+its `myanimelist.net/people/<id>` path, so there is no id field), the photo
+and the remark. Ticking a type selects its first legal media type, because a
 scopeless role is a 422; the legal types per role come from
 `GET /api/person/role-scopes`, so the form cannot offer a pair the API
 rejects. Submit is blocked until at least one name is filled, matching
@@ -511,8 +516,10 @@ holds — a franchise, a series or an entry; see
   and is the one path that may fetch a list the visible tab does not: a link
   naming its type costs that one list, and only if the id is not in it does it
   fall back to searching anime, collection, franchise, series and anime movie
-  in that order. A link naming `type=character` or `type=person`
-  (`ENTITY_DEEP_LINK_TYPES` in `config/adminEntryLists.js`) fetches no list:
+  in that order. A link naming `type=character`, `type=person`,
+  `type=studio` or `type=publisher` — the four entity detail pages' Quick
+  edit — (`ENTITY_DEEP_LINK_TYPES` in `config/adminEntryLists.js`) fetches no
+  list:
   the page opens on that tab from the first paint and hands the id to it as
   `initialId`, and the tab loads that record's editor itself. The id is handed
   over once — switching tabs drops it, so coming back shows the picker.

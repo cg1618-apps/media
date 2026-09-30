@@ -20,6 +20,8 @@ const DIRECTORS = [
     gender: null,
     my_rating: null,
     photo_file: null,
+    mal_id: 1870,
+    mal_link: "https://myanimelist.net/people/1870",
     credit_count: 3,
     roles: [{ role: "director", scope: "anime" }],
   },
@@ -295,4 +297,27 @@ it("picks a photo fallback from the person's entries, once each, and saves it", 
   );
   const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
   expect(JSON.parse(init.body)).toMatchObject({ photo_fallback_entry_id: "m2" });
+});
+
+it("loads the MAL link and sends the edited one on save", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "p1" });
+  const mal = await screen.findByPlaceholderText("https://myanimelist.net/people/...");
+  expect(mal).toHaveValue("https://myanimelist.net/people/1870");
+
+  await user.clear(mal);
+  await user.type(mal, "https://myanimelist.net/people/1871");
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/person/p1",
+      expect.objectContaining({ method: "PUT" }),
+    ),
+  );
+  const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  expect(JSON.parse(init.body)).toMatchObject({
+    mal_link: "https://myanimelist.net/people/1871",
+  });
 });

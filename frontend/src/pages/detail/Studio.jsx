@@ -6,18 +6,26 @@
 // studio is credited on, grouped by media type exactly as
 // GET /api/studio/{id}/entries returns them.
 //
-// Like StudioLibrary.jsx it reads the API with plain fetch. The media detail
-// pages go through TanStack hooks because their payloads are also written
-// back from admin controls; nothing on this page is editable.
+// Like Person.jsx it reads the API with plain fetch. An admin can set my
+// rating and the remark in place and jump to the full editor, the controls
+// Person.jsx and Character.jsx have (components/info/EntityProfileControls.jsx):
+// PATCH, then the response becomes the page's state.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
-import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 import InfoCard from "../../components/info/InfoCard";
+import NamingCard from "../../components/info/NamingCard";
+import {
+  AdminToolbar,
+  RatingSelect,
+  RemarkEditor,
+  useEntityPatch,
+} from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
 // "founded – defunct", or "Since founded" while the studio is still working.
@@ -36,6 +44,8 @@ export default function Studio() {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { isAdmin } = useAuth();
+  const patch = useEntityPatch("studio", studio?.system_id, setStudio);
 
   useCanonicalPath("studio", studio);
 
@@ -91,9 +101,6 @@ export default function Studio() {
 
   const name = studio.display_name || "Unknown Studio";
   const logoUrl = getCoverUrl(studio.logo_file);
-  const otherNames = STUDIO_NAME_FIELDS.filter(
-    ({ field }) => studio[field]?.trim() && studio[field].trim() !== name,
-  );
   const span = lifespan(studio);
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
 
@@ -112,6 +119,8 @@ export default function Studio() {
           {name}
         </span>
       </nav>
+
+      {isAdmin && <AdminToolbar ownerType="studio" systemId={studio.system_id} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN: the profile ========== */}
@@ -146,26 +155,14 @@ export default function Studio() {
             </div>
           </div>
 
-          {otherNames.length > 0 && (
-            <section className="bg-surface border border-border">
-              <h3 className="flex items-center gap-3 px-4 py-2.5 border-b border-border font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
-                Other names
-                <span className="flex-1 border-t border-dotted border-border-strong/60" />
-              </h3>
-              <ul className="p-4 space-y-3" aria-label="Other names">
-                {otherNames.map(({ key, label, field }) => (
-                  <li key={key} className="min-w-0">
-                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
-                      {label}
-                    </div>
-                    <div className="text-sm text-text break-words">
-                      {studio[field]}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {isAdmin && (
+            <RatingSelect
+              rating={studio.my_rating}
+              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+            />
           )}
+
+          <NamingCard type="studio" item={studio} />
         </div>
 
         {/* ========== RIGHT COLUMN: facts, then the credits ========== */}
@@ -215,9 +212,17 @@ export default function Studio() {
                   ) : null,
                 },
               ],
-              { label: "Remark", value: studio.remark },
+              ...(isAdmin ? [] : [{ label: "Remark", value: studio.remark }]),
             ]}
           />
+
+          {isAdmin && (
+            <RemarkEditor
+              systemId={studio.system_id}
+              remark={studio.remark}
+              onSave={(v) => patch({ remark: v }, "Remark saved")}
+            />
+          )}
 
           {groups.length === 0 ? (
             <section className="border border-dashed border-border-strong px-4 py-10 text-center">

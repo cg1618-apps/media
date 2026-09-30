@@ -75,12 +75,12 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function mount() {
+function mount(props = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <StudioModifyTab />
+        <StudioModifyTab {...props} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -191,4 +191,16 @@ it("scrolls to the top after a successful save", async () => {
   await user.click(screen.getByRole("button", { name: /save changes/i }));
 
   await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 0));
+});
+
+// /modify?id=<system_id>&type=studio (the detail page's Quick edit) hands the
+// id in as initialId.
+it("opens the editor for initialId without a pick", async () => {
+  mount({ initialId: "s1" });
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Sunrise")).toBeInTheDocument(),
+  );
+  expect(
+    screen.queryByPlaceholderText("Search studios to modify..."),
+  ).not.toBeInTheDocument();
 });

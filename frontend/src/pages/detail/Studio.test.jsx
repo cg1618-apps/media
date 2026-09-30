@@ -1,7 +1,12 @@
-import { render, screen, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Studio from "./Studio";
+import { ToastProvider } from "../../hooks/useToast";
+
+let auth;
+vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
 
 const STUDIO = {
   system_id: "s1",
@@ -48,7 +53,14 @@ const ENTRIES = {
 };
 
 function mockFetch({ studio = STUDIO, entries = ENTRIES, studioOk = true } = {}) {
-  global.fetch = vi.fn((url) => {
+  global.fetch = vi.fn((url, init = {}) => {
+    if (init.method === "PATCH") {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ...studio, ...JSON.parse(init.body) }),
+      });
+    }
     if (String(url).endsWith("/entries")) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(entries) });
     }
@@ -60,31 +72,46 @@ function mockFetch({ studio = STUDIO, entries = ENTRIES, studioOk = true } = {})
   });
 }
 
+function WhereAmI() {
+  const location = useLocation();
+  return <p>at {location.pathname + location.search}</p>;
+}
+
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={["/studio/s1"]}>
-      <Routes>
-        <Route path="/studio/:publicId/:slug?" element={<Studio />} />
-      </Routes>
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={["/studio/s1"]}>
+        <Routes>
+          <Route path="/studio/:publicId/:slug?" element={<Studio />} />
+          <Route path="/modify" element={<WhereAmI />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>,
   );
 }
 
+function patchCalls() {
+  return fetch.mock.calls.filter(([, init]) => init?.method === "PATCH");
+}
+
 beforeEach(() => {
+  auth = { isAdmin: false };
   mockFetch();
 });
 
 describe("Studio detail page", () => {
-  it("heads the page with the display name and lists the other names", async () => {
+  it("heads the page with the display name and lists all four names on a Naming card", async () => {
     renderPage();
     expect(
       await screen.findByRole("heading", { name: "KyoAni" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Kyoto Animation")).toBeInTheDocument();
-    expect(screen.getByText("京都アニメーション")).toBeInTheDocument();
-    // The displayed name is not repeated in the alternative-names list.
-    const others = screen.getByLabelText("Other names");
-    expect(within(others).queryByText("KyoAni")).not.toBeInTheDocument();
+    const naming = screen.getByText("Naming").closest("section");
+    for (const label of ["English", "Chinese", "Japanese", "Alternative"]) {
+      expect(within(naming).getByText(label)).toBeInTheDocument();
+    }
+    // The displayed name is listed too, as on the person and character pages.
+    expect(within(naming).getByText("KyoAni")).toBeInTheDocument();
+    expect(within(naming).getByText("京都アニメーション")).toBeInTheDocument();
   });
 
   it("shows the founding date without inventing a defunct one", async () => {
@@ -142,34 +169,6 @@ describe("Studio detail page", () => {
     expect(screen.queryByText(/–/)).not.toBeInTheDocument();
   });
 
-  it("falls back through en/cn/jp/alt when no display field is chosen, without repeating the name", async () => {
-    mockFetch({
-      studio: {
-        ...STUDIO,
-        display_name_field: null,
-        name_en: null,
-        name_cn: "京都アニメーション中文",
-        name_jp: "京都アニメーション",
-        name_alt: "KyoAni",
-        // The server resolves the fallback; the page renders what it sends.
-        display_name: "京都アニメーション中文",
-      },
-    });
-    renderPage();
-
-    const heading = await screen.findByRole("heading", {
-      name: "京都アニメーション中文",
-    });
-    expect(heading).toBeInTheDocument();
-
-    const others = screen.getByLabelText("Other names");
-    // Chinese is the displayed name, so it must not repeat as an other name.
-    expect(within(others).queryByText("Chinese")).not.toBeInTheDocument();
-    // Japanese and Alternative differ from it, so both are listed.
-    expect(within(others).getByText("Japanese")).toBeInTheDocument();
-    expect(within(others).getByText("Alternative")).toBeInTheDocument();
-  });
-
   it("renders the website link, the MAL producer link and the remark", async () => {
     renderPage();
 
@@ -180,5 +179,51 @@ describe("Studio detail page", () => {
       screen.getByRole("link", { name: `Producer #${STUDIO.mal_id}` }),
     ).toHaveAttribute("href", STUDIO.mal_link);
     expect(screen.getByText(STUDIO.remark)).toBeInTheDocument();
+  });
+
+  it("shows a guest the remark and rating as text, with no admin controls", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: "KyoAni" });
+    expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
+    expect(screen.getByText(STUDIO.remark)).toBeInTheDocument();
+  });
+
+  describe("as an admin", () => {
+    beforeEach(() => {
+      auth = { isAdmin: true };
+    });
+
+    it("links Quick edit to this studio's Modify editor", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole("button", { name: "Quick edit" }));
+      expect(await screen.findByText("at /modify?id=s1&type=studio")).toBeInTheDocument();
+    });
+
+    it("PATCHes my rating on change", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.selectOptions(await screen.findByLabelText("My rating"), "C");
+      await waitFor(() => expect(patchCalls()).toHaveLength(1));
+      const [url, init] = patchCalls()[0];
+      expect(url).toBe("/api/studio/s1");
+      expect(JSON.parse(init.body)).toEqual({ my_rating: "C" });
+      expect(await screen.findByLabelText("Rating C")).toBeInTheDocument();
+    });
+
+    it("edits the remark in place, and saves it on blur", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      const box = await screen.findByLabelText("Remark");
+      // The Profile card drops its Remark row for an admin: the editor is it.
+      expect(screen.queryByText(STUDIO.remark, { selector: "div" })).not.toBeInTheDocument();
+      await user.clear(box);
+      await user.type(box, "Still pretty water.");
+      fireEvent.blur(box);
+      await waitFor(() => expect(patchCalls()).toHaveLength(1));
+      expect(JSON.parse(patchCalls()[0][1].body)).toEqual({ remark: "Still pretty water." });
+    });
   });
 });

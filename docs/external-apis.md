@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-09-27
+Last verified: 2026-09-30
 
 ## What this is for
 
@@ -37,7 +37,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 
 | Service | Base URL | Key / env var (`app/config.py`) | Client file | Mapper file | Feeds |
 |---|---|---|---|---|---|
-| Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel`, `studio`, `h_comic`, `hentai` |
+| Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel`, `studio`, `person` (seiyuu only), `h_comic`, `hentai` |
 | AniList | `https://graphql.anilist.co` | none | `app/services/integrations/anilist.py` | `app/utils/anilist_utils.py` | `anime`, `anime_movies`, `manga`, `novel` |
 | TMDB | `https://api.themoviedb.org/3` | `settings.tmdb_api_key` ← `TMDB_API_KEY` | `app/services/integrations/tmdb.py` | `app/utils/tmdb_utils.py` | `movies`, `tv_shows`, `cartoons` |
 | OMDb | `http://www.omdbapi.com` | `settings.omdb_api_key` ← `OMDB_API_KEY` | `app/services/integrations/omdb.py` | `app/utils/omdb_utils.py` | `imdb_rating` on the three above |
@@ -70,11 +70,11 @@ Tenrai v1 is a public read-only mirror of MyAnimeList. No key is needed.
 
 | Item | Value |
 |---|---|
-| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime, anime movies **and** hentai - it serves Rx titles like any other), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga, novels **and** h-comics) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios). The response's `data` object is returned. All three share one `TenraiRateLimiter` budget. |
+| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime, anime movies **and** hentai - it serves Rx titles like any other), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga, novels **and** h-comics) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios) and `GET /people/{mal_id}/full` (`fetch_tenrai_person_data`, used for seiyuu). The response's `data` object is returned. All four share one `TenraiRateLimiter` budget. |
 | User-Agent | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0` — MAL's CDN rejects the default `python-requests` agent. |
 | Rate limiter | `TenraiRateLimiter`, two windows checked together: `DEFAULT_LIMITS = ((4, 1), (120, 60))` — 4 requests per second **and** 120 per minute. It loops until every window has room. |
 | Pipeline pacing | On top of the limiter, `specs.py` sleeps `MAL_PAUSE = 1` second between entries in Fill and Replace. |
-| MAL ID source | `mal_id` on the row; `extract_mal_id` / `extract_mal_id_manga_novel` in `app/utils/utils.py` pull it out of `mal_link` with `myanimelist\.net/anime/(\d+)` and `myanimelist\.net/manga/(\d+)`. A studio's URL is `myanimelist.net/anime/producer/<id>/<slug>`, so it needs its own `MAL_PRODUCER_ID_PATTERN` = `myanimelist\.net/anime/producer/(\d+)`, read by `extract_mal_id_producer`. The two patterns cannot poach each other's links: the anime one needs digits straight after `/anime/` and finds the word `producer` instead, and the producer one needs the literal segment. |
+| MAL ID source | `mal_id` on the row; `extract_mal_id` / `extract_mal_id_manga_novel` in `app/utils/utils.py` pull it out of `mal_link` with `myanimelist\.net/anime/(\d+)` and `myanimelist\.net/manga/(\d+)`. A studio's URL is `myanimelist.net/anime/producer/<id>/<slug>`, so it needs its own `MAL_PRODUCER_ID_PATTERN` = `myanimelist\.net/anime/producer/(\d+)`, read by `extract_mal_id_producer`. The two patterns cannot poach each other's links: the anime one needs digits straight after `/anime/` and finds the word `producer` instead, and the producer one needs the literal segment. A person's URL is `myanimelist.net/people/<id>/<slug>`, read by `extract_mal_id_person` with `MAL_PERSON_ID_PATTERN` = `myanimelist\.net/people/(\d+)`. |
 
 ### Mapping for `anime` — `map_tenrai_to_anime_data`
 
@@ -167,6 +167,22 @@ MAL calls a studio a "producer". The record is a different shape from a title's:
 Deliberately dropped: `about` (`remark` is the admin's own note, not MAL's blurb), and `favorites` / `count` (no columns).
 
 `autofill_studio_from_mal` is **fill-only for every column**, including `logo_file` — a producer carries nothing that drifts, so there is no force-replace variant and no Replace pipeline. It also swallows and logs every failure, because it runs inside the studio write request: a flaky Tenrai must never turn a save into a 500.
+
+### Mapping for `person` (seiyuu) — `map_tenrai_to_person_data`
+
+MAL's "people" record. Only a person holding the `seiyuu` role is ever filled from it — by the Seiyuu Fill (`PIPELINES["seiyuu"]`) and by `POST` / `PUT /api/person` — so a director or author with a MAL link keeps the link and is never fetched.
+
+| Tenrai field | Column | Rule |
+|---|---|---|
+| `images.jpg.image_url` | `photo_file` | Downloaded by `download_cover_image(url, "staff", str(system_id))`, the owner type person photos are stored under. MAL's generic placeholder — any URL containing `questionmark` — is dropped, so a person MAL has no photo for keeps the SPA's own placeholder. |
+| `url` | `mal_link` | as-is. |
+| `name` | `name_en` | `_western_order`: MAL writes a person family name first, `"Hanazawa, Kana"`, and one `", "` between exactly two non-empty parts is turned round to `"Kana Hanazawa"`. Anything else — a one-word stage name, a name with two commas — is kept as MAL wrote it. |
+| `family_name`, `given_name` | `name_jp` | Joined with no space, family first (`花澤` + `香菜` → `花澤香菜`); whichever exists when only one does. |
+| `alternate_names[]` | `name_alt` | Joined with `", "`; nothing when the list is empty. |
+
+Deliberately dropped: `birthday`, `website_url` and `about` — the person table has no columns for them.
+
+`autofill_person_from_mal(person, db)` is **fill-only for every column**: each name, the link and the photo are written only when empty. The four names are written **together or not at all**: `uq_person_name` is unique over the four name columns (NULLS NOT DISTINCT), so before assigning them the autofill asks, with `IS NOT DISTINCT FROM`, whether another person already holds the filled tuple. If one does, the names are skipped with a warning and the photo and link still land — a query first rather than a caught `IntegrityError`, which would cost the whole save. Like the studio autofill it swallows and logs every failure.
 
 ## AniList
 
@@ -990,6 +1006,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `manga` | `apply_extract_mal_id_manga_novel` | `autofill_manga_from_mal`, `autofill_from_anilist` | 1 s | Tenrai, AniList |
 | `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` + `autofill_from_anilist` when `mal_link` is present, else `autofill_novel_from_openlibrary` alone (nothing for AniList to key on without a `mal_id`) | 1 s | Tenrai **or** Open Library, plus AniList on the Tenrai branch |
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
+| `seiyuu` | `apply_extract_mal_id_person` (every person) | `autofill_person_from_mal`, for a person holding the `seiyuu` role with a `mal_id` and a blank fillable column; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
 | `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`), then `autofill_cover_from_steam` and `autofill_cover_from_steam_header` while the cover is still empty; in Fill All; Replace (bulk, single, write hook) runs all four, IGDB fill-only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
 | `h-comic` | `apply_extract_mal_id_manga_novel` | `_fill_h_comic`: `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has - then `autofill_h_comic_from_ehentai` - the cover and illustrator MAL left empty (see [E-Hentai](#e-hentai)); all fill-only; no AniList; in Fill All and Replace All, and Replace (`apply_single_replace_h_comic`) runs the same order and also selects entries linked only to E-Hentai | 1 s | Tenrai, E-Hentai |

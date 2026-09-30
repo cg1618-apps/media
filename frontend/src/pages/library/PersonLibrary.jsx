@@ -9,7 +9,8 @@
 // ordinary FilterDefs (lib/entityFilters.js) drawn by the FilterPanel the
 // media libraries use - the person type (the admin sub-tabs' vocabulary,
 // matched against the `roles` each person carries), entry type, rating and
-// gender.
+// gender. The panel opens on defaultEntityFilters: every non-restricted
+// entry type and No entries on, the restricted ones off.
 import { useState, useEffect, useMemo } from "react";
 
 import { PersonCard } from "../../components/cards/StaffCard";
@@ -19,29 +20,45 @@ import { PERSON_NAME_FIELDS } from "../../lib/naming";
 import { Eyebrow } from "../../components/ui/primitives";
 import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
 import { useAuth } from "../../contexts/AuthContext";
-import { useFilterState } from "../../hooks/useFilterState";
+import { useEntityFilterState } from "../../hooks/useFilterState";
 import { applyFilterDefs } from "../../lib/libraryFilters";
 import { personFilterDefs } from "../../lib/entityFilters";
 
+// What the page calls its rows: People, or the role's own noun when the
+// library is narrowed to one.
+const ROLE_NOUNS = {
+  seiyuu: { title: "Seiyuu", one: "seiyuu", many: "seiyuu" },
+};
+const PEOPLE_NOUN = { title: "People", one: "person", many: "people" };
+
 // `role` is optional: when set (e.g. "seiyuu" for /library/seiyuu), the
 // request filters server-side to people holding that role via
-// GET /api/person/?role=<role>. Left unset, /library/person keeps its
-// current unfiltered behaviour. A person holding the role but never yet
-// cast still comes back from that filter and is deliberately not hidden
-// here — person_role exists so they can appear in a cast dropdown before
-// their first casting.
+// GET /api/person/?role=<role>, the page names itself after the role, and
+// the Type filter group is dropped - every row already holds it. Left
+// unset, /library/person lists everyone. A person holding the role but
+// never yet cast still comes back from that filter and is listed by
+// default under No entries - person_role exists so they can appear in a
+// cast dropdown before their first casting.
 export default function PersonLibrary({ role } = {}) {
   const [allPeople, setAllPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("name");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
+  const noun = (role && ROLE_NOUNS[role]) || PEOPLE_NOUN;
 
   const auth = useAuth();
-  const filterDefs = useMemo(() => personFilterDefs(auth), [auth]);
-  const { filters, toggleFilter, clearFilters, activeFilterCount } =
-    useFilterState(filterDefs, allPeople);
+  const filterDefs = useMemo(() => personFilterDefs(auth, role), [auth, role]);
+  const {
+    filters,
+    toggleFilter,
+    clearFilters,
+    resetFilters,
+    isDefault,
+    activeFilterCount,
+    dynamicFilterOptions,
+  } = useEntityFilterState(filterDefs, allPeople);
 
   useEffect(() => {
     async function load() {
@@ -90,7 +107,9 @@ export default function PersonLibrary({ role } = {}) {
   }, [allPeople, searchQuery, currentSort, filterDefs, filters]);
 
   const narrowed = searchQuery !== "" || activeFilterCount > 0;
-  function resetAll() {
+  // The empty state's way out: no search and no filter, not the default -
+  // the default may be exactly what left nothing to show.
+  function showEverything() {
     setSearchQuery("");
     clearFilters();
   }
@@ -100,7 +119,7 @@ export default function PersonLibrary({ role } = {}) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-2xl mb-3"></i>
-          <p className="text-text-faint">Loading people...</p>
+          <p className="text-text-faint">Loading {noun.many}...</p>
         </div>
       </div>
     );
@@ -125,11 +144,11 @@ export default function PersonLibrary({ role } = {}) {
             <div className="flex-1 min-w-0">
               <Eyebrow className="mb-1">Library</Eyebrow>
               <h1 className="font-display text-3xl font-semibold text-text leading-none">
-                People
+                {noun.title}
               </h1>
               <p className="font-mono text-[11px] text-text-faint mt-1.5">
                 {filteredAndSorted.length}{" "}
-                {filteredAndSorted.length === 1 ? "person" : "people"}
+                {filteredAndSorted.length === 1 ? noun.one : noun.many}
                 {searchQuery && ` matching "${searchQuery}"`}
                 {activeFilterCount > 0 && " (filtered)"}
               </p>
@@ -139,7 +158,7 @@ export default function PersonLibrary({ role } = {}) {
               <div className="relative">
                 <input
                   type="search"
-                  placeholder="Search people..."
+                  placeholder={`Search ${noun.many}...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-3 pr-8 py-1.5 bg-surface border border-border-strong text-sm text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
@@ -187,27 +206,28 @@ export default function PersonLibrary({ role } = {}) {
             filters={filters}
             toggleFilter={toggleFilter}
             clearFilters={clearFilters}
+            resetFilters={isDefault ? undefined : resetFilters}
             activeFilterCount={activeFilterCount}
-            dynamicFilterOptions={{}}
+            dynamicFilterOptions={dynamicFilterOptions}
           />
         )}
         {filteredAndSorted.length === 0 ? (
           <div className="text-center py-16 border border-dashed border-border-strong">
             <Eyebrow className="mb-1">Empty</Eyebrow>
-            <p className="text-text-muted text-sm">No people found</p>
+            <p className="text-text-muted text-sm">No {noun.many} found</p>
             <p className="text-sm text-text-faint mt-1">
               {narrowed ? (
                 <>
                   Try a different search or filter, or{" "}
                   <button
-                    onClick={resetAll}
+                    onClick={showEverything}
                     className="text-brand hover:underline"
                   >
-                    reset
+                    show everything
                   </button>
                 </>
               ) : (
-                "Nobody matches this filter yet."
+                `No ${noun.many} in the database yet.`
               )}
             </p>
           </div>

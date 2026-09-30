@@ -24,7 +24,9 @@ from app import models, schemas
 from app.dependencies import get_db
 from app.routers._entity_patch import prepare_patch, resolve_fallback
 from app.routers._patching import apply_column_patch
+from app.services.domain.autofill import autofill_person_from_mal
 from app.services.domain.credits import find_person
+from app.services.domain.derivation import apply_extract_mal_id_person
 from app.services.domain.entity_photos import EntityMedia, person_media
 from app.services.domain.membership import (
     clubs_of,
@@ -95,6 +97,8 @@ def _to_response(
         photo_file=person.photo_file,
         photo_fallback_entry_id=media.photo_fallback_entry_id,
         remark=person.remark,
+        mal_id=person.mal_id,
+        mal_link=person.mal_link,
         roles=[
             schemas.PersonRoleIn(role=r.role, scope=r.scope)
             for r in without_hidden_scopes(person.roles, hidden, "scope")
@@ -104,6 +108,23 @@ def _to_response(
         media_types=media.media_types,
         restricted=media.restricted,
     )
+
+
+def _derive_and_fill_from_mal(db: Session, person: models.Person) -> None:
+    """
+    Derive mal_id from mal_link, and - for a seiyuu only - fill the empty
+    columns from MAL's people record. The Seiyuu Fill pipeline applies the
+    same seiyuu rule (specs._is_seiyuu_to_fill), so a director's MAL link is
+    kept but never fetched. Runs after the payload is copied, so the
+    payload's own values win and only blank columns are filled.
+    """
+    apply_extract_mal_id_person(person)
+    if person.mal_id is None:
+        return
+    db.flush()
+    db.refresh(person, ["roles"])
+    if any(role.role == "seiyuu" for role in person.roles):
+        autofill_person_from_mal(person, db)
 
 
 # ==========================================
@@ -134,7 +155,7 @@ def get_all_people(
     if scope and scope in hidden:
         return []
     # roles is read by _to_response for every row, so it is preloaded rather
-    # than lazy-loaded per person - the same N+1 credit_counts exists to
+    # than lazy-loaded per person - the same N+1 person_media exists to
     # remove, one relationship over.
     query = db.query(models.Person).options(selectinload(models.Person.roles))
     query = apply_shared_visibility(query, models.Person, db, viewer)
@@ -524,6 +545,10 @@ def create_person(
     Metadata on an existing person is left untouched - use PUT to edit it.
     A photo_fallback_entry_id is a 422: a new person is linked to nothing,
     and an existing one's metadata is not written here.
+
+    A new person's mal_id is derived from its mal_link, and a new seiyuu with
+    one is filled from MAL - only on the create branch, so the routine
+    find-or-create for an existing name spends nothing on MAL.
     """
     if payload.photo_fallback_entry_id is not None:
         raise HTTPException(
@@ -539,7 +564,8 @@ def create_person(
         if n
     )
     person = find_person(db, lookup)
-    if person is None:
+    created = person is None
+    if created:
         if payload.name:
             first = payload.roles[0] if payload.roles else None
             slot = name_slot_for(
@@ -563,6 +589,9 @@ def create_person(
         )
         held.add((role_in.role, role_in.scope))
 
+    if created:
+        _derive_and_fill_from_mal(db, person)
+
     db.commit()
     db.refresh(person)
     return _to_response(db, person, admin)
@@ -585,6 +614,9 @@ def update_person(
     photo_fallback_entry_id follows the same rule, and a non-null one must
     name an entry this person is credited or cast on (422 otherwise) - see
     _entity_patch.resolve_fallback.
+
+    mal_id is derived from mal_link, and a seiyuu with one is then filled
+    from MAL, blank columns only (_derive_and_fill_from_mal).
     """
     person = db.get(models.Person, system_id)
     if person is None:
@@ -614,6 +646,8 @@ def update_person(
             )
         )
 
+    _derive_and_fill_from_mal(db, person)
+
     db.commit()
     db.refresh(person)
     return _to_response(db, person, admin)
@@ -638,7 +672,9 @@ def patch_person(
     cn / jp / alt, at least one name survives the patch, and a
     photo_fallback_entry_id names an entry this person is credited or cast
     on. Server columns (system_id, public_id, timestamps) are a 422; keys that
-    are not columns are ignored (_patching.apply_column_patch).
+    are not columns are ignored (_patching.apply_column_patch). A mal_link in
+    the patch re-derives mal_id; the MAL fetch itself stays with POST, PUT
+    and the Seiyuu Fill.
     """
     person = db.get(models.Person, system_id)
     if person is None:
@@ -651,6 +687,8 @@ def patch_person(
             db, admin, models.Person, person, data["photo_fallback_entry_id"], "person"
         )
     apply_column_patch(person, data)
+    if "mal_link" in data:
+        apply_extract_mal_id_person(person)
 
     db.commit()
     db.refresh(person)

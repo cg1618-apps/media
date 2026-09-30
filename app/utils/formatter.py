@@ -1261,6 +1261,8 @@ def parse_person_from_sheet(raw: dict) -> dict:
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
         "photo_fallback_entry_id": _uuid_or_none(raw.get("photo_fallback_entry_id")),
         "remark": parse_from_sheet(raw.get("remark"), str),
+        "mal_id": parse_from_sheet(raw.get("mal_id"), int),
+        "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }

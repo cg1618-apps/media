@@ -20,6 +20,7 @@ from app.models import (
     Media,
     Movies,
     Novel,
+    Person,
     Studio,
     TVShows,
 )
@@ -37,6 +38,7 @@ from app.utils.utils import (
     extract_imdb_id,
     extract_mal_id_anime,
     extract_mal_id_manga_novel,
+    extract_mal_id_person,
     extract_mal_id_producer,
     extract_season_from_title,
 )
@@ -85,6 +87,15 @@ def apply_extract_mal_id_studio(studio: Studio) -> bool:
     mal_id = extract_mal_id_producer(studio.mal_link)
     if mal_id:
         studio.mal_id = mal_id
+        return True
+    return False
+
+
+def apply_extract_mal_id_person(person: Person) -> bool:
+    """Extracts the MAL people ID from mal_link onto mal_id. True if set."""
+    mal_id = extract_mal_id_person(person.mal_link)
+    if mal_id:
+        person.mal_id = mal_id
         return True
     return False
 

@@ -1,14 +1,20 @@
-// The character and person library FilterDefs: what each group offers, how a
-// row matches, and that a gated type the session cannot see is never named.
+// The entity library FilterDefs: what each group offers, how a row matches,
+// that a gated type the session cannot see is never named, and the default
+// every entity library opens on.
 import { describe, expect, it } from "vitest";
 
 import { applyFilterDefs, initialFilters } from "./libraryFilters";
 import {
+  COUNTRY_NOT_SET,
   GENDER_NOT_SET,
+  NO_ENTRIES,
   ROLE_NOT_SET,
   UNRATED,
   characterFilterDefs,
+  defaultEntityFilters,
   personFilterDefs,
+  publisherFilterDefs,
+  studioFilterDefs,
 } from "./entityFilters";
 
 const SEES_ALL = { visibleGatedTypes: ["h-comic", "h-game", "hentai"] };
@@ -27,7 +33,7 @@ function filtered(defs, rows, picks) {
 describe("characterFilterDefs", () => {
   it("offers the four cast types, with h-comic and hentai under Restricted", () => {
     const mediaType = def(characterFilterDefs(SEES_ALL), "mediaType");
-    expect(mediaType.options).toEqual(["anime", "anime-movie", "manga", "novel"]);
+    expect(mediaType.options).toEqual(["anime", "anime-movie", "manga", "novel", NO_ENTRIES]);
     expect(mediaType.parent).toEqual({
       label: "Restricted",
       children: ["h-comic", "hentai"],
@@ -108,7 +114,7 @@ describe("personFilterDefs", () => {
     const mediaType = def(personFilterDefs(SEES_ALL), "mediaType");
     expect(mediaType.options).toEqual([
       "anime", "anime-movie", "movie", "tv-show", "cartoon",
-      "manga", "novel", "comic", "game",
+      "manga", "novel", "comic", "game", NO_ENTRIES,
     ]);
     expect(mediaType.parent.children).toEqual(["h-comic", "hentai", "h-game"]);
   });
@@ -130,5 +136,122 @@ describe("personFilterDefs", () => {
   it("offers the Club type only to a session that sees h-comic", () => {
     expect(def(personFilterDefs(SEES_ALL), "role").options).toContain("club");
     expect(def(personFilterDefs(SEES_NONE), "role").options).not.toContain("club");
+  });
+});
+
+describe("the No entries chip", () => {
+  it("matches a row with no media types, and only that row", () => {
+    const defs = characterFilterDefs(SEES_ALL);
+    const rows = [
+      { id: "none", media_types: [] },
+      { id: "missing" },
+      { id: "anime", media_types: ["anime"] },
+    ];
+    expect(filtered(defs, rows, { mediaType: [NO_ENTRIES] })).toEqual(["none", "missing"]);
+    expect(def(defs, "mediaType").optionLabel(NO_ENTRIES)).toBe("No entries");
+    expect(def(defs, "mediaType").optionLabel("anime-movie")).toBe("Anime Movie");
+  });
+});
+
+describe("defaultEntityFilters", () => {
+  const ROWS = [
+    { id: "plain", media_types: ["anime"] },
+    { id: "mixed", media_types: ["anime", "hentai"] },
+    { id: "gated", media_types: ["hentai"] },
+    { id: "new", media_types: [] },
+  ];
+
+  it("selects every non-restricted type and No entries, and nothing else", () => {
+    const defs = personFilterDefs(SEES_ALL);
+    const filters = defaultEntityFilters(defs);
+    expect([...filters.mediaType]).toEqual([
+      "anime", "anime-movie", "movie", "tv-show", "cartoon",
+      "manga", "novel", "comic", "game", NO_ENTRIES,
+    ]);
+    expect(filters.role.size).toBe(0);
+    expect(filters.myRating.size).toBe(0);
+    expect(filters.gender.size).toBe(0);
+  });
+
+  // The Restricted children exist here (SEES_ALL), so the default has
+  // something to leave out: a session that sees no gated type would pass
+  // this vacuously.
+  it("hides a restricted-only row and keeps a mixed or entry-less one", () => {
+    const defs = characterFilterDefs(SEES_ALL);
+    expect(def(defs, "mediaType").parent.children).toContain("hentai");
+    const filters = defaultEntityFilters(defs);
+    expect(applyFilterDefs(ROWS, defs, filters).map((r) => r.id)).toEqual([
+      "plain", "mixed", "new",
+    ]);
+    filters.mediaType.add("hentai");
+    expect(applyFilterDefs(ROWS, defs, filters).map((r) => r.id)).toEqual([
+      "plain", "mixed", "gated", "new",
+    ]);
+  });
+});
+
+describe("personFilterDefs with a role", () => {
+  it("drops the Type group - every row already holds the role", () => {
+    const keys = personFilterDefs(SEES_ALL, "seiyuu").map((fd) => fd.key);
+    expect(keys).toEqual(["mediaType", "myRating", "gender"]);
+  });
+});
+
+describe("studioFilterDefs", () => {
+  it("offers the studio's credit types, with hentai and h-game under Restricted", () => {
+    const mediaType = def(studioFilterDefs(SEES_ALL), "mediaType");
+    expect(mediaType.options).toEqual(["anime", "anime-movie", "game", NO_ENTRIES]);
+    expect(mediaType.parent.children).toEqual(["hentai", "h-game"]);
+    expect(def(studioFilterDefs(SEES_NONE), "mediaType").parent).toBeUndefined();
+  });
+
+  it("derives the countries on record, with Not set only when a row has none", () => {
+    const country = def(studioFilterDefs(SEES_ALL), "country");
+    expect(country.type).toBe("set-dynamic");
+    expect(
+      country.deriveOptions([{ country: "Japan" }, { country: "China" }, { country: "Japan" }]),
+    ).toEqual(["China", "Japan"]);
+    expect(country.deriveOptions([{ country: "Japan" }, { country: null }])).toEqual([
+      "Japan", COUNTRY_NOT_SET,
+    ]);
+  });
+
+  it("filters by country and rating, ANDed", () => {
+    const defs = studioFilterDefs(SEES_ALL);
+    const rows = [
+      { id: "jp", country: "Japan", my_rating: "S" },
+      { id: "cn", country: "China", my_rating: null },
+      { id: "unknown", country: null, my_rating: "S" },
+    ];
+    expect(filtered(defs, rows, { country: ["Japan", COUNTRY_NOT_SET] })).toEqual([
+      "jp", "unknown",
+    ]);
+    expect(filtered(defs, rows, { country: [COUNTRY_NOT_SET], myRating: ["S"] })).toEqual([
+      "unknown",
+    ]);
+    expect(filtered(defs, rows, { myRating: [UNRATED] })).toEqual(["cn"]);
+  });
+});
+
+describe("publisherFilterDefs", () => {
+  it("offers the six publisher types and no Restricted parent", () => {
+    const mediaType = def(publisherFilterDefs(SEES_ALL), "mediaType");
+    expect(mediaType.options).toEqual([
+      "anime", "anime-movie", "manga", "novel", "comic", "game", NO_ENTRIES,
+    ]);
+    expect(mediaType.parent).toBeUndefined();
+  });
+
+  it("matches the types it is credited on OR offered on", () => {
+    const defs = publisherFilterDefs(SEES_ALL);
+    const rows = [
+      { id: "credited", media_types: ["manga"], scopes: [] },
+      { id: "offered", media_types: [], scopes: ["manga"] },
+      { id: "neither", media_types: [], scopes: [] },
+      { id: "novel", media_types: ["novel"], scopes: ["novel"] },
+    ];
+    expect(filtered(defs, rows, { mediaType: ["manga"] })).toEqual(["credited", "offered"]);
+    // No entries is about credits: an offered-but-uncredited publisher has none.
+    expect(filtered(defs, rows, { mediaType: [NO_ENTRIES] })).toEqual(["offered", "neither"]);
   });
 });

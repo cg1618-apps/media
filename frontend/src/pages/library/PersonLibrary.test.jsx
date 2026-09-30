@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -50,6 +50,19 @@ const PEOPLE = [
     display_name: "Pen Name",
     credit_count: 0,
     roles: [],
+    media_types: [],
+  },
+  // Credited on a gated type only: hidden until Restricted is ticked.
+  {
+    system_id: "6",
+    public_id: "p6",
+    name_en: "Circle Artist",
+    display_name: "Circle Artist",
+    credit_count: 2,
+    roles: [{ role: "illustrator", scope: "h-comic" }],
+    media_types: ["h-comic"],
+    my_rating: null,
+    gender: null,
   },
 ];
 
@@ -61,6 +74,7 @@ const SEIYUU = [
     display_name: "Miyu Irino",
     credit_count: 0,
     roles: [{ role: "seiyuu", scope: "anime" }],
+    media_types: [],
   },
 ];
 
@@ -122,7 +136,6 @@ describe("PersonLibrary", () => {
       expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
     );
 
-    await user.click(screen.getByRole("button", { name: "Filters" }));
     await user.click(screen.getByRole("button", { name: "Author" }));
     const cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards).toHaveLength(1);
@@ -135,7 +148,8 @@ describe("PersonLibrary", () => {
     await waitFor(() =>
       expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
     );
-    await user.click(screen.getByRole("button", { name: "Filters" }));
+    // From an empty state: H-Game alone, not added to the default's types.
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
     await user.click(screen.getByRole("button", { name: "H-Game" }));
     const cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards).toEqual([expect.stringContaining("渡部高志")]);
@@ -152,7 +166,6 @@ describe("PersonLibrary", () => {
     await waitFor(() =>
       expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
     );
-    await user.click(screen.getByRole("button", { name: "Filters" }));
     await user.click(screen.getByRole("button", { name: "Director" }));
     expect(screen.getAllByRole("link")).toHaveLength(2);
     await user.click(screen.getByRole("button", { name: "Unrated" }));
@@ -188,6 +201,99 @@ describe("PersonLibrary", () => {
     await waitFor(() => expect(fetch).toHaveBeenCalled());
     const [url] = fetch.mock.calls[0];
     expect(url).toBe("/api/person/");
+  });
+
+  it("opens with the panel shown, every plain type and No entries on, the restricted ones off", async () => {
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: /^Filters/ })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    for (const name of ["Anime", "Movie", "Game", "No entries"]) {
+      expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "true");
+    }
+    for (const name of ["Restricted", "H-Comic", "Hentai", "H-Game"]) {
+      expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
+    }
+    // Nothing to reset to yet.
+    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+  });
+
+  // The restricted-only row is what makes the default bite: without it the
+  // default would hide nothing and this would pass vacuously.
+  it("hides a restricted-only person by default and shows them once Restricted is ticked", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Circle Artist")).not.toBeInTheDocument();
+    // A person credited on a gated AND a plain type is still listed.
+    expect(screen.getByText("渡部高志")).toBeInTheDocument();
+    // So is one with no entries at all.
+    expect(screen.getByText("Pen Name")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Restricted" }));
+    expect(screen.getByText("Circle Artist")).toBeInTheDocument();
+    expect(screen.getAllByRole("link")).toHaveLength(5);
+  });
+
+  it("Reset returns to the default; Clear all empties every group", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    // Nothing on: everyone, the restricted-only person included.
+    expect(screen.getAllByRole("link")).toHaveLength(5);
+    expect(screen.getByRole("button", { name: "Anime" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    expect(screen.getAllByRole("link")).toHaveLength(4);
+    expect(screen.getByRole("button", { name: "Anime" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+  });
+
+  it("names itself Seiyuu, not People, and drops the Type group, under role=\"seiyuu\"", async () => {
+    fetch.mockImplementation(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve(SEIYUU) }),
+    );
+    renderLibrary({ role: "seiyuu" });
+
+    expect(await screen.findByRole("heading", { name: "Seiyuu" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "People" })).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search seiyuu...")).toBeInTheDocument();
+    expect(screen.getByText(/^1 seiyuu/)).toBeInTheDocument();
+    expect(screen.queryByText("Type")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Director" })).not.toBeInTheDocument();
+    expect(screen.getByText("Entry type")).toBeInTheDocument();
+  });
+
+  it("says seiyuu in the empty state too", async () => {
+    fetch.mockImplementation(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve([]) }),
+    );
+    renderLibrary({ role: "seiyuu" });
+    expect(await screen.findByText("No seiyuu found")).toBeInTheDocument();
+  });
+
+  it("keeps the Type group on /library/person", async () => {
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
+    );
+    const typeGroup = screen.getByText("Type").parentElement;
+    expect(within(typeGroup).getByRole("button", { name: "Director" })).toBeInTheDocument();
   });
 
   it("lists a seiyuu who has never been cast", async () => {

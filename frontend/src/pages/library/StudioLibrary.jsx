@@ -8,6 +8,11 @@ import { StudioCard } from "../../components/cards/StaffCard";
 import { cleanString, getRatingWeight } from "../../utils/media";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { Eyebrow } from "../../components/ui/primitives";
+import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
+import { useAuth } from "../../contexts/AuthContext";
+import { useEntityFilterState } from "../../hooks/useFilterState";
+import { applyFilterDefs } from "../../lib/libraryFilters";
+import { studioFilterDefs } from "../../lib/entityFilters";
 
 export default function StudioLibrary() {
   const [allStudios, setAllStudios] = useState([]);
@@ -15,6 +20,19 @@ export default function StudioLibrary() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("name");
+  const [showFilters, setShowFilters] = useState(true);
+
+  const auth = useAuth();
+  const filterDefs = useMemo(() => studioFilterDefs(auth), [auth]);
+  const {
+    filters,
+    toggleFilter,
+    clearFilters,
+    resetFilters,
+    isDefault,
+    activeFilterCount,
+    dynamicFilterOptions,
+  } = useEntityFilterState(filterDefs, allStudios);
 
   useEffect(() => {
     async function load() {
@@ -35,12 +53,13 @@ export default function StudioLibrary() {
   const filteredAndSorted = useMemo(() => {
     const qClean = cleanString(searchQuery);
 
-    const result = allStudios.filter((s) => {
+    const searched = allStudios.filter((s) => {
       if (!qClean) return true;
       return STUDIO_NAME_FIELDS.some(
         ({ field }) => s[field] && cleanString(s[field]).includes(qClean),
       );
     });
+    const result = applyFilterDefs(searched, filterDefs, filters);
 
     result.sort((a, b) => {
       if (currentSort === "credit_count") {
@@ -54,7 +73,15 @@ export default function StudioLibrary() {
     });
 
     return result;
-  }, [allStudios, searchQuery, currentSort]);
+  }, [allStudios, searchQuery, currentSort, filterDefs, filters]);
+
+  const narrowed = searchQuery !== "" || activeFilterCount > 0;
+  // The empty state's way out: no search and no filter, not the default -
+  // the default may be exactly what left nothing to show.
+  function showEverything() {
+    setSearchQuery("");
+    clearFilters();
+  }
 
   if (loading) {
     return (
@@ -92,6 +119,7 @@ export default function StudioLibrary() {
                 {filteredAndSorted.length} studio
                 {filteredAndSorted.length !== 1 ? "s" : ""}
                 {searchQuery && ` matching "${searchQuery}"`}
+                {activeFilterCount > 0 && " (filtered)"}
               </p>
             </div>
 
@@ -129,6 +157,13 @@ export default function StudioLibrary() {
                   <option value="my_rating">My rating</option>
                 </select>
               </label>
+
+              <FilterToggleButton
+                className="py-1.5"
+                open={showFilters}
+                onToggle={() => setShowFilters((o) => !o)}
+                activeFilterCount={activeFilterCount}
+              />
             </div>
           </div>
         </div>
@@ -136,19 +171,30 @@ export default function StudioLibrary() {
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {showFilters && (
+          <FilterPanel
+            filterDefs={filterDefs}
+            filters={filters}
+            toggleFilter={toggleFilter}
+            clearFilters={clearFilters}
+            resetFilters={isDefault ? undefined : resetFilters}
+            activeFilterCount={activeFilterCount}
+            dynamicFilterOptions={dynamicFilterOptions}
+          />
+        )}
         {filteredAndSorted.length === 0 ? (
           <div className="text-center py-16 border border-dashed border-border-strong">
             <Eyebrow className="mb-1">Empty</Eyebrow>
             <p className="text-text-muted text-sm">No studios found</p>
             <p className="text-sm text-text-faint mt-1">
-              {searchQuery ? (
+              {narrowed ? (
                 <>
-                  Try a different search or{" "}
+                  Try a different search or filter, or{" "}
                   <button
-                    onClick={() => setSearchQuery("")}
+                    onClick={showEverything}
                     className="text-brand hover:underline"
                   >
-                    reset
+                    show everything
                   </button>
                 </>
               ) : (

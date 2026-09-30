@@ -2047,6 +2047,10 @@ export default function Admin() {
                 // founding facts from MAL's producer record. Replace has no
                 // Studio row to match - see PipelineSpec.fill_only.
                 { label: "Studio", url: "/api/data-control/fill/studio" },
+                // The other entity: a person holding the seiyuu role fills
+                // from MAL's people record. Only seiyuu - no other person
+                // is filled. Fill All runs it too.
+                { label: "Seiyuu", url: "/api/data-control/fill/seiyuu" },
               ]}
               streamRunning={streamRunning === "fill"}
               onStart={(url) => startStream(url, "fill")}

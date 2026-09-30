@@ -33,6 +33,7 @@ function personToForm(p) {
     gender: p.gender || "",
     my_rating: p.my_rating || "",
     photo_file: p.photo_file || "",
+    mal_link: p.mal_link || "",
     remark: p.remark || "",
     photo_fallback_entry_id: p.photo_fallback_entry_id || null,
   };
@@ -158,6 +159,7 @@ export default function PersonModifyTab({ initialId = null } = {}) {
           gender: personForm.gender || null,
           my_rating: personForm.my_rating || null,
           photo_file: personForm.photo_file || null,
+          mal_link: personForm.mal_link?.trim() || null,
           remark: personForm.remark || null,
           photo_fallback_entry_id: personForm.photo_fallback_entry_id || null,
           // PUT replaces the whole role set, so this must be every type the

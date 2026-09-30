@@ -1,10 +1,12 @@
-// Frontend: the admin controls a character's and a person's detail page share.
+// Frontend: the admin controls every entity detail page shares - character,
+// person, studio and publisher.
 //
-// Both pages are hand-built (see the comments on Character.jsx and
-// Person.jsx), and both let an admin do three things without leaving the
-// page: jump to the full editor, set my rating, and write the remark. The
-// rating and remark go through PATCH /api/{character|person}/{system_id} with
-// a partial body, and the page takes its state from the response.
+// The four pages are hand-built (see the comments on Character.jsx,
+// Person.jsx, Studio.jsx and Publisher.jsx), and each lets an admin do three
+// things without leaving the page: jump to the full editor, set my rating,
+// and write the remark. The rating and remark go through
+// PATCH /api/{character|person|studio|publisher}/{system_id} with a partial
+// body, and the page takes its state from the response.
 import { useNavigate } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
@@ -17,7 +19,7 @@ const selectCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand";
 
 /**
- * `patch(payload, message)` for one character or person: sends the partial
+ * `patch(payload, message)` for one entity: sends the partial
  * body, hands the response to `onSaved`, and toasts the outcome.
  */
 export function useEntityPatch(ownerType, systemId, onSaved) {

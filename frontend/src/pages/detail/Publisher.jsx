@@ -6,18 +6,30 @@
 // credited on, grouped by media type as GET /api/publisher/{id}/entries
 // returns them.
 //
-// The one divergence from Studio: no MAL row in the profile. MAL has no
-// record of a games publisher or a Taiwanese distributor, so a publisher
-// carries no mal_id/mal_link at all.
+// Two divergences from Studio: no MAL row in the profile - MAL has no record
+// of a games publisher or a Taiwanese distributor, so a publisher carries no
+// mal_id/mal_link at all - and a Types row naming the media types it is
+// offered on (`scopes`).
+//
+// An admin gets the controls Person.jsx has (EntityProfileControls): Quick
+// edit, my rating and the remark, PATCHed in place.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
-import { STUDIO_NAME_FIELDS } from "../../lib/naming";
+import { mediaTypeLabel } from "../../config/mediaRegistry";
 import InfoCard from "../../components/info/InfoCard";
+import NamingCard from "../../components/info/NamingCard";
+import {
+  AdminToolbar,
+  RatingSelect,
+  RemarkEditor,
+  useEntityPatch,
+} from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
 // "founded – defunct", or "Since founded" while the publisher still trades.
@@ -36,6 +48,8 @@ export default function Publisher() {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { isAdmin } = useAuth();
+  const patch = useEntityPatch("publisher", publisher?.system_id, setPublisher);
 
   useCanonicalPath("publisher", publisher);
 
@@ -91,9 +105,6 @@ export default function Publisher() {
 
   const name = publisher.display_name || "Unknown Publisher";
   const logoUrl = getCoverUrl(publisher.logo_file);
-  const otherNames = STUDIO_NAME_FIELDS.filter(
-    ({ field }) => publisher[field]?.trim() && publisher[field].trim() !== name,
-  );
   const span = lifespan(publisher);
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
 
@@ -112,6 +123,8 @@ export default function Publisher() {
           {name}
         </span>
       </nav>
+
+      {isAdmin && <AdminToolbar ownerType="publisher" systemId={publisher.system_id} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN: the profile ========== */}
@@ -146,26 +159,14 @@ export default function Publisher() {
             </div>
           </div>
 
-          {otherNames.length > 0 && (
-            <section className="bg-surface border border-border">
-              <h3 className="flex items-center gap-3 px-4 py-2.5 border-b border-border font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
-                Other names
-                <span className="flex-1 border-t border-dotted border-border-strong/60" />
-              </h3>
-              <ul className="p-4 space-y-3" aria-label="Other names">
-                {otherNames.map(({ key, label, field }) => (
-                  <li key={key} className="min-w-0">
-                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
-                      {label}
-                    </div>
-                    <div className="text-sm text-text break-words">
-                      {publisher[field]}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {isAdmin && (
+            <RatingSelect
+              rating={publisher.my_rating}
+              onChange={(v) => patch({ my_rating: v }, "Rating saved")}
+            />
           )}
+
+          <NamingCard type="publisher" item={publisher} />
         </div>
 
         {/* ========== RIGHT COLUMN: facts, then the credits ========== */}
@@ -188,6 +189,11 @@ export default function Publisher() {
                 { label: "Active", value: span },
               ],
               {
+                label: "Types",
+                value:
+                  (publisher.scopes || []).map(mediaTypeLabel).join(", ") || null,
+              },
+              {
                 label: "Website",
                 value: publisher.website_url ? (
                   <a
@@ -200,9 +206,17 @@ export default function Publisher() {
                   </a>
                 ) : null,
               },
-              { label: "Remark", value: publisher.remark },
+              ...(isAdmin ? [] : [{ label: "Remark", value: publisher.remark }]),
             ]}
           />
+
+          {isAdmin && (
+            <RemarkEditor
+              systemId={publisher.system_id}
+              remark={publisher.remark}
+              onSave={(v) => patch({ remark: v }, "Remark saved")}
+            />
+          )}
 
           {groups.length === 0 ? (
             <section className="border border-dashed border-border-strong px-4 py-10 text-center">
