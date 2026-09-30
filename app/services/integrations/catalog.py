@@ -16,7 +16,7 @@ behind that, and they are the reason the catalog exists:
     guards on top of being overwrite fields: steam_progress_sync=False skips
     both outright, and a zero or unknown value never overwrites a real one -
     see autofill_game_from_steam.
-  * Per MEDIA TYPE - which pipelines exist at all. Comic and Studio have no
+  * Per MEDIA TYPE - which pipelines exist at all. Comic, Studio and Seiyuu have no
     bulk Replace; Comic is out of Fill All to protect its hourly quota. Game's
     Replace runs both its sources, IGDB fill-only - nothing in an IGDB record
     drifts, but it can supply the appid Steam keys off.
@@ -1169,6 +1169,59 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "is listed under its own domain",
                     ),
                     Write("logo_file", "image", "if-empty"),
+                ),
+            ),
+        ),
+    ),
+    Coverage(
+        key="seiyuu",
+        keyed_by="mal_id",
+        combination="single",
+        requests_per_entry="1",
+        note=(
+            "Runs over people holding the seiyuu role only - a director or author "
+            "with a MAL link is never filled. MAL's people URL is "
+            "/people/<id>/<slug>, which needs its own id pattern. Strictly "
+            "fill-only, with no Replace. The names are written together or not at "
+            "all: if the filled names would equal another person's, they are "
+            "skipped and the photo and link still land. It also runs inside the "
+            "person write request for a seiyuu, so every failure is logged and "
+            "swallowed."
+        ),
+        sources=(
+            SourceBlock(
+                source="tenrai",
+                writes=(
+                    Write("mal_link", "column", "fill-only"),
+                    Write(
+                        "name_en",
+                        "column",
+                        "conditional",
+                        "MAL's name with a single \"Family, Given\" turned to "
+                        "\"Given Family\"; skipped when the names would collide",
+                    ),
+                    Write(
+                        "name_jp",
+                        "column",
+                        "conditional",
+                        "family name then given name, no space; skipped when the "
+                        "names would collide",
+                    ),
+                    Write(
+                        "name_alt",
+                        "column",
+                        "conditional",
+                        "the alternate names joined with \", \"; skipped when the "
+                        "names would collide",
+                    ),
+                    Write("birthday", "none", "never", "the person table has no column for it"),
+                    Write("website_url", "none", "never", "the person table has no column for it"),
+                    Write(
+                        "photo_file",
+                        "image",
+                        "if-empty",
+                        "not MAL's question-mark placeholder",
+                    ),
                 ),
             ),
         ),

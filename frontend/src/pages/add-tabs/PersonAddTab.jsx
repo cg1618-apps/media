@@ -178,6 +178,17 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
 
       <SectionHeader icon="fa-id-card" title="Profile" />
       <GenderRatingFields form={personForm} update={upf} />
+      <Field
+        label="MAL Link"
+        hint="The person's myanimelist.net/people/<id> page; the MAL id is read from it."
+      >
+        <input
+          className={inputCls}
+          value={personForm.mal_link ?? ""}
+          onChange={(e) => upf("mal_link", e.target.value)}
+          placeholder="https://myanimelist.net/people/..."
+        />
+      </Field>
       <Field label="Photo">
         <ImagePicker
           ownerType="staff"

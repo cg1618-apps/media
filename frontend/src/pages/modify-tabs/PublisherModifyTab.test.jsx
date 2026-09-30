@@ -84,14 +84,14 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function mount() {
+function mount(props = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <PublisherModifyTab />
+        <PublisherModifyTab {...props} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -218,4 +218,16 @@ it("does not seed a country", async () => {
     expect(screen.getByDisplayValue("Bandai Namco")).toBeInTheDocument(),
   );
   expect(screen.queryByDisplayValue("Japan")).not.toBeInTheDocument();
+});
+
+// /modify?id=<system_id>&type=publisher (the detail page's Quick edit) hands
+// the id in as initialId.
+it("opens the editor for initialId without a pick", async () => {
+  mount({ initialId: "p1" });
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Bandai Namco")).toBeInTheDocument(),
+  );
+  expect(
+    screen.queryByPlaceholderText("Search publishers to modify..."),
+  ).not.toBeInTheDocument();
 });

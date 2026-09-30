@@ -294,3 +294,8 @@ def test_unrestricted_is_told_about_hentai_and_its_tenrai_writes(admin_client):
         "Official site": "if-absent",
         "Twitter": "if-absent",
     }
+
+
+def test_seiyuu_is_fill_only_everywhere():
+    seiyuu = next(c for c in EXTERNAL_APIS if c.key == "seiyuu")
+    assert all(w.rule != "overwrite" for _b, w in _writes(seiyuu))

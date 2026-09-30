@@ -12,13 +12,15 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
+from app.routers._entity_patch import prepare_patch
+from app.routers._patching import apply_column_patch
 from app.services.domain.autofill import autofill_studio_from_mal
-from app.services.domain.credits import credit_counts, find_studio
+from app.services.domain.credits import CreditSummary, credit_summaries, find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
@@ -41,17 +43,18 @@ def _to_response(
     db: Session,
     studio: models.Studio,
     viewer=None,
-    credit_count: Optional[int] = None,
+    summary: Optional[CreditSummary] = None,
 ) -> schemas.StudioResponse:
     # Count only credits on entries the viewer may see. A number is a smaller
     # leak than a title, but "worked on 3 things, you can see 2" is still one.
+    # The media types come out of the same visible pairs.
     #
-    # `credit_count` is passed in by the list route, which resolves the whole
-    # page in one pass; a single-entity route leaves it None and pays for one.
-    if credit_count is None:
-        credit_count = credit_counts(
+    # `summary` is passed in by the list route, which resolves the whole page
+    # in one pass; a single-entity route leaves it None and pays for one.
+    if summary is None:
+        summary = credit_summaries(
             db, viewer, [studio.system_id], models.MediaCredit.studio_id
-        ).get(studio.system_id, 0)
+        )[studio.system_id]
     return schemas.StudioResponse(
         system_id=studio.system_id,
         public_id=studio.public_id,
@@ -70,7 +73,9 @@ def _to_response(
         website_url=studio.website_url,
         mal_id=studio.mal_id,
         mal_link=studio.mal_link,
-        credit_count=credit_count,
+        credit_count=summary.count,
+        media_types=summary.media_types,
+        restricted=summary.restricted,
     )
 
 
@@ -93,14 +98,14 @@ def get_all_studios(
         db.query(models.Studio), models.Studio, db, viewer
     ).all()
     studios.sort(key=lambda s: s.display_name.casefold())
-    counts = credit_counts(
+    summaries = credit_summaries(
         db,
         viewer,
         [studio.system_id for studio in studios],
         models.MediaCredit.studio_id,
     )
     return [
-        _to_response(db, studio, viewer, counts.get(studio.system_id, 0))
+        _to_response(db, studio, viewer, summaries[studio.system_id])
         for studio in studios
     ]
 
@@ -220,7 +225,7 @@ def create_studio(
         db.add(studio)
         db.commit()
         db.refresh(studio)
-    return _to_response(db, studio)
+    return _to_response(db, studio, admin)
 
 
 @router.put(
@@ -253,7 +258,41 @@ def update_studio(
 
     db.commit()
     db.refresh(studio)
-    return _to_response(db, studio)
+    return _to_response(db, studio, admin)
+
+
+@router.patch(
+    "/{system_id}", response_model=schemas.StudioResponse, summary="Patch Studio"
+)
+def patch_studio(
+    system_id: UUID,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Partially updates a studio's own columns - the detail page's inline
+    rating and remark edits. Only the keys sent change.
+
+    The same rules as PUT, checked before anything is written: my_rating is
+    its vocabulary ("" is NULL), display_name_field is en / cn / jp / alt, and
+    at least one name survives the patch. Server columns (system_id,
+    public_id, timestamps) are a 422; keys that are not columns are ignored
+    (_patching.apply_column_patch). A mal_link in the patch re-derives mal_id;
+    the MAL fetch itself stays with PUT and the Fill pipeline.
+    """
+    studio = db.get(models.Studio, system_id)
+    if studio is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Studio, system_id, NOT_FOUND)
+
+    apply_column_patch(studio, prepare_patch(studio, payload, "studio"))
+    if "mal_link" in payload:
+        apply_extract_mal_id_studio(studio)
+
+    db.commit()
+    db.refresh(studio)
+    return _to_response(db, studio, admin)
 
 
 @router.delete("/{system_id}", summary="Delete Studio")

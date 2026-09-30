@@ -91,6 +91,32 @@ describe("Person detail page", () => {
     expect(within(naming).getByText("宮崎駿")).toBeInTheDocument();
   });
 
+  it("links the MAL person page from the Profile card", async () => {
+    mockFetch({
+      ...PERSON,
+      mal_id: 1870,
+      mal_link: "https://myanimelist.net/people/1870/Hayao_Miyazaki",
+    });
+    renderPage();
+    expect(await screen.findByRole("link", { name: "Person #1870" })).toHaveAttribute(
+      "href",
+      "https://myanimelist.net/people/1870/Hayao_Miyazaki",
+    );
+  });
+
+  it("names the person's types by their labels, not their keys", async () => {
+    mockFetch({
+      ...PERSON,
+      roles: [
+        { role: "director", scope: "anime-movie" },
+        { role: "director", scope: "anime" },
+        { role: "composer", scope: "anime" },
+      ],
+    });
+    renderPage();
+    expect(await screen.findByText("Director, Music / Composer")).toBeInTheDocument();
+  });
+
   it("shows a guest the remark and rating as text, with no admin controls", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Hayao Miyazaki" });

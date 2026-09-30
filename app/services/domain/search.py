@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.registry import MEDIA_REGISTRY
 from app.services.domain.content_labels import attach_franchise_content_labels
-from app.services.domain.credits import attach_link_fields
+from app.services.domain.credits import attach_link_fields, credit_summaries
 from app.services.domain.entity_photos import person_media
 from app.services.domain.h_comic import attach_animation_status
 from app.services.domain.plan_next import planned_entry_ids
@@ -30,7 +30,6 @@ from app.services.rbac.enforcement import (
     apply_entry_visibility,
     apply_franchise_visibility,
     apply_series_visibility,
-    filter_visible_pairs,
 )
 from app.services.rbac.field_gate import gate
 from app.services.rbac.gated_types import unseeable_gated_types
@@ -285,34 +284,25 @@ _CREDIT_OWNER_COLUMN = {
 
 def _attach_credit_counts(db: Session, viewer, spec: SearchableType, entries: list):
     """
-    Set `credit_count` on studio/publisher rows, for every result at once.
+    Set `credit_count`, `media_types` and `restricted` on studio/publisher
+    rows, for every result at once.
 
-    The number the library cards show. person.py and studio.py compute it per
-    row because they answer about one; a search answers about up to `limit` of
-    them, so the credits are fetched in one query and put through ONE
-    filter_visible_pairs call - the same visibility rule, without the N+1.
+    What the library cards show, from the same credits.credit_summaries pass
+    the studio and publisher list routes use - one query and ONE
+    filter_visible_pairs call for the whole result, so a search card and a
+    library card cannot disagree.
     """
-    ids = [entry.system_id for entry in entries]
-    if not ids:
-        return
-    owner_column = _CREDIT_OWNER_COLUMN[spec.key]
-    rows = [
-        (owner, media_type, entry_id)
-        for owner, media_type, entry_id in db.query(
-            owner_column, models.Media.media_type, models.MediaCredit.media_id
-        )
-        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
-        .filter(owner_column.in_(ids))
-    ]
-    visible = filter_visible_pairs(db, viewer, [(mt, eid) for _, mt, eid in rows])
-    # A set per owner, not a tally: one entry crediting a studio twice (two
-    # roles) is one credit, which is what the per-row endpoints report.
-    counted: dict = {}
-    for owner, media_type, entry_id in rows:
-        if (media_type, entry_id) in visible:
-            counted.setdefault(owner, set()).add((media_type, entry_id))
+    summaries = credit_summaries(
+        db,
+        viewer,
+        [entry.system_id for entry in entries],
+        _CREDIT_OWNER_COLUMN[spec.key],
+    )
     for entry in entries:
-        entry.credit_count = len(counted.get(entry.system_id, ()))
+        summary = summaries[entry.system_id]
+        entry.credit_count = summary.count
+        entry.media_types = summary.media_types
+        entry.restricted = summary.restricted
 
 
 def _person_results(db: Session, viewer, entries: list) -> list:

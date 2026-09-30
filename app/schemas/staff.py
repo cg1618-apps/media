@@ -74,6 +74,9 @@ class PersonBase(BaseModel):
     # person is credited or cast on (the router checks; 422 otherwise).
     photo_fallback_entry_id: Optional[UUID] = None
     remark: Optional[str] = None
+    # MAL's people record; mal_id is derived from mal_link on every write.
+    mal_id: Optional[int] = None
+    mal_link: Optional[str] = None
 
     @model_validator(mode="after")
     def _display_field_is_known(self):
@@ -215,6 +218,12 @@ class StudioResponse(StudioBase):
     public_id: int
     display_name: str = ""
     credit_count: int = 0
+    # Hyphenated media types of the visible entries this studio is credited
+    # on, sorted and distinct; restricted is True when one is a gated type.
+    # Same semantics as PersonResponse's, from the same visible pair set as
+    # credit_count (credits.credit_summaries).
+    media_types: List[str] = []
+    restricted: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,6 +1,6 @@
 // Frontend: the chip panel that renders a list of FilterDefs (the shape is
 // documented in hooks/useLibraryState.js). Used by LibraryLayout, the random
-// picker and the character and person libraries.
+// picker and the entity libraries (character, person, studio, publisher).
 import { Eyebrow } from "../ui/primitives";
 import { isParentActive, toggleParentValues } from "../../lib/libraryFilters";
 
@@ -103,11 +103,16 @@ export function FilterToggleButton({ open, onToggle, activeFilterCount, classNam
 // ---------------------------------------------------------------------------
 // FilterPanel — renders all FilterDef groups for the current config
 // ---------------------------------------------------------------------------
+// `resetFilters` is optional: a caller that opens on a default other than
+// empty (the entity libraries) passes it while the state is off that default,
+// and the panel draws Reset beside Clear all. Clear all still empties every
+// group.
 export default function FilterPanel({
   filterDefs,
   filters,
   toggleFilter,
   clearFilters,
+  resetFilters,
   activeFilterCount,
   dynamicFilterOptions,
 }) {
@@ -115,15 +120,25 @@ export default function FilterPanel({
     <div className="border-y border-border py-4 mb-4 space-y-3">
       <div className="flex items-center justify-between">
         <Eyebrow as="h3" className="text-text-muted">Filters</Eyebrow>
-        {/* A caller with its own clear control leaves clearFilters out. */}
-        {clearFilters && activeFilterCount > 0 && (
-          <button
-            onClick={clearFilters}
-            className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint hover:text-danger transition"
-          >
-            Clear all
-          </button>
-        )}
+        <div className="flex items-center gap-4">
+          {resetFilters && (
+            <button
+              onClick={resetFilters}
+              className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint hover:text-brand transition"
+            >
+              Reset
+            </button>
+          )}
+          {/* A caller with its own clear control leaves clearFilters out. */}
+          {clearFilters && activeFilterCount > 0 && (
+            <button
+              onClick={clearFilters}
+              className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint hover:text-danger transition"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
       </div>
 
       {filterDefs.map((fd) => {

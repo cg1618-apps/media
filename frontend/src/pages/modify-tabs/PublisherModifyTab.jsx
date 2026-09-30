@@ -9,7 +9,10 @@
 // Two divergences from the studio tab: no MAL columns (a publisher has no MAL
 // record), and no country seeding — nearly every studio here is Japanese, but
 // a publisher is as likely to be American, so an empty country stays empty.
-import { useMemo, useState } from "react";
+//
+// `initialId` is a deep link's id (/modify?id=<system_id>&type=publisher, the
+// detail page's Quick edit): that publisher's editor opens on mount.
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PublisherFields } from "../add-tabs/PublisherAddTab";
 import { endpoints } from "../../api/endpoints";
@@ -46,7 +49,7 @@ function publisherToForm(p) {
   };
 }
 
-export default function PublisherModifyTab() {
+export default function PublisherModifyTab({ initialId = null } = {}) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -82,17 +85,24 @@ export default function PublisherModifyTab() {
     );
   }, [publishers, search]);
 
-  async function selectPublisher(publisher) {
-    try {
-      const fresh = await fetchJson(
-        endpoints.publisher.detail(publisher.system_id),
-      );
-      setSelectedId(fresh.system_id);
-      setPublisherForm(publisherToForm(fresh));
-    } catch {
-      showToast("error", "Failed to load publisher.");
-    }
+  function loadPublisher(systemId) {
+    return fetchJson(endpoints.publisher.detail(systemId))
+      .then((fresh) => {
+        setSelectedId(fresh.system_id);
+        setPublisherForm(publisherToForm(fresh));
+      })
+      .catch(() => showToast("error", "Failed to load publisher."));
   }
+
+  function selectPublisher(publisher) {
+    loadPublisher(publisher.system_id);
+  }
+
+  useEffect(() => {
+    if (initialId) loadPublisher(initialId);
+    // Mount only: the deep link opens one editor, once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function closeEditor() {
     setSelectedId(null);

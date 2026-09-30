@@ -235,6 +235,8 @@ export const endpoints = {
     detail: (id) => `/api/publisher/${id}`,
     create: () => "/api/publisher/",
     update: (id) => `/api/publisher/${id}`,
+    // PATCH: a partial body - the detail page's rating and remark.
+    patch: (id) => `/api/publisher/${id}`,
     remove: (id) => `/api/publisher/${id}`,
     merge: (id) => `/api/publisher/${id}/merge`,
     entries: (id) => `/api/publisher/${id}/entries`,
@@ -245,6 +247,8 @@ export const endpoints = {
     detail: (id) => `/api/studio/${id}`,
     create: () => "/api/studio/",
     update: (id) => `/api/studio/${id}`,
+    // PATCH: a partial body - the detail page's rating and remark.
+    patch: (id) => `/api/studio/${id}`,
     remove: (id) => `/api/studio/${id}`,
     merge: (id) => `/api/studio/${id}/merge`,
     entries: (id) => `/api/studio/${id}/entries`,

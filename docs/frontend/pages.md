@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-29
+Last verified: 2026-09-30
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -375,8 +375,8 @@ picker: `hooks/useFilterState.js` holds the chip and toggle values,
 `components/layout/FilterPanel.jsx` draws them. A set-type def may carry
 `optionLabel(value)` when its chip text should differ from the stored value,
 and a `set` def may carry a **parent chip**, `parent: { label, children }` —
-see `components.md`, "FilterPanel". The character and person libraries use
-the same machinery.
+see `components.md`, "FilterPanel". The entity libraries — studio,
+publisher, person (and seiyuu) and character — use the same machinery.
 
 A sort may also name the figure a **grid card** shows in its score slot,
 through `cardScoreField` on the sortDef: `LibraryLayout` reads it off the
@@ -476,14 +476,37 @@ alongside `CollectionLibrary` and `FranchiseLibrary`; its route is declared
 before `/library/:type` so the generic library page never claims it.
 
 Raw `fetch` of `/api/studio/` alone — the response already carries
-`display_name`, `credit_count` and `logo_file`, so no per-studio request and
-no entry lists are needed. Search runs over **all four** name fields
+`display_name`, `credit_count`, `logo_file`, `country`, `my_rating` and
+`media_types`, so no per-studio request and no entry lists are needed, and
+every filter runs client-side. Search runs over **all four** name fields
 (`STUDIO_NAME_FIELDS`), not just the displayed one, so typing "Kyoto
 Animation" finds a studio displayed as "KyoAni". Sort
-`name (default) | credit_count | my_rating`. No filter panel, no table view,
-no admin controls. Each `StudioCard` (`components/cards/StaffCard.jsx`, shared
-with `/search`) shows the logo, the display name and the credit count, and
-links to `/studio/:system_id`.
+`name (default) | credit_count | my_rating`. No table view.
+
+The **Filters** button (`FilterToggleButton`, with the active-chip count)
+toggles a `FilterPanel` over `studioFilterDefs(auth)` from
+`lib/entityFilters.js`, open when the page loads:
+
+- **Entry type** — anime, anime movie, game, **No entries**, then a
+  **Restricted** parent chip over hentai and h-game, matched against
+  `media_types` (the types of the visible entries the studio is credited
+  on). No entries matches a studio credited on nothing the viewer can see.
+- **My Rating** — `MY_RATINGS` plus Unrated (null).
+- **Country** — the countries the loaded studios carry, sorted, plus Not set
+  when one has none.
+
+Every entity library opens on the same default, `defaultEntityFilters`:
+every plain entry type and No entries on, the restricted types off, every
+other group empty. So a studio credited only on a gated type is hidden until
+Restricted (or one of its children) is ticked, while a studio nobody has
+credited yet is still listed. **Clear all** empties every group — everything
+the viewer may see, restricted rows included — and **Reset**, drawn once the
+state is off the default, puts the default back. The empty state's **show
+everything** link clears the search and every filter.
+
+Each `StudioCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
+shows the logo, the display name and the credit count, and links to
+`/studio/:system_id`.
 
 ### PublisherLibrary — `/library/publisher`
 
@@ -494,14 +517,25 @@ sits outside `LIBRARY_CONFIGS` with its route declared before `/library/:type`.
 One raw `fetch`, but through `endpoints.publisher.list()` rather than the
 literal URL `StudioLibrary` still hardcodes — the deliberate divergence, so the
 route lives in one place. The response already carries `display_name`,
-`credit_count` and `logo_file`, so there is no per-publisher request. Search
-reuses `STUDIO_NAME_FIELDS` (`lib/naming.js`, now shared by studio, person and
-publisher) and runs over **all four** name fields, so a publisher displayed as
-木棉花 is still found by typing "Muse Communication". Sort
-`name (default) | credit_count | my_rating`. No filter panel, no table view, no
-admin controls. Each `PublisherCard` (`components/cards/StaffCard.jsx`, beside
-`StudioCard`) shows the logo, the display name and the credit count, and links
-to `/publisher/:system_id`.
+`credit_count`, `logo_file`, `country`, `my_rating`, `media_types` and
+`scopes`, so there is no per-publisher request. Search reuses
+`STUDIO_NAME_FIELDS` (`lib/naming.js`, shared by studio, person and
+publisher) and runs over **all four** name fields, so a publisher displayed
+as 木棉花 is still found by typing "Muse Communication". Sort
+`name (default) | credit_count | my_rating`. No table view.
+
+The filter panel is the studio library's, over `publisherFilterDefs(auth)`,
+open on the same default, with the same Clear all and Reset. **Entry type**
+offers the six publisher types — anime, anime movie, manga, novel, comic,
+game — and No entries, with no Restricted parent (no publisher type is
+gated), and matches `media_types` **or** `scopes`: a publisher offered on
+manga but not yet credited on one is still found under Manga. No entries
+still means no visible credits, whatever the scopes. **My Rating** and
+**Country** are the studio library's.
+
+Each `PublisherCard` (`components/cards/StaffCard.jsx`, beside `StudioCard`)
+shows the logo, the display name and the credit count, and links to
+`/publisher/:system_id`.
 
 ### PersonLibrary — `/library/person`
 
@@ -517,18 +551,19 @@ would refetch on each click. Search runs over all four name columns
 (`PERSON_NAME_FIELDS`), not just the displayed one. Sort
 `name (default) | credit_count | my_rating`.
 
-The **Filters** button (`FilterToggleButton`, with the active-chip count)
-opens a `FilterPanel` over `personFilterDefs(auth)` from
-`lib/entityFilters.js`; OR within a group, AND across groups, and **Clear
-all** empties every group:
+The **Filters** button opens a `FilterPanel` over `personFilterDefs(auth)`
+from `lib/entityFilters.js`, open when the page loads and on the studio
+library's default (every plain entry type and No entries on, the restricted
+types off), with the same **Clear all** and **Reset**; OR within a group,
+AND across groups:
 
 - **Type** — the `PERSON_SUB_TABS` roles, matched against `roles`; the Club
   chip only for a session that can see h-comic.
-- **Entry type** — every non-gated media type, then a **Restricted** parent
-  chip over h-comic, hentai and h-game, matched against `media_types` (the
-  types of the entries the viewer can see the person credited or cast on).
-  A gated child the session cannot see is left out, and the parent with it
-  once none is left.
+- **Entry type** — every non-gated media type, **No entries**, then a
+  **Restricted** parent chip over h-comic, hentai and h-game, matched against
+  `media_types` (the types of the entries the viewer can see the person
+  credited or cast on). A gated child the session cannot see is left out,
+  and the parent with it once none is left.
 - **My Rating** — `MY_RATINGS` plus Unrated (null).
 - **Gender** — `GENDERS` plus Not set (null).
 
@@ -539,10 +574,15 @@ cover — with the display name and credit count, and links to
 
 `/library/seiyuu` renders the same component with `role="seiyuu"`, which adds
 `?role=seiyuu` to the `/api/person/` fetch server-side rather than filtering
-client-side — not a new page type, and not `dev: true` any more. A person
-holding the `seiyuu` role but never yet cast still appears with zero
-entries: `person_role` exists precisely so a seiyuu can show up before their
-first casting, and hiding them here would defeat that.
+client-side — not a new page type. With a role the page is named after it:
+the heading, the loading text, the search placeholder, the count ("12
+seiyuu") and the empty state all say seiyuu, and the **Type** group is
+dropped (`personFilterDefs(auth, role)`), since every row already holds the
+role. The nav marks the Seiyuu item active, not Person, and a card still
+opens `/person/:system_id`, whose breadcrumb leads to `/library/person`. A
+person holding the `seiyuu` role but never yet cast is listed by default,
+under No entries: `person_role` exists precisely so a seiyuu can show up
+before their first casting, and hiding them here would defeat that.
 
 ### CharacterLibrary — `/library/character`
 
@@ -557,12 +597,13 @@ all four name columns). Sort `name (default) | casting_count` ("Appearances")
 
 The **Filters** button opens a `FilterPanel` over
 `characterFilterDefs(auth)` (`lib/entityFilters.js`), the person library's
-groups without Type: **Entry type** — anime, anime movie, manga, novel, then
-a **Restricted** parent chip over h-comic and hentai (not h-game: nobody is
-cast on an h-game) — then **Role** — Main, Core, Supporting, Other, plus Not
-set for null, matched against the character's own `role` field and never
-against the roles its castings carry — then **My Rating** and **Gender**,
-with the same OR/AND rule and Clear all.
+groups without Type: **Entry type** — anime, anime movie, manga, novel, No
+entries, then a **Restricted** parent chip over h-comic and hentai (not
+h-game: nobody is cast on an h-game) — then **Role** — Main, Core,
+Supporting, Other, plus Not set for null, matched against the character's
+own `role` field and never against the roles its castings carry — then **My
+Rating** and **Gender**, with the same OR/AND rule. The panel is open when
+the page loads, on the shared default, with the same Clear all and Reset.
 
 Each `CharacterCard` shows `display_photo_file` — the photo, or the
 server-resolved fallback — with the display name and casting count, and
@@ -581,14 +622,16 @@ linking to `/modify?id=<system_id>&type=person` → left column with the photo
 (`display_photo_file`: the photo, else the server-resolved fallback cover,
 else `FALLBACK_SVG`) and rating stamp, (admin) a **My rating** select, and a
 **Naming** card (`NamingCard`, all four names) → right column with the
-display name, credited-entry count, a "Profile" `InfoCard` (gender, the types
-they are offered under, and for a non-admin the remark), (admin) a
-**Remarks** textarea, then one section per group.
+display name, credited-entry count, a "Profile" `InfoCard` (gender; the types
+they are offered under, by their `PERSON_SUB_TABS` labels — Director, Music /
+Composer; MAL as an external link reading `Person #<mal_id>`; and for a
+non-admin the remark), (admin) a **Remarks** textarea, then one section per
+group.
 
 The admin controls are `components/info/EntityProfileControls.jsx`, shared
-with the character page. The rating select PATCHes `{my_rating}` on change
-(Unrated sends null); the remark PATCHes `{remark}` on blur, an emptied one
-as null and an untouched one not at all. Both go to
+with the character, studio and publisher pages. The rating select PATCHes
+`{my_rating}` on change (Unrated sends null); the remark PATCHes `{remark}`
+on blur, an emptied one as null and an untouched one not at all. Both go to
 `PATCH /api/person/{system_id}`, and the response becomes the page's state.
 
 The one difference from the studio page: a person may hold several roles, so
@@ -639,18 +682,22 @@ here" inside it, same rule the person and studio pages follow.
 ### Publisher — `/publisher/:system_id`
 
 File `pages/detail/Publisher.jsx`. The public profile for one publisher or
-distributor, copied from `Studio.jsx` and behaving identically: two raw fetches
-in one `Promise.all` (`GET /api/publisher/{id}` and
-`GET /api/publisher/{id}/entries`), the profile call failing being the page's
-404 while the entries call failing is not, a breadcrumb back to
-`/library/publisher`, the logo-plus-rating left column with an "Other names"
-card, and one section per group the entries endpoint returned rendered as the
-same local `CreditCard`.
+distributor, copied from `Studio.jsx` and behaving identically: two raw
+fetches (`GET /api/publisher/{id}`, then `.../entries` by the `system_id` it
+returns), the profile call failing being the page's 404 while the entries
+call failing is not, a breadcrumb back to `/library/publisher`, the admin
+strip with Quick edit to `/modify?id=<system_id>&type=publisher`, the
+logo-plus-rating left column with the admin My rating select and the Naming
+card, the Remarks textarea for an admin (the remark row for anyone else), all
+PATCHing `/api/publisher/{system_id}`, and one section per group the entries
+endpoint returned rendered as the same local `CreditCard`.
 
-The one difference from the studio page: the "Profile" `InfoCard` has **no MAL
-row** — `PublisherResponse` carries no `mal_id` / `mal_link` at all, because
-MAL has no record of a games publisher or a TW distributor. Country,
-founded/defunct, website and remark are unchanged.
+Two differences from the studio page, both in the "Profile" `InfoCard`: a
+**Types** row naming the media types the publisher is offered on (`scopes`,
+by their media-type labels), and **no MAL row** — `PublisherResponse` carries
+no `mal_id` / `mal_link` at all, because MAL has no record of a games
+publisher or a TW distributor. Country, founded/defunct and website are the
+studio page's.
 
 ### Studio — `/studio/:system_id`
 
@@ -658,26 +705,34 @@ File `pages/detail/Studio.jsx`. The public profile for one studio, built by
 hand beside the media detail pages rather than from their shape: a studio has
 no franchise, no tracker and no notes.
 
-Two raw fetches in one `Promise.all`: `GET /api/studio/{id}` and
-`GET /api/studio/{id}/entries`. The studio call failing is the page's 404
-(rendered through `MediaLoadingState`, as the media pages render theirs); the
-entries call failing is not, since a profile without its credits is still
-worth showing. Nothing on the page is editable, which is why it uses `fetch`
-rather than the TanStack hooks the media detail pages need for their admin
-controls.
+Two raw fetches: `GET /api/studio/{id}` by the URL's public id, then
+`GET /api/studio/{id}/entries` by the `system_id` it returns. The studio call
+failing is the page's 404 (rendered through `MediaLoadingState`, as the media
+pages render theirs); the entries call failing is not, since a profile
+without its credits is still worth showing. The admin controls write back
+through PATCH and take the response as the page's state, so plain `fetch`
+serves where the media detail pages need TanStack hooks.
 
 Layout:
 
 1. **Breadcrumb** `/library/studio` → display name.
-2. **Left column** — logo with the rating stamp, then an "Other names" card
-   listing whichever of the four names is set and is not the one being
-   displayed, labelled English / Chinese / Japanese / Alternative.
-3. **Right column** — the display name, a credited-entry count, a "Profile"
+2. **Admin strip** (admin only) — the dashed strip with **Quick edit** to
+   `/modify?id=<system_id>&type=studio`.
+3. **Left column** — logo with the rating stamp, (admin) the **My rating**
+   select, then the **Naming** card (`NamingCard`, all four names —
+   English, Chinese, Japanese, Alternative — the displayed one included, as
+   on the person and character pages).
+4. **Right column** — the display name, a credited-entry count, a "Profile"
    `InfoCard` (country; `founded – defunct`, or `Since founded` while the
-   studio is still working, and the row is dropped when both are empty;
-   website and MAL as external links; remark), then one section per group the
-   entries endpoint returned, each entry linking to
+   studio is still working, and no invented span when both are empty;
+   website and MAL — `Producer #<mal_id>` — as external links; the remark
+   for a non-admin), (admin) the **Remarks** textarea, then one section per
+   group the entries endpoint returned, each entry linking to
    `{nav_path}/{system_id}`.
+
+The admin controls are `EntityProfileControls`, the person page's: the
+rating select PATCHes `{my_rating}` on change and the remark `{remark}` on
+blur, to `PATCH /api/studio/{system_id}`.
 
 Empty `groups` renders "No credited entries" as an ordinary empty state, not
 an error: that is exactly what a viewer whose permissions hide every one of

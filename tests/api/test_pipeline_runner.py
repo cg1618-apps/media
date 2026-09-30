@@ -74,9 +74,10 @@ def movies(db_session):
 # ---------------------------------------------------------------- registry
 
 
-# Non-media types in the registry. Studio is the first: it fills from MAL's
-# producer endpoint but is not a media entry, so it is not in MEDIA_TABLES.
-NON_MEDIA_KEYS = {"studio"}
+# Non-media types in the registry: Studio fills from MAL's producer endpoint
+# and Seiyuu from its people endpoint, and neither is a media entry, so
+# neither is in MEDIA_TABLES.
+NON_MEDIA_KEYS = {"studio", "seiyuu"}
 
 
 def test_every_media_type_has_a_pipeline_spec():
@@ -87,17 +88,18 @@ def test_the_registry_holds_nothing_but_media_types_and_the_known_extras():
     assert set(PIPELINES) - set(MEDIA_TABLES) == NON_MEDIA_KEYS
 
 
-def test_fill_all_skips_comic_but_includes_game_and_studio():
+def test_fill_all_skips_comic_but_includes_game_studio_and_seiyuu():
     # Comic is the only exclusion, and only because of Comic Vine's 200/hour
     # quota. IGDB has no such quota, so Game rides along with the rest.
     assert [s.key for s in FILL_ALL] == [
         "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
-        "game", "h-comic", "hentai", "h-game", "studio",
+        "game", "h-comic", "hentai", "h-game", "studio", "seiyuu",
     ]
 
 
-def test_replace_all_skips_comic_and_studio():
-    # Studio is fill_only: a producer record carries nothing that drifts.
+def test_replace_all_skips_comic_studio_and_seiyuu():
+    # Studio and Seiyuu are fill_only: a MAL producer or people record
+    # carries nothing that drifts.
     # Game now joins the rest - Steam's prices and Metacritic score drift,
     # even though nothing in an IGDB record does.
     assert [s.key for s in REPLACE_ALL] == [

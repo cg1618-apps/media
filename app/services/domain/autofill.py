@@ -13,6 +13,7 @@ from app.models import (
     Manga,
     Movies,
     Novel,
+    Person,
     Studio,
     TVShows,
 )
@@ -45,6 +46,7 @@ from app.services.integrations.steam import (
 from app.services.integrations.tenrai import (
     fetch_tenrai_anime_data,
     fetch_tenrai_manga_novel_data,
+    fetch_tenrai_person_data,
     fetch_tenrai_producer_data,
 )
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
@@ -74,6 +76,7 @@ from app.utils.tenrai_utils import (
     map_tenrai_to_anime_movie_data,
     map_tenrai_to_manga_data,
     map_tenrai_to_novel_data,
+    map_tenrai_to_person_data,
     map_tenrai_to_studio_data,
 )
 
@@ -996,6 +999,96 @@ def autofill_studio_from_mal(studio: Studio) -> None:
         logger.error(
             "MAL Autofill failed for Studio ID %s (MAL %s): %s",
             studio.system_id,
+            mal_id,
+            e,
+        )
+
+
+_PERSON_NAME_COLUMNS = ("name_en", "name_cn", "name_jp", "name_alt")
+
+
+def _person_name_taken(db: Session, person: Person, names: dict) -> bool:
+    """
+    Whether another person already holds exactly this name tuple.
+
+    uq_person_name is NULLS NOT DISTINCT over the four columns, so the check
+    compares with IS NOT DISTINCT FROM - a plain `=` would never match the
+    NULLs a typical row carries. no_autoflush so asking the question does not
+    write the person's own pending changes first.
+    """
+    with db.no_autoflush:
+        query = db.query(Person.system_id).filter(
+            *(
+                getattr(Person, column).is_not_distinct_from(names[column])
+                for column in _PERSON_NAME_COLUMNS
+            )
+        )
+        if person.system_id is not None:
+            query = query.filter(Person.system_id != person.system_id)
+        return query.first() is not None
+
+
+def autofill_person_from_mal(person: Person, db: Session) -> None:
+    """
+    Enriches one seiyuu from MAL's people record, via Tenrai.
+
+    Strictly fill-only, like the studio autofill: a column is written only
+    when it is empty, so a curated person is a no-op. The names are written
+    together or not at all: if the filled tuple would equal another person's
+    (uq_person_name), they are skipped with a warning and the photo and link
+    still land - checked with a query first, because an IntegrityError at
+    commit would cost the whole save.
+
+    Who is filled is the caller's decision (the seiyuu spec's fill_eligible,
+    the person router's seiyuu check); this only needs a mal_id. Failures are
+    logged and swallowed because it runs inside the person write request.
+    """
+    mal_id = person.mal_id
+    if not mal_id:
+        return
+
+    try:
+        raw_data = fetch_tenrai_person_data(mal_id)
+        if not raw_data:
+            return
+
+        j_data = map_tenrai_to_person_data(raw_data)
+
+        if not person.mal_link and j_data.get("mal_link"):
+            person.mal_link = j_data["mal_link"]
+
+        current = {column: getattr(person, column) for column in _PERSON_NAME_COLUMNS}
+        filled = {
+            column: current[column] or j_data.get(column)
+            for column in _PERSON_NAME_COLUMNS
+        }
+        if filled != current:
+            if _person_name_taken(db, person, filled):
+                logger.warning(
+                    "MAL Autofill skipped the names of Person ID %s (MAL %s): "
+                    "they would collide with another person's.",
+                    person.system_id,
+                    mal_id,
+                )
+            else:
+                for column, value in filled.items():
+                    setattr(person, column, value)
+
+        # Last, so a download failure cannot cost us the cheap columns above.
+        if (
+            cover_needs_download(person.photo_file, "staff", str(person.system_id))
+            and j_data.get("photo_url")
+        ):
+            key = download_cover_image(
+                j_data["photo_url"], "staff", str(person.system_id)
+            )
+            if key:
+                person.photo_file = key
+
+    except Exception as e:
+        logger.error(
+            "MAL Autofill failed for Person ID %s (MAL %s): %s",
+            person.system_id,
             mal_id,
             e,
         )

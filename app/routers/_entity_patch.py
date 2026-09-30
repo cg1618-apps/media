@@ -1,8 +1,8 @@
 """
-Write-side checks the character and person routers share.
+Write-side checks the character, person, studio and publisher routers share.
 
 PATCH takes a free-form dict (see _patching.py), so the rules the Create and
-Update schemas enforce for these two entities are applied here by hand before
+Update schemas enforce for these entities are applied here by hand before
 apply_column_patch runs: the gender and my_rating vocabularies (and
 character.role, passed in as an extra check), the known
 display_name_field values, the at-least-one-name rule, and a well-formed
@@ -41,8 +41,8 @@ def prepare_patch(
     """
     `payload` checked and normalised for apply_column_patch; 422 on a value
     the schemas would refuse. `noun` names the entity in the name-rule
-    message ("character", "person"). `extra_checks` maps a column only one of
-    the two has (character.role) to its check_* function, which returns the
+    message ("character", "person", "studio", "publisher"). `extra_checks`
+    maps a column only some of them have (character.role) to its check_* function, which returns the
     normalised value or raises ValueError.
     """
     if not isinstance(payload, dict):

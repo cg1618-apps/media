@@ -20,6 +20,7 @@ import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
 import ClubMembership from "../../components/info/ClubMembership";
+import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import InfoCard from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
 import {
@@ -32,6 +33,12 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+
+// A role key to the name the admin sub-tabs give it ("composer" ->
+// "Music / Composer"), so the Types row reads as the library's Type filter does.
+const PERSON_TYPE_LABELS = Object.fromEntries(
+  PERSON_SUB_TABS.map((t) => [t.key, t.label]),
+);
 
 export default function Person() {
   const { publicId } = useParams();
@@ -101,7 +108,9 @@ export default function Person() {
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
   // The types they are offered under, deduplicated: person_role carries one
   // row per (role, scope) and the label here is the type, not the scope.
-  const types = [...new Set((person.roles || []).map((r) => r.role))];
+  const types = [...new Set((person.roles || []).map((r) => r.role))].map(
+    (role) => PERSON_TYPE_LABELS[role] ?? role,
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
@@ -182,6 +191,19 @@ export default function Person() {
                 { label: "Gender", value: person.gender },
                 { label: "Types", value: types.join(", ") || null },
               ],
+              {
+                label: "MAL",
+                value: person.mal_link ? (
+                  <a
+                    href={person.mal_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand hover:underline break-all"
+                  >
+                    {person.mal_id ? `Person #${person.mal_id}` : "MyAnimeList"}
+                  </a>
+                ) : null,
+              },
               ...(isAdmin ? [] : [{ label: "Remark", value: person.remark }]),
             ]}
           />
