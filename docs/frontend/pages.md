@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-30
+Last verified: 2026-10-01
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -505,8 +505,8 @@ state is off the default, puts the default back. The empty state's **show
 everything** link clears the search and every filter.
 
 Each `StudioCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
-shows the logo, the display name and the credit count, and links to
-`/studio/:system_id`.
+shows the logo with the `my_rating` stamp in its corner (none when unrated),
+the display name and the credit count, and links to `/studio/:system_id`.
 
 ### PublisherLibrary — `/library/publisher`
 
@@ -534,8 +534,8 @@ still means no visible credits, whatever the scopes. **My Rating** and
 **Country** are the studio library's.
 
 Each `PublisherCard` (`components/cards/StaffCard.jsx`, beside `StudioCard`)
-shows the logo, the display name and the credit count, and links to
-`/publisher/:system_id`.
+shows the logo with the `my_rating` stamp in its corner (none when unrated),
+the display name and the credit count, and links to `/publisher/:system_id`.
 
 ### PersonLibrary — `/library/person`
 
@@ -569,8 +569,8 @@ AND across groups:
 
 Each `PersonCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
 shows `display_photo_file` — the photo, or the server-resolved fallback
-cover — with the display name and credit count, and links to
-`/person/:system_id`.
+cover — with the `my_rating` stamp in its corner (none when unrated), the
+display name and credit count, and links to `/person/:system_id`.
 
 `/library/seiyuu` renders the same component with `role="seiyuu"`, which adds
 `?role=seiyuu` to the `/api/person/` fetch server-side rather than filtering
@@ -606,8 +606,9 @@ Rating** and **Gender**, with the same OR/AND rule. The panel is open when
 the page loads, on the shared default, with the same Clear all and Reset.
 
 Each `CharacterCard` shows `display_photo_file` — the photo, or the
-server-resolved fallback — with the display name and casting count, and
-links to `/character/:system_id`.
+server-resolved fallback — with the `my_rating` stamp in its corner (none
+when unrated), the display name and casting count, and links to
+`/character/:system_id`.
 
 ### Person — `/person/:system_id`
 

@@ -91,6 +91,20 @@ describe("CharacterLibrary", () => {
     );
   });
 
+  it("stamps my_rating on a rated character's card and nothing on an unrated one", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await waitFor(() =>
+      expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
+    );
+    await clearAll(user);
+
+    const yuki = screen.getByText("Yuki Nagato").closest("a");
+    expect(within(yuki).getByLabelText("Rating A")).toBeInTheDocument();
+    const unrated = screen.getByText("渡部高志").closest("a");
+    expect(within(unrated).queryByLabelText(/^Rating /)).not.toBeInTheDocument();
+  });
+
   it("searches across all four name fields", async () => {
     const user = userEvent.setup();
     renderLibrary();
