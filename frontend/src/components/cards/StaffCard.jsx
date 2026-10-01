@@ -9,8 +9,9 @@ import { Link } from "react-router-dom";
 
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
+import { RatingStamp } from "../ui/primitives";
 
-function StaffCard({ to, label, name, imageFile, imageAlt, creditCount }) {
+function StaffCard({ to, label, name, imageFile, imageAlt, creditCount, rating }) {
   const coverUrl = getCoverUrl(imageFile);
   const credits = creditCount ?? 0;
 
@@ -39,6 +40,11 @@ function StaffCard({ to, label, name, imageFile, imageAlt, creditCount }) {
           className="relative flex-1 min-w-0 bg-surface-2 overflow-hidden"
           style={{ aspectRatio: "2/3" }}
         >
+          <RatingStamp
+            rating={rating}
+            size="sm"
+            className="absolute top-1.5 right-1.5 z-10"
+          />
           <img
             loading="lazy"
             src={coverUrl}
@@ -76,6 +82,7 @@ export function PersonCard({ person }) {
       imageFile={person.display_photo_file ?? person.photo_file}
       imageAlt="Photo"
       creditCount={person.credit_count}
+      rating={person.my_rating}
     />
   );
 }
@@ -89,6 +96,7 @@ export function StudioCard({ studio }) {
       imageFile={studio.logo_file}
       imageAlt="Logo"
       creditCount={studio.credit_count}
+      rating={studio.my_rating}
     />
   );
 }
@@ -102,6 +110,7 @@ export function PublisherCard({ publisher }) {
       imageFile={publisher.logo_file}
       imageAlt="Logo"
       creditCount={publisher.credit_count}
+      rating={publisher.my_rating}
     />
   );
 }

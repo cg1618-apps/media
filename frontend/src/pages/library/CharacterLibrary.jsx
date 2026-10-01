@@ -16,7 +16,7 @@ import { cleanString, getRatingWeight } from "../../utils/media";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { endpoints } from "../../api/endpoints";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
-import { Eyebrow } from "../../components/ui/primitives";
+import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import { entityPath } from "../../lib/entityPath";
 import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
 import { useAuth } from "../../contexts/AuthContext";
@@ -260,6 +260,11 @@ function CharacterCard({ character }) {
           className="relative flex-1 min-w-0 bg-surface-2 overflow-hidden"
           style={{ aspectRatio: "2/3" }}
         >
+          <RatingStamp
+            rating={character.my_rating}
+            size="sm"
+            className="absolute top-1.5 right-1.5 z-10"
+          />
           <img
             loading="lazy"
             src={coverUrl}
