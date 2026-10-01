@@ -122,9 +122,14 @@ access-mode switcher, and a theme toggle (moon/sun, `useTheme().toggle`,
 account's `username` when signed in, **Guest** when not. It is a value, so it
 keeps the body face and its own casing - the mono uppercase treatment belongs
 to labels. The **Admin** chip beside it is a capability and stays gated on
-`isAdmin`, as does **Back up** (POST `/api/data-control/backup`, toasts
-"Backup completed successfully" / "Backup failed", also behind
-`has("manage.pipelines")`). **Log out** (POST `/api/auth/logout`, then a full
+`isAdmin`, as does **Back up** (also behind `has("manage.pipelines")`). It
+runs `runBackup` from `api/backup.js`, which reads the endpoint's event
+stream: the button counts tabs ("Backing up 12/47…"), and the toast is
+success, an error with the server's message, or a **warning** - never a
+failure - when another Backup is already running (409) or the stream drops
+before the Backup ends, since the Backup keeps running on the server and
+its result lands in the Data Control log. The admin page's **Push All Data**
+uses the same helper. **Log out** (POST `/api/auth/logout`, then a full
 load of the page it is on, so nothing cached for the outgoing account
 survives) follows the indicator rather than the chip: it renders for any
 signed-in account, because a strip naming you with no way out is a dead end.

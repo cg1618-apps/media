@@ -21,6 +21,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useToast } from "../../hooks/useToast";
+import { backupToast, runBackup } from "../../api/backup";
 import {
   NAV_SECTIONS,
   visibleSections,
@@ -158,6 +159,7 @@ export default function Nav() {
   const [expanded, setExpanded] = useState(() => new Set());
   const [openKey, setOpenKey] = useState(null);
   const [backingUp, setBackingUp] = useState(false);
+  const [backupProgress, setBackupProgress] = useState(null);
   const stripRef = useRef(null);
   const triggerRefs = useRef({});
 
@@ -251,19 +253,13 @@ export default function Nav() {
     if (backingUp) return;
     setBackingUp(true);
     try {
-      const res = await fetch("/api/data-control/backup", {
-        method: "POST",
-        credentials: "include",
+      const result = await runBackup({
+        onProgress: ({ processed, total }) => setBackupProgress(`${processed}/${total}`),
       });
-      if (res.ok) {
-        showToast("success", "Backup completed");
-      } else {
-        showToast("error", "Backup failed");
-      }
-    } catch {
-      showToast("error", "Backup failed");
+      showToast(...backupToast(result));
     } finally {
       setBackingUp(false);
+      setBackupProgress(null);
     }
   }
 
@@ -340,7 +336,9 @@ export default function Nav() {
                   disabled={backingUp}
                   className="hidden md:inline-flex items-center bg-brand hover:bg-brand-hover px-3 py-1.5 text-xs font-medium text-on-brand transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-text/60"
                 >
-                  {backingUp ? "Backing up…" : "Back up"}
+                  {backingUp
+                    ? `Backing up${backupProgress ? ` ${backupProgress}` : ""}…`
+                    : "Back up"}
                 </button>
               )}
               {username ? (

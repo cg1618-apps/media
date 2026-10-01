@@ -3,6 +3,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
+import { backupToast, runBackup } from "../../api/backup";
+import { postEventStream } from "../../api/client";
 import { entityPath } from "../../lib/entityPath";
 import FxRatesEditor from "./FxRatesEditor";
 import { useAuth } from "../../contexts/AuthContext";
@@ -1472,6 +1474,7 @@ export default function Admin() {
   const [pullTab, setPullTab] = useState("Anime");
   const [pullLoading, setPullLoading] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushProgress, setPushProgress] = useState(null);
 
   // Calculate & Fix state
   const [calcLoading, setCalcLoading] = useState({});
@@ -1647,45 +1650,23 @@ export default function Admin() {
     abortRef.current = new AbortController();
 
     try {
-      const res = await fetch(url, {
-        method: "POST",
-        signal: abortRef.current.signal,
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Failed to start stream");
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop();
-        for (const part of parts) {
-          if (part.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(part.slice(6));
-              if (data.status === "processing")
-                setStatus(
-                  `[${data.processed}/${data.total}] Processing: ${data.current_entry}`,
-                );
-              else if (data.status === "success") {
-                setStatus(`${data.message} (${data.processed}/${data.total})`);
-                showToast("success", "Pipeline streaming completed.");
-                loadLogs();
-              } else if (data.status === "error") {
-                setStatus(`Error: ${data.message}`);
-              }
-            } catch {
-              /* ignore parse errors */
-            }
+      await postEventStream(
+        url,
+        (data) => {
+          if (data.status === "processing")
+            setStatus(
+              `[${data.processed}/${data.total}] Processing: ${data.current_entry}`,
+            );
+          else if (data.status === "success") {
+            setStatus(`${data.message} (${data.processed}/${data.total})`);
+            showToast("success", "Pipeline streaming completed.");
+            loadLogs();
+          } else if (data.status === "error") {
+            setStatus(`Error: ${data.message}`);
           }
-        }
-      }
+        },
+        { signal: abortRef.current.signal },
+      );
     } catch (e) {
       const setStatus = box === "fill" ? setFillStatus : setReplaceStatus;
       if (e.name === "AbortError") setStatus("Pipeline stopped forcefully.");
@@ -1715,6 +1696,20 @@ export default function Admin() {
       showToast("error", `Pipeline Error: ${e.message}`);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleBackup() {
+    setPushLoading(true);
+    try {
+      const result = await runBackup({
+        onProgress: ({ processed, total }) => setPushProgress(`${processed}/${total}`),
+      });
+      showToast(...backupToast(result));
+      loadLogs();
+    } finally {
+      setPushLoading(false);
+      setPushProgress(null);
     }
   }
 
@@ -2177,14 +2172,15 @@ export default function Admin() {
               icon="fa-cloud-upload-alt"
             >
               <button
-                onClick={() =>
-                  executeSync("/api/data-control/backup", setPushLoading)
-                }
+                onClick={handleBackup}
                 disabled={pushLoading}
                 className="w-full bg-surface hover:border-text border border-border-strong text-text py-2 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-60"
               >
                 {pushLoading ? (
-                  <i className="fas fa-circle-notch fa-spin"></i>
+                  <>
+                    <i className="fas fa-circle-notch fa-spin"></i>
+                    {pushProgress && <span className="ml-2">{pushProgress}</span>}
+                  </>
                 ) : (
                   "Push All Data"
                 )}

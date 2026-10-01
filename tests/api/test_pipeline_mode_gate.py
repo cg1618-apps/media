@@ -60,7 +60,10 @@ def _no_real_pipelines(monkeypatch):
     """
     import app.routers.data_control as dc
 
-    monkeypatch.setattr(dc, "execute_backup", lambda *a, **k: {"status": "stubbed"})
+    monkeypatch.setattr(
+        dc, "start_backup",
+        lambda session_factory, emit, **k: emit({"status": "success", "message": "stubbed"}),
+    )
     monkeypatch.setattr(dc, "execute_pull_all", lambda *a, **k: {"status": "stubbed"})
 
 

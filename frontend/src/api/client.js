@@ -42,3 +42,41 @@ export function jsonBody(body) {
     body: JSON.stringify(body),
   };
 }
+
+// POST to a Server-Sent Events endpoint and call onEvent with every `data:`
+// payload, parsed. Comment lines (": keepalive") and malformed payloads are
+// skipped. A non-2xx answer throws before any event, carrying `status` so a
+// caller can tell a refusal (409) from a failure.
+export async function postEventStream(url, onEvent, { signal } = {}) {
+  const res = await fetch(url, {
+    method: "POST",
+    credentials: "include",
+    signal,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    const error = new Error(data?.detail || res.statusText || "Request failed");
+    error.status = res.status;
+    throw error;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop();
+    for (const part of parts) {
+      if (!part.startsWith("data: ")) continue;
+      let event;
+      try {
+        event = JSON.parse(part.slice(6));
+      } catch {
+        continue;
+      }
+      onEvent(event);
+    }
+  }
+}

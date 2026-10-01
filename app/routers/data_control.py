@@ -7,6 +7,8 @@ type gets its endpoints by being added there. Backup, Calculate and Check are
 single actions and stay hand-written below.
 """
 
+import asyncio
+import json
 import logging
 from typing import Optional
 
@@ -15,6 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.database import SessionLocal
 from app.dependencies import get_db
 from app.services.calculation import (
     bulk_check_cover_image,
@@ -25,7 +28,7 @@ from app.services.calculation import (
 )
 from app.services.domain import find_all_duplicates, find_all_remarks
 from app.services.pipelines import fill, replace
-from app.services.pipelines.backup import execute_backup
+from app.services.pipelines.backup import BackupAlreadyRunning, start_backup
 from app.services.pipelines.clean import CleanAborted, apply_clean, scan_orphans
 from app.services.pipelines.pull import execute_pull_all, execute_pull_specific
 from app.services.pipelines.specs import PIPELINES
@@ -143,9 +146,49 @@ for _spec in PIPELINES.values():
 # ---------------------------------------------------------------------------
 
 
-@router.post("/backup", summary="Back up every table to Google Sheets")
-def trigger_backup_all(db: Session = Depends(get_db)):
-    return JSONResponse(content=execute_backup(db, action_type="Manual"))
+# Production sits behind a Cloudflare Tunnel, which answers 524 to a request
+# that sends nothing for ~100 s. A tab paused on a Sheets 429 waits 60-120 s,
+# so the stream says something well inside that window even when the Backup
+# has nothing new to report.
+BACKUP_KEEPALIVE_SECONDS = 15.0
+
+
+@router.post("/backup", summary="Back up every table to Google Sheets (SSE)")
+async def trigger_backup_all():
+    """
+    Starts the Backup on a worker of its own and relays its progress as SSE.
+
+    409 while another Backup runs. Once started, the Backup finishes and logs
+    its row whether or not anyone is still listening - see start_backup.
+    """
+    loop = asyncio.get_running_loop()
+    events: asyncio.Queue = asyncio.Queue()
+
+    def emit(event: dict) -> None:
+        # Never raise into the worker: a closed loop (the server shutting
+        # down) means nobody is listening, not that the Backup failed.
+        try:
+            loop.call_soon_threadsafe(events.put_nowait, event)
+        except RuntimeError:
+            pass
+
+    try:
+        start_backup(SessionLocal, emit, action_type="Manual")
+    except BackupAlreadyRunning as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    async def relay():
+        while True:
+            try:
+                event = await asyncio.wait_for(events.get(), BACKUP_KEEPALIVE_SECONDS)
+            except asyncio.TimeoutError:
+                yield ": keepalive\n\n"
+                continue
+            yield f"data: {json.dumps(event)}\n\n"
+            if event["status"] != "processing":
+                return
+
+    return _stream(relay())
 
 
 @router.post("/pull", summary="Restore every tab from Google Sheets")
