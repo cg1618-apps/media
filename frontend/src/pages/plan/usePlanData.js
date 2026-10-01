@@ -5,7 +5,7 @@ import { useMediaList } from "../../hooks/useMediaList";
 import { fetchJson } from "../../hooks/queryUtils";
 import { entryBucket } from "../../utils/planNext";
 import { getCoverForSlot } from "../../utils/statsUtils";
-import { getCoverUrl } from "../../utils/media";
+import { entryCover } from "../../lib/covers";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 
@@ -16,7 +16,7 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 // cover_entry_id, falling back to the first member entry with a usable cover.
 // Kept small and inline rather than promoted to a shared abstraction since
 // this is the only caller.
-function resolveSeriesCoverUrl(series, entriesByType) {
+function resolveSeriesCover(series, entriesByType) {
   if (!series) return null;
   const seriesId = String(series.system_id);
   const memberEntries = Object.values(entriesByType)
@@ -28,24 +28,25 @@ function resolveSeriesCoverUrl(series, entriesByType) {
       (entry) => String(entry.system_id) === String(series.cover_entry_id),
     );
     if (chosen?.cover_image_file && chosen.cover_image_file !== "N/A") {
-      return getCoverUrl(chosen.cover_image_file);
+      return entryCover(chosen);
     }
   }
   const withCover = memberEntries.find(
     (entry) => entry.cover_image_file && entry.cover_image_file !== "N/A",
   );
-  return withCover ? getCoverUrl(withCover.cover_image_file) : null;
+  return withCover ? entryCover(withCover) : null;
 }
 
 // Media types the Plan page's "Watch Next" section can hold, keyed the same
 // hyphenated way as plan_next.media_type and MEDIA_CONFIG.
 //
-// coverUrl is resolved here (not left to PlanNextCard) because Franchise and
+// cover ({ url, focus }, lib/covers.js) is resolved here (not left to PlanNextCard) because Franchise and
 // Series carry no cover_image_file column of their own - only cover_entry_id
 // / type_covers - and franchiseMap / seriesMap / allEntriesByFranchise /
 // entriesByType, the data needed to resolve that, already live in this hook.
 // Entry-scope rows are untouched: PlanNextCard keeps reading
-// row.cover_image_file for those directly, so coverUrl is left unset there.
+// row.cover_image_file / cover_image_focus for those directly, so cover is
+// left unset there.
 function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFranchise, entriesByType }) {
   if (row.missing) return { ...row, bucket: null };
 
@@ -58,7 +59,7 @@ function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFra
       // up with getCoverForSlot's forType vocabulary (TYPE_TO_ENTRY_TYPES:
       // "ACG", "TV", ...), so no forType is passed rather than a wrong one -
       // getCoverForSlot falls back to cover_entry_id / newest-entry-with-cover.
-      coverUrl: f ? getCoverForSlot(f, allEntriesByFranchise) : null,
+      cover: f ? getCoverForSlot(f, allEntriesByFranchise) : null,
     };
   }
   if (row.scope === "series") {
@@ -66,7 +67,7 @@ function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFra
     return {
       ...row,
       bucket: entryBucket(row.media_type, null, s, null),
-      coverUrl: resolveSeriesCoverUrl(s, entriesByType),
+      cover: resolveSeriesCover(s, entriesByType),
     };
   }
   const entry = entriesById[row.media_type]?.[String(row.target_id)];

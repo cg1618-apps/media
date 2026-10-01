@@ -95,6 +95,8 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
             ownerId={ownerId}
             role="cover"
             value={publisherForm.logo_file}
+            focus={publisherForm.logo_focus}
+            onFocusChange={(focus) => upf("logo_focus", focus)}
             onChange={(key, imageId) => {
               upf("logo_file", key);
               upf("pending_image_id", ownerId ? null : imageId);

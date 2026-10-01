@@ -1224,6 +1224,7 @@ export default function Add() {
         gender: personForm.gender || null,
         my_rating: personForm.my_rating || null,
         photo_file: personForm.photo_file || null,
+        photo_focus: personForm.photo_focus || null,
         mal_link: personForm.mal_link?.trim() || null,
         remark: personForm.remark || null,
         roles: personRoles,
@@ -1273,6 +1274,7 @@ export default function Add() {
         gender: characterForm.gender || null,
         my_rating: characterForm.my_rating || null,
         photo_file: characterForm.photo_file || null,
+        photo_focus: characterForm.photo_focus || null,
         remark: characterForm.remark || null,
       }),
       credentials: "include",
@@ -1313,6 +1315,7 @@ export default function Add() {
         display_name_field: studioForm.display_name_field || null,
         my_rating: studioForm.my_rating || null,
         logo_file: studioForm.logo_file || null,
+        logo_focus: studioForm.logo_focus || null,
         country: studioForm.country || null,
         website_url: studioForm.website_url || null,
         founded_date: studioForm.founded_date || null,
@@ -1362,6 +1365,7 @@ export default function Add() {
         display_name_field: publisherForm.display_name_field || null,
         my_rating: publisherForm.my_rating || null,
         logo_file: publisherForm.logo_file || null,
+        logo_focus: publisherForm.logo_focus || null,
         country: publisherForm.country || null,
         website_url: publisherForm.website_url || null,
         founded_date: publisherForm.founded_date || null,
@@ -1643,6 +1647,7 @@ export default function Add() {
       watch_next: mf.watch_next ?? null,
       to_rewatch: mf.to_rewatch ?? false,
       cover_image_file: mf.cover_image_file || null,
+      cover_image_focus: mf.cover_image_focus || null,
       remark: mf.remark || null,
     };
 
@@ -1813,6 +1818,7 @@ export default function Add() {
       watch_next: tvf.watch_next ?? null,
       to_rewatch: tvf.to_rewatch ?? false,
       cover_image_file: tvf.cover_image_file || null,
+      cover_image_focus: tvf.cover_image_focus || null,
       remark: tvf.remark || null,
     };
 
@@ -1965,6 +1971,7 @@ export default function Add() {
         })),
       watch_next: cf.watch_next ?? null,
       cover_image_file: cf.cover_image_file || null,
+      cover_image_focus: cf.cover_image_focus || null,
       remark: cf.remark || null,
     };
 
@@ -2133,6 +2140,7 @@ export default function Add() {
       read_next: mgf.read_next ?? false,
       to_reread: mgf.to_reread ?? false,
       cover_image_file: mgf.cover_image_file || null,
+      cover_image_focus: mgf.cover_image_focus || null,
       remark: mgf.remark || null,
     };
 
@@ -2341,6 +2349,7 @@ export default function Add() {
       read_next: nvf.read_next ?? false,
       to_reread: nvf.to_reread ?? false,
       cover_image_file: nvf.cover_image_file || null,
+      cover_image_focus: nvf.cover_image_focus || null,
       remark: nvf.remark || null,
     };
 
@@ -2525,6 +2534,7 @@ export default function Add() {
       read_next: cmf.read_next ?? false,
       to_reread: cmf.to_reread ?? false,
       cover_image_file: cmf.cover_image_file || null,
+      cover_image_focus: cmf.cover_image_focus || null,
       remark: cmf.remark || null,
     };
 

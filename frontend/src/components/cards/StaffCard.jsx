@@ -7,11 +7,20 @@
 // credit count under the name, is the same card.
 import { Link } from "react-router-dom";
 
-import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import { RatingStamp } from "../ui/primitives";
 
-function StaffCard({ to, label, name, imageFile, imageAlt, creditCount, rating }) {
+function StaffCard({
+  to,
+  label,
+  name,
+  imageFile,
+  imageFocus,
+  imageAlt,
+  creditCount,
+  rating,
+}) {
   const coverUrl = getCoverUrl(imageFile);
   const credits = creditCount ?? 0;
 
@@ -50,6 +59,7 @@ function StaffCard({ to, label, name, imageFile, imageAlt, creditCount, rating }
             src={coverUrl}
             alt={imageAlt}
             className="w-full h-full object-cover"
+            style={focusStyle(imageFocus)}
             onError={(e) => {
               e.target.src = FALLBACK_SVG;
             }}
@@ -80,6 +90,7 @@ export function PersonCard({ person }) {
       // The server resolves the fallback (the chosen entry's cover, then the
       // newest visible one); a payload without it still has photo_file.
       imageFile={person.display_photo_file ?? person.photo_file}
+      imageFocus={person.display_photo_focus ?? person.photo_focus}
       imageAlt="Photo"
       creditCount={person.credit_count}
       rating={person.my_rating}
@@ -94,6 +105,7 @@ export function StudioCard({ studio }) {
       label="Studio"
       name={studio.display_name || "Unknown Studio"}
       imageFile={studio.logo_file}
+      imageFocus={studio.logo_focus}
       imageAlt="Logo"
       creditCount={studio.credit_count}
       rating={studio.my_rating}
@@ -108,6 +120,7 @@ export function PublisherCard({ publisher }) {
       label="Publisher"
       name={publisher.display_name || "Unknown Publisher"}
       imageFile={publisher.logo_file}
+      imageFocus={publisher.logo_focus}
       imageAlt="Logo"
       creditCount={publisher.credit_count}
       rating={publisher.my_rating}

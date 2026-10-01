@@ -68,6 +68,7 @@ export const defaultAnime = () => ({
   seiyuu: "",
   watch_next: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -101,6 +102,7 @@ export const defaultAnimeMovie = () => ({
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -129,6 +131,7 @@ export const defaultMovie = () => ({
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -158,6 +161,7 @@ export const defaultTvShow = () => ({
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -187,6 +191,7 @@ export const defaultCartoon = () => ({
   sources: defaultRestrictedSources("cartoon"),
   watch_next: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -229,6 +234,7 @@ export const defaultManga = () => ({
   read_next: false,
   to_reread: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -279,6 +285,7 @@ export const defaultNovel = () => ({
   read_next: false,
   to_reread: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -314,6 +321,7 @@ export const defaultComic = () => ({
   read_next: false,
   to_reread: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -383,6 +391,7 @@ export const defaultGame = () => ({
   play_next: false,
   to_replay: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -433,6 +442,7 @@ export const defaultHComic = () => ({
   read_next: false,
   to_reread: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -505,6 +515,7 @@ export const defaultHGame = () => ({
   play_next: false,
   to_replay: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -544,6 +555,7 @@ export const defaultHentai = () => ({
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
+  cover_image_focus: null,
   pending_image_id: null,
   remark: "",
 });
@@ -599,6 +611,7 @@ export const defaultStudio = () => ({
   display_name_field: "",
   my_rating: "",
   logo_file: "",
+  logo_focus: null,
   pending_image_id: null,
   country: "",
   website_url: "",
@@ -620,6 +633,7 @@ export const defaultPublisher = () => ({
   display_name_field: "",
   my_rating: "",
   logo_file: "",
+  logo_focus: null,
   pending_image_id: null,
   country: "",
   website_url: "",
@@ -640,6 +654,7 @@ export const defaultPerson = () => ({
   gender: "",
   my_rating: "",
   photo_file: "",
+  photo_focus: null,
   pending_image_id: null,
   mal_link: "",
   remark: "",
@@ -658,6 +673,7 @@ export const defaultCharacter = () => ({
   gender: "",
   my_rating: "",
   photo_file: "",
+  photo_focus: null,
   pending_image_id: null,
   remark: "",
 });

@@ -82,14 +82,86 @@ export function withMediaType(entries, mediaType) {
   return entries.map((e) => ({ ...e, media_type: mediaType }));
 }
 
+// ---------------------------------------------------------------------------
+// Focal points
+//
+// Every owner image (an entry's cover, a person's photo, a studio's logo) is
+// rendered cropped with object-cover, which shows the centre unless told
+// otherwise. Its focus - "X% Y%", stored beside the key it qualifies
+// (cover_image_file -> cover_image_focus, photo_file -> photo_focus, ...) - is
+// the CSS object-position that keeps the subject in frame. null is centred.
+// ---------------------------------------------------------------------------
+
+/** The inline style that applies a focal point; undefined when centred. */
+export function focusStyle(focus) {
+  return focus ? { objectPosition: focus } : undefined;
+}
+
+const CENTRE = Object.freeze({ x: 50, y: 50 });
+const FOCUS_PATTERN = /^\s*(\d{1,3})%\s+(\d{1,3})%\s*$/;
+
+function clampPercent(n) {
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+/** "X% Y%" -> { x, y }; anything else (null, "", malformed) is the centre. */
+export function parseFocus(focus) {
+  const m = typeof focus === "string" ? FOCUS_PATTERN.exec(focus) : null;
+  if (!m) return CENTRE;
+  return { x: clampPercent(Number(m[1])), y: clampPercent(Number(m[2])) };
+}
+
+/**
+ * { x, y } -> "X% Y%", clamped to whole percentages in 0..100. The centre is
+ * null rather than "50% 50%": a centred image stores no focus at all.
+ */
+export function formatFocus({ x, y }) {
+  const cx = clampPercent(x);
+  const cy = clampPercent(y);
+  if (cx === CENTRE.x && cy === CENTRE.y) return null;
+  return `${cx}% ${cy}%`;
+}
+
+/**
+ * The resolved cover of a group (franchise, series, collection, favourite
+ * slot): the URL it borrows and the focus of the entry it borrowed it from.
+ * Every group resolver below returns this shape.
+ */
+export const NO_COVER = Object.freeze({ url: FALLBACK_SVG, focus: null });
+
+function hasStoredCover(entry) {
+  return Boolean(entry?.cover_image_file && entry.cover_image_file !== "N/A");
+}
+
+/** An entry's own stored cover, with its focus. */
+export function entryCover(entry) {
+  if (!hasStoredCover(entry)) return NO_COVER;
+  return {
+    url: getCoverUrl(entry.cover_image_file),
+    focus: entry.cover_image_focus || null,
+  };
+}
+
 /**
  * Cover key for an entry that has no cover_image_file of its own.
  * Callers must tag entries with the media type they were fetched as - the API
  * payloads do not carry one, and without it there is no folder to look in.
+ * A convention cover has no stored focus, so it is centred.
  */
 function conventionCover(entry) {
-  if (!entry.media_type) return FALLBACK_SVG;
-  return getCoverUrl(`${entry.media_type}/${entry.system_id}.jpg`);
+  if (!entry.media_type) return NO_COVER;
+  return {
+    url: getCoverUrl(`${entry.media_type}/${entry.system_id}.jpg`),
+    focus: null,
+  };
+}
+
+/** The newest of `entries` that has a stored cover, or null. */
+function newestWithCover(entries) {
+  const withCovers = entries.filter(hasStoredCover);
+  if (withCovers.length === 0) return null;
+  withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
+  return withCovers[0];
 }
 
 /**
@@ -103,6 +175,8 @@ function conventionCover(entry) {
  * `<media_type>/<system_id>.jpg`: the id alone no longer names a file. An
  * entry that arrives without a media_type falls through to the placeholder
  * rather than to a guessed, broken URL.
+ *
+ * Returns `{ url, focus }` (see NO_COVER).
  */
 export function getFranchiseCover(
   franchise,
@@ -112,26 +186,20 @@ export function getFranchiseCover(
   if (franchise.cover_entry_id) {
     const coverEntry = allEntriesDict[franchise.cover_entry_id];
     if (coverEntry) {
-      if (coverEntry.cover_image_file && coverEntry.cover_image_file !== "N/A")
-        return getCoverUrl(coverEntry.cover_image_file);
+      if (hasStoredCover(coverEntry)) return entryCover(coverEntry);
       return conventionCover(coverEntry);
     }
   }
   const entries = allEntriesByFranchise[franchise.system_id] || [];
-  const withCovers = entries.filter(
-    (e) => e.cover_image_file && e.cover_image_file !== "N/A",
-  );
-  if (withCovers.length > 0) {
-    withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
-    return getCoverUrl(withCovers[0].cover_image_file);
-  }
+  const newest = newestWithCover(entries);
+  if (newest) return entryCover(newest);
   if (entries.length > 0) {
     const sorted = [...entries].sort(
       (a, b) => getEntryYear(b) - getEntryYear(a),
     );
     return conventionCover(sorted[0]);
   }
-  return FALLBACK_SVG;
+  return NO_COVER;
 }
 
 /**
@@ -147,28 +215,18 @@ export function getFranchiseCover(
  * caller must pass every one of them: a series whose chosen cover_entry_id
  * points at a type left out of the list silently falls back to the
  * placeholder.
+ *
+ * Returns `{ url, focus }` (see NO_COVER).
  */
 export function getSeriesCover(series, entries) {
   if (series.cover_entry_id) {
     const coverEntry = entries.find(
       (e) => e.system_id === series.cover_entry_id,
     );
-    if (
-      coverEntry &&
-      coverEntry.cover_image_file &&
-      coverEntry.cover_image_file !== "N/A"
-    ) {
-      return getCoverUrl(coverEntry.cover_image_file);
-    }
+    if (hasStoredCover(coverEntry)) return entryCover(coverEntry);
   }
-  const withCovers = entries.filter(
-    (e) => e.cover_image_file && e.cover_image_file !== "N/A",
-  );
-  if (withCovers.length > 0) {
-    withCovers.sort((a, b) => getEntryYear(b) - getEntryYear(a));
-    return getCoverUrl(withCovers[0].cover_image_file);
-  }
-  return FALLBACK_SVG;
+  const newest = newestWithCover(entries);
+  return newest ? entryCover(newest) : NO_COVER;
 }
 
 /**
@@ -176,6 +234,8 @@ export function getSeriesCover(series, entries) {
  *   1. its chosen cover_franchise_id, resolved via getFranchiseCover
  *   2. else the first member franchise (by name) that yields a real cover
  *   3. else the placeholder
+ *
+ * Returns `{ url, focus }` (see NO_COVER).
  */
 export function getCollectionCover(
   collection,
@@ -191,13 +251,13 @@ export function getCollectionCover(
       (f) => f.system_id === collection.cover_franchise_id,
     );
     if (chosen) {
-      const url = resolve(chosen);
-      if (url !== FALLBACK_SVG) return url;
+      const cover = resolve(chosen);
+      if (cover.url !== FALLBACK_SVG) return cover;
     }
   }
   for (const f of memberFranchises) {
-    const url = resolve(f);
-    if (url !== FALLBACK_SVG) return url;
+    const cover = resolve(f);
+    if (cover.url !== FALLBACK_SVG) return cover;
   }
-  return FALLBACK_SVG;
+  return NO_COVER;
 }

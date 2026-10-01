@@ -159,6 +159,7 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     seiyuu: anime.seiyuu || "",
     watch_next: anime.watch_next ?? false,
     cover_image_file: anime.cover_image_file || "",
+    cover_image_focus: anime.cover_image_focus || null,
     remark: anime.remark || "",
   };
 }
@@ -246,6 +247,7 @@ function movieToForm(movie, allFranchises, defaults) {
     watch_next: movie.watch_next ?? false,
     to_rewatch: movie.to_rewatch ?? false,
     cover_image_file: movie.cover_image_file || "",
+    cover_image_focus: movie.cover_image_focus || null,
     remark: movie.remark || "",
   };
 }
@@ -631,6 +633,7 @@ export default function Modify() {
       watch_next: m.watch_next ?? false,
       to_rewatch: m.to_rewatch ?? false,
       cover_image_file: m.cover_image_file || "",
+      cover_image_focus: m.cover_image_focus || null,
       remark: m.remark || "",
     };
   }
@@ -666,6 +669,7 @@ export default function Modify() {
       to_rewatch: t.to_rewatch ?? false,
       sources: t.sources || [],
       cover_image_file: t.cover_image_file || "",
+      cover_image_focus: t.cover_image_focus || null,
       remark: t.remark || "",
     };
   }
@@ -701,6 +705,7 @@ export default function Modify() {
       sources: c.sources || [],
       watch_next: c.watch_next ?? false,
       cover_image_file: c.cover_image_file || "",
+      cover_image_focus: c.cover_image_focus || null,
       remark: c.remark || "",
     };
   }
@@ -746,6 +751,7 @@ export default function Modify() {
       read_next: m.read_next ?? false,
       to_reread: m.to_reread ?? false,
       cover_image_file: m.cover_image_file || "",
+      cover_image_focus: m.cover_image_focus || null,
       remark: m.remark || "",
     };
   }
@@ -797,6 +803,7 @@ export default function Modify() {
       read_next: n.read_next ?? false,
       to_reread: n.to_reread ?? false,
       cover_image_file: n.cover_image_file || "",
+      cover_image_focus: n.cover_image_focus || null,
       remark: n.remark || "",
     };
   }
@@ -833,6 +840,7 @@ export default function Modify() {
       read_next: c.read_next ?? false,
       to_reread: c.to_reread ?? false,
       cover_image_file: c.cover_image_file || "",
+      cover_image_focus: c.cover_image_focus || null,
       remark: c.remark || "",
     };
   }
@@ -895,6 +903,7 @@ export default function Modify() {
       play_next: g.play_next ?? false,
       to_replay: g.to_replay ?? false,
       cover_image_file: g.cover_image_file || "",
+      cover_image_focus: g.cover_image_focus || null,
       remark: g.remark || "",
     };
   }
@@ -968,6 +977,7 @@ export default function Modify() {
       play_next: g.play_next ?? false,
       to_replay: g.to_replay ?? false,
       cover_image_file: g.cover_image_file || "",
+      cover_image_focus: g.cover_image_focus || null,
       remark: g.remark || "",
     };
   }
@@ -1012,6 +1022,7 @@ export default function Modify() {
       read_next: h.read_next ?? false,
       to_reread: h.to_reread ?? false,
       cover_image_file: h.cover_image_file || "",
+      cover_image_focus: h.cover_image_focus || null,
       remark: h.remark || "",
     };
   }
@@ -1049,6 +1060,7 @@ export default function Modify() {
       watch_next: h.watch_next ?? false,
       to_rewatch: h.to_rewatch ?? false,
       cover_image_file: h.cover_image_file || "",
+      cover_image_focus: h.cover_image_focus || null,
       remark: h.remark || "",
     };
   }
@@ -1616,6 +1628,7 @@ export default function Modify() {
       watch_next: mmf.watch_next ?? null,
       to_rewatch: mmf.to_rewatch ?? false,
       cover_image_file: mmf.cover_image_file || null,
+      cover_image_focus: mmf.cover_image_focus || null,
       remark: mmf.remark || null,
     };
     const res = await fetch(`/api/movies/${editingItem.system_id}`, {
@@ -1748,6 +1761,7 @@ export default function Modify() {
       watch_next: tvmf.watch_next ?? null,
       to_rewatch: tvmf.to_rewatch ?? false,
       cover_image_file: tvmf.cover_image_file || null,
+      cover_image_focus: tvmf.cover_image_focus || null,
       remark: tvmf.remark || null,
     };
     const res = await fetch(`/api/tv-shows/${editingItem.system_id}`, {
@@ -1881,6 +1895,7 @@ export default function Modify() {
         })),
       watch_next: cmf.watch_next ?? null,
       cover_image_file: cmf.cover_image_file || null,
+      cover_image_focus: cmf.cover_image_focus || null,
       remark: cmf.remark || null,
     };
     const res = await fetch(`/api/cartoon/${editingItem.system_id}`, {
@@ -2029,6 +2044,7 @@ export default function Modify() {
       read_next: cmgf.read_next ?? false,
       to_reread: cmgf.to_reread ?? false,
       cover_image_file: cmgf.cover_image_file || null,
+      cover_image_focus: cmgf.cover_image_focus || null,
       remark: cmgf.remark || null,
     };
     const res = await fetch(`/api/manga/${editingItem.system_id}`, {
@@ -2218,6 +2234,7 @@ export default function Modify() {
       read_next: cnvf.read_next ?? false,
       to_reread: cnvf.to_reread ?? false,
       cover_image_file: cnvf.cover_image_file || null,
+      cover_image_focus: cnvf.cover_image_focus || null,
       remark: cnvf.remark || null,
     };
     const res = await fetch(`/api/novel/${editingItem.system_id}`, {
@@ -2385,6 +2402,7 @@ export default function Modify() {
       read_next: ccmf.read_next ?? false,
       to_reread: ccmf.to_reread ?? false,
       cover_image_file: ccmf.cover_image_file || null,
+      cover_image_focus: ccmf.cover_image_focus || null,
       remark: ccmf.remark || null,
     };
     const res = await fetch(`/api/comic/${editingItem.system_id}`, {

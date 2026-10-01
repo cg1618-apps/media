@@ -53,6 +53,7 @@ function emptyRow(position) {
     role: "",
     position,
     photo_file: null,
+    photo_focus: null,
     remark: "",
   };
 }
@@ -106,8 +107,21 @@ export default function CastEditor({ mediaType, value, onChange }) {
     };
   }, [showSeiyuu, mediaType]);
 
-  const updateRow = (i, patch) =>
-    onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  // The photo picker reports two changes from one action - the new key, then
+  // the cleared focus - before the parent has re-rendered, so each patch
+  // applies to the rows the previous one produced, not to this render's
+  // (stale) `rows`, or the second would undo the first.
+  const latestRows = useRef(rows);
+  useEffect(() => {
+    latestRows.current = value || [];
+  }, [value]);
+  const updateRow = (i, patch) => {
+    const next = latestRows.current.map((r, j) =>
+      j === i ? { ...r, ...patch } : r,
+    );
+    latestRows.current = next;
+    onChange(next);
+  };
 
   const addRow = () => onChange([...rows, emptyRow(rows.length)]);
 
@@ -373,12 +387,15 @@ export default function CastEditor({ mediaType, value, onChange }) {
           {/* No ownerType or ownerId: a casting cannot own an attachment,
               because replace_casting re-inserts every row on each save. The
               picked key rides in photo_file with the cast PUT, and the image
-              library counts it as in use by reading that column. */}
+              library counts it as in use by reading that column. Its focal
+              point rides beside it in photo_focus. */}
           <div role="group" aria-label="Photo" className="shrink-0 pt-0.5">
             <ImagePicker
               compact
               value={row.photo_file || ""}
               onChange={(key) => updateRow(i, { photo_file: key || null })}
+              focus={row.photo_focus || null}
+              onFocusChange={(focus) => updateRow(i, { photo_focus: focus })}
             />
           </div>
 

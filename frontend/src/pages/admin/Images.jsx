@@ -55,6 +55,9 @@ function ImageTile({ image, onDetach, onDelete, busy }) {
             src={getCoverUrl(image.thumb_key || image.storage_key)}
             alt={image.original_filename || ""}
             className="h-full w-full object-cover"
+            // A library image: its focus belongs to each owner it is
+            // attached to, not to the file, so the thumbnail stays centred.
+            data-focus="none"
           />
         )}
       </div>

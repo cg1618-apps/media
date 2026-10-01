@@ -32,6 +32,7 @@ import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import { progressToast } from "../../lib/progressToast";
+import { focusStyle } from "../../lib/covers";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -66,6 +67,7 @@ function CastSection({ cast }) {
                 src={getCoverUrl(row.photo_file)}
                 alt=""
                 className="w-full h-full object-cover"
+                style={focusStyle(row.photo_focus)}
                 onError={(e) => {
                   e.target.src = FALLBACK_SVG;
                 }}
@@ -355,6 +357,7 @@ export default function Anime() {
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"
+                  style={focusStyle(anime.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}

@@ -6,7 +6,7 @@
 // franchise.
 import { Link } from "react-router-dom";
 
-import { getCoverUrl } from "../../lib/covers";
+import { getCoverUrl, focusStyle } from "../../lib/covers";
 import { mediaTypeChip } from "../../config/mediaTypeColors";
 
 export default function NodePanel({
@@ -24,6 +24,7 @@ export default function NodePanel({
           src={getCoverUrl(node.cover_image_file)}
           alt=""
           className="h-16 w-12 shrink-0 rounded-md object-cover"
+          style={focusStyle(node.cover_image_focus)}
         />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-black leading-tight text-text">

@@ -9,6 +9,7 @@ import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
+import { focusStyle } from "../../lib/covers";
 
 const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint";
 
@@ -84,6 +85,7 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
               src={imageUrl}
               alt="Cover"
               className="w-full h-full object-cover"
+              style={focusStyle(game.cover_image_focus)}
               onError={(e) => {
                 e.target.src = FALLBACK_SVG;
               }}

@@ -1,6 +1,6 @@
 # Plan Next
 
-Last verified: 2026-09-10
+Last verified: 2026-10-01
 
 ## What this is for
 
@@ -146,7 +146,7 @@ Notes:
 - `DELETE /target` exists so a toggle needs one call without knowing the row id. It is declared before `/{system_id}` so the literal path wins.
 - Both deletes call `log_deleted_record(db, row, "Plan Next")` from `app/utils/data_control_utils.py`.
 - `GET /` runs `drop_hidden_rows` (`app/services/rbac/enforcement.py`) on entry-scope rows only; group-scope rows are always returned.
-- `PlanNextRead` adds resolved display data: `missing` (default `True`; set `False` only when the target row is found), `display_name`, `label`, `is_tier`, `cover_image_file`, `nav_path`, and `expectation` (whichever of `franchise_expectation`, `series_expectation`, `expectation` the target carries, so the browser can sort without knowing the tier). Franchise and series carry no `cover_image_file`, so the frontend resolves their covers itself.
+- `PlanNextRead` adds resolved display data: `missing` (default `True`; set `False` only when the target row is found), `display_name`, `label`, `is_tier`, `cover_image_file`, `cover_image_focus`, `nav_path`, and `expectation` (whichever of `franchise_expectation`, `series_expectation`, `expectation` the target carries, so the browser can sort without knowing the tier). Franchise and series carry no `cover_image_file` or `cover_image_focus`, so the frontend resolves their covers itself.
 - Nothing here derives plans automatically; every row is curated from the admin forms, the franchise/series pages, or the entry flags. `GET /kinds` is documented and public but nothing in the frontend calls it (see UI).
 
 ## UI

@@ -376,6 +376,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 4. For every non-blank data row:
    - `parse_row_to_dict(headers, row)` then the tab's parser from `TAB_PARSERS`.
    - **Header filter**: keep only keys that were in the sheet's header row. Parsers emit their full key set, so without this a sheet predating a migration would null the new column on every Pull. A blank cell under a present header is kept and still means "clear this value".
+   - **Image focal points** travel with their images: `cover_image_focus` on the `Media` tab (the entry parsers name it too, beside `cover_image_file`), `photo_focus` on `Person`, `Character` and `Character Casting`, `logo_focus` on `Studio` and `Publisher`. Backup writes them with no code of its own — they are table columns. Pull checks each cell against the API's rule (`coerce_image_focus`, `"X% Y%"` with whole numbers 0-100) and restores a blank or malformed cell as NULL — centred — rather than refusing the row, the way `gender` and `my_rating` fold an unknown value. See [data-model.md](data-model.md#image-focal-points).
    - **Link columns popped**: for entry tabs, each credit role and tag field header (`sheet_column_for(media_type, key)`) is popped out of the dict into `pending_credits` / `pending_tags` — they are no longer real columns on the model.
    - **Parent resolution** (names in the sheet → UUIDs):
 

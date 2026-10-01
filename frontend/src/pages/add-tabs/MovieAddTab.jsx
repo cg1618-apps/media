@@ -392,6 +392,8 @@ export default function MovieAddTab({
           ownerType="movie"
           role="cover"
           value={mf.cover_image_file}
+          focus={mf.cover_image_focus}
+          onFocusChange={(focus) => umf("cover_image_focus", focus)}
           onChange={(key, imageId) => {
             umf("cover_image_file", key);
             umf("pending_image_id", imageId);

@@ -253,6 +253,13 @@ export const COMMON_FIELD_META = {
     autofillable: false,
     group: "Media",
   },
+  cover_image_focus: {
+    label: "Cover Image Focus",
+    control: "none",
+    defaultable: false,
+    autofillable: false,
+    group: "Media",
+  },
   remark: { label: "Remark", control: "textarea", group: "Notes" },
 };
 
@@ -1478,6 +1485,13 @@ export const TYPE_FIELD_META = {
       autofillable: false,
       group: "Media",
     },
+    logo_focus: {
+      label: "Logo Focus",
+      control: "none",
+      defaultable: false,
+      autofillable: false,
+      group: "Media",
+    },
     // Free text, not control: "date" — both columns take YYYY, YYYY-MM or
     // YYYY-MM-DD, which a native date picker cannot express. Same reason
     // release_date above is text.
@@ -1521,6 +1535,13 @@ export const TYPE_FIELD_META = {
     country: { label: "Country", group: "Classification", autofillable: false },
     logo_file: {
       label: "Logo File",
+      control: "none",
+      defaultable: false,
+      autofillable: false,
+      group: "Media",
+    },
+    logo_focus: {
+      label: "Logo Focus",
       control: "none",
       defaultable: false,
       autofillable: false,
@@ -1576,6 +1597,13 @@ export const TYPE_FIELD_META = {
       autofillable: false,
       group: "Media",
     },
+    photo_focus: {
+      label: "Photo Focus",
+      control: "none",
+      defaultable: false,
+      autofillable: false,
+      group: "Media",
+    },
     remark: { autofillable: false },
   },
 
@@ -1609,6 +1637,13 @@ export const TYPE_FIELD_META = {
     my_rating: { autofillable: false },
     photo_file: {
       label: "Photo File",
+      control: "none",
+      defaultable: false,
+      autofillable: false,
+      group: "Media",
+    },
+    photo_focus: {
+      label: "Photo Focus",
       control: "none",
       defaultable: false,
       autofillable: false,

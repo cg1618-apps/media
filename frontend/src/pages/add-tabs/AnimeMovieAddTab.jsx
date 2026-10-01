@@ -410,6 +410,8 @@ export default function AnimeMovieAddTab({
           ownerType="anime-movie"
           role="cover"
           value={amf.cover_image_file}
+          focus={amf.cover_image_focus}
+          onFocusChange={(focus) => uam("cover_image_focus", focus)}
           onChange={(key, imageId) => {
             uam("cover_image_file", key);
             uam("pending_image_id", imageId);

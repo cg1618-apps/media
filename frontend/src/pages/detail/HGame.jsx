@@ -48,6 +48,7 @@ import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import { NotesProvider } from "../notes/NotesContext";
 import { NotesBlocks, NotesGroup } from "../notes/NotesTemplate";
 import { GameCopiesSection, yesNo } from "./Game";
+import { focusStyle } from "../../lib/covers";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -334,6 +335,7 @@ export default function HGame() {
                     src={imageUrl}
                     alt="Cover"
                     className="w-full h-full object-cover"
+                    style={focusStyle(hGame.cover_image_focus)}
                     onError={(e) => {
                       e.target.src = FALLBACK_SVG;
                     }}

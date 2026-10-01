@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from app.schemas.image_focus import ImageFocus
 from app.utils.character_roles import check_character_role
 from app.utils.entity_vocab import check_gender, check_my_rating
 
@@ -21,6 +22,7 @@ class CharacterBase(BaseModel):
     gender: Optional[str] = None
     my_rating: Optional[str] = None
     photo_file: Optional[str] = None
+    photo_focus: ImageFocus = None
     # The entry whose picture stands in when photo_file is NULL; see
     # app/services/domain/entity_photos.py. A write must name an entry this
     # character is cast on (the router checks; 422 otherwise).
@@ -112,6 +114,9 @@ class CharacterResponse(CharacterBase):
     # Resolved per viewer by app/services/domain/entity_photos.py: the storage
     # key to show (photo_file, else a visible entry's picture), or None.
     display_photo_file: Optional[str] = None
+    # The focal point stored beside whichever source display_photo_file came
+    # from, or None (centred).
+    display_photo_focus: Optional[str] = None
     # Hyphenated media types of the visible entries this character is cast
     # on, sorted and distinct; restricted is True when one is a gated type.
     media_types: List[str] = []

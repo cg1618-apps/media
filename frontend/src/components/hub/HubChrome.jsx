@@ -6,7 +6,7 @@
 // its tab wiring; you only come here when a change should land on all three
 // tiers at once. See docs/frontend/design-system.md.
 import { Link } from "react-router-dom";
-import { FALLBACK_SVG } from "../../utils/media";
+import { FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { Eyebrow, Slip, RatingStamp, ProgressRule } from "../ui/primitives";
 
 /**
@@ -84,7 +84,8 @@ export function AdminStrip({ editId }) {
  * completion - a progress rule along the bottom edge. Leave `total` undefined
  * to drop the rule (a collection tracks no completion).
  */
-export function HeroCover({ src, spine, id, rating, done, total, pct }) {
+// `cover` is a resolved { url, focus } from lib/covers.js.
+export function HeroCover({ cover, spine, id, rating, done, total, pct }) {
   return (
     <div className="flex border border-border bg-surface">
       <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
@@ -111,9 +112,10 @@ export function HeroCover({ src, spine, id, rating, done, total, pct }) {
         <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
           <img
             loading="lazy"
-            src={src}
+            src={cover?.url ?? FALLBACK_SVG}
             alt="Cover"
             className="w-full h-full object-cover"
+            style={focusStyle(cover?.focus)}
             onError={(e) => {
               e.target.src = FALLBACK_SVG;
             }}

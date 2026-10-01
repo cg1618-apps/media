@@ -567,6 +567,8 @@ export default function NovelModifyTab({
           ownerId={editingItem?.system_id}
           role="cover"
           value={cnvf.cover_image_file}
+          focus={cnvf.cover_image_focus}
+          onFocusChange={(focus) => unv("cover_image_focus", focus)}
           onChange={(key) => unv("cover_image_file", key)}
         />
       </Field>

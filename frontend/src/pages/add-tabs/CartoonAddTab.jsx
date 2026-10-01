@@ -396,6 +396,8 @@ export default function CartoonAddTab({
           ownerType="cartoon"
           role="cover"
           value={cf.cover_image_file}
+          focus={cf.cover_image_focus}
+          onFocusChange={(focus) => uc("cover_image_focus", focus)}
           onChange={(key, imageId) => {
             uc("cover_image_file", key);
             uc("pending_image_id", imageId);

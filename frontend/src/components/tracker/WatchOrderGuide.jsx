@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 
 import { ADMIN_TABS } from "../../config/adminTabs";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
-import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { Chip, Eyebrow } from "../ui/primitives";
 
 const TYPE_LABELS = {
@@ -284,6 +284,7 @@ function StepRow({ item, index, roomy }) {
         className={`shrink-0 object-cover bg-surface-2 border border-border ${
           roomy ? "w-14 h-20" : "w-10 h-14"
         }`}
+        style={focusStyle(item.cover_image_focus)}
       />
 
       <div className="min-w-0 flex-1">

@@ -1,6 +1,6 @@
 # Media Relations
 
-Last verified: 2026-09-29
+Last verified: 2026-10-01
 
 ## What this is for
 
@@ -105,9 +105,9 @@ Router: `app/routers/media_relation.py`, prefix `/api/media-relation`. Reads are
 | Method & path | Auth | Params / body | Response | Errors |
 | --- | --- | --- | --- | --- |
 | `GET /kinds` | public | — | `RelationKindResponse[]`: `key, label, inverse_label, family, symmetric, stored_as`. Fourteen stored kinds plus `prequel` (label "Prequel", `stored_as: "sequel"`) | — |
-| `GET /for-entry` | public, viewer-filtered | query `media_type`, `entry_id` | `MediaRelationResolved[]`: `system_id, relation_type, label, family, direction, remark, other{media_type, entry_id, missing, display_name, label, cover_image_file, franchise_id, nav_path}, created_at, updated_at, derived, via` | `400` unknown media type; `404` entry hidden or unknown |
+| `GET /for-entry` | public, viewer-filtered | query `media_type`, `entry_id` | `MediaRelationResolved[]`: `system_id, relation_type, label, family, direction, remark, other{media_type, entry_id, missing, display_name, label, cover_image_file, cover_image_focus, franchise_id, nav_path}, created_at, updated_at, derived, via` | `400` unknown media type; `404` entry hidden or unknown |
 | `GET /` | public, viewer-filtered | exactly one of `franchise_id`, `collection_id` | `MediaRelationResponse[]` (raw rows) — backs the admin page's per-entry count badges. A row naming any hidden endpoint is dropped whole | `400` if not exactly one scope |
-| `GET /graph` | public, viewer-filtered | exactly one of `franchise_id`, `collection_id`, `series_id` | `RelationGraphResponse` `{nodes, edges}`. Node: `key, media_type, entry_id, in_scope, missing, display_name, search_names, cover_image_file, franchise_id, nav_path, type_label`. Edge: `system_id, from, to, relation_type, label, inverse_label, family, remark` (`from`/`to` are node keys) | `400` if not exactly one scope |
+| `GET /graph` | public, viewer-filtered | exactly one of `franchise_id`, `collection_id`, `series_id` | `RelationGraphResponse` `{nodes, edges}`. Node: `key, media_type, entry_id, in_scope, missing, display_name, search_names, cover_image_file, cover_image_focus, franchise_id, nav_path, type_label`. Edge: `system_id, from, to, relation_type, label, inverse_label, family, remark` (`from`/`to` are node keys) | `400` if not exactly one scope |
 | `POST /` | admin | `MediaRelationCreate`: `from_type, from_id, kind, to_type, to_id, remark?` | `201` `MediaRelationResponse` (normalized row) | `400` bad kind / type / missing entry; `409` self or duplicate; `422` malformed body |
 | `PATCH /{system_id}` | admin | `MediaRelationUpdate`: `kind?, swap=false, remark?` | `MediaRelationResponse` | `404`; `400` bad kind; `409` self/duplicate after normalization |
 | `DELETE /scope` | admin | exactly one of `franchise_id`, `collection_id`, `series_id` | `{status, deleted, message}` — deletes every row `/graph` would draw for that scope (including ghost links with one end outside), all logged to the deleted-record log, one commit. Not undoable on the page | `400` if not exactly one scope |

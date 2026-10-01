@@ -10,6 +10,10 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+# The image focal-point rule, so a restored focus is judged exactly as a form
+# value is.
+from app.schemas.image_focus import coerce_image_focus
+
 # The h-game vocabularies, and the lenient list rule a restore uses, imported
 # for the same reason as GAME_COMPLETION_FLAGS below.
 from app.services.domain.h_game import CHOICE_LISTS, SINGLE_CHOICES, lenient_choice_list
@@ -133,6 +137,20 @@ def _uuid_or_none(val: Any) -> Any:
     """
     parsed = parse_from_sheet(val, UUID)
     return parsed if isinstance(parsed, UUID) else None
+
+
+def _focus_from_sheet(val: Any) -> Optional[str]:
+    """
+    An image focus ("X% Y%") kept when well-formed, None otherwise.
+
+    Folded rather than refused, like gender and my_rating: a malformed cell -
+    a hand edit in the sheet - restores as centred instead of aborting the
+    tab, and never reaches a response schema that would refuse to serve it.
+    """
+    try:
+        return coerce_image_focus(parse_from_sheet(val, str))
+    except ValueError:
+        return None
 
 
 def parse_completion_flag(val_str: Any) -> Optional[str]:
@@ -369,6 +387,7 @@ def parse_media_from_sheet(raw: dict) -> dict:
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "media_type": parse_from_sheet(raw.get("media_type"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -597,6 +616,7 @@ def parse_anime_from_sheet(raw: dict) -> dict:
             raw.get("anilist_popularity_rank"), int
         ),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -638,6 +658,7 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -677,6 +698,7 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "type_slots": _safe_json(raw.get("type_slots")),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -707,6 +729,7 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -738,6 +761,7 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -780,6 +804,7 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -829,6 +854,7 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "openlibrary_link": parse_from_sheet(raw.get("openlibrary_link"), str),
         "openlibrary_id": parse_from_sheet(raw.get("openlibrary_id"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -895,6 +921,7 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         "comicvine_id": parse_from_sheet(raw.get("comicvine_id"), int),
         "comicvine_link": parse_from_sheet(raw.get("comicvine_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -950,6 +977,7 @@ def parse_game_from_sheet(raw: dict) -> dict:
             raw.get("metacritic_user_score"), float
         ),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "igdb_id": parse_from_sheet(raw.get("igdb_id"), int),
         "igdb_link": parse_from_sheet(raw.get("igdb_link"), str),
         "steam_appid": parse_from_sheet(raw.get("steam_appid"), int),
@@ -1012,6 +1040,7 @@ def parse_h_comic_from_sheet(raw: dict) -> dict:
         "h_genre_appearance": parse_from_sheet(raw.get("h_genre_appearance"), str),
         "h_genre_relation": parse_from_sheet(raw.get("h_genre_relation"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -1057,6 +1086,7 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
         "h_genre_appearance": parse_from_sheet(raw.get("h_genre_appearance"), str),
         "h_genre_relation": parse_from_sheet(raw.get("h_genre_relation"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -1172,6 +1202,7 @@ def parse_h_game_from_sheet(raw: dict) -> dict:
         "h_genre_appearance": parse_from_sheet(raw.get("h_genre_appearance"), str),
         "h_genre_relation": parse_from_sheet(raw.get("h_genre_relation"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "cover_image_focus": _focus_from_sheet(raw.get("cover_image_focus")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -1259,6 +1290,7 @@ def parse_person_from_sheet(raw: dict) -> dict:
         "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
         "my_rating": normalize_my_rating(parse_from_sheet(raw.get("my_rating"), str)),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
+        "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
         "photo_fallback_entry_id": _uuid_or_none(raw.get("photo_fallback_entry_id")),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
@@ -1287,6 +1319,7 @@ def parse_character_from_sheet(raw: dict) -> dict:
         "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
         "my_rating": normalize_my_rating(parse_from_sheet(raw.get("my_rating"), str)),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
+        "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
         "photo_fallback_entry_id": _uuid_or_none(raw.get("photo_fallback_entry_id")),
         # Kept when it is one of CHARACTER_ROLES, blank otherwise.
         "role": normalize_character_role(parse_from_sheet(raw.get("role"), str)),
@@ -1317,6 +1350,7 @@ def parse_character_casting_from_sheet(raw: dict) -> dict:
         "role": parse_from_sheet(raw.get("role"), str),
         "position": parse_from_sheet(raw.get("position"), int),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
+        "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
     }
@@ -1351,6 +1385,7 @@ def parse_studio_from_sheet(raw: dict) -> dict:
         "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "logo_file": parse_from_sheet(raw.get("logo_file"), str),
+        "logo_focus": _focus_from_sheet(raw.get("logo_focus")),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "founded_date": parse_from_sheet(raw.get("founded_date"), str),
         "defunct_date": parse_from_sheet(raw.get("defunct_date"), str),
@@ -1383,6 +1418,7 @@ def parse_publisher_from_sheet(raw: dict) -> dict:
         "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "logo_file": parse_from_sheet(raw.get("logo_file"), str),
+        "logo_focus": _focus_from_sheet(raw.get("logo_focus")),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "founded_date": parse_from_sheet(raw.get("founded_date"), str),
         "defunct_date": parse_from_sheet(raw.get("defunct_date"), str),

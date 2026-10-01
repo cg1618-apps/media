@@ -314,6 +314,8 @@ export default function CartoonModifyTab({
           ownerId={editingItem?.system_id}
           role="cover"
           value={cmf.cover_image_file}
+          focus={cmf.cover_image_focus}
+          onFocusChange={(focus) => uc("cover_image_focus", focus)}
           onChange={(key) => uc("cover_image_file", key)}
         />
       </Field>

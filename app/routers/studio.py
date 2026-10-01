@@ -66,6 +66,7 @@ def _to_response(
         display_name=studio.display_name,
         my_rating=studio.my_rating,
         logo_file=studio.logo_file,
+        logo_focus=studio.logo_focus,
         remark=studio.remark,
         founded_date=studio.founded_date,
         defunct_date=studio.defunct_date,
@@ -171,6 +172,7 @@ def get_studio_entries(
                 "display_name": entry.display_name,
                 "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
+                "cover_image_focus": getattr(entry, "cover_image_focus", None),
                 "release_date": primary_release_value(media_type, entry),
             }
             for entry in entries

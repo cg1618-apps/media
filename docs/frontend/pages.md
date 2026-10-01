@@ -757,7 +757,8 @@ Files `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx`
 (thin wrappers `Franchise.jsx`, `Series.jsx`, `Collection.jsx`). Chrome comes
 from `components/hub/` (`HubShell`, `Crumbs`, `AdminStrip` — the admin-only
 dashed strip with the **Quick edit** link `/modify?id=…` —, `HeroCover` with
-the spine strip and optional progress rule, `Field`, `HubTabs`, `Section`,
+the spine strip and optional progress rule, cropping the borrowed cover at
+its entry's focal point, `Field`, `HubTabs`, `Section`,
 `HubLoading/HubError/HubEmpty/FilterEmpty`).
 
 All three fetch with raw `fetch` in one effect keyed on `system_id` with a
@@ -1114,7 +1115,9 @@ series (Comic), three hold entries (Movie, Game, H-Game) — and every tier stor
 same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. The
 `favorite*` helpers in `utils/statsUtils.js` (`favoriteName`, `favoriteCover`,
 `favoritePath`, `favoritePool`, `slotIn`) answer everything that differs
-between tiers, so both consumers are tier-blind and a new grid is a config
+between tiers (`favoriteCover`, like `getCoverForSlot` and
+`getSeriesCoverForSlot`, returns `{ url, focus }`, so a group's slot crops its
+borrowed cover at the focal point of the entry it came from), so both consumers are tier-blind and a new grid is a config
 entry. A block is sized to its nine covers rather than stretched across a
 column, and the blocks wrap.
 

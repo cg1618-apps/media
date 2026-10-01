@@ -13,6 +13,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.schemas.image_focus import ImageFocus
 from app.schemas.link_fields import HComicLinkFields
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
@@ -67,6 +68,7 @@ class HComicBase(BaseModel):
     to_reread: Optional[bool] = None
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None
+    cover_image_focus: ImageFocus = None
 
     _validate_release_dates = release_date_validator("release_date", "end_date")
 

@@ -10,6 +10,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from app.schemas.image_focus import ImageFocus
 from app.utils.credit_roles import legal_scopes
 
 
@@ -21,6 +22,7 @@ class PublisherBase(BaseModel):
     display_name_field: Optional[str] = None
     my_rating: Optional[str] = None
     logo_file: Optional[str] = None
+    logo_focus: ImageFocus = None
     remark: Optional[str] = None
     founded_date: Optional[str] = None
     defunct_date: Optional[str] = None

@@ -577,6 +577,8 @@ export default function AnimeModifyTab({
           ownerId={editingItem?.system_id}
           role="cover"
           value={af.cover_image_file}
+          focus={af.cover_image_focus}
+          onFocusChange={(focus) => ua("cover_image_focus", focus)}
           onChange={(key) => ua("cover_image_file", key)}
         />
       </Field>

@@ -424,3 +424,21 @@ describe("manga, novel and comic person credits", () => {
     expect(form[i]).toBe("B");
   });
 });
+
+// The focal point rides beside the key it qualifies; a centred image sends
+// null, never "", so the column holds one spelling of "no focus".
+describe("cover_image_focus", () => {
+  it("is sent beside the cover", () => {
+    const payload = gameFieldsPayload({
+      cover_image_file: "library/a.jpg",
+      cover_image_focus: "30% 15%",
+    });
+    expect(payload.cover_image_file).toBe("library/a.jpg");
+    expect(payload.cover_image_focus).toBe("30% 15%");
+  });
+
+  it("is null for a centred image", () => {
+    expect(gameFieldsPayload({ cover_image_focus: "" }).cover_image_focus).toBeNull();
+    expect(gameFieldsPayload({}).cover_image_focus).toBeNull();
+  });
+});

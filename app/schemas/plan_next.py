@@ -38,6 +38,7 @@ class PlanNextRead(PlanNextBase):
     label: Optional[str] = None
     is_tier: bool = False
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     nav_path: Optional[str] = None
     # Whichever expectation column the target carries. Resolved here rather
     # than re-derived in the browser, because the Plan page sorts by it and the

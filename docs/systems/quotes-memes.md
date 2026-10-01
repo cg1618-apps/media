@@ -1,6 +1,6 @@
 # Quotes and memes
 
-Last verified: 2026-09-13
+Last verified: 2026-10-01
 
 ## What this is for
 
@@ -125,7 +125,7 @@ Routers: `app/routers/quote.py` (`/api/quote`) and `app/routers/meme.py`
 | DELETE | `/api/quote/{quote_id}` | admin; logs a deleted record; `image_file` is left on disk |
 
 `QuoteResolved` adds `missing`, `entry_display_name`, `cover_image_file`,
-`franchise_id`, `entry_nav_path` and `meme_id`. `meme_id` is a reverse lookup
+`cover_image_focus`, `franchise_id`, `entry_nav_path` and `meme_id`. `meme_id` is a reverse lookup
 on `meme.quote_id` (`_meme_membership`), never stored on the quote, so there
 is no second copy to keep in sync.
 
@@ -142,7 +142,7 @@ is no second copy to keep in sync.
 
 `MemeResolved` folds in `quote_speaker` and `quote_translation` from the
 linked quote plus `owner_display_name`, `owner_label` (`"Anime"`,
-`"Franchise"`, …), `owner_is_tier`, `cover_image_file`, `franchise_id`,
+`"Franchise"`, …), `owner_is_tier`, `cover_image_file`, `cover_image_focus`, `franchise_id`,
 `owner_nav_path`, `missing`.
 
 Grouping is done server-side because only the server can turn a

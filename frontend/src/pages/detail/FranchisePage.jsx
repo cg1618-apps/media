@@ -1295,7 +1295,7 @@ export default function FranchisePage() {
     ...withMediaType(hGameList, "h-game"),
     ...withMediaType(hentaiList, "hentai"),
   ];
-  const coverUrl = getFranchiseCover(
+  const cover = getFranchiseCover(
     franchise,
     Object.fromEntries(allEntries.map((e) => [e.system_id, e])),
     { [franchise.system_id]: allEntries },
@@ -1346,7 +1346,7 @@ export default function FranchisePage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1">
           <HeroCover
-            src={coverUrl}
+            cover={cover}
             spine={`Franchise · ${franchise.franchise_type || "—"}`}
             id={franchise.system_id}
             rating={franchise.my_rating}

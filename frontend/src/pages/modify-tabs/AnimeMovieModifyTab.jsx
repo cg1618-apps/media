@@ -315,6 +315,8 @@ export default function AnimeMovieModifyTab({
           ownerId={editingItem?.system_id}
           role="cover"
           value={amf.cover_image_file}
+          focus={amf.cover_image_focus}
+          onFocusChange={(focus) => uam("cover_image_focus", focus)}
           onChange={(key) => uam("cover_image_file", key)}
         />
       </Field>

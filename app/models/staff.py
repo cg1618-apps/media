@@ -103,6 +103,9 @@ class Person(Base, NameFallbackMixin):
     # Storage key under static/covers/, same convention as the media tables'
     # cover_image_file.
     photo_file = Column(String, nullable=True)
+    # photo_file's focal point, "X% Y%"; NULL centres it. Reset whenever the
+    # photo changes - see media.cover_image_focus.
+    photo_focus = Column(String, nullable=True)
     # The entry whose cover stands in when photo_file is NULL: a
     # media.system_id this person is credited or cast on. No FK, like
     # franchise.cover_entry_id - a stale id falls through to the automatic
@@ -328,6 +331,9 @@ class Studio(Base, NameFallbackMixin):
     display_name_field = Column(String, nullable=True)
     my_rating = Column(String, nullable=True)
     logo_file = Column(String, nullable=True)
+    # logo_file's focal point, "X% Y%"; NULL centres it. Reset whenever the
+    # logo changes - see media.cover_image_focus.
+    logo_focus = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
     # Truncated ISO-8601, the format owned by app/utils/release_date.py.
     founded_date = Column(String, nullable=True)
@@ -462,6 +468,9 @@ class Publisher(Base, NameFallbackMixin):
     display_name_field = Column(String, nullable=True)
     my_rating = Column(String, nullable=True)
     logo_file = Column(String, nullable=True)
+    # logo_file's focal point, "X% Y%"; NULL centres it. Reset whenever the
+    # logo changes - see media.cover_image_focus.
+    logo_focus = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
     # Truncated ISO-8601, the format owned by app/utils/release_date.py.
     founded_date = Column(String, nullable=True)

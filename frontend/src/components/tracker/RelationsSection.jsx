@@ -21,6 +21,7 @@ import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { Chip, Slip } from "../ui/primitives";
+import { focusStyle } from "../../lib/covers";
 
 // Mirrors RELATION_FAMILIES in app/utils/relation_kinds.py. Order only - the
 // labels themselves arrive already resolved for the side being viewed.
@@ -102,6 +103,7 @@ export default function RelationsSection({ mediaType, entryId, onRows }) {
               loading="lazy"
               src={getCoverUrl(other.cover_image_file)}
               className="w-10 h-14 object-cover shrink-0 border border-border"
+              style={focusStyle(other.cover_image_focus)}
               onError={(e) => {
                 e.target.src = FALLBACK_SVG;
               }}

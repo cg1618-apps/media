@@ -1,10 +1,12 @@
 // Frontend: card component file for CollectionCard.
 import { Link } from "react-router-dom";
 import { entityPath } from "../../lib/entityPath";
+import { focusStyle } from "../../lib/covers";
 import { FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, RatingStamp } from "../ui/primitives";
 
-export default function CollectionCard({ collection, coverUrl, memberCount }) {
+// `cover` is the resolved { url, focus } from lib/covers.js.
+export default function CollectionCard({ collection, cover, memberCount }) {
   const name = getDisplayName(collection, "collection") || "Unknown Collection";
 
   // Empty when the row carries no public_id: there is no URL to link to, so
@@ -45,9 +47,10 @@ export default function CollectionCard({ collection, coverUrl, memberCount }) {
           )}
           <img
             loading="lazy"
-            src={coverUrl}
+            src={cover?.url ?? FALLBACK_SVG}
             alt="Cover"
             className="w-full h-full object-cover"
+            style={focusStyle(cover?.focus)}
             onError={(e) => {
               e.target.src = FALLBACK_SVG;
             }}

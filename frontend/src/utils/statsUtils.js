@@ -1,5 +1,6 @@
 // Frontend: helper functions for statistics calculations.
-import { getCoverUrl, FALLBACK_SVG, parseTypes } from "./media";
+import { parseTypes } from "./media";
+import { NO_COVER, entryCover } from "../lib/covers";
 import { getDisplayName as getEntityName } from "../lib/naming";
 import { entityPath } from "../lib/entityPath";
 
@@ -59,12 +60,13 @@ export function getSeriesCoverForSlot(series, allEntriesBySeries, forType = null
 
 // Shared by both groups. `chosen` is a cover_entry_id, which may be a UUID or
 // the string form of one depending on which map it came out of, so both ends
-// are compared as strings.
+// are compared as strings. Returns `{ url, focus }` (lib/covers.js NO_COVER):
+// a borrowed cover keeps the focal point of the entry it came from.
 function pickCover(entries, chosen, forType) {
   if (chosen) {
     const picked = entries.find((e) => String(e.system_id) === String(chosen));
     if (picked?.cover_image_file && picked.cover_image_file !== "N/A") {
-      return getCoverUrl(picked.cover_image_file);
+      return entryCover(picked);
     }
   }
   const allowedTypes = forType ? TYPE_TO_ENTRY_TYPES[forType] : null;
@@ -74,9 +76,9 @@ function pickCover(entries, chosen, forType) {
       e.cover_image_file !== "N/A" &&
       (!allowedTypes || !e._type || allowedTypes.includes(e._type)),
   );
-  if (withCover.length === 0) return FALLBACK_SVG;
+  if (withCover.length === 0) return NO_COVER;
   withCover.sort((a, b) => getEntryYear(b) - getEntryYear(a));
-  return getCoverUrl(withCover[0].cover_image_file);
+  return entryCover(withCover[0]);
 }
 
 // ==========================================
@@ -113,9 +115,7 @@ export function favoriteCover(row, grid, { byFranchise, bySeries }) {
   if (grid.tier === "series") {
     return getSeriesCoverForSlot(row, bySeries, grid.forType);
   }
-  return row.cover_image_file && row.cover_image_file !== "N/A"
-    ? getCoverUrl(row.cover_image_file)
-    : FALLBACK_SVG;
+  return entryCover(row);
 }
 
 // Everything a grid may hold. Franchises are filtered on the type they

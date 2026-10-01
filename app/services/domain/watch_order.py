@@ -136,6 +136,7 @@ def _entry_payload(entry: Any, media_type: str) -> Dict[str, Any]:
         "display_name": entry.display_name,
         "release_display": release_display(entry, media_type),
         "cover_image_file": entry.cover_image_file,
+        "cover_image_focus": entry.cover_image_focus,
         "franchise_id": entry.franchise_id,
         "status": getattr(entry, _STATUS_FIELDS[media_type], None),
         # Float on novel, Integer elsewhere; the schema wants an int.
@@ -152,6 +153,7 @@ _MISSING_PAYLOAD = {
     "display_name": None,
     "release_display": None,
     "cover_image_file": None,
+    "cover_image_focus": None,
     "franchise_id": None,
     "status": None,
     "total_episodes": None,
@@ -348,6 +350,7 @@ def list_candidate_entries(
                     # displayed under its Chinese title.
                     "search_names": sorted(row.get_all_names()),
                     "cover_image_file": row.cover_image_file,
+                    "cover_image_focus": row.cover_image_focus,
                     "franchise_id": row.franchise_id,
                     # Same shape the resolver returns, so the admin editor can
                     # append a picked entry to its local list without refetching.
@@ -442,6 +445,7 @@ def build_release_items(
                 "display_name": c["display_name"],
                 "release_display": c["release_display"],
                 "cover_image_file": c["cover_image_file"],
+                "cover_image_focus": c["cover_image_focus"],
                 "franchise_id": c["franchise_id"],
                 "status": c["status"],
                 "total_episodes": c["total_episodes"],

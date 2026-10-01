@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
+from app.schemas.image_focus import ImageFocus
 from app.schemas.link_fields import GameLinkFields, GameRef
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
@@ -87,6 +88,7 @@ class GameBase(BaseModel):
 
     my_rating: Optional[str] = None
     cover_image_file: Optional[str] = None
+    cover_image_focus: ImageFocus = None
 
     igdb_id: Optional[int] = None
     igdb_link: Optional[str] = None

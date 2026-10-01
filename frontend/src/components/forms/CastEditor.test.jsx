@@ -28,6 +28,20 @@ vi.mock("./ImagePicker", () => ({
         <button type="button" onClick={() => props.onChange("", null)}>
           Simulate photo remove
         </button>
+        {/* What the real picker does on a pick: the key, then the cleared
+            focus, in one handler and before any re-render. */}
+        <button
+          type="button"
+          onClick={() => {
+            props.onChange("library/next.jpg", "img-2");
+            props.onFocusChange?.(null);
+          }}
+        >
+          Simulate photo pick with focus reset
+        </button>
+        <button type="button" onClick={() => props.onFocusChange?.("30% 15%")}>
+          Simulate focus adjust
+        </button>
       </div>
     );
   },
@@ -183,6 +197,35 @@ it("sets a cast photo through ImagePicker, never a typed key", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: "Simulate photo remove" }));
   expect(onChangeSpy.mock.lastCall[0][0].photo_file).toBeNull();
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
+it("keeps a cast photo's focal point beside it, and clears it with a new photo", async () => {
+  const onChangeSpy = vi.fn();
+  render(
+    <Controlled
+      mediaType="anime"
+      initialRows={[row({ photo_file: "library/old.jpg", photo_focus: "10% 10%" })]}
+      onChangeSpy={onChangeSpy}
+    />,
+  );
+  expect(pickerProps.at(-1)).toMatchObject({ focus: "10% 10%" });
+
+  await userEvent.click(screen.getByRole("button", { name: "Simulate focus adjust" }));
+  expect(onChangeSpy.mock.lastCall[0][0]).toMatchObject({
+    photo_file: "library/old.jpg",
+    photo_focus: "30% 15%",
+  });
+
+  // Two patches from one action must compose: the focus reset must not
+  // undo the new key by patching the rows of the render before it.
+  await userEvent.click(
+    screen.getByRole("button", { name: "Simulate photo pick with focus reset" }),
+  );
+  expect(onChangeSpy.mock.lastCall[0][0]).toMatchObject({
+    photo_file: "library/next.jpg",
+    photo_focus: null,
+  });
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 

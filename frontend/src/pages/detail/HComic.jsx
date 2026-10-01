@@ -45,6 +45,7 @@ import { progressFor, showsField } from "../../lib/hComicRegion";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HComicNotes from "./HComicNotes";
 import { progressToast } from "../../lib/progressToast";
+import { focusStyle } from "../../lib/covers";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -110,6 +111,7 @@ function CastSection({ cast }) {
                 src={getCoverUrl(row.photo_file)}
                 alt=""
                 className="w-full h-full object-cover"
+                style={focusStyle(row.photo_focus)}
                 onError={(e) => {
                   e.target.src = FALLBACK_SVG;
                 }}
@@ -512,6 +514,7 @@ export default function HComic() {
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"
+                  style={focusStyle(hComic.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}

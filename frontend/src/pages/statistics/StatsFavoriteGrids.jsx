@@ -1,6 +1,6 @@
 // Frontend: statistics page file for StatsFavoriteGrids.
 import { Link } from "react-router-dom";
-import { FALLBACK_SVG } from "../../utils/media";
+import { FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import {
   favoriteCover,
   favoriteName,
@@ -40,6 +40,7 @@ function FavoriteGrid({ grid, rows, covers }) {
             const Wrapper = path ? Link : "div";
             const wrapperProps = path ? { to: path } : {};
             const name = favoriteName(row, grid);
+            const cover = favoriteCover(row, grid, covers);
             return (
               <Wrapper
                 key={slot}
@@ -49,9 +50,10 @@ function FavoriteGrid({ grid, rows, covers }) {
                 <div className="aspect-[3/4] bg-surface-2">
                   <img
                     loading="lazy"
-                    src={favoriteCover(row, grid, covers)}
+                    src={cover.url}
                     alt={name}
                     className="w-full h-full object-cover"
+                    style={focusStyle(cover.focus)}
                     onError={(e) => {
                       e.target.src = FALLBACK_SVG;
                     }}
