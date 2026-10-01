@@ -143,7 +143,9 @@ it; after a power cut it costs a few restarts in the log and nothing else.
 
 No service has a `ports:` entry. The database is not on the LAN, the app cannot
 be reached except through Cloudflare, and there is no open port to
-misconfigure. To reach PostgreSQL from a laptop, forward it over SSH:
+misconfigure. To reach PostgreSQL from a laptop, forward it over SSH, which
+goes through the tunnel by default (the platform's
+[shared-stack.md](https://github.com/cg1618-apps/platform/blob/dev/docs/shared-stack.md#ssh-through-the-tunnel)):
 
 ```bash
 ssh -L 5433:localhost:5432 homelab    # then psql -h localhost -p 5433
@@ -688,8 +690,9 @@ This is not a decision for today, but it is one to make *before* writing the
 ingress rule, not after. The tracker does not need it — same tunnel, same box,
 different exposure.
 
-Give the box a **DHCP reservation** on the router anyway. The tunnel does not
-need a fixed LAN address, but SSH and `psql` from a laptop do.
+Give the box a **DHCP reservation** on the router anyway. Neither the tunnel
+nor SSH through it needs a fixed LAN address, but `homelab-lan`, the direct
+fallback for when the tunnel is down, does.
 
 **Rejected: port forwarding + DDNS.** 中華電信 光世代 PPPoE usually does hand
 out a real (dynamic) public IPv4, so forwarding 80/443 plus DuckDNS or
@@ -735,8 +738,9 @@ work — but the gate was left rather than removed blind.
   home router, which is not the one the laptop's admin page reaches, so the
   reservation needs that router's admin — or the box's cable moved to a port on
   the home router's own network, where the reservation can be set instead.
-  Until then the address is whatever DHCP hands out, and `ssh` failing is the
-  signal that it moved.
+  Until then the address is whatever DHCP hands out, and `ssh homelab-lan`
+  failing is the signal that it moved. The default `ssh homelab` goes through
+  the tunnel and does not notice.
 - **Whether `journal`, `health` and `money` get Cloudflare Access** or no public
   hostname at all. None of them exists yet, and the decision belongs before the
   ingress rule rather than after — `tests/unit/test_prod_compose.py` fails if
