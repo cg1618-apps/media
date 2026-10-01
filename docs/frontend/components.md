@@ -214,9 +214,11 @@ not drawn. The character, person and studio libraries use it for
   `MediaCard`'s poster and `DashboardCard`'s chip row; a row with a url links
   to it, one without is faded, and a value with no icon is skipped),
   `FranchiseCard`, `CollectionCard`, and `StaffCard`
-  (`PersonCard` / `StudioCard` over one shared body — the person and studio
-  libraries and the `/search` staff sections all draw it; `PersonCard` shows
-  `display_photo_file`, the server-resolved photo or fallback cover).
+  (`PersonCard` / `StudioCard` / `PublisherCard` over one shared body — the
+  person, studio and publisher libraries and the `/search` staff sections all
+  draw it; each carries the entity's `my_rating` as a `RatingStamp`, as the
+  franchise and collection cards do; `PersonCard` shows `display_photo_file`,
+  the server-resolved photo or fallback cover).
 - **`components/tracker`** — `DashboardCard`, `NovelDashboardCard`,
   `NovelTrackerBlock` (the detail-page reading-progress widget; both drive
   the novel two-stage arc/chapter cursor via `arcStep` in `lib/novelUnits.js`),
