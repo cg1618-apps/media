@@ -2457,3 +2457,39 @@ plus an optional `title`, rendered with `react-markdown` and `remark-gfm`.
 - **Two values were set here, not by the owner.** Novel's `可能更多` and `未出` (1.3 and 0.3) were
   set by analogy with manga's `連載中` and `腰斬`; anime's airing status is not
   weighted. Both are the owner's to revise.
+
+## 2026-10
+
+### Images carry a focal point, stored beside each image column (2026-10-01)
+
+- **Owner's request: choose which part of an image stays in frame**, on
+  every image except the favicon. Images are drawn with `object-cover`
+  almost everywhere, and the crop keeps the centre, so a portrait cover in a
+  square frame loses the face. The focus is the CSS `object-position` the SPA
+  applies verbatim, `"X% Y%"`; NULL means centred, so nothing that existed
+  before moves.
+- **One column per image column, not one per image file.** The focus is
+  stored as `<x>_focus` beside each `<x>_file` (`media.cover_image_focus`,
+  `photo_focus`, `logo_focus`, and `character_casting.photo_focus`). The
+  alternative, columns on the `image` table, was rejected because most
+  displayed images have no `image` row: a cover downloaded after the library
+  backfill is only a file and the mirror column, and a cast photo has no
+  attachment. Every displayed image does come from one owner column, so
+  that is where its focus goes. The cost is that a file shared by two owners
+  can be aimed differently in each, which is right: the frames differ too.
+- **A focus belongs to the picture it was set on.** Changing an owner's image
+  key through the image router resets the focus; re-attaching the same key
+  keeps it. Autofill and cover re-download do not reset, because they only
+  fill an empty key or re-fetch the same picture.
+- **Quote and meme images have no focus.** They are drawn uncropped, so
+  there is no crop to aim. If they are ever drawn cropped, they need the
+  column and the guard below will say so.
+- **"focus", not "position".** `image_attachment.position` already exists and
+  means ordering within an owner's images.
+- **Group covers borrow the entry's focus.** Franchise, series and collection
+  covers are resolved in the SPA from a member entry, so the resolvers in
+  `lib/covers.js` return `{ url, focus }` rather than a URL.
+- **A guard instead of a checklist.** `src/focus-images.test.js` fails the
+  build on any cropped `<img>` that neither sets a `style` nor opts out with
+  `data-focus="none"`. Seventy-four render sites had to change, and the next
+  cropped image added anywhere is the one a list would miss.

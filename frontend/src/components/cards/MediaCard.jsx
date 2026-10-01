@@ -24,6 +24,7 @@ import {
   MEDIA_CONFIG,
   getNovelProgress,
 } from "../../utils/media";
+import { focusStyle } from "../../lib/covers";
 import { Chip, RatingStamp } from "../ui/primitives";
 import PlatformIcons from "./PlatformIcons";
 
@@ -730,6 +731,7 @@ export default function MediaCard({
             alt={title}
             loading="lazy"
             className="w-full h-full object-cover"
+            style={focusStyle(data.cover_image_focus)}
             onError={(e) => {
               e.target.src = FALLBACK_SVG;
             }}

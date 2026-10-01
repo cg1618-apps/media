@@ -398,6 +398,8 @@ export default function TvShowAddTab({
           ownerType="tv-show"
           role="cover"
           value={tvf.cover_image_file}
+          focus={tvf.cover_image_focus}
+          onFocusChange={(focus) => utf("cover_image_focus", focus)}
           onChange={(key, imageId) => {
             utf("cover_image_file", key);
             utf("pending_image_id", imageId);

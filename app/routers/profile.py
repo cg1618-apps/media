@@ -60,6 +60,7 @@ def get_profile(
             models.Media.public_id,
             models.Media.display_name,
             models.Media.cover_image_file,
+            models.Media.cover_image_focus,
             models.UserMediaList.status,
             models.UserMediaList.my_rating,
         )
@@ -78,6 +79,7 @@ def get_profile(
             public_id=row.public_id,
             display_name=row.display_name,
             cover_image_file=row.cover_image_file,
+            cover_image_focus=row.cover_image_focus,
             status=row.status,
             my_rating=row.my_rating,
         )

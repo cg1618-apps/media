@@ -23,6 +23,7 @@ import { WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
+import { focusStyle } from "../../lib/covers";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -265,6 +266,7 @@ export default function Movie() {
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"
+                  style={focusStyle(movie.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}

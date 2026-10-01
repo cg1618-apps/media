@@ -493,6 +493,8 @@ export default function ComicAddTab({
           ownerType="comic"
           role="cover"
           value={cmf.cover_image_file}
+          focus={cmf.cover_image_focus}
+          onFocusChange={(focus) => ucm("cover_image_focus", focus)}
           onChange={(key, imageId) => {
             ucm("cover_image_file", key);
             ucm("pending_image_id", imageId);

@@ -29,6 +29,7 @@ import {
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
+import { focusStyle } from "../../lib/covers";
 
 
 function getClean(str) {
@@ -1080,6 +1081,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedAnime.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedAnime.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -1170,6 +1172,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedAnimeMovie.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedAnimeMovie.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -1261,6 +1264,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedMovie.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedMovie.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -1355,6 +1359,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedTvShow.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedTvShow.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -1451,6 +1456,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedCartoon.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedCartoon.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -1542,6 +1548,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedManga.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedManga.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -1641,6 +1648,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedNovel.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedNovel.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -1745,6 +1753,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedComic.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedComic.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -1846,6 +1855,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedGame.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedGame.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -1946,6 +1956,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedHComic.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedHComic.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -2031,6 +2042,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedHGame.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedHGame.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}
@@ -2124,6 +2136,7 @@ export default function Delete() {
                   loading="lazy"
                   src={getCoverUrl(selectedHentai.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  style={focusStyle(selectedHentai.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}

@@ -195,6 +195,8 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
           ownerId={ownerId}
           role="cover"
           value={personForm.photo_file}
+          focus={personForm.photo_focus}
+          onFocusChange={(focus) => upf("photo_focus", focus)}
           onChange={(key, imageId) => {
             upf("photo_file", key);
             upf("pending_image_id", ownerId ? null : imageId);

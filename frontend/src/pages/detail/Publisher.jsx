@@ -16,7 +16,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
-import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
 import InfoCard from "../../components/info/InfoCard";
@@ -147,6 +147,7 @@ export default function Publisher() {
                 src={logoUrl}
                 alt={`${name} logo`}
                 className="w-full h-full object-cover"
+                style={focusStyle(publisher.logo_focus)}
                 onError={(e) => {
                   e.target.src = FALLBACK_SVG;
                 }}
@@ -268,6 +269,7 @@ function CreditCard({ entry, navPath }) {
           src={getCoverUrl(entry.cover_image_file)}
           alt=""
           className="w-full h-full object-cover"
+          style={focusStyle(entry.cover_image_focus)}
           onError={(e) => {
             e.target.src = FALLBACK_SVG;
           }}

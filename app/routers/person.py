@@ -95,6 +95,7 @@ def _to_response(
         gender=person.gender,
         my_rating=person.my_rating,
         photo_file=person.photo_file,
+        photo_focus=person.photo_focus,
         photo_fallback_entry_id=media.photo_fallback_entry_id,
         remark=person.remark,
         mal_id=person.mal_id,
@@ -105,6 +106,7 @@ def _to_response(
         ],
         credit_count=media.count,
         display_photo_file=media.display_photo_file,
+        display_photo_focus=media.display_photo_focus,
         media_types=media.media_types,
         restricted=media.restricted,
     )
@@ -364,6 +366,7 @@ def get_person_entries(
                 "display_name": entry.display_name,
                 "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
+                "cover_image_focus": getattr(entry, "cover_image_focus", None),
                 "release_date": primary_release_value(media_type, entry),
             }
         )
@@ -383,6 +386,7 @@ def get_person_entries(
                 "display_name": entry.display_name,
                 "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
+                "cover_image_focus": getattr(entry, "cover_image_focus", None),
                 "release_date": primary_release_value(row.media_type, entry),
                 "character_name": character.display_name if character else None,
                 "character_id": str(character.system_id) if character else None,

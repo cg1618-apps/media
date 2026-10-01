@@ -543,7 +543,7 @@ export default function FranchiseLibrary() {
               <FranchiseCard
                 key={franchise.system_id}
                 franchise={franchise}
-                coverUrl={getFranchiseCover(
+                cover={getFranchiseCover(
                   franchise,
                   allEntriesDict,
                   allEntriesByFranchise,

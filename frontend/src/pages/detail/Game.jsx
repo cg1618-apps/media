@@ -38,6 +38,7 @@ import { MY_RATINGS, PLAYING_STATUSES } from "../../config/fieldOptions";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
+import { focusStyle } from "../../lib/covers";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -385,6 +386,7 @@ export default function Game() {
                     src={imageUrl}
                     alt="Cover"
                     className="w-full h-full object-cover"
+                    style={focusStyle(game.cover_image_focus)}
                     onError={(e) => {
                       e.target.src = FALLBACK_SVG;
                     }}

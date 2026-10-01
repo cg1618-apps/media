@@ -417,6 +417,8 @@ export default function ComicModifyTab({
           ownerId={editingItem?.system_id}
           role="cover"
           value={ccmf.cover_image_file}
+          focus={ccmf.cover_image_focus}
+          onFocusChange={(focus) => ucm("cover_image_focus", focus)}
           onChange={(key) => ucm("cover_image_file", key)}
         />
       </Field>

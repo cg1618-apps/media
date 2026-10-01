@@ -10,7 +10,7 @@ import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType } from "../../lib/gatedTypes";
-import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
 import {
   buildBlocks,
@@ -177,6 +177,7 @@ function ItemRow({
                 e.currentTarget.src = FALLBACK_SVG;
               }}
               className="w-9 h-12 shrink-0 object-cover bg-surface-2 border border-border"
+              style={focusStyle(item.cover_image_focus)}
             />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-display font-bold text-text truncate">
@@ -770,6 +771,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         display_name: candidate.display_name,
         release_display: candidate.release_display ?? null,
         cover_image_file: candidate.cover_image_file,
+        cover_image_focus: candidate.cover_image_focus ?? null,
         franchise_id: candidate.franchise_id,
         status: candidate.status ?? null,
         total_episodes: candidate.total_episodes ?? null,

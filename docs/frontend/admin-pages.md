@@ -95,6 +95,15 @@ character) and **System** (system option, alias). Each
 tab is a form component in `pages/add-tabs/`; the page owns the state objects,
 submit handlers and the shared modals.
 
+**Every image has a focal point.** Each entry, person, character, studio and
+publisher form's `ImagePicker` carries the image's focus beside its key
+(`cover_image_focus`, `photo_focus`, `logo_focus`), so **Adjust position**
+opens `FocusPicker` and the chosen `"X% Y%"` is saved with the rest of the
+form, on Add as on `/modify`. Picking, uploading or removing an image clears
+it to null in the form, matching the server, which resets the focus whenever
+an owner's picture changes. A cast row's photo has its own `photo_focus` the
+same way.
+
 **Restricted sources start prefilled.** A new entry's Sources block starts
 with one restricted row for every name its type prefills, and the restricted
 name field offers all of that type's names as a datalist
@@ -726,9 +735,10 @@ three grouping tiers, and the three Entity tabs. Fields come from
 rule); values are stored per type via `/api/form-defaults/<type>` and applied
 by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
 defaults for that type. No image field takes a default - `cover_image_file`,
-`logo_file` and `photo_file` are all `control: "none"`, `defaultable: false`,
-since an image is set through `ImagePicker` and a default would stamp one
-picture on every new record - and `useFormDefaults` skips a stored value for
+`logo_file` and `photo_file`, and their focal points `cover_image_focus`,
+`logo_focus` and `photo_focus`, are all `control: "none"`,
+`defaultable: false`, since an image is set through `ImagePicker` and a
+default would stamp one picture (or one crop) on every new record - and `useFormDefaults` skips a stored value for
 any field marked `defaultable: false`, so one saved before the field became
 undefaultable stops applying rather than lingering where the page cannot
 clear it. Note `coerce: "tristate"` is implemented but unused

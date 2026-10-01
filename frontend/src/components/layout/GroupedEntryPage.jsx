@@ -6,7 +6,7 @@
 import { Link } from "react-router-dom";
 
 import MediaLoadingState from "./MediaLoadingState";
-import { getCoverUrl } from "../../lib/covers";
+import { getCoverUrl, focusStyle } from "../../lib/covers";
 import { Chip, Eyebrow } from "../ui/primitives";
 
 export const controlCls =
@@ -175,6 +175,7 @@ export default function GroupedEntryPage({
                           src={getCoverUrl(group.cover_image_file)}
                           alt=""
                           className="w-9 h-12 object-cover shrink-0 border border-border"
+                          style={focusStyle(group.cover_image_focus)}
                         />
                       )}
                       <div className="min-w-0">

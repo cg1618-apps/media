@@ -64,6 +64,7 @@ class MemeResolved(MemeResponse):
     # True for series/franchise/collection, which have no cover column.
     owner_is_tier: bool = False
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     franchise_id: Optional[UUID] = None
     owner_nav_path: Optional[str] = None
 
@@ -78,6 +79,7 @@ class MemeGroup(BaseModel):
     owner_label: Optional[str] = None
     owner_is_tier: bool = False
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     franchise_id: Optional[UUID] = None
     owner_nav_path: Optional[str] = None
     memes: List[MemeResolved] = []

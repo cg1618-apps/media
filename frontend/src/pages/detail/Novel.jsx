@@ -39,6 +39,7 @@ import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import { progressToast } from "../../lib/progressToast";
+import { focusStyle } from "../../lib/covers";
 
 const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -74,6 +75,7 @@ function CastSection({ cast }) {
                 src={getCoverUrl(row.photo_file)}
                 alt=""
                 className="w-full h-full object-cover"
+                style={focusStyle(row.photo_focus)}
                 onError={(e) => {
                   e.target.src = FALLBACK_SVG;
                 }}
@@ -454,6 +456,7 @@ export default function Novel() {
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"
+                  style={focusStyle(novel.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}

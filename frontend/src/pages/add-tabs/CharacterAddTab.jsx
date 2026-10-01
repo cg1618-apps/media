@@ -97,6 +97,8 @@ export function CharacterFields({ characterForm, ucf, ownerId }) {
           ownerId={ownerId}
           role="cover"
           value={characterForm.photo_file}
+          focus={characterForm.photo_focus}
+          onFocusChange={(focus) => ucf("photo_focus", focus)}
           onChange={(key, imageId) => {
             ucf("photo_file", key);
             ucf("pending_image_id", ownerId ? null : imageId);

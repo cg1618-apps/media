@@ -59,6 +59,7 @@ class WatchOrderItemResolved(WatchOrderItemResponse):
     # "2018-09-01", "NOV 2025" or "2023". None when the entry has no date.
     release_display: Optional[str] = None
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     franchise_id: Optional[UUID] = None
     status: Optional[str] = None
     total_episodes: Optional[int] = None
@@ -166,6 +167,7 @@ class WatchOrderCandidate(BaseModel):
     # query against any language and not only the displayed name.
     search_names: List[str] = []
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     franchise_id: Optional[UUID] = None
     status: Optional[str] = None
     total_episodes: Optional[int] = None

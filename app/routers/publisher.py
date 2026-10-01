@@ -79,6 +79,7 @@ def _to_response(
         display_name=publisher.display_name,
         my_rating=publisher.my_rating,
         logo_file=publisher.logo_file,
+        logo_focus=publisher.logo_focus,
         remark=publisher.remark,
         founded_date=publisher.founded_date,
         defunct_date=publisher.defunct_date,
@@ -207,6 +208,7 @@ def get_publisher_entries(
                 "display_name": entry.display_name,
                 "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
+                "cover_image_focus": getattr(entry, "cover_image_focus", None),
                 "release_date": primary_release_value(media_type, entry),
             }
             for entry in entries

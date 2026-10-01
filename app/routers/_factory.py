@@ -19,6 +19,7 @@ from app.dependencies import get_db
 from app.models.media import Media
 from app.models.user_media_list import UserMediaList
 from app.routers._patching import apply_column_patch
+from app.schemas.image_focus import coerce_image_focus
 from app.services.domain import (
     apply_list_completion_timestamp,
     attach_remark,
@@ -59,6 +60,24 @@ from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import media_entity_ref_filter
 
 logger = logging.getLogger(__name__)
+
+
+def _patch_cover_focus(entry, payload: dict) -> None:
+    """
+    Write `cover_image_focus` from a PATCH body, and take it out of the body.
+
+    The focus lives on the `media` supertable and reaches an entry through an
+    association proxy, so apply_column_patch - which writes only the detail
+    table's own columns - would drop it. The Modify page saves entries by
+    PATCH, so without this a focal point set there would never be stored.
+    A key that is absent leaves the focus alone; "" or null clears it.
+    """
+    if "cover_image_focus" not in payload:
+        return
+    try:
+        entry.cover_image_focus = coerce_image_focus(payload.pop("cover_image_focus"))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 # Filter fields that live on `media`, not on the entry's own table.
 MEDIA_OWNED_FIELDS = frozenset({"franchise_id", "series_id"})
@@ -432,6 +451,7 @@ def make_media_router(spec) -> APIRouter:
         nested = _pop_nested(payload)
         payload, personal = split_list_payload(spec.owner_type, payload)
         _check_family(db, payload.get("franchise_id"))
+        _patch_cover_focus(entry, payload)
         apply_column_patch(entry, payload)
         _write_nested(db, entry, nested, viewer)
         _derive(db, entry)

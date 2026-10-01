@@ -251,6 +251,7 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
     watch_next: amf.watch_next ?? null,
     to_rewatch: amf.to_rewatch ?? false,
     cover_image_file: amf.cover_image_file || null,
+    cover_image_focus: amf.cover_image_focus || null,
     remark: amf.remark || null,
   };
 }
@@ -300,6 +301,7 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     seiyuu: af.seiyuu || null,
     watch_next: af.watch_next ?? null,
     cover_image_file: af.cover_image_file || null,
+    cover_image_focus: af.cover_image_focus || null,
     remark: af.remark || null,
   };
 }
@@ -391,6 +393,7 @@ export function gameFieldsPayload(f) {
     play_next: f.play_next ?? false,
     to_replay: f.to_replay ?? false,
     cover_image_file: f.cover_image_file || null,
+    cover_image_focus: f.cover_image_focus || null,
     remark: f.remark || null,
   };
 }
@@ -445,6 +448,7 @@ export function hComicFieldsPayload(f) {
     read_next: f.read_next ?? false,
     to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
+    cover_image_focus: f.cover_image_focus || null,
     remark: f.remark || null,
   };
 }
@@ -562,6 +566,7 @@ export function hGameFieldsPayload(f) {
     play_next: f.play_next ?? false,
     to_replay: f.to_replay ?? false,
     cover_image_file: f.cover_image_file || null,
+    cover_image_focus: f.cover_image_focus || null,
     remark: f.remark || null,
   };
 }
@@ -603,6 +608,7 @@ export function hentaiFieldsPayload(f) {
     watch_next: f.watch_next ?? false,
     to_rewatch: f.to_rewatch ?? false,
     cover_image_file: f.cover_image_file || null,
+    cover_image_focus: f.cover_image_focus || null,
     remark: f.remark || null,
   };
 }

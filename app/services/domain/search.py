@@ -323,6 +323,7 @@ def _person_results(db: Session, viewer, entries: list) -> list:
                 update={
                     "credit_count": found.count,
                     "display_photo_file": found.display_photo_file,
+                    "display_photo_focus": found.display_photo_focus,
                     "media_types": found.media_types,
                     "restricted": found.restricted,
                     "photo_fallback_entry_id": found.photo_fallback_entry_id,

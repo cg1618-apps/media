@@ -9,6 +9,7 @@ import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { arcStep, effectiveProgressDisplay } from "../../lib/novelUnits";
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
+import { focusStyle } from "../../lib/covers";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -392,6 +393,7 @@ export default function NovelDashboardCard({
               src={imageUrl}
               alt="Cover"
               className="w-full h-full object-cover"
+              style={focusStyle(novel.cover_image_focus)}
               onError={(e) => {
                 e.target.src = FALLBACK_SVG;
               }}

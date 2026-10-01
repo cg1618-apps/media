@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from app.schemas.game import GameCopyIO, GameWriteChecks
+from app.schemas.image_focus import ImageFocus
 from app.schemas.link_fields import GameRef, HGameLinkFields
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
@@ -89,6 +90,7 @@ class HGameBase(BaseModel):
 
     type_slots: Optional[dict] = None
     cover_image_file: Optional[str] = None
+    cover_image_focus: ImageFocus = None
 
     # Personal - split off onto user_media_list by the router.
     playing_status: str = "Might Play"

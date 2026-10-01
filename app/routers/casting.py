@@ -24,6 +24,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
+from app.schemas.image_focus import ImageFocus
 from app.services.domain import casting as casting_service
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
@@ -40,6 +41,7 @@ class CastRowIn(BaseModel):
     role: Optional[str] = None
     position: Optional[int] = None
     photo_file: Optional[str] = None
+    photo_focus: ImageFocus = None
     remark: Optional[str] = None
 
     @field_validator("role", mode="before")

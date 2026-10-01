@@ -93,6 +93,7 @@ class EntryRef:
     missing: bool = True
     display_name: Optional[str] = None
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     franchise_id: Optional[UUID] = None
     nav_path: Optional[str] = None
     label: Optional[str] = None
@@ -104,6 +105,7 @@ class EntryRef:
             "missing": self.missing,
             "entry_display_name": self.display_name,
             "cover_image_file": self.cover_image_file,
+            "cover_image_focus": self.cover_image_focus,
             "franchise_id": self.franchise_id,
             "entry_nav_path": self.nav_path,
         }
@@ -122,6 +124,7 @@ class EntryRef:
             "owner_label": self.label,
             "owner_is_tier": self.is_tier,
             "cover_image_file": self.cover_image_file,
+            "cover_image_focus": self.cover_image_focus,
             "franchise_id": self.franchise_id,
             "owner_nav_path": self.nav_path,
         }
@@ -171,6 +174,7 @@ def resolve_entries(
                 # The tiers have neither column: a franchise's cover is derived
                 # from its entries on the frontend, and Series has no franchise.
                 cover_image_file=getattr(row, "cover_image_file", None),
+                cover_image_focus=getattr(row, "cover_image_focus", None),
                 franchise_id=getattr(row, "franchise_id", None),
                 nav_path=(
                     f"{ref.nav_path}/{row.system_id}" if ref.nav_path else None

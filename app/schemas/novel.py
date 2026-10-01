@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
+from app.schemas.image_focus import ImageFocus
 from app.schemas.link_fields import NovelLinkFields
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
@@ -102,6 +103,7 @@ class NovelBase(BaseModel):
     to_reread: Optional[bool] = None
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None
+    cover_image_focus: ImageFocus = None
     completed_at: Optional[datetime] = None
 
     _validate_release_dates = release_date_validator("release_date", "end_date")

@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
-import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
 import InfoCard from "../../components/info/InfoCard";
@@ -142,6 +142,7 @@ export default function Character() {
                 src={photoUrl}
                 alt={`${name} photo`}
                 className="w-full h-full object-cover"
+                style={focusStyle(character.display_photo_focus ?? character.photo_focus)}
                 onError={(e) => {
                   e.target.src = FALLBACK_SVG;
                 }}
@@ -250,6 +251,7 @@ function CastingCard({ entry, navPath }) {
         src={getCoverUrl(entry.cover_image_file)}
         alt=""
         className="w-full h-full object-cover"
+        style={focusStyle(entry.cover_image_focus)}
         onError={(e) => {
           e.target.src = FALLBACK_SVG;
         }}

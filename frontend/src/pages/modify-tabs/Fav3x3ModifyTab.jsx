@@ -6,7 +6,8 @@
 // helpers in utils/statsUtils, so a new grid is a config entry and nothing
 // here changes.
 import { useState, useMemo, useCallback } from "react";
-import { FALLBACK_SVG, MEDIA_CONFIG } from "../../utils/media";
+import { MEDIA_CONFIG } from "../../utils/media";
+import { FALLBACK_SVG, NO_COVER, focusStyle } from "../../lib/covers";
 import {
   favoriteCover,
   favoriteName,
@@ -111,6 +112,7 @@ function RowPickerModal({
               {filtered.map((row) => {
                 const isSelected = row.system_id === currentRowId;
                 const name = favoriteName(row, grid);
+                const cover = coverFor(row);
                 return (
                   <button
                     key={row.system_id}
@@ -126,9 +128,10 @@ function RowPickerModal({
                       <div className="aspect-[3/4]">
                         <img
                           loading="lazy"
-                          src={coverFor(row)}
+                          src={cover.url}
                           alt={name}
                           className="w-full h-full object-cover"
+                          style={focusStyle(cover.focus)}
                           onError={(e) => {
                             e.target.src = FALLBACK_SVG;
                           }}
@@ -170,7 +173,7 @@ function RowPickerModal({
   );
 }
 
-function SlotCard({ slot, name, coverUrl, onOpen }) {
+function SlotCard({ slot, name, cover, onOpen }) {
   return (
     <button
       type="button"
@@ -181,9 +184,10 @@ function SlotCard({ slot, name, coverUrl, onOpen }) {
         <div className="aspect-[3/4]">
           <img
             loading="lazy"
-            src={coverUrl}
+            src={cover.url}
             alt={name || ""}
             className="w-full h-full object-cover"
+            style={focusStyle(cover.focus)}
             onError={(e) => {
               e.target.src = FALLBACK_SVG;
             }}
@@ -219,7 +223,7 @@ function SlotCard({ slot, name, coverUrl, onOpen }) {
 function RankListItem({
   slot,
   name,
-  coverUrl,
+  cover,
   onDragStart,
   onDragOver,
   onDrop,
@@ -258,9 +262,10 @@ function RankListItem({
           <div className="w-7 h-9 rounded overflow-hidden shrink-0 border border-border">
             <img
               loading="lazy"
-              src={coverUrl}
+              src={cover.url}
               alt=""
               className="w-full h-full object-cover"
+              style={focusStyle(cover.focus)}
               onError={(e) => {
                 e.target.src = FALLBACK_SVG;
               }}
@@ -339,7 +344,7 @@ function GridEditor({
                 key={slot}
                 slot={slot}
                 name={row ? favoriteName(row, grid) : null}
-                coverUrl={row ? coverFor(row) : FALLBACK_SVG}
+                cover={row ? coverFor(row) : NO_COVER}
                 onOpen={(s) => setPickerSlot(s)}
               />
             );
@@ -363,7 +368,7 @@ function GridEditor({
                   key={slot}
                   slot={slot}
                   name={row ? favoriteName(row, grid) : null}
-                  coverUrl={row ? coverFor(row) : FALLBACK_SVG}
+                  cover={row ? coverFor(row) : NO_COVER}
                   isDragOver={dragOverSlot === slot}
                   onDragStart={() => setDragOverSlot(null)}
                   onDragOver={(s) => setDragOverSlot(s)}

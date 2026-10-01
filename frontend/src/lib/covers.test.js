@@ -10,6 +10,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   FALLBACK_SVG,
+  NO_COVER,
+  focusStyle,
+  formatFocus,
+  parseFocus,
   getCollectionCover,
   getCoverUrl,
   getFranchiseCover,
@@ -45,6 +49,89 @@ describe("getCoverUrl", () => {
   });
 });
 
+describe("focusStyle", () => {
+  it("turns a focus into an object-position style", () => {
+    expect(focusStyle("30% 15%")).toEqual({ objectPosition: "30% 15%" });
+  });
+
+  it("returns undefined for a centred image, so no style is written", () => {
+    expect(focusStyle(null)).toBeUndefined();
+    expect(focusStyle(undefined)).toBeUndefined();
+    expect(focusStyle("")).toBeUndefined();
+  });
+});
+
+describe("parseFocus / formatFocus", () => {
+  it("round-trips a stored focus", () => {
+    expect(parseFocus("30% 15%")).toEqual({ x: 30, y: 15 });
+    expect(formatFocus({ x: 30, y: 15 })).toBe("30% 15%");
+  });
+
+  it("reads null, empty and malformed values as the centre", () => {
+    for (const v of [null, undefined, "", "left top", "30%"]) {
+      expect(parseFocus(v)).toEqual({ x: 50, y: 50 });
+    }
+  });
+
+  it("stores the centre as null", () => {
+    expect(formatFocus({ x: 50, y: 50 })).toBeNull();
+    expect(formatFocus({ x: 49.6, y: 50.2 })).toBeNull();
+  });
+
+  it("clamps to whole percentages between 0 and 100", () => {
+    expect(formatFocus({ x: -12, y: 140 })).toBe("0% 100%");
+    expect(formatFocus({ x: 33.4, y: 66.6 })).toBe("33% 67%");
+    expect(parseFocus("150% 0%")).toEqual({ x: 100, y: 0 });
+  });
+});
+
+describe("a borrowed cover carries the focus of the entry it came from", () => {
+  const focused = {
+    system_id: "e1",
+    media_type: "anime",
+    release_date: "2020-01-01",
+    cover_image_file: "anime/e1.jpg",
+    cover_image_focus: "40% 10%",
+  };
+  const other = {
+    system_id: "e2",
+    media_type: "anime",
+    release_date: "2001-01-01",
+    cover_image_file: "anime/e2.jpg",
+    cover_image_focus: "90% 90%",
+  };
+  const expected = { url: "/api/covers/anime/e1.jpg", focus: "40% 10%" };
+
+  it("from a franchise's chosen entry", () => {
+    expect(
+      getFranchiseCover(
+        { system_id: "f1", cover_entry_id: "e1" },
+        { e1: focused, e2: other },
+        { f1: [other, focused] },
+      ),
+    ).toEqual(expected);
+  });
+
+  it("from a franchise's newest entry", () => {
+    expect(
+      getFranchiseCover({ system_id: "f1" }, {}, { f1: [other, focused] }),
+    ).toEqual(expected);
+  });
+
+  it("from a series's entry", () => {
+    expect(getSeriesCover({}, [other, focused])).toEqual(expected);
+    expect(
+      getSeriesCover({ cover_entry_id: "e2" }, [other, focused]).focus,
+    ).toBe("90% 90%");
+  });
+
+  it("through a collection's member franchise", () => {
+    expect(
+      getCollectionCover({}, [{ system_id: "f1" }], {}, { f1: [focused] }),
+    ).toEqual(expected);
+  });
+});
+
 describe("getFranchiseCover", () => {
   const franchise = { system_id: "f1" };
 
@@ -60,7 +147,7 @@ describe("getFranchiseCover", () => {
         { e1: entry },
         { f1: [entry] },
       ),
-    ).toBe("/api/covers/anime/e1.jpg");
+    ).toEqual({ url: "/api/covers/anime/e1.jpg", focus: null });
   });
 
   it("builds <media_type>/<id>.jpg for a chosen entry with no stored key", () => {
@@ -71,7 +158,7 @@ describe("getFranchiseCover", () => {
         { e1: entry },
         { f1: [entry] },
       ),
-    ).toBe("/api/covers/manga/e1.jpg");
+    ).toEqual({ url: "/api/covers/manga/e1.jpg", focus: null });
   });
 
   it("returns the placeholder when the chosen entry has no media_type", () => {
@@ -82,7 +169,7 @@ describe("getFranchiseCover", () => {
         { e1: entry },
         { f1: [entry] },
       ),
-    ).toBe(FALLBACK_SVG);
+    ).toEqual(NO_COVER);
   });
 
   it("prefers the newest member entry that has a stored key", () => {
@@ -98,9 +185,7 @@ describe("getFranchiseCover", () => {
       release_date: "2020-01-01",
       cover_image_file: "movie/e2.jpg",
     };
-    expect(getFranchiseCover(franchise, {}, { f1: [old, recent] })).toBe(
-      "/api/covers/movie/e2.jpg",
-    );
+    expect(getFranchiseCover(franchise, {}, { f1: [old, recent] })).toEqual({ url: "/api/covers/movie/e2.jpg", focus: null });
   });
 
   it("falls back to the newest member entry by convention filename", () => {
@@ -114,20 +199,16 @@ describe("getFranchiseCover", () => {
       media_type: "novel",
       release_date: "2020-01-01",
     };
-    expect(getFranchiseCover(franchise, {}, { f1: [old, recent] })).toBe(
-      "/api/covers/novel/e2.jpg",
-    );
+    expect(getFranchiseCover(franchise, {}, { f1: [old, recent] })).toEqual({ url: "/api/covers/novel/e2.jpg", focus: null });
   });
 
   it("returns the placeholder when the newest member entry has no media_type", () => {
     const entry = { system_id: "e1" };
-    expect(getFranchiseCover(franchise, {}, { f1: [entry] })).toBe(
-      FALLBACK_SVG,
-    );
+    expect(getFranchiseCover(franchise, {}, { f1: [entry] })).toEqual(NO_COVER);
   });
 
   it("returns the placeholder for a franchise with no entries", () => {
-    expect(getFranchiseCover(franchise, {}, {})).toBe(FALLBACK_SVG);
+    expect(getFranchiseCover(franchise, {}, {})).toEqual(NO_COVER);
   });
 });
 
@@ -140,9 +221,7 @@ describe("getSeriesCover", () => {
         cover_image_file: "anime/e1.jpg",
       },
     ];
-    expect(getSeriesCover({ cover_entry_id: "e1" }, entries)).toBe(
-      "/api/covers/anime/e1.jpg",
-    );
+    expect(getSeriesCover({ cover_entry_id: "e1" }, entries)).toEqual({ url: "/api/covers/anime/e1.jpg", focus: null });
   });
 
   it("falls back to the newest entry with a stored key", () => {
@@ -158,11 +237,11 @@ describe("getSeriesCover", () => {
         cover_image_file: "comic/e2.jpg",
       },
     ];
-    expect(getSeriesCover({}, entries)).toBe("/api/covers/comic/e2.jpg");
+    expect(getSeriesCover({}, entries)).toEqual({ url: "/api/covers/comic/e2.jpg", focus: null });
   });
 
   it("returns the placeholder when no entry has a cover", () => {
-    expect(getSeriesCover({}, [{ system_id: "e1" }])).toBe(FALLBACK_SVG);
+    expect(getSeriesCover({}, [{ system_id: "e1" }])).toEqual(NO_COVER);
   });
 });
 
@@ -184,16 +263,14 @@ describe("getCollectionCover", () => {
           f2: [entry],
         },
       ),
-    ).toBe("/api/covers/anime/e1.jpg");
+    ).toEqual({ url: "/api/covers/anime/e1.jpg", focus: null });
   });
 
   it("falls through to the first member franchise that yields a cover", () => {
-    expect(getCollectionCover({}, franchises, {}, { f2: [entry] })).toBe(
-      "/api/covers/anime/e1.jpg",
-    );
+    expect(getCollectionCover({}, franchises, {}, { f2: [entry] })).toEqual({ url: "/api/covers/anime/e1.jpg", focus: null });
   });
 
   it("returns the placeholder when no member franchise has a cover", () => {
-    expect(getCollectionCover({}, franchises, {}, {})).toBe(FALLBACK_SVG);
+    expect(getCollectionCover({}, franchises, {}, {})).toEqual(NO_COVER);
   });
 });

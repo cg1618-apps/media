@@ -7,7 +7,7 @@ def test_media_table_exists_with_expected_columns():
     cols = {c.name for c in models.Media.__table__.columns}
     assert cols == {
         "system_id", "media_type", "public_id", "display_name",
-        "cover_image_file", "franchise_id", "series_id",
+        "cover_image_file", "cover_image_focus", "franchise_id", "series_id",
         "created_at", "updated_at",
     }
 

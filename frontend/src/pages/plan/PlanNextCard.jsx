@@ -4,7 +4,7 @@
 // scopes now sit side by side in the same bucket and would otherwise be
 // indistinguishable.
 import { Link } from "react-router-dom";
-import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import { FALLBACK_SVG, entryCover, focusStyle } from "../../lib/covers";
 import { SCOPE_LABELS } from "../../config/planNextGroups";
 
 export default function PlanNextCard({ row }) {
@@ -17,22 +17,24 @@ export default function PlanNextCard({ row }) {
   }
 
   const badge = SCOPE_LABELS[row.scope];
-  // Entry-scope rows keep reading cover_image_file directly, same as before.
-  // Franchise/series rows have no such column - usePlanData resolves their
-  // coverUrl via getCoverForSlot / the series member-entry fallback, since
-  // Franchise and Series only carry cover_entry_id / type_covers.
-  const src = row.coverUrl || getCoverUrl(row.cover_image_file);
+  // Entry-scope rows read their own cover_image_file and cover_image_focus.
+  // Franchise/series rows have no such columns - usePlanData resolves their
+  // cover ({ url, focus }) via getCoverForSlot / the series member-entry
+  // fallback, since Franchise and Series only carry cover_entry_id /
+  // type_covers.
+  const cover = row.cover || entryCover(row);
   const body = (
     <>
       <div className="relative aspect-[3/4] bg-surface-2 overflow-hidden">
         <img
           loading="lazy"
-          src={src}
+          src={cover.url}
           alt={row.display_name || ""}
           onError={(e) => {
             e.currentTarget.src = FALLBACK_SVG;
           }}
           className="w-full h-full object-cover"
+          style={focusStyle(cover.focus)}
         />
         {badge && (
           <span className="absolute top-2 left-2 bg-black/60 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white">
