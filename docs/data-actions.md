@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-30
+Last verified: 2026-10-01
 
 ## What this is for
 
@@ -27,7 +27,11 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 ## 1. Backup
 
-`execute_backup(db, action_type)` in `backup.py`. Called by `POST /api/data-control/backup` (`action_type="Manual"`) and automatically at the end of Fill All / Replace All (`action_type="Auto"`).
+`execute_backup(db, action_type)` in `backup.py`. Called automatically at the end of Fill All / Replace All (`action_type="Auto"`) and by the nightly `deploy/backup/sheets.sh`. `POST /api/data-control/backup` (`action_type="Manual"`) goes through `start_backup` instead, which runs the same steps on a worker thread (below).
+
+**One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
+
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (47 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -40,8 +44,9 @@ Outcome:
 
 | Result | Log row | HTTP |
 |---|---|---|
-| all tabs written | `Backup` / `Backup` / `Success` | 200 `{"status": "success", "message": "All tabs backed up to Google Sheets"}` |
-| any exception | `Backup` / `Backup` / `Failed` with `error_message` | the exception is re-raised (500) |
+| all tabs written | `Backup` / `Backup` / `Success` | `execute_backup` returns `{"status": "success", "message": "All tabs backed up to Google Sheets"}`; the route streams it as the final `success` event |
+| any exception | `Backup` / `Backup` / `Failed` with `error_message` | `execute_backup` re-raises; the route streams a final `error` event with the message |
+| another Backup running | none | `BackupAlreadyRunning`; the route answers **409** |
 
 ---
 
@@ -888,7 +893,7 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | POST | `/fill/{key}` | — | SSE | Fill one type (all fourteen keys, studio and seiyuu included) |
 | POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) or `studio` / `seiyuu` (`fill_only`) — `game` (IGDB, then Steam) and `h-game` (DLsite, IGDB, Steam) are registered |
 | POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 500 on failure | single Replace (the twelve media keys; **not registered for `studio` or `seiyuu`**) |
-| POST | `/backup` | — | JSON `{"status", "message"}`; 500 on failure | Backup every tab |
+| POST | `/backup` | — | SSE (`processing` per tab, then `success` / `error`; keepalive comments); **409** while another Backup runs | Backup every tab; finishes even if the client disconnects |
 | POST | `/pull` | — | JSON `{"status": "success", "details": {tab: processed}}`; 500 when any tab was unreadable or failed | Pull All |
 | POST | `/pull/manga`, `/pull/novel`, `/pull/comic`, `/pull/cartoon` | — | JSON `{"status", "processed", "rows_added", "rows_updated"}` | shortcut to the `Manga`, `Novel`, `Comic`, `Cartoons` tabs (registered from `MEDIA_TYPE_FOR_TAB` for those four media types only) |
 | POST | `/pull/{tab_name}` | path = exact tab name from section 2, URL-encoded (`/pull/Anime`, `/pull/Anime%20Movie`, `/pull/TV%20Shows`) | same as above; 400 `Unknown tab: ...` for anything else | Pull one tab |

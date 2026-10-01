@@ -50,7 +50,9 @@ start_job "media-sheets" "${HC_SHEETS_URL}"
 echo "==> Running the Google Sheets Backup pipeline"
 # execute_backup(db, action_type) is a plain synchronous function - no Request,
 # no HTTP, no auth. "Auto" is already an action_type in use
-# (app/routers/_factory.py:112).
+# (app/routers/_factory.py:112). It raises BackupAlreadyRunning, writing
+# nothing, while a Backup started from the app holds the advisory lock; this
+# job then fails and its Healthchecks check says so.
 "${COMPOSE[@]}" exec -T app python -c "
 from app.database import SessionLocal
 from app.services.pipelines.backup import execute_backup

@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-30
+Last verified: 2026-10-01
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1902,7 +1902,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 
 | Method | Path               | Description                                                                                   |
 | ------ | ------------------ | --------------------------------------------------------------------------------------------- |
-| `POST` | `/backup`          | Backup entire DB to Google Sheets. Synchronous, returns JSON.                                 |
+| `POST` | `/backup`          | Backup entire DB to Google Sheets. Streams SSE progress (one event per tab, then `success` / `error`); **409** while another Backup runs. The Backup finishes and logs even if the client disconnects. |
 | `POST` | `/pull`            | Pull all tabs from Google Sheets, entities before entries (System Options → System Option Scope → Person → Person Role → Studio → System Configs → Collection → Franchise → Series → Anime → ...). Returns JSON. See `external-apis.md` for the full order and why Backup must run before Pull. |
 | `POST` | `/pull/manga`      | Pull Manga tab from Google Sheets. Returns JSON.                                              |
 | `POST` | `/pull/novel`      | Pull Novel tab from Google Sheets. Returns JSON.                                              |
