@@ -36,7 +36,7 @@ export function releaseYear(value) {
 
 // Which release columns represent an entry, most preferred first. Mirrors
 // RELEASE_PRIORITY; keyed by the hyphenated media-type slug, as there.
-const RELEASE_PRIORITY = {
+export const RELEASE_PRIORITY = {
   anime: ["release_date"],
   "anime-movie": ["release_date_jp", "release_date_tw"],
   movie: ["release_date_tw", "release_date_usa"],

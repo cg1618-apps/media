@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
+import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import CommunityCard from "../../components/info/CommunityCard";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
@@ -327,6 +328,7 @@ export default function Hentai() {
               Quick edit
             </Button>
             <Button onClick={markCompleted}>Mark completed</Button>
+            <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} onPatch={performPatch} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>

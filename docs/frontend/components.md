@@ -376,7 +376,9 @@ not drawn. The character, person and studio libraries use it for
   compact and without an owner, each `CastEditor` row. No image field is
   typed by hand anywhere).
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
-  `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`,
+  `MarkAiringModal`, `ReleaseDetailsModal` (the optional release date /
+  broadcast slot / watch day prompt the detail pages' release button opens -
+  see `pages.md`, Detail pages), `CreateNewEntityModal`, `FranchiseCreateModal`,
   `ConfirmModal` (a yes/no question in the same chrome - `title`, body as
   children, `confirmLabel`, `danger` for a destructive confirm, Escape
   cancels; the Resources page's delete prompt).
