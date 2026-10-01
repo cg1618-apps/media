@@ -475,6 +475,9 @@ export default function AnimeModifyTab({
       <SectionHeader icon="fa-users" title="Cast" />
       <CastEditor
         mediaType="anime"
+        franchiseId={af.franchise_id}
+        malLink={af.mal_link}
+        entryId={editingItem?.system_id}
         value={af.cast}
         onChange={(rows) => ua("cast", rows)}
       />

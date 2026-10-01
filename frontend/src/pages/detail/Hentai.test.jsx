@@ -119,9 +119,7 @@ describe("Hentai detail page", () => {
         position: 0,
         character_name: "Heroine",
         character_public_id: 7,
-        person_id: "p1",
-        person_name: "Voice Actor",
-        person_public_id: 9,
+        voices: [{ person_id: "p1", person_name: "Voice Actor", person_public_id: 9, remark: null }],
       },
     ]);
     mount(ENTRY);

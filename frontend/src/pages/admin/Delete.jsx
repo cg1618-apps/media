@@ -2856,11 +2856,12 @@ export default function Delete() {
                   destroys this person's credit history
                 </div>
                 <div className="text-xs text-danger mt-0.5">
-                  media_credit.person_id is ON DELETE CASCADE: deleting this
-                  person permanently deletes their{" "}
+                  Credits and seiyuu voices are ON DELETE CASCADE: deleting
+                  this person permanently deletes their{" "}
                   {selectedPerson.credit_count} credit
                   {selectedPerson.credit_count === 1 ? "" : "s"} on every entry
-                  they're linked to. If this person is a duplicate of someone
+                  they're linked to. The characters they voiced stay in each
+                  cast, without them. If this person is a duplicate of someone
                   else, the correct action is Merge below, not Delete.
                 </div>
               </div>

@@ -308,25 +308,29 @@ def test_repull_of_an_existing_system_option_updates_it_in_place(db_session, mon
 
 
 # ---------------------------------------------------------------------------
-# Character and Character Casting sheet tabs (Task 6)
+# Character, Character Casting and Character Casting Voice sheet tabs
 # ---------------------------------------------------------------------------
 
 
-def test_both_character_tabs_are_registered():
+def test_every_character_tab_is_registered():
     names = [t.name for t in SHEET_TABS]
     assert "Character" in names
     assert "Character Casting" in names
+    assert "Character Casting Voice" in names
 
 
 def test_character_restores_before_every_media_tab():
     """
     SHEET_TABS is the RESTORE order and it is strict. Character sits with the
     other entity tabs so castings can point at it; Character Casting sits after
-    every media tab because it reaches entries by the FK-less pair.
+    every media tab because it reaches entries by the FK-less pair, and
+    Character Casting Voice sits right after it because a voice cites its
+    casting by system_id.
     """
     names = [t.name for t in SHEET_TABS]
     assert names.index("Character") < names.index("Anime")
     assert names.index("Character Casting") > names.index("Novel")
+    assert names.index("Character Casting Voice") == names.index("Character Casting") + 1
 
 
 def test_character_round_trips_through_the_sheet(db_session, character):
@@ -348,13 +352,12 @@ def test_character_round_trips_through_the_sheet(db_session, character):
     assert parsed["my_rating"] is None
 
 
-def test_casting_round_trips_through_the_sheet(anime, character, person):
+def test_casting_round_trips_through_the_sheet(anime, character):
     raw = {
         "system_id": str(uuid.uuid4()),
         "character_id": str(character.system_id),
         "media_type": "anime",
         "entry_id": str(anime.system_id),
-        "person_id": str(person.system_id),
         "role": "Main",
         "position": "0",
         "photo_file": "",
@@ -364,24 +367,29 @@ def test_casting_round_trips_through_the_sheet(anime, character, person):
     parsed = f.parse_character_casting_from_sheet(raw)
     assert parsed["media_type"] == "anime"
     assert parsed["position"] == 0
-    assert parsed["person_id"] is not None
+    # The seiyuu live on the Character Casting Voice tab, not here.
+    assert "person_id" not in parsed
 
 
-def test_a_castings_empty_person_round_trips_as_none(anime, character):
-    """A manga casting has no seiyuu; an empty cell must not become a bad UUID."""
+def test_a_casting_voice_round_trips_through_the_sheet(anime, person):
+    casting_id = uuid.uuid4()
     raw = {
         "system_id": str(uuid.uuid4()),
-        "character_id": str(character.system_id),
-        "media_type": "manga",
+        "casting_id": str(casting_id),
+        "media_type": "anime",
         "entry_id": str(anime.system_id),
-        "person_id": "",
-        "role": "",
-        "position": "0",
-        "photo_file": "",
-        "remark": "",
+        "person_id": str(person.system_id),
+        "position": "1",
+        "remark": "child",
         "created_at": "",
     }
-    assert f.parse_character_casting_from_sheet(raw)["person_id"] is None
+    parsed = f.parse_character_casting_voice_from_sheet(raw)
+    assert parsed["casting_id"] == casting_id
+    assert parsed["media_type"] == "anime"
+    assert parsed["entry_id"] == anime.system_id
+    assert parsed["person_id"] == person.system_id
+    assert parsed["position"] == 1
+    assert parsed["remark"] == "child"
 
 
 def test_a_castings_blank_role_round_trips_as_none(anime, character):
@@ -391,7 +399,6 @@ def test_a_castings_blank_role_round_trips_as_none(anime, character):
         "character_id": str(character.system_id),
         "media_type": "anime",
         "entry_id": str(anime.system_id),
-        "person_id": "",
         "role": "  ",
         "position": "0",
         "photo_file": "",

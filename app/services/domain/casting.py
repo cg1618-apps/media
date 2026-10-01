@@ -3,14 +3,13 @@ Read and wholesale-replace one media entry's cast.
 
 Owns the two operations app/routers/casting.py needs: `casting_rows` (bulk
 read, positioned, with photo_file already resolved) and `replace_casting`
-(delete-then-insert the whole set in payload order). Validation that would
-otherwise surface as a raw IntegrityError from ck_casting_voice_scope - a
-seiyuu on a manga/novel casting - is rejected here in Python, before any row
-is written, so the constraint is a backstop rather than the user-facing
-message.
+(delete-then-insert the whole set in payload order, each casting with its
+voices). Validation that would otherwise surface as a raw IntegrityError from
+ck_casting_voice_scope - a seiyuu on a manga/novel casting - is rejected here
+in Python, before any row is written, so the constraint is a backstop rather
+than the user-facing message.
 """
 
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -37,9 +36,9 @@ class CastingValidationError(ValueError):
 
 def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
     """
-    One entry's cast, ordered by position.
+    One entry's cast, ordered by position, each row with its voices in order.
 
-    Bulk-loads the referenced characters and people in two queries total,
+    Bulk-loads the voices, characters and people in a fixed number of queries,
     regardless of cast size - not one per row - then resolves photo_file here
     (the casting's own value, falling back to the character's) so every
     reader gets the same answer without repeating the fallback.
@@ -64,7 +63,16 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
         )
     }
 
-    person_ids = {c.person_id for c in castings if c.person_id}
+    voices = (
+        db.query(models.CharacterCastingVoice)
+        .filter(
+            models.CharacterCastingVoice.media_type == media_type,
+            models.CharacterCastingVoice.entry_id == entry_id,
+        )
+        .order_by(models.CharacterCastingVoice.position)
+        .all()
+    )
+    person_ids = {v.person_id for v in voices}
     people = (
         {
             p.system_id: p
@@ -75,11 +83,21 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
         if person_ids
         else {}
     )
+    voices_by_casting: dict[UUID, list[dict]] = {}
+    for voice in voices:
+        person = people.get(voice.person_id)
+        voices_by_casting.setdefault(voice.casting_id, []).append(
+            {
+                "person_id": str(voice.person_id),
+                "person_public_id": person.public_id if person else None,
+                "person_name": person.display_name if person else None,
+                "remark": voice.remark,
+            }
+        )
 
     rows = []
     for casting in castings:
         character = characters.get(casting.character_id)
-        person = people.get(casting.person_id) if casting.person_id else None
         rows.append(
             {
                 "system_id": str(casting.system_id),
@@ -89,9 +107,7 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
                 # built - from a public_id, not the UUID.
                 "character_public_id": character.public_id if character else None,
                 "character_name": character.display_name if character else None,
-                "person_id": str(person.system_id) if person else None,
-                "person_public_id": person.public_id if person else None,
-                "person_name": person.display_name if person else None,
+                "voices": voices_by_casting.get(casting.system_id, []),
                 "role": casting.role,
                 "position": casting.position,
                 "photo_file": casting.photo_file
@@ -108,11 +124,18 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
 
 
 def _validate_row(media_type: str, row: dict) -> None:
-    person_id: Optional[UUID] = row.get("person_id")
-    if person_id is not None and media_type not in VOICED_MEDIA_TYPES:
+    voices = row.get("voices") or []
+    if voices and media_type not in VOICED_MEDIA_TYPES:
         raise CastingValidationError(
             f"A seiyuu cannot be cast on a {media_type} entry."
         )
+    seen: set = set()
+    for voice in voices:
+        if voice["person_id"] in seen:
+            raise CastingValidationError(
+                f"Person {voice['person_id']} voices the same character twice."
+            )
+        seen.add(voice["person_id"])
     role = row.get("role")
     if role is not None and role not in CHARACTER_ROLES:
         raise CastingValidationError(
@@ -124,7 +147,7 @@ def _validate_rows(db: Session, rows: list[dict]) -> None:
     """
     Payload-wide checks _validate_row cannot do row-by-row: a repeated
     character_id (would violate uq_character_casting), and a character_id or
-    person_id that does not exist (would violate a FK). Each check runs as
+    voice person_id that does not exist (would violate a FK). Each check runs as
     ONE query over every id the payload names, not one query per row -
     CastEditor can hand this a cast list of any size.
     """
@@ -150,7 +173,9 @@ def _validate_rows(db: Session, rows: list[dict]) -> None:
                 f"Unknown character id: {sorted(str(m) for m in missing)[0]}."
             )
 
-    person_ids = {row["person_id"] for row in rows if row.get("person_id")}
+    person_ids = {
+        voice["person_id"] for row in rows for voice in row.get("voices") or []
+    }
     if person_ids:
         found = {
             p.system_id
@@ -169,14 +194,17 @@ def replace_casting(
     db: Session, media_type: str, entry_id: UUID, rows: list[dict]
 ) -> None:
     """
-    Deletes an entry's existing castings and inserts `rows` in order.
+    Deletes an entry's existing castings and inserts `rows` in order. Each
+    row's `voices` are inserted beneath it in their own order; the old voices
+    go with the old castings, by fk_casting_voice_casting's ON DELETE CASCADE.
 
     `position` is taken from list index when a row omits it, so callers may
     submit an ordered list without stamping positions themselves. Raises
     CastingValidationError - mapped to a 422 by the router - for a media type
     outside CASTING_MEDIA_TYPES, a seiyuu on a non-voiced media type, a role
     outside CHARACTER_ROLES, a character_id repeated within the payload, or a
-    character_id/person_id that does not exist, so a CHECK or FK violation is
+    character_id/person_id that does not exist, a person voicing one casting
+    twice, so a CHECK or FK violation is
     never the first line of defense - and never a generic 500.
     """
     if media_type not in CASTING_MEDIA_TYPES:
@@ -192,16 +220,24 @@ def replace_casting(
     ).delete(synchronize_session=False)
 
     for index, row in enumerate(rows):
-        db.add(
-            models.CharacterCasting(
-                character_id=row["character_id"],
+        casting = models.CharacterCasting(
+            character_id=row["character_id"],
+            media_type=media_type,
+            entry_id=entry_id,
+            role=row.get("role"),
+            position=row.get("position", index),
+            photo_file=row.get("photo_file"),
+            photo_focus=row.get("photo_focus"),
+            remark=row.get("remark"),
+        )
+        casting.voices = [
+            models.CharacterCastingVoice(
                 media_type=media_type,
                 entry_id=entry_id,
-                person_id=row.get("person_id"),
-                role=row.get("role"),
-                position=row.get("position", index),
-                photo_file=row.get("photo_file"),
-                photo_focus=row.get("photo_focus"),
-                remark=row.get("remark"),
+                person_id=voice["person_id"],
+                position=voice_index,
+                remark=voice.get("remark"),
             )
-        )
+            for voice_index, voice in enumerate(row.get("voices") or [])
+        ]
+        db.add(casting)

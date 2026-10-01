@@ -25,8 +25,8 @@ import { studioValue } from "../../components/info/StudioLinks";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { Button, Chip, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
-import { H_COMIC_USEFULNESS, MY_RATINGS, WATCHING_STATUSES, castRoleRank } from "../../config/fieldOptions";
+import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
+import { H_COMIC_USEFULNESS, MY_RATINGS, WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useCasting } from "../../hooks/useCasting";
@@ -38,6 +38,7 @@ import { entityPath } from "../../lib/entityPath";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HentaiNotes from "./HentaiNotes";
 import { focusStyle } from "../../lib/covers";
+import CastSection from "../../components/info/CastSection";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -46,68 +47,6 @@ const selectCls =
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
-// Castings in CHARACTER_ROLES order (castRoleRank), no role last, then
-// whatever order the server already gave.
-
-// Read-only cast list, the shape AnimeMovie.jsx's takes: a hentai is voiced,
-// so a row names its seiyuu. Renders nothing for an entry with no cast.
-function CastSection({ cast }) {
-  if (!cast || cast.length === 0) return null;
-  const sorted = [...cast].sort((a, b) => {
-    const ra = castRoleRank(a.role);
-    const rb = castRoleRank(b.role);
-    if (ra !== rb) return ra - rb;
-    return (a.position ?? 0) - (b.position ?? 0);
-  });
-  return (
-    <Slip title="Cast">
-      <div className="space-y-2">
-        {sorted.map((row) => (
-          <div key={row.system_id} className="flex items-center gap-3">
-            <div className="w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded">
-              <img
-                loading="lazy"
-                src={getCoverUrl(row.photo_file)}
-                alt=""
-                className="w-full h-full object-cover"
-                style={focusStyle(row.photo_focus)}
-                onError={(e) => {
-                  e.target.src = FALLBACK_SVG;
-                }}
-              />
-            </div>
-            <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-              {row.role && <Chip>{row.role}</Chip>}
-              <Link
-                to={entityPath("character", {
-                  public_id: row.character_public_id,
-                  display_name: row.character_name,
-                })}
-                className={lineageLinkCls}
-              >
-                {row.character_name || "Unknown"}
-              </Link>
-              {row.person_id && (
-                <>
-                  <span className="text-text-faint text-xs">voiced by</span>
-                  <Link
-                    to={entityPath("person", {
-                      public_id: row.person_public_id,
-                      display_name: row.person_name,
-                    })}
-                    className={lineageLinkCls}
-                  >
-                    {row.person_name || "Unknown"}
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Slip>
-  );
-}
 
 function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
   const select = (id, label, field, options, { emptyLabel, msg }) => (

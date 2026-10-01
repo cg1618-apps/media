@@ -167,7 +167,13 @@ def test_a_seiyuu_cast_only_on_hidden_entries_is_hidden(
             character_id=character.system_id,
             media_type="anime",
             entry_id=labelled_anime.system_id,
-            person_id=person.system_id,
+            voices=[
+                models.CharacterCastingVoice(
+                    media_type="anime",
+                    entry_id=labelled_anime.system_id,
+                    person_id=person.system_id,
+                )
+            ],
         )
     )
     db_session.flush()

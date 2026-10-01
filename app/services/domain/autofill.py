@@ -9,6 +9,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Character,
     Comic,
     Manga,
     Movies,
@@ -45,6 +46,7 @@ from app.services.integrations.steam import (
 )
 from app.services.integrations.tenrai import (
     fetch_tenrai_anime_data,
+    fetch_tenrai_character_data,
     fetch_tenrai_manga_novel_data,
     fetch_tenrai_person_data,
     fetch_tenrai_producer_data,
@@ -74,6 +76,7 @@ from app.utils.steam_utils import (
 from app.utils.tenrai_utils import (
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
+    map_tenrai_to_character_data,
     map_tenrai_to_manga_data,
     map_tenrai_to_novel_data,
     map_tenrai_to_person_data,
@@ -1089,6 +1092,60 @@ def autofill_person_from_mal(person: Person, db: Session) -> None:
         logger.error(
             "MAL Autofill failed for Person ID %s (MAL %s): %s",
             person.system_id,
+            mal_id,
+            e,
+        )
+
+
+_CHARACTER_NAME_COLUMNS = ("name_en", "name_jp", "name_alt")
+
+
+def autofill_character_from_mal(character: Character) -> None:
+    """
+    Enriches one character from MAL's character record, via Tenrai: the
+    English (western-order) and kanji names, the nicknames as name_alt, and
+    the portrait.
+
+    Fill-only, like the seiyuu autofill: a column is written only when it is
+    empty, so a curated character is a no-op. Unlike a person there is no
+    name constraint to collide with (Decision G). The character must already
+    have a system_id - the portrait is stored under it. Failures are logged
+    and swallowed because it runs inside the character write request.
+    """
+    mal_id = character.mal_id
+    if not mal_id:
+        return
+
+    try:
+        raw_data = fetch_tenrai_character_data(mal_id)
+        if not raw_data:
+            return
+
+        c_data = map_tenrai_to_character_data(raw_data)
+
+        if not character.mal_link and c_data.get("mal_link"):
+            character.mal_link = c_data["mal_link"]
+        for column in _CHARACTER_NAME_COLUMNS:
+            if not getattr(character, column) and c_data.get(column):
+                setattr(character, column, c_data[column])
+
+        # Last, so a download failure cannot cost us the cheap columns above.
+        if (
+            cover_needs_download(
+                character.photo_file, "character", str(character.system_id)
+            )
+            and c_data.get("photo_url")
+        ):
+            key = download_cover_image(
+                c_data["photo_url"], "character", str(character.system_id)
+            )
+            if key:
+                character.photo_file = key
+
+    except Exception as e:
+        logger.error(
+            "MAL Autofill failed for Character ID %s (MAL %s): %s",
+            character.system_id,
             mal_id,
             e,
         )

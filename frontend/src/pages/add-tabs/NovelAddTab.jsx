@@ -573,6 +573,8 @@ export default function NovelAddTab({
       <SectionHeader icon="fa-users" title="Cast" />
       <CastEditor
         mediaType="novel"
+        franchiseId={nvf.franchise_id}
+        malLink={nvf.mal_link}
         value={nvf.cast}
         onChange={(v) => unv("cast", v)}
       />

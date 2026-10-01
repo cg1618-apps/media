@@ -37,9 +37,10 @@ const ENTRIES = {
           display_name: "Haruhi Suzumiya",
           cover_image_file: null,
           release_date: "2006-04-02",
-          seiyuu_display_name: "Minori Chihara",
-          seiyuu_system_id: "p1",
-          seiyuu_public_id: 1,
+          seiyuu: [
+            { display_name: "Minori Chihara", system_id: "p1", public_id: 1, remark: null },
+            { display_name: "Second Voice", system_id: "p2", public_id: 2, remark: "child" },
+          ],
         },
       ],
     },
@@ -117,6 +118,13 @@ describe("Character detail page", () => {
       "href",
       "/person/1/minori-chihara",
     );
+  });
+
+  it("names every seiyuu of an entry, with the remark that tells them apart", async () => {
+    renderPage();
+    expect(
+      await screen.findByRole("link", { name: "Second Voice (child)" }),
+    ).toHaveAttribute("href", "/person/2/second-voice");
   });
 
   it("renders an empty group rather than hiding it when every entry is hidden", async () => {

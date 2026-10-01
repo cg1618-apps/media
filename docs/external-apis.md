@@ -1,10 +1,10 @@
 # External APIs
 
-Last verified: 2026-09-30
+Last verified: 2026-10-01
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Twelve outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios, the columns an h-comic has, and three fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts, the cover and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime, and its library capsule - else its header image - is the cover when IGDB has none; **DLsite** fills an h-game's release date, studio and cover ahead of both; **AniDB** fills whatever of a hentai's cover, release date and airing status MAL left blank; **E-Hentai** fills an h-comic's cover and illustrator after Tenrai, for the doujinshi MAL does not list; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Twelve outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels, studios, seiyuu and characters, builds a cast from an entry's MAL character list, fills the columns an h-comic has, and three fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts, the cover and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime, and its library capsule - else its header image - is the cover when IGDB has none; **DLsite** fills an h-game's release date, studio and cover ahead of both; **AniDB** fills whatever of a hentai's cover, release date and airing status MAL left blank; **E-Hentai** fills an h-comic's cover and illustrator after Tenrai, for the doujinshi MAL does not list; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
@@ -37,7 +37,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 
 | Service | Base URL | Key / env var (`app/config.py`) | Client file | Mapper file | Feeds |
 |---|---|---|---|---|---|
-| Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel`, `studio`, `person` (seiyuu only), `h_comic`, `hentai` |
+| Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel`, `studio`, `person` (seiyuu only), `character`, `h_comic`, `hentai` |
 | AniList | `https://graphql.anilist.co` | none | `app/services/integrations/anilist.py` | `app/utils/anilist_utils.py` | `anime`, `anime_movies`, `manga`, `novel` |
 | TMDB | `https://api.themoviedb.org/3` | `settings.tmdb_api_key` ← `TMDB_API_KEY` | `app/services/integrations/tmdb.py` | `app/utils/tmdb_utils.py` | `movies`, `tv_shows`, `cartoons` |
 | OMDb | `http://www.omdbapi.com` | `settings.omdb_api_key` ← `OMDB_API_KEY` | `app/services/integrations/omdb.py` | `app/utils/omdb_utils.py` | `imdb_rating` on the three above |
@@ -70,11 +70,11 @@ Tenrai v1 is a public read-only mirror of MyAnimeList. No key is needed.
 
 | Item | Value |
 |---|---|
-| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime, anime movies **and** hentai - it serves Rx titles like any other), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga, novels **and** h-comics) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios) and `GET /people/{mal_id}/full` (`fetch_tenrai_person_data`, used for seiyuu). The response's `data` object is returned. All four share one `TenraiRateLimiter` budget. |
+| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime, anime movies **and** hentai - it serves Rx titles like any other), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga, novels **and** h-comics) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios) `GET /people/{mal_id}/full` (`fetch_tenrai_person_data`, used for seiyuu), `GET /characters/{mal_id}/full` (`fetch_tenrai_character_data`, used for characters), and `GET /anime/{mal_id}/characters` and `GET /manga/{mal_id}/characters` (`fetch_tenrai_cast(resource, mal_id)`, used by the MAL cast import - `anime` for anime, anime movies and hentai, `manga` for manga, novels and h-comics). The last two fetchers share `_get_tenrai_data`, one throttled GET with the same status handling as the others. The response's `data` object is returned. All six fetchers share one `TenraiRateLimiter` budget. |
 | User-Agent | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0` — MAL's CDN rejects the default `python-requests` agent. |
 | Rate limiter | `TenraiRateLimiter`, two windows checked together: `DEFAULT_LIMITS = ((4, 1), (120, 60))` — 4 requests per second **and** 120 per minute. It loops until every window has room. |
 | Pipeline pacing | On top of the limiter, `specs.py` sleeps `MAL_PAUSE = 1` second between entries in Fill and Replace. |
-| MAL ID source | `mal_id` on the row; `extract_mal_id` / `extract_mal_id_manga_novel` in `app/utils/utils.py` pull it out of `mal_link` with `myanimelist\.net/anime/(\d+)` and `myanimelist\.net/manga/(\d+)`. A studio's URL is `myanimelist.net/anime/producer/<id>/<slug>`, so it needs its own `MAL_PRODUCER_ID_PATTERN` = `myanimelist\.net/anime/producer/(\d+)`, read by `extract_mal_id_producer`. The two patterns cannot poach each other's links: the anime one needs digits straight after `/anime/` and finds the word `producer` instead, and the producer one needs the literal segment. A person's URL is `myanimelist.net/people/<id>/<slug>`, read by `extract_mal_id_person` with `MAL_PERSON_ID_PATTERN` = `myanimelist\.net/people/(\d+)`. |
+| MAL ID source | `mal_id` on the row; `extract_mal_id` / `extract_mal_id_manga_novel` in `app/utils/utils.py` pull it out of `mal_link` with `myanimelist\.net/anime/(\d+)` and `myanimelist\.net/manga/(\d+)`. A studio's URL is `myanimelist.net/anime/producer/<id>/<slug>`, so it needs its own `MAL_PRODUCER_ID_PATTERN` = `myanimelist\.net/anime/producer/(\d+)`, read by `extract_mal_id_producer`. The two patterns cannot poach each other's links: the anime one needs digits straight after `/anime/` and finds the word `producer` instead, and the producer one needs the literal segment. A person's URL is `myanimelist.net/people/<id>/<slug>`, read by `extract_mal_id_person` with `MAL_PERSON_ID_PATTERN` = `myanimelist\.net/people/(\d+)`. A character's is `myanimelist.net/character/<id>/<slug>`, read by `extract_mal_id_character` with `MAL_CHARACTER_ID_PATTERN` = `myanimelist\.net/character/(\d+)`. |
 
 ### Mapping for `anime` — `map_tenrai_to_anime_data`
 
@@ -183,6 +183,37 @@ MAL's "people" record. Only a person holding the `seiyuu` role is ever filled fr
 Deliberately dropped: `birthday`, `website_url` and `about` — the person table has no columns for them.
 
 `autofill_person_from_mal(person, db)` is **fill-only for every column**: each name, the link and the photo are written only when empty. The four names are written **together or not at all**: `uq_person_name` is unique over the four name columns (NULLS NOT DISTINCT), so before assigning them the autofill asks, with `IS NOT DISTINCT FROM`, whether another person already holds the filled tuple. If one does, the names are skipped with a warning and the photo and link still land — a query first rather than a caught `IntegrityError`, which would cost the whole save. Like the studio autofill it swallows and logs every failure.
+
+### Mapping for `character` — `map_tenrai_to_character_data`
+
+MAL's character record, fetched for a character with a `mal_id` by `POST` / `PUT /api/character` (`PATCH` re-derives `mal_id` from `mal_link` but does not fetch). There is no Fill pipeline for characters.
+
+| Tenrai field | Column | Rule |
+|---|---|---|
+| `images.jpg.image_url` | `photo_file` | `_mal_photo`: MAL's `questionmark` placeholder is dropped. Downloaded by `download_cover_image(url, "character", str(system_id))` when `cover_needs_download` says so - no photo, or the character's own download whose file is missing. An upload is never replaced. |
+| `url` | `mal_link` | as-is. |
+| `name` | `name_en` | `_western_order`, as for a person: `"Elric, Edward"` → `"Edward Elric"`. |
+| `name_kanji` | `name_jp` | trimmed. |
+| `nicknames[]` | `name_alt` | Joined with `", "`; nothing when the list is empty. |
+
+Deliberately dropped: `about` — the character table has no column for it.
+
+`autofill_character_from_mal(character)` is **fill-only for every column**. Unlike the person autofill there is no name-collision check: character names are not unique (Decision G). It runs inside the character write request, after the payload is copied and the row flushed (the portrait is stored under the `system_id`), so it swallows and logs every failure.
+
+### Mapping for a cast — `map_tenrai_cast`
+
+The MAL cast import (`POST /api/casting/mal`, `app/services/domain/mal_cast.py`) reads `/anime|manga/{mal_id}/characters`, a list of `{character, role, voice_actors}` items, and turns each into one row. An item with no character id is dropped.
+
+| Tenrai field | Becomes | Rule |
+|---|---|---|
+| `character.mal_id` | the character match key | matched against `character.mal_id` among characters the caller can see; an unmatched one is created with `name_en`, `mal_id` and `mal_link` |
+| `character.url` | `character.mal_link` of a created character | as-is |
+| `character.name` | `character.name_en` of a created character | `_western_order` |
+| `character.images.jpg.image_url` | `character.photo_file` of a created character | `_mal_photo`; downloaded after the response (see [credits-and-tags.md](systems/credits-and-tags.md)) |
+| `role` | the casting's `role` | `Main` and `Supporting` kept, anything else none |
+| `voice_actors[]` where `language` is `Japanese` | the casting's voices | each `person.mal_id` matched against `person.mal_id`, then `person.name` (western order) through `resolve_person`; other languages are dropped. A manga, novel or h-comic row carries no voices. |
+
+The cast itself is not written by the import: it returns rows for the editor, which the ordinary cast `PUT` saves.
 
 ## AniList
 

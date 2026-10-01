@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     Anime,
     Cartoon,
+    Character,
     Comic,
     Manga,
     Media,
@@ -37,6 +38,7 @@ from app.utils.utils import (
     calculate_seasonal_from_month,
     extract_imdb_id,
     extract_mal_id_anime,
+    extract_mal_id_character,
     extract_mal_id_manga_novel,
     extract_mal_id_person,
     extract_mal_id_producer,
@@ -96,6 +98,15 @@ def apply_extract_mal_id_person(person: Person) -> bool:
     mal_id = extract_mal_id_person(person.mal_link)
     if mal_id:
         person.mal_id = mal_id
+        return True
+    return False
+
+
+def apply_extract_mal_id_character(character: Character) -> bool:
+    """Extracts the MAL character ID from mal_link onto mal_id. True if set."""
+    mal_id = extract_mal_id_character(character.mal_link)
+    if mal_id:
+        character.mal_id = mal_id
         return True
     return False
 

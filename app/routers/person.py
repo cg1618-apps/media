@@ -4,12 +4,12 @@ CRUD for people credited on media entries, plus scoped role filtering and merge.
 
 Deleting a person cascades their media_credit rows away (see
 MediaCredit.person_id ondelete="CASCADE") - that is the chosen design for a
-genuine removal. Their character_casting rows do not cascade: person_id there
-is ON DELETE SET NULL (Decision H), because a casting is the character's link
-to the work, not the person's - deleting a seiyuu only un-casts them. Merge
+genuine removal. So do their character_casting_voice rows, but not the
+castings above them: a casting is the character's link to the work, not the
+person's - deleting a seiyuu only un-voices the character (Decision H). Merge
 exists because deleting is the WRONG fix for a duplicate: it repoints every
-credit and unions the person_role rows onto the survivor before deleting the
-loser, so no credit history is lost.
+credit and voice and unions the person_role rows onto the survivor before
+deleting the loser, so no credit history is lost.
 """
 
 import logging
@@ -285,13 +285,18 @@ def get_person_entries(
         .order_by(models.MediaCredit.position)
         .all()
     )
-    # A seiyuu's work lives in character_casting, not media_credit - see
-    # credit_roles.CreditRole.credited_via - so it is walked and grouped
-    # alongside the credit rows, through the same visibility pass, rather
-    # than as a separate endpoint.
+    # A seiyuu's work lives in character_casting_voice, not media_credit - see
+    # credit_roles.CreditRole.credited_via - so the castings they voice are
+    # walked and grouped alongside the credit rows, through the same
+    # visibility pass, rather than as a separate endpoint. uq_casting_voice
+    # makes this one row per casting.
     casting_rows = (
         db.query(models.CharacterCasting)
-        .filter(models.CharacterCasting.person_id == system_id)
+        .join(
+            models.CharacterCastingVoice,
+            models.CharacterCastingVoice.casting_id == models.CharacterCasting.system_id,
+        )
+        .filter(models.CharacterCastingVoice.person_id == system_id)
         .order_by(models.CharacterCasting.position)
         .all()
     )
@@ -711,10 +716,10 @@ def delete_person(
     them - see the merge endpoint for the correct fix when this person is a
     duplicate.
 
-    Their character_casting rows do NOT: person_id there is ON DELETE SET
-    NULL, not CASCADE (Decision H), because a casting is the CHARACTER's link
-    to the work, not the person's. Deleting a seiyuu merely un-casts them -
-    the character keeps their place in the anime with no seiyuu attached.
+    Their character_casting_voice rows cascade too, but the castings above
+    them do NOT (Decision H): a casting is the CHARACTER's link to the work,
+    not the person's. Deleting a seiyuu merely un-voices the character - it
+    keeps its place in the anime, with whatever other voices it has.
 
     `credits` is the count the UI showed in its confirmation - media_credit
     rows plus castings, the same total credit_count and /entries already use
@@ -730,7 +735,7 @@ def delete_person(
 
     actual = (
         db.query(models.MediaCredit).filter_by(person_id=system_id).count()
-        + db.query(models.CharacterCasting).filter_by(person_id=system_id).count()
+        + db.query(models.CharacterCastingVoice).filter_by(person_id=system_id).count()
     )
     if actual != credits:
         raise HTTPException(
@@ -755,9 +760,10 @@ def merge_person(
     admin: Viewer = Depends(require_manage_catalog),
 ):
     """
-    Repoint every credit and role from `source_id` onto this person, then delete
-    the source. This - not delete - is the fix for a duplicate: deleting cascades
-    the credits away, so merging is the only way to keep them.
+    Repoint every credit, voice and role from `source_id` onto this person,
+    then delete the source. This - not delete - is the fix for a duplicate:
+    deleting cascades the credits and voices away, so merging is the only way
+    to keep them.
     """
     if system_id == payload.source_id:
         raise HTTPException(
@@ -785,6 +791,23 @@ def merge_person(
             db.delete(credit)
             continue
         credit.person_id = system_id
+        moved += 1
+
+    # A voice on a casting the survivor already voices would collide on
+    # uq_casting_voice; the survivor's row stands for both.
+    voiced = {
+        v.casting_id
+        for v in db.query(models.CharacterCastingVoice).filter_by(person_id=system_id)
+    }
+    for voice in (
+        db.query(models.CharacterCastingVoice)
+        .filter_by(person_id=payload.source_id)
+        .all()
+    ):
+        if voice.casting_id in voiced:
+            db.delete(voice)
+            continue
+        voice.person_id = system_id
         moved += 1
 
     keep_roles = {(r.role, r.scope) for r in keep.roles}
