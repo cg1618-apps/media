@@ -12,7 +12,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import PersonSubTabBar from "../../components/forms/PersonSubTabBar";
+import PersonSubTabBar, { ALL_PEOPLE_TAB } from "../../components/forms/PersonSubTabBar";
+import ScopeChips from "../../components/forms/ScopeChips";
+import { toggleIn } from "../../lib/entityScopes";
 import { PersonFields, useRoleScopes } from "../add-tabs/PersonAddTab";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
@@ -44,7 +46,8 @@ export default function PersonModifyTab({ initialId = null } = {}) {
   const queryClient = useQueryClient();
   const legalScopes = useRoleScopes();
 
-  const [subTab, setSubTab] = useState("director");
+  const [subTab, setSubTab] = useState(ALL_PEOPLE_TAB.key);
+  const allPeople = subTab === ALL_PEOPLE_TAB.key;
   const [search, setSearch] = useState("");
   // Which media-type scopes of the sub-tab's role the grid is narrowed to.
   // Empty means "any scope" - the filter starts off, so the grid still lists
@@ -56,27 +59,22 @@ export default function PersonModifyTab({ initialId = null } = {}) {
   const [submitting, setSubmitting] = useState(false);
 
   // Filtered by the sub-tab's role, which is what makes the sub-tab useful on
-  // a list of several hundred people. The FORM below still edits every type
-  // they hold - a person is one row.
+  // a list of several hundred people; the All tab sends no role and so also
+  // lists people holding no type. The FORM below still edits every type they
+  // hold - a person is one row.
   const { data: people = [], isLoading } = useQuery({
     queryKey: ["people-admin", subTab],
-    queryFn: () => fetchJson(endpoints.person.list(`role=${subTab}`)),
+    queryFn: () =>
+      fetchJson(endpoints.person.list(allPeople ? "" : `role=${subTab}`)),
     staleTime: 10_000,
   });
 
   const upf = (k, v) => setPersonForm((p) => ({ ...p, [k]: v }));
 
   // The scopes this role may be held in. A role with one legal scope (producer,
-  // composer) gets no filter row at all - every person listed is in it.
-  const scopeChoices = legalScopes[subTab] || [];
-
-  function toggleScope(scope) {
-    setScopes((prev) =>
-      prev.includes(scope)
-        ? prev.filter((s) => s !== scope)
-        : [...prev, scope],
-    );
-  }
+  // composer) gets no filter row at all - every person listed is in it. All
+  // is not a role, so it has none either.
+  const scopeChoices = allPeople ? [] : legalScopes[subTab] || [];
 
   // Everyone holding the sub-tab's role is listed up front, the way the System
   // Option tab lists a category's values - an admin should not have to already
@@ -185,6 +183,7 @@ export default function PersonModifyTab({ initialId = null } = {}) {
       {!selectedId && (
         <>
           <PersonSubTabBar
+            withAll
             active={subTab}
             onSelect={(key) => {
               setSubTab(key);
@@ -195,27 +194,11 @@ export default function PersonModifyTab({ initialId = null } = {}) {
             }}
           />
           <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
-            {scopeChoices.length > 1 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider mr-1">
-                  Scope
-                </span>
-                {scopeChoices.map((scope) => (
-                  <button
-                    key={scope}
-                    type="button"
-                    onClick={() => toggleScope(scope)}
-                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${
-                      scopes.includes(scope)
-                        ? "bg-brand text-on-brand border-brand"
-                        : "bg-surface text-text-faint border-border hover:border-border-strong"
-                    }`}
-                  >
-                    {scope}
-                  </button>
-                ))}
-              </div>
-            )}
+            <ScopeChips
+              choices={scopeChoices}
+              selected={scopes}
+              onToggle={(scope) => setScopes((prev) => toggleIn(prev, scope))}
+            />
             <div className="relative">
               <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
               <input
@@ -244,13 +227,15 @@ export default function PersonModifyTab({ initialId = null } = {}) {
 
           {!isLoading && people.length === 0 && (
             <p className="text-sm text-text-faint italic">
-              Nobody holds this type yet.
+              {allPeople ? "There are no people yet." : "Nobody holds this type yet."}
             </p>
           )}
           {!isLoading && people.length > 0 && filtered.length === 0 && (
             <p className="text-sm text-text-faint italic">
               {search
-                ? "Nobody with this type matches that name."
+                ? allPeople
+                  ? "Nobody matches that name."
+                  : "Nobody with this type matches that name."
                 : "Nobody holds this type in the selected scopes."}
             </p>
           )}

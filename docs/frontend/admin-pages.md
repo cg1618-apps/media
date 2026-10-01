@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-30
+Last verified: 2026-10-01
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -587,12 +587,17 @@ holds — a franchise, a series or an entry; see
   to already know a name to reach the record. The search box filters that grid
   in place over **all four** name fields, not just the one
   `display_name_field` points at, so a studio configured to display its
-  English name is still findable by its Japanese one. Opening a studio whose
+  English name is still findable by its Japanese one. Above the search sit
+  **scope chips** (`ScopeChips`) over the media types the studios are
+  credited on — a studio stores no scope, so its `media_types` stand in — and
+  they narrow the grid the way the person tab's do. Opening a studio whose
   `country` is unset seeds the field with **Japan** — the overwhelmingly
   common case here — so saving without touching it records Japan.
 - **Publisher tab (Entity).** `PublisherModifyTab.jsx`, self-contained the
   same way over `/api/publisher/` (query key `["publishers-admin"]`): its own
-  picker listing every publisher up front, the same all-four-names filter, and
+  picker listing every publisher up front, the same all-four-names filter,
+  scope chips over the publishers' **stored** `scopes` (what each is offered
+  on, not where it happens to be credited), and
   its own `PUT /api/publisher/{id}` rendering `PublisherFields` from the Add
   tab, `PublisherScopePills` included — and this is the **only** path that
   narrows a publisher's scopes, since `PUT` replaces the set wholesale while
@@ -603,7 +608,10 @@ holds — a franchise, a series or an entry; see
   Japanese" is not true of publishers and distributors.
 - **Person tab (Entity).** `PersonModifyTab.jsx`, self-contained the same way
   over `/api/person/`. A `PersonSubTabBar` picks the role — the analogue of
-  the option tab's category — and every person holding it is listed in the
+  the option tab's category. It opens on **All**, first in the bar, which
+  sends no `?role=` and so lists every person, including one holding no type
+  at all; nothing requires a person to hold one, and no type tab would ever
+  list them. All offers no scope chips. Every person holding the picked role is listed in the
   same grid of display names, filtered in place by the same all-four-names
   search. Above that search sits a row of **scope chips** — the role's legal
   media types, from `/api/person/role-scopes` — which narrow the grid to the
@@ -620,8 +628,12 @@ holds — a franchise, a series or an entry; see
   the pick is `photo_fallback_entry_id` on the `PUT`, and the public pages
   show that entry's cover when the person has no photo.
 - **Character tab (Entity).** `CharacterModifyTab.jsx`, self-contained the
-  same way over `/api/character/` (query key `["characters-admin"]`): a
-  search box over all four names opens a dropdown of matches, and the pick
+  same way over `/api/character/` (query key `["characters-admin"]`) and
+  picked the way people are: a `SubTabBar` of **All** then one tab per
+  `CHARACTER_ROLES` value (Main, Core, Supporting, Other — a character holds
+  at most one), scope chips over the media types the shown characters are
+  cast in, and a grid of every match up front filtered by the all-four-names
+  search. All lists characters with no type too. The pick
   loads `CharacterFields` with the same **Photo fallback** select over
   `GET /api/character/{id}/entries`; for a character the chosen entry lends
   its casting photo first and its cover only when the casting has none, and
@@ -668,8 +680,15 @@ any orphaned parents the admin ticked. Every delete goes through the type's
 `DELETE` endpoint, which also removes cover images, plan rows, credit links and
 writes a `deleted_record`.
 
+**Entity pickers are filtered the way the Modify tab's are.** Person and
+Character carry the same type tabs — All first, which lists records holding
+no type — and Person, Studio, Publisher and Character carry the same scope
+chips (`lib/entityScopes.js`), narrowing what the search dropdown offers.
+The merge-target pickers are not filtered: a duplicate's survivor can be of
+any type.
+
 **Person tab (Entity).** A `PersonSubTabBar` filters the picker to the people
-holding one type, then the selected person's whole record is edited through
+holding one type, or to everyone on All, then the selected person's whole record is edited through
 `PersonFields` — every type they hold, not just the sub-tab's one, because
 `PUT` replaces the role set wholesale. The picker searches all four name
 columns, not just the displayed one. The panel mirrors the studio one below:

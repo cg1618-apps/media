@@ -12,6 +12,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StudioFields } from "../add-tabs/StudioAddTab";
+import ScopeChips from "../../components/forms/ScopeChips";
+import { inAnyScope, scopeChoices, toggleIn } from "../../lib/entityScopes";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
@@ -53,6 +55,8 @@ export default function StudioModifyTab({ initialId = null } = {}) {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
+  // Which scopes the grid is narrowed to - the media types it is credited on - a studio stores no scope of its own. Empty means any scope.
+  const [scopes, setScopes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [studioForm, setStudioForm] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -73,17 +77,18 @@ export default function StudioModifyTab({ initialId = null } = {}) {
   // is the configured display name.
   const filtered = useMemo(() => {
     const q = cleanString(search);
+    const inScope = studios.filter((r) => inAnyScope(r, scopes));
     const matched = q
-      ? studios.filter((s) =>
+      ? inScope.filter((s) =>
           STUDIO_NAME_FIELDS.some(
             ({ field }) => s[field] && cleanString(s[field]).includes(q),
           ),
         )
-      : studios;
+      : inScope;
     return [...matched].sort((a, b) =>
       studioLabel(a).localeCompare(studioLabel(b)),
     );
-  }, [studios, search]);
+  }, [studios, search, scopes]);
 
   function loadStudio(systemId) {
     return fetchJson(endpoints.studio.detail(systemId))
@@ -154,7 +159,12 @@ export default function StudioModifyTab({ initialId = null } = {}) {
     <div className="space-y-4">
       {!selectedId && (
         <div className="space-y-4">
-          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
+            <ScopeChips
+              choices={scopeChoices(studios)}
+              selected={scopes}
+              onToggle={(scope) => setScopes((prev) => toggleIn(prev, scope))}
+            />
             <div className="relative">
               <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
               <input
@@ -186,7 +196,9 @@ export default function StudioModifyTab({ initialId = null } = {}) {
           )}
           {!isLoading && studios.length > 0 && filtered.length === 0 && (
             <p className="text-sm text-text-faint italic">
-              No studio matches that name.
+              {search
+                ? "No studio matches that name."
+                : "No studio is in the selected scopes."}
             </p>
           )}
         </div>
