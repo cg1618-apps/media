@@ -13,7 +13,9 @@
 // this list is hand-maintained, and the seiyuu row below was missed for a
 // while precisely because nothing fails when it is out of date.
 import { useAuth } from "../../contexts/AuthContext";
+import { ALL_TAB } from "../../lib/entityScopes";
 import { visibleByType } from "../../lib/gatedTypes";
+import SubTabBar from "./SubTabBar";
 
 export const PERSON_SUB_TABS = [
   { key: "director", label: "Director", icon: "fa-clapperboard" },
@@ -31,25 +33,14 @@ export const PERSON_SUB_TABS = [
   { key: "seiyuu", label: "Seiyuu 聲優", icon: "fa-microphone" },
 ];
 
-export default function PersonSubTabBar({ active, onSelect }) {
-  const tabs = visibleByType(useAuth(), PERSON_SUB_TABS, (t) => t.gatedType);
-  return (
-    <div className="flex gap-1 border-b border-border mb-4 flex-wrap">
-      {tabs.map((t) => (
-        <button
-          key={t.key}
-          type="button"
-          onClick={() => onSelect(t.key)}
-          className={`px-4 py-2 text-sm font-bold flex items-center gap-2 border-b-2 -mb-px transition ${
-            active === t.key
-              ? "border-brand text-brand"
-              : "border-transparent text-text-faint hover:text-text-muted"
-          }`}
-        >
-          <i className={`fas ${t.icon}`}></i>
-          {t.label}
-        </button>
-      ))}
-    </div>
-  );
+// Not a person type: the admin Modify / Delete pages put it first so a
+// person holding no type at all - which nothing forbids - can still be
+// reached. The library filter and the person form read PERSON_SUB_TABS and
+// never see it.
+export const ALL_PEOPLE_TAB = ALL_TAB;
+
+export default function PersonSubTabBar({ active, onSelect, withAll = false }) {
+  const typeTabs = visibleByType(useAuth(), PERSON_SUB_TABS, (t) => t.gatedType);
+  const tabs = withAll ? [ALL_PEOPLE_TAB, ...typeTabs] : typeTabs;
+  return <SubTabBar tabs={tabs} active={active} onSelect={onSelect} />;
 }

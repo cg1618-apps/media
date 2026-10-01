@@ -8,7 +8,19 @@ import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
-import PersonSubTabBar from "../../components/forms/PersonSubTabBar";
+import PersonSubTabBar, { ALL_PEOPLE_TAB } from "../../components/forms/PersonSubTabBar";
+import ScopeChips from "../../components/forms/ScopeChips";
+import SubTabBar from "../../components/forms/SubTabBar";
+import { CHARACTER_ROLES } from "../../config/fieldOptions";
+import {
+  ALL_TAB_KEY,
+  characterRoleTabs,
+  inAnyScope,
+  inCharacterRole,
+  personScopes,
+  scopeChoices,
+  toggleIn,
+} from "../../lib/entityScopes";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import {
   ALIAS_CATEGORIES,
@@ -256,7 +268,14 @@ export default function Delete() {
   const [studioConfirm, setStudioConfirm] = useState(false);
   const [studioMergeMode, setStudioMergeMode] = useState(false);
   const [studioMergeTarget, setStudioMergeTarget] = useState(null);
-  const [personSubTab, setPersonSubTab] = useState("director");
+  const [personSubTab, setPersonSubTab] = useState(ALL_PEOPLE_TAB.key);
+  // The scope chips over each entity picker - see lib/entityScopes.js for
+  // what "in scope" means for each. Empty means any scope.
+  const [personScopeFilter, setPersonScopeFilter] = useState([]);
+  const [studioScopeFilter, setStudioScopeFilter] = useState([]);
+  const [publisherScopeFilter, setPublisherScopeFilter] = useState([]);
+  const [characterRoleTab, setCharacterRoleTab] = useState(ALL_TAB_KEY);
+  const [characterScopeFilter, setCharacterScopeFilter] = useState([]);
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [personConfirm, setPersonConfirm] = useState(false);
   const [personMergeMode, setPersonMergeMode] = useState(false);
@@ -274,10 +293,28 @@ export default function Delete() {
   // not here: each is a top-level Entity tab with its own branch below.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
 
-  // The people offered for deletion are the ones holding the selected type.
-  // db.person carries every role a person holds, so this needs no extra fetch.
-  const peopleOfType = db.person.filter((p) =>
-    (p.roles || []).some((r) => r.role === personSubTab),
+  // The people offered for deletion are the ones holding the selected type,
+  // or everyone on the All tab - people holding no type included. db.person
+  // carries every role a person holds, so this needs no extra fetch.
+  const peopleOfType =
+    personSubTab === ALL_PEOPLE_TAB.key
+      ? db.person
+      : db.person.filter((p) =>
+          (p.roles || []).some((r) => r.role === personSubTab),
+        );
+  const personHeld = personScopes(personSubTab);
+  const peopleInScope = peopleOfType.filter((p) =>
+    inAnyScope(p, personScopeFilter, personHeld),
+  );
+  const studiosInScope = db.studio.filter((s) => inAnyScope(s, studioScopeFilter));
+  const publishersInScope = db.publisher.filter((p) =>
+    inAnyScope(p, publisherScopeFilter),
+  );
+  const charactersOfRole = db.character.filter((c) =>
+    inCharacterRole(c, characterRoleTab),
+  );
+  const charactersInScope = charactersOfRole.filter((c) =>
+    inAnyScope(c, characterScopeFilter),
   );
 
   const [modal, setModal] = useState(null); // { type, target, cascadeOptions }
@@ -2370,10 +2407,15 @@ export default function Delete() {
       {/* STUDIO TAB */}
       {tab === "studio" && (
         <div className="space-y-4">
-          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
+            <ScopeChips
+              choices={scopeChoices(db.studio)}
+              selected={studioScopeFilter}
+              onToggle={(scope) => setStudioScopeFilter((prev) => toggleIn(prev, scope))}
+            />
             <SearchBox
               placeholder="Search studio to delete..."
-              items={db.studio}
+              items={studiosInScope}
               type="studio"
               onSelect={(item) => {
                 setSelectedStudio(item);
@@ -2544,10 +2586,15 @@ export default function Delete() {
           rows, so Merge is offered first. */}
       {tab === "publisher" && (
         <div className="space-y-4">
-          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
+            <ScopeChips
+              choices={scopeChoices(db.publisher)}
+              selected={publisherScopeFilter}
+              onToggle={(scope) => setPublisherScopeFilter((prev) => toggleIn(prev, scope))}
+            />
             <SearchBox
               placeholder="Search publisher to delete..."
-              items={db.publisher}
+              items={publishersInScope}
               type="publisher"
               onSelect={(item) => {
                 setSelectedPublisher(item);
@@ -2721,19 +2768,26 @@ export default function Delete() {
       {tab === "person" && (
         <div className="space-y-4">
           <PersonSubTabBar
+            withAll
             active={personSubTab}
             onSelect={(key) => {
               setPersonSubTab(key);
+              setPersonScopeFilter([]);
               setSelectedPerson(null);
               setPersonConfirm(false);
               setPersonMergeMode(false);
               setPersonMergeTarget(null);
             }}
           />
-          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
+            <ScopeChips
+              choices={scopeChoices(peopleOfType, personHeld)}
+              selected={personScopeFilter}
+              onToggle={(scope) => setPersonScopeFilter((prev) => toggleIn(prev, scope))}
+            />
             <SearchBox
               placeholder="Search person to delete..."
-              items={peopleOfType}
+              items={peopleInScope}
               type="person"
               onSelect={(item) => {
                 setSelectedPerson(item);
@@ -2906,10 +2960,27 @@ export default function Delete() {
           PersonSubTabBar here. */}
       {tab === "character" && (
         <div className="space-y-4">
-          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+          <SubTabBar
+            tabs={characterRoleTabs(CHARACTER_ROLES)}
+            active={characterRoleTab}
+            onSelect={(key) => {
+              setCharacterRoleTab(key);
+              setCharacterScopeFilter([]);
+              setSelectedCharacter(null);
+              setCharacterConfirm(false);
+              setCharacterMergeMode(false);
+              setCharacterMergeTarget(null);
+            }}
+          />
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
+            <ScopeChips
+              choices={scopeChoices(charactersOfRole)}
+              selected={characterScopeFilter}
+              onToggle={(scope) => setCharacterScopeFilter((prev) => toggleIn(prev, scope))}
+            />
             <SearchBox
               placeholder="Search character to delete..."
-              items={db.character}
+              items={charactersInScope}
               type="character"
               onSelect={(item) => {
                 setSelectedCharacter(item);

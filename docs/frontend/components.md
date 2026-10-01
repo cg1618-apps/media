@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-30
+Last verified: 2026-10-01
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -597,7 +597,9 @@ content-label endpoints refuse (422) a set that drops it.
 
 | Component | What it is |
 |---|---|
-| `forms/PersonSubTabBar.jsx` | The seven person types (`PERSON_SUB_TABS`; the Club tab carries `gatedType: "h-comic"` and is drawn only for a session that can see the type), shared by the admin Modify / Delete pages and by the `/library/person` type filter, so one vocabulary drives all three. It filters a list; the Add page has no list and so no bar, and it never scopes the editor, because a person is one row that may hold several types. |
+| `forms/PersonSubTabBar.jsx` | The seven person types (`PERSON_SUB_TABS`; the Club tab carries `gatedType: "h-comic"` and is drawn only for a session that can see the type), shared by the admin Modify / Delete pages and by the `/library/person` type filter, so one vocabulary drives all three. It filters a list; the Add page has no list and so no bar, and it never scopes the editor, because a person is one row that may hold several types. `withAll` puts `ALL_PEOPLE_TAB` first — the admin pages pass it so a person holding no type is reachable; it is not in `PERSON_SUB_TABS`, so the library filter and the form never see it. Renders through `SubTabBar`. |
+| `forms/SubTabBar.jsx` | The underlined tab strip that splits an admin entity list by type: `PersonSubTabBar` renders through it, and the character Modify / Delete pickers pass it `characterRoleTabs(CHARACTER_ROLES)`. Filters what is listed, never the editor. |
+| `forms/ScopeChips.jsx` | The media-type chip row over the person, studio, publisher and character pickers on Modify and Delete. OR match, none ticked means any scope, and fewer than two choices draws nothing. What a record's scopes are lives in `lib/entityScopes.js`: a person's (role, scope) rows, a publisher's stored `scopes`, a studio's or character's credited `media_types`; the choices are read off the list in `MEDIA_TYPES` order, so a type the server withheld is never offered. |
 | `forms/OptionSubTabBar.jsx` | The Options / Tags halves of the System Option tab. People and studios were once entries here. |
 | `forms/OptionCategorySelect.jsx` | The Tier 2 category dropdown on all three admin pages — Add's Category field, Modify's and Delete's "select a category" filter. A closed `<select>`, so Add can no longer coin a category by typing one; its `<optgroup>`s come from `groupTier2Categories` (`lib/optionsPageGroups.js`), the same arrangement `/options` reads, and a list yielding one section renders flat. |
 | `add-tabs/PersonAddTab.jsx` | Exports `PersonFields` (the editor) and `useRoleScopes` (the legal role → media-type map from `GET /api/person/role-scopes`), both reused by `modify-tabs/PersonModifyTab.jsx`. |

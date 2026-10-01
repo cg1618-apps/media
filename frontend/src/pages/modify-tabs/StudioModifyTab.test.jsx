@@ -19,6 +19,7 @@ const STUDIOS = [
     display_name_field: null,
     display_name: "Sunrise",
     credit_count: 5,
+    media_types: ["anime", "game"],
     logo_file: null,
     my_rating: null,
     founded_date: null,
@@ -37,6 +38,7 @@ const STUDIOS = [
     display_name_field: null,
     display_name: "Kyoto Animation",
     credit_count: 2,
+    media_types: ["anime"],
     logo_file: null,
     my_rating: null,
     founded_date: null,
@@ -114,6 +116,20 @@ it("filters the list by a non-displayed name field (e.g. Japanese)", async () =>
     ).not.toBeInTheDocument(),
   );
   expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument();
+});
+
+it("narrows the list to the media types a studio is credited on", async () => {
+  const user = userEvent.setup();
+  mount();
+  // Offered only the scopes some studio holds, in MEDIA_TYPES order.
+  await user.click(await screen.findByRole("button", { name: "game" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Kyoto Animation" })).not.toBeInTheDocument(),
+  );
+  expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument();
+  // Matching is OR: adding anime brings Kyoto Animation back.
+  await user.click(screen.getByRole("button", { name: "anime" }));
+  expect(await screen.findByRole("button", { name: "Kyoto Animation" })).toBeInTheDocument();
 });
 
 it("loads the selected studio and disables save with hint when every name is cleared", async () => {

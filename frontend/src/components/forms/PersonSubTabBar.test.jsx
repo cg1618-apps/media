@@ -39,6 +39,19 @@ describe("PersonSubTabBar", () => {
     expect(onSelect).toHaveBeenCalledWith("director");
   });
 
+  it("puts an All tab first only when asked", () => {
+    const { unmount } = render(<PersonSubTabBar active="all" onSelect={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /All/ })).toBeNull();
+    unmount();
+
+    render(<PersonSubTabBar withAll active="all" onSelect={vi.fn()} />);
+    const buttons = screen.getAllByRole("button");
+    expect(buttons[0]).toHaveTextContent("All");
+    expect(buttons[0].className).toContain("border-brand");
+    // All is not a person type: the library filter and the form never see it.
+    expect(PERSON_SUB_TABS.map((t) => t.key)).not.toContain("all");
+  });
+
   it("draws the Club tab only for a session that can see h-comic", () => {
     auth.visibleGatedTypes = [];
     const { unmount } = render(<PersonSubTabBar active="director" onSelect={vi.fn()} />);

@@ -2,10 +2,10 @@
 //
 // Self-contained, like StudioModifyTab: owns its own fetch, picker and save
 // state instead of hooking into Modify.jsx's per-type form/search/save
-// machinery. A character holds no roles (see the comment on
-// CharacterAddTab.jsx), so unlike PersonModifyTab this needs no
-// PersonSubTabBar and no role x scope state - it is closer in shape to
-// StudioModifyTab. Reuses CharacterFields from CharacterAddTab so the input
+// machinery. Picked the way PersonModifyTab picks: a type tab (All, then each
+// CHARACTER_ROLES value - a character holds at most one, unlike a person's
+// role x scope matrix) and scope chips over the media types it is cast in,
+// above a grid listing every match up front. Reuses CharacterFields from CharacterAddTab so the input
 // markup isn't duplicated - see the comment on that export.
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=character, the
@@ -13,6 +13,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import ScopeChips from "../../components/forms/ScopeChips";
+import SubTabBar from "../../components/forms/SubTabBar";
+import { CHARACTER_ROLES } from "../../config/fieldOptions";
+import {
+  ALL_TAB_KEY,
+  characterRoleTabs,
+  inAnyScope,
+  inCharacterRole,
+  scopeChoices,
+  toggleIn,
+} from "../../lib/entityScopes";
 import { CharacterFields, CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
@@ -42,8 +53,9 @@ export default function CharacterModifyTab({ initialId = null } = {}) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
+  const [roleTab, setRoleTab] = useState(ALL_TAB_KEY);
+  const [scopes, setScopes] = useState([]);
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [characterForm, setCharacterForm] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -56,20 +68,30 @@ export default function CharacterModifyTab({ initialId = null } = {}) {
 
   const ucf = (k, v) => setCharacterForm((p) => ({ ...p, [k]: v }));
 
-  // Searches all four name fields, not just whichever one display_name_field
-  // points at - an admin looking someone up by their Japanese name must find
-  // them even when English is the configured display name.
+  // The characters of the selected type, offered the scopes they hold.
+  const ofRole = useMemo(
+    () => characters.filter((c) => inCharacterRole(c, roleTab)),
+    [characters, roleTab],
+  );
+
+  // Every match is listed up front, filtered in place by the search box
+  // across all four name fields rather than just whichever one
+  // display_name_field points at - an admin looking someone up by their
+  // Japanese name must find them even when English is the display name.
   const filtered = useMemo(() => {
-    if (!search.trim()) return [];
     const q = cleanString(search);
-    return characters
-      .filter((c) =>
-        CHARACTER_NAME_FIELDS.some(
-          ({ field }) => c[field] && cleanString(c[field]).includes(q),
-        ),
-      )
-      .slice(0, 10);
-  }, [characters, search]);
+    const inScope = ofRole.filter((c) => inAnyScope(c, scopes));
+    const matched = q
+      ? inScope.filter((c) =>
+          CHARACTER_NAME_FIELDS.some(
+            ({ field }) => c[field] && cleanString(c[field]).includes(q),
+          ),
+        )
+      : inScope;
+    return [...matched].sort((a, b) =>
+      (a.display_name || "").localeCompare(b.display_name || ""),
+    );
+  }, [ofRole, search, scopes]);
 
   function loadCharacter(systemId) {
     return fetchJson(endpoints.character.detail(systemId))
@@ -81,8 +103,6 @@ export default function CharacterModifyTab({ initialId = null } = {}) {
   }
 
   function selectCharacter(character) {
-    setOpen(false);
-    setSearch(character.display_name || "");
     loadCharacter(character.system_id);
   }
 
@@ -95,7 +115,6 @@ export default function CharacterModifyTab({ initialId = null } = {}) {
   function closeEditor() {
     setSelectedId(null);
     setCharacterForm(null);
-    setSearch("");
   }
 
   const hasAnyName = characterForm
@@ -142,45 +161,63 @@ export default function CharacterModifyTab({ initialId = null } = {}) {
   return (
     <div className="space-y-4">
       {!selectedId && (
-        <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 relative">
-          <div className="relative">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
-            <input
-              className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Search characters to modify..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setOpen(true);
-              }}
-              onFocus={() => search && setOpen(true)}
+        <>
+          <SubTabBar
+            tabs={characterRoleTabs(CHARACTER_ROLES)}
+            active={roleTab}
+            onSelect={(key) => {
+              setRoleTab(key);
+              setSearch("");
+              setScopes([]);
+            }}
+          />
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
+            <ScopeChips
+              choices={scopeChoices(ofRole)}
+              selected={scopes}
+              onToggle={(scope) => setScopes((prev) => toggleIn(prev, scope))}
             />
+            <div className="relative">
+              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
+              <input
+                className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+                placeholder="Search characters to modify..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
-          {open && filtered.length > 0 && (
-            <div className="absolute z-50 left-4 right-4 mt-1 bg-surface border border-border rounded-xl shadow-xl max-h-64 overflow-y-auto">
+
+          {filtered.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {filtered.map((c) => (
-                <div
+                <button
                   key={c.system_id}
-                  className="px-4 py-2.5 hover:bg-brand/10 cursor-pointer"
-                  onMouseDown={() => selectCharacter(c)}
+                  type="button"
+                  onClick={() => selectCharacter(c)}
+                  className="text-left px-3 py-2.5 bg-surface border border-border rounded-xl text-sm font-medium text-text-muted hover:border-brand hover:text-brand hover:bg-brand-soft transition shadow-sm truncate"
                 >
-                  <div className="font-bold text-text text-sm">
-                    {c.display_name}
-                  </div>
-                  <div className="text-[11px] text-text-faint">
-                    {c.casting_count} casting
-                    {c.casting_count === 1 ? "" : "s"}
-                  </div>
-                </div>
+                  {c.display_name}
+                </button>
               ))}
             </div>
           )}
-          {!isLoading && characters.length === 0 && (
-            <p className="text-sm text-text-faint italic mt-2">
-              No characters yet.
+
+          {!isLoading && ofRole.length === 0 && (
+            <p className="text-sm text-text-faint italic">
+              {roleTab === ALL_TAB_KEY
+                ? "No characters yet."
+                : "No character has this type yet."}
             </p>
           )}
-        </div>
+          {!isLoading && ofRole.length > 0 && filtered.length === 0 && (
+            <p className="text-sm text-text-faint italic">
+              {search
+                ? "No character matches that name."
+                : "No character is in the selected scopes."}
+            </p>
+          )}
+        </>
       )}
 
       {selectedId && characterForm && (
