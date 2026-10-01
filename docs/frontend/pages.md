@@ -803,6 +803,29 @@ Top to bottom:
 1. **Breadcrumb** `/library/{type}` → title.
 2. **Admin toolbar** (`isAdmin`): **Quick Edit** → `/modify?id={id}`;
    **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;
+   the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
+   in `lib/releaseAction.js`) moves the entry one step along its release
+   axis through `performPatch`, and is absent when there is no next step:
+
+   | Type | Shown when | Label → writes |
+   | --- | --- | --- |
+   | Anime, TV Show, Cartoon, Hentai | `airing_status` is `Not Yet Aired` or `Rumored` | **Mark airing** → `Airing` |
+   | | `airing_status` is `Airing` | **Mark finished airing** → `Finished Airing` |
+   | Movie, Anime Movie, and an Anime or Cartoon whose `airing_type` is `Movie` | `airing_status` is `Not Yet Aired` or `Rumored` | **Mark released** → `Finished Airing` |
+   | Novel | `serialization_status` is `未出` | **Mark serializing** → `連載中` |
+   | Manga, Comic, H-Comic, Novel | `serialization_status` is `連載中` (on Novel also `連載中 (不穩定)` / `連載中 (有生之年)`) | **Mark finished serializing** → `完結` |
+   | Game, H-Game | `release_status` is `Rumored`, `Unreleased` or `Early Access` | **Mark released** → `Released` |
+
+   An empty status, `Canceled`/`Cancelled`, `停更`, `腰斬` and a game's
+   `Ongoing` show no button: none of them has a next step. Manga, Comic and
+   H-Comic have no not-yet-released value, so they only ever show the
+   finishing step. The **release** step (not the finishing one) first opens
+   `ReleaseDetailsModal` for whichever details the entry is still missing:
+   every release-date column the type has (`releaseDate.js`
+   `RELEASE_PRIORITY`), plus on a non-movie Anime `broadcast_day`,
+   `broadcast_time` and `my_watch_day`. Every field is optional; confirming
+   writes the status plus only what was filled in, Cancel writes nothing, and
+   with nothing missing the button writes at once.
    **Autofill & Update** → `POST /api/data-control/replace/{type}/{id}`
    with a spinner. On Game and H-Game it runs both sources: IGDB, fill-only
    (release date, times, credits, tags, cover, the Steam pair when the entry

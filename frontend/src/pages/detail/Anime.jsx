@@ -8,6 +8,7 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
+import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard from "../../components/info/InfoCard";
 import {
@@ -306,6 +307,7 @@ export default function Anime() {
             >
               Mark completed
             </Button>
+            <MarkReleaseButton type="anime" entry={anime} title={titleMain} onPatch={performUpdate} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>

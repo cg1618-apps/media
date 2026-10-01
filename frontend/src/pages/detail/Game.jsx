@@ -8,6 +8,7 @@ import { useState, useEffect, useMemo } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
+import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
@@ -338,6 +339,7 @@ export default function Game() {
               >
                 Mark completed
               </Button>
+              <MarkReleaseButton type="game" entry={game} title={titleMain} onPatch={performPatch} />
               <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
                 {autofilling ? "Autofilling…" : "Autofill & update"}
               </Button>

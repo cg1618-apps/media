@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
+import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import {
@@ -242,6 +243,7 @@ export default function Comic() {
             >
               Mark completed
             </Button>
+            <MarkReleaseButton type="comic" entry={comic} title={titleMain} onPatch={performPatch} />
           </div>
         </div>
       )}
