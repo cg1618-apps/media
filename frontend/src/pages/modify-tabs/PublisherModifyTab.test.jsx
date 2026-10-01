@@ -3,9 +3,8 @@
 // four name fields (not just the displayed one), the save button enforces the
 // at-least-one-name rule, and the PUT body carries the whole record.
 //
-// Two deliberate divergences from StudioModifyTab: no MAL fields (a publisher
-// has no MAL record) and no Japan country seeding (a publisher is as likely
-// to be American as Japanese).
+// One deliberate divergence from StudioModifyTab: no MAL fields (a publisher
+// has no MAL record).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -213,8 +212,8 @@ it("round-trips the scope pills through the PUT body", async () => {
   expect(lastPut.body.scopes).toEqual(["manga", "game"]);
 });
 
-// StudioModifyTab seeds an unrecorded country to Japan because nearly every
-// studio here is Japanese. Publishers are not, so an empty country stays empty.
+// An empty country stays empty: the editor seeds no value it would then write
+// back on save.
 it("does not seed a country", async () => {
   const user = userEvent.setup();
   mount();
