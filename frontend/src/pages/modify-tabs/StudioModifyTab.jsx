@@ -36,6 +36,7 @@ function studioToForm(s) {
     display_name_field: s.display_name_field || "",
     my_rating: s.my_rating || "",
     logo_file: s.logo_file || "",
+    logo_focus: s.logo_focus || null,
     // No seed: an unset country is a value the admin can choose, and a seed
     // here would be written back on the next save of any field.
     country: s.country || "",
@@ -131,6 +132,7 @@ export default function StudioModifyTab({ initialId = null } = {}) {
           display_name_field: studioForm.display_name_field || null,
           my_rating: studioForm.my_rating || null,
           logo_file: studioForm.logo_file || null,
+          logo_focus: studioForm.logo_focus || null,
           country: studioForm.country || null,
           website_url: studioForm.website_url || null,
           founded_date: studioForm.founded_date || null,

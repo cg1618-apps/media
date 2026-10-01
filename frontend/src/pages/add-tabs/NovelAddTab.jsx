@@ -680,6 +680,8 @@ export default function NovelAddTab({
           ownerType="novel"
           role="cover"
           value={nvf.cover_image_file}
+          focus={nvf.cover_image_focus}
+          onFocusChange={(focus) => unv("cover_image_focus", focus)}
           onChange={(key, imageId) => {
             unv("cover_image_file", key);
             unv("pending_image_id", imageId);

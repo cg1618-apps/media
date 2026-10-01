@@ -244,6 +244,7 @@ class ProfileEntry(BaseModel):
     public_id: int
     display_name: str
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     status: str
     my_rating: Optional[str] = None
 

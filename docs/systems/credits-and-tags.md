@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-30
+Last verified: 2026-10-01
 
 ## What this is for
 
@@ -470,6 +470,12 @@ there are no casting steps:
    character cast on it, and it is visible.
 3. The newest visible credited or voiced entry that has a cover.
 4. `null`.
+
+The picture's focal point comes with it as `display_photo_focus`: the focus
+stored beside whichever source won - the entity's own `photo_focus`, the
+casting's `photo_focus`, or the entry's `media.cover_image_focus` - and
+`null` when there is no picture. A focus is never borrowed from a source that
+lost ([data-model.md](../data-model.md#image-focal-points)).
 
 "Newest" is the order `/entries` uses: the entry's primary release date
 (`RELEASE_PRIORITY`), descending, undated last, ties in casting or credit

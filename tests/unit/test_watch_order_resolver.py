@@ -144,6 +144,7 @@ def make_anime(entry_id, name="Some Anime", ep_total=12, ep_special=None):
         system_id=entry_id,
         display_name=name,
         cover_image_file="cover.jpg",
+        cover_image_focus="50% 20%",
         franchise_id=uuid.uuid4(),
         ep_total=ep_total,
         ep_special=ep_special,
@@ -156,6 +157,7 @@ def make_manga(entry_id, name="Some Manga", ch_total=100):
         system_id=entry_id,
         display_name=name,
         cover_image_file="manga.jpg",
+        cover_image_focus=None,
         franchise_id=uuid.uuid4(),
         ch_total=ch_total,
     )
@@ -167,6 +169,7 @@ def make_movie(entry_id, name="Some Movie"):
         system_id=entry_id,
         display_name=name,
         cover_image_file="movie.jpg",
+        cover_image_focus=None,
         franchise_id=uuid.uuid4(),
     )
 
@@ -227,6 +230,7 @@ class TestResolveItems:
         assert result["missing"] is False
         assert result["display_name"] == "Fate/Zero"
         assert result["cover_image_file"] == "cover.jpg"
+        assert result["cover_image_focus"] == "50% 20%"
         assert result["status"] == "Completed"
         assert result["total_episodes"] == 12
 
@@ -304,6 +308,7 @@ class TestResolveItems:
             system_id=entry_id,
             display_name="Some Novel",
             cover_image_file=None,
+            cover_image_focus=None,
             franchise_id=uuid.uuid4(),
             reading_status="Might Read",
             ch_total=120.0,

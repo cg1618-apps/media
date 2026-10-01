@@ -96,6 +96,11 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
                 "position": casting.position,
                 "photo_file": casting.photo_file
                 or (character.photo_file if character else None),
+                # The focus travels with the photo it was set on: the
+                # casting's own when it has a photo, else the character's.
+                "photo_focus": casting.photo_focus
+                if casting.photo_file
+                else (character.photo_focus if character else None),
                 "remark": casting.remark,
             }
         )
@@ -196,6 +201,7 @@ def replace_casting(
                 role=row.get("role"),
                 position=row.get("position", index),
                 photo_file=row.get("photo_file"),
+                photo_focus=row.get("photo_focus"),
                 remark=row.get("remark"),
             )
         )

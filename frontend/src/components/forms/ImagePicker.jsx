@@ -26,13 +26,22 @@
 // A cast row is the one caller that never has an owner: castings are
 // re-inserted on every cast save, so CastEditor uses the picker ownerless
 // (and `compact`) for good, and the key rides in the row's photo_file.
+//
+// The focal point (`focus` / `onFocusChange`) is optional: an owner image is
+// drawn cropped, and its focus - "X% Y%", see lib/covers.js - says which part
+// stays in frame. A caller that passes onFocusChange gets an "Adjust position"
+// control that opens FocusPicker. Picking, uploading or removing an image
+// calls onFocusChange(null): a focus belongs to the picture it was set on, and
+// the server resets it on every attach and clear for the same reason - a form
+// that kept the old value would re-stamp it onto the new picture on save.
+// Quote and meme images are drawn uncropped and pass no onFocusChange.
 import { useEffect, useRef, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { visibleImageOwnerTypeGroups } from "../../config/imageOwnerTypes";
 import { useAuth } from "../../contexts/AuthContext";
-import { getCoverUrl } from "../../lib/covers";
+import { focusStyle, getCoverUrl } from "../../lib/covers";
 import {
   useAttachImage,
   useClearOwnerImage,
@@ -40,6 +49,7 @@ import {
   useUploadImage,
 } from "../../hooks/useImages";
 import { Button, Chip } from "../ui/primitives";
+import FocusPicker from "./FocusPicker";
 
 const PAGE_SIZE = 60;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -62,9 +72,12 @@ export default function ImagePicker({
   role = "cover",
   value,
   onChange,
+  focus = null,
+  onFocusChange,
   compact = false,
 }) {
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [focusOpen, setFocusOpen] = useState(false);
   const [error, setError] = useState(null);
   const inputRef = useRef(null);
   const upload = useUploadImage();
@@ -90,6 +103,13 @@ export default function ImagePicker({
     : getCoverUrl(value);
 
   const busy = upload.isPending || attach.isPending || clear.isPending;
+  const canAdjust = Boolean(value && onFocusChange);
+
+  // The new (or no) picture has no focus of its own yet.
+  function changeImage(key, imageId) {
+    onChange(key, imageId);
+    onFocusChange?.(null);
+  }
 
   // Returns an attach-failure message, or null when attach was skipped
   // (no ownerId yet) or succeeded.
@@ -110,7 +130,7 @@ export default function ImagePicker({
     try {
       const image = await upload.mutateAsync(file);
       const attachError = await tryAttach(image.system_id);
-      onChange(image.storage_key, image.system_id);
+      changeImage(image.storage_key, image.system_id);
       if (attachError) setError(attachError);
     } catch (err) {
       setError(err.message || "Upload failed.");
@@ -130,14 +150,14 @@ export default function ImagePicker({
       }
     }
     removed.current = true;
-    onChange("", null);
+    changeImage("", null);
   }
 
   async function chooseFromLibrary(image) {
     setLibraryOpen(false);
     setError(null);
     const attachError = await tryAttach(image.system_id);
-    onChange(image.storage_key, image.system_id);
+    changeImage(image.storage_key, image.system_id);
     if (attachError) setError(attachError);
   }
 
@@ -145,6 +165,18 @@ export default function ImagePicker({
     <LibraryModal
       onSelect={chooseFromLibrary}
       onClose={() => setLibraryOpen(false)}
+    />
+  );
+
+  const focusModal = focusOpen && canAdjust && (
+    <FocusPicker
+      src={previewUrl}
+      focus={focus}
+      onCancel={() => setFocusOpen(false)}
+      onDone={(next) => {
+        setFocusOpen(false);
+        onFocusChange(next);
+      }}
     />
   );
 
@@ -164,6 +196,7 @@ export default function ImagePicker({
               src={previewUrl}
               alt="Current image"
               className="w-8 h-8 rounded object-cover shrink-0 border border-border"
+              style={focusStyle(focus)}
             />
           ) : (
             <span className="w-8 h-8 rounded shrink-0 border border-dashed border-border" />
@@ -193,6 +226,18 @@ export default function ImagePicker({
           >
             <i className="fas fa-images" />
           </button>
+          {canAdjust && (
+            <button
+              type="button"
+              className={iconCls}
+              disabled={busy}
+              onClick={() => setFocusOpen(true)}
+              aria-label="Adjust position"
+              title="Adjust position"
+            >
+              <i className="fas fa-crosshairs" />
+            </button>
+          )}
           {value && (
             <button
               type="button"
@@ -208,6 +253,7 @@ export default function ImagePicker({
         </div>
         {error && <p className="text-xs text-danger">{error}</p>}
         {libraryModal}
+        {focusModal}
       </div>
     );
   }
@@ -250,6 +296,18 @@ export default function ImagePicker({
           Choose from library
         </Button>
 
+        {canAdjust && (
+          <Button
+            type="button"
+            kind="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => setFocusOpen(true)}
+          >
+            Adjust position
+          </Button>
+        )}
+
         {value && (
           <Button
             type="button"
@@ -271,6 +329,7 @@ export default function ImagePicker({
       {error && <p className="text-sm text-danger">{error}</p>}
 
       {libraryModal}
+      {focusModal}
     </div>
   );
 }
@@ -446,6 +505,9 @@ function LibraryModal({ onSelect, onClose }) {
                     src={getCoverUrl(image.thumb_key || image.storage_key)}
                     alt=""
                     className="h-full w-full object-cover"
+                    // A library thumbnail: a focus belongs to an owner the
+                    // image is attached to, not to the file itself.
+                    data-focus="none"
                   />
                 )}
               </button>

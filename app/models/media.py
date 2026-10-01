@@ -45,6 +45,11 @@ class Media(Base):
 
     display_name = Column(String, nullable=False, index=True)
     cover_image_file = Column(String, nullable=True)
+    # The cover's focal point, "X% Y%" (integers 0-100), applied as CSS
+    # object-position where the cover is cropped. NULL centres it. It belongs
+    # to the picture it was set on, so attaching, detaching or clearing the
+    # cover resets it (app/routers/images.py, mirror_to_owner_column).
+    cover_image_focus = Column(String, nullable=True)
     franchise_id = Column(
         UUID(as_uuid=True),
         ForeignKey("franchise.system_id", ondelete="SET NULL"),

@@ -279,6 +279,7 @@ def relations_for_entry(
                     "display_name": ref.display_name,
                     "label": ref.label,
                     "cover_image_file": ref.cover_image_file,
+                    "cover_image_focus": ref.cover_image_focus,
                     "franchise_id": ref.franchise_id,
                     "nav_path": ref.nav_path,
                 },
@@ -317,6 +318,7 @@ def relations_for_entry(
                     "display_name": ref.display_name,
                     "label": ref.label,
                     "cover_image_file": ref.cover_image_file,
+                    "cover_image_focus": ref.cover_image_focus,
                     "franchise_id": ref.franchise_id,
                     "nav_path": ref.nav_path,
                 },
@@ -410,6 +412,7 @@ def graph_for_scope(
                 "display_name": c["display_name"],
                 "search_names": c["search_names"],
                 "cover_image_file": c["cover_image_file"],
+                "cover_image_focus": c["cover_image_focus"],
                 "franchise_id": c["franchise_id"],
                 "nav_path": (
                     f"{ref.nav_path}/{c['entry_id']}"
@@ -481,6 +484,7 @@ def graph_for_scope(
                 "display_name": ref.display_name,
                 "search_names": [],
                 "cover_image_file": ref.cover_image_file,
+                "cover_image_focus": ref.cover_image_focus,
                 "franchise_id": ref.franchise_id,
                 "nav_path": ref.nav_path,
                 "type_label": ref.label,

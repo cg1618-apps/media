@@ -548,6 +548,8 @@ export default function MangaAddTab({
           ownerType="manga"
           role="cover"
           value={mgf.cover_image_file}
+          focus={mgf.cover_image_focus}
+          onFocusChange={(focus) => umg("cover_image_focus", focus)}
           onChange={(key, imageId) => {
             umg("cover_image_file", key);
             umg("pending_image_id", imageId);

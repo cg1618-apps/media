@@ -315,6 +315,8 @@ export default function MovieModifyTab({
           ownerId={editingItem?.system_id}
           role="cover"
           value={mmf.cover_image_file}
+          focus={mmf.cover_image_focus}
+          onFocusChange={(focus) => umm("cover_image_focus", focus)}
           onChange={(key) => umm("cover_image_file", key)}
         />
       </Field>

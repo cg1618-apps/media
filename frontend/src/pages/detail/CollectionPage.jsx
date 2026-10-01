@@ -228,7 +228,7 @@ export default function CollectionPage() {
 
   // The collection has no cover of its own: the shared helper borrows one from
   // its chosen (or first usable) member franchise.
-  const coverUrl = getCollectionCover(
+  const cover = getCollectionCover(
     collection,
     sortedMembers,
     allEntriesDict,
@@ -258,7 +258,7 @@ export default function CollectionPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1">
           <HeroCover
-            src={coverUrl}
+            cover={cover}
             spine="Collection"
             id={collection.system_id}
             rating={collection.my_rating}
@@ -407,7 +407,7 @@ export default function CollectionPage() {
                 <FranchiseCard
                   key={franchise.system_id}
                   franchise={franchise}
-                  coverUrl={getFranchiseCover(
+                  cover={getFranchiseCover(
                     franchise,
                     allEntriesDict,
                     allEntriesByFranchise,

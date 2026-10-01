@@ -164,6 +164,8 @@ export function IgdbSearchBox({ onPick, searchUrl = endpoints.game.searchIgdb })
                       src={cover}
                       alt={g.name}
                       className="w-8 h-11 object-cover rounded shrink-0"
+                      // An IGDB search result, not a stored owner image.
+                      data-focus="none"
                     />
                   ) : (
                     <span className="w-8 h-11 rounded bg-surface-2 shrink-0" />
@@ -695,6 +697,8 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
           ownerId={ownerId}
           role="cover"
           value={f.cover_image_file}
+          focus={f.cover_image_focus}
+          onFocusChange={(focus) => u("cover_image_focus", focus)}
           onChange={(key, imageId) => {
             u("cover_image_file", key);
             u("pending_image_id", ownerId ? null : imageId);

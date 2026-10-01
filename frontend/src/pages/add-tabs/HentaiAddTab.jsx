@@ -203,6 +203,8 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
           ownerId={ownerId}
           role="cover"
           value={f.cover_image_file}
+          focus={f.cover_image_focus}
+          onFocusChange={(focus) => u("cover_image_focus", focus)}
           onChange={(key, imageId) => {
             u("cover_image_file", key);
             u("pending_image_id", ownerId ? null : imageId);

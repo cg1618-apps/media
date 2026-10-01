@@ -125,6 +125,7 @@ def register_media_sync(model, media_type: str, has_series: bool = True) -> None
     # `.join(Model.media_row).filter(Media.cover_image_file...)` instead.
     model.public_id = association_proxy("media_row", "public_id")
     model.cover_image_file = association_proxy("media_row", "cover_image_file")
+    model.cover_image_focus = association_proxy("media_row", "cover_image_focus")
     model.franchise_id = association_proxy("media_row", "franchise_id")
     if has_series:
         # anime_movies never had a series_id column and must not gain one:

@@ -13,7 +13,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 
 import { cleanString, getRatingWeight } from "../../utils/media";
-import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { endpoints } from "../../api/endpoints";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
@@ -270,6 +270,9 @@ function CharacterCard({ character }) {
             src={coverUrl}
             alt="Photo"
             className="w-full h-full object-cover"
+            style={focusStyle(
+              character.display_photo_focus ?? character.photo_focus,
+            )}
             onError={(e) => {
               e.target.src = FALLBACK_SVG;
             }}

@@ -1036,7 +1036,7 @@ export default function SeriesPage() {
     ...hGameList,
     ...hentaiList,
   ];
-  const coverUrl = getSeriesCover(series, allEntries);
+  const cover = getSeriesCover(series, allEntries);
 
   const mainTitle =
     series.series_name_cn ||
@@ -1083,7 +1083,7 @@ export default function SeriesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1">
           <HeroCover
-            src={coverUrl}
+            cover={cover}
             spine="Series"
             id={series.system_id}
             rating={series.my_rating}

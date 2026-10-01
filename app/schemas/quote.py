@@ -59,6 +59,7 @@ class QuoteResolved(QuoteResponse):
     missing: bool = False
     entry_display_name: Optional[str] = None
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     franchise_id: Optional[UUID] = None
     entry_nav_path: Optional[str] = None
 
@@ -76,6 +77,7 @@ class QuoteGroup(BaseModel):
     missing: bool = False
     entry_display_name: Optional[str] = None
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     franchise_id: Optional[UUID] = None
     entry_nav_path: Optional[str] = None
     quotes: List[QuoteResponse] = []

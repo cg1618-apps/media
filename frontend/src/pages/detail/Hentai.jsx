@@ -37,6 +37,7 @@ import { useToast } from "../../hooks/useToast";
 import { entityPath } from "../../lib/entityPath";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HentaiNotes from "./HentaiNotes";
+import { focusStyle } from "../../lib/covers";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -69,6 +70,7 @@ function CastSection({ cast }) {
                 src={getCoverUrl(row.photo_file)}
                 alt=""
                 className="w-full h-full object-cover"
+                style={focusStyle(row.photo_focus)}
                 onError={(e) => {
                   e.target.src = FALLBACK_SVG;
                 }}
@@ -369,6 +371,7 @@ export default function Hentai() {
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"
+                  style={focusStyle(hentai.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}

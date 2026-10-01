@@ -34,6 +34,10 @@ casting steps:
 undated last; ties keep casting/credit position order. A chosen id that no
 longer names a visible linked entry - deleted, un-cast, or hidden from this
 viewer - falls through to the automatic steps without complaint.
+
+A picture travels with its focal point: `display_photo_focus` is the focus
+stored beside whichever key won (the entity's photo_focus, the casting's
+photo_focus, or the entry's cover_image_focus), never another source's.
 """
 
 from dataclasses import dataclass, field
@@ -54,6 +58,8 @@ class EntityMedia:
     """One character's or person's viewer-resolved card fields."""
 
     display_photo_file: Optional[str] = None
+    # The focal point stored beside display_photo_file's source; None centres.
+    display_photo_focus: Optional[str] = None
     media_types: list[str] = field(default_factory=list)
     restricted: bool = False
     # Visible linked entries, counted the way casting_count / credit_count
@@ -69,13 +75,19 @@ class _Link:
     media_type: str
     entry_id: UUID
     photo_file: Optional[str] = None
+    photo_focus: Optional[str] = None
+
+
+# A picture and the focal point stored beside it: (storage key, focus).
+_Picture = tuple[Optional[str], Optional[str]]
 
 
 def _entry_facts(
     db: Session, pairs: Iterable[tuple[str, UUID]]
-) -> tuple[dict[UUID, Optional[str]], dict[UUID, str]]:
+) -> tuple[dict[UUID, _Picture], dict[UUID, str]]:
     """
-    ({entry_id: cover}, {entry_id: primary release value}) for `pairs`.
+    ({entry_id: (cover, cover focus)}, {entry_id: primary release value}) for
+    `pairs`.
 
     One query for every cover (they live on the media supertable) and one per
     media type for release dates (they live on the detail tables, under
@@ -89,11 +101,16 @@ def _entry_facts(
     if not ids:
         return {}, {}
 
-    covers = dict(
-        db.query(models.Media.system_id, models.Media.cover_image_file)
+    covers = {
+        system_id: (cover, focus)
+        for system_id, cover, focus in db.query(
+            models.Media.system_id,
+            models.Media.cover_image_file,
+            models.Media.cover_image_focus,
+        )
         .filter(models.Media.system_id.in_(ids))
         .all()
-    )
+    }
     released: dict[UUID, str] = {}
     for media_type, type_ids in by_type.items():
         model = MEDIA_TABLES[media_type].model
@@ -121,24 +138,26 @@ def _newest_first(links: list[_Link], released: dict[UUID, str]) -> list[_Link]:
 
 
 def _first_picture(
-    links: list[_Link], covers: dict[UUID, Optional[str]], use_casting_photos: bool
-) -> Optional[str]:
+    links: list[_Link], covers: dict[UUID, _Picture], use_casting_photos: bool
+) -> _Picture:
     """The first casting photo in `links`, else the first entry cover."""
     if use_casting_photos:
-        photo = next((link.photo_file for link in links if link.photo_file), None)
-        if photo:
-            return photo
-    return next(
-        (covers[link.entry_id] for link in links if covers.get(link.entry_id)), None
-    )
+        for link in links:
+            if link.photo_file:
+                return link.photo_file, link.photo_focus
+    for link in links:
+        cover = covers.get(link.entry_id)
+        if cover and cover[0]:
+            return cover
+    return None, None
 
 
 def _summarise(
     links: list[_Link],
     visible: set[tuple[str, UUID]],
-    own_photo: Optional[str],
+    own_photo: _Picture,
     chosen: Optional[UUID],
-    covers: dict[UUID, Optional[str]],
+    covers: dict[UUID, _Picture],
     released: dict[UUID, str],
     use_casting_photos: bool,
 ) -> EntityMedia:
@@ -153,17 +172,18 @@ def _summarise(
     shown_ids = {link.entry_id for link in shown}
     chosen_visible = chosen if chosen in shown_ids else None
 
-    photo = own_photo
+    photo, focus = own_photo
     if not photo and chosen_visible is not None:
         chosen_links = [link for link in shown if link.entry_id == chosen_visible]
-        photo = _first_picture(chosen_links, covers, use_casting_photos)
+        photo, focus = _first_picture(chosen_links, covers, use_casting_photos)
     if not photo:
-        photo = _first_picture(
+        photo, focus = _first_picture(
             _newest_first(shown, released), covers, use_casting_photos
         )
 
     return EntityMedia(
         display_photo_file=photo or None,
+        display_photo_focus=focus if photo else None,
         media_types=media_types,
         restricted=bool(set(media_types) & gated_types()),
         count=len(seen_pairs & visible),
@@ -189,7 +209,7 @@ def _resolve(
         entity.system_id: _summarise(
             links_by_entity.get(entity.system_id, []),
             visible,
-            entity.photo_file,
+            (entity.photo_file, entity.photo_focus),
             entity.photo_fallback_entry_id,
             covers,
             released,
@@ -207,12 +227,13 @@ def character_media(
     if not ids:
         return {}
     links: dict[UUID, list[_Link]] = {}
-    for character_id, media_type, entry_id, photo_file in (
+    for character_id, media_type, entry_id, photo_file, photo_focus in (
         db.query(
             models.CharacterCasting.character_id,
             models.CharacterCasting.media_type,
             models.CharacterCasting.entry_id,
             models.CharacterCasting.photo_file,
+            models.CharacterCasting.photo_focus,
         )
         .filter(models.CharacterCasting.character_id.in_(ids))
         .order_by(models.CharacterCasting.position)
@@ -220,7 +241,7 @@ def character_media(
     ):
         if media_type and entry_id:
             links.setdefault(character_id, []).append(
-                _Link(media_type, entry_id, photo_file)
+                _Link(media_type, entry_id, photo_file, photo_focus)
             )
     return _resolve(db, viewer, characters, links, use_casting_photos=True)
 

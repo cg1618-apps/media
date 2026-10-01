@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from app.schemas.image_focus import ImageFocus
 from app.utils.credit_roles import PERSON_ROLES, legal_scopes
 from app.utils.entity_vocab import check_gender, check_my_rating
 
@@ -69,6 +70,7 @@ class PersonBase(BaseModel):
     gender: Optional[str] = None
     my_rating: Optional[str] = None
     photo_file: Optional[str] = None
+    photo_focus: ImageFocus = None
     # The entry whose cover stands in when photo_file is NULL; see
     # app/services/domain/entity_photos.py. A write must name an entry this
     # person is credited or cast on (the router checks; 422 otherwise).
@@ -163,6 +165,9 @@ class PersonResponse(PersonBase):
     # Resolved per viewer by app/services/domain/entity_photos.py: the storage
     # key to show (photo_file, else a visible entry's cover), or None.
     display_photo_file: Optional[str] = None
+    # The focal point stored beside whichever source display_photo_file came
+    # from, or None (centred).
+    display_photo_focus: Optional[str] = None
     # Hyphenated media types of the visible entries this person is credited
     # or cast on, sorted and distinct; restricted is True when one is a gated
     # type.
@@ -180,6 +185,7 @@ class StudioBase(BaseModel):
     display_name_field: Optional[str] = None
     my_rating: Optional[str] = None
     logo_file: Optional[str] = None
+    logo_focus: ImageFocus = None
     remark: Optional[str] = None
     founded_date: Optional[str] = None
     defunct_date: Optional[str] = None

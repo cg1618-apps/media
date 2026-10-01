@@ -444,6 +444,8 @@ export default function MangaModifyTab({
           ownerId={editingItem?.system_id}
           role="cover"
           value={cmgf.cover_image_file}
+          focus={cmgf.cover_image_focus}
+          onFocusChange={(focus) => umg("cover_image_focus", focus)}
           onChange={(key) => umg("cover_image_file", key)}
         />
       </Field>

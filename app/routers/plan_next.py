@@ -76,6 +76,7 @@ def _resolve(db: Session, row: models.PlanNext) -> schemas.PlanNextRead:
     out.nav_path = ref.nav_path
     out.display_name = getattr(target, "display_name", None)
     out.cover_image_file = getattr(target, "cover_image_file", None)
+    out.cover_image_focus = getattr(target, "cover_image_focus", None)
     # Named per tier: franchise_expectation, series_expectation, or the entry's
     # own expectation column.
     for field in ("franchise_expectation", "series_expectation", "expectation"):

@@ -29,6 +29,7 @@ import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import { progressToast } from "../../lib/progressToast";
+import { focusStyle } from "../../lib/covers";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const LIST_OPTIONS = { params: { limit: 2000 } };
@@ -276,6 +277,7 @@ export default function Cartoon() {
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"
+                  style={focusStyle(cartoon.cover_image_focus)}
                   onError={(e) => {
                     e.target.src = FALLBACK_SVG;
                   }}

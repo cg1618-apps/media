@@ -687,6 +687,8 @@ export default function AnimeAddTab({
           ownerType="anime"
           role="cover"
           value={af.cover_image_file}
+          focus={af.cover_image_focus}
+          onFocusChange={(focus) => ua("cover_image_focus", focus)}
           onChange={(key, imageId) => {
             ua("cover_image_file", key);
             ua("pending_image_id", imageId);

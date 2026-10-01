@@ -316,6 +316,8 @@ export default function TvShowModifyTab({
           ownerId={editingItem?.system_id}
           role="cover"
           value={tvmf.cover_image_file}
+          focus={tvmf.cover_image_focus}
+          onFocusChange={(focus) => utv("cover_image_focus", focus)}
           onChange={(key) => utv("cover_image_file", key)}
         />
       </Field>

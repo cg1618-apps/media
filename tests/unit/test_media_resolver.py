@@ -164,6 +164,7 @@ class TestEntryRefPayload:
             "missing",
             "entry_display_name",
             "cover_image_file",
+            "cover_image_focus",
             "franchise_id",
             "entry_nav_path",
         }

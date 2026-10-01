@@ -63,6 +63,16 @@ MIRROR_COLUMNS = {
     "meme": "image_file",
 }
 
+# The focal-point column beside each mirror column, named `_file` -> `_focus`.
+# `quote` and `meme` have none: their images are shown uncropped, so there is
+# no crop to aim.
+FOCUS_COLUMNS = {
+    "staff": "photo_focus",
+    "character": "photo_focus",
+    "publisher": "logo_focus",
+    "studio": "logo_focus",
+}
+
 # `staff` maps to Person, not a `Staff` class - app/models/staff.py defines
 # Person, Studio and Publisher; Character lives in app/models/character.py.
 _ENTITY_MODELS = {
@@ -90,6 +100,11 @@ def mirror_to_owner_column(db, owner_type, owner_id, role, storage_key):
     orphan checks and every getCoverUrl call in the SPA keep working with no
     change at all. Phases 2 and 3 - moving readers, then dropping the columns -
     are deliberately deferred, and this function is what they eventually delete.
+
+    A focal point belongs to the picture it was set on, so whenever the key
+    changes the owner's focus column (`cover_image_focus`, `photo_focus`,
+    `logo_focus`) goes back to NULL - centred - in the same write. Writing the
+    key the owner already holds keeps the focus: it is the same picture.
     """
     if role != "cover" and owner_type not in NON_COVER_ROLE_OWNERS:
         return
@@ -98,6 +113,8 @@ def mirror_to_owner_column(db, owner_type, owner_id, role, storage_key):
         model = MEDIA_TABLES[owner_type].model
         row = db.get(model, owner_id)
         if row is not None:
+            if row.cover_image_file != storage_key:
+                row.cover_image_focus = None
             row.cover_image_file = storage_key
         return
 
@@ -110,6 +127,9 @@ def mirror_to_owner_column(db, owner_type, owner_id, role, storage_key):
         return
     row = db.get(model, owner_id)
     if row is not None:
+        focus_column = FOCUS_COLUMNS.get(owner_type)
+        if focus_column and getattr(row, column) != storage_key:
+            setattr(row, focus_column, None)
         setattr(row, column, storage_key)
 
 
@@ -564,6 +584,7 @@ def delete_image(
     # nothing cascades to it either.
     for casting in castings:
         casting.photo_file = None
+        casting.photo_focus = None
 
     # A forced delete removes the attachment rows (they cascade with the
     # image below), but the legacy columns those rows were mirroring do not

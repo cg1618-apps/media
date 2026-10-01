@@ -10,6 +10,7 @@ import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { EntryRow } from "./DashboardTable";
 import { entityPath } from "../../lib/entityPath";
 import PlatformIcons from "../cards/PlatformIcons";
+import { focusStyle } from "../../lib/covers";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center w-14 px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -142,6 +143,7 @@ export default function DashboardCard({
               src={imageUrl}
               alt="Cover"
               className="w-full h-full object-cover"
+              style={focusStyle(anime.cover_image_focus)}
               onError={(e) => {
                 e.target.src = FALLBACK_SVG;
               }}

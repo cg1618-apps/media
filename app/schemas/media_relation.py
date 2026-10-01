@@ -85,6 +85,7 @@ class RelationOtherEndpoint(BaseModel):
     # The media type's human label, e.g. "Anime Movie".
     label: Optional[str] = None
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     franchise_id: Optional[UUID] = None
     nav_path: Optional[str] = None
 
@@ -132,6 +133,7 @@ class RelationGraphNode(BaseModel):
     # displayed under its Chinese title.
     search_names: List[str] = []
     cover_image_file: Optional[str] = None
+    cover_image_focus: Optional[str] = None
     franchise_id: Optional[UUID] = None
     nav_path: Optional[str] = None
     # The media type's human label ("Anime Movie"), for the node badge.

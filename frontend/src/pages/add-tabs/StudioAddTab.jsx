@@ -81,6 +81,8 @@ export function StudioFields({ studioForm, usf, ownerId }) {
             ownerId={ownerId}
             role="cover"
             value={studioForm.logo_file}
+            focus={studioForm.logo_focus}
+            onFocusChange={(focus) => usf("logo_focus", focus)}
             onChange={(key, imageId) => {
               usf("logo_file", key);
               usf("pending_image_id", ownerId ? null : imageId);

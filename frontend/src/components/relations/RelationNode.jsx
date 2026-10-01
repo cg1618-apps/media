@@ -10,7 +10,7 @@
 // sequel read across and an adaptation read down.
 import { Handle, Position } from "@xyflow/react";
 
-import { getCoverUrl } from "../../lib/covers";
+import { getCoverUrl, focusStyle } from "../../lib/covers";
 import {
   MIDDLE_SOURCE,
   MIDDLE_TARGET,
@@ -34,7 +34,13 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
   const handleCls = isConnectable
     ? ""
     : " !pointer-events-none !opacity-0";
-  const { display_name, media_type, type_label, cover_image_file } = data;
+  const {
+    display_name,
+    media_type,
+    type_label,
+    cover_image_file,
+    cover_image_focus,
+  } = data;
 
   const label = data.missing
     ? `Missing ${media_type} ${String(data.entry_id).slice(0, 8)}…`
@@ -96,6 +102,7 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
           src={getCoverUrl(cover_image_file)}
           alt=""
           className="h-12 w-9 shrink-0 rounded-md object-cover"
+          style={focusStyle(cover_image_focus)}
         />
       )}
 

@@ -247,7 +247,7 @@ export default function CollectionLibrary() {
                   key={collection.system_id}
                   collection={collection}
                   memberCount={members.length}
-                  coverUrl={getCollectionCover(
+                  cover={getCollectionCover(
                     collection,
                     members,
                     allEntriesDict,
