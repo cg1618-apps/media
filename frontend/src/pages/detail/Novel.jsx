@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
+import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
 import { castRoleRank } from "../../config/fieldOptions";
 import { useToast } from "../../hooks/useToast";
@@ -405,6 +406,7 @@ export default function Novel() {
             >
               Mark completed
             </Button>
+            <MarkReleaseButton type="novel" entry={novel} title={titleMain} onPatch={performPatch} />
             <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
               {autofilling ? "Autofilling…" : "Autofill & update"}
             </Button>
