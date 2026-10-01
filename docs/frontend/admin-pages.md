@@ -590,9 +590,11 @@ holds — a franchise, a series or an entry; see
   English name is still findable by its Japanese one. Above the search sit
   **scope chips** (`ScopeChips`) over the media types the studios are
   credited on — a studio stores no scope, so its `media_types` stand in — and
-  they narrow the grid the way the person tab's do. Opening a studio whose
-  `country` is unset seeds the field with **Japan** — the overwhelmingly
-  common case here — so saving without touching it records Japan.
+  they narrow the grid the way the person tab's do. The editor shows the
+  stored record as it is: an unset `country` opens empty and saves as
+  `null`, so clearing the field is how a country is unset. No value is
+  seeded on load, because a seed cannot be told apart from a stored value
+  and would be written back on the next save of any field.
 - **Publisher tab (Entity).** `PublisherModifyTab.jsx`, self-contained the
   same way over `/api/publisher/` (query key `["publishers-admin"]`): its own
   picker listing every publisher up front, the same all-four-names filter,
@@ -603,9 +605,8 @@ holds — a franchise, a series or an entry; see
   narrows a publisher's scopes, since `PUT` replaces the set wholesale while
   every other writer (the create POST, and crediting a publisher on an entry)
   is additive. Two `activeTab !== "publisher"` guards on the page suppress the generic
-  entry search bar and save footer, as the studio and person tabs do. Unlike
-  the studio tab it seeds **no default country**: "nearly every studio here is
-  Japanese" is not true of publishers and distributors.
+  entry search bar and save footer, as the studio and person tabs do. Like
+  the studio tab it seeds no default country.
 - **Person tab (Entity).** `PersonModifyTab.jsx`, self-contained the same way
   over `/api/person/`. A `PersonSubTabBar` picks the role — the analogue of
   the option tab's category. It opens on **All**, first in the bar, which

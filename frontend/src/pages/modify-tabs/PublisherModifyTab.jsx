@@ -6,9 +6,8 @@
 // collection/franchise/series shapes, not a public entity). Reuses
 // PublisherFields from PublisherAddTab so the input markup isn't duplicated.
 //
-// Two divergences from the studio tab: no MAL columns (a publisher has no MAL
-// record), and no country seeding — nearly every studio here is Japanese, but
-// a publisher is as likely to be American, so an empty country stays empty.
+// The one divergence from the studio tab: no MAL columns (a publisher has no
+// MAL record).
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=publisher, the
 // detail page's Quick edit): that publisher's editor opens on mount.
