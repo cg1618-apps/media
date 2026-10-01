@@ -1,5 +1,5 @@
-// Character Modify tab: picking a character from the search dropdown loads its
-// form, and a successful save scrolls the page back to the toast at the top.
+// Character Modify tab: a type tab and scope chips narrow a grid listing
+// every character up front; picking one loads its form, and a successful save scrolls the page back to the toast at the top.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -20,7 +20,41 @@ const CHARACTERS = [
     my_rating: null,
     photo_file: null,
     remark: null,
+    media_types: ["anime"],
     casting_count: 1,
+  },
+  {
+    system_id: "c2",
+    name_en: "Faye Valentine",
+    name_cn: null,
+    name_jp: null,
+    name_alt: null,
+    display_name_field: null,
+    display_name: "Faye Valentine",
+    gender: null,
+    my_rating: null,
+    photo_file: null,
+    remark: null,
+    role: "Core",
+    media_types: ["anime", "manga"],
+    casting_count: 2,
+  },
+  {
+    // Nothing requires a character to have a type; only All lists this one.
+    system_id: "c3",
+    name_en: "Ein",
+    name_cn: null,
+    name_jp: null,
+    name_alt: null,
+    display_name_field: null,
+    display_name: "Ein",
+    gender: null,
+    my_rating: null,
+    photo_file: null,
+    remark: null,
+    role: null,
+    media_types: [],
+    casting_count: 0,
   },
 ];
 
@@ -110,6 +144,30 @@ async function openSpike(user) {
     expect(screen.getByDisplayValue("Spike Spiegel")).toBeInTheDocument(),
   );
 }
+
+it("opens on All, listing a character with no type, and narrows by type", async () => {
+  const user = userEvent.setup();
+  mount();
+  expect(await screen.findByRole("button", { name: "Ein" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Spike Spiegel" })).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Core" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Ein" })).not.toBeInTheDocument(),
+  );
+  expect(screen.queryByRole("button", { name: "Spike Spiegel" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Faye Valentine" })).toBeInTheDocument();
+});
+
+it("narrows the list to the media types a character is cast in", async () => {
+  const user = userEvent.setup();
+  mount();
+  await user.click(await screen.findByRole("button", { name: "manga" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Spike Spiegel" })).not.toBeInTheDocument(),
+  );
+  expect(screen.getByRole("button", { name: "Faye Valentine" })).toBeInTheDocument();
+});
 
 it("loads the picked character into the form", async () => {
   const user = userEvent.setup();

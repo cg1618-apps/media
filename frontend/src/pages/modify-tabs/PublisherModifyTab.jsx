@@ -15,6 +15,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PublisherFields } from "../add-tabs/PublisherAddTab";
+import ScopeChips from "../../components/forms/ScopeChips";
+import { inAnyScope, scopeChoices, toggleIn } from "../../lib/entityScopes";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
@@ -54,6 +56,8 @@ export default function PublisherModifyTab({ initialId = null } = {}) {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
+  // Which scopes the grid is narrowed to - its stored scopes, the media types it is offered on. Empty means any scope.
+  const [scopes, setScopes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [publisherForm, setPublisherForm] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -73,17 +77,18 @@ export default function PublisherModifyTab({ initialId = null } = {}) {
   // name must work even when Chinese is the configured display name.
   const filtered = useMemo(() => {
     const q = cleanString(search);
+    const inScope = publishers.filter((r) => inAnyScope(r, scopes));
     const matched = q
-      ? publishers.filter((p) =>
+      ? inScope.filter((p) =>
           STUDIO_NAME_FIELDS.some(
             ({ field }) => p[field] && cleanString(p[field]).includes(q),
           ),
         )
-      : publishers;
+      : inScope;
     return [...matched].sort((a, b) =>
       publisherLabel(a).localeCompare(publisherLabel(b)),
     );
-  }, [publishers, search]);
+  }, [publishers, search, scopes]);
 
   function loadPublisher(systemId) {
     return fetchJson(endpoints.publisher.detail(systemId))
@@ -153,7 +158,12 @@ export default function PublisherModifyTab({ initialId = null } = {}) {
     <div className="space-y-4">
       {!selectedId && (
         <div className="space-y-4">
-          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
+            <ScopeChips
+              choices={scopeChoices(publishers)}
+              selected={scopes}
+              onToggle={(scope) => setScopes((prev) => toggleIn(prev, scope))}
+            />
             <div className="relative">
               <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
               <input
@@ -185,7 +195,9 @@ export default function PublisherModifyTab({ initialId = null } = {}) {
           )}
           {!isLoading && publishers.length > 0 && filtered.length === 0 && (
             <p className="text-sm text-text-faint italic">
-              No publisher matches that name.
+              {search
+                ? "No publisher matches that name."
+                : "No publisher is in the selected scopes."}
             </p>
           )}
         </div>

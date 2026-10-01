@@ -1,5 +1,6 @@
-// Person Modify tab: the picker lists everyone holding the selected sub-tab's
-// role up front (like the system options grid), by display name, and the
+// Person Modify tab: the picker opens on the All tab, which lists every
+// person - including one holding no type - and a type sub-tab lists everyone
+// holding that role up front (like the system options grid), by display name, and the
 // search box filters that list across all four name fields.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -69,6 +70,23 @@ const DIRECTORS = [
   },
 ];
 
+// Nothing requires a person to hold a type, and such a person is reachable
+// only from the All tab.
+const UNTYPED = {
+  system_id: "p5",
+  name_en: "Yurika Kubo",
+  name_cn: null,
+  name_jp: "久保ユリカ",
+  name_alt: null,
+  display_name_field: null,
+  display_name: "Yurika Kubo",
+  gender: null,
+  my_rating: null,
+  photo_file: null,
+  credit_count: 0,
+  roles: [],
+};
+
 const ROLE_SCOPES = {
   director: ["anime", "anime-movie", "movie"],
   producer: ["anime"],
@@ -101,6 +119,7 @@ function respond(url) {
   if (url.startsWith("/api/person/p1")) return DIRECTORS[0];
   if (url.startsWith("/api/person/role-scopes")) return ROLE_SCOPES;
   if (url.startsWith("/api/person/?role=director")) return DIRECTORS;
+  if (url === "/api/person/") return [...DIRECTORS, UNTYPED];
   if (url.startsWith("/api/person/")) return [];
   return [];
 }
@@ -135,8 +154,29 @@ function mount(props = {}) {
   );
 }
 
-it("lists everyone in the sub-tab's role by display name before anything is typed", async () => {
+it("opens on the All tab, listing people who hold no type", async () => {
+  const user = userEvent.setup();
   mount();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Yurika Kubo" })).toBeInTheDocument(),
+  );
+  expect(screen.getByRole("button", { name: "Hayao Miyazaki" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /All/ }).className).toContain("border-brand");
+  // All is not a role, so it offers no scope filter.
+  expect(screen.queryByRole("button", { name: "anime-movie" })).not.toBeInTheDocument();
+
+  // The mirror case: a type tab does not list the untyped person.
+  await user.click(screen.getByRole("button", { name: /Director/ }));
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Yurika Kubo" })).not.toBeInTheDocument(),
+  );
+  expect(screen.getByRole("button", { name: "Hayao Miyazaki" })).toBeInTheDocument();
+});
+
+it("lists everyone in the sub-tab's role by display name before anything is typed", async () => {
+  const user = userEvent.setup();
+  mount();
+  await user.click(await screen.findByRole("button", { name: /Director/ }));
   await waitFor(() =>
     expect(
       screen.getByRole("button", { name: "Hayao Miyazaki" }),
@@ -174,6 +214,7 @@ it("filters the list by a non-displayed name field (e.g. Japanese)", async () =>
 it("filters the list to the scopes ticked, matching any one of them", async () => {
   const user = userEvent.setup();
   mount();
+  await user.click(await screen.findByRole("button", { name: /Director/ }));
   await waitFor(() =>
     expect(
       screen.getByRole("button", { name: "Hayao Miyazaki" }),
@@ -218,6 +259,7 @@ it("filters the list to the scopes ticked, matching any one of them", async () =
 it("offers no scope filter for a role with a single legal scope", async () => {
   const user = userEvent.setup();
   mount();
+  await user.click(await screen.findByRole("button", { name: /Director/ }));
   await waitFor(() =>
     expect(
       screen.getByRole("button", { name: "anime-movie" }),

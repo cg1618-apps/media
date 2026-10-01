@@ -107,6 +107,16 @@ it("lists every publisher by display name before anything is typed", async () =>
   expect(screen.getByRole("button", { name: "木棉花" })).toBeInTheDocument();
 });
 
+it("narrows the list to the publishers offered on the ticked scope", async () => {
+  const user = userEvent.setup();
+  mount();
+  await user.click(await screen.findByRole("button", { name: "game" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "木棉花" })).not.toBeInTheDocument(),
+  );
+  expect(screen.getByRole("button", { name: "Bandai Namco" })).toBeInTheDocument();
+});
+
 it("filters the list by a non-displayed name field", async () => {
   const user = userEvent.setup();
   mount();
