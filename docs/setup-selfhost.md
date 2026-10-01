@@ -722,8 +722,10 @@ read **`b0:5c:da:34:a2:0c`** — the I219-LM. **Use the Ethernet MAC, not the Wi
 one** (`f8:34:41:b1:ef:e5`): they differ, so a reservation made during a WiFi
 setup stops applying the moment the cable goes in.
 
-The tunnel does not need this — `cloudflared` dials out. SSH and `psql` from a
-laptop do, and an address that changes after a power cut is an afternoon lost.
+The tunnel does not need this — `cloudflared` dials out — and neither does SSH
+through it. The LAN route does: it is the only way in until the tunnel exists,
+and the fallback after, and an address that changes after a power cut is an
+afternoon lost.
 Set the reservation rather than configuring a static IP on the box itself: one
 place to look, and no chance of a clash with the router's own pool.
 
@@ -756,6 +758,13 @@ Four things to do at that point, none of which is automatic:
 
 *At the dev machine, over SSH, except where a step says otherwise. The box is a
 working Docker host at this point and holds nothing of ours.*
+
+**`homelab` in these steps is whichever route works yet.** Once the box is
+built, `homelab` in `~/.ssh/config` is the Cloudflare tunnel and `homelab-lan`
+the direct LAN connection — the platform's
+[shared-stack.md](https://github.com/cg1618-apps/platform/blob/dev/docs/shared-stack.md#ssh-through-the-tunnel).
+Until the tunnel and its Access application are up, only the LAN exists, so
+read `ssh homelab` below as `ssh homelab-lan`.
 
 #### Step 12 — Clone the repository and write `.env`
 

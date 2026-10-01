@@ -229,7 +229,9 @@ still mean this project and must keep the variable.
 
 **Nothing is published to the host.** No service has a `ports:` entry, so the
 database is not on the LAN and the app cannot be reached except through
-Cloudflare. To reach PostgreSQL from a laptop, forward it over SSH:
+Cloudflare. To reach PostgreSQL from a laptop, forward it over SSH, which goes
+through the tunnel by default (the platform's
+[shared-stack.md](https://github.com/cg1618-apps/platform/blob/dev/docs/shared-stack.md#ssh-through-the-tunnel)):
 
 ```bash
 ssh -L 5433:localhost:5432 homelab   # then psql -h localhost -p 5433

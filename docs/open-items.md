@@ -57,7 +57,7 @@ the command silently discarded before the fix.
 
 | Item | Why it is stuck |
 |---|---|
-| A DHCP reservation for the box | Its cable is bridged past the home router, so its address comes from the router above it, which needs that router's admin — or the cable moved onto the home router's own network. Until then the address is whatever DHCP hands out, and `ssh` failing is how you learn it moved |
+| A DHCP reservation for the box | Its cable is bridged past the home router, so its address comes from the router above it, which needs that router's admin — or the cable moved onto the home router's own network. Until then the address is whatever DHCP hands out, and `ssh homelab-lan` — the LAN fallback, not the default tunnel route — failing is how you learn it moved |
 | An idle power reading for the box | No meter |
 
 ## The two machines and the backup sheet
