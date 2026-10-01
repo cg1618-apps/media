@@ -19,8 +19,6 @@ import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { STUDIO_NAME_FIELDS, displayStudioName } from "../../lib/naming";
 
-const DEFAULT_STUDIO_COUNTRY = "Japan";
-
 function cleanString(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
 }
@@ -38,9 +36,9 @@ function studioToForm(s) {
     display_name_field: s.display_name_field || "",
     my_rating: s.my_rating || "",
     logo_file: s.logo_file || "",
-    // Nearly every studio here is Japanese, so an unrecorded country starts
-    // on Japan rather than blank - one less field to fill on the common case.
-    country: s.country || DEFAULT_STUDIO_COUNTRY,
+    // No seed: an unset country is a value the admin can choose, and a seed
+    // here would be written back on the next save of any field.
+    country: s.country || "",
     website_url: s.website_url || "",
     founded_date: s.founded_date || "",
     defunct_date: s.defunct_date || "",

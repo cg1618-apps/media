@@ -156,8 +156,7 @@ it("loads the selected studio and disables save with hint when every name is cle
 });
 
 // My Rating is the same S..F vocabulary every other rated record uses, so it
-// is a picker rather than a free-text box; and a studio with no country
-// recorded starts on Japan, which is what nearly every studio here is.
+// is a picker rather than a free-text box.
 it("edits my rating through a dropdown of the rating vocabulary", async () => {
   const user = userEvent.setup();
   mount();
@@ -175,17 +174,30 @@ it("edits my rating through a dropdown of the rating vocabulary", async () => {
   expect(rating).toHaveValue("A+");
 });
 
-it("defaults an unset country to Japan", async () => {
+// An unset country is a value the admin can choose, so the editor shows it as
+// empty rather than seeding one: a seed on load cannot be told apart from a
+// stored value, and would write itself back on the next save of any field.
+it("leaves an unset country empty and saves it as null", async () => {
   const user = userEvent.setup();
   mount();
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument(),
   );
   await user.click(screen.getByRole("button", { name: "Sunrise" }));
-
   await waitFor(() =>
-    expect(screen.getByDisplayValue("Japan")).toBeInTheDocument(),
+    expect(screen.getByDisplayValue("Sunrise")).toBeInTheDocument(),
   );
+  expect(screen.queryByDisplayValue("Japan")).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  const put = () => fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  await waitFor(() => expect(put()).toBeDefined());
+  expect(JSON.parse(put()[1].body).country).toBeNull();
+  // The form is rebuilt from the saved record, which must not re-seed either.
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: /save changes/i })).toBeEnabled(),
+  );
+  expect(screen.queryByDisplayValue("Japan")).not.toBeInTheDocument();
 });
 
 // A saved studio's toast lands at the top of the page, and the form is long
