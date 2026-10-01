@@ -372,6 +372,9 @@ rejects. Submit is blocked until at least one name is filled, matching
 person form without the role × scope matrix: the four name fields, the
 "Display name" select, a **Role** select ("—" for none, plus Main, Core,
 Supporting, Other — `CHARACTER_ROLES`), the same Gender and My Rating selects,
+a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
+page; the server reads the MAL id from it and, on save, fills the blank names
+and the photo from MAL — see [api.md](../api.md#character--apicharacter)),
 the photo and the remark. The Role is the character's own and is
 independent of the role any casting gives it: neither is derived from nor
 prefilled by the other. It starts
@@ -379,6 +382,11 @@ with gender unset; only a character minted from an entry's cast editor starts
 with one (女 on an h-comic or a hentai — `NEW_CAST_CHARACTER_GENDER`, see
 `CastEditor` in [components.md](components.md)). `CharacterFields` is exported
 so the Modify tab renders the same inputs.
+
+Every cast section — anime, anime movie, manga, novel, h-comic and hentai, on
+Add and on Modify — passes the form's own `mal_link` to `CastEditor`, so
+**Import from MAL** appears once the entry has a MAL link (see `CastEditor` in
+[components.md](components.md)).
 
 **Options tab.** Two sub-tabs (`OptionSubTabBar`, shared with Modify and
 Delete): **Options** and **Tags**, both creating system options (category +

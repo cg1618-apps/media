@@ -50,13 +50,14 @@ vi.mock("./ImagePicker", () => ({
 // CastEditor is fully controlled: typing a character re-renders it only if
 // the parent feeds the updated row back in as `value`. Tests that exercise
 // typing need a real (if minimal) parent, not a `vi.fn()` no-op onChange.
-function Controlled({ initialRows, mediaType, onChangeSpy, franchiseId, entryId }) {
+function Controlled({ initialRows, mediaType, onChangeSpy, franchiseId, entryId, malLink }) {
   const [rows, setRows] = useState(initialRows);
   return (
     <CastEditor
       mediaType={mediaType}
       franchiseId={franchiseId}
       entryId={entryId}
+      malLink={malLink}
       value={rows}
       onChange={(next) => {
         onChangeSpy(next);
@@ -574,4 +575,90 @@ it("drops the voices of an imported cast on a type nobody voices", () => {
     role: "Main",
   };
   expect(importedRow(source, 0, false).voices).toEqual([]);
+});
+
+it("imports a cast from the entry's MAL link and reports what it created", async () => {
+  const malCast = [
+    {
+      character_id: "c1",
+      character_public_id: 1,
+      character_name: "Already Here",
+      role: "Main",
+      position: 0,
+      photo_file: null,
+      photo_focus: null,
+      remark: null,
+      voices: [],
+    },
+    {
+      character_id: "c9",
+      character_public_id: 9,
+      character_name: "Edward Elric",
+      role: "Main",
+      position: 1,
+      photo_file: null,
+      photo_focus: null,
+      remark: null,
+      voices: [{ person_id: "p9", person_public_id: 9, person_name: "Romi Park", remark: null }],
+    },
+  ];
+  const fetchSpy = vi.fn((url, init) => {
+    if (url === "/api/casting/mal") {
+      expect(JSON.parse(init.body)).toEqual({
+        media_type: "anime",
+        mal_link: "https://myanimelist.net/anime/5114",
+      });
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({ cast: malCast, created_characters: 1, created_people: 1, warnings: [] }),
+      });
+    }
+    return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+  });
+  vi.stubGlobal("fetch", fetchSpy);
+  const onChangeSpy = vi.fn();
+  render(
+    <Controlled
+      mediaType="anime"
+      initialRows={[row({ character_id: "c1", character_name: "Already Here" })]}
+      onChangeSpy={onChangeSpy}
+      malLink="https://myanimelist.net/anime/5114"
+    />,
+  );
+
+  fireEvent.click(screen.getByText("Import from MAL"));
+
+  await waitFor(() => expect(onChangeSpy).toHaveBeenCalled());
+  const rows = onChangeSpy.mock.calls.at(-1)[0];
+  expect(rows.map((r) => r.character_name)).toEqual(["Already Here", "Edward Elric"]);
+  expect(rows[1].voices).toEqual([{ person_id: "p9", person_name: "Romi Park", remark: "" }]);
+  expect(await screen.findByRole("status")).toHaveTextContent(
+    "Imported 1 from MyAnimeList (1 already in this cast). Created 1 new characters and 1 new seiyuu.",
+  );
+});
+
+it("offers no MAL import without a MAL link, and shows the server's refusal", async () => {
+  const { unmount } = render(<CastEditor mediaType="anime" value={[]} onChange={vi.fn()} />);
+  expect(screen.queryByText("Import from MAL")).not.toBeInTheDocument();
+  unmount();
+
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url) =>
+      url === "/api/casting/mal"
+        ? Promise.resolve({
+            ok: false,
+            json: () => Promise.resolve({ detail: "MyAnimeList returned no cast for this entry." }),
+          })
+        : Promise.resolve({ ok: true, json: () => Promise.resolve([]) }),
+    ),
+  );
+  const onChange = vi.fn();
+  render(
+    <CastEditor mediaType="anime" value={[]} onChange={onChange} malLink="https://myanimelist.net/anime/1" />,
+  );
+  fireEvent.click(screen.getByText("Import from MAL"));
+  expect(await screen.findByText("MyAnimeList returned no cast for this entry.")).toBeInTheDocument();
+  expect(onChange).not.toHaveBeenCalled();
 });

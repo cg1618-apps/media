@@ -2594,3 +2594,39 @@ copy another entry's cast in and the admin edits from there. Three choices:
 The detail page's cast slip collapses at the same time: Main characters
 show, Core on expanding, and the full cast - every role - opens in a dialog,
 so a forty-row cast does not push the page down.
+
+### A cast is imported from MyAnimeList, matched by MAL id (2026-10-01)
+
+Typing a long cast by hand is the slowest part of adding an anime, and MAL
+already lists it. A character gains `mal_id` / `mal_link` the way a person
+carries them (filled from Tenrai's `/characters/{id}/full` on save,
+fill-only), and `POST /api/casting/mal` turns an entry's MAL character list
+(`/anime|manga/{id}/characters`, both checked with a real call before the
+import was designed on them) into cast rows. Five choices:
+
+- **A character is matched by `mal_id` only, never by name.** Decision G
+  holds: "Yuki" recurs across unrelated works, so a name match would fuse two
+  characters. An unmatched character is created, and a duplicate that
+  produces is folded by merge. Only characters the caller can see are
+  matched, so a hidden record's name never lands in their form.
+- **A seiyuu is matched by `mal_id`, then by name.** A human's full name is
+  nearly unique - the reasoning behind `uq_person_name` - and a seiyuu
+  entered without a MAL link would otherwise be created a second time,
+  splitting one voice actor's body of work across two rows. A name-matched
+  person without a `mal_id` takes MAL's, so the next import matches by id. The name match goes through `resolve_person`, the
+  find-or-create every person field uses, and a name that matches two people
+  is reported as a warning rather than guessed.
+- **Japanese voices only.** MAL lists every dub; a casting records the
+  original cast. Dubs remain the deferred `language` question.
+- **The import fills the form, not the cast**, the same rule as the
+  franchise import: the rows are reviewed and saved by the editor's ordinary
+  `PUT`, and there is no second write path into `character_casting`. Only the
+  characters and people it had to create are committed, as the editor's own
+  comboboxes create one the moment it is picked.
+- **A new character's portrait downloads after the response.** Downloading
+  inline made a long cast - 116 characters on Fullmetal Alchemist:
+  Brotherhood - take about two minutes. The request sets each `photo_file`
+  to the key the background download will write. If that download fails,
+  the key names a missing own download, which `cover_needs_download` already
+  treats as needing one, so the character's next MAL fill repairs it with no
+  bookkeeping of its own.

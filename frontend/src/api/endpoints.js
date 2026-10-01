@@ -225,6 +225,8 @@ export const endpoints = {
     replace: (mediaType, entryId) => `/api/casting/${mediaType}/${entryId}`,
     // Entries in one franchise that have a cast, for the editor's import.
     sources: (qs) => `/api/casting/sources?${qs}`,
+    // POST {media_type, mal_link}: the MAL entry's cast as cast rows.
+    fromMal: () => "/api/casting/mal",
   },
 
   publisher: {

@@ -675,6 +675,7 @@ export const defaultCharacter = () => ({
   photo_file: "",
   photo_focus: null,
   pending_image_id: null,
+  mal_link: "",
   remark: "",
 });
 

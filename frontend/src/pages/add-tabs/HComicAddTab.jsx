@@ -311,6 +311,7 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         value={f.cast}
         onChange={(v) => u("cast", v)}
         franchiseId={f.franchise_id}
+        malLink={f.mal_link}
         entryId={ownerId}
       />
 

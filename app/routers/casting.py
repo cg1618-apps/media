@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -30,6 +30,7 @@ from app import models
 from app.dependencies import get_db
 from app.schemas.image_focus import ImageFocus
 from app.services.domain import casting as casting_service
+from app.services.domain import mal_cast as mal_cast_service
 from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.media_resolver import MEDIA_TABLES
@@ -149,6 +150,41 @@ def get_cast_sources(
     for source in sources:
         del source["created_at"]
     return {"sources": sources}
+
+
+class MalCastIn(BaseModel):
+    media_type: str
+    # The MAL page of the entry being cast: /anime/<id> for a voiced type,
+    # /manga/<id> otherwise.
+    mal_link: str
+
+
+@router.post("/mal", summary="Build a cast from MyAnimeList")
+def import_mal_cast(
+    payload: MalCastIn,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    The MAL entry's cast as cast rows, for the editor to append and save.
+    Characters are matched on mal_id and seiyuu on mal_id then name; any
+    missing are created and committed here, the cast itself is not; new
+    characters' portraits download after the response. 422 for
+    a bad link or an unknown type, 502 when MAL answers with no cast. Keyed
+    on the link rather than an entry, like /sources, so Add can use it.
+    """
+    try:
+        result, portraits = mal_cast_service.mal_cast_rows(
+            db, admin, payload.media_type, payload.mal_link
+        )
+    except mal_cast_service.MalCastError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except mal_cast_service.MalCastUnavailable as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    db.commit()
+    background_tasks.add_task(mal_cast_service.download_portraits, portraits)
+    return result
 
 
 @router.get("/{media_type}/{entry_id}", summary="Get an entry's cast")

@@ -376,6 +376,7 @@ export default function MangaModifyTab({
       <CastEditor
         mediaType="manga"
         franchiseId={cmgf.franchise_id}
+        malLink={cmgf.mal_link}
         entryId={editingItem?.system_id}
         value={cmgf.cast}
         onChange={(v) => umg("cast", v)}

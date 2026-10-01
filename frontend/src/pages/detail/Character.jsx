@@ -185,6 +185,19 @@ export default function Character() {
                 { label: "Role", value: character.role },
                 { label: "Gender", value: character.gender },
               ],
+              {
+                label: "MAL",
+                value: character.mal_link ? (
+                  <a
+                    href={character.mal_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand hover:underline break-all"
+                  >
+                    {character.mal_id ? `Character #${character.mal_id}` : "MyAnimeList"}
+                  </a>
+                ) : null,
+              },
               ...(isAdmin ? [] : [{ label: "Remark", value: character.remark }]),
             ]}
           />

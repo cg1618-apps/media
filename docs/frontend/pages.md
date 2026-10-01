@@ -664,8 +664,10 @@ detail shape — the header is a profile and the body is the entries this
 character is cast in. Two raw fetches, the profile then `.../entries` by the
 `system_id` it returns; the character call failing is the page's 404, the
 entries call failing is not. The Profile card shows the character's own
-**Role** beside Gender — its own field, not derived from any casting's role.
-The layout and the admin controls — Quick edit
+**Role** beside Gender — its own field, not derived from any casting's role —
+and a **MAL** row: the `mal_link` as an external link reading
+`Character #<mal_id>` (`MyAnimeList` when no id was derived), "—" without a
+link. The layout and the admin controls — Quick edit
 to `/modify?id=<system_id>&type=character`, the My rating select, the
 Remarks textarea, all PATCHing `/api/character/{system_id}` — are the person
 page's, as is the Naming card in place of a list of other names. The photo

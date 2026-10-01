@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-30
+Last verified: 2026-10-01
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -107,6 +107,7 @@ unparseable link never clears an existing ID.
 | `apply_extract_mal_id_anime`      | `mal_link`        | `mal_id` (int) | `myanimelist.net/anime/(\d+)`                   |
 | `apply_extract_mal_id_manga_novel`| `mal_link`        | `mal_id` (int) | `myanimelist.net/manga/(\d+)`                   |
 | `apply_extract_mal_id_studio`     | `mal_link`        | `mal_id` (int) | `myanimelist.net/anime/producer/(\d+)` — a studio's MAL URL is `/anime/producer/56/A-1_Pictures`. The anime pattern above cannot match it (it wants digits straight after `/anime/` and meets the word `producer`), and this one cannot match a plain anime link, so the two never poach each other |
+| `apply_extract_mal_id_character`  | `mal_link`        | `mal_id` (int) | `myanimelist.net/character/(\d+)` — a character's MAL URL is `/character/11/Edward_Elric`. No Fill runs over characters: it is derived on every character `POST`, `PUT` and `PATCH` that carries a link |
 | `apply_extract_imdb_id`           | `imdb_link`       | `imdb_id` (str)| `imdb.com/title/tt(\d+)` → stored as `"tt…"`   |
 | `apply_extract_comicvine_id`      | `comicvine_link`  | `comicvine_id` | `comicvine.gamespot.com/<slug>/4050-(\d+)` — the `4050-` prefix means "volume"; issue (`4000-`) and character (`4005-`) URLs are rejected |
 | `apply_extract_igdb_id`           | `igdb_link`       | `igdb_id` (int)| `api\.igdb\.com/v\d+/games/(\d+)` — a public `www.igdb.com` URL carries only a slug, no id, and is rejected |

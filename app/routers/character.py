@@ -23,6 +23,8 @@ from app import models, schemas
 from app.dependencies import get_db
 from app.routers._entity_patch import prepare_patch, resolve_fallback
 from app.routers._patching import apply_column_patch
+from app.services.domain.autofill import autofill_character_from_mal
+from app.services.domain.derivation import apply_extract_mal_id_character
 from app.services.domain.entity_photos import EntityMedia, character_media
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
@@ -43,6 +45,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/character", tags=["Character Management"])
 
 NOT_FOUND = "Character not found."
+
+
+def _derive_and_fill_from_mal(db: Session, character: models.Character) -> None:
+    """
+    Derive mal_id from mal_link, then fill the empty columns from MAL's
+    character record. Runs after the payload is copied, so the payload's own
+    values win and only blank columns are filled. Flushed first: a new
+    character's portrait is stored under its system_id.
+    """
+    apply_extract_mal_id_character(character)
+    if character.mal_id is None:
+        return
+    db.flush()
+    autofill_character_from_mal(character)
 
 
 def _to_response(
@@ -76,6 +92,8 @@ def _to_response(
         photo_focus=character.photo_focus,
         photo_fallback_entry_id=media.photo_fallback_entry_id,
         role=character.role,
+        mal_id=character.mal_id,
+        mal_link=character.mal_link,
         remark=character.remark,
         casting_count=media.count,
         display_photo_file=media.display_photo_file,
@@ -314,6 +332,7 @@ def create_character(
         )
     character = models.Character(**payload.model_dump())
     db.add(character)
+    _derive_and_fill_from_mal(db, character)
     db.commit()
     db.refresh(character)
     return _to_response(db, character, admin)
@@ -347,6 +366,7 @@ def update_character(
     )
     for key, value in data.items():
         setattr(character, key, value)
+    _derive_and_fill_from_mal(db, character)
 
     db.commit()
     db.refresh(character)
@@ -371,7 +391,8 @@ def patch_character(
     is en / cn / jp / alt, at least one name survives the patch, and a
     photo_fallback_entry_id names an entry this character is cast on. Server
     columns (system_id, public_id, timestamps) are a 422; keys that are not
-    columns are ignored (_patching.apply_column_patch).
+    columns are ignored (_patching.apply_column_patch). A mal_link in the
+    patch re-derives mal_id; the MAL fetch itself stays with POST and PUT.
     """
     character = db.get(models.Character, system_id)
     if character is None:
@@ -387,6 +408,8 @@ def patch_character(
             data["photo_fallback_entry_id"], "character",
         )
     apply_column_patch(character, data)
+    if "mal_link" in data:
+        apply_extract_mal_id_character(character)
 
     db.commit()
     db.refresh(character)

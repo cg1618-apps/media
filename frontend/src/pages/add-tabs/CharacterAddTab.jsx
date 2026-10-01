@@ -91,6 +91,17 @@ export function CharacterFields({ characterForm, ucf, ownerId }) {
         </select>
       </Field>
       <GenderRatingFields form={characterForm} update={ucf} />
+      <Field
+        label="MAL Link"
+        hint="The character's myanimelist.net/character/<id> page. On save, blank names and the photo are filled from it."
+      >
+        <input
+          className={inputCls}
+          value={characterForm.mal_link ?? ""}
+          onChange={(e) => ucf("mal_link", e.target.value)}
+          placeholder="https://myanimelist.net/character/..."
+        />
+      </Field>
       <Field label="Photo">
         <ImagePicker
           ownerType="character"

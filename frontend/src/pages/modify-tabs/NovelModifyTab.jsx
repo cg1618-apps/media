@@ -463,6 +463,7 @@ export default function NovelModifyTab({
       <CastEditor
         mediaType="novel"
         franchiseId={cnvf.franchise_id}
+        malLink={cnvf.mal_link}
         entryId={editingItem?.system_id}
         value={cnvf.cast}
         onChange={(v) => unv("cast", v)}

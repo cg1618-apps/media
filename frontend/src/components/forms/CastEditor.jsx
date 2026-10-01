@@ -96,7 +96,15 @@ function emptyRow(position) {
 
 // `franchiseId` and `entryId` drive "Import cast from": the other entries of
 // the franchise that have a cast, `entryId` (absent on Add) left out.
-export default function CastEditor({ mediaType, value, onChange, franchiseId, entryId }) {
+// `malLink` - the entry's own MyAnimeList link - drives "Import from MAL".
+export default function CastEditor({
+  mediaType,
+  value,
+  onChange,
+  franchiseId,
+  entryId,
+  malLink,
+}) {
   const rows = value || [];
   const showSeiyuu = SEIYUU_MEDIA_TYPES.has(mediaType);
 
@@ -190,9 +198,27 @@ export default function CastEditor({ mediaType, value, onChange, franchiseId, en
   // A stale list from a franchise the form has since cleared is not shown.
   const importSources = franchiseId ? castSources : [];
 
-  // Appends the chosen entry's cast after the rows already here, skipping a
+  // Appends imported cast rows after the rows already here, skipping a
   // character this cast already has (uq_character_casting). Nothing is saved:
   // the rows land in the form like typed ones, to be edited and then saved.
+  function appendCast(cast, from, note = "") {
+    const current = latestRows.current;
+    const held = new Set(current.map((r) => r.character_id).filter(Boolean));
+    const incoming = (cast || []).filter((r) => !held.has(r.character_id));
+    const next = [
+      ...current,
+      ...incoming.map((r, k) => importedRow(r, current.length + k, showSeiyuu)),
+    ];
+    latestRows.current = next;
+    onChange(next);
+    const skipped = (cast || []).length - incoming.length;
+    setImportMessage(
+      `Imported ${incoming.length} from ${from}` +
+        (skipped ? ` (${skipped} already in this cast)` : "") +
+        `.${note} Save to keep them.`,
+    );
+  }
+
   async function importCast(source) {
     try {
       const res = await fetch(endpoints.casting.get(source.media_type, source.entry_id), {
@@ -200,23 +226,45 @@ export default function CastEditor({ mediaType, value, onChange, franchiseId, en
       });
       if (!res.ok) return;
       const payload = await res.json();
-      const current = latestRows.current;
-      const held = new Set(current.map((r) => r.character_id).filter(Boolean));
-      const incoming = (payload?.cast || []).filter((r) => !held.has(r.character_id));
-      const next = [
-        ...current,
-        ...incoming.map((r, k) => importedRow(r, current.length + k, showSeiyuu)),
-      ];
-      latestRows.current = next;
-      onChange(next);
-      const skipped = (payload?.cast || []).length - incoming.length;
-      setImportMessage(
-        `Imported ${incoming.length} from ${source.display_name}` +
-          (skipped ? ` (${skipped} already in this cast)` : "") +
-          ". Save to keep them.",
-      );
+      appendCast(payload?.cast, source.display_name);
     } catch {
       /* leave the cast untouched — the admin can retry */
+    }
+  }
+
+  // The server matches MAL's characters and seiyuu to existing rows by MAL
+  // id (a seiyuu by name too), creating the missing ones, and answers with
+  // cast rows; Japanese voices only. It can take a while on a long cast.
+  const [malImporting, setMalImporting] = useState(false);
+  async function importFromMal() {
+    setMalImporting(true);
+    setImportMessage("Fetching the cast from MyAnimeList…");
+    try {
+      const res = await fetch(endpoints.casting.fromMal(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ media_type: mediaType, mal_link: malLink }),
+        credentials: "include",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setImportMessage(payload?.detail || "MyAnimeList import failed.");
+        return;
+      }
+      const created = [
+        payload.created_characters ? `${payload.created_characters} new characters` : "",
+        payload.created_people ? `${payload.created_people} new seiyuu` : "",
+      ].filter(Boolean);
+      const warnings = payload.warnings?.length ? ` ${payload.warnings.join(" ")}` : "";
+      appendCast(
+        payload.cast,
+        "MyAnimeList",
+        (created.length ? ` Created ${created.join(" and ")}.` : "") + warnings,
+      );
+    } catch {
+      setImportMessage("MyAnimeList import failed.");
+    } finally {
+      setMalImporting(false);
     }
   }
 
@@ -576,6 +624,16 @@ export default function CastEditor({ mediaType, value, onChange, franchiseId, en
         >
           + Add cast member
         </button>
+        {malLink && (
+          <button
+            type="button"
+            className="text-xs text-brand hover:underline disabled:opacity-50"
+            onClick={importFromMal}
+            disabled={malImporting}
+          >
+            {malImporting ? "Importing from MAL…" : "Import from MAL"}
+          </button>
+        )}
         {importSources.length > 0 && (
           <select
             className={cellCls + " text-xs py-1"}

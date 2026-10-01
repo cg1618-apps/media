@@ -1324,6 +1324,8 @@ def parse_character_from_sheet(raw: dict) -> dict:
         # Kept when it is one of CHARACTER_ROLES, blank otherwise.
         "role": normalize_character_role(parse_from_sheet(raw.get("role"), str)),
         "remark": parse_from_sheet(raw.get("remark"), str),
+        "mal_id": parse_from_sheet(raw.get("mal_id"), int),
+        "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }

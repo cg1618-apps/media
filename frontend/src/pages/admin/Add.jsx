@@ -1275,6 +1275,7 @@ export default function Add() {
         my_rating: characterForm.my_rating || null,
         photo_file: characterForm.photo_file || null,
         photo_focus: characterForm.photo_focus || null,
+        mal_link: characterForm.mal_link?.trim() || null,
         remark: characterForm.remark || null,
       }),
       credentials: "include",

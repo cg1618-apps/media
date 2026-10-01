@@ -384,7 +384,9 @@ Three tables, and the shape is deliberate on the points recorded below.
 
 - `character` — one fictional character, shaped like `person`: four optional
   names, `display_name_field`, `gender`, `my_rating`, `photo_file`,
-  `photo_fallback_entry_id`, `role`, `remark`. `role` is what the character
+  `photo_fallback_entry_id`, `role`, `remark`, and `mal_id` / `mal_link`
+  (indexed, not unique - see [MAL](#mal-a-characters-link-and-a-cast-import)
+  below). `role` is what the character
   is overall; it is independent of `character_casting.role` - nothing
   derives, syncs or defaults one from the other. `ck_character_has_a_name` requires at
   least one name. `gender` and `my_rating` are the same closed vocabularies
@@ -445,11 +447,58 @@ Two further, related design points worth knowing here:
   remains `CASCADE`. `POST /api/person/{id}/merge` repoints voice rows, so a
   duplicate seiyuu is merged without losing any.
 
-Deferred, deliberately, past this shape: Tenrai cast auto-fill
-(`/anime/{mal_id}/characters` on Tenrai v1 is **unverified** — confirm with
-one cheap call before designing on top of it, and it needs duplicate-
-resolution rules of its own), a `language` column / dub casts, a `field_group`
-gating cast per role, and characters on the four non-ACG media types.
+Deferred, deliberately, past this shape: a `language` column / dub casts, a
+`field_group` gating cast per role, and characters on the four non-ACG media
+types.
+
+### MAL: a character's link, and a cast import
+
+**A character's MAL link.** `character.mal_link` is the character's
+`myanimelist.net/character/<id>` page, and `character.mal_id` is derived from
+it (`extract_mal_id_character`) on every `POST`, `PUT` and `PATCH` that
+carries one. On `POST` and `PUT /api/character` a character with a `mal_id`
+is then filled from Tenrai's `GET /characters/{id}/full`
+(`autofill_character_from_mal`), **fill-only**: a blank `name_en` (MAL's name
+in western order, "Elric, Edward" → "Edward Elric"), a blank `name_jp`
+(`name_kanji`), a blank `name_alt` (the nicknames, comma-joined), and the
+portrait under `character/<system_id>.jpg` when `cover_needs_download` says
+so. `about` is dropped. `PATCH` re-derives `mal_id` but never fetches. A
+failure is logged and swallowed. There is no name-collision check, unlike the
+person autofill: character names are not unique (Decision G).
+
+**Importing a cast.** `POST /api/casting/mal` (`manage.catalog`,
+`app/services/domain/mal_cast.py`) takes `{media_type, mal_link}`, the
+entry's own MAL page: `/anime/<id>` for anime, anime-movie and hentai, read
+through Tenrai's `GET /anime/{id}/characters`; `/manga/<id>` for manga, novel
+and h-comic, through `GET /manga/{id}/characters`. It returns `{cast, created_characters, created_people, warnings}`, where `cast` rows have
+the shape `GET /api/casting/{media_type}/{entry_id}` returns, in MAL's order.
+
+- **A character is matched by `character.mal_id` only**, never by name
+  (Decision G), and only among the characters the caller can see
+  (`apply_shared_visibility`) - reusing a hidden one would put its name in the
+  caller's form. An unmatched one is created with `name_en`, `mal_id` and
+  `mal_link`; a duplicate this produces is folded by merge.
+- **Only Japanese voice actors are taken.** MAL lists every dub; a casting
+  records the original cast. Manga, novel and h-comic rows carry no voices.
+- **A seiyuu is matched by `person.mal_id`, then by name** through
+  `resolve_person`, the same find-or-create every other person field uses. A
+  name-matched person without a `mal_id` takes MAL's (and its `mal_link` when
+  blank). Every voice's person is given the `seiyuu` role scoped to the media
+  type, so the editor's seiyuu list offers them. A name that matches more than
+  one person (`AmbiguousNameError`) becomes a `warnings` entry and that voice
+  is skipped. One person is kept once per row (`uq_casting_voice`).
+- **The created characters and people are committed; the cast is not.** The
+  editor appends the rows to its form, skipping characters it already holds,
+  and the ordinary cast `PUT` saves them - the same rule as the franchise
+  import ("Import cast from…").
+- **A new character's portrait downloads after the response**
+  (`download_portraits`, a FastAPI background task). The request sets its
+  `photo_file` to the key the download will write; if the download fails, that
+  key names a missing own download, which `cover_needs_download` treats as
+  needing one, so the character's next MAL fill repairs it.
+- Errors: 422 for an unknown media type or a link of the wrong kind, 502 when
+  Tenrai answers with no cast. The calls share the one Tenrai rate-limit
+  budget ([external-apis.md](../external-apis.md#tenrai-myanimelist)).
 
 ## Photo fallback
 
@@ -550,10 +599,16 @@ that read voices are regression-tested in `test_person_router.py`
 (`test_credit_count_includes_castings`,
 `test_person_delete_guard_counts_castings`) and `test_person_entries.py`
 (`test_a_seiyuus_entries_come_from_castings`,
-`test_a_seiyuu_cast_only_on_a_hidden_entry_is_404`). Frontend:
+`test_a_seiyuu_cast_only_on_a_hidden_entry_is_404`). The MAL link and the cast
+import: `tests/api/test_character_mal.py` (the id from a link, both mappers,
+Japanese voices only, the Sheet columns, the fill on `POST` and `PUT`, `PATCH`
+deriving without fetching, an import creating what is missing and reusing what
+is not, a second import creating nothing, a manga cast without voices, the
+422 and 502, and a guest refused). Frontend:
 `frontend/src/components/forms/CastEditor.test.jsx` (the seiyuu column absent
-on manga/novel, a second seiyuu with its own remark, and a blank seiyuu line
-that adds no voice), `src/components/info/CastSection.test.jsx` (the
+on manga/novel, a second seiyuu with its own remark, a blank seiyuu line
+that adds no voice, and Import from MAL: offered only with a MAL link,
+reporting what it created, and showing the server's refusal), `src/components/info/CastSection.test.jsx` (the
 Main / Core / full-cast collapse, and every seiyuu of a row with its remark),
 `src/pages/library/CharacterLibrary.test.jsx`,
 `src/pages/detail/Character.test.jsx`, and the `role="seiyuu"` cases in

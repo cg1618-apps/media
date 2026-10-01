@@ -574,6 +574,7 @@ export default function NovelAddTab({
       <CastEditor
         mediaType="novel"
         franchiseId={nvf.franchise_id}
+        malLink={nvf.mal_link}
         value={nvf.cast}
         onChange={(v) => unv("cast", v)}
       />

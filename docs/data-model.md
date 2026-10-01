@@ -1167,11 +1167,13 @@ with one intentional deviation - see the constraints note below.
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `gender` | String | yes | | GENDERS, or NULL for not set - the same vocabulary as `person.gender` |
 | `my_rating` | String | yes | | MY_RATINGS, or NULL |
-| `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. |
+| `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. Filled from MAL's character picture for a character with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. Independent of every `character_casting.role`: nothing derives, syncs or defaults one from the other |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose picture stands in when `photo_file` is NULL; must be an entry the character is cast on. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `remark` | Text | yes | | |
+| `mal_id` | Integer | yes | | MAL character id. Indexed (`ix_character_mal_id`), **not unique**, like `person.mal_id`: a duplicate is fixed by merge, not refused. Derived from `mal_link` by `extract_mal_id_character` on every write. The key the MAL cast import matches a character on, and the key the character is filled from MAL on |
+| `mal_link` | String | yes | | `myanimelist.net/character/<id>/<slug>` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraint: `ck_character_has_a_name` CHECK `num_nonnulls(name_en, name_cn,

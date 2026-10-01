@@ -98,6 +98,12 @@ class Character(Base, NameFallbackMixin):
     # defaulted from the other.
     role = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
+    # MAL's character record, as person carries its people record: mal_link
+    # is what an admin pastes, mal_id is derived from it and is what the cast
+    # import matches a MAL character on. Not unique, like person.mal_id - a
+    # duplicate is fixed by the merge endpoint, not refused.
+    mal_id = Column(Integer, nullable=True, index=True)
+    mal_link = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
