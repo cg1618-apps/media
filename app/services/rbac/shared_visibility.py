@@ -108,13 +108,13 @@ class DeclaredScope:
 Connection = Union[Appearance, Scope, DeclaredScope]
 
 # Every shared record, and every way it can be connected. A person's castings
-# count as appearances because a seiyuu is credited through character_casting
-# rather than media_credit (credit_roles.CreditRole.credited_via) - the same
+# count as appearances because a seiyuu is credited through
+# character_casting_voice rather than media_credit (credit_roles.CreditRole.credited_via) - the same
 # two stores credit_count and /entries already read.
 CONNECTIONS: dict[type, tuple[Connection, ...]] = {
     models.Person: (
         Appearance(models.MediaCredit, "person_id", "media_id"),
-        Appearance(models.CharacterCasting, "person_id", "entry_id"),
+        Appearance(models.CharacterCastingVoice, "person_id", "entry_id"),
         Scope(models.PersonRole, "person_id", "scope"),
     ),
     models.Character: (

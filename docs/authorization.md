@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-28
+Last verified: 2026-10-01
 
 ## What this is for
 
@@ -681,7 +681,7 @@ carries a content label. They are hidden by what they are connected to, in
 
 | Record | Connections (`CONNECTIONS`) |
 |---|---|
-| person | `media_credit` rows, `character_casting` rows (a seiyuu is credited through casting), `person_role` scopes |
+| person | `media_credit` rows, `character_casting_voice` rows (a seiyuu is credited through the castings they voice), `person_role` scopes |
 | character | `character_casting` rows |
 | studio | `media_credit` rows |
 | publisher | `media_credit` rows, `publisher_scope` scopes |

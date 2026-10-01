@@ -7,7 +7,8 @@ Deleting a character cascades their castings away (see
 CharacterCasting.character_id ondelete="CASCADE") - that is the chosen design
 for a genuine removal. Merge exists because deleting is the WRONG fix for a
 duplicate: it repoints every casting onto the survivor before deleting the
-loser, so no casting history is lost.
+loser, so no casting history is lost - and where both were cast on one entry,
+the loser's voices join the survivor's casting there.
 """
 
 import logging
@@ -202,7 +203,7 @@ def get_character_entries(
         }
 
     # person_id -> Person, for the seiyuu display_name/system_id on each entry.
-    person_ids = {r.person_id for r in rows if r.person_id}
+    person_ids = {v.person_id for r in rows for v in r.voices}
     people = {
         p.system_id: p
         for p in db.query(models.Person).filter(models.Person.system_id.in_(person_ids))
@@ -219,7 +220,11 @@ def get_character_entries(
         entry = loaded.get(row.media_type, {}).get(row.entry_id)
         if entry is None:
             continue
-        seiyuu = people.get(row.person_id) if row.person_id else None
+        seiyuu = [
+            (people[v.person_id], v.remark)
+            for v in row.voices
+            if v.person_id in people
+        ]
         payload.append(
             {
                 "system_id": str(entry.system_id),
@@ -228,9 +233,15 @@ def get_character_entries(
                 "cover_image_file": getattr(entry, "cover_image_file", None),
                 "cover_image_focus": getattr(entry, "cover_image_focus", None),
                 "release_date": primary_release_value(row.media_type, entry),
-                "seiyuu_display_name": seiyuu.display_name if seiyuu else None,
-                "seiyuu_system_id": str(seiyuu.system_id) if seiyuu else None,
-                "seiyuu_public_id": seiyuu.public_id if seiyuu else None,
+                "seiyuu": [
+                    {
+                        "display_name": person.display_name,
+                        "system_id": str(person.system_id),
+                        "public_id": person.public_id,
+                        "remark": remark,
+                    }
+                    for person, remark in seiyuu
+                ],
             }
         )
 
@@ -448,7 +459,7 @@ def merge_character(
         require_visible_shared(db, admin, models.Character, character_id, NOT_FOUND)
 
     held = {
-        (c.media_type, c.entry_id)
+        (c.media_type, c.entry_id): c
         for c in db.query(models.CharacterCasting)
         .filter_by(character_id=system_id)
         .all()
@@ -459,7 +470,20 @@ def merge_character(
         .filter_by(character_id=payload.source_id)
         .all()
     ):
-        if (casting.media_type, casting.entry_id) in held:
+        kept = held.get((casting.media_type, casting.entry_id))
+        if kept is not None:
+            voiced = {v.person_id for v in kept.voices}
+            for voice in list(casting.voices):
+                if voice.person_id not in voiced:
+                    kept.voices.append(
+                        models.CharacterCastingVoice(
+                            media_type=kept.media_type,
+                            entry_id=kept.entry_id,
+                            person_id=voice.person_id,
+                            position=len(kept.voices),
+                            remark=voice.remark,
+                        )
+                    )
             db.delete(casting)
             continue
         casting.character_id = system_id

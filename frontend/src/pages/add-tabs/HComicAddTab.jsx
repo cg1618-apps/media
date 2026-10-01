@@ -306,7 +306,13 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
           cast is saved through PUT /api/casting/h-comic/{id} once the entry
           exists, never as part of the entry payload. */}
       <SectionHeader icon="fa-users" title="Cast" />
-      <CastEditor mediaType="h-comic" value={f.cast} onChange={(v) => u("cast", v)} />
+      <CastEditor
+        mediaType="h-comic"
+        value={f.cast}
+        onChange={(v) => u("cast", v)}
+        franchiseId={f.franchise_id}
+        entryId={ownerId}
+      />
 
       <SectionHeader icon="fa-broadcast-tower" title="Sources" />
       {shows("original_source") && (

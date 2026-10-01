@@ -272,9 +272,11 @@ function CastingCard({ entry, navPath }) {
     </>
   );
 
-  // The entry cover/title link and the seiyuu link are siblings, never
+  // The entry cover/title link and the seiyuu links are siblings, never
   // nested: an <a> inside an <a> is invalid HTML and would swallow the
-  // seiyuu link's clicks into the entry link's.
+  // seiyuu links' clicks into the entry link's. One character may have
+  // several seiyuu in one entry, each listed with the remark that tells
+  // them apart.
   return (
     <div className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col">
       {navPath ? (
@@ -292,16 +294,22 @@ function CastingCard({ entry, navPath }) {
           </div>
         </>
       )}
-      {entry.seiyuu_display_name && entry.seiyuu_public_id && (
-        <Link
-          to={entityPath("person", {
-            public_id: entry.seiyuu_public_id,
-            display_name: entry.seiyuu_display_name,
-          })}
-          className="px-2.5 pb-2.5 text-xs text-text-muted hover:text-brand transition-colors truncate"
-        >
-          {entry.seiyuu_display_name}
-        </Link>
+      {entry.seiyuu?.length > 0 && (
+        <div className="px-2.5 pb-2.5 flex flex-col gap-0.5">
+          {entry.seiyuu.map((seiyuu) => (
+            <Link
+              key={seiyuu.system_id}
+              to={entityPath("person", {
+                public_id: seiyuu.public_id,
+                display_name: seiyuu.display_name,
+              })}
+              className="text-xs text-text-muted hover:text-brand transition-colors truncate"
+            >
+              {seiyuu.display_name}
+              {seiyuu.remark && <span className="text-text-faint"> ({seiyuu.remark})</span>}
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );

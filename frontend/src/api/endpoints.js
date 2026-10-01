@@ -223,6 +223,8 @@ export const endpoints = {
   casting: {
     get: (mediaType, entryId) => `/api/casting/${mediaType}/${entryId}`,
     replace: (mediaType, entryId) => `/api/casting/${mediaType}/${entryId}`,
+    // Entries in one franchise that have a cast, for the editor's import.
+    sources: (qs) => `/api/casting/sources?${qs}`,
   },
 
   publisher: {

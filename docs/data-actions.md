@@ -31,7 +31,7 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (47 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (48 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -140,13 +140,14 @@ test.
 | 38 | `Plan Next` | `PlanNext` |  |
 | 39 | `Quote` | `Quote` |  |
 | 40 | `Character Casting` | `CharacterCasting` |  |
-| 41 | `Meme` | `Meme` |  |
-| 42 | `Note` | `Note` |  |
-| 43 | `Resources` | `ResourceNode` |  |
-| 44 | `Media Source` | `MediaSource` |  |
-| 45 | `Media Content Label` | `MediaContentLabel` |  |
-| 46 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 47 | `Seasonal` | `Seasonal` |  |
+| 41 | `Character Casting Voice` | `CharacterCastingVoice` |  |
+| 42 | `Meme` | `Meme` |  |
+| 43 | `Note` | `Note` |  |
+| 44 | `Resources` | `ResourceNode` |  |
+| 45 | `Media Source` | `MediaSource` |  |
+| 46 | `Media Content Label` | `MediaContentLabel` |  |
+| 47 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 48 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -261,6 +262,17 @@ bring the free text back. Both tabs carry `photo_fallback_entry_id`, a plain
 entry uuid like `cover_entry_id`; a cell that is not a uuid restores as blank.
 `Character` also carries `role` (`CHARACTER_ROLES`); a value outside the list
 restores as blank.
+
+`Character Casting` sits after every media tab, because a casting reaches its
+entry by the FK-less `(media_type, entry_id)` pair, and carries no seiyuu
+column. A casting's seiyuu are the `Character Casting Voice` tab, restored
+immediately after it because each voice cites its casting by `casting_id`:
+one row per voice, with `casting_id`, the casting's `media_type` and
+`entry_id`, `person_id`, `position` and `remark`
+(`formatter.parse_character_casting_voice_from_sheet`). `casting_id`,
+`entry_id` and `person_id` round-trip as plain uuids - `person_id` is **not**
+translated through the Person tab the way `Person Role` and
+`Person Membership` cite a person.
 
 **Entry tables carry no source columns.** There is no `source_baha`,
 `baha_link`, `source_netflix`, `source_other`, `official_link`,

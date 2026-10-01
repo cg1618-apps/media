@@ -702,7 +702,8 @@ holding one type, or to everyone on All, then the selected person's whole record
 `PersonFields` — every type they hold, not just the sub-tab's one, because
 `PUT` replaces the role set wholesale. The picker searches all four name
 columns, not just the displayed one. The panel mirrors the studio one below:
-credit count, a warning that `media_credit.person_id` is `ON DELETE CASCADE`,
+credit count, a warning that credits and seiyuu voices are `ON DELETE CASCADE`
+while the characters voiced stay in each cast,
 **Merge Into Another Person** offered before Delete, and the confirmed credit
 count sent as `?credits=N` so a count that moved while the dialog was open
 comes back as a 409 rather than a silent over-deletion.

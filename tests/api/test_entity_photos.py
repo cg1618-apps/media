@@ -71,7 +71,15 @@ def _cast(db_session, character, entry, media_type, position, photo=None, person
             entry_id=entry.system_id,
             position=position,
             photo_file=photo,
-            person_id=person.system_id if person else None,
+            voices=[
+                models.CharacterCastingVoice(
+                    media_type=media_type,
+                    entry_id=entry.system_id,
+                    person_id=person.system_id,
+                )
+            ]
+            if person
+            else [],
         )
     )
     db_session.flush()

@@ -462,6 +462,8 @@ export default function NovelModifyTab({
       <SectionHeader icon="fa-users" title="Cast" />
       <CastEditor
         mediaType="novel"
+        franchiseId={cnvf.franchise_id}
+        entryId={editingItem?.system_id}
         value={cnvf.cast}
         onChange={(v) => unv("cast", v)}
       />

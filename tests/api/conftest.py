@@ -929,7 +929,13 @@ def seiyuu_with_one_casting(db_session, anime, character):
             character_id=character.system_id,
             media_type="anime",
             entry_id=anime.system_id,
-            person_id=person.system_id,
+            voices=[
+                models.CharacterCastingVoice(
+                    media_type="anime",
+                    entry_id=anime.system_id,
+                    person_id=person.system_id,
+                )
+            ],
         )
     )
     db_session.commit()

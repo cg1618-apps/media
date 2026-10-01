@@ -7,6 +7,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Sequence,
@@ -144,20 +145,20 @@ class Character(Base, NameFallbackMixin):
 
 class CharacterCasting(Base):
     """
-    One character, in one entry, optionally voiced by one person.
+    One character, in one entry.
 
     THE cast record - there is no second one. No media_credit row with
     role="seiyuu" exists anywhere, because a seiyuu reaches an anime through
     the character they voice; deriving the entry's seiyuu list from these rows
     is what keeps "who is in this anime" to a single answer. See Decision A.
 
+    Who voices the character is not a column here but CharacterCastingVoice
+    rows beneath this one: a character may have several seiyuu in one entry
+    (a child and an adult voice, a recast mid-season), and one seiyuu may
+    voice several characters, which is simply one person on several castings.
+
     The entry endpoint is a FK-less (media_type, entry_id) pair, the same
     contract media_credit and media_relation use.
-
-    person_id is ON DELETE SET NULL, NOT CASCADE like media_credit.person_id.
-    A credit IS the person's link to the work and dies with them; a casting is
-    the CHARACTER's link to the work and merely names a seiyuu, so deleting a
-    seiyuu must not delete the character from the anime. See Decision H.
     """
 
     __tablename__ = "character_casting"
@@ -169,13 +170,11 @@ class CharacterCasting(Base):
         UniqueConstraint(
             "character_id", "media_type", "entry_id", name="uq_character_casting"
         ),
-        # Characters reach the ACG types (CASTING_MEDIA_TYPES); seiyuu reach
-        # only the ones with voice acting (VOICED_MEDIA_TYPES).
-        # Enforced here rather than by convention because the Fill pipeline and
-        # any future migration write these rows without going through the API.
-        CheckConstraint(
-            "person_id IS NULL OR media_type IN ('anime', 'anime-movie', 'hentai')",
-            name="ck_casting_voice_scope",
+        # Redundant as a key - system_id alone is unique - but it is what
+        # character_casting_voice's composite FK references, so a voice row's
+        # media_type and entry_id can never disagree with its casting's.
+        UniqueConstraint(
+            "system_id", "media_type", "entry_id", name="uq_character_casting_entry"
         ),
         Index("ix_character_casting_entry", "media_type", "entry_id"),
     )
@@ -192,12 +191,6 @@ class CharacterCasting(Base):
     # One of casting.CASTING_MEDIA_TYPES (hyphenated keys).
     media_type = Column(String, nullable=False)
     entry_id = Column(UUID(as_uuid=True), nullable=False)
-    person_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("person.system_id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
     # One of constants.CHARACTER_ROLES.
     role = Column(String, nullable=True)
     position = Column(Integer, nullable=False, default=0, server_default="0")
@@ -211,3 +204,73 @@ class CharacterCasting(Base):
     created_at = Column(DateTime, default=get_taipei_now)
 
     character = relationship("Character", back_populates="castings")
+    voices = relationship(
+        "CharacterCastingVoice",
+        back_populates="casting",
+        order_by="CharacterCastingVoice.position",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class CharacterCastingVoice(Base):
+    """
+    One seiyuu voicing one casting.
+
+    media_type and entry_id repeat the casting's, held equal by a composite FK
+    onto uq_character_casting_entry. They are here so the seiyuu-in-entry
+    question - which entries does this person voice in, may this viewer see
+    them - reads one table, exactly as media_credit answers it for every
+    other role, and so ck_casting_voice_scope can still be a CHECK.
+
+    person_id is ON DELETE CASCADE: this row IS the person's link to the work,
+    the way a media_credit row is. Deleting a seiyuu removes their voice and
+    leaves the casting - the character's link to the work - in place, which
+    is what Decision H protected when person_id sat on the casting with SET
+    NULL.
+    """
+
+    __tablename__ = "character_casting_voice"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["casting_id", "media_type", "entry_id"],
+            [
+                "character_casting.system_id",
+                "character_casting.media_type",
+                "character_casting.entry_id",
+            ],
+            name="fk_casting_voice_casting",
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        ),
+        UniqueConstraint("casting_id", "person_id", name="uq_casting_voice"),
+        # Characters reach the ACG types (CASTING_MEDIA_TYPES); seiyuu reach
+        # only the ones with voice acting (VOICED_MEDIA_TYPES).
+        # Enforced here rather than by convention because the Fill pipeline and
+        # any future migration write these rows without going through the API.
+        CheckConstraint(
+            "media_type IN ('anime', 'anime-movie', 'hentai')",
+            name="ck_casting_voice_scope",
+        ),
+        Index("ix_character_casting_voice_entry", "media_type", "entry_id"),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    casting_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    media_type = Column(String, nullable=False)
+    entry_id = Column(UUID(as_uuid=True), nullable=False)
+    person_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("person.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False, default=0, server_default="0")
+    # What distinguishes this voice from the casting's others - "child",
+    # "ep 13-", "drama CD". Free text.
+    remark = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=get_taipei_now)
+
+    casting = relationship("CharacterCasting", back_populates="voices")

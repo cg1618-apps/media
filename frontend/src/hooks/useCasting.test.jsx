@@ -80,3 +80,32 @@ it("sends a blank role as null and keeps a chosen one", async () => {
     null,
   ]);
 });
+
+// A seiyuu line the editor shows but nobody picked a person for is not a
+// voice; only voices naming a person are sent, a blank remark as null.
+it("sends only the voices that name a person", async () => {
+  const { result } = renderHook(() => useReplaceCasting(), { wrapper });
+
+  const cast = [
+    {
+      character_id: "c1",
+      role: "Main",
+      position: 0,
+      voices: [
+        { person_id: "p1", person_name: "Voice A", remark: "" },
+        { person_id: null, person_name: "typed but unresolved", remark: "child" },
+        { person_id: "p2", person_name: "Voice B", remark: "ep 13-" },
+      ],
+    },
+  ];
+
+  result.current.mutate({ mediaType: "anime", entryId: "e1", cast });
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+  const [, init] = fetch.mock.calls[0];
+  expect(JSON.parse(init.body).cast[0].voices).toEqual([
+    { person_id: "p1", remark: null },
+    { person_id: "p2", remark: "ep 13-" },
+  ]);
+});

@@ -261,6 +261,8 @@ export default function AnimeMovieModifyTab({
       <SectionHeader icon="fa-users" title="Cast" />
       <CastEditor
         mediaType="anime-movie"
+        franchiseId={amf.franchise_id}
+        entryId={editingItem?.system_id}
         value={amf.cast}
         onChange={(rows) => uam("cast", rows)}
       />

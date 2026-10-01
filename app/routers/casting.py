@@ -5,7 +5,8 @@ Read and wholesale-replace one media entry's cast.
 Not a part of /api/credits, whose payload is Dict[str, List[str]] - bare
 names keyed by role. A cast row is richer than that: it names a character, an
 optional seiyuu, a role, a display position, a photo, and a remark, and each
-of those needs its own column rather than collapsing into a name string.
+of those needs its own column rather than collapsing into a name string -
+and the seiyuu are a list of their own, one character may have several.
 Keeping the two endpoints apart also keeps /api/credits' role vocabulary
 (credit_roles_for) untouched by a concern - character casting - that only
 four of the eight media types even have.
@@ -16,26 +17,36 @@ KeyError; a hidden entry answers exactly as an absent one does (404, not
 403); and only PUT requires an admin.
 """
 
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app import models
 from app.dependencies import get_db
 from app.schemas.image_focus import ImageFocus
 from app.services.domain import casting as casting_service
-from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.media_resolver import MEDIA_TABLES
 
 router = APIRouter(prefix="/api/casting", tags=["Casting"])
 
 
+class CastVoiceIn(BaseModel):
+    person_id: UUID
+    # What tells this voice apart from the casting's others - "child", "ep 13-".
+    remark: Optional[str] = None
+
+
 class CastRowIn(BaseModel):
     character_id: UUID
-    person_id: Optional[UUID] = None
+    # In display order. Empty on a type nobody voices (casting.VOICED_MEDIA_TYPES).
+    voices: List[CastVoiceIn] = []
     # Optional: NULL means no role recorded. One of CHARACTER_ROLES otherwise,
     # checked by casting_service._validate_row.
     role: Optional[str] = None
@@ -81,6 +92,63 @@ def _resolve_entry(db: Session, media_type: str, entry_id: UUID, viewer):
     if not entry_visible(db, viewer, media_type, entry_id):
         raise HTTPException(status_code=404, detail="Entry not found.")
     return entry
+
+
+@router.get("/sources", summary="Entries in a franchise that have a cast")
+def get_cast_sources(
+    franchise_id: UUID,
+    exclude: Optional[UUID] = None,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    What the cast editor offers to import a cast from: every entry in
+    `franchise_id` that already has one, of any castable type, newest-made
+    first. `exclude` leaves out the entry being edited. Keyed on the
+    franchise rather than an entry, because the Add form has a franchise
+    before its entry exists.
+
+    Declared before /{media_type}/{entry_id}; it has one segment and that
+    route two, so the two cannot match the same path either way.
+    """
+    counts = (
+        db.query(
+            models.CharacterCasting.media_type,
+            models.CharacterCasting.entry_id,
+            func.count(models.CharacterCasting.system_id),
+        )
+        .join(models.Media, models.Media.system_id == models.CharacterCasting.entry_id)
+        .filter(models.Media.franchise_id == franchise_id)
+        .group_by(models.CharacterCasting.media_type, models.CharacterCasting.entry_id)
+        .all()
+    )
+    visible = filter_visible_pairs(
+        db, admin, [(t, e) for t, e, _ in counts if e != exclude]
+    )
+    if not visible:
+        return {"sources": []}
+    entries = {
+        m.system_id: m
+        for m in db.query(models.Media).filter(
+            models.Media.system_id.in_({e for _, e in visible})
+        )
+    }
+    sources = [
+        {
+            "media_type": media_type,
+            "entry_id": str(entry_id),
+            "public_id": entries[entry_id].public_id,
+            "display_name": entries[entry_id].display_name,
+            "cast_count": count,
+            "created_at": entries[entry_id].created_at,
+        }
+        for media_type, entry_id, count in counts
+        if (media_type, entry_id) in visible and entry_id in entries
+    ]
+    sources.sort(key=lambda s: s["created_at"] or datetime.min, reverse=True)
+    for source in sources:
+        del source["created_at"]
+    return {"sources": sources}
 
 
 @router.get("/{media_type}/{entry_id}", summary="Get an entry's cast")

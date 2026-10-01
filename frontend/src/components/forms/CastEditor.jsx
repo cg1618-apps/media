@@ -1,5 +1,5 @@
-// Frontend: form component for an entry's cast (character + seiyuu + role +
-// position + photo + remark). Controlled, like NovelUnitsEditor: the parent
+// Frontend: form component for an entry's cast (character + seiyuu list +
+// role + position + photo + remark). Controlled, like NovelUnitsEditor: the parent
 // owns `value` and receives every change through `onChange`. CastEditor
 // never calls the API to save a cast list — only to search/create the
 // characters and people its two comboboxes reference.
@@ -11,6 +11,7 @@ import { useConstants } from "../../config/useConstants";
 import { endpoints } from "../../api/endpoints";
 import { buildCreateRequest } from "../../lib/ensureSourceValues";
 import { CHARACTER_ROLES, NEW_CAST_CHARACTER_GENDER } from "../../config/fieldOptions";
+import { mediaTypeLabel } from "../../config/mediaRegistry";
 
 // A synthetic ComboBox item id, distinguishable from every real
 // character's UUID, that stands for "mint a brand new character with this
@@ -23,7 +24,7 @@ const CREATE_CHARACTER_PREFIX = "__create_character__:";
 // offer suggestions.
 const CHARACTER_SEARCH_DEBOUNCE_MS = 250;
 
-// ck_casting_voice_scope: person_id IS NULL OR media_type IN
+// ck_casting_voice_scope: a character_casting_voice row only on media_type IN
 // ('anime', 'anime-movie', 'hentai'). Nobody voices anyone in a manga or
 // novel, so the seiyuu column must not offer what the database will reject.
 const SEIYUU_MEDIA_TYPES = new Set(["anime", "anime-movie", "hentai"]);
@@ -43,13 +44,48 @@ export function newCharacterBody(name, mediaType) {
   return gender ? { name_en: name, gender } : { name_en: name };
 }
 
+// One seiyuu on a cast row. A row may hold several - a child and an adult
+// voice, a recast - each with a remark saying which.
+function emptyVoice() {
+  return { person_id: null, person_name: "", remark: "" };
+}
+
+// What a row's seiyuu cell renders: its voices, or one blank line to type
+// into when it has none yet. The blank line is not in the row until typed
+// into, so an untouched row saves with no voices.
+function voiceLines(row) {
+  return row.voices && row.voices.length ? row.voices : [emptyVoice()];
+}
+
+// A row of another entry's cast, as this editor holds one: everything is
+// copied - photo and remark included - except the casting's own id, so the
+// save makes a new casting here. Voices are dropped on a type nobody voices.
+export function importedRow(source, position, voiced) {
+  return {
+    system_id: undefined,
+    character_id: source.character_id,
+    character_name: source.character_name || "",
+    voices: voiced
+      ? (source.voices || []).map((voice) => ({
+          person_id: voice.person_id,
+          person_name: voice.person_name || "",
+          remark: voice.remark || "",
+        }))
+      : [],
+    role: source.role || "",
+    position,
+    photo_file: source.photo_file || null,
+    photo_focus: source.photo_focus || null,
+    remark: source.remark || "",
+  };
+}
+
 function emptyRow(position) {
   return {
     system_id: undefined,
     character_id: null,
     character_name: "",
-    person_id: null,
-    person_name: "",
+    voices: [],
     role: "",
     position,
     photo_file: null,
@@ -58,7 +94,9 @@ function emptyRow(position) {
   };
 }
 
-export default function CastEditor({ mediaType, value, onChange }) {
+// `franchiseId` and `entryId` drive "Import cast from": the other entries of
+// the franchise that have a cast, `entryId` (absent on Add) left out.
+export default function CastEditor({ mediaType, value, onChange, franchiseId, entryId }) {
   const rows = value || [];
   const showSeiyuu = SEIYUU_MEDIA_TYPES.has(mediaType);
 
@@ -124,6 +162,79 @@ export default function CastEditor({ mediaType, value, onChange }) {
   };
 
   const addRow = () => onChange([...rows, emptyRow(rows.length)]);
+
+  // Other entries of this franchise with a cast to import. Refetched when the
+  // form's franchise changes; a form with no franchise has none.
+  const [castSources, setCastSources] = useState([]);
+  const [importMessage, setImportMessage] = useState("");
+  useEffect(() => {
+    if (!franchiseId) return undefined;
+    let cancelled = false;
+    const params = { franchise_id: franchiseId };
+    if (entryId) params.exclude = entryId;
+    fetch(endpoints.casting.sources(new URLSearchParams(params).toString()), {
+      credentials: "include",
+    })
+      .then((res) => (res.ok ? res.json() : { sources: [] }))
+      .then((payload) => {
+        if (!cancelled) setCastSources(payload?.sources || []);
+      })
+      .catch(() => {
+        /* best effort — the editor works without an import list */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [franchiseId, entryId]);
+
+  // A stale list from a franchise the form has since cleared is not shown.
+  const importSources = franchiseId ? castSources : [];
+
+  // Appends the chosen entry's cast after the rows already here, skipping a
+  // character this cast already has (uq_character_casting). Nothing is saved:
+  // the rows land in the form like typed ones, to be edited and then saved.
+  async function importCast(source) {
+    try {
+      const res = await fetch(endpoints.casting.get(source.media_type, source.entry_id), {
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      const payload = await res.json();
+      const current = latestRows.current;
+      const held = new Set(current.map((r) => r.character_id).filter(Boolean));
+      const incoming = (payload?.cast || []).filter((r) => !held.has(r.character_id));
+      const next = [
+        ...current,
+        ...incoming.map((r, k) => importedRow(r, current.length + k, showSeiyuu)),
+      ];
+      latestRows.current = next;
+      onChange(next);
+      const skipped = (payload?.cast || []).length - incoming.length;
+      setImportMessage(
+        `Imported ${incoming.length} from ${source.display_name}` +
+          (skipped ? ` (${skipped} already in this cast)` : "") +
+          ". Save to keep them.",
+      );
+    } catch {
+      /* leave the cast untouched — the admin can retry */
+    }
+  }
+
+  // Patch voice `v` of row `i`, materialising the blank line voiceLines()
+  // shows for a row that has none.
+  const updateVoice = (i, v, patch) => {
+    const row = latestRows.current[i];
+    const voices = voiceLines(row).map((voice, k) =>
+      k === v ? { ...voice, ...patch } : voice,
+    );
+    updateRow(i, { voices });
+  };
+  const addVoice = (i) =>
+    updateRow(i, { voices: [...voiceLines(latestRows.current[i]), emptyVoice()] });
+  const removeVoice = (i, v) =>
+    updateRow(i, {
+      voices: (latestRows.current[i].voices || []).filter((_, k) => k !== v),
+    });
 
   // position is 0-based and must stay contiguous — a gap here (0, 2) is a
   // gap in the saved order, since Task 9/10 write `position` straight from
@@ -270,17 +381,21 @@ export default function CastEditor({ mediaType, value, onChange }) {
   // person field. Splitting one voice actor across two rows would split
   // their whole body of work, so — unlike the character box — this never
   // asks; it just does the right thing.
-  async function resolveSeiyuu(i, e) {
+  async function resolveSeiyuu(i, v, e) {
     if (e.currentTarget.contains(e.relatedTarget)) return;
     const row = rows[i];
-    if (!row || row.person_id) return;
-    const name = (row.person_name || "").trim();
+    const voice = row ? voiceLines(row)[v] : null;
+    if (!voice || voice.person_id) return;
+    const name = (voice.person_name || "").trim();
     if (!name) return;
     const existing = seiyuuList.find(
       (p) => (p.display_name || "").trim().toLowerCase() === name.toLowerCase(),
     );
     if (existing) {
-      updateRow(i, { person_id: existing.system_id, person_name: existing.display_name });
+      updateVoice(i, v, {
+        person_id: existing.system_id,
+        person_name: existing.display_name,
+      });
       return;
     }
     try {
@@ -292,7 +407,7 @@ export default function CastEditor({ mediaType, value, onChange }) {
       if (!res.ok) return;
       const created = await res.json();
       setSeiyuuList((prev) => [...prev, created]);
-      updateRow(i, {
+      updateVoice(i, v, {
         person_id: created.system_id,
         person_name: created.display_name || name,
       });
@@ -348,25 +463,61 @@ export default function CastEditor({ mediaType, value, onChange }) {
           </div>
 
           {showSeiyuu ? (
-            <div
-              className="flex-1 min-w-0"
-              aria-label="Seiyuu"
-              onBlur={(e) => resolveSeiyuu(i, e)}
-            >
-              <ComboBox
-                items={seiyuuList.map((p) => ({
-                  id: p.system_id,
-                  label: p.display_name,
-                  searchText: p.display_name,
-                }))}
-                selectedId={row.person_id || null}
-                inputText={row.person_name || ""}
-                onSelect={(id, label) => updateRow(i, { person_id: id, person_name: label })}
-                onType={(text) => updateRow(i, { person_name: text })}
-                onClear={() => updateRow(i, { person_id: null, person_name: "" })}
-                placeholder="Seiyuu name..."
-                allowNew
-              />
+            <div className="flex-1 min-w-0 flex flex-col gap-1" aria-label="Seiyuu">
+              {voiceLines(row).map((voice, v) => (
+                <div
+                  // By index: a voice is never reordered, and keying on
+                  // person_id would remount the box the moment one is picked.
+                  key={v}
+                  className="flex gap-1 items-start"
+                  onBlur={(e) => resolveSeiyuu(i, v, e)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <ComboBox
+                      items={seiyuuList.map((p) => ({
+                        id: p.system_id,
+                        label: p.display_name,
+                        searchText: p.display_name,
+                      }))}
+                      selectedId={voice.person_id || null}
+                      inputText={voice.person_name || ""}
+                      onSelect={(id, label) =>
+                        updateVoice(i, v, { person_id: id, person_name: label })
+                      }
+                      onType={(text) => updateVoice(i, v, { person_name: text })}
+                      onClear={() =>
+                        updateVoice(i, v, { person_id: null, person_name: "" })
+                      }
+                      placeholder="Seiyuu name..."
+                      allowNew
+                    />
+                  </div>
+                  <input
+                    className={cellCls + " shrink-0 w-24"}
+                    placeholder="e.g. child"
+                    value={voice.remark || ""}
+                    onChange={(e) => updateVoice(i, v, { remark: e.target.value })}
+                    aria-label="Voice remark"
+                  />
+                  {row.voices?.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-text-faint hover:text-danger px-1 pt-2 shrink-0"
+                      aria-label="Remove seiyuu"
+                      onClick={() => removeVoice(i, v)}
+                    >
+                      <i className="fas fa-minus text-[10px]" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                className="self-start text-[11px] text-brand hover:underline"
+                onClick={() => addVoice(i)}
+              >
+                + Another seiyuu
+              </button>
             </div>
           ) : null}
 
@@ -417,13 +568,38 @@ export default function CastEditor({ mediaType, value, onChange }) {
           </button>
         </div>
       ))}
-      <button
-        type="button"
-        className="text-xs text-brand hover:underline mt-1"
-        onClick={addRow}
-      >
-        + Add cast member
-      </button>
+      <div className="flex flex-wrap items-center gap-3 mt-1">
+        <button
+          type="button"
+          className="text-xs text-brand hover:underline"
+          onClick={addRow}
+        >
+          + Add cast member
+        </button>
+        {importSources.length > 0 && (
+          <select
+            className={cellCls + " text-xs py-1"}
+            value=""
+            aria-label="Import cast from"
+            onChange={(e) => {
+              const source = importSources.find((s) => s.entry_id === e.target.value);
+              if (source) importCast(source);
+            }}
+          >
+            <option value="">Import cast from…</option>
+            {importSources.map((s) => (
+              <option key={s.entry_id} value={s.entry_id}>
+                {s.display_name} ({mediaTypeLabel(s.media_type)} · {s.cast_count})
+              </option>
+            ))}
+          </select>
+        )}
+        {importMessage && (
+          <span className="text-xs text-text-muted" role="status">
+            {importMessage}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

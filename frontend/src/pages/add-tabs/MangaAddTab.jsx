@@ -478,6 +478,7 @@ export default function MangaAddTab({
       <SectionHeader icon="fa-users" title="Cast" />
       <CastEditor
         mediaType="manga"
+        franchiseId={mgf.franchise_id}
         value={mgf.cast}
         onChange={(v) => umg("cast", v)}
       />

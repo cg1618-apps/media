@@ -21,7 +21,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy, h_comic, h_game, hentai
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
 - [Personal data](#personal-data): user_media_list, user_novel_unit_rating
-- [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_casting, media_credit, media_tag
+- [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_casting, character_casting_voice, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
 - [Resources page](#resources-page): resource_node
@@ -1193,20 +1193,21 @@ another - exactly the collision Decision G accepts as normal instead.
 
 ### `character_casting`
 
-One character, in one entry, optionally voiced by one person. Model:
-`CharacterCasting` (`app/models/character.py`). THE cast record - there is no
-second one; no `media_credit` row with `role="seiyuu"` ever exists, because a
-seiyuu reaches an anime through the character they voice, and deriving the
-entry's seiyuu list from these rows is what keeps "who is in this anime" to a
-single answer (Decision A).
+One character, in one entry. Model: `CharacterCasting`
+(`app/models/character.py`). THE cast record - there is no second one; no
+`media_credit` row with `role="seiyuu"` ever exists, because a seiyuu reaches
+an anime through the character they voice, and deriving the entry's seiyuu
+list from these rows and their voices is what keeps "who is in this anime" to
+a single answer (Decision A). Who voices the character is not a column here:
+it is the [`character_casting_voice`](#character_casting_voice) rows beneath
+the casting, because one character may have several seiyuu in one entry.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `character_id` | UUID | no | | FK `character.system_id` **ON DELETE CASCADE**, indexed |
-| `media_type` | String | no | | Hyphenated key: one of `anime`, `anime-movie`, `manga`, `novel` |
+| `media_type` | String | no | | Hyphenated key: one of `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `novel`, `h-comic`, `hentai`) |
 | `entry_id` | UUID | no | | FK-less - see [Cross-table references](#cross-table-references-without-foreign-keys) |
-| `person_id` | UUID | yes | | FK `person.system_id` **ON DELETE SET NULL**, indexed |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Independent of `character.role` |
 | `position` | Integer | no | `0` (server default too) | Display / drag-reorder order |
 | `photo_file` | String | yes | | Storage key: this character as she appears in this entry, usually a library image (`library/<checksum>.jpg`) set through the cast editor's picker. NULL falls back to `character.photo_file` at read time. Not an attachment - castings are re-inserted on every cast save, so their ids cannot own one - so the image library reads this column itself when it asks whether an image is in use. |
@@ -1220,26 +1221,65 @@ Constraints and indexes:
   one casting per character per entry (Decision E: casting is per-entry with
   no default/override split, so a recast is a second row, not a resolution
   rule). No NULLS NOT DISTINCT needed: all three columns are NOT NULL.
-- `ck_casting_voice_scope` CHECK `person_id IS NULL OR media_type IN
-  ('anime', 'anime-movie', 'hentai')` - characters reach every type in
-  `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `novel`, `h-comic`,
-  `hentai`), but a seiyuu (`person_id` set) may only be attached on the three
-  types with voice acting. Enforced in the
-  database, not just in `app/services/domain/casting.py`, because the Fill
-  pipeline and any future migration write these rows without going through
-  the API.
+- `uq_character_casting_entry` UNIQUE (`system_id`, `media_type`,
+  `entry_id`) - redundant as a key, since `system_id` alone is unique, but it
+  is what `character_casting_voice`'s composite FK references.
 - `ix_character_casting_entry` (`media_type`, `entry_id`) - the cast-list
   query.
 
-**`person_id` is `ON DELETE SET NULL`, unlike `media_credit.person_id`'s `ON
-DELETE CASCADE`** (Decision H). A `media_credit` row *is* the person's link to
-the work and rightly dies with them; a `character_casting` row is the
-*character's* link to the work and merely names a seiyuu, so deleting a
-seiyuu must not delete the character from the entry's cast - it survives with
-`person_id` NULL. `character_id` remains `ON DELETE CASCADE`: deleting the
-character genuinely removes their castings, and `POST
-/api/character/{id}/merge` (repoint then delete the loser) is the fix when a
-delete would otherwise lose casting history for a duplicate.
+`character_id` is `ON DELETE CASCADE`: deleting the character genuinely
+removes their castings, and `POST /api/character/{id}/merge` (repoint then
+delete the loser) is the fix when a delete would otherwise lose casting
+history for a duplicate. Deleting a *person* never removes a casting - see
+`character_casting_voice` below (Decision H).
+
+### `character_casting_voice`
+
+One seiyuu voicing one casting. Model: `CharacterCastingVoice`
+(`app/models/character.py`). A casting has zero or more of these, in
+`position` order - a child and an adult voice, a recast mid-season - and one
+seiyuu voicing several characters in an entry is simply one person on several
+castings.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `casting_id` | UUID | no | | The casting this voice belongs to, indexed. Part of the composite FK below |
+| `media_type` | String | no | | The casting's `media_type`, repeated; held equal by the composite FK |
+| `entry_id` | UUID | no | | The casting's `entry_id`, repeated; held equal by the composite FK |
+| `person_id` | UUID | no | | FK `person.system_id` **ON DELETE CASCADE**, indexed |
+| `position` | Integer | no | `0` (server default too) | Order among the casting's voices |
+| `remark` | Text | yes | | What tells this voice apart from the casting's others - `child`, `ep 13-`, `drama CD`. Free text |
+| `created_at` | DateTime | yes | now | No `updated_at` |
+
+Constraints and indexes:
+
+- `fk_casting_voice_casting` FOREIGN KEY (`casting_id`, `media_type`,
+  `entry_id`) → `character_casting` (`system_id`, `media_type`, `entry_id`),
+  **ON DELETE CASCADE ON UPDATE CASCADE** - a voice goes with its casting, and
+  its `media_type` / `entry_id` can never disagree with the casting's.
+  `media_type` and `entry_id` are repeated here so that the seiyuu-in-entry
+  question (which entries a person voices in, and may this viewer see them)
+  reads this one table, as `media_credit` answers it for every other role,
+  and so that the voice scope can be a CHECK.
+- `uq_casting_voice` UNIQUE (`casting_id`, `person_id`) - one person voices a
+  casting at most once.
+- `ck_casting_voice_scope` CHECK `media_type IN ('anime', 'anime-movie',
+  'hentai')` - characters reach every type in `CASTING_MEDIA_TYPES`, but a
+  seiyuu may only be attached on the three types with voice acting. Enforced
+  in the database, not just in `app/services/domain/casting.py`, because the
+  Fill pipeline and any future migration write these rows without going
+  through the API.
+- `ix_character_casting_voice_entry` (`media_type`, `entry_id`) - one
+  entry's voices, read with its cast list.
+
+**`person_id` is `ON DELETE CASCADE`, like `media_credit.person_id`**
+(Decision H). A voice row *is* the person's link to the work, as a credit is,
+and dies with them; the casting above it is the *character's* link to the
+work and stays, keeping whatever other voices it has. Deleting a seiyuu
+un-voices the character; it never removes the character from the entry's
+cast. `POST /api/person/{id}/merge` repoints voice rows onto the survivor, so
+merging a duplicate loses none.
 
 `person_role.role` carries no database enum or CHECK, so a new
 `PERSON_ROLES` value such as `seiyuu` needs no migration - see
@@ -2217,14 +2257,14 @@ point at entries on both ends. They resolve at read time through
 
 | Registry | Keys | Still used by |
 |---|---|---|
-| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` (anime, anime-movie, manga, novel only) |
+| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` and `character_casting_voice` (`CASTING_MEDIA_TYPES` only) |
 | `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | Nothing stores a pair here. `note` and `meme` read it to **resolve a row's display data** and to translate the API's `owner_type` / `owner_id` parameters onto their four owner columns; `plan_next` does the same over its three. |
 
 `resolve_entries()` issues at most one query per involved table. A pair whose
 row does not exist resolves to `missing=True` rather than vanishing, so a
 dangling reference stays visible and fixable in the admin pages. Consequence:
-**deleting an entry does not cascade** to `media_relation` or
-`character_casting`. Every other table listed below cascades in the database.
+**deleting an entry does not cascade** to `media_relation`,
+`character_casting` or `character_casting_voice`. Every other table listed below cascades in the database.
 
 ### `note`, `quote` and `meme`: who wrote it
 

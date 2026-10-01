@@ -296,6 +296,12 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         models.CharacterCasting,
         f.parse_character_casting_from_sheet,
     ),
+    # A voice cites its casting by system_id, so after Character Casting.
+    SheetTab(
+        "Character Casting Voice",
+        models.CharacterCastingVoice,
+        f.parse_character_casting_voice_from_sheet,
+    ),
     # Memes name quotes, so after them.
     SheetTab("Meme", models.Meme, f.parse_meme_from_sheet),
     SheetTab("Note", models.Note, f.parse_note_from_sheet),

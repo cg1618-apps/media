@@ -2,7 +2,7 @@
 // useCasting's rows, following Novel.test.jsx's setup (providers, mocking,
 // router wrapping).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -97,9 +97,7 @@ describe("Anime detail page — cast", () => {
         character_id: "char-1",
         character_public_id: 1,
         character_name: "Protagonist",
-        person_id: "person-1",
-        person_public_id: 1,
-        person_name: "Seiyuu One",
+        voices: [{ person_id: "person-1", person_public_id: 1, person_name: "Seiyuu One", remark: null }],
         role: "Main",
         position: 0,
         photo_file: "cc1.jpg",
@@ -126,8 +124,7 @@ describe("Anime detail page — cast", () => {
         character_id: "char-1",
         character_public_id: 1,
         character_name: "Protagonist",
-        person_id: null,
-        person_name: null,
+        voices: [],
         role: "Main",
         position: 0,
         // No casting-specific photo was set — this is the server's resolved
@@ -155,16 +152,14 @@ describe("Anime detail page — cast", () => {
     expect(screen.queryByText("Cast")).not.toBeInTheDocument();
   });
 
-  it("orders Main cast before Supporting cast", async () => {
+  it("orders Main cast before Supporting cast in the full cast", async () => {
     mockFetch(BASE_ANIME, [
       {
         system_id: "cc2",
         character_id: "char-2",
         character_public_id: 2,
         character_name: "Sidekick",
-        person_id: "person-2",
-        person_public_id: 2,
-        person_name: "Seiyuu Two",
+        voices: [{ person_id: "person-2", person_public_id: 2, person_name: "Seiyuu Two", remark: null }],
         role: "Supporting",
         position: 0,
         photo_file: null,
@@ -175,9 +170,7 @@ describe("Anime detail page — cast", () => {
         character_id: "char-1",
         character_public_id: 1,
         character_name: "Protagonist",
-        person_id: "person-1",
-        person_public_id: 1,
-        person_name: "Seiyuu One",
+        voices: [{ person_id: "person-1", person_public_id: 1, person_name: "Seiyuu One", remark: null }],
         role: "Main",
         position: 1,
         photo_file: null,
@@ -186,7 +179,10 @@ describe("Anime detail page — cast", () => {
     ]);
     mount();
 
-    const characterLinks = await screen.findAllByRole("link", {
+    // Collapsed, the slip shows Main only; the full cast lists everyone.
+    fireEvent.click(await screen.findByText("Show full cast (2)"));
+    const dialog = screen.getByRole("dialog", { name: "Full cast" });
+    const characterLinks = within(dialog).getAllByRole("link", {
       name: /Protagonist|Sidekick/,
     });
     expect(characterLinks.map((l) => l.textContent)).toEqual([

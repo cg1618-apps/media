@@ -11,7 +11,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 
-import CastEditor from "./CastEditor";
+import CastEditor, { importedRow } from "./CastEditor";
 
 // The photo cell is ImagePicker, whose upload and library calls are its own
 // tests' business. A stub stands in for it and records the props it was
@@ -50,11 +50,13 @@ vi.mock("./ImagePicker", () => ({
 // CastEditor is fully controlled: typing a character re-renders it only if
 // the parent feeds the updated row back in as `value`. Tests that exercise
 // typing need a real (if minimal) parent, not a `vi.fn()` no-op onChange.
-function Controlled({ initialRows, mediaType, onChangeSpy }) {
+function Controlled({ initialRows, mediaType, onChangeSpy, franchiseId, entryId }) {
   const [rows, setRows] = useState(initialRows);
   return (
     <CastEditor
       mediaType={mediaType}
+      franchiseId={franchiseId}
+      entryId={entryId}
       value={rows}
       onChange={(next) => {
         onChangeSpy(next);
@@ -83,8 +85,7 @@ function row(overrides = {}) {
     system_id: undefined,
     character_id: null,
     character_name: "",
-    person_id: null,
-    person_name: "",
+    voices: [],
     role: "",
     position: 0,
     photo_file: null,
@@ -268,6 +269,46 @@ it("shows the seiyuu column on hentai, which is voiced", async () => {
   );
 });
 
+it("gives one character a second seiyuu, each with its own remark", async () => {
+  const onChangeSpy = vi.fn();
+  const first = { person_id: "p1", person_name: "Voice A", remark: "" };
+  render(
+    <Controlled
+      mediaType="anime"
+      initialRows={[row({ character_id: "c1", character_name: "Yuki", voices: [first] })]}
+      onChangeSpy={onChangeSpy}
+    />,
+  );
+
+  fireEvent.click(screen.getByText("+ Another seiyuu"));
+  const remarks = screen.getAllByLabelText("Voice remark");
+  expect(remarks).toHaveLength(2);
+  fireEvent.change(remarks[1], { target: { value: "child" } });
+
+  expect(onChangeSpy).toHaveBeenLastCalledWith([
+    expect.objectContaining({
+      voices: [first, { person_id: null, person_name: "", remark: "child" }],
+    }),
+  ]);
+
+  fireEvent.click(screen.getAllByLabelText("Remove seiyuu")[0]);
+  expect(onChangeSpy).toHaveBeenLastCalledWith([
+    expect.objectContaining({
+      voices: [{ person_id: null, person_name: "", remark: "child" }],
+    }),
+  ]);
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
+it("offers a blank seiyuu line on a new row without adding a voice to it", async () => {
+  const onChange = vi.fn();
+  render(<CastEditor mediaType="anime" value={[row()]} onChange={onChange} />);
+  expect(screen.getAllByLabelText("Voice remark")).toHaveLength(1);
+  expect(screen.queryByLabelText("Remove seiyuu")).not.toBeInTheDocument();
+  expect(onChange).not.toHaveBeenCalled();
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
 it("renumbers position after a row is removed", async () => {
   const onChange = vi.fn();
   const rows = [
@@ -442,4 +483,95 @@ it("shows which entries an existing character already appears in", async () => {
   expect(
     await screen.findByRole("button", { name: /Yuki.*Show A/ }),
   ).toBeInTheDocument();
+});
+
+it("imports another franchise entry's cast after the rows already here", async () => {
+  const sourceCast = [
+    {
+      system_id: "cc-a",
+      character_id: "c1",
+      character_name: "Already Here",
+      voices: [],
+      role: "Main",
+      position: 0,
+      photo_file: null,
+      photo_focus: null,
+      remark: null,
+    },
+    {
+      system_id: "cc-b",
+      character_id: "c2",
+      character_name: "Newcomer",
+      voices: [{ person_id: "p1", person_public_id: 1, person_name: "Voice A", remark: "child" }],
+      role: "Core",
+      position: 1,
+      photo_file: "character/s1.jpg",
+      photo_focus: "30% 20%",
+      remark: "season one look",
+    },
+  ];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url) => {
+      if (url.startsWith("/api/casting/sources?")) {
+        expect(url).toContain("franchise_id=f1");
+        expect(url).toContain("exclude=e2");
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              sources: [
+                { media_type: "anime", entry_id: "e1", public_id: 1, display_name: "Season 1", cast_count: 2 },
+              ],
+            }),
+        });
+      }
+      if (url === "/api/casting/anime/e1") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ cast: sourceCast }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    }),
+  );
+  const onChangeSpy = vi.fn();
+  render(
+    <Controlled
+      mediaType="anime"
+      initialRows={[row({ character_id: "c1", character_name: "Already Here" })]}
+      onChangeSpy={onChangeSpy}
+      franchiseId="f1"
+      entryId="e2"
+    />,
+  );
+
+  const picker = await screen.findByLabelText("Import cast from");
+  fireEvent.change(picker, { target: { value: "e1" } });
+
+  await waitFor(() => expect(onChangeSpy).toHaveBeenCalled());
+  const rows = onChangeSpy.mock.calls.at(-1)[0];
+  expect(rows.map((r) => r.character_name)).toEqual(["Already Here", "Newcomer"]);
+  // Everything is copied but the casting's own id.
+  expect(rows[1]).toEqual({
+    system_id: undefined,
+    character_id: "c2",
+    character_name: "Newcomer",
+    voices: [{ person_id: "p1", person_name: "Voice A", remark: "child" }],
+    role: "Core",
+    position: 1,
+    photo_file: "character/s1.jpg",
+    photo_focus: "30% 20%",
+    remark: "season one look",
+  });
+  expect(await screen.findByRole("status")).toHaveTextContent(
+    "Imported 1 from Season 1 (1 already in this cast)",
+  );
+});
+
+it("drops the voices of an imported cast on a type nobody voices", () => {
+  const source = {
+    character_id: "c2",
+    character_name: "Newcomer",
+    voices: [{ person_id: "p1", person_name: "Voice A", remark: null }],
+    role: "Main",
+  };
+  expect(importedRow(source, 0, false).voices).toEqual([]);
 });

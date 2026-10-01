@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-29
+Last verified: 2026-10-01
 
 ## What this is for
 
@@ -137,7 +137,7 @@ type it serves is seeable.
 name collision is worth flagging: `anime.seiyuu` is a `Need`/`Done` to-do flag
 with no list of who voices whom. The real seiyuu concept is elsewhere
 (`character`,
-`character_casting` - see [data-model.md](data-model.md#people-studios-and-links)
+`character_casting`, `character_casting_voice` - see [data-model.md](data-model.md#people-studios-and-links)
 and [systems/credits-and-tags.md](systems/credits-and-tags.md)), do not read
 one as evidence for the other: an anime can show `seiyuu: Done` while having
 zero castings, and vice versa.
@@ -509,7 +509,8 @@ filters to `credited_via == "media_credit"` so `/api/credits` and the sheet
 link-column builder never go looking for seiyuu rows there. A seiyuu still
 gets a `person_role` row (so they appear in dropdowns and on
 `/library/seiyuu` before their first casting exists), but their actual work is
-read through `/api/casting`, keyed off `character_casting` - see
+read through `/api/casting`, keyed off `character_casting` and its
+`character_casting_voice` rows - see
 [systems/credits-and-tags.md](systems/credits-and-tags.md).
 
 The reader-facing word is **derived, not stored**:
