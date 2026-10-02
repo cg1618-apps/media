@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-01
+Last verified: 2026-10-02
 
 ## What this is for
 
@@ -2630,3 +2630,43 @@ import was designed on them) into cast rows. Five choices:
   the key names a missing own download, which `cover_needs_download` already
   treats as needing one, so the character's next MAL fill repairs it with no
   bookkeeping of its own.
+
+### Every list reorders by dnd-kit drag (2026-10-02)
+
+Every reorderable list - the cast, novel-unit, game-copy and club-member
+editors, the name-entries form, structured notes rows and groups, the h-comic
+and h-game highlight groups, the Resources tree, the watch-order editor and
+the Fav 3x3 ranked list - reorders by dragging a grip, through
+`components/ui/Sortable.jsx` or, for the surfaces that are not one flat list,
+dnd-kit's `useDraggable` / `useDroppable` with the same sensors.
+
+- **Drag rather than up/down chevrons.** Arrows cost one click per place, so
+  moving a row ten places down a long cast or a hundred-step watch order was
+  ten clicks; and the app had both - some lists drag, some step - which is two
+  ways to do one thing. The chevron buttons, and `MoveButtons` in the notes
+  `ui.jsx`, are gone.
+- **dnd-kit's pointer events rather than native HTML5 drag.** A native drag
+  swallows the mouse wheel on Windows: while a row is held the page does not
+  scroll, so a row could only be dropped somewhere already on screen. With
+  pointer events the page keeps scrolling under the wheel mid-drag and dnd-kit
+  re-measures the rows as it does. The Resources tree, the watch-order editor, the
+  grouped-notes headers and the Fav 3x3 list, which used native drag, moved
+  over with the rest.
+- **The keyboard path stays.** ArrowUp / ArrowDown on a focused grip moves the
+  row one place, and focus follows the row, so nothing that could be done
+  with the chevrons needs a mouse now. It is also the path the tests drive.
+- **A move that saves at once freezes its list until it settles.** Notes
+  reorder and watch-order moves build the next payload from the current order,
+  so a second move sent before the first lands would be computed from a stale
+  order and undo it. The new order is shown immediately, the grips are
+  disabled (or every move refused) while the request is in flight, and a
+  failure reloads the stored order.
+- **A watch-order move is one request.** Moving a part used to need the step
+  order and the empty parts' anchors written separately; `PUT
+  /lists/{id}/reorder` now takes `section_positions` beside `item_ids` and
+  `section_ids`, so a move lands entirely or not at all. The separate
+  `PUT /lists/{id}/sections/reorder` route was deleted: it renumbered parts
+  1..N, which cannot place an empty part between two steps, so it was a
+  second, wrong way to move a part.
+- **The cost** is three dependencies (`@dnd-kit/core`, `@dnd-kit/sortable`,
+  `@dnd-kit/utilities`).

@@ -10,7 +10,7 @@
 //
 // Order matters on one side only. A club's member list is ordered - the PUT
 // takes member_ids in display order - and a person's list of clubs is ordered
-// by name, so only the members editor has arrows.
+// by name, so only the members editor can be dragged into order.
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -21,8 +21,8 @@ import { useToast } from "../../hooks/useToast";
 import { entityPath } from "../../lib/entityPath";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 import ComboBox from "../forms/ComboBox";
-import { MoveButtons } from "../../pages/notes/sections/ui";
 import { Button, Slip } from "../ui/primitives";
+import { DragHandle, SortableItem, SortableList, arrayMove } from "../ui/Sortable";
 
 const linkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
@@ -54,7 +54,7 @@ function pickerItems(people, chosen, selfId) {
 }
 
 /**
- * One editable list of people. `ordered` adds the arrows; `candidatesUrl` is
+ * One editable list of people. `ordered` adds drag handles; `candidatesUrl` is
  * fetched when editing starts, not before, since it may be every person.
  */
 function MembershipList({
@@ -80,13 +80,8 @@ function MembershipList({
       .catch(() => setCandidates([]));
   };
 
-  const move = (i, delta) => {
-    const j = i + delta;
-    if (j < 0 || j >= draft.length) return;
-    const next = [...draft];
-    [next[i], next[j]] = [next[j], next[i]];
-    setDraft(next);
-  };
+  const draftIds = draft.map((p) => p.system_id);
+  const move = (from, to) => setDraft(arrayMove(draft, from, to));
 
   const save = async () => {
     setSaving(true);
@@ -121,29 +116,30 @@ function MembershipList({
         )
       ) : (
         <div className="space-y-2">
+          {/* An unordered list is a disabled sortable with no handles, so
+              both kinds of list draw the same rows. */}
           <ul className="space-y-1" aria-label={`${title} being edited`}>
-            {draft.map((p, i) => (
-              <li key={p.system_id} className="flex items-center gap-2 text-sm">
-                {ordered && (
-                  <MoveButtons
-                    label={p.display_name}
-                    atTop={i === 0}
-                    atBottom={i === draft.length - 1}
-                    onUp={() => move(i, -1)}
-                    onDown={() => move(i, 1)}
-                  />
-                )}
-                <span className="flex-1 min-w-0 truncate text-text">{p.display_name}</span>
-                <button
-                  type="button"
-                  onClick={() => setDraft(draft.filter((x) => x.system_id !== p.system_id))}
-                  aria-label={`Remove ${p.display_name}`}
-                  className="text-text-faint hover:text-danger px-1"
+            <SortableList ids={draftIds} onMove={move} disabled={!ordered}>
+              {draft.map((p) => (
+                <SortableItem
+                  as="li"
+                  key={p.system_id}
+                  id={p.system_id}
+                  className="flex items-center gap-2 text-sm"
                 >
-                  <i className="fas fa-times text-xs"></i>
-                </button>
-              </li>
-            ))}
+                  {ordered && <DragHandle label={p.display_name} />}
+                  <span className="flex-1 min-w-0 truncate text-text">{p.display_name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setDraft(draft.filter((x) => x.system_id !== p.system_id))}
+                    aria-label={`Remove ${p.display_name}`}
+                    className="text-text-faint hover:text-danger px-1"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                </SortableItem>
+              ))}
+            </SortableList>
           </ul>
           <ComboBox
             items={pickerItems(candidates, draft, selfId)}

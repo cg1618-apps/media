@@ -5,7 +5,10 @@
 // everything that differs between the three is answered by the favorite*
 // helpers in utils/statsUtils, so a new grid is a config entry and nothing
 // here changes.
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { DndContext, useDraggable, useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { useDragSensors } from "../../components/ui/Sortable";
 import { MEDIA_CONFIG } from "../../utils/media";
 import { FALLBACK_SVG, NO_COVER, focusStyle } from "../../lib/covers";
 import {
@@ -34,6 +37,23 @@ function computeOriginal(rows, grid) {
     if (slot !== null) original[String(slot)] = row.system_id;
   });
   return original;
+}
+
+/**
+ * The draft after the rows in two slots trade places. A swap, not an insert:
+ * nothing else in the grid moves. Either slot may be empty, in which case the
+ * other row moves into it and leaves its own slot empty.
+ */
+export function swapSlots(draft, fromSlot, toSlot) {
+  if (fromSlot === toSlot) return draft;
+  const next = { ...draft };
+  const from = next[String(fromSlot)];
+  const to = next[String(toSlot)];
+  if (to) next[String(fromSlot)] = to;
+  else delete next[String(fromSlot)];
+  if (from) next[String(toSlot)] = from;
+  else delete next[String(toSlot)];
+  return next;
 }
 
 function cleanStr(s) {
@@ -220,34 +240,43 @@ function SlotCard({ slot, name, cover, onOpen }) {
   );
 }
 
-function RankListItem({
-  slot,
-  name,
-  cover,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  isDragOver,
-}) {
+// One row of the ranked list. The whole row is both what is picked up and
+// what is dropped on: it holds no inputs, and the 4px activation distance of
+// useDragSensors keeps a plain click from starting a drag. It is dnd-kit's
+// pointer drag rather than native HTML5 drag, because a native drag swallows
+// the mouse wheel on Windows; this way the page keeps scrolling while a row is
+// held. ArrowUp / ArrowDown on a focused row swaps it with its neighbour,
+// which is the keyboard path.
+function RankListItem({ slot, name, cover, onKeySwap, registerRow }) {
+  const drag = useDraggable({ id: slot });
+  const drop = useDroppable({ id: slot });
+  const { attributes, listeners, transform, isDragging } = drag;
+  const isDragOver = drop.isOver && !isDragging;
+
+  const ref = (el) => {
+    drag.setNodeRef(el);
+    drop.setNodeRef(el);
+    registerRow(slot, el);
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    onKeySwap(slot, e.key === "ArrowUp" ? -1 : 1);
+  };
+
   return (
     <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData("text/plain", String(slot));
-        e.dataTransfer.effectAllowed = "move";
-        onDragStart(slot);
-      }}
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        onDragOver(slot);
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        const fromSlot = parseInt(e.dataTransfer.getData("text/plain"), 10);
-        onDrop(fromSlot, slot);
-      }}
-      className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-grab active:cursor-grabbing select-none ${
+      ref={ref}
+      {...attributes}
+      {...listeners}
+      onKeyDown={onKeyDown}
+      aria-label={`Slot ${slot}: ${name || "empty"}`}
+      title="Drag onto another slot to swap (or focus and press ↑/↓)"
+      style={{ transform: CSS.Translate.toString(transform) }}
+      className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+        isDragging ? "relative z-10 opacity-80 cursor-grabbing" : "cursor-grab"
+      } ${
         isDragOver
           ? "border-brand bg-brand/10"
           : "border-border bg-surface hover:border-border-strong"
@@ -284,6 +313,11 @@ function RankListItem({
   );
 }
 
+const SWAP_INSTRUCTIONS = {
+  draggable:
+    "Drag onto another slot to swap the two, or press the up and down arrow keys to swap with the neighbouring slot.",
+};
+
 function GridEditor({
   grid,
   draft,
@@ -291,12 +325,42 @@ function GridEditor({
   coverFor,
   isDirty,
   onSlotChange,
-  onDragSwap,
+  onSwap,
   onSave,
   saving,
 }) {
-  const [dragOverSlot, setDragOverSlot] = useState(null);
   const [pickerSlot, setPickerSlot] = useState(null);
+  const sensors = useDragSensors();
+  const rowEls = useRef(new Map());
+  const focusAfterSwap = useRef(null);
+
+  // A keyboard swap carries the row's content to the neighbouring slot; move
+  // focus with it so a held arrow key keeps carrying the same row.
+  useEffect(() => {
+    const slot = focusAfterSwap.current;
+    if (slot == null) return;
+    focusAfterSwap.current = null;
+    rowEls.current.get(slot)?.focus();
+  });
+
+  const registerRow = useCallback((slot, el) => {
+    if (el) rowEls.current.set(slot, el);
+    else rowEls.current.delete(slot);
+  }, []);
+
+  const swapByKey = (slot, delta) => {
+    const target = slot + delta;
+    if (!SLOTS.includes(target)) return;
+    focusAfterSwap.current = target;
+    onSwap(grid, slot, target);
+  };
+
+  // Each grid has its own DndContext, so a row can only be dropped within
+  // the grid it came from.
+  const onDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    onSwap(grid, active.id, over.id);
+  };
 
   const rowById = useMemo(() => {
     const byId = {};
@@ -356,30 +420,27 @@ function GridEditor({
           <p className="text-[10px] font-black text-text-faint uppercase tracking-widest mb-2">
             Drag to reorder
           </p>
-          <div
-            className="space-y-1"
-            onDragLeave={() => setDragOverSlot(null)}
-            onDrop={() => setDragOverSlot(null)}
+          <DndContext
+            sensors={sensors}
+            accessibility={{ screenReaderInstructions: SWAP_INSTRUCTIONS }}
+            onDragEnd={onDragEnd}
           >
-            {SLOTS.map((slot) => {
-              const row = slotRow(slot);
-              return (
-                <RankListItem
-                  key={slot}
-                  slot={slot}
-                  name={row ? favoriteName(row, grid) : null}
-                  cover={row ? coverFor(row) : NO_COVER}
-                  isDragOver={dragOverSlot === slot}
-                  onDragStart={() => setDragOverSlot(null)}
-                  onDragOver={(s) => setDragOverSlot(s)}
-                  onDrop={(fromSlot, toSlot) => {
-                    setDragOverSlot(null);
-                    onDragSwap(grid, fromSlot, toSlot);
-                  }}
-                />
-              );
-            })}
-          </div>
+            <div className="space-y-1">
+              {SLOTS.map((slot) => {
+                const row = slotRow(slot);
+                return (
+                  <RankListItem
+                    key={slot}
+                    slot={slot}
+                    name={row ? favoriteName(row, grid) : null}
+                    cover={row ? coverFor(row) : NO_COVER}
+                    onKeySwap={swapByKey}
+                    registerRow={registerRow}
+                  />
+                );
+              })}
+            </div>
+          </DndContext>
         </div>
       </div>
 
@@ -506,18 +567,12 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
     });
   }, []);
 
-  const handleDragSwap = useCallback((grid, fromSlot, toSlot) => {
+  const handleSwap = useCallback((grid, fromSlot, toSlot) => {
     if (fromSlot === toSlot) return;
-    setDrafts((prev) => {
-      const gridDraft = { ...prev[grid.id] };
-      const from = gridDraft[String(fromSlot)];
-      const to = gridDraft[String(toSlot)];
-      if (to) gridDraft[String(fromSlot)] = to;
-      else delete gridDraft[String(fromSlot)];
-      if (from) gridDraft[String(toSlot)] = from;
-      else delete gridDraft[String(toSlot)];
-      return { ...prev, [grid.id]: gridDraft };
-    });
+    setDrafts((prev) => ({
+      ...prev,
+      [grid.id]: swapSlots(prev[grid.id] || {}, fromSlot, toSlot),
+    }));
   }, []);
 
   async function handleSave(grid) {
@@ -585,7 +640,7 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
           coverFor={(row) => favoriteCover(row, grid, { byFranchise, bySeries })}
           isDirty={isDirtyByGrid[grid.id]}
           onSlotChange={handleSlotChange}
-          onDragSwap={handleDragSwap}
+          onSwap={handleSwap}
           onSave={() => handleSave(grid)}
           saving={!!savingByGrid[grid.id]}
         />

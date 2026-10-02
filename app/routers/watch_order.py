@@ -1302,6 +1302,10 @@ def reorder_watch_order_items(
     None for unfiled. Dragging a step across a part boundary changes its order
     and its part in one gesture, so both land in one request.
 
+    `section_positions`, when given, places every part of the list in the same
+    commit - what moving a part sends, since an empty part has no steps to
+    carry it and is drawn wherever its own position falls among the steps.
+
     The resulting order must keep every part contiguous. A part interrupted by
     a step filed elsewhere would draw as two boxes carrying one name, so it is
     refused here rather than rendered.
@@ -1336,6 +1340,32 @@ def reorder_watch_order_items(
         for section_id in set(section_ids):
             _validate_section(db, db_list, section_id)
 
+    # Parts are placed in the same commit as the steps, so moving a part is
+    # one request: a part's steps move with the item order, and an empty part
+    # moves by its own position. Validated like the section reorder - every
+    # part of this list exactly once - and before anything is written.
+    sections_by_id = {}
+    if payload.section_positions is not None:
+        named = [entry.section_id for entry in payload.section_positions]
+        sections_by_id = {
+            section.system_id: section
+            for section in db.query(models.WatchOrderSection)
+            .filter(models.WatchOrderSection.list_id == db_list.system_id)
+            .all()
+        }
+        if len(named) != len(set(named)):
+            raise HTTPException(
+                status_code=400, detail="Duplicate section ids in payload."
+            )
+        if set(named) != set(sections_by_id):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "section_positions must list every section of this "
+                    "watch order exactly once."
+                ),
+            )
+
     # Contiguity is checked against the *prospective* order, before a single
     # row is touched. Writing first and rolling back would work against the
     # database but would also discard whatever else the caller's transaction
@@ -1365,6 +1395,11 @@ def reorder_watch_order_items(
         if section_ids is not None:
             item.section_id = section_ids[index - 1]
         item.updated_at = get_taipei_now()
+
+    for entry in payload.section_positions or []:
+        section = sections_by_id[entry.section_id]
+        section.position = entry.position
+        section.updated_at = get_taipei_now()
 
     db_list.updated_at = get_taipei_now()
     db.commit()
@@ -1481,48 +1516,3 @@ def delete_watch_order_section(
         "status": "success",
         "message": "Watch order section deleted; its steps are now ungrouped.",
     }
-
-
-@router.put(
-    "/lists/{system_id}/sections/reorder",
-    response_model=schemas.WatchOrderListDetailResponse,
-    summary="Reorder Watch Order Sections",
-)
-def reorder_watch_order_sections(
-    system_id: str,
-    payload: schemas.WatchOrderSectionReorder,
-    db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
-):
-    """
-    Renumbers section positions to 1..N in the order the ids are given.
-
-    Like the item reorder, the payload must name every section of this list
-    exactly once - a partial payload would leave stale positions behind.
-    """
-    db_list = _get_list_or_404(db, system_id)
-    _reject_if_generated(db_list)
-
-    sections = (
-        db.query(models.WatchOrderSection)
-        .filter(models.WatchOrderSection.list_id == db_list.system_id)
-        .all()
-    )
-    by_id = {section.system_id: section for section in sections}
-
-    if len(payload.section_ids) != len(set(payload.section_ids)):
-        raise HTTPException(status_code=400, detail="Duplicate section ids in payload.")
-    if set(payload.section_ids) != set(by_id):
-        raise HTTPException(
-            status_code=400,
-            detail="Reorder payload must list every section of this watch order exactly once.",
-        )
-
-    for index, section_id in enumerate(payload.section_ids, start=1):
-        by_id[section_id].position = float(index)
-        by_id[section_id].updated_at = get_taipei_now()
-
-    db_list.updated_at = get_taipei_now()
-    db.commit()
-
-    return get_watch_order_list(system_id, db, viewer=None)

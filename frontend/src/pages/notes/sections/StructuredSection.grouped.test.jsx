@@ -4,7 +4,7 @@
 // Neither is keyed on a section: HIGHLIGHTS below is the registry entry as
 // GET /api/notes/sections serves it for a KR h-comic, and the component reads
 // only its `group_by` and its field types.
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -102,40 +102,80 @@ describe("grouped read view", () => {
 
   it("offers no reorder handle on the rows inside a group", () => {
     renderSection({ notes: [note("r1", ["Ahri"]), note("r2", ["Ahri"]), note("r3", ["Bora"])] });
-    // Only the two group headers carry arrows; the two Ahri rows do not.
-    expect(screen.getAllByRole("button", { name: /move group/i })).toHaveLength(4);
-    expect(screen.queryByRole("button", { name: /move entry/i })).toBeNull();
+    // Only the two group headers carry a handle; the two Ahri rows do not.
+    const handles = screen.getAllByRole("button", { name: /^Reorder / });
+    expect(handles.map((h) => h.getAttribute("aria-label"))).toEqual([
+      "Reorder group Ahri",
+      "Reorder group Bora",
+    ]);
   });
 
-  it("saves the whole new order when a group header is dropped on another", () => {
+  it("saves the whole new order when a group is moved, and shows it at once", () => {
     const { onGroupOrderChange } = renderSection({
       notes: [note("r1", ["Ahri"]), note("r2", ["Bora"]), note("r3", ["Chae"])],
       groupOrder: ["Ahri", "Bora", "Chae"],
     });
-    const headers = screen.getAllByTestId("group-header");
-    fireEvent.dragStart(headers[2]);
-    fireEvent.dragOver(headers[0]);
-    fireEvent.drop(headers[0]);
-    expect(onGroupOrderChange).toHaveBeenCalledWith(["Chae", "Ahri", "Bora"]);
+    fireEvent.keyDown(screen.getByLabelText("Reorder group Chae"), { key: "ArrowUp" });
+    expect(onGroupOrderChange).toHaveBeenCalledWith(["Ahri", "Chae", "Bora"]);
     // Shown at once, before the page comes back with the saved order.
-    expect(groupNames()).toEqual(["Chae", "Ahri", "Bora"]);
+    expect(groupNames()).toEqual(["Ahri", "Chae", "Bora"]);
   });
 
-  it("drops a stored name no row carries when it saves", async () => {
-    const user = userEvent.setup();
+  it("freezes the group handles until the order is saved", async () => {
+    let finish;
+    const onGroupOrderChange = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    renderSection({
+      notes: [note("r1", ["Ahri"]), note("r2", ["Bora"]), note("r3", ["Chae"])],
+      groupOrder: ["Ahri", "Bora", "Chae"],
+      onGroupOrderChange,
+    });
+    fireEvent.keyDown(screen.getByLabelText("Reorder group Chae"), { key: "ArrowUp" });
+    // A second move built on the unsaved order is refused, not queued.
+    expect(screen.getByLabelText("Reorder group Ahri")).toBeDisabled();
+    fireEvent.keyDown(screen.getByLabelText("Reorder group Ahri"), { key: "ArrowDown" });
+    expect(onGroupOrderChange).toHaveBeenCalledTimes(1);
+
+    await act(async () => finish());
+    expect(screen.getByLabelText("Reorder group Ahri")).not.toBeDisabled();
+  });
+
+  it("puts the order back when the save fails", async () => {
+    let fail;
+    const onGroupOrderChange = vi.fn(
+      () =>
+        new Promise((_, reject) => {
+          fail = reject;
+        }),
+    );
+    renderSection({
+      notes: [note("r1", ["Ahri"]), note("r2", ["Bora"])],
+      groupOrder: ["Ahri", "Bora"],
+      onGroupOrderChange,
+    });
+    fireEvent.keyDown(screen.getByLabelText("Reorder group Bora"), { key: "ArrowUp" });
+    expect(groupNames()).toEqual(["Bora", "Ahri"]);
+    await act(async () => fail(new Error("nope")));
+    expect(groupNames()).toEqual(["Ahri", "Bora"]);
+  });
+
+  it("drops a stored name no row carries when it saves", () => {
     const { onGroupOrderChange } = renderSection({
       notes: [note("r1", ["Ahri"]), note("r2", ["Bora"])],
       groupOrder: ["Gone", "Ahri", "Bora"],
     });
-    await user.click(screen.getByRole("button", { name: "Move group Bora up" }));
+    fireEvent.keyDown(screen.getByLabelText("Reorder group Bora"), { key: "ArrowUp" });
     expect(onGroupOrderChange).toHaveBeenCalledWith(["Bora", "Ahri"]);
   });
 
   it("lets a reader see the groups but not move them", () => {
     renderSection({ notes: [note("r1", ["Ahri"]), note("r2", ["Bora"])], isAdmin: false });
     expect(groupNames()).toEqual(["Ahri", "Bora"]);
-    expect(screen.queryByRole("button", { name: /move group/i })).toBeNull();
-    expect(screen.getAllByTestId("group-header")[0]).not.toHaveAttribute("draggable");
+    expect(screen.queryByRole("button", { name: /^Reorder /i })).toBeNull();
   });
 });
 

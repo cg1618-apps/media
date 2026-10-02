@@ -3,7 +3,7 @@
 // The contract these lock: the parent owns the array, every mutation goes out
 // through onChange, the component never writes to the array it was handed,
 // and `position` is renumbered 1..n after every structural change.
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import GameCopiesEditor from "./GameCopiesEditor";
@@ -31,6 +31,18 @@ describe("GameCopiesEditor", () => {
     expect(onChange.mock.calls[0][0].map((r) => r.position)).toEqual([1]);
   });
 
+  it("moves a copy with its drag handle and renumbers position", () => {
+    const onChange = vi.fn();
+    const items = [...ROWS];
+    render(<GameCopiesEditor items={items} onChange={onChange} />);
+    fireEvent.keyDown(screen.getByLabelText("Reorder GOG"), { key: "ArrowUp" });
+    expect(onChange.mock.calls[0][0]).toEqual([
+      expect.objectContaining({ storefront: "GOG", position: 1 }),
+      expect.objectContaining({ storefront: "Steam", position: 2 }),
+    ]);
+    expect(items).toEqual(ROWS);
+  });
+
   it("edits a field in place", async () => {
     const onChange = vi.fn();
     render(<GameCopiesEditor items={ROWS} onChange={onChange} />);
@@ -41,7 +53,7 @@ describe("GameCopiesEditor", () => {
   // The row used to be one flex-wrap line holding everything, so a full copy
   // overflowed: Remark was squeezed to a few pixels and the remove control
   // wrapped onto a line of its own under the row. The fields wrap inside
-  // their own group now, between a fixed reorder rail and a pinned remove
+  // their own group now, between a fixed drag handle and a pinned remove
   // button, so the row itself never wraps.
   it("pins the remove control to the row instead of letting it wrap", () => {
     render(<GameCopiesEditor items={ROWS} onChange={() => {}} />);

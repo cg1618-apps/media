@@ -1,6 +1,7 @@
 // Frontend: form component for a novel's units (volumes, arcs, stories).
 import { kindsForType, unitDisplayKey } from "../../lib/novelUnits";
 import { MY_RATINGS } from "../../config/fieldOptions";
+import { DragHandle, SortableItem, SortableList, arrayMove } from "../ui/Sortable";
 
 const baseCls =
   "border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface";
@@ -46,140 +47,122 @@ export default function NovelUnitsEditor({ items, novelType, onChange }) {
       ),
     );
 
-  // Swap adjacent rows and renumber. position is not unique in the database
-  // precisely so this swap cannot trip a constraint mid-move.
-  const move = (i, delta) => {
-    const j = i + delta;
-    if (j < 0 || j >= rows.length) return;
-    const next = [...rows];
-    [next[i], next[j]] = [next[j], next[i]];
-    onChange(next.map((r, k) => ({ ...r, position: k + 1 })));
-  };
+  // Drag a row by its handle, then renumber. position is not unique in the
+  // database precisely so a move cannot trip a constraint mid-save. A unit
+  // not saved yet has no system_id, so it is identified by its index.
+  const rowIds = rows.map((r, i) => r.system_id || `new-${i}`);
+  const move = (from, to) =>
+    onChange(arrayMove(rows, from, to).map((r, k) => ({ ...r, position: k + 1 })));
 
   return (
     <div className="space-y-2">
-      {rows.map((entry, i) => (
-        <div key={entry.system_id || i} className="flex gap-1.5 items-center">
-          <div className="flex flex-col shrink-0">
-            <button
-              type="button"
-              disabled={i === 0}
-              onClick={() => move(i, -1)}
-              aria-label="Move up"
-              className="text-text-faint/60 hover:text-text-faint disabled:opacity-20 leading-none px-0.5"
-            >
-              <i className="fas fa-chevron-up text-[9px]" />
-            </button>
-            <button
-              type="button"
-              disabled={i === rows.length - 1}
-              onClick={() => move(i, 1)}
-              aria-label="Move down"
-              className="text-text-faint/60 hover:text-text-faint disabled:opacity-20 leading-none px-0.5"
-            >
-              <i className="fas fa-chevron-down text-[9px]" />
-            </button>
-          </div>
+      <SortableList ids={rowIds} onMove={move}>
+        {rows.map((entry, i) => (
+          <SortableItem key={rowIds[i]} id={rowIds[i]} className="flex gap-1.5 items-center">
+            <DragHandle
+              label={unitDisplayKey(entry.unit_kind, entry.position, entry.unit_key)}
+            />
 
-          {/* A row can be stranded when the novel's Type changes and the
-              stored unit_kind is no longer offered (e.g. Web -> Other
-              leaves an "arc" row around). The server re-normalises on
-              write and the row stays valid, but the select must still be
-              reachable so the user can see and fix the mismatch — so it
-              renders (with a disabled, annotated option for the stranded
-              kind) even when the type would otherwise offer only one kind. */}
-          {kinds.length > 1 || !kinds.includes(entry.unit_kind) ? (
+            {/* A row can be stranded when the novel's Type changes and the
+                stored unit_kind is no longer offered (e.g. Web -> Other
+                leaves an "arc" row around). The server re-normalises on
+                write and the row stays valid, but the select must still be
+                reachable so the user can see and fix the mismatch — so it
+                renders (with a disabled, annotated option for the stranded
+                kind) even when the type would otherwise offer only one kind. */}
+            {kinds.length > 1 || !kinds.includes(entry.unit_kind) ? (
+              <select
+                className={kindSelectCls}
+                value={entry.unit_kind}
+                onChange={(e) => updateKind(i, e.target.value)}
+                aria-label={`Kind for ${unitDisplayKey(
+                  entry.unit_kind,
+                  entry.position,
+                  entry.unit_key,
+                )}`}
+              >
+                {!kinds.includes(entry.unit_kind) ? (
+                  <option value={entry.unit_kind} disabled>
+                    {entry.unit_kind} (not valid for this type)
+                  </option>
+                ) : null}
+                {kinds.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+
+            <input
+              className={keyInputCls}
+              placeholder={unitDisplayKey(entry.unit_kind, entry.position, null)}
+              value={entry.unit_key || ""}
+              onChange={(e) => updateEntry(i, "unit_key", e.target.value)}
+            />
+            <input
+              className={nameInputCls}
+              placeholder="CN name"
+              value={entry.name_cn || ""}
+              onChange={(e) => updateEntry(i, "name_cn", e.target.value)}
+            />
+            <input
+              className={nameInputCls}
+              placeholder="EN name"
+              value={entry.name_en || ""}
+              onChange={(e) => updateEntry(i, "name_en", e.target.value)}
+            />
+            <input
+              className={nameInputCls}
+              placeholder="Remark"
+              value={entry.remark || ""}
+              onChange={(e) => updateEntry(i, "remark", e.target.value)}
+            />
+            {/* Each unit is rated on its own, on the same S..F scale as the
+                novel's my_rating. Every kind gets one - a volume is the usual
+                case, but an arc is just as ratable. Nothing derives from it. */}
             <select
-              className={kindSelectCls}
-              value={entry.unit_kind}
-              onChange={(e) => updateKind(i, e.target.value)}
-              aria-label={`Kind for ${unitDisplayKey(
+              className={ratingSelectCls}
+              value={entry.my_rating || ""}
+              onChange={(e) =>
+                updateEntry(i, "my_rating", e.target.value || undefined)
+              }
+              aria-label={`Rating for ${unitDisplayKey(
                 entry.unit_kind,
                 entry.position,
                 entry.unit_key,
               )}`}
             >
-              {!kinds.includes(entry.unit_kind) ? (
-                <option value={entry.unit_kind} disabled>
-                  {entry.unit_kind} (not valid for this type)
-                </option>
-              ) : null}
-              {kinds.map((k) => (
-                <option key={k} value={k}>
-                  {k}
+              <option value="">—</option>
+              {MY_RATINGS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
                 </option>
               ))}
             </select>
-          ) : null}
 
-          <input
-            className={keyInputCls}
-            placeholder={unitDisplayKey(entry.unit_kind, entry.position, null)}
-            value={entry.unit_key || ""}
-            onChange={(e) => updateEntry(i, "unit_key", e.target.value)}
-          />
-          <input
-            className={nameInputCls}
-            placeholder="CN name"
-            value={entry.name_cn || ""}
-            onChange={(e) => updateEntry(i, "name_cn", e.target.value)}
-          />
-          <input
-            className={nameInputCls}
-            placeholder="EN name"
-            value={entry.name_en || ""}
-            onChange={(e) => updateEntry(i, "name_en", e.target.value)}
-          />
-          <input
-            className={nameInputCls}
-            placeholder="Remark"
-            value={entry.remark || ""}
-            onChange={(e) => updateEntry(i, "remark", e.target.value)}
-          />
-          {/* Each unit is rated on its own, on the same S..F scale as the
-              novel's my_rating. Every kind gets one - a volume is the usual
-              case, but an arc is just as ratable. Nothing derives from it. */}
-          <select
-            className={ratingSelectCls}
-            value={entry.my_rating || ""}
-            onChange={(e) =>
-              updateEntry(i, "my_rating", e.target.value || undefined)
-            }
-            aria-label={`Rating for ${unitDisplayKey(
-              entry.unit_kind,
-              entry.position,
-              entry.unit_key,
-            )}`}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
+            {entry.unit_kind === "arc" ? (
+              <input
+                className={numInputCls}
+                type="number"
+                step="any"
+                placeholder="chapters"
+                value={entry.ch_count ?? ""}
+                onChange={(e) => updateEntry(i, "ch_count", e.target.value)}
+              />
+            ) : null}
 
-          {entry.unit_kind === "arc" ? (
-            <input
-              className={numInputCls}
-              type="number"
-              step="any"
-              placeholder="chapters"
-              value={entry.ch_count ?? ""}
-              onChange={(e) => updateEntry(i, "ch_count", e.target.value)}
-            />
-          ) : null}
-
-          <button
-            type="button"
-            className="text-danger/70 hover:text-danger px-1 shrink-0"
-            aria-label="Remove"
-            onClick={() => removeEntry(i)}
-          >
-            <i className="fas fa-times" />
-          </button>
-        </div>
-      ))}
+            <button
+              type="button"
+              className="text-danger/70 hover:text-danger px-1 shrink-0"
+              aria-label="Remove"
+              onClick={() => removeEntry(i)}
+            >
+              <i className="fas fa-times" />
+            </button>
+          </SortableItem>
+        ))}
+      </SortableList>
       <button
         type="button"
         className="text-xs text-brand hover:underline mt-1"

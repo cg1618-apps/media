@@ -1,6 +1,6 @@
 // CastEditor's contracts that matter for a casting row: the seiyuu column
 // only exists where ck_casting_voice_scope allows a person_id (anime,
-// anime-movie), position stays contiguous after a removal, the character
+// anime-movie), position stays contiguous after a removal or a move, the character
 // combobox never fetches anything until it is actually used (Fix round 1,
 // finding 1), the selected pill shows a plain name rather than the search
 // annotation (Fix round 1, finding 2), and — the heart of Decision G — the
@@ -80,6 +80,10 @@ const YUKI_ENTRIES = [
     entries: [{ system_id: "e1", display_name: "Show A" }],
   },
 ];
+
+// The import message is a role="status" line. It is not the only one: the
+// drag-to-reorder list carries dnd-kit's own (empty) live region.
+const importStatus = () => screen.findByText(/^Imported /, { selector: '[role="status"]' });
 
 function row(overrides = {}) {
   return {
@@ -307,6 +311,27 @@ it("offers a blank seiyuu line on a new row without adding a voice to it", async
   expect(screen.getAllByLabelText("Voice remark")).toHaveLength(1);
   expect(screen.queryByLabelText("Remove seiyuu")).not.toBeInTheDocument();
   expect(onChange).not.toHaveBeenCalled();
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
+it("moves a row with its drag handle and renumbers position", async () => {
+  const onChange = vi.fn();
+  const rows = [
+    row({ system_id: "k1", character_name: "A", position: 0 }),
+    row({ character_name: "B", position: 1 }),
+    row({ character_name: "C", position: 2 }),
+  ];
+  render(<CastEditor mediaType="anime" value={rows} onChange={onChange} />);
+
+  fireEvent.keyDown(screen.getByLabelText("Reorder A"), { key: "ArrowUp" });
+  expect(onChange).not.toHaveBeenCalled();
+
+  fireEvent.keyDown(screen.getByLabelText("Reorder C"), { key: "ArrowUp" });
+  expect(onChange).toHaveBeenCalledWith([
+    expect.objectContaining({ character_name: "A", position: 0 }),
+    expect.objectContaining({ character_name: "C", position: 1 }),
+    expect.objectContaining({ character_name: "B", position: 2 }),
+  ]);
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 
@@ -562,7 +587,7 @@ it("imports another franchise entry's cast after the rows already here", async (
     photo_focus: "30% 20%",
     remark: "season one look",
   });
-  expect(await screen.findByRole("status")).toHaveTextContent(
+  expect(await importStatus()).toHaveTextContent(
     "Imported 1 from Season 1 (1 already in this cast)",
   );
 });
@@ -633,7 +658,7 @@ it("imports a cast from the entry's MAL link and reports what it created", async
   const rows = onChangeSpy.mock.calls.at(-1)[0];
   expect(rows.map((r) => r.character_name)).toEqual(["Already Here", "Edward Elric"]);
   expect(rows[1].voices).toEqual([{ person_id: "p9", person_name: "Romi Park", remark: "" }]);
-  expect(await screen.findByRole("status")).toHaveTextContent(
+  expect(await importStatus()).toHaveTextContent(
     "Imported 1 from MyAnimeList (1 already in this cast). Created 1 new characters and 1 new seiyuu.",
   );
 });

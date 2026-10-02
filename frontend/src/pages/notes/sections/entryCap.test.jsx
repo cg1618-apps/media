@@ -8,7 +8,7 @@
 // away, the draft row is never folded away, a reorder that moves a row past
 // the cap unfolds the section so the row does not vanish, and a grouped
 // section caps each group rather than the section.
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -151,26 +151,23 @@ describe("a folded section never hides what is being written", () => {
 describe("StructuredSection and the cap", () => {
   const sec = section("structured", { fields: STRUCTURED_FIELDS });
 
-  it("reorders the rows it shows by their place in the whole section", async () => {
-    const user = userEvent.setup();
+  it("reorders the rows it shows by their place in the whole section", () => {
+    const h = handlers();
+    render(<StructuredSection section={sec} notes={notes(5)} isAdmin {...h} />);
+
+    // One handle per row shown.
+    expect(screen.getAllByRole("button", { name: /^Reorder / })).toHaveLength(3);
+
+    fireEvent.keyDown(screen.getByLabelText("Reorder row-2"), { key: "ArrowUp" });
+    expect(h.onReorder).toHaveBeenCalledWith(sec.key, ["n2", "n1", "n3", "n4", "n5"]);
+  });
+
+  it("unfolds when a move carries a row past the cap", () => {
     const h = handlers();
     render(<StructuredSection section={sec} notes={notes(5)} isAdmin {...h} />);
 
     // The third row is not the last row of the section, so it can move down.
-    const down = screen.getAllByRole("button", { name: "Move entry down" });
-    expect(down).toHaveLength(3);
-    expect(down[2]).not.toBeDisabled();
-
-    await user.click(screen.getAllByRole("button", { name: "Move entry up" })[1]);
-    expect(h.onReorder).toHaveBeenCalledWith(sec.key, ["n2", "n1", "n3", "n4", "n5"]);
-  });
-
-  it("unfolds when a move carries a row past the cap", async () => {
-    const user = userEvent.setup();
-    const h = handlers();
-    render(<StructuredSection section={sec} notes={notes(5)} isAdmin {...h} />);
-
-    await user.click(screen.getAllByRole("button", { name: "Move entry down" })[2]);
+    fireEvent.keyDown(screen.getByLabelText("Reorder row-3"), { key: "ArrowDown" });
     expect(h.onReorder).toHaveBeenCalledWith(sec.key, ["n1", "n2", "n4", "n3", "n5"]);
     expect(editButtons()).toHaveLength(5);
     expect(screen.getByRole("button", { name: "Show less" })).toBeInTheDocument();

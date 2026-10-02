@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { groupNotes, movedGroupOrder, namesOf } from "./groupedRows";
+import { groupNotes, groupedIds, movedGroupOrder, movedRow, namesOf } from "./groupedRows";
 
 const note = (id, female) => ({
   system_id: id,
@@ -83,6 +83,40 @@ describe("movedGroupOrder", () => {
 
   it("leaves the order alone for an out-of-range move", () => {
     expect(movedGroupOrder(groups, 0, 5)).toEqual(["Ahri", "Bora", "Chae"]);
+  });
+});
+
+describe("movedRow", () => {
+  const groups = [
+    { name: "Magic", notes: [{ system_id: "a" }, { system_id: "b" }, { system_id: "c" }] },
+    { name: "Combat", notes: [{ system_id: "d" }] },
+  ];
+
+  it("moves a row to a new place in its own group, shifting the rows between", () => {
+    expect(shape(movedRow(groups, 0, 2, 0))).toEqual([
+      ["Magic", ["c", "a", "b"]],
+      ["Combat", ["d"]],
+    ]);
+    expect(shape(movedRow(groups, 0, 0, 1))).toEqual([
+      ["Magic", ["b", "a", "c"]],
+      ["Combat", ["d"]],
+    ]);
+  });
+
+  it("leaves every group alone for an out-of-range move", () => {
+    expect(shape(movedRow(groups, 0, 0, 3))).toEqual(shape(groups));
+    expect(shape(movedRow(groups, 0, -1, 0))).toEqual(shape(groups));
+  });
+});
+
+describe("groupedIds", () => {
+  it("lists the rows in drawn order, group after group", () => {
+    expect(
+      groupedIds([
+        { name: "B", notes: [{ system_id: "x" }] },
+        { name: null, notes: [{ system_id: "y" }, { system_id: "z" }] },
+      ]),
+    ).toEqual(["x", "y", "z"]);
   });
 });
 

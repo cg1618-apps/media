@@ -61,6 +61,69 @@ const reorderBodies = () =>
     .filter(([url]) => url === "/api/resources/reorder")
     .map(([, opts]) => JSON.parse(opts.body));
 
+// jsdom lays nothing out, so a dnd-kit drag needs boxes to hit. layOut() gives
+// every row and group body a rectangle stacked in document order, each body
+// tall enough to hold its children - the nesting a browser would produce - and
+// drag() presses a grip, moves the pointer into a target and releases it.
+const ROW = 40;
+const rects = new Map();
+
+function layOut() {
+  rects.clear();
+  let y = 0;
+  const box = (depth, top, height) => ({ top, left: depth * 10, width: 800 - depth * 20, height });
+  const walk = (el, depth) => {
+    for (const child of el.children) {
+      if (child.dataset.testid === "resource-item" || child.tagName === "HEADER") {
+        rects.set(child, box(depth, y, ROW));
+        y += ROW;
+      } else if (child.dataset.testid === "resource-group-body") {
+        const top = y;
+        walk(child, depth + 1);
+        y += ROW; // the body's own strip below its rows, where its Add buttons sit
+        rects.set(child, box(depth, top, y - top));
+      } else {
+        walk(child, depth);
+      }
+    }
+  };
+  walk(document.body, 0);
+}
+
+function rectOf(el) {
+  const r = rects.get(el) ?? { top: 0, left: 0, width: 0, height: 0 };
+  return { ...r, x: r.left, y: r.top, right: r.left + r.width, bottom: r.top + r.height };
+}
+
+const rowOf = (text) => screen.getByText(text).closest("[data-testid=resource-item]");
+const bodyOf = (group) =>
+  within(screen.getByRole("region", { name: group })).getAllByTestId("resource-group-body")[0];
+
+// `below` aims at the strip under the target's last row - the box's own space -
+// rather than at its middle, where one of its rows may sit.
+function drag(grip, target, { below = false } = {}) {
+  const from = rectOf(grip.closest("article, header"));
+  const to = rectOf(target);
+  const start = { clientX: from.left + 5, clientY: from.top + 5 };
+  const end = { clientX: to.left + 5, clientY: below ? to.bottom - 5 : to.top + to.height / 2 };
+  // dnd-kit listens for the rest of the gesture on the element pressed, as a
+  // browser's implicit pointer capture would deliver it.
+  fireEvent.pointerDown(grip, { ...start, isPrimary: true, button: 0 });
+  fireEvent.pointerMove(grip, { ...start, clientY: start.clientY + 10 });
+  fireEvent.pointerMove(grip, end);
+  fireEvent.pointerUp(grip, end);
+}
+
+// jsdom has no PointerEvent; a MouseEvent carrying isPrimary is what dnd-kit's
+// pointer sensor reads.
+class FakePointerEvent extends MouseEvent {
+  constructor(type, init = {}) {
+    super(type, init);
+    this.isPrimary = init.isPrimary ?? true;
+    this.pointerId = init.pointerId ?? 1;
+  }
+}
+
 beforeEach(() => {
   auth.permissions = [];
   vi.stubGlobal(
@@ -76,6 +139,16 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.unstubAllGlobals());
+
+beforeEach(() => {
+  rects.clear();
+  vi.stubGlobal("PointerEvent", FakePointerEvent);
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
+    return rectOf(this);
+  });
+});
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("Resources - reading", () => {
   it("nests groups inside groups, one heading level deeper", async () => {
@@ -128,10 +201,10 @@ describe("Resources - reading", () => {
     await screen.findByText("Docs");
     expect(screen.queryByRole("button", { name: "Add group" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Add item" })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^Move .* up$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Reorder / })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: /^Move .* to$/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Delete / })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Edit / })).toBeNull();
-    expect(screen.getAllByTestId("resource-item")[0]).not.toHaveAttribute("draggable", "true");
   });
 });
 
@@ -145,14 +218,18 @@ describe("Resources - editing", () => {
     await screen.findByText("Docs");
     expect(screen.getByRole("button", { name: "Add group" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Add item" })).toHaveLength(3);
-    expect(screen.getByRole("button", { name: "Move Docs up" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reorder Docs" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Reorder Tools" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Delete Tools" })).toBeInTheDocument();
-    expect(screen.getAllByTestId("resource-item")[0]).toHaveAttribute("draggable", "true");
+    // Reordering is drag-and-drop on the grip; the one-place arrows are gone.
+    expect(screen.queryByRole("button", { name: /^Move .* (up|down)$/ })).toBeNull();
   });
 
   it("moves an item down with the full sibling list", async () => {
     renderPage();
-    await userEvent.click(await screen.findByRole("button", { name: "Move Docs down" }));
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Reorder Docs" }), {
+      key: "ArrowDown",
+    });
     await waitFor(() =>
       expect(reorderBodies()).toEqual([{ parent_id: "g1", ordered_ids: ["g2", "i1", "i3"] }]),
     );
@@ -160,7 +237,9 @@ describe("Resources - editing", () => {
 
   it("moves an item up with the full sibling list", async () => {
     renderPage();
-    await userEvent.click(await screen.findByRole("button", { name: "Move Third up" }));
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Reorder Third" }), {
+      key: "ArrowUp",
+    });
     await waitFor(() =>
       expect(reorderBodies()).toEqual([{ parent_id: "g1", ordered_ids: ["i1", "i3", "g2"] }]),
     );
@@ -168,10 +247,29 @@ describe("Resources - editing", () => {
 
   it("moves a top-level group with a null parent", async () => {
     renderPage();
-    await userEvent.click(await screen.findByRole("button", { name: "Move Reading up" }));
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Reorder Reading" }), {
+      key: "ArrowUp",
+    });
     await waitFor(() =>
       expect(reorderBodies()).toEqual([{ parent_id: null, ordered_ids: ["g3", "g1"] }]),
     );
+  });
+
+  it("sends nothing for an arrow key past either end", async () => {
+    renderPage();
+    fireEvent.keyDown(await screen.findByRole("button", { name: "Reorder Docs" }), {
+      key: "ArrowUp",
+    });
+    fireEvent.keyDown(screen.getByRole("button", { name: "Reorder Reading" }), {
+      key: "ArrowDown",
+    });
+    // The mirror: a key with somewhere to go does send, so the silence above
+    // is the ends refusing and not the keys being ignored.
+    fireEvent.keyDown(screen.getByRole("button", { name: "Reorder Docs" }), {
+      key: "ArrowDown",
+    });
+    await waitFor(() => expect(reorderBodies()).toHaveLength(1));
+    expect(reorderBodies()[0]).toEqual({ parent_id: "g1", ordered_ids: ["g2", "i1", "i3"] });
   });
 
   it("moves an item into another group from the Move to list", async () => {
@@ -199,10 +297,8 @@ describe("Resources - editing", () => {
   it("drags an item onto a row in another group, taking its slot", async () => {
     renderPage();
     await screen.findByText("Docs");
-    const [docs, , , bare] = screen.getAllByTestId("resource-item");
-    fireEvent.dragStart(docs);
-    fireEvent.dragOver(bare);
-    fireEvent.drop(bare);
+    layOut();
+    drag(screen.getByRole("button", { name: "Reorder Docs" }), rowOf("https://bare.example.org"));
     await waitFor(() =>
       expect(reorderBodies()).toEqual([{ parent_id: "g3", ordered_ids: ["i1", "i4"] }]),
     );
@@ -211,13 +307,10 @@ describe("Resources - editing", () => {
   it("drags an item onto a group's body, appending it", async () => {
     renderPage();
     await screen.findByText("Third");
-    const third = screen.getAllByTestId("resource-item")[2];
-    const body = within(screen.getByRole("region", { name: "Reading" })).getAllByTestId(
-      "resource-group-body",
-    )[0];
-    fireEvent.dragStart(third);
-    fireEvent.dragOver(body);
-    fireEvent.drop(body);
+    layOut();
+    drag(screen.getByRole("button", { name: "Reorder Third" }), bodyOf("Reading"), {
+      below: true,
+    });
     await waitFor(() =>
       expect(reorderBodies()).toEqual([{ parent_id: "g3", ordered_ids: ["i4", "i3"] }]),
     );
@@ -226,19 +319,11 @@ describe("Resources - editing", () => {
   it("refuses to drop a group into its own descendant", async () => {
     renderPage();
     await screen.findByText("Deep");
-    const toolsHeader = screen.getByRole("heading", { name: "Tools" }).closest("header");
-    const nestedBody = within(screen.getByRole("region", { name: "Nested" })).getAllByTestId(
-      "resource-group-body",
-    )[0];
-    fireEvent.dragStart(toolsHeader);
-    fireEvent.dragOver(nestedBody);
-    fireEvent.drop(nestedBody);
+    layOut();
+    const tools = screen.getByRole("button", { name: "Reorder Tools" });
+    drag(tools, bodyOf("Nested"), { below: true });
     // The mirror: the same drag into a legal target does send.
-    const readingBody = within(screen.getByRole("region", { name: "Reading" })).getAllByTestId(
-      "resource-group-body",
-    )[0];
-    fireEvent.dragStart(toolsHeader);
-    fireEvent.drop(readingBody);
+    drag(tools, bodyOf("Reading"), { below: true });
     await waitFor(() => expect(reorderBodies()).toHaveLength(1));
     expect(reorderBodies()[0]).toEqual({ parent_id: "g3", ordered_ids: ["i4", "g1"] });
   });

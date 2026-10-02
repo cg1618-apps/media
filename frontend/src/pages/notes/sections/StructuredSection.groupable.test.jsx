@@ -2,7 +2,7 @@
 //
 // SKILLS is 技能 Skills as GET /api/notes/sections serves it for a game; the
 // component reads only its `groupable_by` and its field specs.
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -83,21 +83,23 @@ describe("groupable_by", () => {
     expect(within(magic).queryByText("Magic", { selector: "span" })).toBeNull();
   });
 
-  it("moves a group, rewriting the rows' order so the group moves with them", async () => {
-    const user = userEvent.setup();
+  it("moves a group, rewriting the rows' order so the group moves with them", () => {
     const onReorder = renderSkills();
-    // The untyped trailing group has no arrows of its own.
-    expect(screen.queryByRole("button", { name: /Move group No type/i })).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Move group Combat up" }));
+    // The untyped trailing group has no handle of its own.
+    expect(screen.queryByRole("button", { name: /Reorder group No type/i })).toBeNull();
+    fireEvent.keyDown(screen.getByLabelText("Reorder group Combat"), { key: "ArrowUp" });
     expect(onReorder).toHaveBeenCalledWith("skills", ["s2", "s1", "s3", "s4"]);
   });
 
-  it("moves a row within its group", async () => {
-    const user = userEvent.setup();
+  it("moves a row within its group, and not out of it", () => {
     const onReorder = renderSkills();
     const magic = screen.getByRole("region", { name: "Magic" });
-    const [fireballDown] = within(magic).getAllByRole("button", { name: "Move entry down" });
-    await user.click(fireballDown);
+    // Heal is the last Magic row: down would leave the group, so nothing moves.
+    fireEvent.keyDown(within(magic).getByLabelText("Reorder Heal"), { key: "ArrowDown" });
+    expect(onReorder).not.toHaveBeenCalled();
+    // Parry is alone in Combat, so it has no row handle to move.
+    expect(screen.queryByLabelText("Reorder Parry")).toBeNull();
+    fireEvent.keyDown(within(magic).getByLabelText("Reorder Fireball"), { key: "ArrowDown" });
     // Every reorder sends the grouped order, so a group's rows end up adjacent.
     expect(onReorder).toHaveBeenCalledWith("skills", ["s3", "s1", "s2", "s4"]);
   });

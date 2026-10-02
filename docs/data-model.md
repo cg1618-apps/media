@@ -487,7 +487,7 @@ languages. CHECKs: `ck_novel_unit_kind` (`unit_kind` in
 | `system_id` | UUID | no | uuid4 | PK |
 | `novel_id` | UUID | no | | FK `novel.system_id` ON DELETE CASCADE |
 | `unit_kind` | String | no | | `volume`, `arc`, `story` or `chapter` - see NOVEL_UNIT_KINDS_BY_TYPE in options.md |
-| `position` | Float | no | | Order within the novel. **Not unique** - the editor reorders by swapping two rows' positions, and a unique constraint would fire mid-swap |
+| `position` | Float | no | | Order within the novel. **Not unique** - the editor renumbers every row after a drag, and a unique constraint could fire mid-save while two rows briefly share a value |
 | `unit_key` | String | yes | | Explicit label (e.g. a volume subtitle's short code). When blank, the display key falls back to `"{prefix} {position}"` (`unit_display_key` / `unitDisplayKey`) |
 | `name_cn` / `name_en` | String | yes | | |
 | `remark` | String | yes | | |
