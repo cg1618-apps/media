@@ -93,6 +93,7 @@ class TestMapping:
             "airing_status": "Finished Airing",
             "official_link": "http://official.example/ova",
             "cover_image_url": f"{ANIDB_IMAGE_BASE_URL}12345.jpg",
+            "ep_total": 2,
         }
 
     def test_the_cover_is_the_anime_picture_not_a_character_one(self):
@@ -116,7 +117,13 @@ class TestMapping:
             "airing_status": None,
             "official_link": None,
             "cover_image_url": None,
+            "ep_total": None,
         }
+
+    def test_an_unknown_episode_count_maps_to_none(self):
+        """AniDB writes 0 while the count is not known yet - not a length."""
+        xml = ANIME_XML.replace("<episodecount>2</episodecount>", "<episodecount>0</episodecount>")
+        assert map_anidb_to_hentai_data(_root(xml), today=TODAY)["ep_total"] is None
 
     def test_a_coarse_startdate_keeps_its_precision(self):
         xml = ANIME_XML.replace("2003-01-24", "2003-01")

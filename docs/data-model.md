@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-01
+Last verified: 2026-10-02
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -748,8 +748,9 @@ on [`user_media_list`](#user_media_list).
 ### `hentai`
 
 Adult anime, seen in the `unrestricted` access mode only. Model: `Hentai`
-(`app/models/hentai.py`). **One entry is one episode**, so there is no
-episode count and no progress counter.
+(`app/models/hentai.py`). Tracked like a cartoon: `ep_total` here and the
+viewer's `ep_fin` on [`user_media_list`](#user_media_list), with no
+`ep_previous` or `ep_special`.
 
 Every row carries the `hentai` content label, attached server-side on every
 write path; see [authorization.md](authorization.md#gated-types).
@@ -757,13 +758,14 @@ write path; see [authorization.md](authorization.md#gated-types).
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `hentai_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Anime's five. `display_name` order CN -> EN -> Alt -> roman -> JP |
-| `source_material` | String | yes | | HENTAI_SOURCE_MATERIALS (Original / Manga / Novel): what the episode adapts |
+| `source_material` | String | yes | | HENTAI_SOURCE_MATERIALS (Original / Manga / Novel): what the entry adapts |
 | `originality` | String | yes | | H_COMIC_ORIGINALITY (原創 / 同人) |
 | `series_number` | Integer | yes | | The entry's position in its series |
 | `airing_status` | String | yes | | AiringStatus, anime's vocabulary. Filled by Tenrai when blank, then by AniDB (derived from its dates) |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_hentai_release_date_iso`. Filled by Tenrai when blank, then by AniDB's `startdate` |
-| `mal_id` / `mal_link` | Integer / String | yes | | The MyAnimeList entry; `mal_id` is extracted from `mal_link` as for anime. Tenrai reads it for airing status, release date and cover only |
-| `anidb_id` / `anidb_link` | Integer / String | yes | | The AniDB anime; `anidb_id` is extracted from `anidb_link` (`https://anidb.net/anime/<aid>` or the old `animedb.pl?show=anime&aid=<aid>`), as `mal_id` is from `mal_link`. AniDB fills airing status, release date and cover after Tenrai, only where they are still blank, and only while `ANIDB_CLIENT` / `ANIDB_CLIENTVER` are set |
+| `ep_total` | Integer | yes | | The episode count. Filled by Tenrai (MAL's `episodes`) when blank, then by AniDB's `episodecount` (never its unknown `0`); clamped by `apply_validate_episode_math` on Replace |
+| `mal_id` / `mal_link` | Integer / String | yes | | The MyAnimeList entry; `mal_id` is extracted from `mal_link` as for anime. Tenrai reads it for airing status, release date, episode count and cover only |
+| `anidb_id` / `anidb_link` | Integer / String | yes | | The AniDB anime; `anidb_id` is extracted from `anidb_link` (`https://anidb.net/anime/<aid>` or the old `animedb.pl?show=anime&aid=<aid>`), as `mal_id` is from `mal_link`. AniDB fills airing status, release date, episode count and cover after Tenrai, only where they are still blank, and only while `ANIDB_CLIENT` / `ANIDB_CLIENTVER` are set |
 
 The vocabulary columns are checked on every write, including the tracker
 PATCH (`hentai_progress_hook` in `app/services/domain/hentai.py`).
@@ -776,7 +778,7 @@ Constraints and wiring, as for every entry table: composite FK `fk_hentai_media`
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, and the
 `studio` / `studio_refs` / `director` / `h_genre_plot` / `h_genre_appearance` /
 `h_genre_relation` link fields. Personal columns: `watching_status`,
-`my_rating`, `usefulness`, `completed_at` on
+`my_rating`, `ep_fin`, `usefulness`, `completed_at` on
 [`user_media_list`](#user_media_list).
 
 ---
@@ -860,7 +862,7 @@ shape serves all twelve types and a deleted entry takes its list rows with it.
 | `my_rating` | String | yes | | MY_RATINGS - a letter grade, never a number |
 | `completed_at` | DateTime | yes | | Stamped when the status becomes a completed one (`apply_list_completion_timestamp`) |
 | `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
-| `ep_fin` | Float | yes | | anime, tv_shows, cartoons |
+| `ep_fin` | Integer | yes | | anime, tv_shows, cartoons, hentai |
 | `vol_fin` | Float | yes | | manga, novel. Float because novel counts in halves. |
 | `vol_fin_page` | Integer | yes | | manga |
 | `ch_fin` | Float | yes | | manga, novel, h_comic (KR; cleared on JP) |
@@ -883,7 +885,7 @@ being silently swallowed into a list row where it means nothing.
 with no list row reads them back as `0` (`LIST_FIELD_DEFAULTS`) rather than
 None - the value the column always held. `page_fin` follows the same rule. `ep_fin` is deliberately excluded: it
 was nullable on `anime` / `tv_shows` / `cartoons`, so None is a value it always
-could have had.
+could have had, and hentai reads it the same way.
 
 ### `user_novel_unit_rating`
 

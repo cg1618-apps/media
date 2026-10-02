@@ -149,8 +149,10 @@ def map_anidb_to_hentai_data(
 ) -> Dict[str, Any]:
     """
     One AniDB anime record, as the things the hentai fill can take from it:
-    the release date, the airing status, the official site and the cover.
-    Titles are never mapped - the names are the entry's identity.
+    the release date, the airing status, the official site, the cover and
+    the episode count. Titles are never mapped - the names are the entry's
+    identity. AniDB writes an episode count of 0 while it is unknown, so 0
+    maps to None rather than to a length.
     """
     if root is None:
         return {
@@ -158,14 +160,17 @@ def map_anidb_to_hentai_data(
             "airing_status": None,
             "official_link": None,
             "cover_image_url": None,
+            "ep_total": None,
         }
     startdate = _child_text(root, "startdate")
     enddate = _child_text(root, "enddate")
+    episodecount = _episode_count(root)
     return {
         "release_date": _release_day(startdate),
         "airing_status": derive_airing_status(
-            startdate, enddate, _episode_count(root), today
+            startdate, enddate, episodecount, today
         ),
         "official_link": _child_text(root, "url"),
         "cover_image_url": _cover_url(_child_text(root, "picture")),
+        "ep_total": episodecount or None,
     }

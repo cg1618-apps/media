@@ -40,7 +40,7 @@ execute_replace_single_comic = _single("comic")
 execute_replace_single_game = _single("game")
 # Manga's Tenrai fields, then the h-comic sync and the gated label sync.
 execute_replace_single_h_comic = _single("h-comic")
-# Tenrai's three fields, then the hentai sync that keeps the label on.
+# Tenrai's fields, then AniDB's, then the hentai sync that keeps the label on.
 execute_replace_single_hentai = _single("hentai")
 # Game's Replace (IGDB, then Steam), on the h-game table.
 execute_replace_single_h_game = _single("h-game")

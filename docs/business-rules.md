@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-01
+Last verified: 2026-10-02
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -266,7 +266,7 @@ Every completion helper comes in halves, because "this finished airing" and
 
 | Type | Catalogue half | Personal half |
 | --- | --- | --- |
-| Anime, TV Show, Cartoon | `mark_tv_catalog` - `airing_status = "Finished Airing"` | `mark_tv_list` - `status = "Completed"`, `ep_fin = ep_total` when the total is known |
+| Anime, TV Show, Cartoon, Hentai | `mark_tv_catalog` - `airing_status = "Finished Airing"` | `mark_tv_list` - `status = "Completed"`, `ep_fin = ep_total` when the total is known |
 | Anime Movie, Movie | `mark_movie_catalog` - `airing_status = "Finished Airing"` | `mark_movie_list` - `status = "Completed"` |
 | Manga | `mark_reading_catalog` - `serialization_status = "完結"` unless it is `腰斬` | `mark_reading_list` - `status`, `ch_fin`, `vol_fin`, `vol_fin_page = 0` |
 | Novel | `mark_novel_catalog` - serialisation, and the volume totals agree on the largest **published** figure | `mark_novel_list` - `status`, `vol_fin`, and the arc cursor closed |
@@ -298,11 +298,11 @@ and the `completed_at` stamp. This is the tracker's stepper - pressing `+` on
 pages, the dashboard, and the seasonal pages.
 
 - **The counter** is the type's `progress_counter` in `app/registry.py`:
-  `ep_fin / ep_total` for anime, TV show and cartoon, `ch_fin / ch_total` for
-  manga and novel, `issue_fin / issue_total` for comic, and the region's own
-  counter for h-comic (`page_fin / page_total` for JP, `ch_fin / ch_total` for
-  KR). Movies, games, h-games and hentai have none, so a `PATCH` never
-  finishes them.
+  `ep_fin / ep_total` for anime, TV show, cartoon and hentai,
+  `ch_fin / ch_total` for manga and novel, `issue_fin / issue_total` for
+  comic, and the region's own counter for h-comic (`page_fin / page_total` for
+  JP, `ch_fin / ch_total` for KR). Movies, games and h-games have none, so a
+  `PATCH` never finishes them.
 - **It is a crossing, not a level** (`reached_total`): the counter was below
   the total before the write and is at or above it after. Re-saving a counter
   that already sat at its total - a rewatch left at 10 / 10 - changes nothing,
@@ -475,7 +475,7 @@ in `app/utils/utils.py`.
 | Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
 | Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `publisher` credit — Comic Vine's publisher resolves to a `publisher` entity, not a tag. Imprint, continuity, era and events and `end_date` are manual and never required — Comic Vine does not model them.                                                          |
 | H-Comic     | `serialization_status, release_date, end_date, cover_image_file` (`H_COMIC_FIELDS_TO_FILL`)                               | The MAL clause additionally requires `mal_id`. On a KR entry whose `serialization_status` is `完結`, also missing while `ch_total` is `None`; a JP entry counts pages, which MAL does not report. A second clause is ORed on, E-Hentai's: `has_missing_values_h_comic_ehentai(db, e)` is true when `ehentai_link` names a gallery and `cover_image_file` (`H_COMIC_EHENTAI_FIELDS_TO_FILL`) or the `illustrator` credit (`H_COMIC_EHENTAI_LINK_FIELDS_TO_FILL`) is blank - so an entry with only an E-Hentai link is eligible. See [external-apis.md](external-apis.md#e-hentai). |
-| Hentai      | `airing_status, release_date, cover_image_file` (`HENTAI_FIELDS_TO_FILL`)                                                 | The spec requires `mal_id`, **or** (`has_missing_values_hentai_anidb`) an `anidb_id` while AniDB is enabled. These are the only three things Tenrai and AniDB fill on a hentai, so nothing else can make one eligible. |
+| Hentai      | `airing_status, release_date, ep_total, cover_image_file` (`HENTAI_FIELDS_TO_FILL`)                                       | The spec requires `mal_id`, **or** (`has_missing_values_hentai_anidb`) an `anidb_id` while AniDB is enabled. These are the only four things Tenrai and AniDB fill on a hentai, so nothing else can make one eligible. |
 | Studio      | `mal_link, founded_date, name_jp, website_url, logo_file`                                                                 | One of the two non-media types Fill covers, with Seiyuu. The spec additionally requires `mal_id` to be set — a studio with no MAL id has no source to fill from, however empty it is. Pasting the producer URL into `mal_link` is enough: `apply_extract_mal_id_studio` derives the id before eligibility is checked (section 2), on Fill and on every studio write. `my_rating`, `country` and `defunct_date` are absent on purpose: MAL's producer record reports none of them, so listing them would leave every studio permanently missing. |
 | Seiyuu      | `mal_link, name_en, name_jp, name_alt, photo_file` (`PERSON_FIELDS_TO_FILL`)                                             | The other non-media type. Walks `person` but the spec (`_is_seiyuu_to_fill`) also requires `mal_id` **and** a `person_role` row with role `seiyuu`, any scope — a director or author with a MAL link is never filled. `apply_extract_mal_id_person` derives the id from a pasted people URL first, on Fill and on every person write. Birthday, website and the about text are not columns, so they are not listed. |
 | Game        | `igdb_link, release_date, cover_image_file, hltb_main, hltb_main_extra, hltb_completionist`                                | Two independent sources, ORed rather than gated together: the IGDB clause above requires `igdb_id` set; the Steam clause is separate and ignores this column list entirely — `has_missing_values_game_steam(e)` is true when `steam_appid` is set and Steam has written **nothing at all** yet (`metacritic_score`, `price_original_us` and `achievements_total` all `None`). Deliberately not folded into the column list above: a free game has no price, an obscure one no Metacritic score, and many have no achievements, so testing those individually would leave such an entry eligible forever. `steam_appid` itself is written by IGDB, not typed in or picked directly — pasting a `store.steampowered.com/app/<id>` link into `steam_link` and running `apply_extract_steam_appid` (section 2) is the only hand-typed path onto it. Refreshing columns Steam already filled is Replace's job, not Fill's — see [external-apis.md](external-apis.md#steam). A missing cover counts only through the IGDB clause: a game linked to Steam alone whose Steam columns are filled is not queued for its cover alone; Replace, which selects every entry with a `steam_appid`, still fetches it. |
@@ -486,7 +486,7 @@ The link checks (`_link_missing`) read `media_credit` / `media_tag` through
 
 ### Episode / volume / chapter math
 
-`apply_validate_episode_math` (anime, TV, cartoon) and `apply_validate_vol_math`
+`apply_validate_episode_math` (anime, TV, cartoon, hentai) and `apply_validate_vol_math`
 / `apply_validate_ch_math` (manga) sanitise the pair `(total, fin)`:
 
 - `total` in `(None, "", "?")` → `None` (episodes only accept `"?"`); non-numeric → `None`; negative → 0.
@@ -614,7 +614,7 @@ bulk Replace:
 | Manga       | extract MAL id → autofill (ratings forced) → manga post-processing                                                                                    |
 | Novel       | extract MAL id → autofill (ratings forced)                                                                                                            |
 | Comic       | nothing — no replace function; the write hook only re-syncs system options                                                                           |
-| Hentai      | extract MAL and AniDB ids → `autofill_hentai_from_mal` (airing status, release date, cover, and the Official site / Twitter reference rows; all fill-only) → `autofill_hentai_from_anidb` (the same three and the Official site row, only where still blank) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
+| Hentai      | extract MAL and AniDB ids → `autofill_hentai_from_mal` (airing status, release date, episode count, cover, and the Official site / Twitter reference rows; all fill-only) → `autofill_hentai_from_anidb` (the same four and the Official site row, only where still blank) → `apply_validate_episode_math` (clamp `ep_total`) → `run_sync_hentai` and `run_sync_gated_labels` as the spec's after steps (the label) |
 
 The `bulk` parameter is accepted by movie/tv/cartoon/manga/novel/hentai for
 signature parity and ignored. Fill-only vs overwrite semantics of the autofill functions
@@ -649,7 +649,7 @@ b.get_all_names()` is non-empty (case-insensitive, every name column).
 | `game`            | with a franchise                       | `(franchise_id, series_id, game_type, is_main)` - a DLC shares its base game's name stem, and a remake or remaster its original's name | shared name |
 | `h_comic`         | with a franchise                       | `(franchise_id, series_id, region, series_number)` | shared name |
 | `h_game`          | with a franchise                       | `(franchise_id, series_id, game_type, is_main, series_number)` | shared name |
-| `hentai`          | with a franchise                       | `(franchise_id, series_id, series_number)` - one entry is one episode, and a series' episodes share its name | shared name |
+| `hentai`          | with a franchise                       | `(franchise_id, series_id, series_number)` - the numbered entries of a series share its name | shared name |
 | `system_options`  | all options                            | `(category lower, value lower)`                                             | always — catches `Netflix` vs `netflix`, which the exact UNIQUE cannot                                  |
 | `entities`        | persons, studios (scanned separately)  | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: all four of `name_en` / `name_cn` / `name_jp` / `name_alt`, for a person as for a studio |
 

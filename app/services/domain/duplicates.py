@@ -239,8 +239,8 @@ def find_duplicate_h_comic(db: Session) -> list[list[dict]]:
 def find_duplicate_hentai(db: Session) -> list[list[dict]]:
     """Same franchise, series, series number + a shared name.
 
-    series_number is in the key because one entry is one episode, and the
-    episodes of a series share its name.
+    series_number is in the key because the numbered entries of a series
+    share its name.
     """
     return _find(
         _with_franchise(db, Hentai),

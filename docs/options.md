@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-10-01
+Last verified: 2026-10-02
 
 ## What this is for
 
@@ -124,7 +124,7 @@ type it serves is seeable.
 | `H_COMIC_ORIGINALITY` | `原創`, `同人` | `h_comic.originality` (JP only), `hentai.originality` | `h_comic_originality` |
 | `H_COMIC_ANIMATION_STATUSES` | `Not Animated`, `Announced`, `Animated` | `h_comic.animation_status` (JP only): hand-set, or derived from hentai adaptations (`Announced` / `Animated`) | `h_comic_animation_status` |
 | `H_COMIC_USEFULNESS` | `非常實用`, `實用`, `特定情況實用`, `不實用` | `user_media_list.usefulness` (personal, on h-comic, h-game and hentai) and the `status` field of the `h_comic_highlights` and `h_game_highlights` note sections | `h_comic_usefulness` |
-| `HENTAI_SOURCE_MATERIALS` | `Original`, `Manga`, `Novel` | `hentai.source_material`: what the episode adapts, or Original | `hentai_source_material` |
+| `HENTAI_SOURCE_MATERIALS` | `Original`, `Manga`, `Novel` | `hentai.source_material`: what the entry adapts, or Original | `hentai_source_material` |
 | `H_GAME_PLAYSTYLES` | `ADV`, `VN`, `RPG`, `SLG`, `ACT`, `Other` | `h_game.playstyle`, single choice | `h_game_playstyle` |
 | `H_GAME_LANGUAGE_AVAILABILITY` | `官方中文`, `非官方中文`, `中文補丁`, `無中文` | `h_game.language_availability`, single choice. 非官方中文 is a Chinese edition the developer did not make; 中文補丁 a patch applied to the original | `h_game_language_availability` |
 | `H_GAME_AUDIO_AVAILABILITY` | `一般對話`, `H場景` | `h_game.dialogue_audio` and `h_game.sound_effect`, each a JSONB list kept in this order | `h_game_audio_availability` |

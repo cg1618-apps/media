@@ -30,7 +30,7 @@ function setFilter(key, label, field) {
 // ---------------------------------------------------------------------------
 // Hentai library config. The route that renders it is gated (App.jsx), and
 // the list endpoint returns nothing to a session that cannot see the type.
-// One entry is one episode, so there is no progress column.
+// Progress is cartoon's episode pair, ep_fin of ep_total.
 // ---------------------------------------------------------------------------
 const HENTAI_LIBRARY_CONFIG = {
   usesSeries: true,
@@ -106,6 +106,13 @@ const HENTAI_LIBRARY_CONFIG = {
       render: (item) => item.source_material || "-",
     },
     airingStatusColumn(),
+    {
+      key: "ep",
+      header: "EP",
+      thClass: "hidden lg:table-cell",
+      tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
+      render: (item) => `${item.ep_fin ?? 0} / ${item.ep_total ?? "?"}`,
+    },
     {
       key: "usefulness",
       header: "Usefulness",

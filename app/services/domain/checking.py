@@ -10,6 +10,7 @@ from app.models import (
     AnimeMovies,
     Cartoon,
     Comic,
+    Hentai,
     Manga,
     Novel,
     Person,
@@ -49,7 +50,7 @@ from app.utils.utils import (
 logger = logging.getLogger(__name__)
 
 
-def apply_validate_episode_math(entry: Union[Anime, TVShows, Cartoon]) -> bool:
+def apply_validate_episode_math(entry: Union[Anime, TVShows, Cartoon, Hentai]) -> bool:
     """
     Clamps ep_total to a sane value. Returns True if it changed.
 
@@ -133,7 +134,7 @@ def has_missing_values_anime(anime: Anime) -> bool:
 
 
 def has_missing_values_hentai(hentai) -> bool:
-    """True if any of the three columns Tenrai (and AniDB) fills is blank."""
+    """True if any of the columns Tenrai (and AniDB) fills is blank."""
     return any(
         getattr(hentai, field, None) is None or str(getattr(hentai, field)).strip() == ""
         for field in HENTAI_FIELDS_TO_FILL
@@ -143,7 +144,7 @@ def has_missing_values_hentai(hentai) -> bool:
 def has_missing_values_hentai_anidb(hentai) -> bool:
     """
     True when AniDB could fill something on this hentai: AniDB is enabled,
-    the entry has an anidb_id, and one of the three columns is blank.
+    the entry has an anidb_id, and one of the columns it fills is blank.
 
     Its own gate rather than a clause of has_missing_values_hentai, so an
     entry with only an AniDB link - no mal_id - is picked up by Fill. False

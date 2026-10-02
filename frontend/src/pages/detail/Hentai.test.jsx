@@ -1,27 +1,31 @@
 // Frontend: the hentai detail page.
 //
-// One entry is one episode, so the page has no counter to step - and it draws
-// the shared notes page, since the type has no section of its own.
+// Tracked like a cartoon: an episode stepper that finishes the entry at its
+// total - and it draws the shared notes page, since the type has no section
+// of its own.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider } from "../../contexts/AuthContext";
-import { ToastProvider } from "../../hooks/useToast";
+import { ToastProvider, useToast } from "../../hooks/useToast";
 import Hentai from "./Hentai";
 
 const REMARK = { key: "remark", shape: "text", label: "Remark", owner_where: {} };
 
-function mockFetch(entry, cast = []) {
+function mockFetch(entry, cast = [], { admin = false, patched = null } = {}) {
   vi.stubGlobal(
     "fetch",
-    vi.fn((url) => {
+    vi.fn((url, init) => {
       const u = String(url);
       let body = [];
-      if (u.startsWith("/api/auth/me")) {
+      if (init?.method === "PATCH") {
+        body = patched ? patched(JSON.parse(init.body)) : entry;
+      } else if (u.startsWith("/api/auth/me")) {
         body = {
-          is_admin: false,
+          is_admin: admin,
           username: "cg1618",
           role: "user",
           is_root: false,
@@ -42,12 +46,19 @@ function mockFetch(entry, cast = []) {
 
 afterEach(() => vi.unstubAllGlobals());
 
+// The provider holds toasts and draws none; this draws them as text.
+function Toasts() {
+  const { toasts } = useToast();
+  return toasts.map((t) => <p key={t.id}>{t.message}</p>);
+}
+
 function mount(entry) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <AuthProvider>
         <ToastProvider>
+          <Toasts />
           <MemoryRouter initialEntries={[`/hentai/${entry.system_id}`]}>
             <Routes>
               <Route path="/hentai/:publicId/:slug?" element={<Hentai />} />
@@ -75,6 +86,8 @@ const ENTRY = {
   airing_status: "Finished Airing",
   release_date: "2020-03",
   watching_status: "Completed",
+  ep_total: 2,
+  ep_fin: 1,
   usefulness: "實用",
   h_genre_plot: "Plot A",
   mal_link: "https://myanimelist.net/anime/1/x",
@@ -82,7 +95,7 @@ const ENTRY = {
 };
 
 describe("Hentai detail page", () => {
-  it("draws the entry with its own fields and no episode counter", async () => {
+  it("draws the entry with its own fields and its episode counter", async () => {
     mockFetch(ENTRY);
     mount(ENTRY);
     await screen.findByRole("heading", { name: "中文名" });
@@ -92,13 +105,61 @@ describe("Hentai detail page", () => {
     expect(screen.getByText("Plot A")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Usefulness" })).toHaveValue("實用");
     expect(screen.getByRole("combobox", { name: "Watching status" })).toHaveValue("Completed");
-    // One entry is one episode: nothing to count.
-    expect(screen.queryByRole("spinbutton")).toBeNull();
-    expect(screen.queryByText(/episodes/i)).toBeNull();
+    // Cartoon's stepper, ep_fin of ep_total, read-only for a non-admin.
+    const counter = screen.getByRole("spinbutton", { name: "Episodes finished" });
+    expect(counter).toHaveValue(1);
+    expect(counter).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next episode" })).toBeDisabled();
+    // And the total in the Information card.
+    expect(screen.getByText("Episodes")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /anidb/i })).toHaveAttribute(
       "href",
       "https://anidb.net/anime/1",
     );
+  });
+
+  it("steps the episode counter with a PATCH of ep_fin", async () => {
+    const watching = { ...ENTRY, watching_status: "Active Watching", ep_total: 3, ep_fin: 1 };
+    mockFetch(watching, [], {
+      admin: true,
+      patched: (payload) => ({ ...watching, ...payload }),
+    });
+    mount(watching);
+    const user = userEvent.setup();
+    const next = await screen.findByRole("button", { name: "Next episode" });
+    await waitFor(() => expect(next).toBeEnabled());
+    await user.click(next);
+    const patch = fetch.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(String(patch[0])).toContain("/api/hentai/h1");
+    expect(JSON.parse(patch[1].body)).toEqual({ ep_fin: 2 });
+    await screen.findByText("Episode progress saved");
+    expect(screen.getByRole("spinbutton", { name: "Episodes finished" })).toHaveValue(2);
+  });
+
+  it("says Completed when a step reaches the total", async () => {
+    const watching = { ...ENTRY, watching_status: "Active Watching", ep_total: 2, ep_fin: 1 };
+    mockFetch(watching, [], {
+      admin: true,
+      // The server finishes the entry when the counter reaches its total.
+      patched: (payload) => ({ ...watching, ...payload, watching_status: "Completed" }),
+    });
+    mount(watching);
+    const user = userEvent.setup();
+    const next = await screen.findByRole("button", { name: "Next episode" });
+    await waitFor(() => expect(next).toBeEnabled());
+    await user.click(next);
+    await screen.findByText("Marked as Completed!");
+  });
+
+  it("never steps past the total", async () => {
+    const done = { ...ENTRY, ep_total: 2, ep_fin: 2 };
+    mockFetch(done, [], { admin: true });
+    mount(done);
+    const user = userEvent.setup();
+    const next = await screen.findByRole("button", { name: "Next episode" });
+    await waitFor(() => expect(next).toBeEnabled());
+    await user.click(next);
+    expect(fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   });
 
   it("draws the shared notes page", async () => {

@@ -13,35 +13,20 @@ export const SELECT_CLS =
 export const STEP_INPUT_CLS =
   "font-mono text-text text-sm w-12 text-right bg-surface border border-border-strong px-1 py-1 focus:outline-none focus:ring-2 focus:ring-brand appearance-none disabled:opacity-60";
 
-export default function MyTrackerCard({
+/**
+ * The episode stepper: − / input / + around `epFin` of `epTotal`, clamped to
+ * the total. Exported for a tracker that lays out its own fields (hentai's)
+ * but steps episodes exactly as this card does.
+ */
+export function EpisodeStepper({
   epFin,
   epTotal,
+  isAdmin,
+  onEpChange,
   hasCum,
   cumFin,
   cumTotal,
-  watchingStatus,
-  myRating,
-  watchNext,
-  toRewatch,
-  isAdmin,
-  onEpChange,
-  onStatusChange,
-  onRatingChange,
-  onWatchNextChange,
-  onToRewatchChange,
-  statusOptions,
-  ratingOptions,
-  statusLabel = "Watching status",
-  rewatchLabel = "To rewatch",
 }) {
-  // A guest has no tracker. The card is titled "My tracker" and every field in
-  // it is one person's - status, rating, progress - so with nobody signed in
-  // there is no "my" and the card does not belong on the page at all. Guarded
-  // here rather than at each of the nine detail pages, so a tenth media type
-  // cannot forget it.
-  const { username } = useAuth();
-  if (!username) return null;
-
   function stepEp(delta) {
     if (!isAdmin) return;
     const cur = epFin || 0;
@@ -61,7 +46,7 @@ export default function MyTrackerCard({
     onEpChange(Math.max(0, v));
   }
 
-  const stepper = (
+  return (
     <div className="flex items-center gap-1.5">
       {hasCum && (
         <Chip tone="muted" title="Cumulative episodes" className="mr-1">
@@ -99,6 +84,48 @@ export default function MyTrackerCard({
         +
       </Button>
     </div>
+  );
+}
+
+export default function MyTrackerCard({
+  epFin,
+  epTotal,
+  hasCum,
+  cumFin,
+  cumTotal,
+  watchingStatus,
+  myRating,
+  watchNext,
+  toRewatch,
+  isAdmin,
+  onEpChange,
+  onStatusChange,
+  onRatingChange,
+  onWatchNextChange,
+  onToRewatchChange,
+  statusOptions,
+  ratingOptions,
+  statusLabel = "Watching status",
+  rewatchLabel = "To rewatch",
+}) {
+  // A guest has no tracker. The card is titled "My tracker" and every field in
+  // it is one person's - status, rating, progress - so with nobody signed in
+  // there is no "my" and the card does not belong on the page at all. Guarded
+  // here rather than at each of the nine detail pages, so a tenth media type
+  // cannot forget it.
+  const { username } = useAuth();
+  if (!username) return null;
+
+  const stepper = (
+    <EpisodeStepper
+      epFin={epFin}
+      epTotal={epTotal}
+      isAdmin={isAdmin}
+      onEpChange={onEpChange}
+      hasCum={hasCum}
+      cumFin={cumFin}
+      cumTotal={cumTotal}
+    />
   );
 
   // Not every media type counts something off. A game has no episode, issue

@@ -79,10 +79,11 @@ PERSON_FIELDS_TO_FILL = [
     "photo_file",
 ]
 
-# What Tenrai fills on a hentai - the owner's three, and nothing else.
+# What Tenrai (and then AniDB) fills on a hentai, and nothing else.
 HENTAI_FIELDS_TO_FILL = [
     "airing_status",
     "release_date",
+    "ep_total",
     "cover_image_file",
 ]
 
