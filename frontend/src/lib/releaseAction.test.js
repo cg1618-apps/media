@@ -21,6 +21,37 @@ describe("releaseAction", () => {
       },
     );
 
+    it.each(["anime", "tv-show", "cartoon", "hentai"])(
+      "%s: Mark airing moves Watch When Airs to Active Watching",
+      (type) => {
+        const a = releaseAction(type, {
+          airing_status: "Not Yet Aired",
+          watching_status: "Watch When Airs",
+        });
+        expect(a.payload).toEqual({
+          airing_status: "Airing",
+          watching_status: "Active Watching",
+        });
+        expect(a.toast).toBe("Marked as airing · Active Watching");
+      },
+    );
+
+    it("leaves any other watching status alone on Mark airing", () => {
+      const a = releaseAction("anime", {
+        airing_status: "Not Yet Aired",
+        watching_status: "Plan to Watch",
+      });
+      expect(a.payload).toEqual({ airing_status: "Airing" });
+    });
+
+    it("leaves Watch When Airs alone on the finishing step", () => {
+      const a = releaseAction("anime", {
+        airing_status: "Airing",
+        watching_status: "Watch When Airs",
+      });
+      expect(a.payload).toEqual({ airing_status: "Finished Airing" });
+    });
+
     it("treats Rumored as not yet aired", () => {
       expect(releaseAction("anime", { airing_status: "Rumored" }).label).toBe(
         "Mark airing",

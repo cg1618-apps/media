@@ -836,6 +836,9 @@ Top to bottom:
    `broadcast_time` and `my_watch_day`. Every field is optional; confirming
    writes the status plus only what was filled in, Cancel writes nothing, and
    with nothing missing the button writes at once.
+   **Mark airing** also sets `watching_status` from `Watch When Airs` to
+   `Active Watching` in the same write, as the future-release card's bolt
+   does; any other watching status is left alone.
    **Autofill & Update** → `POST /api/data-control/replace/{type}/{id}`
    with a spinner. On Game and H-Game it runs both sources: IGDB, fill-only
    (release date, times, credits, tags, cover, the Steam pair when the entry
