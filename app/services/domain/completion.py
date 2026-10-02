@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def mark_tv_catalog(entry) -> None:
-    """The catalogue half of finishing an anime, TV show or cartoon: the work
+    """The catalogue half of finishing an anime, TV show, cartoon or hentai: the work
     has finished airing. Nothing here is one person's opinion."""
     entry.airing_status = "Finished Airing"
 

@@ -1059,9 +1059,9 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "24 hours)"
         ),
         note=(
-            "The same Tenrai anime record as Anime, read for three fields and "
+            "The same Tenrai anime record as Anime, read for four fields and "
             "the two reference links, then AniDB - keyed on anidb_id, from "
-            "anidb_link - for whichever of the three MAL left blank. Both are "
+            "anidb_link - for whichever of the four MAL left blank. Both are "
             "fill-only, so MAL's value wins wherever both have one; AniDB "
             "covers the OVAs MAL does not list. An entry with only an AniDB "
             "link is filled while AniDB is enabled. "
@@ -1079,14 +1079,16 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "fill-only",
                         "precision taken from MAL's own aired string, never padded",
                     ),
+                    Write("ep_total", "column", "fill-only"),
                     Write("cover_image_file", "image", "if-empty"),
                     *_TENRAI_LINKS,
                     Write(
                         "mal_rating",
                         "none",
                         "never",
-                        "hentai takes airing status, release date, cover and "
-                        "the two reference links from Tenrai and nothing else",
+                        "hentai takes airing status, release date, episode "
+                        "count, cover and the two reference links from Tenrai "
+                        "and nothing else",
                     ),
                     Write(
                         "studio",
@@ -1107,6 +1109,12 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "AniDB publishes no status",
                     ),
                     Write("release_date", "column", "fill-only", "startdate"),
+                    Write(
+                        "ep_total",
+                        "column",
+                        "fill-only",
+                        "episodecount; 0, AniDB's unknown, is never written",
+                    ),
                     Write(
                         "cover_image_file",
                         "image",

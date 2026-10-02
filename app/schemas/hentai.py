@@ -34,6 +34,8 @@ class HentaiBase(BaseModel):
     airing_status: Optional[str] = None
     release_date: Optional[str] = None
 
+    ep_total: Optional[int] = None
+
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
     # Derived from anidb_link by the write hook, as mal_id is from mal_link.
@@ -43,6 +45,7 @@ class HentaiBase(BaseModel):
     # Personal - split off onto user_media_list by the router.
     watching_status: str = "Might Watch"
     my_rating: Optional[str] = None
+    ep_fin: Optional[int] = 0
     usefulness: Optional[str] = None
     completed_at: Optional[datetime] = None
 

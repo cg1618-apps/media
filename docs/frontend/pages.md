@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-01
+Last verified: 2026-10-02
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -360,11 +360,12 @@ chapters on KR). The h-game config is Game's without playtime or Metacritic:
 it filters by type, play status, play style, language, platform (an entry
 matches when its list holds a chosen value), ownership, release status and
 usefulness, and its columns add style, language and achievements. The
-hentai config has no progress column - one entry is one episode: it filters
-by watch status, airing status, source material, originality and usefulness,
-sorts by title, release date and my rating, and its columns are franchise,
-title, source, airing status, usefulness, my rating, the watch button and
-the watch-next / to-rewatch flags. All three also sort by usefulness
+hentai config filters by watch status, airing status, source material,
+originality and usefulness, sorts by title, release date and my rating, and
+its columns are franchise, title, source, airing status, cartoon's EP column
+(`ep_fin / ep_total`), usefulness, my rating, the watch button and the
+watch-next / to-rewatch flags; its library card counts episodes as a
+cartoon's does (`MediaCard`'s `ProgressDisplay`). All three also sort by usefulness
 (`usefulnessSort`), in the vocabulary's order - 非常實用, 實用, 特定情況實用,
 不實用 - with an unset value last; no other library offers it. `Library.jsx` looks up `LIBRARY_CONFIGS[type]`,
 runs `useMediaList(type, LIST_OPTIONS)`, `useMediaList("franchise")` and
@@ -835,6 +836,9 @@ Top to bottom:
    `broadcast_time` and `my_watch_day`. Every field is optional; confirming
    writes the status plus only what was filled in, Cancel writes nothing, and
    with nothing missing the button writes at once.
+   **Mark airing** also sets `watching_status` from `Watch When Airs` to
+   `Active Watching` in the same write, as the future-release card's bolt
+   does; any other watching status is left alone.
    **Autofill & Update** → `POST /api/data-control/replace/{type}/{id}`
    with a spinner. On Game and H-Game it runs both sources: IGDB, fill-only
    (release date, times, credits, tags, cover, the Steam pair when the entry
@@ -989,11 +993,13 @@ take free text with no suggestions
 ([systems/notes.md](../systems/notes.md#h-game-highlights-h_game_highlights)).
 
 **Hentai** (`pages/detail/Hentai.jsx`) is the third gated type's page, routed
-the same way. One entry is one episode, so it is laid out like Movie, with no
-episode counter: a local `HentaiTrackerBlock` (watching status, rating,
-**usefulness**, Watch next, To rewatch), `CommunityCard`, `NamingCard`, and
-three cards - **Information** (Source Material, Originality, Airing Status,
-Release Date), **Credits** (Studio via `studioValue`, Director) and
+the same way. It is tracked like Cartoon: a local `HentaiTrackerBlock`
+(watching status, rating, **usefulness**, Watch next, To rewatch) whose slip
+carries `MyTrackerCard`'s `EpisodeStepper` in its actions slot - `ep_fin` of
+`ep_total`, `PATCH { ep_fin }`, and `progressToast`'s "Marked as Completed!"
+when a step reaches the total and the server finishes the entry - then
+`CommunityCard`, `NamingCard`, and three cards - **Information** (Source
+Material, Originality, Airing Status, Release Date, Episodes), **Credits** (Studio via `studioValue`, Director) and
 **Genres** (Genre Plot / Appearance / Relation), with a **Cast** slip between
 Credits and Genres - the shared `CastSection`, characters with "voiced by"
 every seiyuu, from `useCasting("hentai", …)`, drawn only when the entry has a
@@ -1002,7 +1008,8 @@ the source material; the series number sits beside the series link. The left
 column carries `SourcesCard` with `malLink` and `anidbLink` and `RelationsSection`. The admin
 toolbar has Quick edit, Mark completed and **Autofill & update**, the
 single-entry Tenrai and AniDB fetch (`replaceSingle("hentai")`: airing
-status, release date, cover and the Official site / Twitter reference rows,
+status, release date, episode count, cover and the Official site / Twitter
+reference rows,
 each only where blank, AniDB only for what MAL left blank). A Remarks slip appears only when a
 remark exists, and `HentaiNotes.jsx` is the plain wrapper - the type has no
 notes section of its own - with the `remark` section hidden exactly then.

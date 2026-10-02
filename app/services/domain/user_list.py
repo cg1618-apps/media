@@ -62,8 +62,9 @@ DEFAULT_STATUS: dict[str, str] = {
 # chapters" and "never opened it" are the same thing today; inventing a
 # distinction here would be a data change dressed up as a move.
 #
-# anime/tv_shows/cartoons `ep_fin` is deliberately absent: it was nullable on
-# those tables, so None is a value it always could have had.
+# `ep_fin` is deliberately absent: it was nullable on the anime, tv_shows and
+# cartoons tables, so None is a value it always could have had - and hentai
+# reads it the same way.
 LIST_FIELD_DEFAULTS: dict[str, int] = {
     "vol_fin": 0,
     "vol_fin_page": 0,
@@ -99,9 +100,11 @@ LIST_FIELDS: dict[str, tuple[str, ...]] = {
         "reading_status", "my_rating", "page_fin", "ch_fin", "usefulness",
         "completed_at",
     ),
-    # One entry is one episode, so there is no counter. usefulness is
-    # h-comic's column and vocabulary.
-    "hentai": ("watching_status", "my_rating", "usefulness", "completed_at"),
+    # Cartoon's episode counter. usefulness is h-comic's column and
+    # vocabulary.
+    "hentai": (
+        "watching_status", "my_rating", "ep_fin", "usefulness", "completed_at",
+    ),
     # Game's, plus the usefulness h-comic introduced. No progress counter.
     "h-game": ("playing_status", "my_rating", "completed_at", "usefulness"),
 }

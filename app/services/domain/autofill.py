@@ -230,10 +230,11 @@ def autofill_hentai_from_mal(hentai, db: Session = None) -> None:
     Fetches Tenrai data for a single hentai entry. Does not commit - caller is
     responsible.
 
-    airing_status, release_date, the cover, and the Official site and
-    Twitter reference rows - each under anime's rule: the two columns and the
-    two rows are fill-only, the cover is downloaded only when the entry has
-    none. Tenrai serves Rx titles through the same anime endpoint and mapper.
+    airing_status, release_date, ep_total, the cover, and the Official site
+    and Twitter reference rows - each under anime's rule: the three columns
+    and the two rows are fill-only, the cover is downloaded only when the
+    entry has none. Tenrai serves Rx titles through the same anime endpoint
+    and mapper, whose `ep_total` is MAL's episode count.
     """
     mal_id = hentai.mal_id
     if not mal_id:
@@ -250,6 +251,8 @@ def autofill_hentai_from_mal(hentai, db: Session = None) -> None:
             hentai.airing_status = j_data.get("airing_status")
         if hentai.release_date is None:
             hentai.release_date = j_data.get("release_date")
+        if hentai.ep_total is None:
+            hentai.ep_total = j_data.get("ep_total")
         _write_tenrai_reference_rows(db, "hentai", hentai, j_data)
 
         if (
@@ -279,10 +282,11 @@ def autofill_hentai_from_anidb(hentai, db: Session = None) -> None:
     Runs after autofill_hentai_from_mal and is fill-only throughout, so MAL's
     values - its cover above all - win whenever both have one. Writes the
     release date (`startdate`), the airing status (derived from the dates),
-    the cover (`picture`) and the Official site reference row (`url`). Never
-    the names: they are the entry's identity.
+    the episode count (`episodecount`), the cover (`picture`) and the
+    Official site reference row (`url`). Never the names: they are the
+    entry's identity.
 
-    Spends no request when the three columns are already filled, and none
+    Spends no request when the four columns are already filled, and none
     when AniDB is disabled or halted (app/services/integrations/anidb.py).
     """
     anidb_id = hentai.anidb_id
@@ -291,7 +295,12 @@ def autofill_hentai_from_anidb(hentai, db: Session = None) -> None:
     needs_cover = cover_needs_download(
         hentai.cover_image_file, "hentai", str(hentai.system_id)
     )
-    if hentai.airing_status and hentai.release_date and not needs_cover:
+    if (
+        hentai.airing_status
+        and hentai.release_date
+        and hentai.ep_total is not None
+        and not needs_cover
+    ):
         return
 
     try:
@@ -305,6 +314,8 @@ def autofill_hentai_from_anidb(hentai, db: Session = None) -> None:
             hentai.airing_status = a_data["airing_status"]
         if not hentai.release_date and a_data.get("release_date"):
             hentai.release_date = a_data["release_date"]
+        if hentai.ep_total is None and a_data.get("ep_total"):
+            hentai.ep_total = a_data["ep_total"]
         if db is not None:
             from app.services.domain.sources import upsert_main_source
             from app.utils.source_fields import OFFICIAL_SITE_VALUE

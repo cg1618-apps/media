@@ -281,7 +281,7 @@ def test_a_catalogue_editor_who_cannot_see_hentai_is_not_told_it_exists(
 
 
 def test_unrestricted_is_told_about_hentai_and_its_tenrai_writes(admin_client):
-    """The mirror, and what the row says: three fill-only fields and the two
+    """The mirror, and what the row says: four fill-only fields and the two
     reference links from Tenrai."""
     body = admin_client.get("/api/constants/external-apis").json()
     hentai = next(e for e in body["media"] if e["key"] == "hentai")
@@ -290,6 +290,7 @@ def test_unrestricted_is_told_about_hentai_and_its_tenrai_writes(admin_client):
     assert written == {
         "airing_status": "fill-only",
         "release_date": "fill-only",
+        "ep_total": "fill-only",
         "cover_image_file": "if-empty",
         "Official site": "if-absent",
         "Twitter": "if-absent",

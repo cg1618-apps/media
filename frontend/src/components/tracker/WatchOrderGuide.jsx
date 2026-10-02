@@ -26,8 +26,8 @@ const TYPE_LABELS = {
 };
 
 // Types a step always covers whole, so an admin is never offered a from/to.
-// A movie is one sitting, and so is a hentai (one entry is one episode);
-// manga and novels are stepped through as a unit here rather than by
+// A movie is one sitting; a hentai step names the entry, never a range of
+// its episodes; manga and novels are stepped through as a unit here rather than by
 // chapter; an h-game step names the work, never a range of it, as the
 // backend's watch-order resolver has it. Anything not listed - including a
 // null media_type - keeps the inputs, so an unrecognised type loses no

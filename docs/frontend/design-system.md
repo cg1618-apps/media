@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-10-01
+Last verified: 2026-10-02
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -127,7 +127,8 @@ Two of those flex rather than fork for a type that does not fit the shape:
   **only when the caller passes an `onEpChange`**. A game has no episode,
   issue or chapter to count off, so `Game.jsx` passes none and the card shows
   status, rating and the To Replay checkbox alone rather than an inert
-  `0 / undefined` counter.
+  `0 / undefined` counter. The stepper is exported as `EpisodeStepper`, which
+  `Hentai.jsx` puts in its own tracker slip's `actions` slot.
 - `SourcesCard`'s access heading is chosen by media type — "Where to Watch",
   "Where to Read", or **"Where to Play"** for a game — above a single
   "Where to Look Up" reference section that also renders the column-backed

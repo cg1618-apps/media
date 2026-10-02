@@ -15,6 +15,9 @@
 // release - the release date columns, and on anime the broadcast slot and my
 // watch day - but only the ones still empty, and every one is optional.
 // `releaseDetailFields` lists them; an empty list means no dialog.
+//
+// Mark airing also moves a `Watch When Airs` watching status to
+// `Active Watching`, in the same write.
 import { RELEASE_PRIORITY } from "./releaseDate";
 
 const AIR_PENDING = ["Not Yet Aired", "Rumored"];
@@ -27,12 +30,22 @@ function step(field, label, value, toast, ask = false) {
   return { label, payload: { [field]: value }, toast, ask };
 }
 
+// Marking an entry airing starts watching it when I was waiting for it to
+// air - the same move the future-release card's bolt makes (MediaCard).
+function markAiring(entry) {
+  const action = step("airing_status", "Mark airing", "Airing", "Marked as airing", true);
+  if (entry.watching_status !== "Watch When Airs") return action;
+  action.payload.watching_status = "Active Watching";
+  action.toast = "Marked as airing · Active Watching";
+  return action;
+}
+
 function airing(entry, { oneShot }) {
   const status = entry.airing_status;
   if (AIR_PENDING.includes(status)) {
     return oneShot
       ? step("airing_status", "Mark released", "Finished Airing", "Marked as released", true)
-      : step("airing_status", "Mark airing", "Airing", "Marked as airing", true);
+      : markAiring(entry);
   }
   if (status === "Airing" && !oneShot) {
     return step(

@@ -49,7 +49,7 @@ MEDIA_TYPE_MODELS = {
     "game": Game,
     # Whole-only, like game: a step names the work, never a range of it.
     "h-comic": HComic,
-    # Whole-only too: one entry is one episode.
+    # Whole-only too: a step names the entry, never a range of its episodes.
     "hentai": Hentai,
     # Whole-only, like game.
     "h-game": HGame,

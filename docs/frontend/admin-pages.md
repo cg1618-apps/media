@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-01
+Last verified: 2026-10-02
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -323,8 +323,9 @@ picker.
 
 **Hentai tab.** `HentaiAddTab.jsx`, gated like the H-Comic tab. It exports
 `HentaiLineageFields` and `HentaiFormBody`, which the Modify tab renders too,
-and it is simpler than h-comic's: no region and no progress - one entry is
-one episode. The form starts with the restricted source `Hanime1` (the
+and it is simpler than h-comic's: no region, and cartoon's episode pair for
+progress (**Total Episodes** and **Episodes Finished**, no previous or special
+count). The form starts with the restricted source `Hanime1` (the
 built-in pick), which the Sources editor also offers as a suggestion (and Modify through **Prefill
 suggested**) - `lib/restrictedSources.js`. Its **Cast** section is `CastEditor` with the seiyuu column, as
 on anime, saved through `PUT /api/casting/hentai/{id}` after the entry by both
@@ -334,7 +335,8 @@ franchise of the h-comic it adapts; a new franchise typed there is created as
 `Hentai` (`HENTAI_FRANCHISE_TYPE`). The body has the five names;
 classification (source material, originality, series number and the three H
 Genre fields); credits (**Studio** and **Director**); airing status and
-release date; watching status, rating and **usefulness**; the **MAL link** -
+release date; watching status, rating and **usefulness**; total and
+finished episodes; the **MAL link** -
 there is no MAL id input, since the write hook derives `mal_id` from the link
 and `hentaiFieldsPayload` sends an id only beside one; sources, Watch Next /
 To Rewatch, cover and remark. Submit needs a CN or EN name and a franchise,

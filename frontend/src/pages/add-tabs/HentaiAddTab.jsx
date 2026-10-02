@@ -4,9 +4,9 @@
 // way HComicAddTab's is: this file exports the field body and the lineage
 // pickers, and HentaiModifyTab renders them, so the two cannot drift.
 //
-// Simpler than h-comic's: no region and no progress - one entry is one
-// episode, so it is watched or it is not. The cast is anime's, seiyuu
-// included, since a hentai is voiced. The `hentai` content label is
+// Simpler than h-comic's: no region, and cartoon's episode pair for
+// progress - ep_total and ep_fin, no ep_previous or ep_special. The cast is
+// anime's, seiyuu included, since a hentai is voiced. The `hentai` content label is
 // the page's to lock on (ContentLabelPicker's `required`), not this form's.
 import CastEditor from "../../components/forms/CastEditor";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
@@ -165,10 +165,15 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
         {select("my_rating", "My Rating", MY_RATINGS)}
         {select("usefulness", "Usefulness", H_COMIC_USEFULNESS)}
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {text("ep_total", "Total Episodes", "2", "number")}
+        {text("ep_fin", "Episodes Finished", "0", "number")}
+      </div>
 
       {/* Neither id is typed in: the write hook derives each from its link.
-          Tenrai fills the airing status, release date and cover from the MAL
-          link where they are blank, then AniDB fills what MAL left blank. */}
+          Tenrai fills the airing status, release date, episode count and
+          cover from the MAL link where they are blank, then AniDB fills what
+          MAL left blank. */}
       <SectionHeader icon="fa-external-link-alt" title="Links" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {text("mal_link", "MAL Link", "https://myanimelist.net/anime/...", "url")}

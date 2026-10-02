@@ -301,3 +301,15 @@ describe("MediaCard - which outside score the card shows", () => {
     expect(screen.queryByText("7.9")).not.toBeInTheDocument();
   });
 });
+
+describe("MediaCard — hentai progress", () => {
+  it("counts episodes as a cartoon card does", async () => {
+    mockAuthFetch();
+    const { container } = mount(
+      { system_id: "h1", hentai_name_cn: "名", ep_fin: 1, ep_total: 2, watching_status: "Active Watching" },
+      "hentai",
+    );
+    await screen.findByText("名");
+    expect(container.textContent).toMatch(/1\s*\/\s*2\s*ep/i);
+  });
+});

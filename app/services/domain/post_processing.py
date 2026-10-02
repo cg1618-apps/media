@@ -113,15 +113,16 @@ def apply_single_replace_h_comic(db: Session, h_comic, bulk: bool = False) -> No
 
 def apply_single_replace_hentai(db: Session, hentai, bulk: bool = False) -> None:
     """
-    Core 'Replace' logic for a single hentai entry: Tenrai's three fields,
+    Core 'Replace' logic for a single hentai entry: Tenrai's fields,
     fill-only like anime's, then AniDB for whatever MAL left blank - fill-only
-    too, so Replace never overwrites from AniDB. No AniList, and nothing
-    derived afterwards. `bulk` is kept for signature parity with the other
-    media types.
+    too, so Replace never overwrites from AniDB - and last the ep_total clamp
+    cartoon runs. No AniList. `bulk` is kept for signature parity with the
+    other media types.
     """
     apply_extract_hentai_ids(hentai)
     autofill_hentai_from_mal(hentai, db=db)
     autofill_hentai_from_anidb(hentai, db=db)
+    apply_validate_episode_math(hentai)
 
 
 def apply_single_replace_movie(db: Session, movie: Movies, bulk: bool = False) -> None:

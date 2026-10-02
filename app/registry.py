@@ -114,7 +114,7 @@ class MediaTypeSpec:
     # (row, entry) -> (finished, total): the counter the tracker steps
     # through. A PATCH that carries it up to its total finishes the entry, as
     # though Mark completed had been pressed. None for a type with no counter
-    # (movies, games, hentai), which a PATCH never finishes.
+    # (movies, games, h-games), which a PATCH never finishes.
     progress_counter: Optional[Callable] = None
     write_hook: Optional[Callable] = None   # async (db, id_str, action_type, log_action), after commit
     pre_commit_hook: Optional[Callable] = None  # (db, entry) inside the create/update transaction
@@ -447,11 +447,13 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         search_fields=("hentai_name_cn", "hentai_name_en", "hentai_name_roman",
                        "hentai_name_jp", "hentai_name_alt"),
         resolve_hierarchy=resolve_hentai_parent_hierarchy,
-        # Movie's rule: one entry is one episode, and finishing it means it
-        # has aired.
-        mark_completed=mark_movie_catalog,
-        mark_completed_list=mark_movie_list,
-        # The Tenrai fetch (airing status, release date, cover; fill-only),
+        # Cartoon's rule: finishing it means it has aired and every episode
+        # there is was seen, and stepping ep_fin up to ep_total finishes it.
+        mark_completed=mark_tv_catalog,
+        mark_completed_list=mark_tv_list,
+        progress_counter=episode_counter,
+        # The Tenrai fetch (airing status, release date, episode count, cover;
+        # fill-only),
         # then the hentai and gated-label syncs - the net under the hook below.
         write_hook=execute_replace_single_hentai,
         nested_collections={"sources": media_sources_writer("hentai")},
