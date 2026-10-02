@@ -139,6 +139,30 @@ Two of those flex rather than fork for a type that does not fit the shape:
   favicons are dark-on-transparent and would vanish in dark mode. Other and
   Restricted rows have no icon, only the empty slot.
 
+## Reordering a list
+
+Every reorderable list in the app reorders the same way: by **drag**, with a
+grip (`fa-grip-vertical`, `text-text-faint/60`, `cursor-grab`) at the left of
+each row. There are no up/down chevron buttons anywhere. The grip is
+`DragHandle` from `components/ui/Sortable.jsx` (see
+[components.md](components.md)); a surface that is not one flat list - the
+Resources tree, the watch-order editor - draws its own grip with the same look,
+the same `Reorder <name>` label and the same keys.
+
+- **Only the grip picks a row up**, so the inputs inside the row stay usable,
+  and a press has to travel 4 px before it is a drag, so a click does nothing.
+  A row with no inputs of its own (the Fav 3x3 ranked list) is dragged by the
+  whole row.
+- **The keyboard path is the grip.** Focus it and ArrowUp / ArrowDown move the
+  row one place; focus follows the row, so a held key keeps moving it.
+- **The page scrolls under the wheel mid-drag.** That is why it is dnd-kit's
+  pointer drag and not native HTML5 drag, which swallows the mouse wheel on
+  Windows - see [decisions](../notes/decisions.md), "Every list reorders by
+  dnd-kit drag".
+- **A move that saves immediately freezes the grips until it settles**, and
+  shows the new order at once; a list held in a form draft (cast, units,
+  copies, club members) saves with the form instead.
+
 ## Page anatomy
 
 Detail page (`pages/detail/*.jsx`):

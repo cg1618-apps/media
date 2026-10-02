@@ -375,6 +375,40 @@ def test_reorder_rewrites_sort_index(super_client, db_session, sample_anime, sup
     assert [n["content"] for n in got] == ["第三", "第一", "第二"]
 
 
+def test_reorder_rejects_a_repeated_id(super_client, db_session, sample_anime, super_user):
+    # The repeated payload names the same SET as the section, so a set
+    # comparison alone lets it through; only the duplicate check refuses it.
+    ids = []
+    for i, text in enumerate(("第一", "第二", "第三")):
+        n = models.Note(
+            author_id=super_user.id,
+            system_id=uuid.uuid4(),
+            media_id=sample_anime.system_id,
+            section="advantages",
+            content=text,
+            sort_index=float(i),
+        )
+        db_session.add(n)
+        ids.append(str(n.system_id))
+    db_session.flush()
+
+    r = super_client.patch(
+        "/api/notes/reorder",
+        json={
+            "owner_type": "anime",
+            "owner_id": str(sample_anime.system_id),
+            "section": "advantages",
+            "ordered_ids": [ids[2], ids[0], ids[2], ids[1]],
+        },
+    )
+    assert r.status_code == 400
+    got = super_client.get(
+        "/api/notes",
+        params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
+    ).json()
+    assert [n["content"] for n in got] == ["第一", "第二", "第三"]
+
+
 def test_reorder_rejects_ids_from_another_section(super_client, sample_anime, anime_note):
     r = super_client.patch(
         "/api/notes/reorder",

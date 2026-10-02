@@ -347,7 +347,7 @@ the picker.
 
 **Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
 owned or wanted (storefront, ownership, format, acquisition, price paid +
-currency, acquired date, remark), with move-up/down and remove. It is fully
+currency, acquired date, remark), with a drag grip (`components/ui/Sortable.jsx`; ArrowUp / ArrowDown on it moves a row one place) and remove. It is fully
 controlled on the `NovelUnitsEditor` contract: no internal state, the parent
 owns `items`, the array handed in is never mutated, and every change goes out
 through `onChange` with `position` renumbered 1..n. `acquired_date` is free text,
@@ -517,6 +517,11 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
 h-game - each stored as a `type_slots` map on the row it
 holds — a franchise, a series or an entry; see
 [pages.md](pages.md#statistics--statistics--completions--completions)).
+Beside each grid a ranked list of its nine slots reorders it: a row dragged
+onto another slot **swaps** the two (`swapSlots`; nothing else moves, and an
+empty slot simply takes the row), ArrowUp / ArrowDown on a focused row swaps
+it with its neighbour, and each grid has its own drag context, so a row can
+only land in its own grid. The swap is a draft until **Save Grid**.
 
 - **Data loading** is `hooks/useEntryLists.js`, as on `/add`: collections,
   franchises and series eagerly, the media lists per tab. The three

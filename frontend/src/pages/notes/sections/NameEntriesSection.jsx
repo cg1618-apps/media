@@ -9,6 +9,12 @@
 import { useState } from "react";
 
 import {
+  DragHandle,
+  SortableItem,
+  SortableList,
+  arrayMove,
+} from "../../../components/ui/Sortable";
+import {
   EmptyHint,
   ItemActions,
   LinkPill,
@@ -56,99 +62,79 @@ function EntriesEditor({ entries, onChange }) {
   const list = entries?.length ? entries : [emptyItem()];
   const setItem = (i, patch) =>
     onChange(list.map((e, j) => (j === i ? { ...e, ...patch } : e)));
-  const move = (i, delta) => {
-    const j = i + delta;
-    if (j < 0 || j >= list.length) return;
-    const next = [...list];
-    [next[i], next[j]] = [next[j], next[i]];
-    onChange(next);
-  };
+  // An item has no id of its own - it is a JSON element of the note's
+  // `entries` column - so the drag handle identifies it by its index.
+  const ids = list.map((_, i) => `entry-${i}`);
+  const move = (from, to) => onChange(arrayMove(list, from, to));
 
   return (
     <div className="space-y-1.5">
-      {list.map((item, i) => (
-        <div key={i} className="flex gap-1 items-start">
-          <div className="flex flex-col shrink-0 pt-1.5">
-            <button
-              type="button"
-              disabled={i === 0}
-              onClick={() => move(i, -1)}
-              aria-label="Move entry up"
-              className="text-text-faint/60 hover:text-text-faint disabled:opacity-20 leading-none px-0.5"
-            >
-              <i className="fas fa-chevron-up text-[9px]" />
-            </button>
-            <button
-              type="button"
-              disabled={i === list.length - 1}
-              onClick={() => move(i, 1)}
-              aria-label="Move entry down"
-              className="text-text-faint/60 hover:text-text-faint disabled:opacity-20 leading-none px-0.5"
-            >
-              <i className="fas fa-chevron-down text-[9px]" />
-            </button>
-          </div>
+      <SortableList ids={ids} onMove={move}>
+        {list.map((item, i) => (
+          <SortableItem key={ids[i]} id={ids[i]} className="flex gap-1 items-start">
+            <DragHandle label={`entry ${i + 1}`} className="pt-1.5" />
 
-          {/* The per-item toggle. Switching to text drops the label, which
-              only a link can carry, so a hidden value cannot ride along. */}
-          <select
-            value={item.type}
-            aria-label={`Entry ${i + 1} type`}
-            onChange={(e) =>
-              setItem(i, {
-                type: e.target.value,
-                ...(e.target.value === "link" ? {} : { label: "" }),
-              })
-            }
-            className={selectCls}
-          >
-            <option value="text">Note</option>
-            <option value="link">Link</option>
-          </select>
+            {/* The per-item toggle. Switching to text drops the label, which
+                only a link can carry, so a hidden value cannot ride along. */}
+            <select
+              value={item.type}
+              aria-label={`Entry ${i + 1} type`}
+              onChange={(e) =>
+                setItem(i, {
+                  type: e.target.value,
+                  ...(e.target.value === "link" ? {} : { label: "" }),
+                })
+              }
+              className={selectCls}
+            >
+              <option value="text">Note</option>
+              <option value="link">Link</option>
+            </select>
 
-          <div className="flex-1 min-w-0 space-y-1">
-            {item.type === "link" ? (
-              <>
-                <input
+            <div className="flex-1 min-w-0 space-y-1">
+              {item.type === "link" ? (
+                <>
+                  <input
+                    value={item.value}
+                    onChange={(e) => setItem(i, { value: e.target.value })}
+                    placeholder="https://..."
+                    aria-label={`Entry ${i + 1} URL`}
+                    className={inputCls}
+                  />
+                  <input
+                    value={item.label}
+                    onChange={(e) => setItem(i, { label: e.target.value })}
+                    placeholder="Label (optional)"
+                    aria-label={`Entry ${i + 1} label`}
+                    className={inputCls}
+                  />
+                </>
+              ) : (
+                <textarea
                   value={item.value}
                   onChange={(e) => setItem(i, { value: e.target.value })}
-                  placeholder="https://..."
-                  aria-label={`Entry ${i + 1} URL`}
+                  placeholder="Note…"
+                  aria-label={`Entry ${i + 1} text`}
+                  rows={2}
                   className={inputCls}
                 />
-                <input
-                  value={item.label}
-                  onChange={(e) => setItem(i, { label: e.target.value })}
-                  placeholder="Label (optional)"
-                  aria-label={`Entry ${i + 1} label`}
-                  className={inputCls}
-                />
-              </>
-            ) : (
-              <textarea
-                value={item.value}
-                onChange={(e) => setItem(i, { value: e.target.value })}
-                placeholder="Note…"
-                aria-label={`Entry ${i + 1} text`}
-                rows={2}
-                className={inputCls}
-              />
-            )}
-          </div>
+              )}
+            </div>
 
-          {list.length > 1 && (
-            <button
-              type="button"
-              onClick={() => onChange(list.filter((_, j) => j !== i))}
-              aria-label="Remove entry"
-              title="Remove entry"
-              className="text-text-faint hover:text-danger px-1 pt-1.5 shrink-0"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-      ))}
+            {list.length > 1 && (
+              <button
+                type="button"
+                onClick={() => onChange(list.filter((_, j) => j !== i))}
+                aria-label="Remove entry"
+                title="Remove entry"
+                className="text-text-faint hover:text-danger px-1 pt-1.5 shrink-0"
+              >
+                <i className="fas fa-times text-xs"></i>
+              </button>
+            )}
+          </SortableItem>
+        ))}
+      </SortableList>
       <button
         type="button"
         onClick={() => onChange([...list, emptyItem()])}

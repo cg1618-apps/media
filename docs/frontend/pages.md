@@ -653,7 +653,8 @@ card) is drawn only for a session that can see h-comic. A club - a person holdin
 shows its **Members** in the club's order (`GET /api/person/{id}/members`); an
 artist shows the **Clubs** they belong to (`.../clubs`, ordered by name). For
 an admin each list has an Edit button: remove, add from a search, and on the
-member list reorder with arrows; Save PUTs the whole list. The clubs editor is
+member list drag a member by its grip (or ArrowUp / ArrowDown on it) to
+reorder; the order is a draft until Save PUTs the whole list. The clubs editor is
 offered on anyone holding an `h-comic`-scoped role, so it does not appear on
 every director's page.
 
@@ -923,7 +924,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Status, Release Date | — | |
 | Cartoon | + Airing Type, Length Per Ep (min) | — | |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | |
-| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
+| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with drag-to-reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Main Line, Serialization/Reading Status, Release Year, Issue Total | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
 | Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Steam Progress Sync (the one flag left here: it governs whether Steam may write this entry's progress, so it is a fact about the source rather than an answer about a playthrough — playing status and the four completion axes are editable in the tracker and Completion blocks instead), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Info card's count is no longer their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
 
@@ -965,8 +966,9 @@ arrive the note reads "a linked hentai adaptation".
 Highlights section is dropped on a JP entry), the cast's names (suggested in
 the Highlights `names` inputs) and `highlight_group_order` with a callback that
 PATCHes it. Highlights read as one group per female character, a row naming
-two under both; dragging a group header - or its arrows - saves the whole new
-order, and the rows inside a group are not movable
+two under both; dragging a group by the grip on its header - or ArrowUp /
+ArrowDown on that grip - saves the whole new order, and the rows inside a
+group are not movable
 ([systems/notes.md](../systems/notes.md#h-comic-highlights-h_comic_highlights)).
 
 **H-Game** (`pages/detail/HGame.jsx`) is the second gated type's page, routed
@@ -1313,8 +1315,8 @@ that order and sorts nothing.
   [decisions](../notes/decisions.md), "A Resources item's body is Markdown".
 - **Editing** (`has("manage.catalog")` only; the server refuses writes from
   anyone else). **Add group** at the top; **Add item** / **Add subgroup** at
-  the foot of every group; each row's hover toolbar has move up/down arrows,
-  a **Move to…** list, **Edit** and **Delete**. Edit is inline: a group's
+  the foot of every group; every row has a grip on its left, and its hover
+  toolbar has a **Move to…** list, **Edit** and **Delete**. Edit is inline: a group's
   title, or an item's title and a Markdown textarea with a Write / Preview
   switch. Delete asks in `ConfirmModal`, and for a group says what goes with
   it ("3 items and 1 subgroup"). POST `/api/resources`, PATCH
@@ -1322,11 +1324,14 @@ that order and sorts nothing.
 - **Moving.** Every move is one PATCH `/api/resources/reorder` with
   `{parent_id, ordered_ids}` - the complete new child list of the parent the
   node lands in (the old parent's remaining children keep their order, so it
-  needs no request). The arrows swap a node with its neighbour. Rows and
-  group headers are draggable: dropping on a row takes that row's slot in its
-  parent, dropping on a group's body appends to that group, and while
+  needs no request). A node is dragged by its grip (dnd-kit pointer drag, so
+  the page keeps scrolling under the mouse wheel mid-drag): dropping on a row
+  takes that row's slot in its parent, dropping on a group's body appends to
+  that group, the innermost box under the pointer is the target, and while
   dragging a "Drop here to move it to the top level" strip appears at the
-  foot of the page. **Move to…** lists the top level and every group the node
+  foot of the page. ArrowUp / ArrowDown on a grip moves the node one place
+  among its siblings. Every move control is disabled while a write is in
+  flight. **Move to…** lists the top level and every group the node
   may enter. A group is never offered itself or any group inside it - the
   drop is refused (`canDropInto`) and the option is left out. A reorder is
   applied to the cache first and rolled back if the request fails; every

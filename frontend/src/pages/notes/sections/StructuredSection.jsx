@@ -27,6 +27,12 @@
 // None of them names a section: any section declaring them gets them.
 import { useState } from "react";
 
+import {
+  DragHandle,
+  SortableItem,
+  SortableList,
+  arrayMove,
+} from "../../../components/ui/Sortable";
 import NamesInput from "./NamesInput";
 import {
   groupNotes,
@@ -41,7 +47,6 @@ import {
   ItemActions,
   LinkPill,
   LinksEditor,
-  MoveButtons,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
@@ -137,17 +142,29 @@ const invalid = (section, val) => {
 // A repeatable row of sub-fields: a build's armour pieces, a team's members.
 // Held in form state and saved with the row, so it has no ids and no
 // endpoint of its own - it is one value of one field.
+//
+// Its rows are dragged into order like every other list, which needs an id
+// per row that follows the row as it moves - an index would hand the dragged
+// row's identity (and its focused handle) to whichever row lands in its place.
+// So the editor keeps a key per row beside the value, moved, removed and added
+// with it. The keys are the editor's own and are never saved.
+let listRowSeq = 0;
+const mintListKey = () => `list-row-${listRowSeq++}`;
+
 function ListEditor({ field, rows, onChange }) {
   const list = rows?.length ? rows : [];
+  const [keys, setKeys] = useState(() => list.map(mintListKey));
+  // A value that changed length from outside (not through this editor) gets
+  // keys for its new rows rather than a crash; the ones it kept stay put.
+  const ids = list.map((_, i) => keys[i] ?? `list-row-extra-${i}`);
+  const update = (nextRows, nextKeys) => {
+    setKeys(nextKeys);
+    onChange(nextRows);
+  };
   const setRow = (i, patch) =>
     onChange(list.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const move = (i, delta) => {
-    const j = i + delta;
-    if (j < 0 || j >= list.length) return;
-    const next = [...list];
-    [next[i], next[j]] = [next[j], next[i]];
-    onChange(next);
-  };
+  const move = (from, to) =>
+    update(arrayMove(list, from, to), arrayMove(ids, from, to));
   const blank = Object.fromEntries(field.item_fields.map((f) => [f.key, ""]));
 
   return (
@@ -155,45 +172,48 @@ function ListEditor({ field, rows, onChange }) {
       <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
         {field.label}
       </p>
-      {list.map((row, i) => (
-        <div key={i} className="flex gap-1 items-start">
-          <MoveButtons
-            label={`${field.label} row`}
-            atTop={i === 0}
-            atBottom={i === list.length - 1}
-            onUp={() => move(i, -1)}
-            onDown={() => move(i, 1)}
-          />
-          {/* A one-column list is a list of texts; half a row would clip it. */}
-          <div
-            className={`flex-1 min-w-0 grid gap-1 ${
-              field.item_fields.length > 1 ? "grid-cols-2" : "grid-cols-1"
-            }`}
-          >
-            {field.item_fields.map((item) => (
-              <ScalarInput
-                key={item.key}
-                field={item}
-                value={row[item.key] || ""}
-                onChange={(v) => setRow(i, { [item.key]: v })}
-                ariaLabel={`${field.label} row ${i + 1} ${item.label}`}
-              />
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => onChange(list.filter((_, j) => j !== i))}
-            aria-label={`Remove ${field.label} row`}
-            title="Remove"
-            className="text-text-faint hover:text-danger px-1 pt-1.5"
-          >
-            <i className="fas fa-times text-xs"></i>
-          </button>
-        </div>
-      ))}
+      <SortableList ids={ids} onMove={move}>
+        {list.map((row, i) => (
+          <SortableItem key={ids[i]} id={ids[i]} className="flex gap-1 items-start">
+            {list.length > 1 && (
+              <DragHandle label={`${field.label} row ${i + 1}`} className="pt-1.5" />
+            )}
+            {/* A one-column list is a list of texts; half a row would clip it. */}
+            <div
+              className={`flex-1 min-w-0 grid gap-1 ${
+                field.item_fields.length > 1 ? "grid-cols-2" : "grid-cols-1"
+              }`}
+            >
+              {field.item_fields.map((item) => (
+                <ScalarInput
+                  key={item.key}
+                  field={item}
+                  value={row[item.key] || ""}
+                  onChange={(v) => setRow(i, { [item.key]: v })}
+                  ariaLabel={`${field.label} row ${i + 1} ${item.label}`}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                update(
+                  list.filter((_, j) => j !== i),
+                  ids.filter((_, j) => j !== i),
+                )
+              }
+              aria-label={`Remove ${field.label} row`}
+              title="Remove"
+              className="text-text-faint hover:text-danger px-1 pt-1.5"
+            >
+              <i className="fas fa-times text-xs"></i>
+            </button>
+          </SortableItem>
+        ))}
+      </SortableList>
       <button
         type="button"
-        onClick={() => onChange([...list, blank])}
+        onClick={() => update([...list, blank], [...ids, mintListKey()])}
         className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
       >
         + Add {field.label.toLowerCase()}
@@ -530,11 +550,15 @@ function buildTree(notes, hierarchical) {
 
 // The rows of a `group_by` section, one group per name (groupedRows.js).
 //
-// A group header is what moves: dragged onto another header, or stepped with
-// its arrows, it saves the whole new order through `onGroupOrderChange`. The
-// rows inside a group have no handle - their order is sort_index, and it does
-// not matter. A row filed under two names is drawn under both, and editing it
-// opens the form only where the edit was started.
+// A group is what moves: dragged by the handle on its header (or stepped with
+// the arrow keys on it), it saves the whole new order through
+// `onGroupOrderChange`. The rows inside a group have no handle - their order
+// is sort_index, and it does not matter. A row filed under two names is drawn
+// under both, and editing it opens the form only where the edit was started.
+//
+// While a group order is being saved every group handle is disabled: the next
+// move would be built from the order still in flight. The new order shows at
+// once (`pending`), and a save that fails drops it again.
 //
 // The entry cap applies per GROUP, not per section: each group shows its first
 // VISIBLE_ENTRIES rows and folds the rest behind its own toggle, and every
@@ -544,8 +568,9 @@ function buildTree(notes, hierarchical) {
 //
 // Grouped by a `select` field instead (`groupBy` is `section.groupable_by`),
 // a row is in exactly one group and `onRowsReorder` is given: then the rows
-// get arrows too, and a group move and a row move both save the section's
-// whole row order in grouped order - which is what the groups' order is.
+// get handles too, a row moves only within its own group, and a group move
+// and a row move both save the section's whole row order in grouped order -
+// which is what the groups' order is. `busy` is that save being in flight.
 function GroupedRows({
   section,
   notes,
@@ -554,18 +579,18 @@ function GroupedRows({
   groupOrder,
   onGroupOrderChange,
   onRowsReorder,
+  busy = false,
   onUpdate,
   onDelete,
   nameSuggestions,
 }) {
   const [editKey, setEditKey] = useState(null);
   const [editVal, setEditVal] = useState({});
-  const [dragging, setDragging] = useState(null);
-  const [dropTarget, setDropTarget] = useState(null);
   // The order just saved, until the owner comes back with it. Keyed on the
   // order it was saved over, so a fresh `groupOrder` from the page wins
   // without an effect having to reset anything.
   const [pending, setPending] = useState(null);
+  const [savingOrder, setSavingOrder] = useState(false);
   // The groups unfolded past the cap, by name (the nameless group by a key no
   // name can take, since a name is trimmed text and never empty).
   const [unfolded, setUnfolded] = useState(() => new Set());
@@ -575,167 +600,167 @@ function GroupedRows({
   const groupField = section.fields.find((f) => f.key === groupBy);
   const column = groupField?.type === "select" ? groupField.column : null;
   const groups = groupNotes(notes, groupBy, order, column);
+  // The named groups come first and the nameless one, if any, last - so a
+  // named group's index here is its index in `groups` too.
   const named = groups.filter((g) => g.name !== null);
+  const unnamed = groups.filter((g) => g.name === null);
   const saveOrder = onRowsReorder || onGroupOrderChange;
   const canMove = isAdmin && Boolean(saveOrder) && named.length > 1;
+  const locked = busy || savingOrder;
   const noName = `No ${(groupField?.label || "name").toLowerCase()}`;
+
+  const unfold = (foldKey) =>
+    setUnfolded((prev) => new Set(prev).add(foldKey));
 
   const move = (from, to) => {
     if (from === to) return;
     const next = movedGroupOrder(groups, from, to);
     if (onRowsReorder) {
       const byName = new Map(groups.map((g) => [g.name, g]));
-      const unnamed = groups.filter((g) => g.name === null);
       onRowsReorder(groupedIds([...next.map((n) => byName.get(n)), ...unnamed]));
       return;
     }
     setPending({ base: groupOrder, order: next });
-    onGroupOrderChange(next);
+    // An owner whose save is asynchronous returns its promise, and the
+    // handles stay frozen until it settles. The owner reports its own
+    // failure; here a failure only means the order shown goes back to the
+    // owner's.
+    const saving = onGroupOrderChange(next);
+    if (typeof saving?.then !== "function") return;
+    setSavingOrder(true);
+    saving
+      .catch(() => setPending(null))
+      .finally(() => setSavingOrder(false));
   };
 
-  const moveRow = (gi, from, to) =>
+  const moveRow = (gi, from, to) => {
+    // A row moved past its group's cap would fold out of sight.
+    if (to >= VISIBLE_ENTRIES) unfold(groups[gi].name ?? "");
     onRowsReorder(groupedIds(movedRow(groups, gi, from, to)));
+  };
 
-  const endDrag = () => {
-    setDragging(null);
-    setDropTarget(null);
+  const renderGroup = (group, gi) => {
+    const movable = canMove && group.name !== null;
+    const foldKey = group.name ?? "";
+    const expanded = unfolded.has(foldKey);
+    const rows = capEntries(
+      group.notes,
+      expanded,
+      (n) => editKey === `${group.name}|${n.system_id}`,
+    );
+    const toggleFold = () =>
+      setUnfolded((prev) => {
+        const next = new Set(prev);
+        if (!next.delete(foldKey)) next.add(foldKey);
+        return next;
+      });
+    const rowsMove = isAdmin && Boolean(onRowsReorder) && group.notes.length > 1;
+
+    const renderRow = (n) => {
+      const key = `${group.name}|${n.system_id}`;
+      const Row = rowsMove ? SortableItem : "div";
+      const rowProps = rowsMove ? { id: n.system_id } : {};
+      if (editKey === key) {
+        return (
+          <Row key={key} {...rowProps}>
+            <StructuredForm
+              section={section}
+              val={editVal}
+              setVal={setEditVal}
+              nameSuggestions={nameSuggestions}
+            />
+            <SaveCancel
+              onSave={() => {
+                if (invalid(section, editVal)) return;
+                onUpdate(n.system_id, toPayload(section, editVal));
+                setEditKey(null);
+              }}
+              onCancel={() => setEditKey(null)}
+            />
+          </Row>
+        );
+      }
+      return (
+        <Row key={key} {...rowProps} className="flex gap-2 items-start">
+          {rowsMove && <DragHandle label={rowLabel(section, n)} className="pt-1" />}
+          <StructuredRow
+            section={section}
+            note={n}
+            isAdmin={isAdmin}
+            onUpdate={onUpdate}
+            groupName={group.name}
+            groupedBy={groupBy}
+          />
+          <ItemActions
+            isAdmin={isAdmin}
+            onEdit={() => {
+              setEditKey(key);
+              setEditVal(fromNote(section, n));
+            }}
+            onDelete={() => onDelete(n.system_id)}
+          />
+        </Row>
+      );
+    };
+
+    const body = (
+      <>
+        <div data-testid="group-header" className="flex items-center gap-2 mb-1.5">
+          {movable && <DragHandle label={`group ${group.name}`} />}
+          <h5 className="text-sm font-medium text-text">
+            {group.name ?? <span className="text-text-faint">{noName}</span>}
+          </h5>
+          <span className="font-mono text-[10px] text-text-faint tabular-nums">
+            {group.notes.length}
+          </span>
+          <span className="flex-1 border-t border-dotted border-border-strong/60" />
+        </div>
+        <div className="ml-3 pl-3 border-l border-border space-y-2">
+          {rowsMove ? (
+            // Every row of the group is in the list, folded or not, so a
+            // row's place is its place in the whole group and the last row
+            // shown can still be moved down past the fold.
+            <SortableList
+              ids={group.notes.map((n) => n.system_id)}
+              onMove={(from, to) => moveRow(gi, from, to)}
+              disabled={locked}
+            >
+              {rows.map(renderRow)}
+            </SortableList>
+          ) : (
+            rows.map(renderRow)
+          )}
+          <ShowAllToggle
+            total={group.notes.length}
+            expanded={expanded}
+            onToggle={toggleFold}
+          />
+        </div>
+      </>
+    );
+    const sectionProps = {
+      "aria-label": group.name ?? noName,
+      className: "border-t border-border pt-2 first:border-t-0 first:pt-0",
+    };
+    // Every named group is a sortable item, movable or not - the handle is
+    // what makes it draggable, and only a movable group draws one.
+    return group.name !== null ? (
+      <SortableItem key={group.name} id={group.name} as="section" {...sectionProps}>
+        {body}
+      </SortableItem>
+    ) : (
+      <section key="__unnamed__" {...sectionProps}>
+        {body}
+      </section>
+    );
   };
 
   return (
     <div className="space-y-3">
-      {groups.map((group, gi) => {
-        const movable = canMove && group.name !== null;
-        const foldKey = group.name ?? "";
-        const expanded = unfolded.has(foldKey);
-        const rows = capEntries(
-          group.notes,
-          expanded,
-          (n) => editKey === `${group.name}|${n.system_id}`,
-        );
-        const toggleFold = () =>
-          setUnfolded((prev) => {
-            const next = new Set(prev);
-            if (!next.delete(foldKey)) next.add(foldKey);
-            return next;
-          });
-        const dragProps = movable
-          ? {
-              draggable: true,
-              onDragStart: (e) => {
-                setDragging(gi);
-                e.dataTransfer?.setData?.("text/plain", group.name);
-              },
-              onDragOver: (e) => {
-                if (dragging === null) return;
-                e.preventDefault();
-                setDropTarget(gi);
-              },
-              onDragLeave: () => setDropTarget((t) => (t === gi ? null : t)),
-              onDrop: (e) => {
-                e.preventDefault();
-                if (dragging !== null) move(dragging, gi);
-                endDrag();
-              },
-              onDragEnd: endDrag,
-            }
-          : {};
-        return (
-          <section
-            key={group.name ?? "__unnamed__"}
-            aria-label={group.name ?? noName}
-            className="border-t border-border pt-2 first:border-t-0 first:pt-0"
-          >
-            <div
-              {...dragProps}
-              data-testid="group-header"
-              title={movable ? "Drag to reorder" : undefined}
-              className={`flex items-center gap-2 mb-1.5 ${
-                movable ? "cursor-grab active:cursor-grabbing" : ""
-              } ${
-                dropTarget === gi && dragging !== gi
-                  ? "outline outline-2 outline-brand"
-                  : ""
-              }`}
-            >
-              {movable && (
-                <MoveButtons
-                  label={`group ${group.name}`}
-                  atTop={gi === 0}
-                  atBottom={gi === named.length - 1}
-                  onUp={() => move(gi, gi - 1)}
-                  onDown={() => move(gi, gi + 1)}
-                />
-              )}
-              <h5 className="text-sm font-medium text-text">
-                {group.name ?? <span className="text-text-faint">{noName}</span>}
-              </h5>
-              <span className="font-mono text-[10px] text-text-faint tabular-nums">
-                {group.notes.length}
-              </span>
-              <span className="flex-1 border-t border-dotted border-border-strong/60" />
-            </div>
-            <div className="ml-3 pl-3 border-l border-border space-y-2">
-              {rows.map((n) => {
-                const key = `${group.name}|${n.system_id}`;
-                if (editKey === key) {
-                  return (
-                    <div key={key}>
-                      <StructuredForm
-                        section={section}
-                        val={editVal}
-                        setVal={setEditVal}
-                        nameSuggestions={nameSuggestions}
-                      />
-                      <SaveCancel
-                        onSave={() => {
-                          if (invalid(section, editVal)) return;
-                          onUpdate(n.system_id, toPayload(section, editVal));
-                          setEditKey(null);
-                        }}
-                        onCancel={() => setEditKey(null)}
-                      />
-                    </div>
-                  );
-                }
-                const ri = group.notes.indexOf(n);
-                return (
-                  <div key={key} className="flex gap-2 items-start">
-                    {isAdmin && onRowsReorder && group.notes.length > 1 && (
-                      <MoveButtons
-                        atTop={ri === 0}
-                        atBottom={ri === group.notes.length - 1}
-                        onUp={() => moveRow(gi, ri, ri - 1)}
-                        onDown={() => moveRow(gi, ri, ri + 1)}
-                      />
-                    )}
-                    <StructuredRow
-                      section={section}
-                      note={n}
-                      isAdmin={isAdmin}
-                      onUpdate={onUpdate}
-                      groupName={group.name}
-                      groupedBy={groupBy}
-                    />
-                    <ItemActions
-                      isAdmin={isAdmin}
-                      onEdit={() => {
-                        setEditKey(key);
-                        setEditVal(fromNote(section, n));
-                      }}
-                      onDelete={() => onDelete(n.system_id)}
-                    />
-                  </div>
-                );
-              })}
-              <ShowAllToggle
-                total={group.notes.length}
-                expanded={expanded}
-                onToggle={toggleFold}
-              />
-            </div>
-          </section>
-        );
-      })}
+      <SortableList ids={named.map((g) => g.name)} onMove={move} disabled={locked}>
+        {named.map(renderGroup)}
+      </SortableList>
+      {unnamed.map((g) => renderGroup(g, groups.length - 1))}
     </div>
   );
 }
@@ -776,6 +801,7 @@ export default function StructuredSection({
   nameSuggestions = [],
   groupOrder = null,
   onGroupOrderChange,
+  reordering = false,
 }) {
   // `null` means the draft is a root; an id means it is a child of that row.
   // `false` means no draft is open, which is why this is not a boolean.
@@ -823,10 +849,10 @@ export default function StructuredSection({
       (addingUnder && holds(node, addingUnder)),
   });
 
-  // A move swaps two SIBLINGS, and then the whole section is renumbered in
-  // tree order.
+  // A move reorders SIBLINGS only - a row never changes parent by being
+  // dragged - and then the whole section is renumbered in tree order.
   //
-  // Sending just the swapped pair's siblings would be the smaller payload and
+  // Sending just the moved row's siblings would be the smaller payload and
   // is refused: PATCH /api/notes/reorder takes ids naming exactly the section,
   // so a partial list is a loud 400 rather than a quiet partial renumber. That
   // is the right invariant to leave alone, and flattening depth-first is the
@@ -834,20 +860,17 @@ export default function StructuredSection({
   // page actually draws, so a reader of the raw rows sees the tree's order too.
   //
   // `parent` is the node whose children are being reordered, or null for the
-  // roots. The swapped array is substituted by identity while flattening,
+  // roots. The moved array is substituted by identity while flattening,
   // which is safe because these arrays are stable for the render.
-  const move = (parent, i, delta) => {
+  const move = (parent, from, to) => {
     const siblings = parent ? parent.children : tree;
-    const j = i + delta;
-    if (j < 0 || j >= siblings.length || !onReorder) return;
+    if (from === to || !onReorder) return;
     // A top-level row moved past the cap would fold out of sight.
-    if (!parent && j >= VISIBLE_ENTRIES) cap.expand();
+    if (!parent && to >= VISIBLE_ENTRIES) cap.expand();
 
-    const swapped = [...siblings];
-    [swapped[i], swapped[j]] = [swapped[j], swapped[i]];
-
+    const moved = arrayMove(siblings, from, to);
     const flatten = (nodes) =>
-      (nodes === siblings ? swapped : nodes).flatMap((node) => [
+      (nodes === siblings ? moved : nodes).flatMap((node) => [
         node.note.system_id,
         ...flatten(node.children),
       ]);
@@ -866,16 +889,24 @@ export default function StructuredSection({
     </div>
   );
 
-  // `i` is the row's place among ALL its siblings, not among the ones drawn,
-  // so the arrows and the move they make are right while the section is
-  // folded.
-  const renderNodes = (siblings, depth, parent = null) =>
-    (depth === 0 ? cap.visible : siblings).map((node) => {
-      const i = siblings.indexOf(node);
+  // One sortable list per set of siblings, holding ALL of them even while the
+  // top level is folded: a row's index is its place among every sibling, so
+  // the move it makes is right, and the last row shown can still be moved
+  // down past the fold (which unfolds the section). While a reorder of this
+  // section is being saved (`reordering`) every handle is disabled.
+  const renderNodes = (siblings, depth, parent = null) => {
+    const sortable = isAdmin && Boolean(onReorder) && siblings.length > 1;
+    const rows = (depth === 0 ? cap.visible : siblings).map((node) => {
       const n = node.note;
       const editing = editId === n.system_id;
+      const Row = sortable ? SortableItem : "div";
+      const rowProps = sortable ? { id: n.system_id } : {};
       return (
-        <div key={n.system_id} className={depth === 0 ? rowCls : "pt-2"}>
+        <Row
+          key={n.system_id}
+          {...rowProps}
+          className={depth === 0 ? rowCls : "pt-2"}
+        >
           {editing ? (
             <div>
               <StructuredForm
@@ -888,13 +919,8 @@ export default function StructuredSection({
             </div>
           ) : (
             <div className="flex gap-2 items-start">
-              {isAdmin && onReorder && siblings.length > 1 && (
-                <MoveButtons
-                  atTop={i === 0}
-                  atBottom={i === siblings.length - 1}
-                  onUp={() => move(parent, i, -1)}
-                  onDown={() => move(parent, i, 1)}
-                />
+              {sortable && (
+                <DragHandle label={rowLabel(section, n)} className="pt-0.5" />
               )}
               <StructuredRow
                 section={section}
@@ -935,9 +961,20 @@ export default function StructuredSection({
               {addingUnder === n.system_id && renderDraft()}
             </div>
           )}
-        </div>
+        </Row>
       );
     });
+    if (!sortable) return rows;
+    return (
+      <SortableList
+        ids={siblings.map((node) => node.note.system_id)}
+        onMove={(from, to) => move(parent, from, to)}
+        disabled={reordering}
+      >
+        {rows}
+      </SortableList>
+    );
+  };
 
   // A singleton section (`ost`) holds one row per owner, so once it has that
   // row the way to change it is Edit, and Add goes. The backend refuses a
@@ -978,6 +1015,7 @@ export default function StructuredSection({
             isAdmin={isAdmin}
             groupBy={section.groupable_by}
             onRowsReorder={onReorder ? (ids) => onReorder(section.key, ids) : undefined}
+            busy={reordering}
             onUpdate={onUpdate}
             onDelete={onDelete}
             nameSuggestions={nameSuggestions}

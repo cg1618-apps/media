@@ -102,12 +102,18 @@ export function groupedIds(groups) {
   return groups.flatMap((g) => g.notes.map((n) => n.system_id));
 }
 
-/** `groups` with the row at `from` in group `gi` swapped with the one at `to`. */
+/**
+ * `groups` with the row at `from` in group `gi` moved to `to` - taken out and
+ * put back there, as a drop does, so the rows between shift by one. A row
+ * never leaves its group. An out-of-range move returns `groups` unchanged.
+ */
 export function movedRow(groups, gi, from, to) {
   return groups.map((g, i) => {
-    if (i !== gi || to < 0 || to >= g.notes.length) return g;
+    const n = g.notes.length;
+    if (i !== gi || from < 0 || from >= n || to < 0 || to >= n) return g;
     const notes = [...g.notes];
-    [notes[from], notes[to]] = [notes[to], notes[from]];
+    const [moved] = notes.splice(from, 1);
+    notes.splice(to, 0, moved);
     return { ...g, notes };
   });
 }

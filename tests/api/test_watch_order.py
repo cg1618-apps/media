@@ -1568,6 +1568,161 @@ class TestReorderFilesSteps:
         assert response.status_code == 400
 
 
+def _reorder_with_parts(admin_client, list_id, item_ids, section_positions):
+    """One reorder that also places every part - what moving a part commits."""
+    return admin_client.put(
+        f"/api/watch-order/lists/{list_id}/reorder",
+        json={
+            "item_ids": [str(i) for i in item_ids],
+            "section_positions": [
+                {"section_id": str(section_id), "position": position}
+                for section_id, position in section_positions
+            ],
+        },
+    )
+
+
+def _section_positions(admin_client, list_id):
+    sections = admin_client.get(f"/api/watch-order/lists/{list_id}").json()[
+        "sections"
+    ]
+    return {s["system_id"]: s["position"] for s in sections}
+
+
+class TestReorderPlacesParts:
+    """
+    `section_positions` moves the parts in the same commit as the steps.
+
+    `sample_parts` is load-bearing in every refusal below: with no parts on the
+    list, "every part exactly once" is satisfied by an empty payload and there
+    is nothing for the validation to refuse.
+    """
+
+    def test_parts_and_steps_move_in_one_request(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        one, two = sample_parts[0].system_id, sample_parts[1].system_id
+        reversed_ids = [i.system_id for i in reversed(sample_items)]
+        response = _reorder_with_parts(
+            admin_client,
+            sample_list.system_id,
+            reversed_ids,
+            [(two, 0.5), (one, 3.5)],
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert [i["system_id"] for i in body["items"]] == [str(i) for i in reversed_ids]
+        assert [s["system_id"] for s in body["sections"]] == [str(two), str(one)]
+        assert [s["position"] for s in body["sections"]] == [0.5, 3.5]
+
+    def test_omitting_section_positions_leaves_every_part_where_it_was(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        response = admin_client.put(
+            f"/api/watch-order/lists/{sample_list.system_id}/reorder",
+            json={"item_ids": [str(i.system_id) for i in reversed(sample_items)]},
+        )
+        assert response.status_code == 200
+        assert _section_positions(admin_client, sample_list.system_id) == {
+            str(sample_parts[0].system_id): 10.0,
+            str(sample_parts[1].system_id): 11.0,
+        }
+
+    def test_a_duplicate_part_is_rejected(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        """Names every part, so only the duplicate check can refuse it."""
+        one, two = sample_parts[0].system_id, sample_parts[1].system_id
+        response = _reorder_with_parts(
+            admin_client,
+            sample_list.system_id,
+            [i.system_id for i in sample_items],
+            [(one, 0.5), (two, 1.5), (one, 2.5)],
+        )
+        assert response.status_code == 400
+        assert _section_positions(admin_client, sample_list.system_id) == {
+            str(one): 10.0,
+            str(two): 11.0,
+        }
+
+    def test_a_missing_part_is_rejected(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        response = _reorder_with_parts(
+            admin_client,
+            sample_list.system_id,
+            [i.system_id for i in sample_items],
+            [(sample_parts[0].system_id, 0.5)],
+        )
+        assert response.status_code == 400
+
+    def test_an_empty_list_of_parts_is_rejected_when_the_list_has_parts(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        response = _reorder_with_parts(
+            admin_client,
+            sample_list.system_id,
+            [i.system_id for i in sample_items],
+            [],
+        )
+        assert response.status_code == 400
+
+    def test_another_lists_part_is_rejected(
+        self, admin_client, db_session, sample_list, sample_items, sample_parts,
+        sample_franchise,
+    ):
+        other_list = models.WatchOrderList(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            list_name="Other",
+        )
+        db_session.add(other_list)
+        db_session.flush()
+        foreign = models.WatchOrderSection(
+            system_id=uuid.uuid4(),
+            list_id=other_list.system_id,
+            position=1.0,
+            section_name="Not mine",
+        )
+        db_session.add(foreign)
+        db_session.flush()
+
+        response = _reorder_with_parts(
+            admin_client,
+            sample_list.system_id,
+            [i.system_id for i in sample_items],
+            [
+                (sample_parts[0].system_id, 0.5),
+                (sample_parts[1].system_id, 1.5),
+                (foreign.system_id, 2.5),
+            ],
+        )
+        assert response.status_code == 400
+        assert foreign.position == 1.0
+
+    def test_a_rejected_step_order_leaves_the_parts_untouched(
+        self, admin_client, sample_list, sample_items, sample_parts
+    ):
+        """The parts are valid; the steps split a part. Neither is written."""
+        one, two = sample_parts[0].system_id, sample_parts[1].system_id
+        response = admin_client.put(
+            f"/api/watch-order/lists/{sample_list.system_id}/reorder",
+            json={
+                "item_ids": [str(i.system_id) for i in sample_items],
+                "section_ids": [str(one), None, str(one)],
+                "section_positions": [
+                    {"section_id": str(two), "position": 0.5},
+                    {"section_id": str(one), "position": 1.0},
+                ],
+            },
+        )
+        assert response.status_code == 400
+        assert _section_positions(admin_client, sample_list.system_id) == {
+            str(one): 10.0,
+            str(two): 11.0,
+        }
+
+
 class TestPartsStayContiguous:
     def test_an_unfiled_step_between_two_parts_is_allowed(
         self, admin_client, sample_list, sample_items, sample_parts

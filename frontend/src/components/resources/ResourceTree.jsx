@@ -2,18 +2,40 @@
 // inside them, and (for a manage.catalog holder) every control that edits it.
 //
 // Reading and editing are one component because they draw the same thing: an
-// editor sees the reader's page with controls added, not a second layout. The
-// move gestures follow WatchOrderEditor's: native HTML5 drag, chevron arrows
-// for a one-place move, and a drop onto a row taking that row's slot while a
-// drop onto a box's body appends to it. A "Move to" list does the same job as
-// dragging into another group for anyone not using a mouse.
+// editor sees the reader's page with controls added, not a second layout.
+//
+// Moving is drag-and-drop on dnd-kit's pointer events, like every other reorder
+// in the app (components/ui/Sortable.jsx), because a native HTML5 drag swallows
+// the mouse wheel on Windows. A node is picked up only by its grip; dropping it
+// on a row takes that row's slot within that row's parent, and dropping it on a
+// group's body (or the top-level tail shown while dragging) appends it there.
+// The innermost box under the pointer is the target, and a target the node may
+// not enter - a group into its own subtree - is refused rather than handed to
+// the box around it. The grip also moves its node one place among its siblings
+// with ArrowUp / ArrowDown, and a "Move to" list moves it into another group,
+// so neither kind of move needs a mouse.
 //
 // Every move becomes one PATCH /api/resources/reorder carrying the complete new
 // child list of the parent the node lands in (lib/resourceTree.js builds it).
-import { createContext, useCallback, useContext, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  DndContext,
+  DragOverlay,
+  MeasuringStrategy,
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/core";
 
 import ConfirmModal from "../modals/ConfirmModal";
 import { Button, Eyebrow } from "../ui/primitives";
+import { useDragSensors } from "../ui/Sortable";
 import ResourceMarkdown from "./ResourceMarkdown";
 import { useToast } from "../../hooks/useToast";
 import {
@@ -25,6 +47,7 @@ import {
 import {
   canDropInto,
   countByKind,
+  findNode,
   flattenGroups,
   moveAmongSiblings,
   moveInto,
@@ -49,6 +72,34 @@ const HEADING_CLS = [
 const EditorContext = createContext(null);
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+// An item's title is optional; its opening words name it instead.
+const nodeLabel = (node) => node.title || (node.content || "").slice(0, 40) || "item";
+
+// Rows and boxes nest - an item row sits inside its group's body, which sits
+// inside the group around it - so the target is the smallest droppable the
+// pointer is inside: the innermost one, as a native drop event would see it.
+function innermostUnderPointer({ droppableContainers, droppableRects, pointerCoordinates }) {
+  if (!pointerCoordinates) return [];
+  const { x, y } = pointerCoordinates;
+  let best = null;
+  let bestArea = Infinity;
+  for (const container of droppableContainers) {
+    const rect = droppableRects.get(container.id);
+    if (!rect) continue;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
+    const area = rect.width * rect.height;
+    if (area < bestArea) {
+      best = container;
+      bestArea = area;
+    }
+  }
+  return best ? [{ id: best.id, data: { droppableContainer: best, value: bestArea } }] : [];
+}
+
+// Droppables are re-measured throughout a drag: the top-level tail appears only
+// once a drag starts, and the page scrolls under the wheel mid-drag.
+const MEASURING = { droppable: { strategy: MeasuringStrategy.Always } };
 
 /**
  * Title (and, for an item, Markdown body) for a new or existing node. The
@@ -147,13 +198,12 @@ function NodeForm({ kind, initial = {}, submitLabel, busy, onSubmit, onCancel })
 }
 
 /**
- * The arrows, "Move to" list, edit and delete for one node. Shown on hover or
- * focus, like the row actions on Quotes.
+ * The "Move to" list, edit and delete for one node. Shown on hover or focus,
+ * like the row actions on Quotes.
  */
-function NodeControls({ node, parentId, index, siblingCount, onEdit }) {
+function NodeControls({ node, parentId, onEdit }) {
   const { tree, busy, reorder, askDelete } = useContext(EditorContext);
-  // An item's title is optional; its opening words name it instead.
-  const label = node.title || (node.content || "").slice(0, 40) || "item";
+  const label = nodeLabel(node);
 
   // Every group this node may move into, except where it already is.
   const targets = flattenGroups(tree).filter(
@@ -163,26 +213,6 @@ function NodeControls({ node, parentId, index, siblingCount, onEdit }) {
 
   return (
     <div className="flex shrink-0 items-center gap-1">
-      <button
-        type="button"
-        className={ICON_BTN}
-        disabled={busy || index === 0}
-        onClick={() => reorder(moveAmongSiblings(tree, node.system_id, -1))}
-        title="Move up"
-        aria-label={`Move ${label} up`}
-      >
-        <i className="fas fa-chevron-up text-xs" aria-hidden="true"></i>
-      </button>
-      <button
-        type="button"
-        className={ICON_BTN}
-        disabled={busy || index === siblingCount - 1}
-        onClick={() => reorder(moveAmongSiblings(tree, node.system_id, 1))}
-        title="Move down"
-        aria-label={`Move ${label} down`}
-      >
-        <i className="fas fa-chevron-down text-xs" aria-hidden="true"></i>
-      </button>
       <select
         value=""
         disabled={busy}
@@ -228,90 +258,103 @@ function NodeControls({ node, parentId, index, siblingCount, onEdit }) {
 }
 
 /**
- * Drag handlers for a row - an item, or a group's header. Dropping here puts
- * the dragged node in this row's slot within this row's parent.
+ * The grip a node is dragged by - the same look, label and keys as the shared
+ * DragHandle in ui/Sortable.jsx. ArrowUp / ArrowDown move the node one place
+ * among its siblings.
+ */
+function DragGrip({ node, draggable }) {
+  const { tree, busy, reorder, grips } = useContext(EditorContext);
+  const { attributes, listeners, setActivatorNodeRef, isDragging } = draggable;
+  const id = node.system_id;
+
+  const ref = (el) => {
+    setActivatorNodeRef(el);
+    if (el) grips.current.set(id, el);
+    else grips.current.delete(id);
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    if (busy) return;
+    reorder(moveAmongSiblings(tree, id, e.key === "ArrowUp" ? -1 : 1), id);
+  };
+
+  return (
+    <button
+      type="button"
+      ref={ref}
+      {...attributes}
+      {...listeners}
+      onKeyDown={onKeyDown}
+      disabled={busy}
+      aria-label={`Reorder ${nodeLabel(node)}`}
+      title="Drag to reorder (or focus and press ↑/↓)"
+      className={`shrink-0 touch-none select-none px-1 text-text-faint/60 hover:text-text-faint disabled:opacity-30 ${
+        isDragging ? "cursor-grabbing" : "cursor-grab"
+      }`}
+    >
+      <i className="fas fa-grip-vertical text-[11px]" aria-hidden="true" />
+    </button>
+  );
+}
+
+/**
+ * Drag and drop for a row - an item, or a group's header. The node is picked
+ * up by `handle` (its grip), and a drop onto the row puts the dragged node in
+ * this row's slot within this row's parent. `attach` is the row element's ref.
  */
 function useRowDrag(node, parentId, index) {
   const ctx = useContext(EditorContext);
-  if (!ctx?.canEdit) return { props: {}, over: false };
-  const { tree, dragging, setDragging, overKey, setOverKey, reorder } = ctx;
-  const key = `row:${node.system_id}`;
+  const canEdit = !!ctx?.canEdit;
+  const draggable = useDraggable({ id: node.system_id, disabled: !canEdit || ctx.busy });
+  const droppable = useDroppable({
+    id: `row:${node.system_id}`,
+    disabled: !canEdit,
+    data: { parentId, index },
+  });
+  if (!canEdit) return { attach: undefined, over: false, isDragging: false, handle: null };
+
+  const { tree, dragging } = ctx;
   const allowed =
     dragging !== null &&
     dragging !== node.system_id &&
     canDropInto(tree, dragging, parentId);
 
   return {
-    over: overKey === key && allowed,
-    props: {
-      draggable: true,
-      onDragStart: (e) => {
-        // Rows nest inside groups that are rows themselves; only the
-        // innermost one is being picked up.
-        e.stopPropagation();
-        e.dataTransfer?.setData("text/plain", node.system_id);
-        if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
-        setDragging(node.system_id);
-      },
-      onDragEnd: () => {
-        setDragging(null);
-        setOverKey(null);
-      },
-      onDragOver: (e) => {
-        e.stopPropagation();
-        // Not calling preventDefault is what refuses the drop - the browser
-        // shows the no-drop cursor over a group's own descendants.
-        if (!allowed) return;
-        e.preventDefault();
-        if (overKey !== key) setOverKey(key);
-      },
-      onDrop: (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        if (allowed) reorder(moveInto(tree, dragging, parentId, index));
-        setDragging(null);
-        setOverKey(null);
-      },
+    attach: (el) => {
+      draggable.setNodeRef(el);
+      droppable.setNodeRef(el);
     },
+    over: droppable.isOver && allowed,
+    isDragging: draggable.isDragging,
+    handle: <DragGrip node={node} draggable={draggable} />,
   };
 }
 
 /**
- * Drag handlers for a box that appends what is dropped on it: a group's body,
+ * The drop target of a box that appends what is dropped on it: a group's body,
  * or the top-level tail.
  */
 function useAppendDrop(targetParentId) {
   const ctx = useContext(EditorContext);
-  if (!ctx?.canEdit) return { props: {}, over: false };
-  const { tree, dragging, setDragging, overKey, setOverKey, reorder } = ctx;
-  const key = `box:${targetParentId ?? "top"}`;
+  const canEdit = !!ctx?.canEdit;
+  const droppable = useDroppable({
+    id: `box:${targetParentId ?? "top"}`,
+    disabled: !canEdit,
+    data: { parentId: targetParentId },
+  });
+  if (!canEdit) return { attach: undefined, over: false };
+  const { tree, dragging } = ctx;
   const allowed = dragging !== null && canDropInto(tree, dragging, targetParentId);
-
-  return {
-    over: overKey === key && allowed,
-    props: {
-      onDragOver: (e) => {
-        e.stopPropagation();
-        if (!allowed) return;
-        e.preventDefault();
-        if (overKey !== key) setOverKey(key);
-      },
-      onDrop: (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        if (allowed) reorder(moveInto(tree, dragging, targetParentId));
-        setDragging(null);
-        setOverKey(null);
-      },
-    },
-  };
+  return { attach: droppable.setNodeRef, over: droppable.isOver && allowed };
 }
 
-function ItemNode({ node, parentId, index, siblingCount }) {
+function ItemNode({ node, parentId, index }) {
   const ctx = useContext(EditorContext);
   const canEdit = !!ctx?.canEdit;
   const [editing, setEditing] = useState(false);
-  const drag = useRowDrag(node, parentId, index);
+  const { attach: attachRow, ...drag } = useRowDrag(node, parentId, index);
 
   if (editing) {
     return (
@@ -330,19 +373,14 @@ function ItemNode({ node, parentId, index, siblingCount }) {
 
   return (
     <article
-      {...drag.props}
+      ref={attachRow}
       data-testid="resource-item"
       className={`group/item border border-border bg-surface px-3 py-2.5 transition hover:border-border-strong ${
         drag.over ? DROP_ACTIVE : ""
-      }`}
+      } ${drag.isDragging ? "opacity-40" : ""}`}
     >
       <div className="flex items-start gap-3">
-        {canEdit && (
-          <i
-            className="fas fa-grip-vertical text-text-faint cursor-grab mt-1"
-            aria-hidden="true"
-          ></i>
-        )}
+        {drag.handle && <div className="mt-0.5">{drag.handle}</div>}
         <div className="min-w-0 flex-1">
           {node.title && (
             <p className="text-sm font-semibold text-text mb-1">{node.title}</p>
@@ -354,8 +392,6 @@ function ItemNode({ node, parentId, index, siblingCount }) {
             <NodeControls
               node={node}
               parentId={parentId}
-              index={index}
-              siblingCount={siblingCount}
               onEdit={() => setEditing(true)}
             />
           </div>
@@ -365,15 +401,15 @@ function ItemNode({ node, parentId, index, siblingCount }) {
   );
 }
 
-function GroupNode({ node, parentId, index, siblingCount, depth }) {
+function GroupNode({ node, parentId, index, depth }) {
   const ctx = useContext(EditorContext);
   const canEdit = !!ctx?.canEdit;
   const [open, setOpen] = useState(true);
   const [editing, setEditing] = useState(false);
   // "item" | "group" while the add form for that kind is open.
   const [adding, setAdding] = useState(null);
-  const drag = useRowDrag(node, parentId, index);
-  const body = useAppendDrop(node.system_id);
+  const { attach: attachRow, ...drag } = useRowDrag(node, parentId, index);
+  const { attach: attachBody, ...body } = useAppendDrop(node.system_id);
 
   const children = node.children || [];
   const Heading = `h${Math.min(depth + 2, 6)}`;
@@ -383,11 +419,11 @@ function GroupNode({ node, parentId, index, siblingCount, depth }) {
     <section
       data-testid="resource-group"
       aria-label={node.title}
-      className={
+      className={`${
         topLevel
           ? "bg-surface border border-border"
           : "border-l-2 border-border-strong pl-3 sm:pl-4"
-      }
+      } ${drag.isDragging ? "opacity-40" : ""}`}
     >
       {editing ? (
         <div className={topLevel ? "p-3" : "py-1"}>
@@ -404,14 +440,12 @@ function GroupNode({ node, parentId, index, siblingCount, depth }) {
         </div>
       ) : (
         <header
-          {...drag.props}
+          ref={attachRow}
           className={`group/head flex items-center gap-2 ${
             topLevel ? "px-4 py-3 border-b border-border" : "py-1.5"
           } ${drag.over ? DROP_ACTIVE : ""}`}
         >
-          {canEdit && (
-            <i className="fas fa-grip-vertical text-text-faint cursor-grab" aria-hidden="true"></i>
-          )}
+          {drag.handle}
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -438,8 +472,6 @@ function GroupNode({ node, parentId, index, siblingCount, depth }) {
               <NodeControls
                 node={node}
                 parentId={parentId}
-                index={index}
-                siblingCount={siblingCount}
                 onEdit={() => setEditing(true)}
               />
             </div>
@@ -449,7 +481,7 @@ function GroupNode({ node, parentId, index, siblingCount, depth }) {
 
       {open && (
         <div
-          {...body.props}
+          ref={attachBody}
           data-testid="resource-group-body"
           className={`space-y-3 ${topLevel ? "p-4" : "pt-1 pb-2"} ${
             body.over ? DROP_ACTIVE : ""
@@ -504,7 +536,6 @@ function NodeList({ nodes, parentId, depth }) {
         node={node}
         parentId={parentId}
         index={index}
-        siblingCount={nodes.length}
         depth={depth}
       />
     ) : (
@@ -513,7 +544,6 @@ function NodeList({ nodes, parentId, depth }) {
         node={node}
         parentId={parentId}
         index={index}
-        siblingCount={nodes.length}
       />
     ),
   );
@@ -521,11 +551,11 @@ function NodeList({ nodes, parentId, depth }) {
 
 function TopLevelDrop() {
   const ctx = useContext(EditorContext);
-  const drop = useAppendDrop(null);
+  const { attach: attachDrop, ...drop } = useAppendDrop(null);
   if (!ctx?.canEdit || ctx.dragging === null) return null;
   return (
     <div
-      {...drop.props}
+      ref={attachDrop}
       className={`border border-dashed px-3 py-3 text-center font-mono text-[10px] uppercase tracking-[0.12em] ${
         drop.over ? "border-brand bg-brand-soft text-brand" : "border-border-strong text-text-faint"
       }`}
@@ -553,8 +583,11 @@ function deletePrompt(node) {
  */
 export default function ResourceTree({ tree, canEdit }) {
   const { showToast } = useToast();
+  const sensors = useDragSensors();
+  // The system_id of the node being dragged, or null.
   const [dragging, setDragging] = useState(null);
-  const [overKey, setOverKey] = useState(null);
+  const grips = useRef(new Map());
+  const focusAfterMove = useRef(null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [addingGroup, setAddingGroup] = useState(false);
 
@@ -574,15 +607,41 @@ export default function ResourceTree({ tree, canEdit }) {
     [showToast],
   );
 
+  // `focusId` names a grip to put focus back on once the moved node re-renders
+  // somewhere else, so a held arrow key keeps moving the same node.
   const reorder = useCallback(
-    (body) => {
+    (body, focusId = null) => {
       if (!body) return;
+      focusAfterMove.current = focusId;
       reorderMutation.mutate(body, {
         onError: (err) => fail(err, "Move failed."),
       });
     },
     [reorderMutation, fail],
   );
+
+  useEffect(() => {
+    const id = focusAfterMove.current;
+    if (id == null) return;
+    const grip = grips.current.get(id);
+    // The grip is disabled while the move saves; wait until it can take focus.
+    if (!grip || grip.disabled) return;
+    focusAfterMove.current = null;
+    grip.focus();
+  });
+
+  const endDrag = () => setDragging(null);
+
+  const onDragEnd = ({ active, over }) => {
+    setDragging(null);
+    if (!over || busy) return;
+    const { parentId, index } = over.data.current ?? {};
+    // moveInto refuses a group into its own subtree and returns null for a
+    // drop that changes nothing (a node onto its own row).
+    reorder(moveInto(tree, active.id, parentId ?? null, index));
+  };
+
+  const draggedNode = dragging === null ? null : findNode(tree, dragging);
 
   const create = async (body) => {
     try {
@@ -622,9 +681,7 @@ export default function ResourceTree({ tree, canEdit }) {
     canEdit,
     busy,
     dragging,
-    setDragging,
-    overKey,
-    setOverKey,
+    grips,
     reorder,
     create,
     patch,
@@ -633,38 +690,58 @@ export default function ResourceTree({ tree, canEdit }) {
 
   return (
     <EditorContext.Provider value={ctx}>
-      <div className="space-y-4">
-        {canEdit &&
-          (addingGroup ? (
-            <NodeForm
-              kind="group"
-              submitLabel="Add group"
-              busy={busy}
-              onCancel={() => setAddingGroup(false)}
-              onSubmit={async (data) => {
-                if (await create({ kind: "group", ...data })) setAddingGroup(false);
-              }}
-            />
+      <DndContext
+        sensors={sensors}
+        collisionDetection={innermostUnderPointer}
+        measuring={MEASURING}
+        onDragStart={({ active }) => setDragging(active.id)}
+        onDragEnd={onDragEnd}
+        onDragCancel={endDrag}
+      >
+        <div className="space-y-4">
+          {canEdit &&
+            (addingGroup ? (
+              <NodeForm
+                kind="group"
+                submitLabel="Add group"
+                busy={busy}
+                onCancel={() => setAddingGroup(false)}
+                onSubmit={async (data) => {
+                  if (await create({ kind: "group", ...data })) setAddingGroup(false);
+                }}
+              />
+            ) : (
+              <Button kind="primary" size="sm" onClick={() => setAddingGroup(true)}>
+                Add group
+              </Button>
+            ))}
+
+          {tree.length === 0 ? (
+            <div className="border border-dashed border-border-strong px-4 py-8 text-center">
+              <p className="text-sm text-text-faint">
+                {canEdit
+                  ? "No resources yet. Add a group to start."
+                  : "No resources yet."}
+              </p>
+            </div>
           ) : (
-            <Button kind="primary" size="sm" onClick={() => setAddingGroup(true)}>
-              Add group
-            </Button>
-          ))}
+            <NodeList nodes={tree} parentId={null} depth={0} />
+          )}
 
-        {tree.length === 0 ? (
-          <div className="border border-dashed border-border-strong px-4 py-8 text-center">
-            <p className="text-sm text-text-faint">
-              {canEdit
-                ? "No resources yet. Add a group to start."
-                : "No resources yet."}
-            </p>
-          </div>
-        ) : (
-          <NodeList nodes={tree} parentId={null} depth={0} />
-        )}
-
-        <TopLevelDrop />
-      </div>
+          <TopLevelDrop />
+        </div>
+        <DragOverlay dropAnimation={null}>
+          {draggedNode && (
+            <div className="flex items-center gap-2 border border-brand bg-surface px-3 py-2 text-sm font-semibold text-text shadow-lg cursor-grabbing">
+              <i
+                className={`fas ${draggedNode.kind === "group" ? "fa-folder" : "fa-grip-vertical"} text-[11px] text-text-faint`}
+                aria-hidden="true"
+              />
+              <span className="truncate">{nodeLabel(draggedNode)}</span>
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {pendingDelete && (
         <ConfirmModal

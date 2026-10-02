@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # ==========================================
 # ITEM
@@ -179,6 +179,13 @@ class WatchOrderCandidate(BaseModel):
 # ==========================================
 
 
+class WatchOrderSectionPosition(BaseModel):
+    """One part's new position, for the reorder that moves it."""
+
+    section_id: UUID
+    position: float = Field(allow_inf_nan=False)
+
+
 class WatchOrderReorder(BaseModel):
     """
     Ordered item ids; positions are renumbered 1..N to match.
@@ -195,6 +202,14 @@ class WatchOrderReorder(BaseModel):
 
     item_ids: List[UUID]
     section_ids: Optional[List[Optional[UUID]]] = None
+    # Every part of the list exactly once, with the position it is drawn at.
+    # Moving a part changes the step order and where an empty part is anchored
+    # among the steps, so both have to land in one commit. Positions rather
+    # than a bare id order, because an empty part's position is a fractional
+    # anchor between two steps' 1..N positions - renumbering parts to 1..N
+    # would draw every empty part after the wrong step.
+    # Omitting it leaves every part where it already is.
+    section_positions: Optional[List[WatchOrderSectionPosition]] = None
 
 
 class WatchOrderSectionReorder(BaseModel):

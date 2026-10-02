@@ -2,7 +2,7 @@
 // ch_count must only ever be sent for kind "arc" (the DB CHECK constraint
 // ck_novel_unit_ch_count_arc_only rejects it on any other kind), the kind
 // picker only appears when the novel's type offers more than one kind, and
-// reordering swaps rows and renumbers position (1-based) rather than
+// reordering moves rows and renumbers position (1-based) rather than
 // reassigning kind or content.
 import { fireEvent, render, screen } from "@testing-library/react";
 
@@ -61,7 +61,7 @@ it("shows the chapters input only for an arc row", () => {
   expect(screen.getAllByPlaceholderText("chapters")).toHaveLength(1);
 });
 
-it("swaps the first and last rows on reorder and renumbers position", () => {
+it("moves a row with its drag handle and renumbers position", () => {
   const onChange = vi.fn();
   const items = [
     { unit_kind: "volume", position: 1, unit_key: "A", name_cn: "", name_en: "", remark: "" },
@@ -70,16 +70,16 @@ it("swaps the first and last rows on reorder and renumbers position", () => {
   ];
   render(<NovelUnitsEditor items={items} novelType="Novel" onChange={onChange} />);
 
-  // Moving the first row up is a no-op (disabled).
-  fireEvent.click(screen.getAllByLabelText("Move up")[0]);
+  // Moving the first row up is a no-op.
+  fireEvent.keyDown(screen.getByLabelText("Reorder A"), { key: "ArrowUp" });
   expect(onChange).not.toHaveBeenCalled();
 
-  // Moving the last row down is a no-op (disabled).
-  fireEvent.click(screen.getAllByLabelText("Move down")[2]);
+  // Moving the last row down is a no-op.
+  fireEvent.keyDown(screen.getByLabelText("Reorder C"), { key: "ArrowDown" });
   expect(onChange).not.toHaveBeenCalled();
 
   // Moving the first row down swaps it with the second and renumbers.
-  fireEvent.click(screen.getAllByLabelText("Move down")[0]);
+  fireEvent.keyDown(screen.getByLabelText("Reorder A"), { key: "ArrowDown" });
   expect(onChange).toHaveBeenCalledWith([
     expect.objectContaining({ unit_key: "B", position: 1 }),
     expect.objectContaining({ unit_key: "A", position: 2 }),
