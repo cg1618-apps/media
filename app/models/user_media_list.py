@@ -69,7 +69,7 @@ class UserMediaList(Base):
     completed_at = Column(DateTime, nullable=True)
     my_watch_day = Column(String, nullable=True)          # anime only
 
-    ep_fin = Column(Integer, nullable=True)               # anime, tv-show, cartoon
+    ep_fin = Column(Integer, nullable=True)               # anime, tv-show, cartoon, hentai
     # Float, not Integer: novel counts half volumes and half chapters. Manga's
     # integer values widen into it without a cast.
     vol_fin = Column(Float, nullable=True)                # manga, novel

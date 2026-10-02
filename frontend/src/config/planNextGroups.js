@@ -115,7 +115,7 @@ export const ALLOWED_SCOPES = {
     "h-comic": ["entry"],
     // Game's tiers: an h-game is queued the way a game is.
     "h-game": ["entry", "series", "franchise"],
-    // One entry is one episode, queued on its own (app/utils/plan_next_kinds.py).
+    // Queued one entry at a time (app/utils/plan_next_kinds.py).
     hentai: ["entry"],
   },
   rewatch: {

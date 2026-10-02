@@ -357,10 +357,12 @@ describe("hentai", () => {
     });
   });
 
-  it("builds the entry body with no episode progress", () => {
+  it("builds the entry body with cartoon's episode pair", () => {
     const body = hentaiFieldsPayload({
       hentai_name_cn: "C",
       series_number: "2",
+      ep_total: "4",
+      ep_fin: "1",
       watching_status: "",
       mal_link: "https://myanimelist.net/anime/1/x",
       mal_id: "1",
@@ -373,9 +375,18 @@ describe("hentai", () => {
     expect(body.sources).toEqual([
       { kind: "access", bucket: "other", name: "Site", url: null, available: null },
     ]);
-    for (const key of ["ep_total", "ep_fin", "reading_status"]) {
+    expect(body.ep_total).toBe(4);
+    expect(body.ep_fin).toBe(1);
+    // Cartoon's pair only: no anime-only counters, no reading axis.
+    for (const key of ["ep_previous", "ep_special", "reading_status"]) {
       expect(key in body).toBe(false);
     }
+  });
+
+  it("sends a blank episode count as null", () => {
+    const body = hentaiFieldsPayload({ ep_total: "", ep_fin: "" });
+    expect(body.ep_total).toBeNull();
+    expect(body.ep_fin).toBeNull();
   });
 
   it("clears the MAL id with the link it is derived from", () => {

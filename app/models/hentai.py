@@ -20,11 +20,12 @@ class Hentai(Base, NameFallbackMixin):
     """
     Adult anime, seen in the `unrestricted` access mode only.
 
-    One entry is one episode, so there is no episode count and watch orders
-    treat an entry as whole. Tenrai fills airing_status, release_date, the
-    cover and the Official site / Twitter reference rows from `mal_link`
-    (autofill_hentai_from_mal); AniDB then fills what is still blank from
-    `anidb_link` (autofill_hentai_from_anidb).
+    Tracked like a cartoon: `ep_total` here, the viewer's `ep_fin` on
+    user_media_list, and no ep_previous or ep_special. Watch orders still
+    treat an entry as whole. Tenrai fills airing_status, release_date,
+    ep_total, the cover and the Official site / Twitter reference rows from
+    `mal_link` (autofill_hentai_from_mal); AniDB then fills what is still
+    blank from `anidb_link` (autofill_hentai_from_anidb).
 
     Every row carries the `hentai` content label, attached server-side on
     every write path - REQUIRED_LABEL_FOR_TYPE in
@@ -76,7 +77,7 @@ class Hentai(Base, NameFallbackMixin):
     hentai_name_jp = Column(String, nullable=True)
     hentai_name_alt = Column(String, nullable=True)
 
-    # One of HENTAI_SOURCE_MATERIALS: what the episode adapts, or Original.
+    # One of HENTAI_SOURCE_MATERIALS: what the entry adapts, or Original.
     source_material = Column(String, nullable=True)
     # One of H_COMIC_ORIGINALITY.
     originality = Column(String, nullable=True)
@@ -85,6 +86,8 @@ class Hentai(Base, NameFallbackMixin):
     # One of AiringStatus, anime's vocabulary.
     airing_status = Column(String, nullable=True)
     release_date = Column(String, nullable=True)
+
+    ep_total = Column(Integer, nullable=True)
 
     # The MyAnimeList entry Tenrai fills this entry from. mal_id is extracted from mal_link, as for anime.
     mal_id = Column(Integer, nullable=True)

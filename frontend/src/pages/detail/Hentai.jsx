@@ -4,17 +4,19 @@
 // session that can see the type, and the API answers 404 to any other, so
 // nothing on this page re-checks visibility.
 //
-// Laid out like Movie.jsx: one entry is one episode, so there is no episode
-// counter - it is watched or it is not, and Mark completed also marks it
-// aired. What it adds is h-comic's: usefulness, the three H genre fields, and
-// the originality of the work; and anime's: a studio, a director, a voiced
-// cast, and a MAL link Tenrai fills the airing status, release date, cover
-// and two reference links from.
+// Tracked like Cartoon.jsx: an episode stepper (ep_fin of ep_total) that
+// finishes the entry when it reaches the total, and Mark completed, which
+// also marks it aired and carries the counter to the total. What it adds is
+// h-comic's: usefulness, the three H genre fields, and the originality of
+// the work; and anime's: a studio, a director, a voiced cast, and a MAL link
+// Tenrai fills the airing status, release date, episode count, cover and two
+// reference links from.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import { EpisodeStepper } from "../../components/tracker/MyTrackerCard";
 import CommunityCard from "../../components/info/CommunityCard";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
@@ -35,6 +37,7 @@ import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useToast } from "../../hooks/useToast";
 import { entityPath } from "../../lib/entityPath";
+import { progressToast } from "../../lib/progressToast";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import HentaiNotes from "./HentaiNotes";
 import { focusStyle } from "../../lib/covers";
@@ -91,8 +94,19 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
     </div>
   );
 
+  // The same stepper as cartoon's MyTrackerCard; the fields below it are
+  // hentai's own, so the card around it is too.
+  const stepper = (
+    <EpisodeStepper
+      epFin={hentai.ep_fin ?? 0}
+      epTotal={hentai.ep_total ?? "?"}
+      isAdmin={isAdmin}
+      onEpChange={(v) => onPatch({ ep_fin: v }, "Episode progress saved")}
+    />
+  );
+
   return (
-    <Slip title="My tracker">
+    <Slip title="My tracker" actions={stepper}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-1">
           <Eyebrow as="label" htmlFor="hentai-watching-status">
@@ -179,8 +193,10 @@ export default function Hentai() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Sync failed");
-      showToast("success", msg || "Saved");
       const updated = await res.json();
+      // `hentai` is still the pre-write row here: this closure never saw the
+      // optimistic update. A progress step can finish the entry.
+      showToast("success", progressToast(hentai, updated, msg || "Saved"));
       setHentai(updated);
       setMediaItem(updated);
     } catch {
@@ -205,8 +221,8 @@ export default function Hentai() {
     }
   }
 
-  // The single-entry Tenrai fetch: airing status, release date and cover,
-  // each only where it is blank.
+  // The single-entry Tenrai fetch: airing status, release date, episode
+  // count and cover, each only where it is blank.
   async function handleAutofill() {
     setAutofilling(true);
     try {
@@ -384,6 +400,12 @@ export default function Hentai() {
                 [
                   { label: "Airing Status", value: hentai.airing_status },
                   { label: "Release Date", value: hentai.release_date || null },
+                ],
+                [
+                  {
+                    label: "Episodes",
+                    value: hentai.ep_total != null ? String(hentai.ep_total) : null,
+                  },
                 ],
               ]}
             />

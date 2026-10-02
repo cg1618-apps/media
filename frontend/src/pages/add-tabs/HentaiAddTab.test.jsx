@@ -1,6 +1,6 @@
 // Frontend: the hentai form.
 //
-// One entry is one episode, so the form carries no progress; and it offers
+// The form carries cartoon's episode pair and nothing more; and it offers
 // only franchises of the h-comic family, the ones the server lets a hentai
 // sit in. The Modify tab renders the same body, so this pins both.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -81,9 +81,23 @@ describe("HentaiAddTab", () => {
     expect(screen.getByText("Genre Relation")).toBeInTheDocument();
   });
 
-  it("offers no progress and no MAL id", () => {
+  it("offers the episode pair", async () => {
+    const user = userEvent.setup();
     renderTab();
-    for (const label of ["Episodes Finished", "Total Episodes", "MAL ID", "Reading Status"]) {
+    await user.type(field("Total Episodes"), "4");
+    await user.type(field("Episodes Finished"), "2");
+    expect(field("Total Episodes")).toHaveValue(4);
+    expect(field("Episodes Finished")).toHaveValue(2);
+  });
+
+  it("offers no anime-only counter and no MAL id", () => {
+    renderTab();
+    for (const label of [
+      "Previous Episodes",
+      "Special Episodes",
+      "MAL ID",
+      "Reading Status",
+    ]) {
       expect(field(label), label).toBeNull();
     }
   });

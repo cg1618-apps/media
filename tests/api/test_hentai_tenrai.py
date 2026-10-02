@@ -1,8 +1,8 @@
 """
-Hentai is filled from Tenrai for airing_status, release_date, the cover, and
-the Official site and Twitter reference rows - each under anime's rule (the
-two columns and the two rows fill-only, the cover only when the entry has
-none).
+Hentai is filled from Tenrai for airing_status, release_date, ep_total, the
+cover, and the Official site and Twitter reference rows - each under anime's
+rule (the three columns and the two rows fill-only, the cover only when the
+entry has none).
 
 The Tenrai fetch and the cover download are both patched out; no test here
 reaches the network. The payload is the shape Tenrai serves for an Rx title
@@ -69,11 +69,12 @@ def _entry(db_session, **fields) -> models.Hentai:
     return entry
 
 
-def test_fills_the_three_fields(db_session, tenrai):
+def test_fills_the_four_fields(db_session, tenrai):
     entry = _entry(db_session)
     autofill_hentai_from_mal(entry, db=db_session)
     assert entry.airing_status == "Finished Airing"
     assert entry.release_date == "1998-09-25"
+    assert entry.ep_total == 2
     assert entry.cover_image_file == f"hentai/{entry.system_id}.jpg"
     assert tenrai["download"] == [("https://cdn.test/188.jpg", "hentai")]
 
@@ -83,11 +84,13 @@ def test_never_overwrites_what_is_already_there(db_session, tenrai):
         db_session,
         airing_status="Airing",
         release_date="1998",
+        ep_total=5,
     )
     entry.cover_image_file = "hand/picked.jpg"
     autofill_hentai_from_mal(entry, db=db_session)
     assert entry.airing_status == "Airing"
     assert entry.release_date == "1998"
+    assert entry.ep_total == 5
     assert entry.cover_image_file == "hand/picked.jpg"
     assert tenrai["download"] == []
 
@@ -144,7 +147,7 @@ def test_an_existing_reference_row_is_not_overwritten(db_session, tenrai):
 
 
 def test_writes_nothing_it_was_not_asked_for(db_session, tenrai):
-    """No names, studio, scores or AniList: the owner asked for three fields
+    """No names, studio, scores or AniList: the owner asked for four fields
     and the two reference links."""
     entry = _entry(db_session)
     autofill_hentai_from_mal(entry, db=db_session)
@@ -176,13 +179,16 @@ def test_the_pipeline_spec_paces_like_anime_and_keys_on_mal():
     assert spec.in_fill_all and spec.in_replace_all
 
 
-def test_fill_eligibility_follows_the_three_fields(db_session):
+def test_fill_eligibility_follows_the_four_fields(db_session):
     eligible = PIPELINES["hentai"].fill_eligible
     missing = _entry(db_session)
     assert eligible(db_session, missing)
-    complete = _entry(db_session, airing_status="Airing", release_date="2024")
+    complete = _entry(db_session, airing_status="Airing", release_date="2024", ep_total=2)
     complete.cover_image_file = "x.jpg"
     assert not eligible(db_session, complete)
+    # The mirror: the same entry with no episode count still wants a fill.
+    complete.ep_total = None
+    assert eligible(db_session, complete)
     unlinked = models.Hentai(hentai_name_cn="Zvornik No Link")
     assert not eligible(db_session, unlinked)
 
@@ -190,7 +196,7 @@ def test_fill_eligibility_follows_the_three_fields(db_session):
 def test_the_write_hook_fetches_from_the_link_and_keeps_the_label(
     admin_client, db_session, tenrai
 ):
-    """Create with only a MAL link: the id is extracted, the three fields are
+    """Create with only a MAL link: the id is extracted, the four fields are
     filled by the single-entry hook, and the sync keeps the label on."""
     response = admin_client.post(
         "/api/hentai/",

@@ -1076,6 +1076,7 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
         "release_date": release_date.normalize(
             parse_from_sheet(raw.get("release_date"), str)
         ),
+        "ep_total": parse_from_sheet(raw.get("ep_total"), int),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "anidb_id": parse_from_sheet(raw.get("anidb_id"), int),

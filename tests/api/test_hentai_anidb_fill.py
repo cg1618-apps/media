@@ -2,7 +2,7 @@
 AniDB on a hentai, after MAL.
 
 MAL (Tenrai) fills first; AniDB then fills whichever of the airing status,
-release date and cover MAL left blank, plus the Official site reference row -
+release date, episode count and cover MAL left blank, plus the Official site reference row -
 all fill-only, so MAL's value wins wherever both have one. AniDB is off while
 ANIDB_CLIENT / ANIDB_CLIENTVER are unset, and an error answer (a ban above
 all) stops the run.
@@ -150,6 +150,7 @@ class TestAnidbAutofill:
         autofill_hentai_from_anidb(entry, db=db_session)
         assert entry.release_date == "2003-01-24"
         assert entry.airing_status == "Finished Airing"
+        assert entry.ep_total == 1
         assert entry.cover_image_file == f"stored:{ANIDB_COVER}"
         assert sources["downloads"] == [(ANIDB_COVER, "hentai")]
         row = find_main_source(db_session, entry.system_id, "reference", OFFICIAL_SITE_VALUE)
@@ -171,11 +172,13 @@ class TestAnidbAutofill:
             anidb_id=4521,
             release_date="2010-05",
             airing_status="Not Yet Aired",
+            ep_total=6,
             cover_image_file="library/hand-picked.jpg",
         )
         autofill_hentai_from_anidb(entry, db=db_session)
         assert entry.release_date == "2010-05"
         assert entry.airing_status == "Not Yet Aired"
+        assert entry.ep_total == 6
         assert entry.cover_image_file == "library/hand-picked.jpg"
         assert sources["downloads"] == []
         # Nothing was blank, so nothing was asked.
@@ -220,8 +223,15 @@ class TestOrder:
         assert [url for url, _ in sources["downloads"]] == [MAL_COVER]
         # MAL's date and status win too.
         assert entry.release_date == "1998-09-25"
-        # MAL filled all three, so AniDB was never asked.
+        # MAL filled everything, so AniDB was never asked.
         assert [c[0] for c in sources["calls"]] == ["tenrai"]
+
+    def test_anidb_supplies_the_episode_count_mal_lacks(self, db_session, sources):
+        sources["tenrai"] = dict(TENRAI_RESULT, episodes=None)
+        entry = _hentai(db_session, mal_link=MAL_LINK, anidb_link=ANIDB_LINK)
+        _fill(db_session, entry)
+        assert entry.ep_total == 1
+        assert [c[0] for c in sources["calls"]] == ["tenrai", "anidb"]
 
     def test_anidb_supplies_the_cover_mal_lacks(self, db_session, sources):
         sources["tenrai"] = dict(TENRAI_RESULT, images={})
@@ -294,6 +304,7 @@ class TestSelection:
             anidb_id=4521,
             release_date="2003-01-24",
             airing_status="Finished Airing",
+            ep_total=1,
         )
         assert PIPELINES["hentai"].fill_eligible(db_session, entry) is True
         entry.cover_image_file = "library/hand-picked.jpg"

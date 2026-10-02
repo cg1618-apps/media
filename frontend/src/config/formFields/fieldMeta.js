@@ -1350,8 +1350,8 @@ export const TYPE_FIELD_META = {
     sources: { showAccess: false },
   },
 
-  // One entry is one episode: no progress fields. The credit and genre
-  // sources are lib/hentaiForm.js's, so the defaults page suggests from the
+  // ep_total and ep_fin are the common progress fields, as cartoon's are.
+  // The credit and genre sources are lib/hentaiForm.js's, so the defaults page suggests from the
   // same lists the form does.
   hentai: {
     hentai_name_cn: { label: "Name (CN)", group: "Names" },

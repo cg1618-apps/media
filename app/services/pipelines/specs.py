@@ -216,8 +216,8 @@ def _fill_h_game(db, entry) -> None:
 def _fill_hentai(db, entry) -> None:
     """MAL first, then AniDB for whatever MAL left blank.
 
-    Both are fill-only, so the order IS the priority: MAL's cover, date and
-    status win whenever MAL has them, and AniDB covers the OVAs MAL does not
+    Both are fill-only, so the order IS the priority: MAL's cover, date,
+    status and episode count win whenever MAL has them, and AniDB covers the OVAs MAL does not
     list. AniDB paces itself (anidb.MIN_INTERVAL) and asks only while
     something is still blank after MAL."""
     autofill_hentai_from_mal(entry, db=db)
@@ -459,9 +459,9 @@ PIPELINES: dict[str, PipelineSpec] = {
         ),
         single_after=(run_sync_h_comic, run_sync_gated_labels),
     ),
-    # Tenrai, like anime minus AniList, for three things only: airing status,
-    # release date and the cover, then AniDB for whichever of them MAL left
-    # blank - all fill-only (_fill_hentai). Every run and the single-entry
+    # Tenrai, like anime minus AniList, for four things only: airing status,
+    # release date, episode count and the cover, then AniDB for whichever of
+    # them MAL left blank - all fill-only (_fill_hentai). Every run and the single-entry
     # hook end in the hentai sync and the gated label sync, which keeps the
     # label on.
     "hentai": PipelineSpec(

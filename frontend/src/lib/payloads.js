@@ -580,8 +580,9 @@ export function hGameFieldsPayload(f) {
  * franchise and series ids, which the caller resolves (and may have just
  * created) first.
  *
- * One entry is one episode, so there is no progress to send. `mal_link` and
- * `anidb_link` are their keys' source of truth: the write hook derives
+ * Progress is cartoon's pair: `ep_total` on the entry, `ep_fin` on the
+ * viewer's list row. `mal_link` and `anidb_link` are their keys' source of
+ * truth: the write hook derives
  * `mal_id` and `anidb_id` from them, so an id travels only beside its link,
  * and clearing the link clears the id.
  */
@@ -597,6 +598,8 @@ export function hentaiFieldsPayload(f) {
     series_number: int(f.series_number),
     airing_status: f.airing_status || null,
     release_date: f.release_date || null,
+    ep_total: int(f.ep_total),
+    ep_fin: int(f.ep_fin),
     mal_link: f.mal_link || null,
     mal_id: f.mal_link ? int(f.mal_id) : null,
     anidb_link: f.anidb_link || null,

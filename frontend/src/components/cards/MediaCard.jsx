@@ -274,7 +274,8 @@ function LibraryMeta({ type, data, scoreField }) {
     );
   }
 
-  // One entry is one episode: when it came out and whether it has aired.
+  // When it came out and whether it has aired; the episode count is the
+  // progress line's.
   if (type === "hentai") {
     return (
       <MetaLine className="mb-1">
@@ -385,7 +386,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     return <Count fin={localFin} total={localTotal} unit="ep" />;
   }
 
-  if (type === "tv-show" || type === "cartoon") {
+  if (type === "tv-show" || type === "cartoon" || type === "hentai") {
     const epFin = data.ep_fin ?? 0;
     const epTotal =
       data.ep_total != null && data.ep_total !== ""
@@ -574,6 +575,7 @@ const HAS_PROGRESS = new Set([
   "comic",
   "game",
   "h-comic",
+  "hentai",
   "h-game",
 ]);
 const ADMIN_ONLY_STATUS = new Set(["movie", "anime-movie"]);

@@ -41,6 +41,7 @@ def test_the_parser_types_every_column():
             "hentai_name_cn": "名",
             "source_material": "Manga",
             "series_number": "2.0",
+            "ep_total": "4.0",
             "release_date": "2024",
             "mal_id": "188",
             "mal_link": "https://myanimelist.net/anime/188",
@@ -51,6 +52,7 @@ def test_the_parser_types_every_column():
     )
     assert parsed["source_material"] == "Manga"
     assert parsed["series_number"] == 2
+    assert parsed["ep_total"] == 4
     assert parsed["release_date"] == "2024"
     assert parsed["mal_id"] == 188
     assert parsed["anidb_id"] == 4521

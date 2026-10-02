@@ -1049,6 +1049,8 @@ export default function Modify() {
       series_number: h.series_number ?? "",
       airing_status: h.airing_status || "",
       release_date: h.release_date ?? "",
+      ep_total: h.ep_total ?? "",
+      ep_fin: h.ep_fin ?? "",
       mal_id: h.mal_id ?? "",
       mal_link: h.mal_link || "",
       anidb_id: h.anidb_id ?? "",

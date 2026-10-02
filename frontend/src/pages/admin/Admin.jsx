@@ -2032,8 +2032,9 @@ export default function Admin() {
                 ...(canSeeHGame
                   ? [{ label: "H-Game", url: "/api/data-control/fill/h-game" }]
                   : []),
-                // Tenrai's airing status, release date and cover over the
-                // hentai table, fill-only, in Fill All. Gated like every
+                // Tenrai's airing status, release date, episode count and
+                // cover over the hentai table, then AniDB's, fill-only, in
+                // Fill All. Gated like every
                 // other hentai surface.
                 ...(canSeeHentai
                   ? [{ label: "Hentai", url: "/api/data-control/fill/hentai" }]
@@ -2086,7 +2087,7 @@ export default function Admin() {
                 ...(canSeeHGame
                   ? [{ label: "H-Game", url: "/api/data-control/replace/h-game" }]
                   : []),
-                // The same three fields, still fill-only: Replace completes
+                // The same fields, still fill-only: Replace completes
                 // what is blank and overwrites nothing.
                 ...(canSeeHentai
                   ? [{ label: "Hentai", url: "/api/data-control/replace/hentai" }]

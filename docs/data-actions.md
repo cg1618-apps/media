@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-01
+Last verified: 2026-10-02
 
 ## What this is for
 
@@ -233,7 +233,9 @@ entry.
 `H-Comic` follows `Game Copy`, and `Hentai` follows `H-Comic`, both still
 before `User Media List`. Hentai's credit and tag columns (`studio`,
 `director`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) travel
-under their own keys the same way. Its credit and
+under their own keys the same way. Its `ep_total` is an ordinary column of the
+`Hentai` tab, and the viewer's `ep_fin` travels on `User Media List`, as
+cartoon's does. Its credit and
 tag columns (`illustrator`, `author`, `club`, `original_source`,
 `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) have no legacy
 header, so each travels under its own key, and `highlight_group_order`
@@ -518,7 +520,7 @@ Per type (verbatim from `specs.py`):
 | `game` | `igdb_id` set and `has_missing_values_game(e)`, **or** `has_missing_values_game_steam(e)` | `_fill_game`: `autofill_game_from_igdb(e, db)`, `autofill_game_from_steam(e, db)`, then `autofill_cover_from_steam(e)` and `autofill_cover_from_steam_header(e)` - Steam's library capsule only when IGDB left the cover empty, and its header image only when the capsule did too | `STEAM_PAUSE` = 0.5 s | — | `"Syncing system options..."` → `run_sync_game` | `steam_store_rate_limiter.has_capacity` |
 | `h-comic` | `mal_id` set and `has_missing_values_h_comic` (`serialization_status`, `release_date`, `end_date` or the cover blank, or `ch_total` on a `完結` KR entry), **or** `has_missing_values_h_comic_ehentai(db, e)` (`ehentai_link` names a gallery and the cover or the illustrator credit is blank) | `_fill_h_comic`: `autofill_h_comic_from_mal(e, db=db)` then `autofill_h_comic_from_ehentai(e, db)` - no AniList | `MAL_PAUSE` = 1 s | — | `"Syncing h-comic invariants..."` → `run_sync_h_comic`, `"Syncing gated labels..."` → `run_sync_gated_labels` | — |
 | `h-game` | as game | `_fill_h_game`: DLsite, then game's two autofills generalised over the model, then the Steam and IGDB covers (below) | `STEAM_PAUSE` = 0.5 s | `game_post_processing` | `"Syncing system options..."` → `run_sync_game`, `"Syncing gated labels..."` → `run_sync_gated_labels` | `steam_store_rate_limiter.has_capacity` |
-| `hentai` | `mal_id` set and `has_missing_values_hentai` (`airing_status`, `release_date` or the cover blank), **or** `has_missing_values_hentai_anidb` (AniDB enabled, `anidb_id` set, one of the same three blank) | `_fill_hentai`: `autofill_hentai_from_mal(e, db=db)` - also the Official site / Twitter reference rows; no AniList - then `autofill_hentai_from_anidb(e, db=db)` for what MAL left blank | `MAL_PAUSE` = 1 s, plus AniDB's own 4 s spacing | — | `"Syncing system options..."` → `run_sync_hentai`, `"Syncing gated labels..."` → `run_sync_gated_labels` | `anidb.has_capacity` (false after an AniDB error answer); `pre_run` `anidb.start_run` lifts it |
+| `hentai` | `mal_id` set and `has_missing_values_hentai` (`airing_status`, `release_date`, `ep_total` or the cover blank), **or** `has_missing_values_hentai_anidb` (AniDB enabled, `anidb_id` set, one of the same four blank) | `_fill_hentai`: `autofill_hentai_from_mal(e, db=db)` - also the Official site / Twitter reference rows; no AniList - then `autofill_hentai_from_anidb(e, db=db)` for what MAL left blank | `MAL_PAUSE` = 1 s, plus AniDB's own 4 s spacing | — | `"Syncing system options..."` → `run_sync_hentai`, `"Syncing gated labels..."` → `run_sync_gated_labels` | `anidb.has_capacity` (false after an AniDB error answer); `pre_run` `anidb.start_run` lifts it |
 | `studio` | `mal_id` set and `has_missing_values_studio` | `autofill_studio_from_mal(e)` | `MAL_PAUSE` = 1 s | — | — | — |
 | `seiyuu` | `mal_id` set, `has_missing_values_person`, and a `person_role` row with role `seiyuu` (any scope) — `_is_seiyuu_to_fill` | `autofill_person_from_mal(e, db)` | `MAL_PAUSE` = 1 s | — | — | — |
 
@@ -582,14 +584,16 @@ only an E-Hentai link is filled. Every run and the write hook end in
 `run_sync_h_comic` and `run_sync_gated_labels`. Nothing either source writes
 is overwritten, so its bulk Replace completes what is blank.
 
-**Hentai reads Tenrai for three fields and two links.** `PIPELINES["hentai"]`
+**Hentai reads Tenrai for four fields and two links.** `PIPELINES["hentai"]`
 is anime's spec minus AniList: `fetch_tenrai_anime_data` and
 `map_tenrai_to_anime_data`, which serve Rx titles like any other, and only
-`airing_status`, `release_date` (both fill-only), the cover (downloaded only
-when the entry has none) and the `Official site` / `Twitter` reference rows
-(added only where the entry has none) are written - no names, studio, scores
-or AniList. Fill eligibility still looks at the three fields alone, so an
-entry whose three fields are set gains its links on a Replace, not a Fill. Because nothing
+`airing_status`, `release_date`, `ep_total` (MAL's `episodes`; all three
+fill-only), the cover (downloaded only when the entry has none) and the
+`Official site` / `Twitter` reference rows (added only where the entry has
+none) are written - no names, studio, scores or AniList. Fill eligibility
+looks at the four fields alone, so an entry whose four fields are set gains
+its links on a Replace, not a Fill. Replace ends in
+`apply_validate_episode_math`, cartoon's `ep_total` clamp. Because nothing
 it writes is overwritten, its bulk Replace completes what is blank and
 changes nothing else. Every run, and the single-entry write hook, ends in
 `run_sync_hentai` (system options) and `run_sync_gated_labels`, which keeps
@@ -598,9 +602,10 @@ the `hentai` label on.
 **AniDB fills what MAL left blank on a hentai.** `_fill_hentai` and
 `apply_single_replace_hentai` run `autofill_hentai_from_anidb` after the Tenrai
 autofill, keyed on `anidb_id` (extracted from `anidb_link`). It fills the
-airing status, the release date, the cover and the Official site row, all
-fill-only, so MAL's value wins wherever both have one; it asks AniDB nothing
-when MAL filled all three columns. An entry with only an AniDB link is
+airing status, the release date, the episode count (`episodecount`, never
+its unknown `0`), the cover and the Official site row, all fill-only, so
+MAL's value wins wherever both have one; it asks AniDB nothing when MAL
+filled all four columns. An entry with only an AniDB link is
 fill-eligible while AniDB is enabled (`ANIDB_CLIENT` and `ANIDB_CLIENTVER`
 set) and never while it is not, and Replace selects it. AniDB bans clients
 that flood it, so the client paces itself 4 s apart, asks each anime at most

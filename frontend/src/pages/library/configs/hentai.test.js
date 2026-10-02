@@ -1,7 +1,7 @@
 // Frontend: the hentai library config's filters, sorts and columns.
 //
-// One entry is one episode, so the page has no progress column; what makes it
-// useful is the watch axis and hentai's own vocabularies.
+// Progress is cartoon's EP column, ep_fin of ep_total; beside it, the watch
+// axis and hentai's own vocabularies.
 import { describe, expect, it } from "vitest";
 import HENTAI_LIBRARY_CONFIG from "./hentai";
 
@@ -47,11 +47,16 @@ describe("hentai library config", () => {
     expect(byRelease).toEqual(["2", "1"]);
   });
 
-  it("has a watch button and the watch plan flags, and no progress column", () => {
+  it("has a watch button and the watch plan flags", () => {
     const keys = HENTAI_LIBRARY_CONFIG.tableColumns.map((c) => c.key);
     expect(keys).toContain("watch");
     expect(keys).toContain("watch_next");
     expect(keys).toContain("to_rewatch");
-    expect(keys).not.toContain("progress");
+  });
+
+  it("shows episode progress as cartoon does", () => {
+    const ep = HENTAI_LIBRARY_CONFIG.tableColumns.find((c) => c.key === "ep");
+    expect(ep.render({ ep_fin: 1, ep_total: 2 })).toBe("1 / 2");
+    expect(ep.render({})).toBe("0 / ?");
   });
 });

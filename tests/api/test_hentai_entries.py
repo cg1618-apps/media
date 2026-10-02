@@ -74,8 +74,10 @@ def test_an_entry_round_trips(admin_client):
         series_number=2,
         airing_status="Finished Airing",
         release_date="2024-05",
+        ep_total=4,
     )
     fetched = admin_client.get(f"{ROUTE}/{body['public_id']}").json()
+    assert fetched["ep_total"] == 4
     assert fetched["source_material"] == "Manga"
     assert fetched["originality"] == "同人"
     assert fetched["series_number"] == 2
@@ -134,11 +136,75 @@ def test_the_personal_fields_land_on_the_list_row(admin_client, db_session, admi
 
 
 def test_complete_marks_it_watched_and_aired(admin_client):
-    body = _create(admin_client, airing_status="Airing")
+    body = _create(admin_client, airing_status="Airing", ep_total=3)
     response = admin_client.post(f"{ROUTE}/{body['system_id']}/complete")
     assert response.status_code == 200
     assert response.json()["watching_status"] == "Completed"
     assert response.json()["airing_status"] == "Finished Airing"
+    # Every episode there is: the counter is carried to the total.
+    assert response.json()["ep_fin"] == 3
+
+
+# ---------------------------------------------------------------------------
+# The episode tracker: ep_total on the entry, ep_fin on the viewer's row
+# ---------------------------------------------------------------------------
+
+
+def test_an_update_changes_the_episode_total(admin_client):
+    body = _create(admin_client, ep_total=2)
+    response = admin_client.put(f"{ROUTE}/{body['system_id']}", json={"ep_total": 6})
+    assert response.status_code == 200, response.text
+    assert response.json()["ep_total"] == 6
+    assert admin_client.get(f"{ROUTE}/{body['public_id']}").json()["ep_total"] == 6
+
+
+def test_ep_fin_lands_on_the_list_row(admin_client, db_session, admin_user):
+    body = _create(admin_client, ep_total=4)
+    response = admin_client.patch(f"{ROUTE}/{body['system_id']}", json={"ep_fin": 2})
+    assert response.status_code == 200, response.text
+    assert response.json()["ep_fin"] == 2
+    row = (
+        db_session.query(models.UserMediaList)
+        .filter_by(user_id=admin_user.id, media_id=uuid.UUID(body["system_id"]))
+        .one()
+    )
+    assert row.ep_fin == 2
+    # A catalogue column, never the viewer's.
+    assert _db_entry(db_session, body).ep_total == 4
+
+
+def test_stepping_to_the_total_finishes_it(admin_client):
+    body = _create(admin_client, airing_status="Airing", ep_total=2)
+    admin_client.patch(
+        f"{ROUTE}/{body['system_id']}", json={"watching_status": "Active Watching", "ep_fin": 1}
+    )
+    response = admin_client.patch(f"{ROUTE}/{body['system_id']}", json={"ep_fin": 2})
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["ep_fin"] == 2
+    assert data["watching_status"] == "Completed"
+    assert data["airing_status"] == "Finished Airing"
+
+
+def test_stepping_below_the_total_does_not(admin_client):
+    # The mirror case: the same entry, one short of its total.
+    body = _create(admin_client, airing_status="Airing", ep_total=3)
+    admin_client.patch(
+        f"{ROUTE}/{body['system_id']}", json={"watching_status": "Active Watching"}
+    )
+    response = admin_client.patch(f"{ROUTE}/{body['system_id']}", json={"ep_fin": 2})
+    data = response.json()
+    assert data["watching_status"] == "Active Watching"
+    assert data["airing_status"] == "Airing"
+
+
+def test_my_list_put_accepts_ep_fin(admin_client, mode_client, plain_member):
+    """A member, not the admin: root holds no list rows."""
+    body = _create(admin_client, ep_total=4)
+    member = mode_client("unrestricted", user=plain_member)
+    response = member.put(f"/api/me/list/{body['system_id']}", json={"ep_fin": 3})
+    assert response.status_code == 200, response.text
+    assert response.json()["ep_fin"] == 3
 
 
 def test_delete_removes_the_entry(admin_client, db_session):
@@ -398,7 +464,7 @@ def test_duplicates_key_on_series_number(db_session, sample_franchise):
 
     a = add(1, "Same")
     b = add(1, "same")
-    add(2, "Same")  # another episode of the series: not a duplicate
+    add(2, "Same")  # the next entry of the series: not a duplicate
     db_session.flush()
 
     clusters = find_duplicate_hentai(db_session)
