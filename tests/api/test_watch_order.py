@@ -1589,6 +1589,20 @@ def _section_positions(admin_client, list_id):
     return {s["system_id"]: s["position"] for s in sections}
 
 
+def test_parts_have_no_reorder_route_of_their_own(
+    admin_client, sample_list, sample_parts
+):
+    # Parts are placed by `section_positions` on the step reorder. A 1..N
+    # renumbering of part ids cannot express an empty part sitting between
+    # two steps, so the route that did that is gone rather than kept as a
+    # second, wrong way to move a part.
+    response = admin_client.put(
+        f"/api/watch-order/lists/{sample_list.system_id}/sections/reorder",
+        json={"section_ids": [str(p.system_id) for p in reversed(sample_parts)]},
+    )
+    assert response.status_code in (404, 405)
+
+
 class TestReorderPlacesParts:
     """
     `section_positions` moves the parts in the same commit as the steps.

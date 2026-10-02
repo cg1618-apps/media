@@ -2036,7 +2036,6 @@ refuse a built-in (generated) list, the same way the item endpoints do.
 | PUT | `/api/watch-order/sections/{section_id}` | `WatchOrderSectionUpdate` | Full update. |
 | PATCH | `/api/watch-order/sections/{section_id}` | free dict | Partial: name, position, remark. |
 | DELETE | `/api/watch-order/sections/{section_id}` | — | Steps are **not** deleted; `section_id` is SET NULL and they become ungrouped. |
-| PUT | `/api/watch-order/lists/{system_id}/sections/reorder` | `WatchOrderSectionReorder` | Renumbers 1..N. Payload must name every section exactly once. Only moves **empty** parts — a part with steps reads where its steps read, so it is moved by reordering them. No frontend calls it: the editor places parts through `section_positions` on `PUT /lists/{system_id}/reorder`. |
 
 `GET /api/watch-order/lists/{system_id}` also returns `sections`. `items` stays
 a **flat list in reading order** — ordered by `position` alone. Each item names

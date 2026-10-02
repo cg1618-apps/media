@@ -2664,7 +2664,9 @@ dnd-kit's `useDraggable` / `useDroppable` with the same sensors.
 - **A watch-order move is one request.** Moving a part used to need the step
   order and the empty parts' anchors written separately; `PUT
   /lists/{id}/reorder` now takes `section_positions` beside `item_ids` and
-  `section_ids`, so a move lands entirely or not at all. The section reorder
-  route remains, with no frontend caller.
+  `section_ids`, so a move lands entirely or not at all. The separate
+  `PUT /lists/{id}/sections/reorder` route was deleted: it renumbered parts
+  1..N, which cannot place an empty part between two steps, so it was a
+  second, wrong way to move a part.
 - **The cost** is three dependencies (`@dnd-kit/core`, `@dnd-kit/sortable`,
   `@dnd-kit/utilities`).

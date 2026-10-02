@@ -136,7 +136,6 @@ Router: `app/routers/watch_order.py`, prefix `/api/watch-order`. Schemas: `app/s
 | PUT | `/sections/{id}` | admin | `WatchOrderSectionUpdate` | section | 404, 400 generated |
 | PATCH | `/sections/{id}` | admin | dict | section | 404, 400 generated |
 | DELETE | `/sections/{id}` | admin | — | `{status, message}`; steps become unfiled (SET NULL) | 404, 400 generated |
-| PUT | `/lists/{id}/sections/reorder` | admin | `{section_ids: [...]}` every section exactly once; renumbers 1..N. No frontend calls it - the editor places parts through `section_positions` above | full detail response | 400 duplicate / partial |
 
 Frontend endpoint map: `frontend/src/api/endpoints.js` (`endpoints.watchOrder.*`).
 

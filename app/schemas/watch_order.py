@@ -212,12 +212,6 @@ class WatchOrderReorder(BaseModel):
     section_positions: Optional[List[WatchOrderSectionPosition]] = None
 
 
-class WatchOrderSectionReorder(BaseModel):
-    """Ordered section ids; positions are renumbered 1..N to match."""
-
-    section_ids: List[UUID]
-
-
 # ==========================================
 # SHEET SYNC
 # ==========================================
