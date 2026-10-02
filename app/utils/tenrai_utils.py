@@ -447,3 +447,70 @@ def map_tenrai_to_person_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "name_jp": name_jp or None,
         "name_alt": ", ".join(alternates) or None,
     }
+
+
+def _mal_photo(raw_data: Dict[str, Any]) -> Optional[str]:
+    """The jpg picture URL, or None for MAL's question-mark placeholder."""
+    url = (raw_data.get("images") or {}).get("jpg", {}).get("image_url")
+    if url and MAL_PLACEHOLDER_IMAGE_MARKER in url:
+        return None
+    return url
+
+
+def map_tenrai_to_character_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transforms a raw Tenrai character payload into the flat dict the
+    character autofill writes from. `about` is dropped: the character table
+    has no column for it.
+    """
+    nicknames = [
+        n.strip()
+        for n in raw_data.get("nicknames") or []
+        if isinstance(n, str) and n.strip()
+    ]
+    name_jp = raw_data.get("name_kanji")
+    return {
+        "photo_url": _mal_photo(raw_data),
+        "mal_link": raw_data.get("url"),
+        "name_en": _western_order(raw_data.get("name")),
+        "name_jp": name_jp.strip() if isinstance(name_jp, str) and name_jp.strip() else None,
+        "name_alt": ", ".join(nicknames) or None,
+    }
+
+
+# MAL's cast roles, mapped onto CHARACTER_ROLES. MAL has only these two.
+_MAL_CAST_ROLES = {"Main": "Main", "Supporting": "Supporting"}
+
+
+def map_tenrai_cast(items: list) -> list[Dict[str, Any]]:
+    """
+    Transforms a Tenrai /anime|manga/{id}/characters list into cast rows:
+    the character's MAL id, link, western-order name and picture, the role,
+    and its Japanese voice actors - MAL lists every dub, and a casting
+    records the original cast. An item with no character id is dropped.
+    """
+    rows = []
+    for item in items or []:
+        character = item.get("character") or {}
+        if not character.get("mal_id"):
+            continue
+        voices = [
+            {
+                "mal_id": (va.get("person") or {}).get("mal_id"),
+                "mal_link": (va.get("person") or {}).get("url"),
+                "name_en": _western_order((va.get("person") or {}).get("name")),
+            }
+            for va in item.get("voice_actors") or []
+            if va.get("language") == "Japanese" and (va.get("person") or {}).get("mal_id")
+        ]
+        rows.append(
+            {
+                "mal_id": character["mal_id"],
+                "mal_link": character.get("url"),
+                "name_en": _western_order(character.get("name")),
+                "photo_url": _mal_photo(character),
+                "role": _MAL_CAST_ROLES.get(item.get("role")),
+                "voices": voices,
+            }
+        )
+    return rows

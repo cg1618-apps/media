@@ -308,3 +308,90 @@ def fetch_tenrai_person_data(mal_id: int) -> Optional[Dict[str, Any]]:
             e,
         )
         raise
+
+
+def _get_tenrai_data(label: str, path: str, mal_id: int) -> Optional[Any]:
+    """
+    One throttled GET of `path` under TENRAI_BASE_URL, returning the
+    response's `data`. The same status handling as the fetchers above: a 429
+    raises for the caller's retry, a 404 or a 5xx is None, a network error
+    is logged and re-raised.
+    """
+    tenrai_rate_limiter.wait_if_needed()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0"
+    }
+    try:
+        response = requests.get(f"{TENRAI_BASE_URL}/{path}", headers=headers, timeout=15)
+
+        if response.status_code == 429:
+            logger.warning("Tenrai Rate Limit (429) for %s MAL ID %s.", label, mal_id)
+            raise RateLimitExceeded("429 Too Many Requests")
+
+        if response.status_code == 404:
+            logger.warning("%s not found (404) on Tenrai for MAL ID %s", label, mal_id)
+            return None
+
+        if response.status_code >= 500:
+            logger.warning(
+                "Tenrai server error (%s) for %s MAL ID %s — skipping retries.",
+                response.status_code,
+                label,
+                mal_id,
+            )
+            return None
+
+        response.raise_for_status()
+        return response.json().get("data")
+
+    except requests.exceptions.RequestException as e:
+        logger.error(
+            "Network/Timeout Error connecting to Tenrai for %s MAL ID %s: %s",
+            label,
+            mal_id,
+            e,
+        )
+        raise
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=(
+        retry_if_exception_type(requests.exceptions.RequestException)
+        | retry_if_exception_type(RateLimitExceeded)
+    ),
+    reraise=False,
+)
+def fetch_tenrai_character_data(mal_id: int) -> Optional[Dict[str, Any]]:
+    """
+    Fetches one MAL character from Tenrai - names, kanji name, nicknames and
+    picture. Same throttle and retry policy, and the same budget, as the
+    fetchers above.
+    """
+    if not mal_id:
+        return None
+    return _get_tenrai_data("Character", f"characters/{mal_id}/full", mal_id)
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=(
+        retry_if_exception_type(requests.exceptions.RequestException)
+        | retry_if_exception_type(RateLimitExceeded)
+    ),
+    reraise=False,
+)
+def fetch_tenrai_cast(resource: str, mal_id: int) -> Optional[list]:
+    """
+    Fetches an entry's cast from Tenrai: `resource` is "anime" (anime, anime
+    movie, hentai), whose characters carry voice actors in every language,
+    or "manga" (manga, novel, h-comic), whose do not. A list of
+    {character, role, voice_actors?} items.
+    """
+    if not mal_id:
+        return None
+    return _get_tenrai_data(
+        f"{resource.capitalize()} cast", f"{resource}/{mal_id}/characters", mal_id
+    )

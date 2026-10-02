@@ -36,7 +36,9 @@ export function useReplaceCasting() {
     // neither has to remember to do it itself.
     //
     // A row's role is optional: CastEditor's "—" choice (and a new row) holds
-    // role "", which is sent as null - "" is not a role.
+    // role "", which is sent as null - "" is not a role. Likewise a seiyuu
+    // line nobody filled in is not a voice: only voices naming a person are
+    // sent, and a blank voice remark is sent as null.
     mutationFn: ({ mediaType, entryId, cast }) =>
       fetchJson(endpoints.casting.replace(mediaType, entryId), {
         method: "PUT",
@@ -44,7 +46,16 @@ export function useReplaceCasting() {
         body: JSON.stringify({
           cast: (cast || [])
             .filter((row) => row && row.character_id)
-            .map((row) => ({ ...row, role: row.role || null })),
+            .map((row) => ({
+              ...row,
+              role: row.role || null,
+              voices: (row.voices || [])
+                .filter((voice) => voice && voice.person_id)
+                .map((voice) => ({
+                  person_id: voice.person_id,
+                  remark: voice.remark || null,
+                })),
+            })),
         }),
       }),
     onSuccess: (data, variables) => {

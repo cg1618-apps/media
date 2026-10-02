@@ -21,7 +21,6 @@ import MangaNotes from "./MangaNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import {
   Button,
-  Chip,
   Eyebrow,
   ProgressRule,
   RatingStamp,
@@ -31,85 +30,17 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { READING_STATUSES, castRoleRank } from "../../config/fieldOptions";
+import { READING_STATUSES } from "../../config/fieldOptions";
 import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
+import CastSection from "../../components/info/CastSection";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
-// Castings in CHARACTER_ROLES order (Main, Core, Supporting, Other), then
-// whatever order the server already gave; a casting with no role sorts last
-// rather than crowding the top (castRoleRank).
-
-// Read-only cast list, shared shape for every ACG detail page. Renders
-// nothing when the entry has no cast — an empty "Cast" slip would just be a
-// title over a blank box, same rule NovelUnitsCard follows for units. A
-// manga's castings never carry a seiyuu (ck_casting_voice_scope), so a row
-// with no person_id simply renders the character alone rather than an empty
-// or broken "voiced by" link.
-function CastSection({ cast }) {
-  if (!cast || cast.length === 0) return null;
-  const sorted = [...cast].sort((a, b) => {
-    const ra = castRoleRank(a.role);
-    const rb = castRoleRank(b.role);
-    if (ra !== rb) return ra - rb;
-    return (a.position ?? 0) - (b.position ?? 0);
-  });
-  return (
-    <Slip title="Cast">
-      <div className="space-y-2">
-        {sorted.map((row) => (
-          <div key={row.system_id} className="flex items-center gap-3">
-            <div className="w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded">
-              <img
-                loading="lazy"
-                src={getCoverUrl(row.photo_file)}
-                alt=""
-                className="w-full h-full object-cover"
-                style={focusStyle(row.photo_focus)}
-                onError={(e) => {
-                  e.target.src = FALLBACK_SVG;
-                }}
-              />
-            </div>
-            <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-              {row.role && <Chip>{row.role}</Chip>}
-              {/* The casting row carries the target's own public_id and
-                  display name, so this is the real entity, not a stub. */}
-              <Link
-                to={entityPath("character", {
-                  public_id: row.character_public_id,
-                  display_name: row.character_name,
-                })}
-                className={lineageLinkCls}
-              >
-                {row.character_name || "Unknown"}
-              </Link>
-              {row.person_id && (
-                <>
-                  <span className="text-text-faint text-xs">voiced by</span>
-                  <Link
-                    to={entityPath("person", {
-                      public_id: row.person_public_id,
-                      display_name: row.person_name,
-                    })}
-                    className={lineageLinkCls}
-                  >
-                    {row.person_name || "Unknown"}
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Slip>
-  );
-}
 
 const selectCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";

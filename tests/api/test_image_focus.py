@@ -378,7 +378,13 @@ def test_the_person_entries_list_carries_cover_image_focus(
             character_id=character.system_id,
             media_type="anime",
             entry_id=sample_anime.system_id,
-            person_id=person.system_id,
+            voices=[
+                models.CharacterCastingVoice(
+                    media_type="anime",
+                    entry_id=sample_anime.system_id,
+                    person_id=person.system_id,
+                )
+            ],
         )
     )
     media = _media_row(db_session, sample_anime)

@@ -584,6 +584,8 @@ export default function AnimeAddTab({
       <SectionHeader icon="fa-users" title="Cast" />
       <CastEditor
         mediaType="anime"
+        franchiseId={af.franchise_id}
+        malLink={af.mal_link}
         value={af.cast}
         onChange={(rows) => ua("cast", rows)}
       />

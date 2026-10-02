@@ -66,7 +66,7 @@ def test_get_returns_an_empty_cast_for_a_bare_anime(client, anime):
 def test_put_replaces_the_whole_cast(admin_client, anime, character, person):
     body = {"cast": [{
         "character_id": str(character.system_id),
-        "person_id": str(person.system_id),
+        "voices": [{"person_id": str(person.system_id)}],
         "role": "Main",
         "position": 0,
     }]}
@@ -75,7 +75,7 @@ def test_put_replaces_the_whole_cast(admin_client, anime, character, person):
     rows = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
     assert len(rows) == 1
     assert rows[0]["character_name"] == character.display_name
-    assert rows[0]["person_name"] == person.display_name
+    assert [v["person_name"] for v in rows[0]["voices"]] == [person.display_name]
 
     assert admin_client.put(
         f"/api/casting/anime/{anime.system_id}", json={"cast": []}
@@ -99,7 +99,7 @@ def test_a_seiyuu_on_a_manga_casting_is_rejected(admin_client, manga, character,
     """ck_casting_voice_scope, surfaced as a 422 rather than a 500."""
     body = {"cast": [{
         "character_id": str(character.system_id),
-        "person_id": str(person.system_id),
+        "voices": [{"person_id": str(person.system_id)}],
     }]}
     r = admin_client.put(f"/api/casting/manga/{manga.system_id}", json=body)
     assert r.status_code == 422
@@ -270,7 +270,7 @@ def test_an_unknown_person_id_is_a_422(admin_client, anime, character):
     unknown_id = uuid.uuid4()
     body = {"cast": [{
         "character_id": str(character.system_id),
-        "person_id": str(unknown_id),
+        "voices": [{"person_id": str(unknown_id)}],
     }]}
     r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
     assert r.status_code == 422
@@ -287,7 +287,7 @@ def test_a_hentai_is_cast_with_its_seiyuu(admin_client, character, person):
 
     body = {"cast": [{
         "character_id": str(character.system_id),
-        "person_id": str(person.system_id),
+        "voices": [{"person_id": str(person.system_id)}],
         "role": "Main",
     }]}
     r = admin_client.put(f"/api/casting/hentai/{entry_id}", json=body)
@@ -296,4 +296,4 @@ def test_a_hentai_is_cast_with_its_seiyuu(admin_client, character, person):
     rows = admin_client.get(f"/api/casting/hentai/{entry_id}").json()["cast"]
     assert len(rows) == 1
     assert rows[0]["character_name"] == character.display_name
-    assert rows[0]["person_name"] == person.display_name
+    assert [v["person_name"] for v in rows[0]["voices"]] == [person.display_name]

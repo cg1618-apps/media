@@ -664,8 +664,10 @@ detail shape — the header is a profile and the body is the entries this
 character is cast in. Two raw fetches, the profile then `.../entries` by the
 `system_id` it returns; the character call failing is the page's 404, the
 entries call failing is not. The Profile card shows the character's own
-**Role** beside Gender — its own field, not derived from any casting's role.
-The layout and the admin controls — Quick edit
+**Role** beside Gender — its own field, not derived from any casting's role —
+and a **MAL** row: the `mal_link` as an external link reading
+`Character #<mal_id>` (`MyAnimeList` when no id was derived), "—" without a
+link. The layout and the admin controls — Quick edit
 to `/modify?id=<system_id>&type=character`, the My rating select, the
 Remarks textarea, all PATCHing `/api/character/{system_id}` — are the person
 page's, as is the Naming card in place of a list of other names. The photo
@@ -677,8 +679,9 @@ The one structural difference from the person page: `GET
 /api/character/{id}/entries` groups **by media type only**, because a
 character holds no role the way a person does — see
 `app/routers/character.py`'s `get_character_entries`. Each entry in a group
-also names the seiyuu who voiced the character there (`seiyuu_display_name`
-/ `seiyuu_system_id`), rendered as a small link beneath the entry card
+also carries every seiyuu who voiced the character there (`seiyuu`, a list of
+`{display_name, system_id, public_id, remark}`), rendered beneath the entry
+card as one small link per seiyuu with its remark in brackets - "Name (child)"
 (`CastingCard`, a local component, not `MediaCard`, for the same reason
 `Person.jsx`'s `CreditCard` is local) — since knowing who played the part is
 the point of looking a character up, unlike a person's own credits. A group
@@ -869,13 +872,20 @@ Top to bottom:
    — the backend's `credit_label("publisher", media_type)`, so no page
    hard-codes 台灣代理商 or 發行商 and the fallback literal only shows on an
    entry with no publisher credited yet — a **Cast** slip (Anime, AnimeMovie, Manga, Novel; GET
-   `/api/casting/{media_type}/{entry_id}` via `useCasting`), rendered only
-   when the entry has a cast, one row per casting sorted by role in
-   `CHARACTER_ROLES` order — Main, Core, Supporting, Other, then no role
-   (`castRoleRank`) — then by `position`: a small cover-or-portrait thumbnail, a role
-   chip, a link to `/character/{character_id}`, and — on Anime/AnimeMovie
-   only, where `character_casting.person_id` may be set — "voiced by" plus a
-   link to `/person/{person_id}` — a remark textarea (blur-saves; rendered only when
+   `/api/casting/{media_type}/{entry_id}` via `useCasting`), drawn by the
+   shared `components/info/CastSection.jsx` and rendered only when the entry
+   has a cast. Rows are sorted by role in `CHARACTER_ROLES` order — Main,
+   Core, Supporting, Other, then no role (`castRoleRank`) — then by
+   `position`, and each shows a small cover-or-portrait thumbnail, a role
+   chip, a link to the character, and — on Anime/AnimeMovie, the voiced types
+   — "voiced by" and every seiyuu of the casting as a link to their person
+   page, separated by "·", each followed by its voice remark in brackets
+   ("voiced by A · B (child)"). The slip starts collapsed to the Main
+   characters; **Show core cast (+N)** widens it to Main and Core and
+   **Show main cast only** narrows it back; **Show full cast (N)** opens a
+   dialog listing every row, every role. With no Main character the collapsed
+   view starts at Core, and a cast with no Main or Core character is shown
+   whole with no controls — a remark textarea (blur-saves; rendered only when
    a remark already exists, with the Notes `remark` section hidden so the
    singleton row never has two editors), then `{Type}Notes` →
    `pages/notes/NotesTemplate.jsx` — except Game, which composes
@@ -931,8 +941,9 @@ Both regions carry the tracker's reading status, rating, **usefulness**
 (personal, like the rating) and Read Next / To Reread; a **Genres** card (Genre
 Plot / Appearance / Relation); `SourcesCard` with the KR official source as its
 tag, and the MAL link and the E-Hentai gallery (`ehentaiLink`, tag "EH")
-under "Where to Look Up"; `RelationsSection`; a **Cast** slip (characters only -
-an h-comic casting never carries a seiyuu); the series number beside the
+under "Where to Look Up"; `RelationsSection`; a **Cast** slip, the shared
+`CastSection` (characters only - an h-comic casting never carries a seiyuu);
+the series number beside the
 series link on JP. The admin toolbar has Quick edit, Mark completed and
 **Autofill & update**, which runs `POST /replace/h-comic/{id}` - Tenrai's
 manga record, then the E-Hentai gallery's cover and illustrator where still
@@ -984,8 +995,9 @@ episode counter: a local `HentaiTrackerBlock` (watching status, rating,
 three cards - **Information** (Source Material, Originality, Airing Status,
 Release Date), **Credits** (Studio via `studioValue`, Director) and
 **Genres** (Genre Plot / Appearance / Relation), with a **Cast** slip between
-Credits and Genres - characters with "voiced by" their seiyuu, from
-`useCasting("hentai", …)`, drawn only when the entry has a cast. The spine reads "Hentai" and
+Credits and Genres - the shared `CastSection`, characters with "voiced by"
+every seiyuu, from `useCasting("hentai", …)`, drawn only when the entry has a
+cast. The spine reads "Hentai" and
 the source material; the series number sits beside the series link. The left
 column carries `SourcesCard` with `malLink` and `anidbLink` and `RelationsSection`. The admin
 toolbar has Quick edit, Mark completed and **Autofill & update**, the

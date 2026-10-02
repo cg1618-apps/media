@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-28
+Last verified: 2026-10-01
 
 ## What this is for
 
@@ -365,6 +365,9 @@ A dated log of the choices that shaped the code and, where it matters, the alter
   person's link to the work; a casting is the *character's* link, so
   `character_casting.person_id` is **`ON DELETE SET NULL`** while `character_id`
   cascades.
+  The person has since moved to `character_casting_voice`, whose `person_id`
+  cascades while the casting stays — the same intent by another mechanism;
+  see "A casting holds several seiyuu" under 2026-10.
 
 ### Games as a media type (spec: 2026-09-06 games-media-type)
 
@@ -2493,3 +2496,137 @@ plus an optional `title`, rendered with `react-markdown` and `remark-gfm`.
   build on any cropped `<img>` that neither sets a `style` nor opts out with
   `data-focus="none"`. Seventy-four render sites had to change, and the next
   cropped image added anywhere is the one a list would miss.
+
+### A casting holds several seiyuu, in `character_casting_voice` (2026-10-01)
+
+- **Owner's request: a character may have more than one seiyuu in one
+  entry** — a child and an adult voice, a recast mid-season, a drama CD —
+  and the cast should say which is which. `character_casting.person_id`
+  held exactly one, so it leaves the casting for a child table,
+  `character_casting_voice`: one row per voice, in `position` order, with a
+  free-text `remark` (`child`, `ep 13-`). One seiyuu voicing several
+  characters needed nothing new; it is one person on several castings, as
+  it always was.
+- **A child table, not a second casting per voice.** The alternative was
+  dropping `uq_character_casting (character_id, media_type, entry_id)` and
+  letting a character be cast twice on one entry, once per seiyuu. Rejected:
+  the casting carries the character's role, photo, focal point, position and
+  remark for that entry, and two rows would hold two copies of each that
+  could drift, while every cast list would show the character twice. The
+  casting stays the character's one record per entry (Decision E); the
+  voices hang beneath it.
+- **The voice row repeats the casting's `media_type` and `entry_id`, held
+  equal by a composite FK.** `fk_casting_voice_casting (casting_id,
+  media_type, entry_id)` references `character_casting (system_id,
+  media_type, entry_id)`, which needed the otherwise redundant
+  `uq_character_casting_entry` as its target, with `ON UPDATE CASCADE` so
+  the copy cannot drift. Two things depend on the copy. First,
+  `ck_casting_voice_scope` (a voice only on anime, anime-movie and hentai)
+  stays a CHECK: a CHECK cannot look at another table, so without
+  `media_type` on the row the rule would be Python-only, and the Fill
+  pipeline and migrations write rows without the API. Second, every reader
+  that asks "which entries does this person voice in" — `credit_count`,
+  person `/entries`, the shared-record `CONNECTIONS` and the photo fallback
+  — keeps reading one table with a `(media_type, entry_id)` pair, exactly as
+  it reads `media_credit`, rather than gaining a join in each place.
+  Rejected: storing only `casting_id`, which buys normalisation at the cost
+  of both.
+- **`person_id` is `ON DELETE CASCADE`, and that is what honours Decision H
+  now.** Decision H says deleting a seiyuu must not delete the character's
+  casting. With the person on the casting, that took `ON DELETE SET NULL`.
+  With the person on a voice row, the voice row *is* the person's link to
+  the work, as a `media_credit` row is, so it cascades — and the casting, the
+  character's link, is a different row and stays, keeping whatever other
+  voices it has. Same intent, different mechanism. `person_id` is NOT NULL:
+  a voice with nobody voicing is not a row. The person delete guard
+  (`?credits=N`) counts `media_credit` rows plus voice rows.
+- **Defect found and fixed: a person merge did not move castings.**
+  `POST /api/person/{id}/merge` repointed `media_credit` rows and unioned
+  `person_role`, but never touched `character_casting.person_id`. Deleting
+  the loser then hit `ON DELETE SET NULL`, so merging two duplicate seiyuu
+  silently un-voiced every character the loser had voiced — the one outcome
+  merge exists to prevent. Nothing tested it, because the merge tests only
+  built credits. The merge now repoints voice rows too, dropping a voice on
+  a casting the survivor already voices (it would collide on
+  `uq_casting_voice`, and the survivor's row stands for both), and counts
+  them in `credits_moved`; `test_casting_voices.py` builds a voice on the
+  loser and asserts it lands on the survivor.
+- **A character merge folds voices rather than dropping them.** Where both
+  characters are cast on one entry, the loser's casting is still dropped
+  (it would collide on `uq_character_casting`), but its voices the
+  survivor's casting lacks are appended to the survivor's first, so a
+  seiyuu recorded only on the duplicate is not lost with it.
+- **The Sheets backup gains a tab, `Character Casting Voice`**, restored
+  immediately after `Character Casting` because each voice cites its casting
+  by `casting_id`. `Character Casting` loses its `person_id` column. The
+  revision moves each existing `person_id` into one voice row at position 0;
+  its downgrade keeps the first voice of each casting and drops the rest,
+  since the old shape cannot hold more than one.
+- **One `CastSection`, collapsed to the Main cast.** The six ACG detail
+  pages each carried a near-identical copy of the cast slip, so the voice
+  list would have had to land six times; they now share
+  `components/info/CastSection.jsx`. It shows the Main characters, widens to
+  Main and Core on request, and puts the whole cast in a dialog, so a long
+  cast - each row now as long as its list of voices - never pushes the rest
+  of the page down.
+
+### A cast is imported from a franchise sibling, copied whole, into the form (2026-10-01)
+
+A season two usually keeps most of season one's cast, so the cast editor can
+copy another entry's cast in and the admin edits from there. Three choices:
+
+- **Siblings are the franchise's entries, of any castable type.** An anime's
+  cast may come from its manga as well as from an earlier season;
+  `media.franchise_id` is the one link every type shares, and the endpoint is
+  keyed on it rather than on an entry so the Add form, which has a franchise
+  before it has an entry, can use it too.
+- **Everything is copied, photo and remark included** - the owner's choice
+  over copying only character, seiyuu and role. A per-entry photo or remark
+  that no longer fits is edited after import; one that still fits is not
+  retyped. Voices are the exception on a type nobody voices, where
+  `ck_casting_voice_scope` would refuse them.
+- **The import fills the form, not the database.** It appends rows the way
+  typing does and the normal save writes them, so an import can be reviewed
+  and trimmed before anything is stored, and there is no second write path
+  into `character_casting`. A character already in the cast is skipped rather
+  than duplicated, because `uq_character_casting` would refuse the save.
+
+The detail page's cast slip collapses at the same time: Main characters
+show, Core on expanding, and the full cast - every role - opens in a dialog,
+so a forty-row cast does not push the page down.
+
+### A cast is imported from MyAnimeList, matched by MAL id (2026-10-01)
+
+Typing a long cast by hand is the slowest part of adding an anime, and MAL
+already lists it. A character gains `mal_id` / `mal_link` the way a person
+carries them (filled from Tenrai's `/characters/{id}/full` on save,
+fill-only), and `POST /api/casting/mal` turns an entry's MAL character list
+(`/anime|manga/{id}/characters`, both checked with a real call before the
+import was designed on them) into cast rows. Five choices:
+
+- **A character is matched by `mal_id` only, never by name.** Decision G
+  holds: "Yuki" recurs across unrelated works, so a name match would fuse two
+  characters. An unmatched character is created, and a duplicate that
+  produces is folded by merge. Only characters the caller can see are
+  matched, so a hidden record's name never lands in their form.
+- **A seiyuu is matched by `mal_id`, then by name.** A human's full name is
+  nearly unique - the reasoning behind `uq_person_name` - and a seiyuu
+  entered without a MAL link would otherwise be created a second time,
+  splitting one voice actor's body of work across two rows. A name-matched
+  person without a `mal_id` takes MAL's, so the next import matches by id. The name match goes through `resolve_person`, the
+  find-or-create every person field uses, and a name that matches two people
+  is reported as a warning rather than guessed.
+- **Japanese voices only.** MAL lists every dub; a casting records the
+  original cast. Dubs remain the deferred `language` question.
+- **The import fills the form, not the cast**, the same rule as the
+  franchise import: the rows are reviewed and saved by the editor's ordinary
+  `PUT`, and there is no second write path into `character_casting`. Only the
+  characters and people it had to create are committed, as the editor's own
+  comboboxes create one the moment it is picked.
+- **A new character's portrait downloads after the response.** Downloading
+  inline made a long cast - 116 characters on Fullmetal Alchemist:
+  Brotherhood - take about two minutes. The request sets each `photo_file`
+  to the key the background download will write. If that download fails,
+  the key names a missing own download, which `cover_needs_download` already
+  treats as needing one, so the character's next MAL fill repairs it with no
+  bookkeeping of its own.

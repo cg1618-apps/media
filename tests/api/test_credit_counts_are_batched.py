@@ -148,7 +148,7 @@ def test_person_list_does_not_double_count_one_entry(
     the two lists instead would read 2.
     """
     entry_id = (
-        db_session.query(models.CharacterCasting.entry_id)
+        db_session.query(models.CharacterCastingVoice.entry_id)
         .filter_by(person_id=seiyuu_with_one_casting.system_id)
         .scalar()
     )

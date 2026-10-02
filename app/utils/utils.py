@@ -18,6 +18,7 @@ MAL_MANGA_ID_PATTERN = re.compile(r"myanimelist\.net/manga/(\d+)")
 # plain anime link. The two never poach each other.
 MAL_PRODUCER_ID_PATTERN = re.compile(r"myanimelist\.net/anime/producer/(\d+)")
 MAL_PERSON_ID_PATTERN = re.compile(r"myanimelist\.net/people/(\d+)")
+MAL_CHARACTER_ID_PATTERN = re.compile(r"myanimelist\.net/character/(\d+)")
 IMDB_ID_PATTERN = re.compile(r"imdb\.com/title/tt(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
 SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
@@ -352,6 +353,18 @@ def extract_mal_id_person(url: str) -> Optional[int]:
         return int(match.group(1))
 
     return None
+
+
+def extract_mal_id_character(url: str) -> Optional[int]:
+    """
+    Extracts the numeric ID from a MyAnimeList character URL, e.g.
+    https://myanimelist.net/character/11/Edward_Elric -> 11.
+    Returns None if the URL is invalid or the ID cannot be found.
+    """
+    if not url:
+        return None
+    match = MAL_CHARACTER_ID_PATTERN.search(url)
+    return int(match.group(1)) if match else None
 
 
 def extract_mal_id_anime(url: str) -> Optional[int]:

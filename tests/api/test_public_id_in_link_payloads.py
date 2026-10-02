@@ -46,7 +46,9 @@ def test_casting_rows_carry_both_public_ids(client, seiyuu_with_one_casting, ani
     assert rows
     for row in rows:
         assert row["character_public_id"] > 0
-        assert row["person_public_id"] > 0
+        assert row["voices"]
+        for voice in row["voices"]:
+            assert voice["person_public_id"] > 0
 
 
 def test_entity_entries_carry_the_entry_public_id(client, anime_with_studio):
@@ -72,7 +74,9 @@ def test_character_entries_carry_the_seiyuu_public_id(
     assert seen
     for entry in seen:
         assert entry["public_id"] > 0
-        assert entry["seiyuu_public_id"] > 0
+        assert entry["seiyuu"]
+        for seiyuu in entry["seiyuu"]:
+            assert seiyuu["public_id"] > 0
 
 
 def test_a_dlc_carries_its_base_game_as_a_ref(client, db_session):

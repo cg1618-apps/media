@@ -133,7 +133,14 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
       {/* Saved through PUT /api/casting/hentai/{id} once the entry exists,
           by the Add and Modify pages - not part of the entry payload. */}
       <SectionHeader icon="fa-users" title="Cast" />
-      <CastEditor mediaType="hentai" value={f.cast} onChange={(v) => u("cast", v)} />
+      <CastEditor
+        mediaType="hentai"
+        value={f.cast}
+        onChange={(v) => u("cast", v)}
+        franchiseId={f.franchise_id}
+        malLink={f.mal_link}
+        entryId={ownerId}
+      />
 
       <SectionHeader icon="fa-chart-bar" title="Status" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

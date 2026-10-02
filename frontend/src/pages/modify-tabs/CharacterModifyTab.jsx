@@ -45,6 +45,7 @@ function characterToForm(c) {
     my_rating: c.my_rating || "",
     photo_file: c.photo_file || "",
     photo_focus: c.photo_focus || null,
+    mal_link: c.mal_link || "",
     remark: c.remark || "",
     photo_fallback_entry_id: c.photo_fallback_entry_id || null,
   };
@@ -142,6 +143,7 @@ export default function CharacterModifyTab({ initialId = null } = {}) {
             my_rating: characterForm.my_rating || null,
             photo_file: characterForm.photo_file || null,
             photo_focus: characterForm.photo_focus || null,
+            mal_link: characterForm.mal_link?.trim() || null,
             remark: characterForm.remark || null,
             photo_fallback_entry_id: characterForm.photo_fallback_entry_id || null,
           }),

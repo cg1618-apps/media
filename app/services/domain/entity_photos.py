@@ -253,7 +253,7 @@ def person_media(
     {person.system_id: EntityMedia} for a page of people.
 
     Both stores, as credit_count and /entries read them: media_credit, and
-    character_casting for a seiyuu, who has no media_credit rows at all.
+    character_casting_voice for a seiyuu, who has no media_credit rows at all.
     """
     ids = [p.system_id for p in people]
     if not ids:
@@ -272,11 +272,15 @@ def person_media(
     )
     casting_rows = (
         db.query(
-            models.CharacterCasting.person_id,
-            models.CharacterCasting.media_type,
-            models.CharacterCasting.entry_id,
+            models.CharacterCastingVoice.person_id,
+            models.CharacterCastingVoice.media_type,
+            models.CharacterCastingVoice.entry_id,
         )
-        .filter(models.CharacterCasting.person_id.in_(ids))
+        .join(
+            models.CharacterCasting,
+            models.CharacterCastingVoice.casting_id == models.CharacterCasting.system_id,
+        )
+        .filter(models.CharacterCastingVoice.person_id.in_(ids))
         .order_by(models.CharacterCasting.position)
         .all()
     )
@@ -296,9 +300,11 @@ def linked_entry_pairs(
     """
     pairs: set[tuple[str, UUID]] = set()
     if model is models.Character:
-        column = models.CharacterCasting.character_id
+        table = models.CharacterCasting
+        column = table.character_id
     else:
-        column = models.CharacterCasting.person_id
+        table = models.CharacterCastingVoice
+        column = table.person_id
         pairs |= {
             (media_type, media_id)
             for media_type, media_id in db.query(
@@ -312,8 +318,8 @@ def linked_entry_pairs(
         }
     pairs |= {
         (media_type, eid)
-        for media_type, eid in db.query(
-            models.CharacterCasting.media_type, models.CharacterCasting.entry_id
-        ).filter(column == system_id, models.CharacterCasting.entry_id == entry_id)
+        for media_type, eid in db.query(table.media_type, table.entry_id).filter(
+            column == system_id, table.entry_id == entry_id
+        )
     }
     return pairs

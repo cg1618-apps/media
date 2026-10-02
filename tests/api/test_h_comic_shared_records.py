@@ -134,7 +134,10 @@ def test_a_seiyuu_on_an_h_comic_casting_is_refused(admin_client, db_session, h_c
         f"/api/casting/h-comic/{h_comic_id}",
         json={
             "cast": [
-                {"character_id": str(character.system_id), "person_id": str(person.system_id)}
+                {
+                    "character_id": str(character.system_id),
+                    "voices": [{"person_id": str(person.system_id)}],
+                }
             ]
         },
     )

@@ -1324,6 +1324,8 @@ def parse_character_from_sheet(raw: dict) -> dict:
         # Kept when it is one of CHARACTER_ROLES, blank otherwise.
         "role": normalize_character_role(parse_from_sheet(raw.get("role"), str)),
         "remark": parse_from_sheet(raw.get("remark"), str),
+        "mal_id": parse_from_sheet(raw.get("mal_id"), int),
+        "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -1334,23 +1336,38 @@ def parse_character_from_sheet(raw: dict) -> dict:
 def parse_character_casting_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Character Casting sheet into typed data
-    ready for the Database. The Character, Person and every media tab restore
-    before this one (see SHEET_TABS), so character_id, person_id and entry_id
-    all round-trip as plain UUIDs with no name-resolution step.
-
-    person_id is blank on every manga and novel row - nobody voices anyone in
-    a manga - so it goes through _uuid_or_none rather than a strict parse.
+    ready for the Database. The Character and every media tab restore before
+    this one (see SHEET_TABS), so character_id and entry_id both round-trip as
+    plain UUIDs with no name-resolution step. The seiyuu are the Character
+    Casting Voice tab's.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "character_id": _uuid_or_none(raw.get("character_id")),
         "media_type": parse_from_sheet(raw.get("media_type"), str),
         "entry_id": _uuid_or_none(raw.get("entry_id")),
-        "person_id": _uuid_or_none(raw.get("person_id")),
         "role": parse_from_sheet(raw.get("role"), str),
         "position": parse_from_sheet(raw.get("position"), int),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
         "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
+def parse_character_casting_voice_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Character Casting Voice sheet into typed
+    data ready for the Database. Character Casting and Person restore before
+    this one, so casting_id and person_id round-trip as plain UUIDs.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "casting_id": _uuid_or_none(raw.get("casting_id")),
+        "media_type": parse_from_sheet(raw.get("media_type"), str),
+        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        "person_id": _uuid_or_none(raw.get("person_id")),
+        "position": parse_from_sheet(raw.get("position"), int),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
     }

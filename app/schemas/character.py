@@ -31,6 +31,9 @@ class CharacterBase(BaseModel):
     # Independent of each casting's own role.
     role: Optional[str] = None
     remark: Optional[str] = None
+    # MAL's character record; mal_id is derived from mal_link on every write.
+    mal_id: Optional[int] = None
+    mal_link: Optional[str] = None
 
     @model_validator(mode="after")
     def _display_field_is_known(self):
