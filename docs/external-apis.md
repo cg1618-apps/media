@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 ## What this is for
 
@@ -211,7 +211,7 @@ The MAL cast import (`POST /api/casting/mal`, `app/services/domain/mal_cast.py`)
 | `character.url` | `character.mal_link` of a created character | as-is |
 | `character.name` | `character.name_en` of a created character | `_western_order` |
 | `character.images.jpg.image_url` | `character.photo_file` of a created character | `_mal_photo`; downloaded after the response (see [credits-and-tags.md](systems/credits-and-tags.md)) |
-| `role` | the casting's `role` | `Main` and `Supporting` kept, anything else none |
+| `role` | the casting's `role` | `Main` kept; everything else, MAL's `Supporting` included, becomes `Other` (`_mal_cast_role`). Which side characters are Core or Supporting is set by hand |
 | `voice_actors[]` where `language` is `Japanese` | the casting's voices | each `person.mal_id` matched against `person.mal_id`, then `person.name` (western order) through `resolve_person`; other languages are dropped. A manga, novel or h-comic row carries no voices. |
 
 The cast itself is not written by the import: it returns rows for the editor, which the ordinary cast `PUT` saves.

@@ -478,8 +478,15 @@ def map_tenrai_to_character_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-# MAL's cast roles, mapped onto CHARACTER_ROLES. MAL has only these two.
-_MAL_CAST_ROLES = {"Main": "Main", "Supporting": "Supporting"}
+def _mal_cast_role(mal_role) -> str:
+    """
+    MAL's cast role, as one of CHARACTER_ROLES.
+
+    MAL calls a character Main or Supporting. Main is kept; everyone else is
+    filed as Other, Supporting included - MAL's Supporting is everyone who is
+    not Main, so which of them earn Supporting or Core is set by hand.
+    """
+    return "Main" if mal_role == "Main" else "Other"
 
 
 def map_tenrai_cast(items: list) -> list[Dict[str, Any]]:
@@ -509,7 +516,7 @@ def map_tenrai_cast(items: list) -> list[Dict[str, Any]]:
                 "mal_link": character.get("url"),
                 "name_en": _western_order(character.get("name")),
                 "photo_url": _mal_photo(character),
-                "role": _MAL_CAST_ROLES.get(item.get("role")),
+                "role": _mal_cast_role(item.get("role")),
                 "voices": voices,
             }
         )

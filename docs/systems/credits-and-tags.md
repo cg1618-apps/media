@@ -483,6 +483,9 @@ the shape `GET /api/casting/{media_type}/{entry_id}` returns, in MAL's order.
   (`apply_shared_visibility`) - reusing a hidden one would put its name in the
   caller's form. An unmatched one is created with `name_en`, `mal_id` and
   `mal_link`; a duplicate this produces is folded by merge.
+- **Only MAL's Main characters are Main; every other row is Other.** MAL's
+  Supporting means "not Main", so it is not carried as Supporting - which
+  side characters earn Core or Supporting is set by hand.
 - **Only Japanese voice actors are taken.** MAL lists every dub; a casting
   records the original cast. Manga, novel and h-comic rows carry no voices.
 - **A seiyuu is matched by `person.mal_id`, then by name** through
