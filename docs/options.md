@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 ## What this is for
 
@@ -119,7 +119,7 @@ type it serves is seeable.
 | `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
 | `MUSIC_STATUSES` | `Need`, `Pending`, `Done` | `note.status` on the `op`, `ed`, `insert_songs`, `ost` sections | `music_status` |
 | `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
-| `CHARACTER_ROLES` (`app/utils/character_roles.py`) | `Main`, `Core`, `Supporting`, `Other` | Two independent columns: `character_casting.role` (what the character is in one entry) and `character.role` (what the character is overall). Neither is derived from, synced with or defaulted from the other. Both are optional - blank or `""` is NULL - and a write naming anything else is a 422; a Sheets Pull restores a value outside the list as blank | `character_role` |
+| `CHARACTER_ROLES` (`app/utils/character_roles.py`) | `Main`, `Core`, `Supporting`, `Other` | Two independent columns: `character_casting.role` (what the character is in one entry) and `character.role` (what the character is overall). A NULL `character.role` is filled from the highest-ranked casting role (this order) on each cast save and by Calculate All; a set one is never overwritten, and nothing flows from it to a casting. Both are optional - blank or `""` is NULL - and a write naming anything else is a 422; a Sheets Pull restores a value outside the list as blank | `character_role` |
 | `H_COMIC_REGIONS` | `JP`, `KR` | `h_comic.region`, required on every write; decides which columns the entry keeps ([entry-types.md](entry-types.md#h-comic-regions-region_clears-appservicesdomainh_comicpy)) | `h_comic_region` |
 | `H_COMIC_ORIGINALITY` | `原創`, `同人` | `h_comic.originality` (JP only), `hentai.originality` | `h_comic_originality` |
 | `H_COMIC_ANIMATION_STATUSES` | `Not Animated`, `Announced`, `Animated` | `h_comic.animation_status` (JP only): hand-set, or derived from hentai adaptations (`Announced` / `Animated`) | `h_comic_animation_status` |

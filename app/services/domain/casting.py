@@ -4,12 +4,14 @@ Read and wholesale-replace one media entry's cast.
 Owns the two operations app/routers/casting.py needs: `casting_rows` (bulk
 read, positioned, with photo_file already resolved) and `replace_casting`
 (delete-then-insert the whole set in payload order, each casting with its
-voices). Validation that would otherwise surface as a raw IntegrityError from
+voices), plus `fill_character_roles`, which gives a character with no role
+of its own the role its castings give it. Validation that would otherwise surface as a raw IntegrityError from
 ck_casting_voice_scope - a seiyuu on a manga/novel casting - is rejected here
 in Python, before any row is written, so the constraint is a backstop rather
 than the user-facing message.
 """
 
+from typing import Iterable, Optional
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -206,6 +208,9 @@ def replace_casting(
     character_id/person_id that does not exist, a person voicing one casting
     twice, so a CHECK or FK violation is
     never the first line of defense - and never a generic 500.
+
+    A character in `rows` with no role of its own then takes one from its
+    castings - see fill_character_roles.
     """
     if media_type not in CASTING_MEDIA_TYPES:
         raise CastingValidationError(f"Unknown casting media type: {media_type}")
@@ -241,3 +246,47 @@ def replace_casting(
             for voice_index, voice in enumerate(row.get("voices") or [])
         ]
         db.add(casting)
+
+    db.flush()
+    fill_character_roles(db, [row["character_id"] for row in rows])
+
+
+def fill_character_roles(
+    db: Session, character_ids: Optional[Iterable[UUID]] = None
+) -> int:
+    """
+    Gives every character whose own `role` is NULL the highest-ranked role
+    (CHARACTER_ROLES order, Main first) any of its castings carries, and
+    returns how many it filled. `character_ids` narrows it to those
+    characters; None means all of them.
+
+    Fill-only: a character that already has a role keeps it, whatever its
+    castings say, so an admin's choice is never overwritten. The cost is that
+    clearing a character's role does not stick while a casting still names
+    one - the next cast save or Calculate fills it again.
+    """
+    query = (
+        db.query(models.Character, models.CharacterCasting.role)
+        .join(
+            models.CharacterCasting,
+            models.CharacterCasting.character_id == models.Character.system_id,
+        )
+        .filter(
+            models.Character.role.is_(None),
+            models.CharacterCasting.role.in_(CHARACTER_ROLES),
+        )
+    )
+    if character_ids is not None:
+        ids = list(character_ids)
+        if not ids:
+            return 0
+        query = query.filter(models.Character.system_id.in_(ids))
+
+    best: dict[UUID, tuple[models.Character, str]] = {}
+    for character, role in query:
+        held = best.get(character.system_id)
+        if held is None or CHARACTER_ROLES.index(role) < CHARACTER_ROLES.index(held[1]):
+            best[character.system_id] = (character, role)
+    for character, role in best.values():
+        character.role = role
+    return len(best)

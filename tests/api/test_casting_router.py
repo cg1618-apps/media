@@ -297,3 +297,68 @@ def test_a_hentai_is_cast_with_its_seiyuu(admin_client, character, person):
     assert len(rows) == 1
     assert rows[0]["character_name"] == character.display_name
     assert [v["person_name"] for v in rows[0]["voices"]] == [person.display_name]
+
+
+def _put_role(admin_client, anime, character, role):
+    body = {"cast": [{"character_id": str(character.system_id), "role": role}]}
+    return admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+
+
+def test_a_cast_save_fills_a_role_less_character_s_role(
+    admin_client, db_session, anime, character
+):
+    assert character.role is None
+    assert _put_role(admin_client, anime, character, "Core").status_code == 200
+
+    db_session.refresh(character)
+    assert character.role == "Core"
+
+
+def test_a_cast_save_never_overwrites_the_character_s_own_role(
+    admin_client, db_session, anime, character
+):
+    # The casting names a role, so the fill had something to write: a green
+    # here means the held role refused it, not that nothing was offered.
+    character.role = "Other"
+    db_session.flush()
+    assert _put_role(admin_client, anime, character, "Main").status_code == 200
+
+    db_session.refresh(character)
+    assert character.role == "Other"
+
+
+def test_a_casting_with_no_role_leaves_the_character_without_one(
+    admin_client, db_session, anime, character
+):
+    assert _put_role(admin_client, anime, character, None).status_code == 200
+
+    db_session.refresh(character)
+    assert character.role is None
+
+
+def test_calculate_fills_from_the_highest_ranked_casting_role(
+    db_session, anime, manga, character, second_character
+):
+    from app.services.calculation import run_sync_character_roles
+
+    # Written straight to the table, as a Pull writes them - no cast save ran.
+    second_character.role = "Other"
+    for entry_type, entry, role in (
+        ("anime", anime, "Supporting"),
+        ("manga", manga, "Main"),
+    ):
+        for who in (character, second_character):
+            db_session.add(models.CharacterCasting(
+                character_id=who.system_id,
+                media_type=entry_type,
+                entry_id=entry.system_id,
+                role=role,
+            ))
+    db_session.flush()
+
+    run_sync_character_roles(db_session)
+
+    db_session.refresh(character)
+    db_session.refresh(second_character)
+    assert character.role == "Main"
+    assert second_character.role == "Other"

@@ -450,13 +450,14 @@ it("requires an explicit choice before minting a character with an existing name
     "/api/character/",
     expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({ name_en: "Yuki" }),
+      body: JSON.stringify({ name_cn: "Yuki", display_name_field: "cn" }),
     }),
   );
 });
 
-// NEW_CAST_CHARACTER_GENDER: a character minted from an h-comic's or a
-// hentai's cast starts as 女; every other type leaves gender unset.
+// A minted character's typed name is its CN name, shown as its display name.
+// NEW_CAST_CHARACTER_GENDER: one minted from an h-comic's or a hentai's cast
+// starts as 女; every other type leaves gender unset.
 async function mintFrom(mediaType) {
   const user = userEvent.setup();
   vi.stubGlobal(
@@ -483,12 +484,16 @@ async function mintFrom(mediaType) {
 it.each(["h-comic", "hentai"])(
   "mints a character from a %s cast as 女",
   async (mediaType) => {
-    expect(await mintFrom(mediaType)).toEqual({ name_en: "Aoi", gender: "女" });
+    expect(await mintFrom(mediaType)).toEqual({
+      name_cn: "Aoi",
+      display_name_field: "cn",
+      gender: "女",
+    });
   },
 );
 
 it("mints a character from an anime cast with no gender", async () => {
-  expect(await mintFrom("anime")).toEqual({ name_en: "Aoi" });
+  expect(await mintFrom("anime")).toEqual({ name_cn: "Aoi", display_name_field: "cn" });
 });
 
 it("shows which entries an existing character already appears in", async () => {

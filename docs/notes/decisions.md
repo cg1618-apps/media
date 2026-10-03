@@ -2670,3 +2670,28 @@ dnd-kit's `useDraggable` / `useDroppable` with the same sensors.
   second, wrong way to move a part.
 - **The cost** is three dependencies (`@dnd-kit/core`, `@dnd-kit/sortable`,
   `@dnd-kit/utilities`).
+
+### A blank character role is filled from its castings (2026-10-03)
+
+- **Owner's request: a character with no role takes the role its cast row
+  gives it.** Until now `character.role` and `character_casting.role` were
+  recorded as independent, with nothing deriving one from the other. That was
+  a starting point, not a requirement, and in practice it left most
+  characters with no role while every cast row had one.
+- **Fill-only, never sync.** The fill writes only a NULL `character.role`, so
+  a role an admin chose is never overwritten, and nothing flows from a
+  character to its castings. The cost is that clearing a character's role
+  only lasts until the next fill while a casting still names one; leaving
+  "no role" set on purpose would need a separate "unclassified" value, and
+  nobody has asked for that.
+- **Highest-ranked casting role wins**, in `CHARACTER_ROLES` order (Main,
+  Core, Supporting, Other). A character who is Main in one entry and
+  Supporting in a spin-off is Main overall. On a cast save, though, a character
+  is filled only once: whichever save first meets it with a role decides,
+  and a later save naming a higher role does not upgrade it.
+- **When: on every cast save, and in Calculate All.** The cast `PUT` fills
+  the characters it touches, so the usual path needs no extra step. Calculate
+  All's `run_sync_character_roles` covers everything else that writes
+  castings without the router (Pull, a sheet restore) and backfills existing
+  data. A character save does **not** fill, because filling there would
+  undo a clear the moment the admin saved it.

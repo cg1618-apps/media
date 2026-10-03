@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 ## What this is for
 
@@ -677,7 +677,7 @@ The manual route `POST /replace/{key}/{entry_id}` calls the same function with `
 |---|---|---|
 | 1 | `run_post_processing` | `anime_post_processing` for every Anime, `anime_movie_post_processing` for every AnimeMovies, `tv_show_post_processing` for every TVShows, `cartoon_post_processing` for every Cartoon, `manga_post_processing` for every Manga; commit after each type. (Movies, Novel and Comic have no post-processing.) |
 | 2 | `run_derive_ep_previous` | `derive_ep_previous_all_anime(db)` — anime is the only type with a franchise-wide derived field left |
-| 3 | `run_sync` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears over the whole table - and a commit), `run_sync_hentai` (just `extract_system_options`), `run_sync_gated_labels` (`enforce_gated_label_invariants` - every gated type's label on every entry of the type and every franchise of its franchise type - and a commit), then `run_sync_size_groups` (`derive_size_groups` + commit) |
+| 3 | `run_sync` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears over the whole table - and a commit), `run_sync_hentai` (just `extract_system_options`), `run_sync_gated_labels` (`enforce_gated_label_invariants` - every gated type's label on every entry of the type and every franchise of its franchise type - and a commit), `run_sync_size_groups` (`derive_size_groups` + commit), then `run_sync_character_roles` (`fill_character_roles` - every character with no role takes its castings' highest-ranked one - and a commit) |
 | 4 | `bulk_check_cover_image(db)` | runs the cover check; its result is discarded |
 | 5 | log | `Calculate` / `Calculate All` / `Manual` / `Success` |
 
