@@ -433,7 +433,7 @@ column a field claims; a field with no arrow lives in `fields`.
 | `ng_carried_over` / `ng_reset` / `ng_before_starting` | type → `kind` (free-text select), name → `title`, description → `content`, **points** *(list: text)*, links → `links`; `groupable_by = "type"` |
 | `main_plot` / `side_plot` | chapter → `locator` *(placeholder "Chapter / Part, e.g. Ch 3")*, description → `content`, links → `links` |
 | the four `story_list_*` strands | order → `locator`, name → `title`, description → `content`, links → `links`; `hierarchical`, `require_any = (("order", "name"),)` |
-| `saves` | number → `locator` *(placeholder "e.g. 3")*, name → `title`, checkpoint → `kind` *(`regular` / `main`, default `regular`)*, note → `content`, based on slot *(free text, the slot it was copied from)*; `require_any = (("number", "name"),)` |
+| `saves` | number → `locator` *(placeholder "This save's slot number")*, name → `title`, checkpoint → `kind` *(`regular` / `main`, default `regular`)*, note → `content`, based on slot *(free text, placeholder "Slot number it was copied from")*; `require_any = (("number", "name"),)` |
 
 Only four fields in the whole group need `fields` at all — `variant`, `alias`,
 `region`, `developer` — plus the stat values and the nested lists. Everything
