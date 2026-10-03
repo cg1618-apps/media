@@ -35,6 +35,7 @@ from app.services.domain.membership import (
     replace_clubs,
     replace_members,
 )
+from app.services.domain.merge_fill import finish_merge
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
     label_hidden_entry_ids,
@@ -763,7 +764,8 @@ def merge_person(
     Repoint every credit, voice and role from `source_id` onto this person,
     then delete the source. This - not delete - is the fix for a duplicate:
     deleting cascades the credits and voices away, so merging is the only way
-    to keep them.
+    to keep them. Every column this person leaves blank is filled from the
+    source's (`merge_fill`).
     """
     if system_id == payload.source_id:
         raise HTTPException(
@@ -822,6 +824,5 @@ def merge_person(
     # Club memberships follow the survivor too, in both directions.
     merge_memberships(db, system_id, payload.source_id)
 
-    db.delete(drop)
-    db.commit()
+    finish_merge(db, "staff", keep, drop)
     return {"status": "success", "credits_moved": moved}

@@ -26,6 +26,7 @@ from app.routers._patching import apply_column_patch
 from app.services.domain.autofill import autofill_character_from_mal
 from app.services.domain.derivation import apply_extract_mal_id_character
 from app.services.domain.entity_photos import EntityMedia, character_media
+from app.services.domain.merge_fill import fill_blank_casting, finish_merge
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
     label_hidden_entry_ids,
@@ -468,6 +469,10 @@ def merge_character(
     Repoint every casting from `source_id` onto this character, then delete
     the source. This - not delete - is the fix for a duplicate: deleting
     cascades the castings away, so merging is the only way to keep them.
+
+    Every column this character leaves blank is filled from the source's,
+    and an entry both are cast in keeps this character's casting, its blanks
+    filled from the source's (`merge_fill`).
     """
     if system_id == payload.source_id:
         raise HTTPException(
@@ -495,6 +500,7 @@ def merge_character(
     ):
         kept = held.get((casting.media_type, casting.entry_id))
         if kept is not None:
+            fill_blank_casting(kept, casting)
             voiced = {v.person_id for v in kept.voices}
             for voice in list(casting.voices):
                 if voice.person_id not in voiced:
@@ -512,6 +518,5 @@ def merge_character(
         casting.character_id = system_id
         moved += 1
 
-    db.delete(drop)
-    db.commit()
+    finish_merge(db, "character", keep, drop)
     return {"status": "success", "castings_moved": moved}
