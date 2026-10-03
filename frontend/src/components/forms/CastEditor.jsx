@@ -3,7 +3,7 @@
 // owns `value` and receives every change through `onChange`. CastEditor
 // never calls the API to save a cast list — only to search/create the
 // characters and people its two comboboxes reference.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import ComboBox from "./ComboBox";
 import ImagePicker from "./ImagePicker";
@@ -11,6 +11,7 @@ import { DragHandle, SortableItem, SortableList, arrayMove } from "../ui/Sortabl
 import { useConstants } from "../../config/useConstants";
 import { endpoints } from "../../api/endpoints";
 import { buildCreateRequest } from "../../lib/ensureSourceValues";
+import { byRatingThenAppearances } from "../../lib/peopleOrder";
 import { CHARACTER_ROLES, NEW_CAST_CHARACTER_GENDER } from "../../config/fieldOptions";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
 
@@ -162,6 +163,21 @@ export default function CastEditor({
       cancelled = true;
     };
   }, [showSeiyuu, mediaType]);
+
+  // What every seiyuu box offers, best first: my rating, then the most
+  // appearances (credit_count counts castings). /api/person/ answers
+  // alphabetically for every person picker, so the order is set here, and
+  // the box's rankMatches puts what the typed text matches exact, then
+  // prefix, then contains, keeping this order inside each tier.
+  const seiyuuItems = useMemo(
+    () =>
+      byRatingThenAppearances(seiyuuList).map((p) => ({
+        id: p.system_id,
+        label: p.display_name,
+        searchText: p.display_name,
+      })),
+    [seiyuuList],
+  );
 
   // The photo picker reports two changes from one action - the new key, then
   // the cleared focus - before the parent has re-rendered, so each patch
@@ -558,11 +574,8 @@ export default function CastEditor({
                       >
                         <div className={NAME_CELL}>
                           <ComboBox
-                            items={seiyuuList.map((p) => ({
-                              id: p.system_id,
-                              label: p.display_name,
-                              searchText: p.display_name,
-                            }))}
+                            items={seiyuuItems}
+                            rankMatches
                             selectedId={voice.person_id || null}
                             inputText={voice.person_name || ""}
                             onSelect={(id, label) =>
