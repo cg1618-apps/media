@@ -48,6 +48,11 @@ def test_dub_preference_is_gone(client):
     assert "dub_preference" not in body
 
 
+def test_seiyuu_status_is_gone(client):
+    body = client.get("/api/constants").json()
+    assert "seiyuu_status" not in body
+
+
 def test_serves_the_person_role_vocabulary(admin_client):
     # admin_client: `unrestricted`, which sees every gated type, so nothing
     # is narrowed. A narrow session's payload is covered below.

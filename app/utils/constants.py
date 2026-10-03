@@ -206,7 +206,6 @@ MUSIC_TYPE_STATUSES: tuple[str, ...] = (
     "Not Done",
 )
 MUSIC_TYPE_STATUS_DEFAULT = "Not Done"
-SEIYUU_STATUSES: tuple[str, ...] = ("Need", "Done")
 
 # ---------------------------------------------------------------------------
 # frontend/src/config/fieldOptions.js diverges from the Enum classes above for

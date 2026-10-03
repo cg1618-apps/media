@@ -300,7 +300,6 @@ Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
 | `broadcast_time` | Time | yes | | Postgres TIME, exchanged as `"HH:MM:SS"` |
 | `mal_id` | Integer | yes | | Derived from `mal_link` by `apply_extract_mal_id_anime` |
 | `mal_link` | String | yes | | |
-| `seiyuu` | String | yes | | SEIYUU_STATUSES - a Need/Done work-status flag, **not** a cast list |
 
 Relationships: `franchise`, `series`. Virtual: `remark`, `watch_next`,
 `cum_ep_fin`, `cum_ep_total`, `display_name`, `names_dict`, credit/tag link

@@ -41,7 +41,6 @@ const SERVED = [
   "playing_status",
   "person_role",
   "reading_status",
-  "seiyuu_status",
   "tag_categories",
   "tv_region",
   "watch_order_importance",

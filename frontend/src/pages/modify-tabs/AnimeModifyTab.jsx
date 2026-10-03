@@ -21,7 +21,6 @@ import {
   WATCHING_STATUSES,
   MY_RATINGS,
   IS_MAIN,
-  SEIYUU_STATUSES,
   ANIME_AIRING_TYPES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
@@ -470,8 +469,7 @@ export default function AnimeModifyTab({
 
       {/* Cast: character/seiyuu/role rows, loaded from and saved back to
           PUT /api/casting/anime/{id} separately from this form's own PUT.
-          Not the "Seiyuu" Need/Done flag further down, which is an
-          unrelated to-do status - see Modify.jsx's loading/saving of af.cast. */}
+          See Modify.jsx's loading/saving of af.cast. */}
       <SectionHeader icon="fa-users" title="Cast" />
       <CastEditor
         mediaType="anime"
@@ -558,22 +556,6 @@ export default function AnimeModifyTab({
       />
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Field label="Seiyuu">
-          <select
-            className={selectCls}
-            value={af.seiyuu}
-            onChange={(e) => ua("seiyuu", e.target.value)}
-          >
-            <option value="">—</option>
-            {SEIYUU_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
       <Field label="Cover Image">
         <ImagePicker
           ownerType="anime"
