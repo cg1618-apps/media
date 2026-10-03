@@ -1057,6 +1057,14 @@ no single column can order them).
 Sorting in SQL rather than after the fact means an exact match cannot be cut by
 `limit` before it is floated.
 
+**Entry rows.** A media bucket's rows are the rows that type's list endpoint
+returns, with the same non-column fields attached by the same helper
+(`attach_entry_list_fields`, `app/services/domain/entry_fields.py`): the
+caller's own status, progress and rating, sources, content labels, plan flags,
+remark and game copies. A search card and a library card therefore cannot
+disagree; a logged-out caller gets the personal fields empty, as on the list
+routes.
+
 **Response:** `SearchResponse`
 
 ```
