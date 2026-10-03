@@ -34,6 +34,7 @@ anime/non_anime split and the director_scope_for() that derived it are gone.
 
 from dataclasses import dataclass
 
+from app.utils.note_sections import NOTE_OPTION_CATEGORIES
 from app.utils.source_fields import PLATFORM_CATEGORY, SERIALIZATION_CATEGORY
 
 
@@ -262,9 +263,16 @@ TAG_CATEGORIES: tuple[str, ...] = (
     "Quality",
 )
 
+# Three sources, each declared where its readers live: the tag fields above,
+# the filter-only vocabularies, and the categories the note registry draws
+# suggestions from (Song Type, Song Source - see NOTE_OPTION_CATEGORIES). The
+# last are derived from NOTE_SECTIONS rather than listed here, so a section
+# that names a new category offers it without a second edit.
 OPTION_CATEGORIES: tuple[str, ...] = tuple(
     dict.fromkeys(
-        [f.category for f in TAG_FIELDS.values()] + list(FILTER_ONLY_CATEGORIES)
+        [f.category for f in TAG_FIELDS.values()]
+        + list(FILTER_ONLY_CATEGORIES)
+        + list(NOTE_OPTION_CATEGORIES)
     )
 )
 

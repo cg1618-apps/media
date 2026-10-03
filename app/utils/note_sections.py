@@ -28,6 +28,9 @@ from app.utils.constants import (
     H_GAME_ART_STYLES,
     H_GAME_AUDIO_AVAILABILITY,
     H_GAME_H_PRESENTATIONS,
+    MUSIC_STATUSES,
+    MUSIC_TYPE_STATUS_DEFAULT,
+    MUSIC_TYPE_STATUSES,
 )
 from app.utils.media_resolver import MEDIA_TYPE_KEYS, OWNER_TYPE_KEYS
 
@@ -46,19 +49,24 @@ SHAPE_NAME_LINKS = "name_links"  # title, links
 # in one ordered array. name_links can only hold URLs, and text_links has no
 # title, so neither can say "here is my Malenia plan: two notes and a video".
 SHAPE_NAME_ENTRIES = "name_entries"  # title, entries
-# The widest shape: the episode a song plays in, its name, what it does there,
-# where to hear it, and how far tracking it has got. text_links has no title and
-# name_links has no episode or body, so neither can say all of it. The status is
-# the same Need/Pending/Done the music_track sections use - an insert song is
-# tracked like an OP, it just also has an episode.
-SHAPE_EPISODE_NAME_LINKS = (
-    "episode_name_links"  # episode, title, content, links, status
-)
-# One theme song of a work: its name, which cut it is, how far tracking it has
-# got, where to hear it, and a remark. The only shape with two dropdowns - the
-# type is a property of the song, the status is a property of my work on it -
-# which is why `note` carries a `status` column alongside `kind`.
-SHAPE_MUSIC_TRACK = "music_track"  # title, kind, status, links, content
+# One song of a work, whichever list it is in - OP, ED, insert song or OST:
+# its name, how far tracking it has got, the episode it plays in, where to hear
+# it, and a remark. OP and ED add which cut it is (`kind`, where the section
+# declares a `kind_category`). The type is a property of the song and the
+# status a property of my work on it, which is why `note` carries a `status`
+# column alongside `kind`.
+#
+# Its links are text-and-URL pairs, `{"text": str | None, "url": str}`, rather
+# than the URL strings every older shape holds: a song is heard on several
+# services, and "which one is this link" is the label a reader needs. See
+# `uses_link_pairs`.
+SHAPE_MUSIC_TRACK = "music_track"  # title, kind, status, locator, links, content
+# How far tracking one whole song list of an anime has got: `kind` names the
+# list (a music_track section key) and `status` says how far. One row per
+# (owner, kind), and nothing else on it. Not rendered as a card of its own -
+# its rows are drawn above the lists they describe (see `hidden` and
+# `type_status_section`).
+SHAPE_MUSIC_STATUS = "music_status"  # kind, status
 # The registry-driven shape. Unlike the eight above, `structured` does not name
 # a fixed set of columns: the SECTION declares an ordered `fields` spec, each
 # field saying what it is called, how it is edited, and where it is stored -
@@ -84,8 +92,8 @@ STORED_SHAPES = frozenset(
         SHAPE_EPISODE_TEXT,
         SHAPE_NAME_LINKS,
         SHAPE_NAME_ENTRIES,
-        SHAPE_EPISODE_NAME_LINKS,
         SHAPE_MUSIC_TRACK,
+        SHAPE_MUSIC_STATUS,
         SHAPE_STRUCTURED,
     }
 )
@@ -139,6 +147,10 @@ FIELD_TEXT = "text"  # one line
 FIELD_TEXTAREA = "textarea"  # a body
 FIELD_SELECT = "select"  # a dropdown over `options`
 FIELD_LINKS = "links"  # the repeatable URL editor
+# The repeatable text-and-URL editor: each item `{"text": str | None, "url":
+# str}`, the same pairs a music_track row holds. Claims the `links` column,
+# which then holds pairs for that section - see `uses_link_pairs`.
+FIELD_LINK_PAIRS = "link_pairs"
 FIELD_LIST = "list"  # a repeatable row of `item_fields`
 # A list of free-text names, e.g. the characters a highlight is about. Always
 # stored in `fields`, never in a column: no `note` column holds a list of
@@ -320,7 +332,8 @@ class NoteSection:
     # Which kind a new row starts on. None starts blank.
     default_kind: str | None = None
     # Allowed values for note.status - how far tracking has got. Used by the
-    # music_track sections and by insert_songs. Empty means no status field.
+    # music group: per song on the song lists, per list on music_status. Empty
+    # means no status field.
     statuses: tuple[str, ...] = ()
     # Per-owner kind overrides; `kinds` is the fallback. A section may offer a
     # dropdown to some owners and none to others - manga highlights are always
@@ -372,18 +385,59 @@ class NoteSection:
     # holds anything else, and the page renders no card for it. Empty means
     # every owner of the section's types.
     owner_where: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    # --- the music group --------------------------------------------------
+    # `kind` is free text, suggested from this system_option category rather
+    # than closed to `kinds` - the Song Type of an OP or ED. Mutually
+    # exclusive with `kinds`; checked at import.
+    kind_category: str | None = None
+    # The system_option category suggesting a link pair's `text`. Only
+    # meaningful where the section's links are pairs.
+    link_text_category: str | None = None
+    # Which status a new row starts on, the twin of `default_kind`. Used by
+    # music_status, whose rows are created with the anime.
+    default_status: str | None = None
+    # At most one row per (owner, kind): a singleton per value of `kind`.
+    # The router refuses a second row (422) and Pull folds a sheet row onto
+    # the local one with the same kind, as `singleton` does per owner.
+    one_per_kind: bool = False
+    # Not a subsection the page renders as a card. Its rows exist for the
+    # sections that point at it through `type_status_section`.
+    hidden: bool = False
+    # The `one_per_kind` section holding this section's list-level status,
+    # in the row whose `kind` is this section's key. The page draws that
+    # status above this section's rows.
+    type_status_section: str | None = None
 
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
 
-# Which cut of a theme song a row is about. Shared by the three music_track
-# sections so OP and ED cannot drift apart.
-MUSIC_TYPES = ("normal", "different version", "all inclusive version")
+# The system_option categories the music sections draw suggestions from. Both
+# are open: a value typed that is not in the list is stored as typed.
+#   Song Type   - which cut of an OP or ED a row is (normal, different
+#                 version, ...). Free text since it moved out of a closed
+#                 `kinds` tuple, so a new cut needs an option, not a deploy.
+#   Song Source - the label of a song link (YouTube, Spotify, ...).
+SONG_TYPE_CATEGORY = "Song Type"
+SONG_SOURCE_CATEGORY = "Song Source"
 
-# How far I have got with a song: the same three values the anime.op / ed /
-# insert_ost columns held before they became note rows. Every music section
-# offers it, insert_songs included - it is the one thing they all track.
-MUSIC_STATUSES = ("Need", "Pending", "Done")
+# The four song lists, in display order. Each is a music_track section, and
+# each has one `music_status` row per anime, keyed by this key.
+MUSIC_TYPE_KEYS = ("op", "ed", "insert_songs", "ost")
+MUSIC_STATUS_SECTION = "music_status"
+
+# Every song list shares these, so the four cannot drift apart. MUSIC_STATUSES
+# (Need / Pending / Done) is imported from constants.py, the same tuple
+# /api/constants serves as `music_status`.
+_SONG_LIST = dict(
+    shape=SHAPE_MUSIC_TRACK,
+    owners=("anime",),
+    scope=SCOPE_CATALOG,
+    group="music",
+    statuses=MUSIC_STATUSES,
+    locator_placeholder="Episode(s), e.g. ep 3",
+    link_text_category=SONG_SOURCE_CATEGORY,
+    type_status_section=MUSIC_STATUS_SECTION,
+)
 
 # How far a boss or an enemy has got. Closed, unlike the tier beside it: a
 # tier is the game's vocabulary and differs per game, where this is a fact
@@ -955,6 +1009,38 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
         group="analysis_group",
+    ),
+    NoteSection(
+        # A hidden reference: something planted in one scene for a reader to
+        # catch, where it plays, and where somebody spotted it. Last in 解析
+        # because it is the lightest of the five - a find, not a reading.
+        #
+        # Structured rather than text_links because its links are text-and-URL
+        # pairs, the same as a song's, and text_links holds URL strings.
+        key="easter_eggs",
+        shape=SHAPE_STRUCTURED,
+        label="彩蛋 Easter Eggs",
+        owners=("anime",),
+        scope=SCOPE_CATALOG,
+        group="analysis_group",
+        fields=(
+            NoteField(
+                key="episode",
+                label="Episode",
+                column="locator",
+                placeholder="Episode(s), e.g. ep 3",
+            ),
+            NoteField(
+                key="description",
+                label="Description",
+                type=FIELD_TEXTAREA,
+                column="content",
+                required=True,
+            ),
+            NoteField(
+                key="links", label="Links", type=FIELD_LINK_PAIRS, column="links"
+            ),
+        ),
     ),
     # --- 攻略 Guides ------------------------------------------------------
     # Fifteen sections rather than one section with a kind, because each is a
@@ -1582,80 +1668,63 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="todo",
     ),
     # --- 音樂 Music -------------------------------------------------------
-    # The five sections below form the music group, and the page renders that
-    # run inside one card. They stay separate registry entries rather than one
-    # section with an OP/ED/OST dropdown: a work has its own list of OP rows,
-    # and folding the lists into one would make "which OPs do I still need?" a
-    # filter rather than a section.
+    # The sections below form the music group, and the page renders that run
+    # inside one card. The four song lists stay separate registry entries
+    # rather than one section with an OP/ED/OST dropdown: a work has its own
+    # list of OP rows, and folding the lists into one would make "which OPs do
+    # I still need?" a filter rather than a section.
+    #
+    # Two levels of status, both kept: every song carries Need / Pending /
+    # Done, and every LIST carries one of MUSIC_TYPE_STATUSES in its
+    # music_status row - "All Done" is a claim about the list that no single
+    # song can make.
     NoteSection(
-        key="op",
-        shape=SHAPE_MUSIC_TRACK,
-        label="OP",
+        # One row per (anime, song list), created with the anime and keyed by
+        # `kind`. Rows rather than four columns on `anime` so the status lives
+        # beside the songs it describes - in the Note tab, the notes API and
+        # the music card - and so a fifth list is a registry entry. Unique per
+        # (media_id, kind) in the database too: ix_note_one_music_status_per_kind.
+        key=MUSIC_STATUS_SECTION,
+        shape=SHAPE_MUSIC_STATUS,
+        label="音樂狀態 Music Status",
         owners=("anime",),
         scope=SCOPE_CATALOG,
         group="music",
-        kinds=MUSIC_TYPES,
+        kinds=MUSIC_TYPE_KEYS,
+        statuses=MUSIC_TYPE_STATUSES,
+        default_status=MUSIC_TYPE_STATUS_DEFAULT,
+        one_per_kind=True,
+        hidden=True,
+    ),
+    NoteSection(
+        key="op",
+        label="OP",
+        kind_category=SONG_TYPE_CATEGORY,
         default_kind="normal",
-        statuses=MUSIC_STATUSES,
+        **_SONG_LIST,
     ),
     NoteSection(
         key="ed",
-        shape=SHAPE_MUSIC_TRACK,
         label="ED",
-        owners=("anime",),
-        scope=SCOPE_CATALOG,
-        group="music",
-        kinds=MUSIC_TYPES,
+        kind_category=SONG_TYPE_CATEGORY,
         default_kind="normal",
-        statuses=MUSIC_STATUSES,
+        **_SONG_LIST,
     ),
     NoteSection(
+        # No Song Type: an insert song is whatever cut plays in that episode,
+        # so "which version" has no answer separate from the episode itself.
         key="insert_songs",
-        # An insert song with no episode is just a song: where it plays is what
-        # makes it a note. Everything else is optional - a remembered scene
-        # often comes before the title does.
-        locator_required=True,
-        shape=SHAPE_EPISODE_NAME_LINKS,
         label="插入曲 Insert Song",
-        owners=("anime",),
-        scope=SCOPE_CATALOG,
-        group="music",
-        # The only tracking dropdown this section needs, and the same one OP,
-        # ED and OST offer. There is no type: an insert song is whatever cut
-        # plays in that episode, so "which version" has no answer separate from
-        # the episode itself.
-        statuses=MUSIC_STATUSES,
-        locator_placeholder="Episode(s), e.g. ep 3",
+        **_SONG_LIST,
     ),
     NoteSection(
-        # Not a list of songs like OP and ED: an anime has ONE OST entry,
-        # saying which cut and how far tracking it has got, and nothing else -
-        # no song name, link or remark. Structured rather than music_track
-        # because that shape always carries those three columns.
+        # A list of songs like the other three, with no Song Type - an OST is
+        # the soundtrack, not a cut of one theme. It was one structured row per
+        # anime (a type and a status) until the list-level status moved into
+        # music_status; that row's status is the OST's music_status now.
         key="ost",
-        shape=SHAPE_STRUCTURED,
         label="OST",
-        owners=("anime",),
-        scope=SCOPE_CATALOG,
-        group="music",
-        singleton=True,
-        fields=(
-            NoteField(
-                key="type",
-                label="Type",
-                type=FIELD_SELECT,
-                column="kind",
-                options=MUSIC_TYPES,
-                default="normal",
-            ),
-            NoteField(
-                key="status",
-                label="Status",
-                type=FIELD_SELECT,
-                column="status",
-                options=MUSIC_STATUSES,
-            ),
-        ),
+        **_SONG_LIST,
     ),
     NoteSection(
         key="op_ed_changes",
@@ -1841,9 +1910,81 @@ def _check_groupable_by(section: NoteSection) -> None:
         )
 
 
+def _check_kind_category(section: NoteSection) -> None:
+    """Free-text kinds and a closed `kinds` list are two answers to one
+    question; a section declares one or the other."""
+    if section.kind_category and (section.kinds or section.kinds_by_owner):
+        raise ValueError(
+            f"Section '{section.key}' declares both a kind_category and kinds."
+        )
+
+
+def _check_type_status(section: NoteSection) -> None:
+    """A section's `type_status_section` must be a `one_per_kind` section
+    whose kinds include this section's key."""
+    if section.type_status_section is None:
+        return
+    target = _BY_KEY.get(section.type_status_section)
+    if target is None or not target.one_per_kind or section.key not in target.kinds:
+        raise ValueError(
+            f"Section '{section.key}' points at type status section "
+            f"'{section.type_status_section}', which holds no row for it."
+        )
+
+
 for _section in NOTE_SECTIONS:
     _check_group_by(_section)
     _check_groupable_by(_section)
+    _check_kind_category(_section)
+    _check_type_status(_section)
+
+# The music_status kinds and the lists pointing at it must be the same set:
+# a list with no status row would show no bar, a status with no list a stray.
+if set(_BY_KEY[MUSIC_STATUS_SECTION].kinds) != {
+    s.key for s in NOTE_SECTIONS if s.type_status_section == MUSIC_STATUS_SECTION
+}:
+    raise ValueError("music_status kinds and the song lists disagree.")
+
+
+def uses_link_pairs(section: NoteSection) -> bool:
+    """
+    Whether this section's `links` column holds text-and-URL pairs,
+    `{"text": str | None, "url": str}`, rather than URL strings.
+
+    Per section, never per row, so a reader of one section never has to guess
+    which of the two shapes a row is in. The pairs reach only the song lists
+    and 彩蛋: every other section's links are URL strings, and converting
+    those would rewrite thousands of rows for a label nobody asked for there.
+    """
+    if section.shape == SHAPE_MUSIC_TRACK:
+        return True
+    return any(
+        f.type == FIELD_LINK_PAIRS and f.column == "links" for f in section.fields
+    )
+
+
+def as_link_pairs(links: list | None) -> list | None:
+    """URL strings as pairs with no text; pairs and None pass through."""
+    if not links:
+        return links
+    return [{"text": None, "url": l} if isinstance(l, str) else l for l in links]
+
+
+LINK_PAIR_SECTIONS: frozenset[str] = frozenset(
+    s.key for s in NOTE_SECTIONS if uses_link_pairs(s)
+)
+
+# The system_option categories the registry draws suggestions from, in
+# registry order. Unioned into credit_roles.OPTION_CATEGORIES so the Options
+# form offers them before either has a value.
+NOTE_OPTION_CATEGORIES: tuple[str, ...] = tuple(
+    dict.fromkeys(
+        category
+        for s in NOTE_SECTIONS
+        for category in (s.kind_category, s.link_text_category)
+        if category
+    )
+)
 
 PERSONAL_SECTIONS: frozenset[str] = frozenset(
     s.key for s in NOTE_SECTIONS if s.scope == SCOPE_PERSONAL

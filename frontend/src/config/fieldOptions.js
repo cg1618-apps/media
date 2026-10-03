@@ -316,6 +316,14 @@ export const H_GAME_PLATFORMS = ["Steam", "DLsite", "Nintendo", "Other"];
 export const HENTAI_SOURCE_MATERIALS = ["Original", "Manga", "Novel"];
 
 export const MUSIC_STATUSES = ["Need", "Pending", "Done"];
+// The status of a whole song list (an anime's OPs, EDs, insert songs or OST).
+export const MUSIC_TYPE_STATUSES = [
+  "All Done",
+  "Done",
+  "Need",
+  "Pending",
+  "Not Done",
+];
 
 export const SEIYUU_STATUSES = ["Need", "Done"];
 
@@ -440,6 +448,7 @@ export const CONSTANTS_FALLBACK = {
   hentai_source_material: HENTAI_SOURCE_MATERIALS,
   day_of_week: WEEKDAYS,
   music_status: MUSIC_STATUSES,
+  music_type_status: MUSIC_TYPE_STATUSES,
   seiyuu_status: SEIYUU_STATUSES,
   person_role: PERSON_ROLES,
   media_type: MEDIA_TYPES,

@@ -462,8 +462,9 @@ not drawn. The character, person and studio libraries use it for
   and the read view from `section.fields`, the spec the backend registry
   serves. A field naming a `column` is sent at the top level of the payload
   and one naming none inside `fields`, which `fromNote` and `toPayload` are
-  the only places to know. A `singleton` section (`ost`) loses its Add
-  button once it holds its row, so that row changes by Edit. It also owns the two affordances the other shapes
+  the only places to know. A `singleton` section loses its Add button once
+  it holds its row, so that row changes by Edit; no structured section is a
+  singleton today, but the rule stays with the component. It also owns the two affordances the other shapes
   lack — drag-to-reorder (a `DragHandle` per row; each drop calls
   `PATCH /api/notes/reorder`, the provider applies the new order before the
   server answers through the pure `withSectionOrder`, and the section's grips

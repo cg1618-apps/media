@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 ## What this is for
 
@@ -408,7 +408,9 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | `craft` (`巧思`) | | | | | | | x | | | |  | |
 | `foreshadowing` | x | x | | x | x | x | x | | | |  | both |
 | `symmetry` | x | x | | x | x | x | x | | | |  | both |
-| `op`, `ed`, `insert_songs`, `ost` | x | | | | | | | | | |  | |
+| `easter_eggs` (`彩蛋`, `structured`, links as text-URL pairs) | x | | | | | | | | | |  | |
+| `music_status` (hidden; one row per song list, created with the anime) | x | | | | | | | | | |  | |
+| `op`, `ed`, `insert_songs`, `ost` (`music_track`) | x | | | | | | | | | |  | |
 | `op_ed_changes` | x | | | x | x | | | | | |  | |
 | `extended_episodes` (`加長`) | x | | | x | x | | | | | |  | |
 | `adaptation` | x (desc required) | x (desc required) | | x | x | | x (desc required) | | | |  | both |

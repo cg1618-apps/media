@@ -14,8 +14,8 @@ def test_every_section_has_a_known_shape():
         ns.SHAPE_EPISODE_TEXT,
         ns.SHAPE_NAME_LINKS,
         ns.SHAPE_NAME_ENTRIES,
-        ns.SHAPE_EPISODE_NAME_LINKS,
         ns.SHAPE_MUSIC_TRACK,
+        ns.SHAPE_MUSIC_STATUS,
         ns.SHAPE_STRUCTURED,
         ns.SHAPE_EXTERNAL,
     }
@@ -34,17 +34,20 @@ def test_every_owner_is_a_real_owner_table():
             assert owner in OWNER_TABLES, f"{sec.key} names unknown owner {owner}"
 
 
-def test_only_remark_and_ost_are_singletons():
+def test_only_remark_is_a_singleton():
+    # `ost` was the other one until it became a list of songs like OP and ED.
     singletons = [s.key for s in ns.NOTE_SECTIONS if s.singleton]
-    assert singletons == ["remark", "ost"]
+    assert singletons == ["remark"]
 
 
 def test_only_declared_sections_have_kinds():
     with_kinds = [s.key for s in ns.NOTE_SECTIONS if s.kinds]
+    # op and ed are absent: their Song Type is free text with suggestions from
+    # the "Song Type" option category, not a closed `kinds` list. music_status
+    # keys its rows by the music section they describe.
     assert with_kinds == [
         "highlights",
-        "op",
-        "ed",
+        "music_status",
         "op_ed_changes",
     ]
     # `mods_and_tools` held Mod / Tool here until it became structured. A
@@ -59,50 +62,123 @@ def test_only_declared_sections_have_kinds():
     ] == [("Mod", "Tool")]
 
 
-MUSIC_SECTIONS = ("op", "ed")
+# Every song list of the music group. One shape, so a song is the same row
+# whichever list it is in.
+SONG_SECTIONS = ("op", "ed", "insert_songs", "ost")
 
 
-def test_music_sections_are_music_track_shaped_and_anime_only():
-    for key in MUSIC_SECTIONS:
+def test_song_sections_are_music_track_shaped_and_anime_only():
+    for key in SONG_SECTIONS:
         sec = ns.section_by_key(key)
         assert sec is not None, f"{key} is missing from the registry"
         assert sec.shape == ns.SHAPE_MUSIC_TRACK
         assert sec.owners == ("anime",)
+        assert sec.scope == ns.SCOPE_CATALOG
+        assert sec.group == "music"
 
 
-def test_music_sections_offer_both_dropdowns_and_default_to_normal():
-    for key in MUSIC_SECTIONS:
+def test_every_song_carries_the_per_song_status_and_an_optional_episode():
+    for key in SONG_SECTIONS:
         sec = ns.section_by_key(key)
-        assert sec.kinds == ns.MUSIC_TYPES
-        assert sec.statuses == ns.MUSIC_STATUSES
+        assert sec.statuses == ns.MUSIC_STATUSES == ("Need", "Pending", "Done")
+        assert ns.locator_for(sec, "anime") == "Episode(s), e.g. ep 3"
+        assert not sec.locator_required
+        assert not sec.singleton
+
+
+def test_only_op_and_ed_carry_a_free_text_song_type():
+    for key in ("op", "ed"):
+        sec = ns.section_by_key(key)
+        assert sec.kind_category == ns.SONG_TYPE_CATEGORY == "Song Type"
+        assert sec.kinds == ()
         assert sec.default_kind == "normal"
-        assert sec.default_kind in sec.kinds
+    for key in ("insert_songs", "ost"):
+        sec = ns.section_by_key(key)
+        assert sec.kind_category is None
+        assert sec.kinds == ()
+        assert sec.default_kind is None
+
+
+def test_song_links_are_text_and_url_pairs_suggested_from_song_source():
+    for key in SONG_SECTIONS:
+        sec = ns.section_by_key(key)
+        assert ns.uses_link_pairs(sec)
+        assert sec.link_text_category == ns.SONG_SOURCE_CATEGORY == "Song Source"
+
+
+def test_link_pairs_are_confined_to_the_songs_and_easter_eggs():
+    paired = {s.key for s in ns.NOTE_SECTIONS if ns.uses_link_pairs(s)}
+    assert paired == set(SONG_SECTIONS) | {"easter_eggs"}
+    assert ns.LINK_PAIR_SECTIONS == frozenset(paired)
 
 
 def test_only_the_music_sections_carry_a_status():
-    # insert_songs tracks a song the same way OP and ED do; its shape is the
-    # only difference. OST tracks one too, as a structured field rather than a
-    # section-level `statuses` - see the next test. Nothing outside the music
-    # group has a status.
+    # Nothing outside the music group has a section-level status. OST is a
+    # song list now, so it carries one like the other three.
     with_status = [s.key for s in ns.NOTE_SECTIONS if s.statuses]
-    assert with_status == ["op", "ed", "insert_songs"]
-    for key in with_status:
-        assert ns.section_by_key(key).statuses == ns.MUSIC_STATUSES
+    assert with_status == ["music_status", "op", "ed", "insert_songs", "ost"]
 
 
-def test_ost_is_one_entry_of_type_and_status():
-    # Not a list of songs: an anime has one OST row, saying which cut and how
-    # far tracking it has got, and nothing else.
-    sec = ns.section_by_key("ost")
+def test_music_status_holds_one_row_per_song_list():
+    sec = ns.section_by_key("music_status")
+    assert sec.shape == ns.SHAPE_MUSIC_STATUS
+    assert sec.shape in ns.STORED_SHAPES
+    assert sec.owners == ("anime",)
+    assert sec.scope == ns.SCOPE_CATALOG
+    assert sec.group == "music"
+    # Not a subsection of its own: its rows are drawn above the lists they
+    # describe, so the page is told not to render it as a card.
+    assert sec.hidden is True
+    assert sec.one_per_kind is True
+    assert sec.kinds == SONG_SECTIONS == ns.MUSIC_TYPE_KEYS
+    assert sec.statuses == ns.MUSIC_TYPE_STATUSES == (
+        "All Done",
+        "Done",
+        "Need",
+        "Pending",
+        "Not Done",
+    )
+    assert sec.default_status == ns.MUSIC_TYPE_STATUS_DEFAULT == "Not Done"
+
+
+def test_every_song_list_points_at_the_music_status_section():
+    for key in SONG_SECTIONS:
+        assert ns.section_by_key(key).type_status_section == "music_status"
+    pointing = {s.key for s in ns.NOTE_SECTIONS if s.type_status_section}
+    assert pointing == set(SONG_SECTIONS)
+
+
+def test_only_music_status_is_hidden_or_keyed_by_kind():
+    assert [s.key for s in ns.NOTE_SECTIONS if s.hidden] == ["music_status"]
+    assert [s.key for s in ns.NOTE_SECTIONS if s.one_per_kind] == ["music_status"]
+
+
+def test_the_status_vocabularies_have_one_source():
+    # constants.py is what /api/constants serves; the registry imports it
+    # rather than restating it.
+    from app.utils import constants
+
+    assert ns.MUSIC_STATUSES is constants.MUSIC_STATUSES
+    assert ns.MUSIC_TYPE_STATUSES is constants.MUSIC_TYPE_STATUSES
+
+
+def test_note_option_categories_come_from_the_registry():
+    assert ns.NOTE_OPTION_CATEGORIES == ("Song Type", "Song Source")
+
+
+def test_easter_eggs_is_a_list_under_analysis():
+    sec = ns.section_by_key("easter_eggs")
+    assert sec.label == "彩蛋 Easter Eggs"
     assert sec.shape == ns.SHAPE_STRUCTURED
     assert sec.owners == ("anime",)
-    assert sec.group == "music"
-    assert sec.singleton is True
-    assert [(f.key, f.column, f.type, f.options) for f in sec.fields] == [
-        ("type", "kind", ns.FIELD_SELECT, ns.MUSIC_TYPES),
-        ("status", "status", ns.FIELD_SELECT, ns.MUSIC_STATUSES),
+    assert sec.scope == ns.SCOPE_CATALOG
+    assert sec.group == "analysis_group"
+    assert not sec.singleton
+    assert [(f.key, f.column, f.type, f.required) for f in sec.fields] == [
+        ("episode", "locator", ns.FIELD_TEXT, False),
+        ("description", "content", ns.FIELD_TEXTAREA, True),
+        ("links", "links", ns.FIELD_LINK_PAIRS, False),
     ]
-    assert sec.fields[0].default == "normal"
 
 
 def test_every_group_is_a_known_group():
@@ -134,6 +210,7 @@ def test_the_analysis_group_holds_cinematography_and_its_novel_twin():
         "craft",
         "foreshadowing",
         "symmetry",
+        "easter_eggs",
     ]
 
 
@@ -157,9 +234,10 @@ def test_no_section_is_both_grouped_and_standalone():
         assert not (sec.group and sec.standalone), f"{sec.key} sets both"
 
 
-def test_the_music_group_holds_the_five_music_sections():
+def test_the_music_group_holds_the_music_sections():
     grouped = [s.key for s in ns.NOTE_SECTIONS if s.group == "music"]
     assert grouped == [
+        "music_status",
         "op",
         "ed",
         "insert_songs",
@@ -249,6 +327,8 @@ def test_anime_sections_in_registry_order():
         "cinematography",
         "foreshadowing",
         "symmetry",
+        "easter_eggs",
+        "music_status",
         "op",
         "ed",
         "insert_songs",
@@ -413,7 +493,6 @@ def test_sections_that_are_meaningless_without_an_anchor_require_one():
         "highlight_episodes",
         "highlight_moments",
         "op_ed_changes",
-        "insert_songs",
         "extended_episodes",
     }
 
@@ -456,29 +535,6 @@ def test_insert_songs_is_anime_only():
     assert ns.section_by_key("insert_songs").owners == ("anime",)
 
 
-def test_insert_songs_pins_a_song_to_an_episode():
-    # An insert song is the widest section: the episode it plays in, the song's
-    # name, what it does there, where to hear it, and how far tracking it has
-    # got. Only the episode is required - a remembered scene often comes before
-    # the title does.
-    sec = ns.section_by_key("insert_songs")
-    assert sec.shape == ns.SHAPE_EPISODE_NAME_LINKS
-    assert sec.shape in ns.STORED_SHAPES
-    assert sec.locator_required
-    assert ns.locator_for(sec, "anime") == "Episode(s), e.g. ep 3"
-    assert sec.desc_required == ()
-
-
-def test_insert_songs_tracks_status_but_not_type():
-    # It absorbed the music_track `insert` section, so it carries the same
-    # Need/Pending/Done. It takes no type: an insert song is whatever cut plays
-    # in that episode, so "which version" has no answer of its own.
-    sec = ns.section_by_key("insert_songs")
-    assert sec.statuses == ns.MUSIC_STATUSES
-    assert sec.kinds == ()
-    assert sec.default_kind is None
-
-
 # --- scope -----------------------------------------------------------------
 # catalog: one shared set of rows, admin-authored, read by everyone.
 # personal: one set per user, read only by its author.
@@ -508,6 +564,7 @@ PERSONAL_KEYS = {
 
 CATALOG_KEYS = {
     "introduction",
+    "music_status",
     "op",
     "ed",
     "insert_songs",
@@ -528,6 +585,7 @@ CATALOG_KEYS = {
     "craft",
     "foreshadowing",
     "symmetry",
+    "easter_eggs",
     # 攻略 Guides
     "beginner",
     "gameplay_systems",
@@ -614,7 +672,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 70
+    assert len(stored) == 72
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 

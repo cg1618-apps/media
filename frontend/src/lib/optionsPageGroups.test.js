@@ -32,6 +32,7 @@ const SERVED = [
   "media_type",
   "movie_type",
   "music_status",
+  "music_type_status",
   "my_rating",
   "novel_region",
   "novel_serialization_status",
@@ -150,6 +151,8 @@ const CATEGORIES = [
   "Quality",
   "Reference Source",
   "Serialization Platform",
+  "Song Source",
+  "Song Type",
 ];
 
 describe("groupTier2Categories", () => {

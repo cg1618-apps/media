@@ -1421,11 +1421,11 @@ its section's *shape* in `app/utils/note_sections.py`
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
 | `parent_id` | UUID | yes | | FK `note.system_id` ON DELETE CASCADE, indexed. The row this one nests under, for a section the registry marks `hierarchical`; unbounded depth. A child is kept in its parent's owner and section by the router, not by the database - a CHECK cannot read another row. |
 | `locator` | String | yes | | Where in the work: episode, chapter, scene, timestamp, or a question's source. The section supplies the label and whether it is required. |
-| `kind` | String | yes | | Only where the section declares `kinds` |
-| `status` | String | yes | | Music tracking status (Need/Pending/Done); `music_track` and `insert_songs` shapes only |
-| `title` | String | yes | | Name half of `name_links` / music rows |
+| `kind` | String | yes | | Only where the section declares `kinds` or a `kind_category` (free text - an OP or ED's Song Type). On a `music_status` row, the song list it is about (`op`, `ed`, `insert_songs`, `ost`) |
+| `status` | String | yes | | Music tracking status: Need/Pending/Done on a `music_track` song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row; music sections only |
+| `title` | String | yes | | Name half of `name_links` / song name of a `music_track` row |
 | `content` | Text | yes | | Body |
-| `links` | JSONB | yes | | List of URL strings, for the seven sections whose shape holds links |
+| `links` | JSONB | yes | | List of URL strings; on the four song lists and 彩蛋 Easter Eggs (`note_sections.uses_link_pairs`), a list of `{"text": str or null, "url": str}` pairs instead. Which shape is decided by the section, never per row |
 | `entries` | JSONB | yes | | The `name_entries` shape's ordered items - each `{"type": "text" or "link", "value": str, "label": str or null}`. Deliberately not folded into `links`: one column meaning two things is how subtle bugs start. |
 | `fields` | JSONB | yes | | The `structured` shape's registry-declared fields, keyed by `NoteField.key`, plus any nested list. Only what the section's spec does not map onto a column - a structured name is `title` and its description `content` - so this holds the leftovers and the nested lists. Validated against the spec; an unknown key is a 422. |
 | `sort_index` | Float | yes | | Ordering within (owner, section) |
@@ -1447,9 +1447,10 @@ returns; see [systems/notes.md](systems/notes.md#scope) and
 Indexes: `ix_note_owner_section` (the four owner columns + `section`) - the
 notes page's only read path; **`ix_note_one_remark_per_owner`** - partial
 UNIQUE over the four owner columns **plus `author_id`**, **NULLS NOT
-DISTINCT**, `WHERE section = 'remark'`; **`ix_note_one_ost_per_owner`** -
-partial UNIQUE over `media_id`, `WHERE section = 'ost'`, because OST is one
-entry per anime (and anime-only, so `media_id` is the whole owner).
+DISTINCT**, `WHERE section = 'remark'`; **`ix_note_one_music_status_per_kind`**
+- partial UNIQUE over `(media_id, kind)`, `WHERE section = 'music_status'`,
+because each song list of an anime has one status row (and `music_status` is
+anime-only, so `media_id` is the whole owner).
 
 The second is keyed per owner **per author**, because `remark` is a
 personal-scope section: two accounts may each hold one on the same entry and

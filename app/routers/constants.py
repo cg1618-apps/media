@@ -150,6 +150,9 @@ def _constants() -> dict[str, list[str]]:
         "novel_serialization_status": list(c.NOVEL_SERIALIZATION_STATUSES),
         "day_of_week": list(c.WEEKDAYS),
         "music_status": list(c.MUSIC_STATUSES),
+        # The status of a whole song list (an anime's OPs, EDs, insert songs
+        # or OST), as opposed to one song's music_status above.
+        "music_type_status": list(c.MUSIC_TYPE_STATUSES),
         "seiyuu_status": list(c.SEIYUU_STATUSES),
         "watch_order_importance": list(ITEM_IMPORTANCE),
         "character_role": list(CHARACTER_ROLES),
