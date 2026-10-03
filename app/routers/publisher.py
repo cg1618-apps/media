@@ -27,6 +27,7 @@ from app.services.domain.credits import (
     credit_summaries,
     find_publisher,
 )
+from app.services.domain.merge_fill import finish_merge
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
@@ -394,7 +395,8 @@ def merge_publisher(
     """
     Repoint every credit from `source_id` onto this publisher, then delete the
     source. This - not delete - is the fix for a duplicate: deleting cascades
-    the credits away, so merging is the only way to keep them.
+    the credits away, so merging is the only way to keep them. Every column
+    this publisher leaves blank is filled from the source's (`merge_fill`).
     """
     if system_id == payload.source_id:
         raise HTTPException(
@@ -437,6 +439,5 @@ def merge_publisher(
                 )
             )
 
-    db.delete(drop)
-    db.commit()
+    finish_merge(db, "publisher", keep, drop)
     return {"status": "success", "credits_moved": moved}

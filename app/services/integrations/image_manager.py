@@ -174,6 +174,19 @@ def download_cover_image(
         return None
 
 
+def move_cover_image(old_key: str, new_key: str) -> None:
+    """
+    Renames one stored image, e.g. a merged record's download onto the
+    survivor's own key. A failure is logged, not raised: the caller's
+    transaction has already committed.
+    """
+    try:
+        os.replace(_local_path(old_key), _local_path(new_key))
+        logger.info("Moved cover image: %s -> %s", old_key, new_key)
+    except OSError as e:
+        logger.error("Maintenance Error: Failed to move image %s to %s: %s", old_key, new_key, e)
+
+
 def delete_cover_image(owner_type: str, system_id: str) -> None:
     """
     Permanently removes an image from storage.

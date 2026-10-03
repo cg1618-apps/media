@@ -22,6 +22,7 @@ from app.routers._patching import apply_column_patch
 from app.services.domain.autofill import autofill_studio_from_mal
 from app.services.domain.credits import CreditSummary, credit_summaries, find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
+from app.services.domain.merge_fill import finish_merge
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.services.rbac.shared_visibility import (
@@ -328,7 +329,8 @@ def merge_studio(
     """
     Repoint every credit from `source_id` onto this studio, then delete the
     source. This - not delete - is the fix for a duplicate: deleting cascades
-    the credits away, so merging is the only way to keep them.
+    the credits away, so merging is the only way to keep them. Every column
+    this studio leaves blank is filled from the source's (`merge_fill`).
     """
     if system_id == payload.source_id:
         raise HTTPException(
@@ -358,6 +360,5 @@ def merge_studio(
         credit.studio_id = system_id
         moved += 1
 
-    db.delete(drop)
-    db.commit()
+    finish_merge(db, "studio", keep, drop)
     return {"status": "success", "credits_moved": moved}
