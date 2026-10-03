@@ -180,6 +180,23 @@ it("gives every cell at most one width utility", async () => {
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 
+it("gives the character and seiyuu pickers one fixed width and the remark the rest", async () => {
+  // Again the mechanism, not the picture: both name pickers carry the same
+  // fixed width (so the columns line up) and neither stretches; the remark
+  // is the cell that grows, and it may wrap under the seiyuu.
+  render(<CastEditor mediaType="anime" value={[row()]} onChange={vi.fn()} />);
+  const character = screen.getByLabelText("Character");
+  const seiyuu = screen
+    .getByPlaceholderText("Seiyuu name...")
+    .closest('div[class~="w-64"]');
+  expect(character).toHaveClass("w-64", "min-w-0");
+  expect(character).not.toHaveClass("flex-1");
+  expect(seiyuu).not.toBeNull();
+  expect(seiyuu.className).toBe(character.className);
+  expect(screen.getByLabelText("Remark")).toHaveClass("flex-[1_1_12rem]", "min-w-0");
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
 it("sets a cast photo through ImagePicker, never a typed key", async () => {
   const onChangeSpy = vi.fn();
   render(

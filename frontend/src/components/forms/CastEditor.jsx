@@ -38,6 +38,12 @@ const SEIYUU_MEDIA_TYPES = new Set(["anime", "anime-movie", "hentai"]);
 const cellCls =
   "border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface";
 
+// The character picker and every seiyuu picker: one width, about a long CJK
+// name, so the two columns line up. It may shrink (min-w-0) but never grows,
+// so a narrow form squeezes the picker instead of overflowing, and a wide one
+// gives the spare room to the remark.
+const NAME_CELL = "w-64 min-w-0";
+
 // The POST body for a character minted from this editor: the typed name as
 // its CN name and display name, plus the gender NEW_CAST_CHARACTER_GENDER
 // gives this media type, if any. A MAL import mints with MAL's name_en
@@ -481,11 +487,15 @@ export default function CastEditor({
 
             {/* Two lines, so no cell is squeezed to nothing on a narrow form:
                 who the character is and what they are here, then who voices
-                them and the casting's remark. The second line wraps the
-                remark under the seiyuu when even that is too tight. */}
+                them and the casting's remark. The character and seiyuu
+                pickers share one width (NAME_CELL), about a long CJK name, so
+                the two columns line up and the remark takes what is left. The
+                second line wraps the remark under the seiyuu when even that
+                is too tight, and a picker shrinks below its width rather than
+                overflow. */}
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
               <div className="flex gap-1.5 items-center">
-                <div className="flex-1 min-w-0" aria-label="Character">
+                <div className={NAME_CELL} aria-label="Character">
                   <ComboBox
                     items={characterItems(row, i)}
                     selectedId={row.character_id || null}
@@ -535,7 +545,7 @@ export default function CastEditor({
               <div className="flex flex-wrap gap-1.5 items-start">
                 {showSeiyuu ? (
                   <div
-                    className="flex-[2_1_18rem] min-w-0 flex flex-col gap-1"
+                    className="flex-[0_1_auto] min-w-0 flex flex-col gap-1"
                     aria-label="Seiyuu"
                   >
                     {voiceLines(row).map((voice, v) => (
@@ -546,7 +556,7 @@ export default function CastEditor({
                         className="flex gap-1 items-start"
                         onBlur={(e) => resolveSeiyuu(i, v, e)}
                       >
-                        <div className="flex-1 min-w-0">
+                        <div className={NAME_CELL}>
                           <ComboBox
                             items={seiyuuList.map((p) => ({
                               id: p.system_id,
