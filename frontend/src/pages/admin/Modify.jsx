@@ -92,6 +92,7 @@ import ContentLabelPicker, {
   saveFranchiseLabels,
 } from "../../components/forms/ContentLabelPicker";
 import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
+import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
 
 // The media types whose editor carries a cast (CASTING_MEDIA_TYPES on the
 // backend holds these and more), in their hyphenated key form.
@@ -4017,7 +4018,7 @@ export default function Modify() {
                 />
               </div>
               {searchOpen && searchResults.length > 0 && (
-                <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                <SuggestList anchorRef={searchRef}>
                   {searchResults.map((item) => {
                     const sub =
                       activeTab === "anime" || activeTab === "anime-movie"
@@ -4030,15 +4031,13 @@ export default function Modify() {
                             )?.franchise_name_cn || ""
                           : "";
                     return (
-                      <button
+                      <SuggestItem
                         key={item.system_id}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
+                        truncate={false}
+                        onPick={() => {
                           openEditor(item, activeTab);
                           setSearchOpen(false);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-brand/10 border-b border-border last:border-0 transition"
                       >
                         <div className="text-sm font-bold text-text">
                           {getItemLabel(item, activeTab)}
@@ -4046,10 +4045,10 @@ export default function Modify() {
                         {sub && (
                           <div className="text-xs text-text-faint">{sub}</div>
                         )}
-                      </button>
+                      </SuggestItem>
                     );
                   })}
-                </div>
+                </SuggestList>
               )}
             </div>
           ) : (

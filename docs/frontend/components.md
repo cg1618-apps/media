@@ -309,11 +309,22 @@ not drawn. The character, person and studio libraries use it for
   value gets an icon by saving its favicon there and adding its name to the
   map. The icon is what names the site, so no source link carries a `Tag`
   box beside it — the `Tag` chips are only the tag-field row above.
-- **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
+- **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`;
+  `rankMatches` orders what the typed text matches exact, then prefix, then
+  contains, each tier in the order `items` came in — off by default, where
+  matches keep the order of `items`; ten results at most),
   `MultiSelect` (two caps that read alike: `limit` is how many options the
   dropdown *shows* — `null` for all — and `max` is how many values can be
   *selected*, a pick past it replacing the oldest; single-value tag fields
-  such as `exclusive_source` pass `limit={null} max={1}`), `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
+  such as `exclusive_source` pass `limit={null} max={1}`),
+  `SuggestInput` (a free-text input over a list of strings: opens on focus,
+  narrows as you type through `lib/suggest.js` — prefix matches first, then
+  contains, the option already typed left out — and keeps whatever is typed;
+  ArrowUp/ArrowDown highlight, Enter or a press picks, Enter with nothing
+  highlighted keeps the typed text, the first Escape closes the list and the
+  next reaches the caller's `onKeyDown`; it is what replaces a `<datalist>`,
+  and the app has none), `SuggestList` (see "Dropdown lists" below),
+  `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `OptionCategorySelect`,
   `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
   it takes `owner={{kind, mediaType?, id}}` and reads and writes an entry's or
@@ -334,7 +345,7 @@ not drawn. The character, person and studio libraries use it for
   `restrictedSources` - `{ prefill, suggestions }`, looked up from
   `mediaType` and the picked prefill (`RestrictedPrefillContext`) in
   `lib/restrictedSources.js` unless passed, which h-comic does for its
-  region - offers `suggestions` on the restricted rows as a datalist and a
+  region - offers `suggestions` on the restricted rows through `SuggestInput` and a
   **Prefill suggested** button that adds the missing `prefill` names, without
   restricting what may be typed; `showRestricted={false}` drops the
   restricted group, which `/defaults` does since it picks those names
@@ -499,6 +510,42 @@ not drawn. The character, person and studio libraries use it for
   caps top-level rows, or each group of a grouped section. The rules are in
   `docs/systems/notes.md`.
 
+## Dropdown lists
+
+Every type-or-choose input opens the same list: `SuggestList`, with
+`SuggestItem` for an option and `SuggestNote` for a line that is not one
+("No matches found", "Loading entries to search from…", a "will be created
+as new" hint), all from `components/forms/SuggestList.jsx`. Its users are
+`SuggestInput`, `ComboBox`, `MultiSelect`, the notes `NamesInput`
+(`pages/notes/sections/`), `EntryAutofillSearch` and the older Add tabs'
+inline auto-fill boxes, the game tab's IGDB search (`IgdbSearchBox`), and the
+title search on Modify and on Delete. A new dropdown under an input uses it
+too rather than drawing its own.
+
+- **Portaled and fixed.** The list renders into `document.body`, placed
+  under its anchor (`anchorRef`: the input, or the box around it), at least
+  as wide as the anchor and 240 px tall at most, flipping above when there is
+  no room below. It is placed again on every scroll (capture phase, since
+  forms scroll inside their own containers) and resize, so no modal or
+  scroll box clips it. `z-[95]` puts it over the modals (`z-50`) and the
+  expanded relation graph (`z-[90]`), under the toasts (`z-[100]`).
+- **A press picks on mousedown** and cancels its default, so the input never
+  blurs before the pick lands — which matters to inputs whose blur commits
+  the typed text (`NamesInput`, the cast editor's seiyuu line). The list also
+  stops mousedown from reaching `document`, so the "click outside closes it"
+  listener every one of these components keeps still treats a press on the
+  portaled list as inside.
+- **Keyboard.** `SuggestInput`, `ComboBox`, `MultiSelect` and `NamesInput`
+  move a highlight with ArrowUp/ArrowDown (`stepActive`), keep it in view,
+  and take it on Enter; with nothing highlighted, Enter does what it did
+  before — `SuggestInput` and `NamesInput` keep the typed text, `MultiSelect`
+  adds it, and `ComboBox` leaves it to the form. The search pickers are
+  pointer-only.
+- **Look.** `rounded-md border border-border bg-surface p-1 shadow-lg`;
+  an option is `rounded-sm px-3 py-1.5 text-sm`, one line and truncated, and
+  the highlighted or hovered one is `bg-brand-soft text-brand`. A rich row
+  (title over subtitle, a cover) passes `truncate={false}`.
+
 ## The access-mode admin pages (`pages/admin/`)
 
 `AccessModes.jsx` and the panel inside `Users.jsx` edit the **object axis** -
@@ -536,6 +583,8 @@ is a second place to keep in step.
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
+| `suggest.js` | What a type-or-choose input offers for the typed text: `rankByMatch(items, typed, keyOf)` (exact, then prefix, then contains, each tier in the given order) and `suggest(options, text)`, `SuggestInput`'s matcher (case-insensitive, the option already typed left out) |
+| `peopleOrder.js` | `byRatingThenAppearances(people)`: a person picker's best-first order before typed-text matching — `my_rating` by `getRatingWeight` (unrated last), then `credit_count`, most first; stable. The cast editor's seiyuu box uses it |
 | `formatters.js` | `getSourceValues(sources, source)` (filters the `fetchAllSources()` bag by category/scope/**usage** for a `ComboBox`) and display formatters |
 | `payloads.js` | form state → request body for every media type, including mapping the `SourcesEditor` array into the `sources` write-payload key. `hComicFieldsPayload` and `hGameFieldsPayload` never send `highlight_group_order`: the detail page's drag owns that column, and a form save leaves it alone. `hGameFieldsPayload` sends a multi-choice list through `choiceList(value, vocabulary)` - `null` stays `null`, a list (`[]` included) goes in vocabulary order. `hComicFieldsPayload` leaves `animation_status` out while `animation_status_source` is `"derived"`, since the server refuses (422) any value but the served one. `hentaiFieldsPayload` and `hComicFieldsPayload` send `mal_id` only beside a `mal_link` - the write hook derives the id from the link. Every entry body's `sources` goes through the one `sourcesPayload` |
 | `autofill.js`, `ensureSourceValues.js` | fill a form from a picked row; keep option sources consistent |
@@ -665,7 +714,7 @@ content-label endpoints refuse (422) a set that drops it.
 | `forms/PublisherScopePills.jsx` | One row of media-type pills (Anime, Anime Movie, Manga, Novel, Comic, Game) on the Publisher Add and Modify tabs, writing the `scopes` list the POST/PUT body carries. `PersonRoleMatrix`'s shape with no role axis to cross it against — a publisher holds exactly one role. Clicking a held pill removes it; this is the only path that *narrows* a publisher, since credit writes and `POST /api/publisher` are additive. The toggle rebuilds the list in the component's own order rather than appending, so the value posted does not depend on click order. Mirrors `legal_scopes("publisher")` in `app/utils/credit_roles.py`: a seventh media type added there must be added here. |
 | `forms/EntryAutofillSearch.jsx` | The Add tab's "Auto-fill from existing entry" box, used by the h-comic, h-game and hentai tabs: filters `items` client-side on the names `names(item)` returns (up to ten hits, each titled by `title(item)`, badged by `badge(item)` and subtitled with its franchise from `franchises`), and hands the picked entry to `onPick`, clearing itself. Owns its query, dropdown and click-outside; which fields a pick copies is the caller's (`buildAutofillPatch`). `loading` disables it while the tab's list is still arriving. The older Add tabs inline the same markup. |
 | `forms/FranchiseRibbon.jsx` | The Modify editor's "Other entries in this franchise" ribbon for game, h-comic, h-game and hentai: the `entries` sharing `franchiseId`, minus `excludeId`, grouped by series from `allSeries` and sorted by display name, each a chip (badged by `badge(entry)`) that calls `onOpen`. Renders nothing without a franchise or siblings. The seven older types build the same markup inline in `Modify.jsx`. |
-| `forms/CastEditor.jsx` | The anime/anime-movie/manga/novel/h-comic/hentai Add/Modify cast table. Controlled like `NovelUnitsEditor` — the parent owns `value` and gets every change through `onChange` — and never saves a cast list itself, only searches/creates the two entities its comboboxes reference: a character combobox (debounced `GET /api/character/?name=`, existing matches shown with the entries they already appear in, plus a synthetic "create new character named X" choice — never find-or-create, per Decision G; the POST carries the typed name as `name_cn` with `display_name_field: "cn"`, plus `gender: "女"` when `NEW_CAST_CHARACTER_GENDER` names one for the editor's media type — h-comic and hentai — and no gender otherwise) and a seiyuu combobox per voice line (find-or-creates through the existing `ensureSourceValues.js` path, same as every other person field). Renders **without** the seiyuu column on manga/novel/h-comic (`SEIYUU_MEDIA_TYPES` is anime, anime-movie and hentai), mirroring `ck_casting_voice_scope` so the UI cannot offer what the database will reject. One row per casting, on two lines so no cell is squeezed out on a narrow form: the first holds the character, role and photo, the second the seiyuu and the remark (which wraps beneath the seiyuu when there is no room beside it). Its cells: character, seiyuu (when shown — a list of voice lines, each a seiyuu combobox, a "Voice remark" input such as `child` or `ep 13-`, and a remove button, with **+ Another seiyuu** below; a row with no voices shows one blank line, which adds nothing to the row until it is typed into), an optional `role` select over `CHARACTER_ROLES` — Main, Core, Supporting, Other — (the casting's role; the save fills the character's own from it when that is blank; "—" is no role: the row holds `""`, and `useReplaceCasting` — the one save path Add and Modify share, which also drops rows with no character — sends it as `null`; it likewise sends only the voices that name a person, and a blank voice remark as `null`), a photo (a `compact` `ImagePicker` with no owner: upload, choose from the library or remove, and the picked storage key rides in the row's `photo_file` with the cast `PUT`; its focal point rides beside it in `photo_focus`, set through the picker's Adjust position. The picker reports a new picture and its cleared focus as two changes before the parent re-renders, so each row patch applies to the rows the previous patch produced), a remark, and a drag grip (`DragHandle`) writing `position`. Given `franchiseId` (and `entryId` on Modify, which is left out), it offers **Import cast from…**: the other entries of the franchise that have a cast (`GET /api/casting/sources`), and choosing one appends that entry's cast after the rows already there — every field copied, voices included, photo and remark too, but not the casting id; voices are dropped on a type nobody voices, and a character this cast already has is skipped. Given `malLink` (the form's own `mal_link`), it offers **Import from MAL** beside **+ Add cast member** and **Import cast from…**: it `POST`s `{media_type, mal_link}` to `/api/casting/mal` (`endpoints.casting.fromMal`), which matches MAL's characters and Japanese seiyuu to existing rows, creates the missing ones and answers with cast rows; they are appended the same way, a character already in the cast skipped. The button reads "Importing from MAL…" and is disabled while the request runs. Nothing is saved until the form is: a status line counts what came in and what was skipped, and after a MAL import also how many characters and seiyuu were created and any warnings; a refused MAL import shows the server's `detail`. |
+| `forms/CastEditor.jsx` | The anime/anime-movie/manga/novel/h-comic/hentai Add/Modify cast table. Controlled like `NovelUnitsEditor` — the parent owns `value` and gets every change through `onChange` — and never saves a cast list itself, only searches/creates the two entities its comboboxes reference: a character combobox (debounced `GET /api/character/?name=`, existing matches shown with the entries they already appear in, plus a synthetic "create new character named X" choice — never find-or-create, per Decision G; the POST carries the typed name as `name_cn` with `display_name_field: "cn"`, plus `gender: "女"` when `NEW_CAST_CHARACTER_GENDER` names one for the editor's media type — h-comic and hentai — and no gender otherwise) and a seiyuu combobox per voice line (find-or-creates through the existing `ensureSourceValues.js` path, same as every other person field). The seiyuu box does not keep the alphabetical order its list arrives in (`GET /api/person/?role=seiyuu&scope=`, shared with every person picker): `byRatingThenAppearances` (`lib/peopleOrder.js`) puts them by `my_rating`, best first and unrated last, then by `credit_count` (castings), most first, and the box's `rankMatches` then puts what the typed text matches exact, then prefix, then contains, keeping that order inside each tier — so the ten shown are the best matches, not the first ten of the alphabet. Renders **without** the seiyuu column on manga/novel/h-comic (`SEIYUU_MEDIA_TYPES` is anime, anime-movie and hentai), mirroring `ck_casting_voice_scope` so the UI cannot offer what the database will reject. One row per casting, on two lines so no cell is squeezed out on a narrow form: the first holds the character, role and photo, the second the seiyuu and the remark (which wraps beneath the seiyuu when there is no room beside it). The character and seiyuu pickers share one fixed width, 16rem — about a long CJK name — so their columns line up; neither stretches, each shrinks rather than overflow a narrow form, and the remark takes the rest of the second line. Its cells: character, seiyuu (when shown — a list of voice lines, each a seiyuu combobox, a "Voice remark" input such as `child` or `ep 13-`, and a remove button, with **+ Another seiyuu** below; a row with no voices shows one blank line, which adds nothing to the row until it is typed into), an optional `role` select over `CHARACTER_ROLES` — Main, Core, Supporting, Other — (the casting's role; the save fills the character's own from it when that is blank; "—" is no role: the row holds `""`, and `useReplaceCasting` — the one save path Add and Modify share, which also drops rows with no character — sends it as `null`; it likewise sends only the voices that name a person, and a blank voice remark as `null`), a photo (a `compact` `ImagePicker` with no owner: upload, choose from the library or remove, and the picked storage key rides in the row's `photo_file` with the cast `PUT`; its focal point rides beside it in `photo_focus`, set through the picker's Adjust position. The picker reports a new picture and its cleared focus as two changes before the parent re-renders, so each row patch applies to the rows the previous patch produced), a remark, and a drag grip (`DragHandle`) writing `position`. Given `franchiseId` (and `entryId` on Modify, which is left out), it offers **Import cast from…**: the other entries of the franchise that have a cast (`GET /api/casting/sources`), and choosing one appends that entry's cast after the rows already there — every field copied, voices included, photo and remark too, but not the casting id; voices are dropped on a type nobody voices, and a character this cast already has is skipped. Given `malLink` (the form's own `mal_link`), it offers **Import from MAL** beside **+ Add cast member** and **Import cast from…**: it `POST`s `{media_type, mal_link}` to `/api/casting/mal` (`endpoints.casting.fromMal`), which matches MAL's characters and Japanese seiyuu to existing rows, creates the missing ones and answers with cast rows; they are appended the same way, a character already in the cast skipped. The button reads "Importing from MAL…" and is disabled while the request runs. Nothing is saved until the form is: a status line counts what came in and what was skipped, and after a MAL import also how many characters and seiyuu were created and any warnings; a refused MAL import shows the server's `detail`. |
 | `hooks/useCasting.js` | TanStack Query hook over `GET /api/casting/{media_type}/{entry_id}`, read by the ACG detail pages' Cast section and by the h-comic page, which also hands the cast's names to the Highlights `names` inputs. |
 | `info/CastSection.jsx` | The read-only **Cast** slip every ACG detail page draws — Anime, AnimeMovie, Manga, Novel, HComic and Hentai — from the `useCasting` rows; renders nothing for an empty cast. Rows sort by `castRoleRank` (Main, Core, Supporting, Other, then no role), then `position`. Each row is a thumbnail, a role chip, the character link and, when the casting has voices, "voiced by" and every seiyuu as a person link, separated by "·", each with its voice remark in brackets. Collapsed it shows every Main character; **Show core cast (+N)** expands to Main and Core and **Show main cast only** collapses back; **Show full cast (N)** opens a dialog (`FullCastModal`, closed by Escape, Close or a press that starts on the backdrop) listing every row. With no Main character the collapsed view starts at Core; a cast with no Main or Core character is shown whole, with no controls. |
 | `info/ClubMembership.jsx` | Club membership on the person page, over `GET`/`PUT /api/person/{id}/clubs` and `/members`. A club (a person holding the `club` role) lists its **Members** in the club's order; an admin edits them with a drag grip per member (a draft until Save), remove and a search to add, and Save PUTs the whole ordered `member_ids`. A person lists the **Clubs** they belong to (ordered by name, so no grips); an admin is offered that editor on anyone holding an `h-comic`-scoped role. Renders and fetches nothing for a session that cannot see h-comic. |

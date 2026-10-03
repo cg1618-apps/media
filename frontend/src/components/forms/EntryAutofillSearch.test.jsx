@@ -37,8 +37,8 @@ describe("EntryAutofillSearch", () => {
 
     await userEvent.type(box(), "alp");
 
-    expect(screen.getByRole("button", { name: /甲/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /乙/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /甲/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /乙/ })).not.toBeInTheDocument();
     expect(screen.getByText("JP")).toBeInTheDocument();
     expect(screen.getByText("系列")).toBeInTheDocument();
   });
@@ -47,17 +47,17 @@ describe("EntryAutofillSearch", () => {
     const onPick = renderSearch();
 
     await userEvent.type(box(), "beta");
-    await userEvent.click(screen.getByRole("button", { name: /乙/ }));
+    await userEvent.click(screen.getByRole("option", { name: /乙/ }));
 
     expect(onPick).toHaveBeenCalledWith(ITEMS[1]);
     expect(box()).toHaveValue("");
-    expect(screen.queryByRole("button", { name: /乙/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /乙/ })).not.toBeInTheDocument();
   });
 
   it("shows nothing until something is typed", () => {
     renderSearch();
 
-    expect(screen.queryByRole("button", { name: /甲/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /甲/ })).not.toBeInTheDocument();
   });
 
   it("is disabled while the entries are still loading", () => {

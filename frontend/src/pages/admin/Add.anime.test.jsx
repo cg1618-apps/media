@@ -104,7 +104,7 @@ async function fillAnimeForm(user) {
   await user.click(
     screen.getByPlaceholderText("Search or type new franchise..."),
   );
-  await user.click(screen.getByRole("button", { name: "Test Franchise" }));
+  await user.click(screen.getByRole("option", { name: "Test Franchise" }));
 }
 
 describe("Add page — Anime tab image attach", () => {
