@@ -7,8 +7,9 @@
 // Keyed by the EXACT stored name: the `Platform` and `Reference Source`
 // vocabularies for main rows, plus the column-backed links (MAL, IMDb, Steam,
 // ...) that SourcesCard names itself. Regional variants share their site's
-// icon. A name not listed - `Official site`, `Cinema`, `Other`, or a value an
-// admin adds later - simply has no icon. Other and Restricted rows never get
+// icon. A name not listed - `Cinema`, `Other`, or a value an admin adds
+// later - simply has no icon. `Official site` is not listed either: SourcesCard
+// gives it the entry's own cover instead. Other and Restricted rows never get
 // one, even when their free text happens to match a name here; the lookup is
 // the caller's to skip for them.
 const FILES = import.meta.glob("../assets/source-icons/*.png", {

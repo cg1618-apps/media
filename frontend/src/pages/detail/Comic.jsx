@@ -309,6 +309,7 @@ export default function Comic() {
 
           <SourcesCard
             sources={comic.sources}
+            coverUrl={imageUrl}
             mediaType="comic"
             comicvineLink={comic.comicvine_link}
           />
