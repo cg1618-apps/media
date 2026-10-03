@@ -14,7 +14,9 @@ import { Field, SectionHeader, inputCls } from "../../components/forms/FormField
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import ScopePicker from "../../components/forms/ScopePicker";
-import UsagePicker from "../../components/forms/UsagePicker";
+import UsagePicker, {
+  categoryHasUsages,
+} from "../../components/forms/UsagePicker";
 import { MEDIA_TYPES } from "../../config/fieldOptions";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 
@@ -109,7 +111,11 @@ function OptionsForm({
         setScopes={setOptScopes}
         mediaTypes={MEDIA_TYPES}
       />
-      <UsagePicker usages={optUsages} setUsages={setOptUsages} />
+      {/* Hidden off Platform for the same reason as aliases below: no other
+          category feeds two pickers, so there is nothing a usage could do. */}
+      {categoryHasUsages(optCategory) && (
+        <UsagePicker usages={optUsages} setUsages={setOptUsages} />
+      )}
       {aliasable && (
         <AliasPicker
           aliases={optAliases}

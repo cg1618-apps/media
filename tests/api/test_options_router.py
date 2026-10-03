@@ -284,6 +284,30 @@ def test_an_unknown_usage_is_rejected(admin_client):
     assert r.status_code == 422
 
 
+def test_a_usage_on_a_category_other_than_platform_is_rejected(admin_client):
+    """
+    Usage splits Platform between the Main Sources and Official Source
+    pickers. No other category feeds two pickers, so a usage anywhere else
+    would save and then do nothing.
+    """
+    r = admin_client.post(
+        "/api/options/",
+        json={"category": "Genre Main", "value": "動作", "usages": ["watch"]},
+    )
+    assert r.status_code == 422
+    assert "Genre Main" in r.text
+
+
+def test_a_category_other_than_platform_may_be_saved_without_usages(admin_client):
+    """The restriction is on the usage rows, not on the category itself."""
+    r = admin_client.post(
+        "/api/options/",
+        json={"category": "Genre Main", "value": "懸疑", "usages": []},
+    )
+    assert r.status_code == 200
+    assert r.json()["usages"] == []
+
+
 def test_reading_a_category_filters_by_usage(client, admin_client):
     admin_client.post(
         "/api/options/",

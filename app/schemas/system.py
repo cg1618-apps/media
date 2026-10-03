@@ -76,8 +76,21 @@ class SystemOptionCreate(SystemOptionBase):
 
     @field_validator("usages")
     @classmethod
-    def _known_usages(cls, v: list[str]) -> list[str]:
-        from app.utils.source_fields import OPTION_USAGES
+    def _known_usages(cls, v: list[str], info) -> list[str]:
+        """
+        Validate the category and each usage, and drop duplicates.
+
+        The category is read from info.data exactly as _known_sources does:
+        only USAGE_CATEGORIES may carry usages at all.
+        """
+        from app.utils.source_fields import OPTION_USAGES, USAGE_CATEGORIES
+
+        category = (info.data or {}).get("category")
+        if v and category is not None and category not in USAGE_CATEGORIES:
+            raise ValueError(
+                f"Category '{category}' does not carry usages. "
+                "Expected any of: " + ", ".join(USAGE_CATEGORIES)
+            )
 
         unknown = [u for u in v if u not in OPTION_USAGES]
         if unknown:
