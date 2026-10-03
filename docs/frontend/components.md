@@ -309,11 +309,22 @@ not drawn. The character, person and studio libraries use it for
   value gets an icon by saving its favicon there and adding its name to the
   map. The icon is what names the site, so no source link carries a `Tag`
   box beside it — the `Tag` chips are only the tag-field row above.
-- **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
+- **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`;
+  `rankMatches` orders what the typed text matches exact, then prefix, then
+  contains, each tier in the order `items` came in — off by default, where
+  matches keep the order of `items`; ten results at most),
   `MultiSelect` (two caps that read alike: `limit` is how many options the
   dropdown *shows* — `null` for all — and `max` is how many values can be
   *selected*, a pick past it replacing the oldest; single-value tag fields
-  such as `exclusive_source` pass `limit={null} max={1}`), `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
+  such as `exclusive_source` pass `limit={null} max={1}`),
+  `SuggestInput` (a free-text input over a list of strings: opens on focus,
+  narrows as you type through `lib/suggest.js` — prefix matches first, then
+  contains, the option already typed left out — and keeps whatever is typed;
+  ArrowUp/ArrowDown highlight, Enter or a press picks, Enter with nothing
+  highlighted keeps the typed text, the first Escape closes the list and the
+  next reaches the caller's `onKeyDown`; it is what replaces a `<datalist>`,
+  and the app has none), `SuggestList` (see "Dropdown lists" below),
+  `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `OptionCategorySelect`,
   `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
   it takes `owner={{kind, mediaType?, id}}` and reads and writes an entry's or
@@ -334,7 +345,7 @@ not drawn. The character, person and studio libraries use it for
   `restrictedSources` - `{ prefill, suggestions }`, looked up from
   `mediaType` and the picked prefill (`RestrictedPrefillContext`) in
   `lib/restrictedSources.js` unless passed, which h-comic does for its
-  region - offers `suggestions` on the restricted rows as a datalist and a
+  region - offers `suggestions` on the restricted rows through `SuggestInput` and a
   **Prefill suggested** button that adds the missing `prefill` names, without
   restricting what may be typed; `showRestricted={false}` drops the
   restricted group, which `/defaults` does since it picks those names
@@ -498,6 +509,42 @@ not drawn. The character, person and studio libraries use it for
   caps top-level rows, or each group of a grouped section. The rules are in
   `docs/systems/notes.md`.
 
+## Dropdown lists
+
+Every type-or-choose input opens the same list: `SuggestList`, with
+`SuggestItem` for an option and `SuggestNote` for a line that is not one
+("No matches found", "Loading entries to search from…", a "will be created
+as new" hint), all from `components/forms/SuggestList.jsx`. Its users are
+`SuggestInput`, `ComboBox`, `MultiSelect`, the notes `NamesInput`
+(`pages/notes/sections/`), `EntryAutofillSearch` and the older Add tabs'
+inline auto-fill boxes, the game tab's IGDB search (`IgdbSearchBox`), and the
+title search on Modify and on Delete. A new dropdown under an input uses it
+too rather than drawing its own.
+
+- **Portaled and fixed.** The list renders into `document.body`, placed
+  under its anchor (`anchorRef`: the input, or the box around it), at least
+  as wide as the anchor and 240 px tall at most, flipping above when there is
+  no room below. It is placed again on every scroll (capture phase, since
+  forms scroll inside their own containers) and resize, so no modal or
+  scroll box clips it. `z-[95]` puts it over the modals (`z-50`) and the
+  expanded relation graph (`z-[90]`), under the toasts (`z-[100]`).
+- **A press picks on mousedown** and cancels its default, so the input never
+  blurs before the pick lands — which matters to inputs whose blur commits
+  the typed text (`NamesInput`, the cast editor's seiyuu line). The list also
+  stops mousedown from reaching `document`, so the "click outside closes it"
+  listener every one of these components keeps still treats a press on the
+  portaled list as inside.
+- **Keyboard.** `SuggestInput`, `ComboBox`, `MultiSelect` and `NamesInput`
+  move a highlight with ArrowUp/ArrowDown (`stepActive`), keep it in view,
+  and take it on Enter; with nothing highlighted, Enter does what it did
+  before — `SuggestInput` and `NamesInput` keep the typed text, `MultiSelect`
+  adds it, and `ComboBox` leaves it to the form. The search pickers are
+  pointer-only.
+- **Look.** `rounded-md border border-border bg-surface p-1 shadow-lg`;
+  an option is `rounded-sm px-3 py-1.5 text-sm`, one line and truncated, and
+  the highlighted or hovered one is `bg-brand-soft text-brand`. A rich row
+  (title over subtitle, a cover) passes `truncate={false}`.
+
 ## The access-mode admin pages (`pages/admin/`)
 
 `AccessModes.jsx` and the panel inside `Users.jsx` edit the **object axis** -
@@ -535,6 +582,7 @@ is a second place to keep in step.
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
+| `suggest.js` | What a type-or-choose input offers for the typed text: `rankByMatch(items, typed, keyOf)` (exact, then prefix, then contains, each tier in the given order) and `suggest(options, text)`, `SuggestInput`'s matcher (case-insensitive, the option already typed left out) |
 | `formatters.js` | `getSourceValues(sources, source)` (filters the `fetchAllSources()` bag by category/scope/**usage** for a `ComboBox`) and display formatters |
 | `payloads.js` | form state → request body for every media type, including mapping the `SourcesEditor` array into the `sources` write-payload key. `hComicFieldsPayload` and `hGameFieldsPayload` never send `highlight_group_order`: the detail page's drag owns that column, and a form save leaves it alone. `hGameFieldsPayload` sends a multi-choice list through `choiceList(value, vocabulary)` - `null` stays `null`, a list (`[]` included) goes in vocabulary order. `hComicFieldsPayload` leaves `animation_status` out while `animation_status_source` is `"derived"`, since the server refuses (422) any value but the served one. `hentaiFieldsPayload` and `hComicFieldsPayload` send `mal_id` only beside a `mal_link` - the write hook derives the id from the link. Every entry body's `sources` goes through the one `sourcesPayload` |
 | `autofill.js`, `ensureSourceValues.js` | fill a form from a picked row; keep option sources consistent |

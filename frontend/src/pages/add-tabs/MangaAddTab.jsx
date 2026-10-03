@@ -21,6 +21,7 @@ import {
   READING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
+import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
 
 export { defaultManga } from "../../config/formFactories";
 
@@ -73,24 +74,24 @@ export default function MangaAddTab({
           )}
         </div>
         {mangaFillOpen && mangaFillLoading && (
-          <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg px-4 py-2.5 text-sm text-text-faint flex items-center gap-2">
-            <i className="fas fa-spinner fa-spin"></i>
-            Loading entries to search from…
-          </div>
+          <SuggestList anchorRef={mangaFillRef}>
+            <SuggestNote>
+              <i className="fas fa-spinner fa-spin"></i>
+              Loading entries to search from…
+            </SuggestNote>
+          </SuggestList>
         )}
         {mangaFillOpen && mangaFillResults.length > 0 && (
-          <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto">
+          <SuggestList anchorRef={mangaFillRef}>
             {mangaFillResults.map((m) => {
               const f = allFranchises.find(
                 (x) => x.system_id === m.franchise_id,
               );
               return (
-                <button
+                <SuggestItem
                   key={m.system_id}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => applyMangaAutofill(m)}
-                  className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-border last:border-0"
+                  truncate={false}
+                  onPick={() => applyMangaAutofill(m)}
                 >
                   <div className="flex items-center gap-2">
                     {m.region && (
@@ -105,10 +106,10 @@ export default function MangaAddTab({
                   <div className="text-xs text-text-faint">
                     {f ? getDisplayName(f, "franchise") : "Standalone"}
                   </div>
-                </button>
+                </SuggestItem>
               );
             })}
-          </div>
+          </SuggestList>
         )}
       </div>
 

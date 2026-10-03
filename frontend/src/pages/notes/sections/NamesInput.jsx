@@ -5,9 +5,12 @@
 // FIELD_NAMES): a highlight names the characters it is about, and a name that
 // matches no character row is still a name. So the suggestions - the display
 // names of the characters cast on this entry - are a convenience, not a
-// vocabulary: Enter (or a comma) takes whatever was typed.
-import { useId, useState } from "react";
+// vocabulary: Enter (or a comma) takes whatever was typed, unless ArrowUp /
+// ArrowDown has highlighted a suggestion, which Enter then takes. The list is
+// the shared SuggestList (components/forms/SuggestList.jsx).
+import { useId, useRef, useState } from "react";
 
+import { SuggestItem, SuggestList, stepActive } from "../../../components/forms/SuggestList";
 import { inputCls, tagCls } from "./ui";
 
 const MAX_SUGGESTIONS = 8;
@@ -15,7 +18,9 @@ const MAX_SUGGESTIONS = 8;
 export default function NamesInput({ label, value = [], onChange, suggestions = [] }) {
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
   const listId = useId();
+  const inputRef = useRef(null);
 
   const chosen = new Set(value);
   const query = text.trim().toLowerCase();
@@ -27,6 +32,7 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
   const add = (raw) => {
     const name = String(raw || "").trim();
     setText("");
+    setActive(-1);
     if (!name || chosen.has(name)) return;
     onChange([...value, name]);
   };
@@ -54,12 +60,16 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
       )}
       <div className="relative">
         <input
+          ref={inputRef}
           value={text}
           aria-label={label}
           role="combobox"
           aria-expanded={open && offered.length > 0}
           aria-controls={listId}
           aria-autocomplete="list"
+          aria-activedescendant={
+            open && active >= 0 && active < offered.length ? `${listId}-${active}` : undefined
+          }
           placeholder={`Add ${label.toLowerCase()}…`}
           onChange={(e) => {
             const next = e.target.value;
@@ -76,15 +86,21 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
               setText(next);
             }
             setOpen(true);
+            setActive(-1);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
               e.preventDefault();
-              add(text);
+              setOpen(true);
+              setActive((c) => stepActive(c, e.key === "ArrowDown" ? 1 : -1, offered.length));
+            } else if (e.key === "Enter") {
+              e.preventDefault();
+              add(active >= 0 && offered[active] ? offered[active] : text);
             } else if (e.key === "Backspace" && !text && value.length) {
               remove(value[value.length - 1]);
             } else if (e.key === "Escape") {
               setOpen(false);
+              setActive(-1);
             }
           }}
           onFocus={() => setOpen(true)}
@@ -93,33 +109,26 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
             // most natural way to finish typing a name.
             add(text);
             setOpen(false);
+            setActive(-1);
           }}
           className={inputCls}
         />
         {open && offered.length > 0 && (
-          <ul
-            id={listId}
-            role="listbox"
-            aria-label={`${label} suggestions`}
-            className="absolute z-30 mt-1 w-full bg-surface border border-border shadow-lg max-h-48 overflow-y-auto"
-          >
-            {offered.map((name) => (
-              <li
+          <SuggestList anchorRef={inputRef} id={listId} label={`${label} suggestions`}>
+            {offered.map((name, index) => (
+              <SuggestItem
                 key={name}
-                role="option"
-                aria-selected="false"
-                // mousedown, not click: the input's blur would otherwise add
+                id={`${listId}-${index}`}
+                active={index === active}
+                // Picks on mousedown: the input's blur would otherwise add
                 // the half-typed text before the choice lands.
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  add(name);
-                }}
-                className="px-3 py-1.5 text-sm text-text cursor-pointer hover:bg-surface-2"
+                onPick={() => add(name)}
+                onHover={() => setActive(index)}
               >
                 {name}
-              </li>
+              </SuggestItem>
             ))}
-          </ul>
+          </SuggestList>
         )}
       </div>
     </div>

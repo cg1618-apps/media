@@ -194,10 +194,10 @@ describe("HComicAddTab", () => {
       renderTab({ sources: PLATFORM_SOURCES });
       await user.selectOptions(field("Region"), "KR");
       await user.click(screen.getByPlaceholderText("Select or type platform..."));
-      expect(screen.getByRole("button", { name: "DLsite" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Toptoon" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "DLsite" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Toptoon" })).toBeInTheDocument();
       for (const name of ["DLsite TW", "Toptoon KR", "Prime Video"]) {
-        expect(screen.queryByRole("button", { name }), name).toBeNull();
+        expect(screen.queryByRole("option", { name }), name).toBeNull();
       }
     });
 
@@ -229,8 +229,8 @@ describe("HComicAddTab - auto-fill from an existing entry", () => {
       screen.getByRole("textbox", { name: "Auto-fill from existing entry" }),
       "既有",
     );
-    expect(screen.queryByRole("button", { name: /其他/ })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /既有條目/ }));
+    expect(screen.queryByRole("option", { name: /其他/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("option", { name: /既有條目/ }));
 
     expect(onPick).toHaveBeenCalledWith(entries[0]);
   });

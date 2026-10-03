@@ -388,7 +388,7 @@ it("shows the plain character name in the selected pill, not the entries annotat
 
   const input = screen.getByPlaceholderText("Character name...");
   await user.type(input, "Yuki");
-  const existingOption = await screen.findByRole("button", { name: /Yuki.*Show A/ });
+  const existingOption = await screen.findByRole("option", { name: /Yuki.*Show A/ });
   await user.click(existingOption);
 
   // Fix round 1, finding 2: the entries annotation is a search aid, not a
@@ -419,8 +419,8 @@ it("requires an explicit choice before minting a character with an existing name
 
   // Both the existing character and the explicit "create new" option must
   // be offered side by side.
-  const existingOption = await screen.findByRole("button", { name: /^Yuki/ });
-  const createOption = await screen.findByRole("button", {
+  const existingOption = await screen.findByRole("option", { name: /^Yuki/ });
+  const createOption = await screen.findByRole("option", {
     name: 'Create new character named "Yuki"',
   });
   expect(existingOption).toBeInTheDocument();
@@ -467,7 +467,7 @@ async function mintFrom(mediaType) {
   render(<Controlled initialRows={[row()]} mediaType={mediaType} onChangeSpy={vi.fn()} />);
   await user.type(screen.getByPlaceholderText("Character name..."), "Aoi");
   await user.click(
-    await screen.findByRole("button", { name: 'Create new character named "Aoi"' }),
+    await screen.findByRole("option", { name: 'Create new character named "Aoi"' }),
   );
   await waitFor(() =>
     expect(fetch).toHaveBeenCalledWith(
@@ -512,7 +512,7 @@ it("shows which entries an existing character already appears in", async () => {
   await user.type(input, "Yuki");
 
   expect(
-    await screen.findByRole("button", { name: /Yuki.*Show A/ }),
+    await screen.findByRole("option", { name: /Yuki.*Show A/ }),
   ).toBeInTheDocument();
 });
 

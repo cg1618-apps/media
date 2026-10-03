@@ -20,31 +20,31 @@ function renderPicker(props) {
 describe("MultiSelect", () => {
   it("shows every option on focus when limit is null", async () => {
     renderPicker({ limit: null, max: 1 });
-    await userEvent.click(screen.getByRole("textbox"));
+    await userEvent.click(screen.getByRole("combobox"));
     for (const p of PLATFORMS) {
-      expect(screen.getByRole("button", { name: p })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: p })).toBeInTheDocument();
     }
   });
 
   it("caps the shown options at limit", async () => {
     renderPicker({ limit: 2 });
-    await userEvent.click(screen.getByRole("textbox"));
-    expect(screen.getByRole("button", { name: "Disney+" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Netflix" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Crunchyroll" })).toBeNull();
+    await userEvent.click(screen.getByRole("combobox"));
+    expect(screen.getByRole("option", { name: "Disney+" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Netflix" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Crunchyroll" })).toBeNull();
   });
 
   it("replaces the held value rather than adding a second when max is reached", async () => {
     const onChange = renderPicker({ value: "Disney+", limit: null, max: 1 });
-    await userEvent.click(screen.getByRole("textbox"));
-    await userEvent.click(screen.getByRole("button", { name: "Netflix" }));
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(screen.getByRole("option", { name: "Netflix" }));
     expect(onChange).toHaveBeenLastCalledWith("Netflix");
   });
 
   it("adds without limit when max is not given", async () => {
     const onChange = renderPicker({ value: "Disney+", limit: null });
-    await userEvent.click(screen.getByRole("textbox"));
-    await userEvent.click(screen.getByRole("button", { name: "Netflix" }));
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(screen.getByRole("option", { name: "Netflix" }));
     expect(onChange).toHaveBeenLastCalledWith("Disney+, Netflix");
   });
 });

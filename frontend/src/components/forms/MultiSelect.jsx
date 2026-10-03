@@ -1,5 +1,7 @@
 // Frontend: form component file for MultiSelect.
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
+
+import { SuggestItem, SuggestList, SuggestNote, stepActive } from "./SuggestList";
 
 // MultiSelect: manage a comma-separated string value using pill UI.
 // Props:
@@ -12,6 +14,10 @@ import { useState, useRef, useEffect } from "react";
 //   max: number | null        — max values that can be SELECTED (default
 //                                unlimited); picking one more replaces the
 //                                oldest, so max=1 behaves as a single select
+//
+// The list is the shared SuggestList, anchored under the whole pill box.
+// ArrowUp/ArrowDown highlight an option and Enter adds it; Enter with nothing
+// highlighted adds the typed text (the matching option when one equals it).
 export default function MultiSelect({
   options = [],
   value = "",
@@ -22,7 +28,10 @@ export default function MultiSelect({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const listId = useId();
   const containerRef = useRef(null);
+  const boxRef = useRef(null);
   const inputRef = useRef(null);
 
   const selected = value
@@ -37,6 +46,7 @@ export default function MultiSelect({
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setOpen(false);
         setQuery("");
+        setActive(-1);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -61,6 +71,7 @@ export default function MultiSelect({
     const next = max == null ? added : added.slice(-max);
     onChange(next.join(", "));
     setQuery("");
+    setActive(-1);
     inputRef.current?.focus();
   }
 
@@ -70,6 +81,20 @@ export default function MultiSelect({
   }
 
   function handleKeyDown(e) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!open) {
+        setOpen(true);
+        return;
+      }
+      setActive((c) => stepActive(c, e.key === "ArrowDown" ? 1 : -1, filtered.length));
+      return;
+    }
+    if (e.key === "Enter" && open && active >= 0 && filtered[active]) {
+      e.preventDefault();
+      addValue(filtered[active]);
+      return;
+    }
     if (e.key === "Enter" && query.trim()) {
       e.preventDefault();
       const exact = available.find(
@@ -84,6 +109,7 @@ export default function MultiSelect({
     if (e.key === "Escape" || e.key === "Tab") {
       setOpen(false);
       setQuery("");
+      setActive(-1);
     }
   }
 
@@ -91,6 +117,7 @@ export default function MultiSelect({
     <div ref={containerRef} className="relative">
       {/* Pills + input */}
       <div
+        ref={boxRef}
         className="flex flex-wrap gap-1.5 w-full border border-border rounded-lg px-2 py-1.5 bg-surface cursor-text focus-within:ring-2 focus-within:ring-brand focus-within:border-transparent min-h-[38px]"
         onClick={() => inputRef.current?.focus()}
       >
@@ -119,9 +146,15 @@ export default function MultiSelect({
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
+            setActive(-1);
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
           placeholder={selected.length === 0 ? placeholder : ""}
           className="flex-1 min-w-[4rem] text-sm font-medium outline-none bg-transparent py-0.5"
           autoComplete="off"
@@ -130,25 +163,25 @@ export default function MultiSelect({
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+        <SuggestList anchorRef={boxRef} id={listId}>
           {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-text-faint font-medium">
+            <SuggestNote>
               {query ? `Press Enter to add "${query}"` : "No more options"}
-            </div>
+            </SuggestNote>
           ) : (
-            filtered.map((opt) => (
-              <button
+            filtered.map((opt, index) => (
+              <SuggestItem
                 key={opt}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => addValue(opt)}
-                className="w-full text-left px-3 py-2 text-sm font-medium text-text-muted hover:bg-brand/10 hover:text-brand transition-colors first:rounded-t-xl last:rounded-b-xl truncate"
+                id={`${listId}-${index}`}
+                active={index === active}
+                onPick={() => addValue(opt)}
+                onHover={() => setActive(index)}
               >
                 {opt}
-              </button>
+              </SuggestItem>
             ))
           )}
-        </div>
+        </SuggestList>
       )}
     </div>
   );

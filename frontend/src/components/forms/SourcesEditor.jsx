@@ -13,8 +13,8 @@
 // payload conversion (`Object.fromEntries` over name) silently collapsed two
 // rows sharing a name; storing an array and always mapping/filtering by
 // index (`j === i`, `j !== i`) means duplicate names never collide.
-import { useId } from "react";
 import { inputCls, selectCls } from "./FormField";
+import SuggestInput from "./SuggestInput";
 import { getSourceValues } from "../../lib/formatters";
 import { restrictedSourcesFor } from "../../lib/restrictedSources";
 import { usePrefillPicks } from "../../contexts/RestrictedPrefillContext";
@@ -138,7 +138,6 @@ function FreeTextRows({
   suggestions = [],
   prefill = [],
 }) {
-  const listId = useId();
   const missing = missingSuggestions(value, indices, prefill);
   return (
     <div>
@@ -150,15 +149,13 @@ function FreeTextRows({
           const row = value[index];
           return (
             <div key={index} className="flex gap-2 items-center">
-              <input
+              <SuggestInput
                 className={inputCls}
                 placeholder="Source name"
                 aria-label={`${label} name`}
-                list={suggestions.length ? listId : undefined}
+                options={suggestions}
                 value={row.name}
-                onChange={(e) =>
-                  onChange(updateRow(value, index, { name: e.target.value }))
-                }
+                onChange={(name) => onChange(updateRow(value, index, { name }))}
               />
               <input
                 className={inputCls}
@@ -198,13 +195,6 @@ function FreeTextRows({
             </button>
           )}
         </div>
-        {suggestions.length > 0 && (
-          <datalist id={listId}>
-            {suggestions.map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
-        )}
       </div>
     </div>
   );

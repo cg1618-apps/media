@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -188,6 +188,13 @@ border darkens on hover.
 
 Library and list pages: the filter bar is a flat strip on the canvas;
 tables use hairline rows with mono headers.
+
+Dropdowns: every list that opens under an input is the one `SuggestList`
+(`components/forms/SuggestList.jsx`) — a `surface` panel on a hairline
+`border`, `rounded-md`, `shadow-lg` (a popover, so it may be elevated), options
+in the body face at `text-sm`, the highlighted one `bg-brand-soft text-brand`.
+A dropdown never draws its own panel; see
+[components.md](components.md#dropdown-lists) for its behaviour.
 
 ## Changing it
 
