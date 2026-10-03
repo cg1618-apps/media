@@ -4,7 +4,9 @@ import AliasPicker, {
 } from "../../components/forms/AliasPicker";
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 import ScopePicker from "../../components/forms/ScopePicker";
-import UsagePicker from "../../components/forms/UsagePicker";
+import UsagePicker, {
+  categoryHasUsages,
+} from "../../components/forms/UsagePicker";
 import { MEDIA_TYPES } from "../../config/fieldOptions";
 
 export default function OptionsModifyTab({
@@ -42,7 +44,11 @@ export default function OptionsModifyTab({
         setScopes={setOptScopes}
         mediaTypes={MEDIA_TYPES}
       />
-      <UsagePicker usages={optUsages} setUsages={setOptUsages} />
+      {/* Shown only on Platform (USAGE_CATEGORIES), the one category whose
+          values feed both Main Sources and Official Source. */}
+      {categoryHasUsages(editingItem.category) && (
+        <UsagePicker usages={optUsages} setUsages={setOptUsages} />
+      )}
       {/* Editing an option used to WIPE its aliases: saveOption sends the
           whole record and the PUT replaces the alias rows wholesale, so
           omitting them here deleted every one.

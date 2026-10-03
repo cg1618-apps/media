@@ -1809,10 +1809,12 @@ Constraint: `uq_system_option_scope` UNIQUE (`option_id`, `scope`).
 
 ### `system_option_usage`
 
-Which roles a vocabulary value may be used in — parallel to
+Which picker a `Platform` value is offered in — parallel to
 `system_option_scope`, which answers "in which media types" this answers "for
-what". A value with **no** usage rows serves every usage. Model:
-`SystemOptionUsage` (`app/models/system.py`).
+what". A value with **no** usage rows serves every usage. Only `Platform`
+values carry usage rows (`USAGE_CATEGORIES` in `app/utils/source_fields.py`);
+the API refuses them on any other category. Model: `SystemOptionUsage`
+(`app/models/system.py`).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|

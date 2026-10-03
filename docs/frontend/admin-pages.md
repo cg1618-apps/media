@@ -403,7 +403,14 @@ Below the scope and usage pickers sits `forms/AliasPicker.jsx`, repeating
 purpose: no scopes means *offered everywhere* and no usages means *every
 usage*, but no aliases means *nothing maps to this*.
 
-The picker appears **only for the categories in `ALIAS_CATEGORIES`** — Game
+The usage picker (`forms/UsagePicker.jsx`) appears **only for `Platform`**
+(`USAGE_CATEGORIES`, mirroring `app/utils/source_fields.py`), hidden for the
+same reason; its hint spells out the two choices — `watch` is Main Sources
+only, `origin` is Official Source only, none is both. Both pages send an empty
+`usages` list for any other category, so a usage picked before switching the
+category away from Platform is dropped rather than refused.
+
+The alias picker appears **only for the categories in `ALIAS_CATEGORIES`** — Game
 Genre, Game Theme, Game Mode, Game Platform (`forms/AliasPicker.jsx`, mirroring
 `app/utils/source_fields.py`; see [../options.md](../options.md) for why the
 list is code). Hidden rather than disabled: unlike the multi-value case below,

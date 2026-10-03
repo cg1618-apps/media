@@ -1262,7 +1262,9 @@ editor cannot see.
 (`app/utils/source_fields.py` — `igdb` today). A non-empty `aliases` list is
 rejected unless `category` is in `ALIAS_CATEGORIES` (`Game Genre`, `Game
 Theme`, `Game Mode`, `Game Platform` — the four IGDB fields Fill resolves) —
-the category itself saves fine, only its alias rows are refused. There is no
+the category itself saves fine, only its alias rows are refused. A non-empty
+`usages` list is refused the same way unless `category` is in
+`USAGE_CATEGORIES` (`Platform` alone). There is no
 per-alias endpoint: a single row is removed by `PUT`ting the option without
 it. All three drop duplicates,
 aliases on the `(source, value)` pair: the writes insert those rows directly,

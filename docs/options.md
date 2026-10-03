@@ -778,7 +778,11 @@ rows serves both; `usage='origin'` values (Fox, ABC, The CW, and the same
 growing set of broadcast-only networks for TV and cartoons) are filtered out
 of every `media_source` access-row picker but still offered on
 `original_source`/`exclusive_source`; `usage='watch'` restricts the reverse
-way. `resolve_option`/the options router read it exactly like `scope` — see
+way. **Usage is a `Platform`-only axis** (`USAGE_CATEGORIES` in
+`app/utils/source_fields.py`): Platform is the one category that feeds two
+pickers, so it is the only one a usage can narrow. The API refuses usage rows
+on any other category, and the Add / Modify forms show `UsagePicker` only when
+the category is Platform. `resolve_option`/the options router read it exactly like `scope` — see
 [data-model.md](data-model.md#system_option_usage). Round-tripped through the
 `System Option Usage` tab — see [data-actions.md](data-actions.md) — so a
 `usage` row set on one machine reaches the other via Backup/Pull.
