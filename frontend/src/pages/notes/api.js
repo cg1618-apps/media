@@ -21,6 +21,16 @@ const fetchNoContent = async (url, options = {}) => {
 export const fetchSections = (ownerType) =>
   fetchJson(buildUrl(`${BASE}/sections`, { owner_type: ownerType }));
 
+// The values of one system_option category offered on this owner type, as
+// strings in their sort order - the suggestions behind a section's
+// `kind_category` (Song Type) or `link_text_category` (Song Source).
+export const fetchOptionValues = async (category, ownerType) => {
+  const rows = await fetchJson(
+    buildUrl(`/api/options/${encodeURIComponent(category)}`, { scope: ownerType }),
+  );
+  return (rows || []).map((row) => row.value);
+};
+
 export const fetchNotes = (ownerType, ownerId) =>
   fetchJson(buildUrl(BASE, { owner_type: ownerType, owner_id: ownerId }));
 

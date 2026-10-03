@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 ## What this is for
 
@@ -19,12 +19,12 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `section` | String, indexed | Key of an entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`). |
 | `parent_id` | UUID, indexed | FK `note.system_id` ON DELETE CASCADE. The row this one nests under, for a section whose registry entry sets `hierarchical`. Unbounded depth. CASCADE rather than SET NULL: promoting every child to a root on a delete reads as a flat pile rather than as a loss, which is harder to notice. Nothing at the database level keeps a child in its parent's section — a CHECK cannot read another row — so `_validate_parent` in `app/routers/note.py` owns that, along with refusing a cycle at any depth. |
 | `locator` | String | "Where in the work": episode, chapter, scene, timestamp, or source. One free-text column; the section supplies the label and whether it is required. Renamed from `episode` by migration `alembic/versions/l1o2c3a4t5o6_note_episode_to_locator.py`. |
-| `kind` | String | First dropdown, only where the section declares `kinds` (highlight type, OP/ED change type, music cut). |
-| `status` | String | Second dropdown, only for music sections: Need / Pending / Done. Kept separate from `kind` because one row needs both (which cut it is vs. how far my tracking has got). |
-| `title` | String | The name half of a `name_links` row, or the song name in music shapes. |
+| `kind` | String | First dropdown, only where the section declares `kinds` (highlight type, OP/ED change type) or a `kind_category` (the free-text Song Type of an OP or ED). On `music_status` it names the song list the row is about. |
+| `status` | String | Second dropdown, only in the music group: Need / Pending / Done on a song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row. Kept separate from `kind` because one row needs both (which cut it is vs. how far my tracking has got). |
+| `title` | String | The name half of a `name_links` row, or the song name on a `music_track` row. |
 | `content` | Text | The body. |
-| `links` | JSONB | A list of URL strings — always a list, even for shapes that allow one link, so multi-link support needs no migration. |
-| `entries` | JSONB | The `name_entries` shape's ordered items: each `{"type": "text"｜"link", "value": str, "label": str｜null}`, in array order. Deliberately **not** folded into `links`, which stays a plain list of URL strings for the seven sections that use it — one column meaning two things is how subtle bugs start. Added by `alembic/versions/g1a2m3e4s5_add_games.py`. |
+| `links` | JSONB | A list of URL strings — or, on the sections `uses_link_pairs` names (the four song lists and 彩蛋 Easter Eggs), of **link pairs** `{"text": str｜null, "url": str}`. Which of the two is a property of the section, never of the row, and the validator refuses the other. Always a list, even for shapes that allow one link, so multi-link support needs no migration. See [Music](#music). |
+| `entries` | JSONB | The `name_entries` shape's ordered items: each `{"type": "text"｜"link", "value": str, "label": str｜null}`, in array order. Deliberately **not** folded into `links`, which holds URLs (or link pairs) and nothing else — one column meaning two things is how subtle bugs start. Added by `alembic/versions/g1a2m3e4s5_add_games.py`. |
 | `fields` | JSONB | The `structured` shape's registry-declared fields, as a flat object keyed by `NoteField.key`, plus any nested list a `list` field holds. Only the fields the section's spec does **not** map onto a column live here — a structured section's name goes in `title` and its description in `content` — so this carries the leftovers (a variant, an alias, four stat values) and the nested lists, which no column could hold. Validated against the spec: an unknown key is a 422, never a silently stored one. Added by `alembic/versions/n1f2ields3p4_note_structured_fields.py`. |
 | `sort_index` | Float | Ordering within one `(owner, section)`. New rows append at `max + 1.0`. |
 | `created_at` / `updated_at` | DateTime | Taipei time via `app/database.get_taipei_now`. Nullable — a Pull from a blank sheet cell leaves them None, so `NoteResponse` tolerates that. |
@@ -38,13 +38,13 @@ Constraint and indexes (declared in `__table_args__`, so `create_all` test datab
 | `ck_note_one_owner` | CHECK `num_nonnulls(media_id, collection_id, franchise_id, series_id) = 1` | Exactly one owner, enforced by the database rather than by convention. |
 | `ix_note_owner_section` | `(media_id, collection_id, franchise_id, series_id, section)` | The only read path the notes page uses. |
 | `ix_note_one_remark_per_owner` | unique `(media_id, collection_id, franchise_id, series_id)` **NULLS NOT DISTINCT**, **WHERE `section = 'remark'`** | Load-bearing: the `remark` read side is a scalar subquery, so a second remark row would make *every read of that owner* raise "more than one row returned by a subquery". `NULLS NOT DISTINCT` is required — three of the four owner columns are always NULL, and Postgres would otherwise treat every row as unique and silently disable the index. Created by `alembic/versions/r1e2m3a4r5k6_remark_column_to_note.py`; name and predicate must stay identical. It is keyed per **owner**, not per owner-per-author, even though `remark` is a personal-scope section — see [Scope](#scope). |
-| `ix_note_one_ost_per_owner` | unique `(media_id)` **WHERE `section = 'ost'`** | `ost` is one row per anime. It is anime-only, so `media_id` is the whole owner. Created by `alembic/versions/o1s2tsingle3_ost_one_row_per_anime.py`, which also deleted the duplicate row every anime then held; name and predicate must stay identical. |
+| `ix_note_one_music_status_per_kind` | unique `(media_id, kind)` **WHERE `section = 'music_status'`** | One status per anime per song list. `music_status` is anime-only, so `media_id` is the whole owner. Created by `alembic/versions/m1s2ongstat3_music_status_and_song_rows.py`; name and predicate must stay identical. |
 
 Column declaration order is also the Google Sheets column order, because `format_model_for_sheet` in `app/utils/formatter.py` walks `__table__.columns`.
 
 ### Shapes
 
-A shape names which columns a section uses. Declared as constants at the top of `app/utils/note_sections.py`; the eight stored ones are collected in `STORED_SHAPES`.
+A shape names which columns a section uses. Declared as constants at the top of `app/utils/note_sections.py`; the nine stored ones are collected in `STORED_SHAPES`.
 
 | Shape | Columns used | Rule of thumb |
 | --- | --- | --- |
@@ -54,8 +54,8 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `episode_text` | `locator`, `content`, `kind` where declared | Anchored to an episode/chapter. |
 | `name_links` | `title`, `links` | A named resource. |
 | `name_entries` | `title`, `entries` | A named list whose items are each a line of text **or** a labelled link, in one ordered array. **Currently owned by no section** — see the component table below. |
-| `episode_name_links` | `locator`, `title`, `content`, `links`, `status` | The widest shape — used only by `insert_songs`. |
-| `music_track` | `title`, `kind`, `status`, `links`, `content` | One theme song; the only shape with two dropdowns. |
+| `music_track` | `title`, `status`, `locator`, `links` (link pairs), `content`, and `kind` where the section declares a `kind_category` | One song, whichever list it is in — OP, ED, insert song or OST. |
+| `music_status` | `kind`, `status` | How far one whole song list of an anime has got. One row per `(owner, kind)`, never rendered as a card of its own. See [Music](#music). |
 | `structured` | *(whatever its `fields` spec names)* + `fields` | The registry-driven shape. The SECTION declares an ordered field spec instead of the shape naming fixed columns, so a section that grows a field is a registry edit rather than a new component and a migration. See [Structured sections](#structured-sections). |
 | `external` | *(none — its own table)* | `quotes` → `quote` table, `memes` → `meme` table. Never a `note` row; `validate_note_payload` rejects writes to it. |
 
@@ -69,7 +69,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | --- | --- |
 | `key` | Its key in the `fields` blob, and its identity in `require_any`. Unique within the section. |
 | `label` | What the form and the read view call it. |
-| `type` | `text`, `textarea`, `select`, `links`, `list` or `names`. `names` is a list of free-text, non-empty strings - several allowed - stored in `fields`, never in a column. They are names, not character ids: the editor may suggest the characters cast on the entry, but any string is accepted, and renaming a character does not rewrite a row that named it. |
+| `type` | `text`, `textarea`, `select`, `links`, `link_pairs`, `list` or `names`. `link_pairs` is the repeatable text-and-URL editor, claiming the `links` column, which then holds link pairs for that section (彩蛋 Easter Eggs). `names` is a list of free-text, non-empty strings - several allowed - stored in `fields`, never in a column. They are names, not character ids: the editor may suggest the characters cast on the entry, but any string is accepted, and renaming a character does not rewrite a row that named it. |
 | `column` | One of `locator`, `kind`, `status`, `title`, `content`, `links`, or `None` to store in `fields`. No two fields of one section may claim the same column. |
 | `options` | The values a `select` accepts. **A select with no options is free text** — the guide sections' type, group and tier are open vocabularies stored in the columns a closed dropdown would use. |
 | `required` | This field alone may not be blank. |
@@ -250,6 +250,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
 | `foreshadowing` | Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
+| `easter_eggs` | 彩蛋 Easter Eggs | structured | analysis_group | anime | — | — | field `episode` → `locator` ("Episode(s), e.g. ep 3") | no | no | field `description` → `content` is **required**; `links` → `links` as link pairs |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `controls` | 操作 Controls | **structured** | guides | game, h-game | — | — | — | no | no | no |
@@ -288,10 +289,11 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `todo_next` | 接下來 To do next | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `todo_later` | 未來 To do in the future | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `todo_maybe` | 可能 Might do | text_links | todo | game, h-game | — | — | — | no | no | no |
-| `op` | OP | music_track | music | anime | normal, different version, all inclusive version (default `normal`) | Need, Pending, Done | — | no | no | no |
-| `ed` | ED | music_track | music | anime | same as `op` | Need, Pending, Done | — | no | no | no |
-| `insert_songs` | 插入曲 Insert Song | episode_name_links | music | anime | — | Need, Pending, Done | "Episode(s), e.g. ep 3" | **yes** | no | no |
-| `ost` | OST | structured | music | anime | fields `type` (`kind`: normal, different version, all inclusive version; default `normal`) and `status` (`status`: Need, Pending, Done) | — | — | no | **yes** | no |
+| `music_status` | 音樂狀態 Music Status | music_status | music (**hidden**) | anime | op, ed, insert_songs, ost — one row each (`one_per_kind`) | All Done, Done, Need, Pending, Not Done (default `Not Done`) | — | no | per kind | no |
+| `op` | OP | music_track | music | anime | free text, suggested from "Song Type" (default `normal`) | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
+| `ed` | ED | music_track | music | anime | same as `op` | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
+| `insert_songs` | 插入曲 Insert Song | music_track | music | anime | — | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
+| `ost` | OST | music_track | music | anime | — | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
 | `op_ed_changes` | OP/ED 變動 | episode_text | music | anime, tv-show, cartoon | 變化OP, 變化ED, 無OP, 無ED, 特殊OP, 特殊ED | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `extended_episodes` | 加長 | episode_text | flat | anime, tv-show, cartoon | — | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, novel, series, franchise | — | — | — | no | no | anime, anime-movie, novel |
@@ -486,7 +488,7 @@ Design rules baked into the registry:
 
 | Rule | Where it shows |
 | --- | --- |
-| **Episode-anchored sections stop at entry level.** Anything whose point is a locator (`episode_comments`, `highlights`, `highlight_episodes`, `op_ed_changes`, `extended_episodes`, `insert_songs`) is limited to episodic entries — never series/franchise/collection. `cinematography`, `foreshadowing`, `symmetry` and `adaptation` reach series (and franchise for the last three) because their locator is optional. | `owners` on each entry in `NOTE_SECTIONS`. |
+| **Episode-anchored sections stop at entry level.** Anything whose point is a locator (`episode_comments`, `highlights`, `highlight_episodes`, `op_ed_changes`, `extended_episodes`) is limited to episodic entries — never series/franchise/collection. `cinematography`, `foreshadowing`, `symmetry` and `adaptation` reach series (and franchise for the last three) because their locator is optional. | `owners` on each entry in `NOTE_SECTIONS`. |
 | **`quotes` is entry-only.** A quote is said in a specific work (`ENTRY_OWNERS`; see the docstring in `app/models/quote.py`). | `NOTE_SECTIONS["quotes"]`. |
 | **`memes` is allowed on all owners**, because a running gag often spans a franchise; `meme` carries the same four owner columns `note` does, so every one of the twelve owners is reachable. | `NOTE_SECTIONS["memes"]`. |
 | **Similar sections are deliberately distinct** (`highlights` vs `highlight_episodes` vs `highlight_passages` vs `highlight_moments`; `cinematography` vs `craft`) so they can drift on purpose. | Module docstring of `app/utils/note_sections.py`. |
@@ -494,7 +496,7 @@ Design rules baked into the registry:
 | **The 待辦 buckets are four sections, not one section with a `kind`.** `sort_index` orders rows within one `(owner, section)` pair and `/api/notes/reorder` renumbers the whole section, so a kind-tagged single section could not order items *within* a bucket. Moving an item between buckets is a PATCH of `section`, which the API already accepts. | The 待辦 run in `NOTE_SECTIONS` and its banner comment. |
 | **劇情 records what happens; 解析 records what it means.** The two are separate cards, and `story_other` exists so a stray story observation lands there rather than drifting into Analysis. The 劇情 plot sections take an *optional* locator, unlike `episode_comments` and `highlight_moments`, which require one — a beat remembered without its chapter is still a beat. | `main_plot` / `side_plot`, and `NOTE_GROUPS`. |
 | **`episode_comments` was widened, not duplicated.** A game is cut into chapters or parts rather than episodes, but a comment on one segment of the work is the same section, so game gets a `labels` override (各章評論 Part Reviews) and a `locator_placeholders` override rather than a section of its own. An h-game does not take it: its comments go in 評論 Reviews and Comments. | `NOTE_SECTIONS["episode_comments"]`. |
-| **Music sections stay separate** (`op`, `ed`, `insert_songs`, `ost`, `op_ed_changes`) rather than one section with a dropdown, so "which OPs do I still need?" stays a section, not a filter. | Comment above `op` in the registry. |
+| **Music sections stay separate** (`op`, `ed`, `insert_songs`, `ost`, `op_ed_changes`) rather than one section with a dropdown, so "which OPs do I still need?" stays a section, not a filter. Each song list's own status is a `music_status` row keyed by the list's section key, not a fifth list. | Comment above `music_status` in the registry. |
 | `group` and `standalone` are mutually exclusive; a test forbids setting both. | `NoteSection` docstring. |
 | `locator_required` is section-wide; `desc_required` is per owner. | `NoteSection` fields. |
 
@@ -508,15 +510,16 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 | 2 | `section` is a registry key | Unknown note section '…'. |
 | 3 | Section's shape is a stored shape (not `external`) | Section '…' has its own table and is not stored as a note. |
 | 4 | Owner type is in the section's `owners` | Section '…' does not apply to owner type '…'. |
-| 5 | If `kind` given: section has kinds for this owner, and the value is one of them | Section '…' takes no kind for owner type '…'. / '…' is not a valid kind for section '…'. |
+| 5 | `links` are in the section's shape: link pairs where `uses_link_pairs`, each with a non-blank `url`; URL strings everywhere else. A pair with any key but `text` and `url` is refused by the request schema itself (`LinkPair`, `extra="forbid"`) | Section '…' links must be text-and-URL pairs. / Section '…' links link N needs a URL. / Section '…' links must be URLs. |
+| 5a | If `kind` given and the section declares no `kind_category`: section has kinds for this owner, and the value is one of them. A `kind_category` makes `kind` free text — the category only suggests | Section '…' takes no kind for owner type '…'. / '…' is not a valid kind for section '…'. |
 | 6 | If `status` given: section has statuses, and the value is one of them | Section '…' takes no status. / '…' is not a valid status for section '…'. |
 | 7 | `desc_required` for this owner ⇒ stripped `content` non-empty | Section '…' requires content. |
 | 8 | `locator_required` ⇒ stripped `locator` non-empty | Section '…' requires a locator. |
-| 9 | Emptiness, by shape: `name_links` needs content or title or links; `name_entries` needs a title or at least one entry ("Section '…' needs a name or an entry." — a named bookmark with neither a name nor a single entry is nothing); `text_or_link` needs content or a non-blank link, forbids both ("takes text or a link, not both"), and allows at most one link ("takes one link per note"); `episode_text` needs content or locator; `episode_name_links` needs any of content/locator/title/status/links; `music_track` allows at most one link and needs any of content/title/status/links (kind alone never counts, since it defaults to `normal`); every other shape needs content or links | Section '…' note is empty. |
+| 9 | Emptiness, by shape: `name_links` needs content or title or links; `name_entries` needs a title or at least one entry ("Section '…' needs a name or an entry." — a named bookmark with neither a name nor a single entry is nothing); `text_or_link` needs content or a non-blank link, forbids both ("takes text or a link, not both"), and allows at most one link ("takes one link per note"); `episode_text` needs content or locator; `music_track` needs any of content/title/status/locator/links (kind alone never counts, since OP and ED default it to `normal`); `music_status` needs a kind and a status ("Section '…' needs a kind: one of …." / "needs a status.") and takes nothing else ("Section '…' takes no '…'."); every other shape needs content or links | Section '…' note is empty. |
 
 A `structured` section takes none of this path: check 4 is followed by the nesting rule (a flat section refuses a `parent_id`) and then by `_validate_structured`, which returns. Checks 5 to 9 are per-shape, and a structured section's equivalents live in its spec — see [Structured sections](#structured-sections). A non-structured section given a `fields` payload is refused outright ("Section '…' takes no structured fields.").
 
-Singleton uniqueness is **not** here — it needs a query, so `_reject_second_singleton` in `app/routers/note.py` does it (422 "This owner already has a 'remark' note."). The same goes for `owner_where`: `_require_owner_where` reads the owner row and answers 422 "Section '…' applies only where region is KR." on POST and on the merged row of a PATCH, so a row cannot be moved onto a JP entry either.
+Singleton and one-per-kind uniqueness are **not** here — they need a query, so `_reject_second_singleton` in `app/routers/note.py` does them (422 "This owner already has a 'remark' note." / "This owner already has a 'music_status' note for 'op'."). The same goes for `owner_where`: `_require_owner_where` reads the owner row and answers 422 "Section '…' applies only where region is KR." on POST and on the merged row of a PATCH, so a row cannot be moved onto a JP entry either.
 
 ### Viewer visibility
 
@@ -535,7 +538,7 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/notes/sections` | public | `?owner_type=` | `List[NoteSectionOut]` — registry resolved for that owner, display order | 400 unknown owner_type |
 | GET | `/api/notes` | public (viewer-aware) | `?owner_type=&owner_id=`, optional `?author=<username>` | `List[NoteResponse]`, sorted by registry position then `sort_index` (`_ordered`) | 400 unknown owner_type; 404 owner not visible |
-| POST | `/api/notes` | by scope | body `NoteCreate` (`owner_type`, `owner_id`, `section`, `locator`, `kind`, `status`, `title`, `content`, `links`, `sort_index`) | 201 `NoteResponse`; `sort_index` defaults to last-in-section + 1 | 422 validation / second singleton |
+| POST | `/api/notes` | by scope | body `NoteCreate` (`owner_type`, `owner_id`, `section`, `locator`, `kind`, `status`, `title`, `content`, `links`, `sort_index`) | 201 `NoteResponse`; `sort_index` defaults to last-in-section + 1 | 422 validation / second singleton / second `music_status` row for one list |
 | PATCH | `/api/notes/reorder` | by scope | body `NoteReorder` `{owner_type, owner_id, section, ordered_ids}` | `{"status":"success","reordered":n}`; rewrites `sort_index` as 0,1,2… | 400 unknown owner_type / unknown section / `ordered_ids` names a note twice / `ordered_ids` not exactly the section's rows |
 | PATCH | `/api/notes/{note_id}` | by scope | body `NoteUpdate` (partial; `exclude_unset`) | `NoteResponse` | 404; 422 — the merged row (current values + patch, built from `NoteUpdate.model_fields`) is validated **before** mutation so autoflush never writes a bad row. A PATCH may move a note to another owner. |
 | DELETE | `/api/notes/{note_id}` | by scope | — | 204 | 404. Audited via `log_deleted_record(db, note, "Note")` (`app/utils/data_control_utils.py`). |
@@ -565,15 +568,48 @@ Add form, the Modify tabs and the detail pages write that one row and nothing
 else. The Add page's panel for a just-created entry hides nothing: by then the
 form has reset to a blank entry, so its Remark field no longer edits that row.
 
-### OST
+### Music
 
-The other singleton. OP and ED are lists of songs; OST is **one entry per
-anime** with two fields — which cut (`type`, stored in `kind`) and how far
-tracking it has got (`status`) — and no song name, link or remark. It is
-`structured` rather than `music_track` because that shape always carries
-those three columns. `StructuredSection` drops its Add button once the row
-exists, so the entry is changed by Edit; the router refuses a second row
-regardless, and `ix_note_one_ost_per_owner` refuses it in the database.
+An anime has four **song lists** — OP, ED, 插入曲 Insert Song and OST — and
+every one is a `music_track` section holding the same row: the song's name
+(`title`), how far tracking that song has got (`status`: Need, Pending,
+Done), the episode it plays in (`locator`, optional for every list), where to
+hear it (`links`, any number of link pairs) and a remark (`content`). OP and
+ED add a **Song Type** (`kind`), free text suggested from the "Song Type"
+option category and starting on `normal`; insert songs and the OST have none.
+A row must say something besides its type: any of name, status, episode, a
+link or a remark.
+
+**Two levels of status.** Each song carries its own, and each *list* carries
+one more — "All Done", "Done", "Need", "Pending" or "Not Done"
+(`MUSIC_TYPE_STATUSES` in `app/utils/constants.py`) — in a `music_status` row:
+`section = 'music_status'`, `kind` = the list's section key, `status` = the
+value. One row per `(anime, list)`, refused twice by the router (422) and by
+`ix_note_one_music_status_per_kind`. Every anime created through the API gets
+the four rows at once, each "Not Done" and authored by the creating account
+(`seed_music_status`, `app/services/domain/music_status.py`, called through
+the anime spec's `create_hook`). The rows are written through the ordinary
+notes API — `PATCH /api/notes/{id}` with a new `status`, or a `POST` for an
+anime that lacks one — under `manage.catalog`.
+
+`music_status` is **hidden**: the page renders no card for it. Each song list
+instead names it in `type_status_section`, and `GET /api/notes/sections`
+resolves that section's vocabulary and default onto the list
+(`type_statuses`, `type_status_default`), so the status bar above a list is
+drawn from the registry alone. An import-time check keeps the two sides in
+step: the `music_status` kinds must be exactly the sections pointing at it.
+
+**Link pairs.** A song is heard on several services, so a song link is
+`{"text": "YouTube", "url": "https://…"}` rather than a bare URL; `text` is
+the label shown and may be null, suggested from the "Song Source" option
+category (`link_text_category`). `GET /api/notes/sections` reports
+`link_pairs: true` on every section whose links take this shape, which is the
+four song lists and 彩蛋 Easter Eggs — the only two places the pairs reach.
+
+**彩蛋 Easter Eggs** sits last in 解析: a hidden reference, the episode it
+plays in (optional) and where somebody spotted it. Structured, with fields
+`episode` → `locator`, `description` → `content` (required) and `links` →
+`links` as link pairs.
 
 The notes page is three pieces:
 
@@ -611,7 +647,7 @@ once when both are used.
 | Behaviour | How |
 | --- | --- |
 | Loads registry + rows in parallel (`fetchSections`, `fetchNotes`), then refetches only rows after a mutation; the registry is static for the session. | `useEffect` / `reloadNotes`. |
-| Dispatches on `section.shape` via the `SHAPES` map — all 9 stored shapes have a component, `structured` → `StructuredSection` among them. `external` shapes dispatch on **section key** via `EXTERNAL_SHAPES` (`quotes` → `QuoteSection`, `memes` → `MemeSection`) — the first of two scoped exceptions to "the frontend never names sections". An external key with no component renders null. | `renderSection`. |
+| Dispatches on `section.shape` via the `SHAPES` map — every stored shape but `music_status` has a component, `structured` → `StructuredSection` among them; a shape with none renders null. A section the registry marks `hidden` (`music_status`) never gets this far: the provider drops it from `sections` before layout or `blockCount` sees it, so its rows neither render nor count towards the Music card, and hands each song list its row as `typeStatusNote` instead. `external` shapes dispatch on **section key** via `EXTERNAL_SHAPES` (`quotes` → `QuoteSection`, `memes` → `MemeSection`) — the first of two scoped exceptions to "the frontend never names sections". An external key with no component renders null. | `renderSection`. |
 | `splitBlocks()` splits the registry into `flat` (ungrouped, non-standalone), `groups` (one card per group key, registry order), `standalone`. | `splitBlocks`. |
 | The **Notes card** holds the flat sections and **renders only when ≥1 flat section is visible** (`flat.length > 0`). A comic with `remark` hidden has no flat section, so no empty headed card. | JSX near the bottom. |
 | Each group renders as its own `GroupCard` *beside* Notes (Music is a peer of Notes, not inside it). Standalone sections (`resources`, `questions`) render lifted out with no wrapper — every shape component already draws its own `SectionCard`. | Same. |
@@ -630,11 +666,11 @@ once when both are used.
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
 | `NameLinksSection.jsx` | name_links | title, links |
 | `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, dragged into order in the form by its grip). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
-| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns drag-to-reorder (a grip per row from `components/ui/Sortable.jsx`; each drop is one `PATCH /api/notes/reorder`, applied on screen at once by `NotesContext`, with that section's grips disabled until the save settles), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move — among a row's own siblings, never to another parent — that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): each group header carries a grip (drag, or ArrowUp / ArrowDown on it), the rows are not movable. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry grips — a row moves only within its own group — and every move sends the section's whole row order, grouped. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; a row's grip moves it by its place among all its siblings, folded or not, so the last row shown can still be moved down past the fold, and a move that carries a row past the cap unfolds the section so the row does not vanish. A grouped section is capped **per group**, each group with its own toggle, and every group header stays on screen: the headers are what a reader scans and what carries a group's grip, and a folded-away header could be neither found nor dragged. |
+| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. A `link_pairs` field (彩蛋 Easter Eggs) edits with `LinkPairsEditor`, plain-text labels, and reads as `LinkPairPills`; a label with no URL holds Save. Also owns drag-to-reorder (a grip per row from `components/ui/Sortable.jsx`; each drop is one `PATCH /api/notes/reorder`, applied on screen at once by `NotesContext`, with that section's grips disabled until the save settles), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move — among a row's own siblings, never to another parent — that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): each group header carries a grip (drag, or ArrowUp / ArrowDown on it), the rows are not movable. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry grips — a row moves only within its own group — and every move sends the section's whole row order, grouped. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; a row's grip moves it by its place among all its siblings, folded or not, so the last row shown can still be moved down past the fold, and a move that carries a row past the cap unfolds the section so the row does not vanish. A grouped section is capped **per group**, each group with its own toggle, and every group header stays on screen: the headers are what a reader scans and what carries a group's grip, and a folded-away header could be neither found nor dragged. |
 | `NamesInput.jsx` | — | the `names` input: chosen names as removable tags, a combobox suggesting `nameSuggestions` filtered by what is typed, any other text accepted |
 | `groupedRows.js` | — | pure: `groupNotes` (one group per name, a row under every name it carries, stored order first then first appearance, a trailing unnamed group only when a row names nobody), `movedGroupOrder`, `groupedIds`, `movedRow(groups, gi, from, to)` (a row taken out and put back at `to` within its own group, as a drop does), `namesOf` |
-| `EpisodeNameLinksSection.jsx` | episode_name_links | locator, title, content, links, status |
-| `MusicTrackSection.jsx` | music_track | title, kind (starts on `default_kind`), status, link, content |
+| `MusicTrackSection.jsx` | music_track | all four song lists: title, Song Type (`kind`, a `SuggestInput` over the `kind_category` values, only where the section has one, starting on `default_kind`), per-song status, episode (`locator`), link pairs (`LinkPairsEditor`, labels suggested from `link_text_category`), content. The list's own status sits in the card header: a select over `type_statuses` for an admin, a tag for a reader, reading the `music_status` row for this section's key (the provider's `typeStatusNote`) or `type_status_default`; the first change POSTs the row, later ones PATCH it. |
+| `LinkPairs.jsx` (+ `linkPairValues.js`) | — | `LinkPairsEditor` (repeatable label + URL, the label a `SuggestInput` when given `textOptions`) and `LinkPairPills` (pills labelled with the pair's text, else the host), shared by `MusicTrackSection` and `StructuredSection`'s `link_pairs` field |
 | `QuoteSection.jsx` / `MemeSection.jsx` | external | adapt the long-lived quote/meme components; report counts |
 | `ui.jsx` | — | `GroupCard`, `SectionCard`, `ItemActions`, `useCollapsed`, the entry cap (`VISIBLE_ENTRIES`, `capEntries`, `useEntryCap`, `ShowAllToggle`), shared classes |
 
@@ -659,6 +695,8 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 | Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **`entries` and `fields` are each parsed exactly like `links` beside them, and `parent_id` like the owner columns** — without those keys Backup would still write the columns (the formatter walks real columns) and Pull would drop them, losing every item of every `name_entries` row, every structured field, and the nesting of every hierarchical row on a round trip. |
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
 | Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the owner's existing remark row and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
+| Music status rows | The same retargeting per `(owner, kind)`: a sheet `music_status` row folds onto the local row for the same anime and list, keeping the local id. Its revision minted those rows separately on every database, so the two machines' copies differ in id and nothing else. |
+| Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is Need, Pending or Done. A song list's or 彩蛋's links that arrive as URL strings are read as link pairs with no text (`_note_links` in `app/utils/formatter.py`). |
 | Round-trip | Because owner tables no longer have a `remark` column (and `format_model_for_sheet` walks real columns, so the column_property is not exported), **remark round-trips only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |
 
 ## Related

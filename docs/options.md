@@ -117,7 +117,8 @@ type it serves is seeable.
 | `MANGA_SERIALIZATION_STATUSES` | `連載中`, `停更`, `腰斬`, `完結` | `manga.serialization_status`, `h_comic.serialization_status` | `manga_serialization_status` |
 | `NOVEL_SERIALIZATION_STATUSES` | `連載中`, `連載中 (不穩定)`, `連載中 (有生之年)`, `停更`, `完結`, `腰斬`, `可能更多`, `未出` | `novel.serialization_status`; `完結` gates the volume/chapter checks | `novel_serialization_status` |
 | `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
-| `MUSIC_STATUSES` | `Need`, `Pending`, `Done` | `note.status` on the `op`, `ed`, `insert_songs`, `ost` sections | `music_status` |
+| `MUSIC_STATUSES` | `Need`, `Pending`, `Done` | `note.status` on a song of the `op`, `ed`, `insert_songs`, `ost` sections. The note registry imports this tuple; it is not restated there | `music_status` |
+| `MUSIC_TYPE_STATUSES` | `All Done`, `Done`, `Need`, `Pending`, `Not Done` | `note.status` on a `music_status` row: how far one whole song list of an anime has got. Every anime starts each list on `Not Done` (`MUSIC_TYPE_STATUS_DEFAULT`) | `music_type_status` |
 | `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
 | `CHARACTER_ROLES` (`app/utils/character_roles.py`) | `Main`, `Core`, `Supporting`, `Other` | Two independent columns: `character_casting.role` (what the character is in one entry) and `character.role` (what the character is overall). A NULL `character.role` is filled from the highest-ranked casting role (this order) on each cast save and by Calculate All; a set one is never overwritten, and nothing flows from it to a casting. Both are optional - blank or `""` is NULL - and a write naming anything else is a 422; a Sheets Pull restores a value outside the list as blank | `character_role` |
 | `H_COMIC_REGIONS` | `JP`, `KR` | `h_comic.region`, required on every write; decides which columns the entry keeps ([entry-types.md](entry-types.md#h-comic-regions-region_clears-appservicesdomainh_comicpy)) | `h_comic_region` |
@@ -247,7 +248,7 @@ The registry of what a `note` row may be. Full behaviour is in
 [systems/notes.md](systems/notes.md); this lists only the vocabularies.
 
 **Shapes**: `text`, `text_links`, `text_or_link`, `episode_text`,
-`name_links`, `name_entries`, `episode_name_links`, `music_track`,
+`name_links`, `name_entries`, `music_track`, `music_status`,
 `structured` (the nine
 `STORED_SHAPES`) plus `external` (quotes and memes, which live in their own
 tables). `structured` is the newest: the section declares its own ordered
@@ -307,6 +308,7 @@ out. What the three gated types keep is in
 | `craft` | text_links | 巧思 | novel | analysis_group | |
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
+| `easter_eggs` | structured | 彩蛋 Easter Eggs | anime | analysis_group | episode, description (required), links as text-URL pairs |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
 | `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description |
 | `controls` | structured | 操作 Controls | game, h-game | guides | Fields: control (`title`), description (`content`), links |
@@ -345,10 +347,11 @@ out. What the three gated types keep is in
 | `todo_next` | text_links | 接下來 To do next | game, h-game | todo | personal scope |
 | `todo_later` | text_links | 未來 To do in the future | game, h-game | todo | personal scope |
 | `todo_maybe` | text_links | 可能 Might do | game, h-game | todo | personal scope |
-| `op` | music_track | OP | anime | music | kinds `MUSIC_TYPES`, default `normal`; statuses `MUSIC_STATUSES` |
+| `music_status` | music_status | 音樂狀態 Music Status | anime | music (hidden) | kinds `MUSIC_TYPE_KEYS` (`op`, `ed`, `insert_songs`, `ost`), one row each; statuses `MUSIC_TYPE_STATUSES`, default `Not Done` |
+| `op` | music_track | OP | anime | music | Song Type free text from category `Song Type`, default `normal`; statuses `MUSIC_STATUSES`; link text from category `Song Source` |
 | `ed` | music_track | ED | anime | music | same as `op` |
-| `insert_songs` | episode_name_links | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES`; no kinds |
-| `ost` | structured | OST | anime | music | singleton; fields `type` (`MUSIC_TYPES`, default `normal`) and `status` (`MUSIC_STATUSES`) |
+| `insert_songs` | music_track | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES`; no Song Type; link text from `Song Source` |
+| `ost` | music_track | OST | anime | music | same as `insert_songs` |
 | `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS` |
 | `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
@@ -364,9 +367,13 @@ Kind vocabularies:
 | Constant | Values |
 |---|---|
 | `OP_ED_KINDS` | `變化OP`, `變化ED`, `無OP`, `無ED`, `特殊OP`, `特殊ED` |
-| `MUSIC_TYPES` | `normal`, `different version`, `all inclusive version` |
-| `MUSIC_STATUSES` | `Need`, `Pending`, `Done` (same values as `constants.MUSIC_STATUSES`) |
+| `MUSIC_TYPE_KEYS` | `op`, `ed`, `insert_songs`, `ost` — the kinds of `music_status` |
 | `HIGHLIGHT_KINDS` | `神回`, `神片段`, `神篇章` |
+
+The music group's two status vocabularies are `constants.MUSIC_STATUSES` and
+`constants.MUSIC_TYPE_STATUSES` above, imported by the registry. An OP or ED's
+Song Type is no longer a constant: it is free text, suggested from the
+`Song Type` option category below.
 
 **`guide_resources` is not `resources`, and neither replaces the other.** The
 site-wide `resources` section (`name_links`, all owners, standalone) holds
@@ -603,7 +610,11 @@ Comic vocabularies name an outside party. A new anime-only category is therefore
 2 categories with no `TagField` behind them — `Reference Source` instead
 backs `media_source` `kind='reference'` rows directly, resolved by
 `option_id` the same way `main`-bucket access rows are, never through
-`media_tag`). `OPTION_CATEGORIES` = the categories above plus these two,
+`media_tag`). `NOTE_OPTION_CATEGORIES` (`app/utils/note_sections.py`): `Song
+Type` and `Song Source`, derived from the note sections that name them
+(`kind_category`, `link_text_category`) rather than listed, so a section that
+names a new category offers it with no second edit. `OPTION_CATEGORIES` = the
+tag-field categories plus these four,
 served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
@@ -681,7 +692,7 @@ described in
 
 **Categories.** The category string is free text on the API
 (`SystemOptionCreate.category: str`), but the ones anything reads are the
-twenty in `OPTION_CATEGORIES`:
+twenty-two in `OPTION_CATEGORIES`:
 
 | Category | Offered in (scopes) | Read by |
 |---|---|---|
@@ -705,6 +716,8 @@ twenty in `OPTION_CATEGORIES`:
 | `H Genre Appearance` | h-comic, h-game, hentai | tag field `h_genre_appearance`; admin-managed, ships empty |
 | `H Genre Relation` | h-comic, h-game, hentai | tag field `h_genre_relation`; admin-managed, ships empty |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
+| `Song Type` | anime | suggestions for the Song Type (`note.kind`) of an `op` or `ed` row; `normal`, `different version`, `all inclusive version` seeded by `m1s2ongstat3`. Suggestions only - a value not in the list is stored as typed |
+| `Song Source` | anime | suggestions for a song link's label (`text` of a link pair on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and
 split by usage (migration `h5c6malsrc7`). The regional storefronts an
@@ -1039,8 +1052,10 @@ Carried over on purpose; do not "fix" one side without reconciling both.
   that `ANIME_AIRING_TYPES` (served) carries.
 - **Cartoon airing type.** The dropdown offers `TV`, `Movie`, `OVA`, `Special`,
   but Fill only fetches `TV` and `Movie` (business-rules.md section 17).
-- **`MUSIC_STATUSES`** is defined twice with identical values, in
-  `constants.py` and `note_sections.py`.
+- **`MUSIC_STATUSES` and `MUSIC_TYPE_STATUSES`** are defined once in
+  `constants.py` (the registry imports them) and once more each in
+  `frontend/src/config/fieldOptions.js`, as the pre-fetch fallback
+  `/api/constants` overwrites on load.
 - **Option categories are free text.** `SystemOptionCreate.category` accepts
   any string and the Options page lists whatever the table holds, so a typo
   creates a category rather than being rejected. `OPTION_CATEGORIES` is what

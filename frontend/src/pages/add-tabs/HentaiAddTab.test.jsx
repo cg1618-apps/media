@@ -138,8 +138,8 @@ describe("HentaiAddTab - auto-fill from an existing entry", () => {
       screen.getByRole("textbox", { name: "Auto-fill from existing entry" }),
       "既有",
     );
-    expect(screen.queryByRole("button", { name: /其他/ })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /既有條目/ }));
+    expect(screen.queryByRole("option", { name: /其他/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("option", { name: /既有條目/ }));
 
     expect(onPick).toHaveBeenCalledWith(entries[0]);
   });

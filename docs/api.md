@@ -961,7 +961,7 @@ tier on a write is resolved from the id, never from the payload's
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`).                            |
 | `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`.                                        |
-| `POST`   | `""`           | Admin  | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, or on a second row in a singleton section. `sort_index` defaults to the end.     |
+| `POST`   | `""`           | Admin  | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
 | `PATCH`  | `/reorder`     | Admin  | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once.                |
 | `PATCH`  | `/{note_id}`   | Admin  | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination.                      |
 | `DELETE` | `/{note_id}`   | Admin  | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have.        |
@@ -972,8 +972,21 @@ entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
 `fields` - each field's `type` may be `names`, a list of strings stored under
 `fields[key]` - `require_any`, `hierarchical`, `group_by` (the `names` field
 the read view groups by, or `null`), `groupable_by` (the `select` field the
-reader may toggle a one-group-per-value view on, or `null`) and `owner_where` (`{owner column:
-[allowed values]}`, `{}` for none)).
+reader may toggle a one-group-per-value view on, or `null`), `owner_where` (`{owner column:
+[allowed values]}`, `{}` for none), and the music-group fields: `link_pairs`
+(the section's `links` are `{"text", "url"}` pairs rather than URL strings),
+`link_text_category` (the option category suggesting a pair's `text`),
+`kind_category` (`kind` is free text suggested from this option category),
+`default_status`, `one_per_kind` (one row per owner and `kind`), `hidden` (no
+card of its own), and `type_status_section` / `type_statuses` /
+`type_status_default` (the section holding this list's status row, keyed by
+this section's key as `kind`, with that status's vocabulary and default)).
+
+`links` on `NoteCreate` / `NoteUpdate` / `NoteResponse` is a list of URL
+strings, or - on a section reporting `link_pairs: true` (the four song lists
+and `easter_eggs`) - a list of `{"text": str | null, "url": str}`. Each
+section takes exactly one of the two; the other is a 422, as is a pair with a
+blank `url` or a key other than those two.
 
 A section with `owner_where` refuses a row on any other owner with **422**, on
 `POST` and on the merged row of a `PATCH`: `h_comic_highlights` is
@@ -1056,6 +1069,14 @@ because their display name is a per-row choice among four nullable columns and
 no single column can order them).
 Sorting in SQL rather than after the fact means an exact match cannot be cut by
 `limit` before it is floated.
+
+**Entry rows.** A media bucket's rows are the rows that type's list endpoint
+returns, with the same non-column fields attached by the same helper
+(`attach_entry_list_fields`, `app/services/domain/entry_fields.py`): the
+caller's own status, progress and rating, sources, content labels, plan flags,
+remark and game copies. A search card and a library card therefore cannot
+disagree; a logged-out caller gets the personal fields empty, as on the list
+routes.
 
 **Response:** `SearchResponse`
 
@@ -1159,7 +1180,7 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `game_is_main`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
 `manga_serialization_status`, `novel_serialization_status`, `day_of_week`,
-`music_status`, `seiyuu_status`, `watch_order_importance`, `h_comic_region`,
+`music_status`, `music_type_status`, `seiyuu_status`, `watch_order_importance`, `h_comic_region`,
 `h_comic_originality`, `h_comic_animation_status`, `h_comic_usefulness`,
 `hentai_source_material`, `h_game_playstyle`, `h_game_language_availability`,
 `h_game_audio_availability`, `h_game_h_presentation`, `h_game_art_style`,

@@ -2,11 +2,21 @@
 // things the eight copy-pasted editors used to get subtly wrong: rows are
 // identified by index not by name, a blank name is dropped on save, and the
 // bucket is explicit rather than implied.
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import SourcesEditor, { RestrictedPrefillEditor } from "./SourcesEditor";
 import { RestrictedPrefillProvider } from "../../contexts/RestrictedPrefillContext";
+
+// What a free-text name input suggests: focus opens its list, which is
+// portaled out of the editor, then blur closes it again.
+function offered(input) {
+  fireEvent.focus(input);
+  const list = screen.queryByRole("listbox");
+  const names = list ? within(list).getAllByRole("option").map((o) => o.textContent) : [];
+  fireEvent.blur(input);
+  return names;
+}
 
 const sources = {
   options: [
@@ -181,8 +191,7 @@ describe("SourcesEditor", () => {
     it("offers the suggestions while typing, and keeps a name outside them", () => {
       const onChange = renderWith([row("")]);
       const input = screen.getByRole("combobox", { name: "Restricted Sources name" });
-      const list = document.getElementById(input.getAttribute("list"));
-      expect([...list.options].map((o) => o.value)).toEqual(["禁漫天堂", "ToonGod"]);
+      expect(offered(input)).toEqual(["禁漫天堂", "ToonGod"]);
       fireEvent.change(input, { target: { value: "Somewhere else" } });
       expect(onChange).toHaveBeenCalledWith([row("Somewhere else")]);
     });
@@ -201,8 +210,7 @@ describe("SourcesEditor", () => {
         />,
       );
       const input = screen.getByRole("combobox", { name: "Restricted Sources name" });
-      const list = document.getElementById(input.getAttribute("list"));
-      expect([...list.options].map((o) => o.value)).toEqual([
+      expect(offered(input)).toEqual([
         "漫畫櫃 (電腦版)",
         "漫畫櫃 (手機版)",
         "漫畫人",
@@ -222,9 +230,9 @@ describe("SourcesEditor", () => {
         <SourcesEditor value={[row("")]} onChange={vi.fn()} mediaType="novel" sources={sources} />,
       );
       expect(screen.queryByRole("button", { name: /prefill suggested/i })).toBeNull();
-      expect(
-        screen.getByRole("combobox", { name: "Restricted Sources name" }),
-      ).toHaveAttribute("list");
+      expect(offered(screen.getByRole("combobox", { name: "Restricted Sources name" }))).not.toEqual(
+        [],
+      );
     });
 
     it("prefills the names picked on /defaults, not the built-in ones", () => {
@@ -258,9 +266,7 @@ describe("SourcesEditor", () => {
         <SourcesEditor value={[row("")]} onChange={vi.fn()} mediaType="game" sources={sources} />,
       );
       expect(screen.queryByRole("button", { name: /prefill suggested/i })).toBeNull();
-      expect(
-        screen.getByRole("textbox", { name: "Restricted Sources name" }),
-      ).not.toHaveAttribute("list");
+      expect(offered(screen.getByRole("combobox", { name: "Restricted Sources name" }))).toEqual([]);
     });
   });
 });
@@ -283,8 +289,7 @@ describe("RestrictedPrefillEditor", () => {
   it("offers every available name while typing", () => {
     renderPrefill([""]);
     const input = screen.getByRole("combobox", { name: "Prefilled restricted sources name" });
-    const list = document.getElementById(input.getAttribute("list"));
-    expect([...list.options].map((o) => o.value)).toEqual(KR);
+    expect(offered(input)).toEqual(KR);
   });
 
   it("edits a list of names", () => {

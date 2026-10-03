@@ -164,3 +164,28 @@ def test_a_session_that_cannot_see_h_comic_is_not_told_it_exists(client, db_sess
     # Everything else is untouched.
     assert "Game" in body["franchise_type"]
     assert "illustrator" in body["person_role"]
+
+
+def test_serves_both_music_status_vocabularies(client):
+    """
+    The per-song status and the per-list status are different vocabularies;
+    both come from constants.py, which the note registry also reads.
+    """
+    body = client.get("/api/constants").json()
+    assert body["music_status"] == ["Need", "Pending", "Done"]
+    assert body["music_type_status"] == [
+        "All Done",
+        "Done",
+        "Need",
+        "Pending",
+        "Not Done",
+    ]
+
+
+def test_offers_the_note_option_categories(client):
+    """Song Type and Song Source back no entry column; the music note
+    sections read them as suggestions, so the Options form must offer them
+    before either has a value."""
+    body = client.get("/api/constants").json()
+    assert "Song Type" in body["option_categories"]
+    assert "Song Source" in body["option_categories"]

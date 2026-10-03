@@ -106,8 +106,8 @@ same way.
 
 **Restricted sources start prefilled.** A new entry's Sources block starts
 with one restricted row for every name its type prefills, and the restricted
-name field offers all of that type's names as a datalist
-(`lib/restrictedSources.js`). The names are fixed in code; which of them are
+name field suggests all of that type's names as you type (`SuggestInput`,
+over `lib/restrictedSources.js`). The names are fixed in code; which of them are
 prefilled is picked per type on `/defaults`, and the table below is the
 built-in pick. The names are suggestions, not a vocabulary: choosing one only
 fills that row's text, which can still be edited for this entry, and any
@@ -773,7 +773,7 @@ one: which restricted source names a new entry is prefilled with
 and KR; every other type has one. game and h-game have no built-in names, so
 theirs starts empty and offers nothing while typing, but any name typed is
 prefilled like the others. Each is edited as a list of
-names, with every name the type (or region) has offered as a datalist and a
+names, with every name the type (or region) has suggested as you type and a
 **Prefill suggested** button that adds the missing ones. Unpicked, it shows
 the built-in prefill; a pick applies to new entries, to the Prefill button
 on Add and Modify, and to h-comic's region change, and the undo button returns

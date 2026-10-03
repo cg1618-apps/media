@@ -79,7 +79,7 @@ describe("GameAddTab IGDB search", () => {
     const user = userEvent.setup();
     renderTab();
     await user.type(screen.getByPlaceholderText(/search igdb/i), "elden");
-    const row = await screen.findByRole("button", { name: /Elden Ring/ });
+    const row = await screen.findByRole("option", { name: /Elden Ring/ });
     expect(row).toHaveTextContent("2022");
     expect(screen.getByAltText("Elden Ring")).toHaveAttribute(
       "src",
@@ -92,7 +92,7 @@ describe("GameAddTab IGDB search", () => {
     const applyGameAutofill = vi.fn();
     renderTab({ applyGameAutofill });
     await user.type(screen.getByPlaceholderText(/search igdb/i), "elden");
-    await user.click(await screen.findByRole("button", { name: /Elden Ring/ }));
+    await user.click(await screen.findByRole("option", { name: /Elden Ring/ }));
     expect(applyGameAutofill).toHaveBeenCalledWith(ELDEN);
   });
 });

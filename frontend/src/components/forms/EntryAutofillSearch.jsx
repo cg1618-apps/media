@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { cleanString, getDisplayName } from "../../utils/media";
+import { SuggestItem, SuggestList, SuggestNote } from "./SuggestList";
 
 const MAX_RESULTS = 10;
 
@@ -81,25 +82,25 @@ export default function EntryAutofillSearch({
         )}
       </div>
       {open && loading && (
-        <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg px-4 py-2.5 text-sm text-text-faint flex items-center gap-2">
-          <i className="fas fa-spinner fa-spin"></i>
-          Loading entries to search from…
-        </div>
+        <SuggestList anchorRef={ref}>
+          <SuggestNote>
+            <i className="fas fa-spinner fa-spin"></i>
+            Loading entries to search from…
+          </SuggestNote>
+        </SuggestList>
       )}
       {open && results.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto">
+        <SuggestList anchorRef={ref}>
           {results.map((item) => {
             const tag = badge?.(item);
             const franchise = franchises.find(
               (f) => f.system_id === item.franchise_id,
             );
             return (
-              <button
+              <SuggestItem
                 key={item.system_id}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pick(item)}
-                className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-border last:border-0"
+                truncate={false}
+                onPick={() => pick(item)}
               >
                 <div className="flex items-center gap-2">
                   {tag && (
@@ -112,10 +113,10 @@ export default function EntryAutofillSearch({
                 <div className="text-xs text-text-faint">
                   {franchise ? getDisplayName(franchise, "franchise") : "Standalone"}
                 </div>
-              </button>
+              </SuggestItem>
             );
           })}
-        </div>
+        </SuggestList>
       )}
     </div>
   );

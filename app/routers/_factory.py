@@ -29,13 +29,12 @@ from app.services.domain import (
 from app.services.domain.completion import reached_total
 from app.services.domain.content_labels import attach_content_labels
 from app.services.domain.credits import attach_link_fields
+from app.services.domain.entry_fields import attach_entry_list_fields
 from app.services.domain.game_copies import attach_own_copies
 from app.services.domain.h_comic import attach_animation_status
 from app.services.domain.hierarchy import check_entry_franchise_family
 from app.services.domain.plan_next import (
-    PLAN_FLAG_FIELDS,
     attach_plan_flag,
-    planned_entry_ids,
     pop_plan_flag,
     set_entry_flag,
 )
@@ -309,24 +308,7 @@ def make_media_router(spec) -> APIRouter:
             q = f"%{search_query}%"
             query = query.filter(or_(*[getattr(spec.model, f).ilike(q) for f in spec.search_fields]))
         entries = query.order_by(spec.model.created_at.desc()).limit(limit).offset(offset).all()
-        plan_user_id = viewer_user_id(viewer)
-        for field, kind in PLAN_FLAG_FIELDS.get(spec.owner_type, ()):
-            planned = planned_entry_ids(db, spec.owner_type, kind, user_id=plan_user_id)
-            for entry in entries:
-                setattr(entry, field, entry.system_id in planned)
-        attach_link_fields(db, spec.owner_type, entries)
-        attach_sources(db, spec.owner_type, entries, viewer)
-        # One query for the page, as above.
-        attach_content_labels(db, entries)
-        # One IN query for the whole page, not one per entry.
-        attach_list_fields(db, spec.owner_type, entries, user_id)
-        attach_unit_ratings(db, spec.owner_type, entries, user_id)
-        # One query for the page, filtered to this viewer's own purchases.
-        attach_own_copies(db, spec.owner_type, entries, user_id)
-        # One query for the page: the h-comics' hentai adaptations.
-        attach_animation_status(db, spec.owner_type, entries)
-        # One query for the page, filtered to this viewer's own remarks.
-        attach_remark(db, spec.owner_type, entries, plan_user_id)
+        attach_entry_list_fields(db, spec.owner_type, entries, viewer)
         return gate(viewer, spec.owner_type, entries, spec.response_schema)
 
     @router.get("/{entry_id}", response_model=spec.response_schema, summary=f"Get {spec.label} by ID")
@@ -366,6 +348,8 @@ def make_media_router(spec) -> APIRouter:
         # After the pre-commit hook: the list row's FK points at `media`, and
         # that row is written by Step 0's write path as part of the flush.
         db.flush()
+        if spec.create_hook:
+            spec.create_hook(db, entry, viewer)
         _write_list(db, entry, personal, viewer)
         db.commit()
         db.refresh(entry)

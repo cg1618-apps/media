@@ -7,9 +7,9 @@
 // character combobox never silently reuses or silently mints a name match;
 // it always offers both as separate, explicit choices.
 import { useState } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import CastEditor, { importedRow } from "./CastEditor";
 
@@ -99,7 +99,12 @@ function row(overrides = {}) {
   };
 }
 
-function mockFetch({ characters = [], entriesByCharacter = {}, createdCharacter } = {}) {
+function mockFetch({
+  characters = [],
+  entriesByCharacter = {},
+  createdCharacter,
+  people = [],
+} = {}) {
   return vi.fn((url, init) => {
     const method = init?.method || "GET";
     // The name-searched endpoint the character combobox actually uses.
@@ -132,7 +137,7 @@ function mockFetch({ characters = [], entriesByCharacter = {}, createdCharacter 
       });
     }
     if (url.startsWith("/api/person/")) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(people) });
     }
     if (url === "/api/constants") {
       return Promise.resolve({ ok: false });
@@ -177,6 +182,23 @@ it("gives every cell at most one width utility", async () => {
     expect(screen.getByLabelText("Role")).toHaveClass("w-28", "shrink-0");
     unmount();
   }
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
+it("gives the character and seiyuu pickers one fixed width and the remark the rest", async () => {
+  // Again the mechanism, not the picture: both name pickers carry the same
+  // fixed width (so the columns line up) and neither stretches; the remark
+  // is the cell that grows, and it may wrap under the seiyuu.
+  render(<CastEditor mediaType="anime" value={[row()]} onChange={vi.fn()} />);
+  const character = screen.getByLabelText("Character");
+  const seiyuu = screen
+    .getByPlaceholderText("Seiyuu name...")
+    .closest('div[class~="w-64"]');
+  expect(character).toHaveClass("w-64", "min-w-0");
+  expect(character).not.toHaveClass("flex-1");
+  expect(seiyuu).not.toBeNull();
+  expect(seiyuu.className).toBe(character.className);
+  expect(screen.getByLabelText("Remark")).toHaveClass("flex-[1_1_12rem]", "min-w-0");
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 
@@ -388,7 +410,7 @@ it("shows the plain character name in the selected pill, not the entries annotat
 
   const input = screen.getByPlaceholderText("Character name...");
   await user.type(input, "Yuki");
-  const existingOption = await screen.findByRole("button", { name: /Yuki.*Show A/ });
+  const existingOption = await screen.findByRole("option", { name: /Yuki.*Show A/ });
   await user.click(existingOption);
 
   // Fix round 1, finding 2: the entries annotation is a search aid, not a
@@ -419,8 +441,8 @@ it("requires an explicit choice before minting a character with an existing name
 
   // Both the existing character and the explicit "create new" option must
   // be offered side by side.
-  const existingOption = await screen.findByRole("button", { name: /^Yuki/ });
-  const createOption = await screen.findByRole("button", {
+  const existingOption = await screen.findByRole("option", { name: /^Yuki/ });
+  const createOption = await screen.findByRole("option", {
     name: 'Create new character named "Yuki"',
   });
   expect(existingOption).toBeInTheDocument();
@@ -467,7 +489,7 @@ async function mintFrom(mediaType) {
   render(<Controlled initialRows={[row()]} mediaType={mediaType} onChangeSpy={vi.fn()} />);
   await user.type(screen.getByPlaceholderText("Character name..."), "Aoi");
   await user.click(
-    await screen.findByRole("button", { name: 'Create new character named "Aoi"' }),
+    await screen.findByRole("option", { name: 'Create new character named "Aoi"' }),
   );
   await waitFor(() =>
     expect(fetch).toHaveBeenCalledWith(
@@ -512,7 +534,7 @@ it("shows which entries an existing character already appears in", async () => {
   await user.type(input, "Yuki");
 
   expect(
-    await screen.findByRole("button", { name: /Yuki.*Show A/ }),
+    await screen.findByRole("option", { name: /Yuki.*Show A/ }),
   ).toBeInTheDocument();
 });
 
@@ -691,4 +713,50 @@ it("offers no MAL import without a MAL link, and shows the server's refusal", as
   fireEvent.click(screen.getByText("Import from MAL"));
   expect(await screen.findByText("MyAnimeList returned no cast for this entry.")).toBeInTheDocument();
   expect(onChange).not.toHaveBeenCalled();
+});
+
+describe("the seiyuu picker's order", () => {
+  // /api/person/ answers alphabetically, as it does for every person picker;
+  // the seiyuu picker must not keep that order.
+  const seiyuu = (display_name, my_rating, credit_count) => ({
+    system_id: display_name,
+    display_name,
+    my_rating,
+    credit_count,
+  });
+  const PEOPLE = [
+    seiyuu("Aoi Hana", "S", 50),
+    seiyuu("Hana", "B", 1),
+    seiyuu("Hana Kana", null, 100),
+    seiyuu("Hanae", "S", 2),
+    seiyuu("Hanami", "B", 80),
+    seiyuu("Hanazawa", "S", 30),
+  ];
+  const offered = () =>
+    within(screen.getByRole("listbox"))
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+
+  async function openSeiyuuPicker() {
+    vi.stubGlobal("fetch", mockFetch({ people: PEOPLE }));
+    render(<Controlled initialRows={[row()]} mediaType="anime" onChangeSpy={vi.fn()} />);
+    await waitFor(() =>
+      expect(fetch.mock.calls.some(([url]) => url.startsWith("/api/person/"))).toBe(true),
+    );
+    return screen.getByPlaceholderText("Seiyuu name...");
+  }
+
+  it("ranks by rating, then by appearances, before anything is typed", async () => {
+    const input = await openSeiyuuPicker();
+    await userEvent.click(input);
+    await waitFor(() => expect(offered()).toHaveLength(6));
+    expect(offered()).toEqual(["Aoi Hana", "Hanazawa", "Hanae", "Hanami", "Hana", "Hana Kana"]);
+  });
+
+  it("puts the match first: exact, then prefix, then contains, each by rating and appearances", async () => {
+    const input = await openSeiyuuPicker();
+    await userEvent.type(input, "hana");
+    await waitFor(() => expect(offered()).toHaveLength(6));
+    expect(offered()).toEqual(["Hana", "Hanazawa", "Hanae", "Hanami", "Hana Kana", "Aoi Hana"]);
+  });
 });

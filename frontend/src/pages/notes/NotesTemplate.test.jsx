@@ -283,3 +283,76 @@ describe("NotesTemplate collapse-when-empty", () => {
     expect(within(trivia).getByRole("textbox")).toBeInTheDocument();
   });
 });
+
+// The music group: `music_status` is a hidden section - no card of its own -
+// whose rows are the song lists' own statuses, handed to each list by kind.
+describe("NotesTemplate hidden sections and list statuses", () => {
+  const music = { group: "music", group_label: "音樂 Music", group_icon: "fa-music" };
+  const MUSIC = [
+    {
+      key: "music_status",
+      shape: "music_status",
+      label: "音樂狀態 Music Status",
+      kinds: ["op", "ed"],
+      statuses: ["All Done", "Done", "Need", "Pending", "Not Done"],
+      hidden: true,
+      ...music,
+    },
+    ...["op", "ed"].map((key) => ({
+      key,
+      shape: "music_track",
+      label: key.toUpperCase(),
+      kinds: [],
+      statuses: ["Need", "Pending", "Done"],
+      kind_category: key === "op" ? "Song Type" : null,
+      link_text_category: "Song Source",
+      link_pairs: true,
+      type_status_section: "music_status",
+      type_statuses: ["All Done", "Done", "Need", "Pending", "Not Done"],
+      type_status_default: "Not Done",
+      ...music,
+    })),
+  ];
+  const STATUS_ROWS = [
+    { system_id: "s1", section: "music_status", kind: "op", status: "All Done" },
+    { system_id: "s2", section: "music_status", kind: "ed", status: "Need" },
+  ];
+
+  beforeEach(() => {
+    vi.mocked(api.fetchSections).mockResolvedValue(MUSIC);
+    vi.mocked(api.fetchOptionValues).mockClear();
+    vi.mocked(api.fetchOptionValues).mockImplementation(async (category) =>
+      category === "Song Type" ? ["normal"] : ["YouTube"],
+    );
+  });
+
+  it("does not count a hidden section's rows, so an empty music card collapses", async () => {
+    vi.mocked(api.fetchNotes).mockResolvedValue(STATUS_ROWS);
+    renderTemplate();
+    await waitFor(() => expect(screen.getByText("音樂 Music")).toBeInTheDocument());
+    const groupCard = screen.getByText("音樂 Music").closest("div.bg-surface");
+    // Two status rows and no songs: the card counts nothing and stays shut.
+    expect(groupCard.textContent).not.toContain("OP");
+    expect(groupCard.textContent).not.toContain("2");
+  });
+
+  it("renders no card for the hidden section and gives each list its own status", async () => {
+    vi.mocked(api.fetchNotes).mockResolvedValue([
+      ...STATUS_ROWS,
+      { system_id: "n1", section: "op", title: "紅蓮華", links: [] },
+    ]);
+    renderTemplate();
+    await waitFor(() => expect(screen.getByText("紅蓮華")).toBeInTheDocument());
+    expect(screen.queryByText("音樂狀態 Music Status")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("OP status")).toHaveValue("All Done");
+    expect(screen.getByLabelText("ED status")).toHaveValue("Need");
+  });
+
+  it("fetches each suggestion category once, for this owner type", async () => {
+    vi.mocked(api.fetchNotes).mockResolvedValue(STATUS_ROWS);
+    renderTemplate();
+    await waitFor(() => expect(api.fetchOptionValues).toHaveBeenCalledTimes(2));
+    expect(api.fetchOptionValues).toHaveBeenCalledWith("Song Type", "anime");
+    expect(api.fetchOptionValues).toHaveBeenCalledWith("Song Source", "anime");
+  });
+});

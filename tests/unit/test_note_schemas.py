@@ -317,82 +317,121 @@ def test_question_with_only_a_source_is_rejected():
         )
 
 
-def test_insert_song_may_carry_episode_name_description_and_links():
+# --- music_track: one shape for every song list -------------------------
+# op, ed, insert_songs and ost hold the same row: a song name, the per-song
+# status, the episode, text-and-URL link pairs, a remark - and a Song Type on
+# op and ed alone.
+
+SONG_SECTIONS = ("op", "ed", "insert_songs", "ost")
+
+
+def _song(section="op", **kw):
+    base = dict(section=section, status="Need", content=None)
+    if section in ("op", "ed"):
+        base["kind"] = "normal"
+    base.update(kw)
+    return _payload(**base)
+
+
+def _pair(url="https://youtu.be/a", text="YouTube"):
+    return {"text": text, "url": url}
+
+
+@pytest.mark.parametrize("section", SONG_SECTIONS)
+def test_song_may_carry_every_column(section):
     validate_note_payload(
-        _payload(
-            section="insert_songs",
+        _song(
+            section,
+            title="紅蓮華",
             locator="ep 12",
-            title="Kanashimi wo Yasashisa ni",
             content="Plays over the rooftop scene.",
-            links=["https://youtu.be/abc"],
+            links=[_pair(), _pair("https://open.spotify.com/x", "Spotify")],
         )
     )
 
 
-def test_insert_song_may_carry_only_an_episode_and_a_name():
-    # The optional three are genuinely optional: an episode plus a title is a
-    # complete note. The generic "content or links" rule would reject it.
-    validate_note_payload(
-        _payload(section="insert_songs", locator="ep 12", title="Shiroi Kumo", content=None)
-    )
+@pytest.mark.parametrize("section", SONG_SECTIONS)
+def test_song_with_only_a_status_passes(section):
+    # "I still need the OP" is a real note before the song has a name.
+    validate_note_payload(_song(section))
 
 
-def test_insert_song_may_carry_only_an_episode():
-    # A remembered scene often comes before the song's title does.
-    validate_note_payload(_payload(section="insert_songs", locator="ep 12", content=None))
+@pytest.mark.parametrize("section", SONG_SECTIONS)
+def test_song_with_only_an_episode_passes(section):
+    validate_note_payload(_song(section, status=None, locator="ep 3"))
 
 
-def test_insert_song_carries_a_tracking_status():
-    # The section absorbed the music_track `insert` section, so it tracks a song
-    # the same Need/Pending/Done way OP, ED and OST do.
-    validate_note_payload(
-        _payload(section="insert_songs", locator="ep 12", status="Need", content=None)
-    )
+@pytest.mark.parametrize("section", SONG_SECTIONS)
+def test_song_with_only_a_link_passes(section):
+    validate_note_payload(_song(section, status=None, links=[_pair(text=None)]))
+
+
+@pytest.mark.parametrize("section", SONG_SECTIONS)
+def test_song_saying_nothing_is_empty(section):
+    # On op and ed the Song Type is prefilled with "normal", so it cannot be
+    # what makes a row worth storing; a link pair with no URL is no link.
+    with pytest.raises(ValueError, match="is empty"):
+        validate_note_payload(_song(section, status=None))
+
+
+def test_insert_song_no_longer_requires_an_episode():
+    validate_note_payload(_song("insert_songs", title="Shiroi Kumo", status=None))
+
+
+@pytest.mark.parametrize("section", SONG_SECTIONS)
+def test_song_rejects_an_unknown_status(section):
     with pytest.raises(ValueError, match="not a valid status"):
-        validate_note_payload(
-            _payload(section="insert_songs", locator="ep 12", status="Someday")
-        )
+        validate_note_payload(_song(section, status="Someday"))
 
 
-def test_insert_song_takes_no_type():
-    # An insert song is whatever cut plays in that episode, so "which version"
-    # has no answer separate from the episode itself.
+@pytest.mark.parametrize("section", ("op", "ed"))
+def test_song_type_is_free_text_on_op_and_ed(section):
+    # Suggested from the "Song Type" option category, never closed.
+    validate_note_payload(_song(section, kind="acoustic"))
+    validate_note_payload(_song(section, kind="all inclusive version"))
+
+
+@pytest.mark.parametrize("section", ("insert_songs", "ost"))
+def test_insert_songs_and_ost_take_no_song_type(section):
     with pytest.raises(ValueError, match="takes no kind"):
-        validate_note_payload(
-            _payload(section="insert_songs", locator="ep 12", kind="normal")
-        )
+        validate_note_payload(_song(section, kind="normal"))
 
 
-def test_insert_song_without_an_episode_rejected():
-    with pytest.raises(ValueError, match="requires a locator"):
-        validate_note_payload(
-            _payload(section="insert_songs", title="Shiroi Kumo", content=None)
-        )
+@pytest.mark.parametrize("section", SONG_SECTIONS)
+def test_song_takes_several_link_pairs(section):
+    validate_note_payload(
+        _song(section, links=[_pair(), _pair("https://b.example", None)])
+    )
 
 
-def test_insert_song_rejected_for_non_anime_owners():
-    for owner in ("tv-show", "cartoon", "anime-movie", "series"):
-        with pytest.raises(ValueError, match="does not apply"):
-            validate_note_payload(
-                _payload(owner_type=owner, section="insert_songs", locator="ep 12")
-            )
+@pytest.mark.parametrize("section", SONG_SECTIONS)
+def test_song_link_pair_needs_a_url(section):
+    with pytest.raises(ValueError, match="needs a URL"):
+        validate_note_payload(_song(section, links=[_pair(url="  ")]))
 
 
-def test_section_out_exposes_the_insert_song_contract():
-    from app.schemas.note import section_out
-    from app.utils.note_sections import section_by_key
+@pytest.mark.parametrize("section", SONG_SECTIONS)
+def test_song_refuses_a_bare_url_string(section):
+    # The pair shape is the only one these sections take, so a reader never
+    # has to guess which of two shapes a stored row is in.
+    with pytest.raises(ValueError, match="text-and-URL pairs"):
+        validate_note_payload(_song(section, links=["https://youtu.be/a"]))
 
-    out = section_out(section_by_key("insert_songs"), "anime")
-    assert out.shape == "episode_name_links"
-    assert out.label == "插入曲 Insert Song"
-    assert out.group == "music"
-    assert out.locator_required
-    assert out.locator_placeholder == "Episode(s), e.g. ep 3"
-    # One dropdown, not two: the status the frontend renders, and no type.
-    assert out.statuses == ["Need", "Pending", "Done"]
-    assert out.kinds == []
-    assert out.default_kind is None
-    assert not out.desc_required
+
+def test_a_url_string_section_refuses_a_link_pair():
+    # The mirror: everything outside the songs and 彩蛋 keeps URL strings.
+    validate_note_payload(
+        _payload(section="analysis", links=["https://a.example"])
+    )
+    with pytest.raises(ValueError, match="must be URLs"):
+        validate_note_payload(_payload(section="analysis", links=[_pair()]))
+
+
+def test_a_link_pair_with_an_unknown_key_is_refused():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        _song("op", links=[{"url": "https://a.example", "label": "x"}])
 
 
 def test_the_music_track_insert_section_is_no_longer_a_section():
@@ -400,87 +439,146 @@ def test_the_music_track_insert_section_is_no_longer_a_section():
         validate_note_payload(_payload(section="insert", content="anything"))
 
 
-# --- ost: one structured row of type and status ----------------------------
+def test_insert_song_rejected_for_non_anime_owners():
+    for owner in ("tv-show", "cartoon", "anime-movie", "series"):
+        with pytest.raises(ValueError, match="does not apply"):
+            validate_note_payload(
+                _song("insert_songs", owner_type=owner, locator="ep 12")
+            )
 
 
-def _ost(**kw):
-    base = dict(section="ost", kind="normal", status="Need", content=None)
+def test_section_out_exposes_the_song_contract():
+    for key in SONG_SECTIONS:
+        out = section_out(section_by_key(key), "anime")
+        assert out.shape == "music_track"
+        assert out.group == "music"
+        assert out.locator_placeholder == "Episode(s), e.g. ep 3"
+        assert not out.locator_required
+        assert not out.singleton
+        assert out.statuses == ["Need", "Pending", "Done"]
+        assert out.link_pairs is True
+        assert out.link_text_category == "Song Source"
+        # The per-type status bar is rendered from these three alone.
+        assert out.type_status_section == "music_status"
+        assert out.type_statuses == [
+            "All Done",
+            "Done",
+            "Need",
+            "Pending",
+            "Not Done",
+        ]
+        assert out.type_status_default == "Not Done"
+        assert out.hidden is False
+    op = section_out(section_by_key("op"), "anime")
+    assert op.kind_category == "Song Type" and op.default_kind == "normal"
+    assert op.kinds == []
+    ost = section_out(section_by_key("ost"), "anime")
+    assert ost.kind_category is None and ost.default_kind is None
+
+
+def test_section_out_reports_url_string_links_elsewhere():
+    out = section_out(section_by_key("analysis"), "anime")
+    assert out.link_pairs is False
+    assert out.link_text_category is None
+    assert out.type_status_section is None
+    assert out.type_statuses == []
+
+
+# --- music_status: one status per song list -------------------------------
+
+
+def _type_status(**kw):
+    base = dict(section="music_status", kind="op", status="Not Done", content=None)
     base.update(kw)
     return _payload(**base)
 
 
-def test_ost_row_with_a_status_passes():
-    validate_note_payload(_ost())
+@pytest.mark.parametrize("kind", SONG_SECTIONS)
+@pytest.mark.parametrize(
+    "status", ("All Done", "Done", "Need", "Pending", "Not Done")
+)
+def test_music_status_takes_each_list_and_each_status(kind, status):
+    validate_note_payload(_type_status(kind=kind, status=status))
 
 
-def test_ost_row_with_only_the_default_type_is_empty():
-    # The type is prefilled, so the status is what makes the row say anything.
-    with pytest.raises(ValueError, match="is empty"):
-        validate_note_payload(_ost(status=None))
+def test_music_status_kind_must_name_a_song_list():
+    with pytest.raises(ValueError, match="not a valid kind"):
+        validate_note_payload(_type_status(kind="op_ed_changes"))
 
 
-def test_ost_row_takes_no_song_name_link_or_remark():
+def test_music_status_needs_a_kind_and_a_status():
+    with pytest.raises(ValueError, match="needs a kind"):
+        validate_note_payload(_type_status(kind=None))
+    with pytest.raises(ValueError, match="needs a status"):
+        validate_note_payload(_type_status(status=None))
+
+
+def test_music_status_refuses_a_per_song_value_outside_its_vocabulary():
+    with pytest.raises(ValueError, match="not a valid status"):
+        validate_note_payload(_type_status(status="Someday"))
+
+
+def test_music_status_carries_nothing_else():
     for extra in (
         dict(title="紅蓮華"),
-        dict(links=["https://youtu.be/a"]),
         dict(content="anything"),
+        dict(locator="ep 3"),
+        dict(links=["https://a.example"]),
+        dict(entries=[{"type": "text", "value": "x"}]),
     ):
         with pytest.raises(ValueError, match="takes no"):
-            validate_note_payload(_ost(**extra))
+            validate_note_payload(_type_status(**extra))
 
 
-def test_ost_row_rejects_an_unknown_status_or_type():
-    with pytest.raises(ValueError):
-        validate_note_payload(_ost(status="Someday"))
-    with pytest.raises(ValueError):
-        validate_note_payload(_ost(kind="acoustic"))
+def test_music_status_is_anime_only():
+    with pytest.raises(ValueError, match="does not apply"):
+        validate_note_payload(_type_status(owner_type="tv-show"))
 
 
-# --- music_track shape ----------------------------------------------------
+def test_section_out_marks_music_status_hidden():
+    out = section_out(section_by_key("music_status"), "anime")
+    assert out.hidden is True
+    assert out.one_per_kind is True
+    assert out.kinds == ["op", "ed", "insert_songs", "ost"]
+    assert out.default_status == "Not Done"
 
 
-def _music(**kw):
-    base = dict(section="op", kind="normal", status="Need", content=None)
+# --- 彩蛋 Easter Eggs -------------------------------------------------------
+
+
+def _egg(**kw):
+    base = dict(section="easter_eggs", content="The poster in ep 3 is from ep 12.")
     base.update(kw)
     return _payload(**base)
 
 
-def test_music_row_with_only_a_status_passes():
-    # "I still need the OP" is a real note before the song has a name.
-    validate_note_payload(_music())
+def test_easter_egg_with_a_description_passes():
+    validate_note_payload(_egg())
+    validate_note_payload(_egg(locator="ep 3", links=[_pair(), _pair(text=None)]))
 
 
-def test_music_row_with_only_a_title_passes():
-    validate_note_payload(_music(status=None, title="紅蓮華"))
+def test_easter_egg_needs_a_description():
+    with pytest.raises(ValueError, match="Description is required"):
+        validate_note_payload(_egg(content=None, locator="ep 3"))
 
 
-def test_music_row_with_only_the_default_type_is_empty():
-    # kind is prefilled, so it cannot be what makes a row worth storing.
-    with pytest.raises(ValueError, match="is empty"):
-        validate_note_payload(_music(status=None))
+def test_easter_egg_links_are_pairs():
+    with pytest.raises(ValueError, match="text-and-URL pairs"):
+        validate_note_payload(_egg(links=["https://a.example"]))
+    with pytest.raises(ValueError, match="needs a URL"):
+        validate_note_payload(_egg(links=[_pair(url="")]))
 
 
-def test_music_row_rejects_an_unknown_status():
-    with pytest.raises(ValueError, match="not a valid status"):
-        validate_note_payload(_music(status="Someday"))
-
-
-def test_music_row_rejects_an_unknown_type():
-    with pytest.raises(ValueError, match="not a valid kind"):
-        validate_note_payload(_music(kind="acoustic"))
-
-
-def test_music_row_takes_one_link():
-    validate_note_payload(_music(links=["https://youtu.be/a"]))
-    with pytest.raises(ValueError, match="one link per note"):
-        validate_note_payload(
-            _music(links=["https://youtu.be/a", "https://youtu.be/b"])
-        )
+def test_easter_egg_takes_no_title_or_status():
+    with pytest.raises(ValueError, match="takes no"):
+        validate_note_payload(_egg(title="x"))
+    with pytest.raises(ValueError, match="takes no"):
+        validate_note_payload(_egg(status="Done"))
 
 
 def test_music_sections_are_anime_only():
     with pytest.raises(ValueError, match="does not apply"):
-        validate_note_payload(_music(owner_type="tv-show"))
+        validate_note_payload(_song("op", owner_type="tv-show"))
 
 
 def test_a_non_music_section_takes_no_status():
