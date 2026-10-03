@@ -1689,7 +1689,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 key="number",
                 label="No.",
                 column="locator",
-                placeholder="e.g. 3",
+                placeholder="This save's slot number",
             ),
             NoteField(key="name", label="Name", column="title"),
             NoteField(
@@ -1708,7 +1708,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             NoteField(
                 key="based_on",
                 label="Based on slot",
-                placeholder="e.g. 2",
+                placeholder="Slot number it was copied from",
             ),
         ),
     ),

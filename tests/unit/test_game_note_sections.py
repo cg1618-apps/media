@@ -113,6 +113,14 @@ def test_a_save_is_number_name_checkpoint_note_and_the_slot_it_came_from():
     assert fields["based_on"].column is None
 
 
+def test_both_slot_fields_say_which_slot_they_mean():
+    # A bare "e.g. 2" does not say whose slot: the number is this save's own,
+    # the other is the slot it was copied from.
+    fields = {f.key: f for f in ns.section_by_key("saves").fields}
+    assert fields["number"].placeholder == "This save's slot number"
+    assert fields["based_on"].placeholder == "Slot number it was copied from"
+
+
 def test_a_save_is_a_regular_checkpoint_unless_marked_main():
     checkpoint = {f.key: f for f in ns.section_by_key("saves").fields}[
         "checkpoint"
