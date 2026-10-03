@@ -65,4 +65,16 @@ describe("OptionsAddTab", () => {
       .filter(Boolean);
     expect(values).toEqual(["Genre Main", "Label"]);
   });
+
+  it("offers usages on Platform, the one category that takes them", () => {
+    renderTab("options", { optCategory: "Platform" });
+    expect(screen.getByRole("button", { name: "watch" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "origin" })).toBeInTheDocument();
+  });
+
+  it("hides usages on every other category", () => {
+    renderTab("options", { optCategory: "Genre Main" });
+    expect(screen.queryByRole("button", { name: "watch" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "origin" })).toBeNull();
+  });
 });

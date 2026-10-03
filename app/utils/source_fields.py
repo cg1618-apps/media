@@ -54,6 +54,12 @@ ALIAS_CATEGORIES: tuple[str, ...] = (
 
 # system_option categories.
 PLATFORM_CATEGORY = "Platform"
+
+# The system_option categories that may carry usage rows. Platform is the only
+# category that feeds two pickers - media_source access rows (watch) and the
+# original_source/exclusive_source tag fields (origin) - so it is the only one
+# a usage can narrow. Anywhere else a usage would save and do nothing.
+USAGE_CATEGORIES: tuple[str, ...] = (PLATFORM_CATEGORY,)
 REFERENCE_CATEGORY = "Reference Source"
 SERIALIZATION_CATEGORY = "Serialization Platform"
 

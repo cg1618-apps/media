@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1262,7 +1262,9 @@ editor cannot see.
 (`app/utils/source_fields.py` — `igdb` today). A non-empty `aliases` list is
 rejected unless `category` is in `ALIAS_CATEGORIES` (`Game Genre`, `Game
 Theme`, `Game Mode`, `Game Platform` — the four IGDB fields Fill resolves) —
-the category itself saves fine, only its alias rows are refused. There is no
+the category itself saves fine, only its alias rows are refused. A non-empty
+`usages` list is refused the same way unless `category` is in
+`USAGE_CATEGORIES` (`Platform` alone). There is no
 per-alias endpoint: a single row is removed by `PUT`ting the option without
 it. All three drop duplicates,
 aliases on the `(source, value)` pair: the writes insert those rows directly,

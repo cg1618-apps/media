@@ -37,6 +37,7 @@ import FranchiseModifyTab from "../modify-tabs/FranchiseModifyTab";
 import SeriesModifyTab from "../modify-tabs/SeriesModifyTab";
 import { cleanAliases } from "../../components/forms/AliasPicker";
 import AliasTab from "../../components/forms/AliasTab";
+import { categoryHasUsages } from "../../components/forms/UsagePicker";
 import OptionsModifyTab from "../modify-tabs/OptionsModifyTab";
 import MangaModifyTab from "../modify-tabs/MangaModifyTab";
 import NovelModifyTab from "../modify-tabs/NovelModifyTab";
@@ -1431,7 +1432,7 @@ export default function Modify() {
         sort_order: editingItem.sort_order ?? 0,
         remark: editingItem.remark ?? null,
         scopes: optScopes,
-        usages: optUsages,
+        usages: categoryHasUsages(editingItem.category) ? optUsages : [],
         aliases: cleanAliases(optAliases),
       }),
       credentials: "include",
