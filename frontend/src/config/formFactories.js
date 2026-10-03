@@ -65,7 +65,6 @@ export const defaultAnime = () => ({
   mal_link: "",
   exclusive_source: "",
   sources: defaultRestrictedSources("anime"),
-  seiyuu: "",
   watch_next: false,
   cover_image_file: "",
   cover_image_focus: null,

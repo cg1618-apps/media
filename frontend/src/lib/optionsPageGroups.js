@@ -64,7 +64,7 @@ export const TIER1_GROUPS = [
   },
   {
     title: "Production Status",
-    keys: ["music_status", "music_type_status", "seiyuu_status"],
+    keys: ["music_status", "music_type_status"],
   },
   {
     title: "Franchise",
