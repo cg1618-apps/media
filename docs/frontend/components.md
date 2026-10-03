@@ -458,10 +458,34 @@ not drawn. The character, person and studio libraries use it for
   endpoints on one page.
 - **`pages/notes/sections`** — one component per note shape (`TextSection`,
   `TextLinksSection`, `EpisodeTextSection`, `NameLinksSection`,
-  `EpisodeNameLinksSection`, `MusicTrackSection`, `QuoteSection`,
-  `MemeSection`, `TextOrLinkSection`, `NameEntriesSection`,
-  `StructuredSection`) plus `ui.jsx`
-  chrome. `NameEntriesSection` renders the `name_entries` shape — a titled
+  `MusicTrackSection`, `QuoteSection`, `MemeSection`, `TextOrLinkSection`,
+  `NameEntriesSection`, `StructuredSection`) plus `ui.jsx` chrome. The hidden
+  `music_status` shape has no component: `NotesProvider` drops every section
+  the registry marks `hidden` before layout, counting or rendering sees it.
+  `MusicTrackSection` serves all four song lists (OP, ED, 插入曲, OST): song
+  name; Song Type on OP and ED only, a `SuggestInput` over the section's
+  `kind_category` values ("Song Type") starting on `default_kind`; the
+  per-song status as a closed select; the episode; link pairs; and a remark.
+  Save stays inert on a row carrying nothing but its prefilled type, and on a
+  link label with no URL - the server's rules, mirrored. The **list status**
+  sits in the card header (`SectionCard`'s `actions`), so it shows even while
+  an empty list is collapsed: a compact mono `<select>` over
+  `type_statuses` for an admin, a `brandTagCls` tag for anyone else. Its value
+  is the `music_status` row whose `kind` is the section's key, which the
+  provider hands in as `typeStatusNote`; with no row it reads
+  `type_status_default`, and the first change POSTs the row, every later one
+  PATCHes it. The provider also fetches the values of every category a
+  section names (`kind_category`, `link_text_category`) from
+  `GET /api/options/{category}?scope=<owner type>` once per page and passes
+  them as `optionValues`; a category that fails to load is an empty list.
+  **Link pairs** (`LinkPairs.jsx`, pure helpers in `linkPairValues.js` - not
+  `linkPairs.js`, which Windows would resolve for `./LinkPairs`):
+  `LinkPairsEditor` is a repeatable row of label and URL, the label a
+  `SuggestInput` when the caller passes `textOptions` (a song's "Song
+  Source") and a plain input otherwise (彩蛋's `link_pairs` field);
+  `LinkPairPills` draws each stored pair as a `LinkPill` labelled with its
+  text, falling back to the host. Stored URL strings read as pairs with no
+  text. `NameEntriesSection` renders the `name_entries` shape — a titled
   list whose items are each `{type: "text" | "link", value, label}` stored in
   the note's own `entries` column, never in `links` — and offers a kind
   dropdown built from `section.kinds` when the registry declares any. **No
@@ -516,7 +540,8 @@ Every type-or-choose input opens the same list: `SuggestList`, with
 `SuggestItem` for an option and `SuggestNote` for a line that is not one
 ("No matches found", "Loading entries to search from…", a "will be created
 as new" hint), all from `components/forms/SuggestList.jsx`. Its users are
-`SuggestInput`, `ComboBox`, `MultiSelect`, the notes `NamesInput`
+`SuggestInput` (among others, the notes Song Type and song-link label
+inputs), `ComboBox`, `MultiSelect`, the notes `NamesInput`
 (`pages/notes/sections/`), `EntryAutofillSearch` and the older Add tabs'
 inline auto-fill boxes, the game tab's IGDB search (`IgdbSearchBox`), and the
 title search on Modify and on Delete. A new dropdown under an input uses it

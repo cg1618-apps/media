@@ -29,7 +29,6 @@ import EpisodeTextSection from "./sections/EpisodeTextSection";
 import NameLinksSection from "./sections/NameLinksSection";
 import NameEntriesSection from "./sections/NameEntriesSection";
 import StructuredSection from "./sections/StructuredSection";
-import EpisodeNameLinksSection from "./sections/EpisodeNameLinksSection";
 import MusicTrackSection from "./sections/MusicTrackSection";
 import QuoteSection from "./sections/QuoteSection";
 import MemeSection from "./sections/MemeSection";
@@ -41,14 +40,13 @@ const SHAPES = {
   episode_text: EpisodeTextSection,
   name_links: NameLinksSection,
   name_entries: NameEntriesSection,
-  episode_name_links: EpisodeNameLinksSection,
   music_track: MusicTrackSection,
   structured: StructuredSection,
 };
 
 // The first of two deliberate, scoped exceptions to "the frontend never names
 // sections". (The second is the `hideSections` prop on NotesBlocks.)
-// The nine shapes above are fully registry-driven: the backend can add, drop or
+// The shapes above are fully registry-driven: the backend can add, drop or
 // relabel a `text` section and this file never changes. An `external` section
 // cannot work that way - quotes and memes are backed by their own tables, their
 // own endpoints and their own long-lived components, so rendering one means
@@ -135,10 +133,21 @@ export function NotesProvider({
   children,
 }) {
   const [allSections, setSections] = useState([]);
+  // A `hidden` section (music_status) is never a card of its own: its rows
+  // belong to the sections pointing at it through `type_status_section`. It
+  // is dropped here, before any layout or count sees it, so it can neither
+  // render nor make the Music card count rows it does not show.
   const sections = useMemo(
-    () => allSections.filter((section) => ownerMatches(section, owner)),
+    () =>
+      allSections.filter(
+        (section) => !section.hidden && ownerMatches(section, owner),
+      ),
     [allSections, owner],
   );
+  // {category: [values]} for every option category a section draws
+  // suggestions from. Suggestions only, so a category that fails to load is
+  // simply an empty list.
+  const [optionValues, setOptionValues] = useState({});
   const [notes, setNotes] = useState([]);
   // Quotes and memes live in their own tables, so their rows never arrive in
   // `notes` and the page cannot count them itself. Each external section
@@ -193,6 +202,28 @@ export function NotesProvider({
       cancelled = true;
     };
   }, [ownerType, ownerId]);
+
+  useEffect(() => {
+    const categories = [
+      ...new Set(
+        allSections.flatMap((s) => [s.kind_category, s.link_text_category]),
+      ),
+    ].filter(Boolean);
+    if (!categories.length || !ownerType) return;
+    let cancelled = false;
+    Promise.all(
+      categories.map((category) =>
+        Promise.resolve(api.fetchOptionValues(category, ownerType))
+          .then((values) => [category, Array.isArray(values) ? values : []])
+          .catch(() => [category, []]),
+      ),
+    ).then((entries) => {
+      if (!cancelled) setOptionValues(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [allSections, ownerType]);
 
   const reportCount = useCallback((key, n) => {
     setExternalCounts((prev) => (prev[key] === n ? prev : { ...prev, [key]: n }));
@@ -286,12 +317,21 @@ export function NotesProvider({
       );
     }
     const Component = SHAPES[section.shape];
-    if (!Component) return null;
+    if (!Component || section.hidden) return null;
+    // A song list's own status: the row of its `type_status_section` whose
+    // kind is this section's key, or undefined until one is written.
+    const typeStatusNote = section.type_status_section
+      ? (bySection[section.type_status_section] || []).find(
+          (n) => n.kind === section.key,
+        )
+      : undefined;
     return (
       <Component
         key={section.key}
         section={section}
         notes={bySection[section.key] || []}
+        optionValues={optionValues}
+        typeStatusNote={typeStatusNote}
         isAdmin={isAdmin}
         nameSuggestions={nameSuggestions}
         groupOrder={groupOrder}

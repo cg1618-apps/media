@@ -164,14 +164,18 @@ export function SaveCancel({ onSave, onCancel }) {
   );
 }
 
-export function LinkPill({ url }) {
-  const label = (() => {
-    try {
-      return new URL(url).hostname;
-    } catch {
-      return url;
-    }
-  })();
+// `label` overrides the text shown - a link pair's own text. Without one the
+// pill shows the link's host.
+export function LinkPill({ url, label: given }) {
+  const label =
+    given ||
+    (() => {
+      try {
+        return new URL(url).hostname;
+      } catch {
+        return url;
+      }
+    })();
   return (
     <a
       href={url}

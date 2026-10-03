@@ -12,7 +12,6 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import EpisodeNameLinksSection from "./EpisodeNameLinksSection";
 import EpisodeTextSection from "./EpisodeTextSection";
 import MusicTrackSection from "./MusicTrackSection";
 import NameEntriesSection from "./NameEntriesSection";
@@ -72,7 +71,6 @@ const SHAPES = [
   ["EpisodeTextSection", EpisodeTextSection, section("episode_text")],
   ["NameLinksSection", NameLinksSection, section("name_links")],
   ["NameEntriesSection", NameEntriesSection, section("name_entries")],
-  ["EpisodeNameLinksSection", EpisodeNameLinksSection, section("episode_name_links")],
   ["MusicTrackSection", MusicTrackSection, section("music_track")],
   [
     "StructuredSection",
