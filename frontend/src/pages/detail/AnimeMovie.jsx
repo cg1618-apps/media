@@ -275,6 +275,7 @@ export default function AnimeMovie() {
           {/* Sources */}
           <SourcesCard
             sources={movie.sources}
+            coverUrl={imageUrl}
             mediaType="anime"
             malLink={movie.mal_link}
             exclusiveSource={movie.exclusive_source}

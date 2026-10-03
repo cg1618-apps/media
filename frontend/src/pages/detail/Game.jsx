@@ -405,6 +405,7 @@ export default function Game() {
 
             <SourcesCard
               sources={game.sources}
+              coverUrl={imageUrl}
               mediaType="game"
               igdbLink={game.igdb_link}
               steamLink={game.steam_link}

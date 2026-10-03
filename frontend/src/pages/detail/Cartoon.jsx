@@ -298,6 +298,7 @@ export default function Cartoon() {
           {/* Sources */}
           <SourcesCard
             sources={cartoon.sources}
+            coverUrl={imageUrl}
             mediaType="tv-show"
             imdbLink={cartoon.imdb_link}
             originalSource={cartoon.source_official}
