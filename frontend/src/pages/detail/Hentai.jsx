@@ -337,6 +337,7 @@ export default function Hentai() {
 
           <SourcesCard
             sources={hentai.sources}
+            coverUrl={imageUrl}
             mediaType="hentai"
             malLink={hentai.mal_link}
             anidbLink={hentai.anidb_link}

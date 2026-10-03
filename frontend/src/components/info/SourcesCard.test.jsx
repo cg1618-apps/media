@@ -4,6 +4,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { FALLBACK_SVG } from "../../lib/covers";
 import SourcesCard, { accessHeading } from "./SourcesCard";
 
 const rows = [
@@ -183,6 +184,70 @@ describe("SourcesCard", () => {
     );
     expect(screen.queryByRole("link", { name: /fandom/i })).toBeNull();
     expect(screen.getByText("Fandom wiki")).toBeInTheDocument();
+  });
+
+  // An official site has no favicon of its own in the bundle, so it wears the
+  // entry's cover - the same URL the page already shows, never a copy.
+  describe("the official site's icon", () => {
+    const official = (bucket = "main") => ({
+      system_id: "5",
+      kind: "reference",
+      bucket,
+      name: "Official site",
+      url: "https://official.test",
+    });
+    const iconIn = (name) =>
+      within(screen.getByRole("link", { name })).queryByTestId("source-icon");
+
+    it("is the entry's cover", () => {
+      render(
+        <SourcesCard
+          sources={[official()]}
+          mediaType="anime"
+          coverUrl="/api/covers/anime/1.jpg"
+        />,
+      );
+      expect(iconIn(/official site/i)).toHaveAttribute(
+        "src",
+        "/api/covers/anime/1.jpg",
+      );
+    });
+
+    it("is not the no-image placeholder", () => {
+      render(
+        <SourcesCard
+          sources={[official()]}
+          mediaType="anime"
+          coverUrl={FALLBACK_SVG}
+        />,
+      );
+      expect(iconIn(/official site/i)).toBeNull();
+    });
+
+    it("is not given to a typed row that merely says Official site", () => {
+      render(
+        <SourcesCard
+          sources={[official("other")]}
+          mediaType="anime"
+          coverUrl="/api/covers/anime/1.jpg"
+        />,
+      );
+      expect(iconIn(/official site/i)).toBeNull();
+    });
+
+    it("leaves every other source on its own icon", () => {
+      render(
+        <SourcesCard
+          sources={rows}
+          mediaType="anime"
+          coverUrl="/api/covers/anime/1.jpg"
+        />,
+      );
+      expect(iconIn(/wikipedia/i)).not.toHaveAttribute(
+        "src",
+        "/api/covers/anime/1.jpg",
+      );
+    });
   });
 
   it("says so when there is nothing at all", () => {

@@ -278,6 +278,7 @@ export default function Movie() {
           {/* Sources */}
           <SourcesCard
             sources={movie.sources}
+            coverUrl={imageUrl}
             mediaType="movie"
             imdbLink={movie.imdb_link}
             originalSource={movie.original_source}

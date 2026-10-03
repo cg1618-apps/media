@@ -288,6 +288,7 @@ export default function TV() {
           {/* Sources */}
           <SourcesCard
             sources={show.sources}
+            coverUrl={imageUrl}
             mediaType="tv-show"
             imdbLink={show.imdb_link}
             originalSource={show.source_official}

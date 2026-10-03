@@ -303,9 +303,14 @@ not drawn. The character, person and studio libraries use it for
   `src/assets/source-icons/`, bundled with the SPA and never fetched from the
   sites. Only `main` rows and the column-backed links are looked up: an
   Other or Restricted row's name is typed text, so it never gets an icon even
-  when it matches one. A name with no entry — `Official site`, `Cinema`,
-  `Other`, or a vocabulary value added later — keeps an empty 16 px slot, so
-  the names in a section stay aligned. A new `Platform` or `Reference Source`
+  when it matches one. `Official site` is the one exception to the map: every
+  work has its own, so its icon is the entry's cover, passed in as `coverUrl`
+  by each detail page — the same `/api/covers/` URL the page already shows,
+  cropped to the square, so nothing is stored or fetched twice. An entry with
+  no cover leaves the slot empty rather than shrinking the "No Image"
+  placeholder into it. A name with no entry — `Cinema`, `Other`, or a
+  vocabulary value added later — keeps an empty 16 px slot, so the names in a
+  section stay aligned. A new `Platform` or `Reference Source`
   value gets an icon by saving its favicon there and adding its name to the
   map. The icon is what names the site, so no source link carries a `Tag`
   box beside it — the `Tag` chips are only the tag-field row above.

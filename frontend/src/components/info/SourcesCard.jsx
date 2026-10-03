@@ -6,7 +6,13 @@
 // colours appear - Other and Restricted rows, being free text, have none and
 // keep an empty slot so every name in a section lines up.
 import { Slip } from "../ui/primitives";
+import { FALLBACK_SVG } from "../../lib/covers";
 import { sourceIconUrl } from "../../lib/sourceIcons";
+
+// The one Reference Source value whose icon is the entry rather than the site:
+// every work has its own official site, so no bundled favicon can stand for
+// them. Matches app/utils/source_fields.py's OFFICIAL_SITE_VALUE.
+const OFFICIAL_SITE = "Official site";
 
 const ROW_CLS =
   "flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border last:border-b-0 text-sm";
@@ -23,22 +29,24 @@ function Tag({ children }) {
 
 // A fixed 16px slot, empty when the source has no icon. The white tile keeps
 // the dark-on-transparent favicons (Wikipedia, FX, E-Hentai) legible in dark
-// mode.
-function SourceIcon({ src }) {
+// mode. A cover fills the slot instead: it is a photo, not a transparent mark,
+// so it is cropped to the square rather than letterboxed on white.
+function SourceIcon({ src, cover = false }) {
   if (!src) return <span className="w-4 h-4 shrink-0" aria-hidden="true" />;
+  const fit = cover ? "object-cover" : "bg-white object-contain";
   return (
     <img
       src={src}
       alt=""
       aria-hidden="true"
       data-testid="source-icon"
-      className="w-4 h-4 shrink-0 rounded-sm bg-white object-contain"
+      className={`w-4 h-4 shrink-0 rounded-sm ${fit}`}
       loading="lazy"
     />
   );
 }
 
-function SourceLink({ href, icon, children, title }) {
+function SourceLink({ href, icon, cover, children, title }) {
   return (
     <a
       href={href}
@@ -48,7 +56,7 @@ function SourceLink({ href, icon, children, title }) {
       title={title}
     >
       <span className="flex items-center gap-2 min-w-0">
-        <SourceIcon src={icon} />
+        <SourceIcon src={icon} cover={cover} />
         <span className="truncate">{children}</span>
       </span>
       <i
@@ -59,11 +67,11 @@ function SourceLink({ href, icon, children, title }) {
   );
 }
 
-function SourceRow({ icon, children, muted = false }) {
+function SourceRow({ icon, cover, children, muted = false }) {
   return (
     <div className={`${PLAIN_CLS} ${muted ? "text-text-faint" : ""}`}>
       <span className="flex items-center gap-2 min-w-0">
-        <SourceIcon src={icon} />
+        <SourceIcon src={icon} cover={cover} />
         <span className="truncate">{children}</span>
       </span>
     </div>
@@ -90,13 +98,24 @@ export function accessHeading(mediaType) {
 // Only `main` rows are looked up for an icon: their names come from a
 // vocabulary, while an other/restricted name is typed text that may merely
 // resemble one.
-function SourceEntry({ row }) {
+//
+// The official site wears the entry's cover - the URL the page already shows,
+// so the browser draws it from cache and nothing is stored twice. An entry
+// with no cover leaves the slot empty rather than shrinking the "No Image"
+// placeholder into it.
+function SourceEntry({ row, coverUrl }) {
   const name = <span data-testid="source-name">{row.name}</span>;
-  const icon = row.bucket === "main" ? sourceIconUrl(row.name) : null;
+  const isMain = row.bucket === "main";
+  const cover =
+    isMain &&
+    row.name === OFFICIAL_SITE &&
+    Boolean(coverUrl) &&
+    coverUrl !== FALLBACK_SVG;
+  const icon = cover ? coverUrl : isMain ? sourceIconUrl(row.name) : null;
 
   if (row.available === false) {
     return (
-      <SourceRow icon={icon} muted>
+      <SourceRow icon={icon} cover={cover} muted>
         {name}
         <span className="ml-2 text-[10px] uppercase tracking-wide">
           (not available)
@@ -111,7 +130,7 @@ function SourceEntry({ row }) {
   // site, Twitter, AniList, wiki and free-form source.
   if (row.url) {
     return (
-      <SourceLink href={row.url} icon={icon}>
+      <SourceLink href={row.url} icon={icon} cover={cover}>
         {name}
       </SourceLink>
     );
@@ -119,13 +138,17 @@ function SourceEntry({ row }) {
 
   if (row.available == null) {
     return (
-      <SourceRow icon={icon} muted>
+      <SourceRow icon={icon} cover={cover} muted>
         {name}
       </SourceRow>
     );
   }
 
-  return <SourceRow icon={icon}>{name}</SourceRow>;
+  return (
+    <SourceRow icon={icon} cover={cover}>
+      {name}
+    </SourceRow>
+  );
 }
 
 export default function SourcesCard({
@@ -144,6 +167,7 @@ export default function SourcesCard({
   originalSource,
   exclusiveSource,
   serializationPlatform,
+  coverUrl,
 }) {
   // Never re-sort - the server already ordered these by `position`
   // (vocabulary sort_order for `main` rows, insertion order for `other`/
@@ -197,7 +221,7 @@ export default function SourcesCard({
             {accessHeading(mediaType)}
           </div>
           {accessRows.map((row) => (
-            <SourceEntry key={row.system_id} row={row} />
+            <SourceEntry key={row.system_id} row={row} coverUrl={coverUrl} />
           ))}
           {/* A storefront, not a reference database - so it sits with the
               access rows rather than beside IGDB. It is column-backed
@@ -244,7 +268,7 @@ export default function SourcesCard({
             Where to Look Up
           </div>
           {referenceRows.map((row) => (
-            <SourceEntry key={row.system_id} row={row} />
+            <SourceEntry key={row.system_id} row={row} coverUrl={coverUrl} />
           ))}
           {malLink && (
             <SourceLink
