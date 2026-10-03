@@ -538,6 +538,7 @@ export default function Manga() {
           {/* Sources */}
           <SourcesCard
             sources={manga.sources}
+            coverUrl={imageUrl}
             mediaType="manga"
             malLink={manga.mal_link}
             serializationPlatform={manga.serialization_platform}

@@ -408,6 +408,7 @@ export default function Novel() {
           {/* Sources */}
           <SourcesCard
             sources={novel.sources}
+            coverUrl={imageUrl}
             mediaType="novel"
             malLink={novel.mal_link}
             openLibraryLink={novel.openlibrary_link}

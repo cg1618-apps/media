@@ -355,6 +355,7 @@ export default function HGame() {
 
             <SourcesCard
               sources={hGame.sources}
+              coverUrl={imageUrl}
               mediaType="h-game"
               igdbLink={hGame.igdb_link}
               steamLink={hGame.steam_link}

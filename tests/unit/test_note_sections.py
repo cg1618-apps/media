@@ -560,6 +560,9 @@ PERSONAL_KEYS = {
     "todo_next",
     "todo_later",
     "todo_maybe",
+    # Save slots sit at the bottom of 待辦: which save is which is one
+    # person's run, like the buckets above it.
+    "saves",
 }
 
 CATALOG_KEYS = {
@@ -656,7 +659,7 @@ def test_external_sections_carry_no_scope():
         assert sec.scope is None
 
 
-def test_the_personal_sections_are_exactly_these_thirteen():
+def test_the_personal_sections_are_exactly_these_fourteen():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
         PERSONAL_KEYS
     )
@@ -672,7 +675,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 72
+    assert len(stored) == 73
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
@@ -693,5 +696,6 @@ def test_sections_by_scope_returns_registry_order():
         "todo_next",
         "todo_later",
         "todo_maybe",
+        "saves",
         "questions",
     ]

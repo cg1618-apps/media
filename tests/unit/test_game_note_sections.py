@@ -88,8 +88,72 @@ def test_the_worldbuilding_card_renders_after_the_story_list():
     assert order.index("story_other") < order.index("todo_now")
 
 
-def test_the_todo_group_holds_four_buckets_in_order():
-    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "todo"] == TODO_KEYS
+def test_the_todo_group_holds_four_buckets_then_the_saves():
+    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "todo"] == (
+        TODO_KEYS + ["saves"]
+    )
+
+
+def test_saves_is_a_personal_structured_game_section():
+    section = ns.section_by_key("saves")
+    assert section.label == "存檔 Saves"
+    assert section.shape == ns.SHAPE_STRUCTURED
+    assert section.owners == ns.GAME_OWNERS
+    assert section.scope == ns.SCOPE_PERSONAL
+
+
+def test_a_save_is_number_name_checkpoint_note_and_the_slot_it_came_from():
+    fields = {f.key: f for f in ns.section_by_key("saves").fields}
+    assert list(fields) == ["number", "name", "checkpoint", "note", "based_on"]
+    assert fields["number"].column == "locator"
+    assert fields["name"].column == "title"
+    assert fields["note"].column == "content"
+    # Not a column: no `note` column means "the slot this one was copied
+    # from", so it is stored in the `fields` blob.
+    assert fields["based_on"].column is None
+
+
+def test_both_slot_fields_say_which_slot_they_mean():
+    # A bare "e.g. 2" does not say whose slot: the number is this save's own,
+    # the other is the slot it was copied from.
+    fields = {f.key: f for f in ns.section_by_key("saves").fields}
+    assert fields["number"].placeholder == "This save's slot number"
+    assert fields["based_on"].placeholder == "Slot number it was copied from"
+
+
+def test_a_save_is_a_regular_checkpoint_unless_marked_main():
+    checkpoint = {f.key: f for f in ns.section_by_key("saves").fields}[
+        "checkpoint"
+    ]
+    assert checkpoint.type == ns.FIELD_SELECT
+    assert checkpoint.column == "kind"
+    assert checkpoint.options == ("regular", "main")
+    assert checkpoint.default == "regular"
+
+
+def test_a_save_needs_a_number_or_a_name():
+    # The checkpoint is defaulted, so it cannot be what makes a row worth
+    # keeping, and a note alone does not say which save it describes.
+    with pytest.raises(ValueError):
+        validate_note_payload(
+            NoteCreate(
+                owner_type="game",
+                owner_id=None,
+                section="saves",
+                kind="regular",
+                content="before the boss",
+            )
+        )
+    validate_note_payload(
+        NoteCreate(
+            owner_type="game",
+            owner_id=None,
+            section="saves",
+            locator="3",
+            kind="main",
+            fields={"based_on": "2"},
+        )
+    )
 
 
 def test_the_new_sections_are_game_only():

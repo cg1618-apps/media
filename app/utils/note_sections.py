@@ -466,6 +466,10 @@ ENDING_STATUSES = ("not yet", "reached", "skipped")
 # the mods that go on every install before anything else.
 MOD_STATUSES = ("常駐", "to use", "to play", "played", "won't")
 
+# Whether a save is one to come back to. Closed: it is a fact about my run,
+# the same in every game.
+SAVE_CHECKPOINTS = ("regular", "main")
+
 # What a 模組&工具 row is. Carried over from the section's old `kinds`.
 MOD_KINDS = ("Mod", "Tool")
 
@@ -1666,6 +1670,47 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=GAME_OWNERS,
         scope=SCOPE_PERSONAL,
         group="todo",
+    ),
+    # The save slots of my run: what each one is, which are the checkpoints
+    # worth going back to, and which slot each was copied from. Last in 待辦,
+    # and personal like the buckets above it - a save is one person's.
+    NoteSection(
+        key="saves",
+        shape=SHAPE_STRUCTURED,
+        label="存檔 Saves",
+        owners=GAME_OWNERS,
+        scope=SCOPE_PERSONAL,
+        group="todo",
+        require_any=(("number", "name"),),
+        fields=(
+            # Free text, like Story List's No.: a slot is "3" in one game and
+            # "Auto 2" or "Quick" in the next.
+            NoteField(
+                key="number",
+                label="No.",
+                column="locator",
+                placeholder="This save's slot number",
+            ),
+            NoteField(key="name", label="Name", column="title"),
+            NoteField(
+                key="checkpoint",
+                label="Checkpoint",
+                type=FIELD_SELECT,
+                column="kind",
+                options=SAVE_CHECKPOINTS,
+                default="regular",
+            ),
+            NoteField(
+                key="note", label="Note", type=FIELD_TEXTAREA, column="content"
+            ),
+            # The slot this save was copied or continued from. In `fields`:
+            # no `note` column means that.
+            NoteField(
+                key="based_on",
+                label="Based on slot",
+                placeholder="Slot number it was copied from",
+            ),
+        ),
     ),
     # --- 音樂 Music -------------------------------------------------------
     # The sections below form the music group, and the page renders that run

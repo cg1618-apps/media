@@ -487,6 +487,7 @@ export default function HComic() {
 
           <SourcesCard
             sources={hComic.sources}
+            coverUrl={imageUrl}
             mediaType="h-comic"
             malLink={hComic.mal_link}
             ehentaiLink={hComic.ehentai_link}
