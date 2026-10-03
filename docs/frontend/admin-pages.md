@@ -377,9 +377,9 @@ Supporting, Other — `CHARACTER_ROLES`), the same Gender and My Rating selects,
 a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
 page; the server reads the MAL id from it and, on save, fills the blank names
 and the photo from MAL — see [api.md](../api.md#character--apicharacter)),
-the photo and the remark. The Role is the character's own and is
-independent of the role any casting gives it: neither is derived from nor
-prefilled by the other. It starts
+the photo and the remark. The Role is the character's own. Left blank, it
+is filled from the highest-ranked role the character's castings give it on
+the next cast save or Calculate All; once set it is never overwritten. It starts
 with gender unset; only a character minted from an entry's cast editor starts
 with one (女 on an h-comic or a hentai — `NEW_CAST_CHARACTER_GENDER`, see
 `CastEditor` in [components.md](components.md)). `CharacterFields` is exported
