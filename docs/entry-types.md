@@ -403,7 +403,7 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | 劇情列表 group — `story_list_main`, `story_list_side`, `story_list_character`, `story_list_event` (`structured`, nestable) | | | | | | | | | x | | x (in the 劇情 card) | |
 | 世界觀 group — `lore`, `timeline`, `mysteries`, `story_other` (`text_links`), `story_terms` (`structured`) | | | | | | | | | x | |  | |
 | NG 多周目 group — `ng_flow`, `ng_carried_over`, `ng_reset`, `ng_before_starting` (`structured`) | | | | | | | | | x | | x | |
-| 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`, personal scope) | | | | | | | | | x | | x | |
+| 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`), `saves` (`structured`), all personal scope | | | | | | | | | x | | x | |
 | `cinematography` (`分鏡/演出/巧思`) | x | x | | x | x | x | | | | |  | series |
 | `craft` (`巧思`) | | | | | | | x | | | |  | |
 | `foreshadowing` | x | x | | x | x | x | x | | | |  | both |
