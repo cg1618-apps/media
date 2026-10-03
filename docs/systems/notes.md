@@ -110,7 +110,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `story_list` | 劇情列表 Story List | `fa-list-ol` — game only, 4 **hierarchical** strands (an h-game's render in 劇情) |
 | `worldbuilding` | 世界觀 Worldbuilding | `fa-earth-asia` — game only: lore, story terms, timeline, mysteries, other. The world it happens in |
 | `ng_plus` | NG 多周目 | `fa-rotate` — game and h-game only: flow, carried over, reset, before starting. What starting over keeps and takes away |
-| `todo` | 待辦 Todo | `fa-list-check` — game and h-game only, 4 personal-scope buckets |
+| `todo` | 待辦 Todo | `fa-list-check` — game and h-game only, 4 personal-scope buckets and then 存檔 Saves, all personal |
 | `music` | 音樂 Music | `fa-music` |
 | `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` — every owner but h-comic, hentai and h-game |
 
@@ -289,6 +289,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `todo_next` | 接下來 To do next | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `todo_later` | 未來 To do in the future | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `todo_maybe` | 可能 Might do | text_links | todo | game, h-game | — | — | — | no | no | no |
+| `saves` | 存檔 Saves | **structured** | todo | game, h-game | — | — | — | no | no | no |
 | `music_status` | 音樂狀態 Music Status | music_status | music (**hidden**) | anime | op, ed, insert_songs, ost — one row each (`one_per_kind`) | All Done, Done, Need, Pending, Not Done (default `Not Done`) | — | no | per kind | no |
 | `op` | OP | music_track | music | anime | free text, suggested from "Song Type" (default `normal`) | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
 | `ed` | ED | music_track | music | anime | same as `op` | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
@@ -432,6 +433,7 @@ column a field claims; a field with no arrow lives in `fields`.
 | `ng_carried_over` / `ng_reset` / `ng_before_starting` | type → `kind` (free-text select), name → `title`, description → `content`, **points** *(list: text)*, links → `links`; `groupable_by = "type"` |
 | `main_plot` / `side_plot` | chapter → `locator` *(placeholder "Chapter / Part, e.g. Ch 3")*, description → `content`, links → `links` |
 | the four `story_list_*` strands | order → `locator`, name → `title`, description → `content`, links → `links`; `hierarchical`, `require_any = (("order", "name"),)` |
+| `saves` | number → `locator` *(placeholder "e.g. 3")*, name → `title`, checkpoint → `kind` *(`regular` / `main`, default `regular`)*, note → `content`, based on slot *(free text, the slot it was copied from)*; `require_any = (("number", "name"),)` |
 
 Only four fields in the whole group need `fields` at all — `variant`, `alias`,
 `region`, `developer` — plus the stat values and the nested lists. Everything
@@ -466,7 +468,7 @@ Every section declares a **`scope`**, and the field has **no default** — a sec
 | Scope | Sections | Meaning |
 | --- | --- | --- |
 | `catalog` | 57 | One shared set of rows, read by everyone unfiltered |
-| `personal` | 13 — `remark`, `remark_list`, `reviews_and_comments`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions`, and the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe` | One set per user; a viewer sees their own rows and nobody else's |
+| `personal` | 14 — `remark`, `remark_list`, `reviews_and_comments`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions`, the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe`, and `saves` | One set per user; a viewer sees their own rows and nobody else's |
 | `None` | `quotes`, `memes` | The two `external` sections, backed by their own tables. Quotes and memes are **universal** — shared, unfiltered, no per-user copies — so scope does not apply |
 
 The distinction lives in the registry rather than in the schema, so reclassifying a section is a registry edit plus a data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves `scope` on every entry (`NoteSectionOut.scope`); the frontend does not act on it yet.
