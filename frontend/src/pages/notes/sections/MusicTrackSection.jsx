@@ -1,17 +1,27 @@
-// Frontend: renders one `music_track`-shaped section - OP, ED, Insert and OST.
-// One row is one song: its name, which cut it is (type), how far tracking it
-// has got (status), where to hear it, and a remark.
+// Frontend: renders one `music_track`-shaped section - OP, ED, 插入曲 Insert
+// Song or OST. Every list holds the same row: the song's name, how far
+// tracking that song has got (status), the episode it plays in, where to hear
+// it (text-and-URL link pairs) and a remark. OP and ED add a Song Type, free
+// text suggested from the section's `kind_category`.
 //
-// The only shape with two dropdowns, which is why `note` carries `status`
-// alongside `kind`: the type is a property of the song, the status a property
-// of my work on it, and one row needs both. The status values are the ones the
-// anime.op / ed / insert_ost columns held before those columns became rows.
+// Above the songs, in the card's header, sits the LIST's own status - "All
+// Done", "Not Done", ... - which lives in the hidden `music_status` section,
+// in the row whose `kind` is this section's key. The provider hands that row
+// in as `typeStatusNote`; a list with none reads as the registry default and
+// gets its row the first time the status is changed.
 import { useState } from "react";
 
+import SuggestInput from "../../../components/forms/SuggestInput";
+import { LinkPairPills, LinkPairsEditor } from "./LinkPairs";
+import {
+  hasLinkPair,
+  pairsFromLinks,
+  pairsIncomplete,
+  pairsToLinks,
+} from "./linkPairValues";
 import {
   EmptyHint,
   ItemActions,
-  LinkPill,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
@@ -27,7 +37,8 @@ const empty = (section) => ({
   title: "",
   kind: section.default_kind || "",
   status: "",
-  link: "",
+  locator: "",
+  links: [],
   content: "",
 });
 
@@ -35,24 +46,76 @@ const fromNote = (n, section) => ({
   title: n.title || "",
   kind: n.kind || section.default_kind || "",
   status: n.status || "",
-  // The shape stores at most one link, but the column is a list like every
-  // other section's.
-  link: n.links?.[0] || "",
+  locator: n.locator || "",
+  links: pairsFromLinks(n.links),
   content: n.content || "",
 });
 
 // Blanks go out as null so a PATCH clears the column rather than storing "".
-const toFields = (val) => ({
+// A list with no Song Type never sends a kind - the server refuses one there.
+const toFields = (val, section) => ({
   title: val.title.trim() || null,
-  kind: val.kind || null,
+  ...(section.kind_category ? { kind: val.kind.trim() || null } : {}),
   status: val.status || null,
+  locator: val.locator.trim() || null,
+  links: pairsToLinks(val.links),
   content: val.content.trim() || null,
-  links: val.link.trim() ? [val.link.trim()] : [],
 });
 
-const selectCls = inputCls + " bg-surface";
+// Mirrors validate_note_payload, so the reader sees an inert Save rather than
+// a 422: the row needs a name, status, episode, link or remark - the Song
+// Type is prefilled, so it cannot be what makes a row worth storing - and a
+// link label with no URL holds the save rather than being dropped.
+const invalid = (val) =>
+  pairsIncomplete(val.links) ||
+  (!val.title.trim() &&
+    !val.status &&
+    !val.locator.trim() &&
+    !hasLinkPair(val.links) &&
+    !val.content.trim());
 
-function MusicTrackForm({ val, setVal, section }) {
+const selectCls = inputCls + " bg-surface";
+const statusSelectCls =
+  "border border-border-strong bg-surface text-text px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-brand";
+
+// The list's own status, in the card header. Admins get a compact select over
+// the closed vocabulary; everyone else reads it as a tag.
+function TypeStatus({ section, note, isAdmin, onCreate, onUpdate }) {
+  const value = note?.status || section.type_status_default || "";
+  if (!isAdmin) {
+    return value ? <span className={brandTagCls}>{value}</span> : null;
+  }
+  const change = (status) => {
+    if (!status || status === value) return;
+    if (note) onUpdate(note.system_id, { status });
+    else
+      onCreate({
+        section: section.type_status_section,
+        kind: section.key,
+        status,
+      });
+  };
+  return (
+    <select
+      value={value}
+      onChange={(e) => change(e.target.value)}
+      aria-label={`${section.label} status`}
+      className={statusSelectCls}
+    >
+      {section.type_statuses.map((s) => (
+        <option key={s} value={s}>
+          {s}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function MusicTrackForm({ val, setVal, section, optionValues }) {
+  const kindOptions = optionValues?.[section.kind_category] || [];
+  const textOptions = section.link_text_category
+    ? optionValues?.[section.link_text_category] || []
+    : undefined;
   return (
     <div className="space-y-2">
       <input
@@ -62,21 +125,20 @@ function MusicTrackForm({ val, setVal, section }) {
         className={inputCls}
       />
       <div className="grid grid-cols-2 gap-2">
-        <select
-          value={val.kind}
-          onChange={(e) => setVal({ ...val, kind: e.target.value })}
-          className={selectCls}
-        >
-          <option value="">Type</option>
-          {section.kinds.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
+        {section.kind_category && (
+          <SuggestInput
+            value={val.kind}
+            onChange={(kind) => setVal({ ...val, kind })}
+            options={kindOptions}
+            placeholder="Song type"
+            aria-label="Song type"
+            className={inputCls}
+          />
+        )}
         <select
           value={val.status}
           onChange={(e) => setVal({ ...val, status: e.target.value })}
+          aria-label="Song status"
           className={selectCls}
         >
           <option value="">Status</option>
@@ -86,12 +148,18 @@ function MusicTrackForm({ val, setVal, section }) {
             </option>
           ))}
         </select>
+        <input
+          value={val.locator}
+          onChange={(e) => setVal({ ...val, locator: e.target.value })}
+          placeholder={section.locator_placeholder || "Episode (optional)"}
+          aria-label="Episode"
+          className={inputCls}
+        />
       </div>
-      <input
-        value={val.link}
-        onChange={(e) => setVal({ ...val, link: e.target.value })}
-        placeholder="https://... (optional)"
-        className={inputCls}
+      <LinkPairsEditor
+        pairs={val.links}
+        onChange={(links) => setVal({ ...val, links })}
+        textOptions={textOptions}
       />
       <textarea
         value={val.content}
@@ -111,6 +179,8 @@ export default function MusicTrackSection({
   onCreate,
   onUpdate,
   onDelete,
+  optionValues,
+  typeStatusNote,
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(() => empty(section));
@@ -120,22 +190,16 @@ export default function MusicTrackSection({
     keep: (row) => row.system_id === editId,
   });
 
-  // The type is prefilled, so it cannot be what makes a row worth storing.
-  // Mirrors validate_note_payload so the reader sees an inert Save rather than
-  // a 422.
-  const invalid = (val) =>
-    !val.title.trim() && !val.status && !val.link.trim() && !val.content.trim();
-
   const commit = () => {
     if (invalid(draft)) return;
-    onCreate({ section: section.key, ...toFields(draft) });
+    onCreate({ section: section.key, ...toFields(draft, section) });
     setDraft(empty(section));
     setAdding(false);
   };
 
   const saveEdit = () => {
     if (invalid(editVal)) return;
-    onUpdate(editId, toFields(editVal));
+    onUpdate(editId, toFields(editVal, section));
     setEditId(null);
   };
 
@@ -145,18 +209,27 @@ export default function MusicTrackSection({
       count={notes.length}
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
+      actions={
+        section.type_status_section && (
+          <TypeStatus
+            section={section}
+            note={typeStatusNote}
+            isAdmin={isAdmin}
+            onCreate={onCreate}
+            onUpdate={onUpdate}
+          />
+        )
+      }
     >
       {cap.visible.map((n) => (
-        <div
-          key={n.system_id}
-          className={rowCls}
-        >
+        <div key={n.system_id} className={rowCls}>
           {editId === n.system_id ? (
             <div>
               <MusicTrackForm
                 val={editVal}
                 setVal={setEditVal}
                 section={section}
+                optionValues={optionValues}
               />
               <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
             </div>
@@ -164,30 +237,21 @@ export default function MusicTrackSection({
             <div className="flex gap-2 items-start">
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
+                  {n.locator && <span className={tagCls}>{n.locator}</span>}
                   {n.title && (
                     <span className="text-sm font-semibold text-text">
                       {n.title}
                     </span>
                   )}
-                  {n.kind && (
-                    <span className={tagCls}>
-                      {n.kind}
-                    </span>
-                  )}
-                  {n.status && (
-                    <span className={brandTagCls}>
-                      {n.status}
-                    </span>
-                  )}
+                  {n.kind && <span className={tagCls}>{n.kind}</span>}
+                  {n.status && <span className={brandTagCls}>{n.status}</span>}
                 </div>
                 {n.content && (
                   <p className="text-sm text-text whitespace-pre-wrap">
                     {n.content}
                   </p>
                 )}
-                {(n.links || []).filter(Boolean).map((l, j) => (
-                  <LinkPill key={j} url={l} />
-                ))}
+                <LinkPairPills links={n.links} />
               </div>
               <ItemActions
                 isAdmin={isAdmin}
@@ -204,7 +268,12 @@ export default function MusicTrackSection({
       <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>
-          <MusicTrackForm val={draft} setVal={setDraft} section={section} />
+          <MusicTrackForm
+            val={draft}
+            setVal={setDraft}
+            section={section}
+            optionValues={optionValues}
+          />
           <SaveCancel
             onSave={commit}
             onCancel={() => {

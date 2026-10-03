@@ -1,19 +1,20 @@
 """Note request/response schemas, validated against the section registry."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
 from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import (
+    FIELD_LINK_PAIRS,
     FIELD_LINKS,
     FIELD_LIST,
     FIELD_NAMES,
     FIELD_SELECT,
-    SHAPE_EPISODE_NAME_LINKS,
     SHAPE_EPISODE_TEXT,
+    SHAPE_MUSIC_STATUS,
     SHAPE_MUSIC_TRACK,
     SHAPE_NAME_ENTRIES,
     SHAPE_NAME_LINKS,
@@ -30,7 +31,26 @@ from app.utils.note_sections import (
     locator_for,
     section_by_key,
     sections_for,
+    uses_link_pairs,
 )
+
+
+class LinkPair(BaseModel):
+    """
+    One link of a section whose links are text-and-URL pairs - the song lists
+    and 彩蛋 (see note_sections.uses_link_pairs). `text` is the label shown
+    for the link (YouTube, Spotify, ...), suggested from the "Song Source"
+    option category but free; `url` is required, which validate_note_payload
+    enforces so the error names the section.
+
+    An unknown key is refused, so a typo'd `label` cannot be stored and then
+    silently never shown.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: Optional[str] = None
+    url: str
 
 
 class NoteBase(BaseModel):
@@ -42,10 +62,14 @@ class NoteBase(BaseModel):
     status: Optional[str] = None
     title: Optional[str] = None
     content: Optional[str] = None
-    links: Optional[List[str]] = None
+    # URL strings everywhere except the sections whose links are pairs, where
+    # each item is a LinkPair. Which of the two a section takes is the
+    # registry's call (uses_link_pairs) and validate_note_payload refuses the
+    # other, so one section never holds both.
+    links: Optional[List[Union[str, LinkPair]]] = None
     # The name_entries shape's ordered items: each is
     # {"type": "text"|"link", "value": str, "label": str|None}. Kept apart from
-    # `links`, which is a plain list of URL strings.
+    # `links`, which holds URL strings or text-and-URL pairs.
     entries: Optional[List[dict]] = None
     # The structured shape's non-column fields, keyed by NoteField.key. Checked
     # against the section's spec by validate_note_payload - an unknown key is
@@ -142,6 +166,27 @@ class NoteSectionOut(BaseModel):
     # Owner-entry columns the section is limited to, {column: [values]}. The
     # page renders no card on an owner outside them; the API refuses a row.
     owner_where: dict[str, List[str]] = {}
+    # Whether `links` holds {"text", "url"} pairs rather than URL strings.
+    link_pairs: bool = False
+    # The system_option category suggesting a link pair's `text`. None offers
+    # no suggestions.
+    link_text_category: Optional[str] = None
+    # `kind` is free text suggested from this system_option category (the
+    # Song Type of an OP or ED). Set only where `kinds` is empty.
+    kind_category: Optional[str] = None
+    # What a new row's `status` starts on.
+    default_status: Optional[str] = None
+    # At most one row per (owner, kind); a second is refused with a 422.
+    one_per_kind: bool = False
+    # Not rendered as a card: its rows belong to the sections pointing at it.
+    hidden: bool = False
+    # The section holding this section's list-level status, in the row whose
+    # `kind` is this section's key - and that status's vocabulary and default,
+    # resolved here so the page can draw the status bar from this endpoint
+    # alone. None and empty where the section has no list-level status.
+    type_status_section: Optional[str] = None
+    type_statuses: List[str] = []
+    type_status_default: Optional[str] = None
 
 
 class NoteReorder(BaseModel):
@@ -172,6 +217,7 @@ def field_out(field: NoteField) -> NoteFieldOut:
 def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
     """Resolve a registry entry for one owner type."""
     group = group_by_key(group_for(section, owner_type) or "")
+    type_status = section_by_key(section.type_status_section or "")
     return NoteSectionOut(
         key=section.key,
         shape=section.shape,
@@ -194,6 +240,15 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         group_by=section.group_by,
         groupable_by=section.groupable_by,
         owner_where={k: list(v) for k, v in section.owner_where.items()},
+        link_pairs=uses_link_pairs(section),
+        link_text_category=section.link_text_category,
+        kind_category=section.kind_category,
+        default_status=section.default_status,
+        one_per_kind=section.one_per_kind,
+        hidden=section.hidden,
+        type_status_section=type_status.key if type_status else None,
+        type_statuses=list(type_status.statuses) if type_status else [],
+        type_status_default=type_status.default_status if type_status else None,
     )
 
 
@@ -220,6 +275,32 @@ def _is_blank(value) -> bool:
     return False
 
 
+def _check_link_pairs(links, where: str) -> None:
+    """Every item a text-and-URL pair, and every pair carrying a URL."""
+    if not isinstance(links, list) or not all(
+        isinstance(link, LinkPair) for link in links
+    ):
+        raise ValueError(f"{where} must be text-and-URL pairs.")
+    for i, link in enumerate(links, start=1):
+        if not link.url.strip():
+            raise ValueError(f"{where} link {i} needs a URL.")
+
+
+def _check_links(section: NoteSection, links) -> None:
+    """
+    A non-structured section's links, in the one shape its registry entry
+    takes: pairs where uses_link_pairs says so, URL strings everywhere else.
+    A structured section checks its links field by field instead.
+    """
+    if not links:
+        return
+    where = f"Section '{section.key}' links"
+    if uses_link_pairs(section):
+        _check_link_pairs(links, where)
+    elif not all(isinstance(link, str) for link in links):
+        raise ValueError(f"{where} must be URLs.")
+
+
 def _check_scalar(field: NoteField, value, where: str) -> None:
     """One text, textarea or select value."""
     if not isinstance(value, str):
@@ -244,6 +325,10 @@ def _check_field(field: NoteField, value, where: str) -> None:
     if field.type == FIELD_LINKS:
         if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
             raise ValueError(f"{where} must be a list of URLs.")
+        return
+
+    if field.type == FIELD_LINK_PAIRS:
+        _check_link_pairs(value, where)
         return
 
     if field.type == FIELD_NAMES:
@@ -346,8 +431,9 @@ def validate_note_payload(payload: NoteBase) -> None:
     """
     Check one note against the registry.
 
-    Raises ValueError, which the router turns into a 422. Singleton uniqueness
-    is not checked here - it needs a database query, so the router owns it.
+    Raises ValueError, which the router turns into a 422. Singleton and
+    one-per-kind uniqueness are not checked here - they need a database query,
+    so the router owns them.
     """
     owner_type = payload.owner_type
     if owner_type not in OWNER_TABLES:
@@ -384,7 +470,10 @@ def validate_note_payload(payload: NoteBase) -> None:
     if payload.fields is not None:
         raise ValueError(f"Section '{section.key}' takes no structured fields.")
 
-    if payload.kind:
+    _check_links(section, payload.links)
+
+    # A kind_category makes `kind` free text: the category only suggests.
+    if payload.kind and not section.kind_category:
         allowed = kinds_for(section, owner_type)
         if not allowed:
             raise ValueError(
@@ -439,32 +528,31 @@ def validate_note_payload(payload: NoteBase) -> None:
     elif section.shape == SHAPE_EPISODE_TEXT:
         if not content and not (payload.locator or "").strip():
             raise ValueError(f"Section '{section.key}' note is empty.")
-    elif section.shape == SHAPE_EPISODE_NAME_LINKS:
-        # Any one of the columns carries the row. The episode alone is enough -
-        # and `locator_required` above has already insisted on it - so an insert
-        # song named later is still storable now.
+    elif section.shape == SHAPE_MUSIC_TRACK:
+        # Any one column carries a song: a status alone is enough - "I still
+        # need the OP" is a real note before the song has a name - and so is
+        # an episode, since a remembered scene often comes before the title.
+        # `kind` never counts: OP and ED default it to "normal", so it is
+        # always set and would make every row non-empty.
         if (
             not content
-            and not (payload.locator or "").strip()
             and not (payload.title or "").strip()
             and not (payload.status or "").strip()
+            and not (payload.locator or "").strip()
             and not payload.links
         ):
             raise ValueError(f"Section '{section.key}' note is empty.")
-    elif section.shape == SHAPE_MUSIC_TRACK:
-        links = [l for l in (payload.links or []) if l.strip()]
-        if len(links) > 1:
-            raise ValueError(f"Section '{section.key}' takes one link per note.")
-        # `kind` defaults to "normal" and so is always set, which would make
-        # every row non-empty; the row has to say something of its own. A
-        # status alone is enough - "I still need the OP" is a real note before
-        # the song has a name.
-        if (
-            not content
-            and not (payload.title or "").strip()
-            and not (payload.status or "").strip()
-            and not links
-        ):
-            raise ValueError(f"Section '{section.key}' note is empty.")
+    elif section.shape == SHAPE_MUSIC_STATUS:
+        # One list's status and nothing else: which list, and how far.
+        if not payload.kind:
+            raise ValueError(
+                f"Section '{section.key}' needs a kind: one of "
+                f"{', '.join(kinds_for(section, owner_type))}."
+            )
+        if not payload.status:
+            raise ValueError(f"Section '{section.key}' needs a status.")
+        for column in ("locator", "title", "content", "links", "entries"):
+            if not _is_blank(getattr(payload, column, None)):
+                raise ValueError(f"Section '{section.key}' takes no '{column}'.")
     elif not content and not payload.links:
         raise ValueError(f"Section '{section.key}' note is empty.")

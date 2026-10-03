@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 ## What this is for
 
@@ -2695,3 +2695,63 @@ dnd-kit's `useDraggable` / `useDroppable` with the same sensors.
   castings without the router (Pull, a sheet restore) and backfills existing
   data. A character save does **not** fill, because filling there would
   undo a clear the moment the admin saved it.
+
+### Music: a status per song list, OST as songs, links as pairs (2026-10-03)
+
+- **Owner's request: every song list of an anime carries a status of its
+  own** - "All Done", "Done", "Need", "Pending", "Not Done" - shown above the
+  list, starting "Not Done" on every new anime, and the per-song
+  Need/Pending/Done stays beside it. Two levels because they answer different
+  questions: "All Done" is a claim about the list that no one song can make.
+- **The list status is a `music_status` note row keyed by `kind`**, one per
+  `(anime, list)`, rather than four columns on `anime`. Rows keep the status
+  beside the songs it describes - the same table, the same Note sheet tab,
+  the same notes API and the same music card - and a fifth list would be a
+  registry entry, not a migration. The registry marks it `hidden` and each
+  list points at it with `type_status_section`, so `/sections` alone tells
+  the page where the bar goes and what it offers. `one_per_kind` generalises
+  `singleton` (one row per owner) to one row per owner and kind, and the
+  router, Pull and a partial unique index all read it.
+- **Seeded on create, backfilled by the migration.** An anime created through
+  the API gets its four rows inside the create transaction, authored by the
+  creating account, through a new `create_hook` on the media-type spec -
+  `pre_commit_hook` also runs on update, and what an entry starts with is
+  written once. The migration authors its rows as the installation owner
+  (`installation_owner_id`'s rule: the flag holder, else the first non-root
+  account, else the first account), the same account Pull files an
+  author-less note under, rather than inventing a second rule.
+- **OST stopped being a singleton.** It was one structured row per anime - a
+  type and a status - because there was nowhere else to put the OST's
+  status. With that status in `music_status`, nothing is left that needs the
+  singleton, and the OST becomes a song list like the others. The migration
+  copied each OST row's status into music_status and deleted the row; it
+  refuses to run if any OST row carries anything besides the `normal` type
+  and a status, so nothing typed is lost and the downgrade can rebuild the
+  rows exactly.
+- **One song shape.** `insert_songs` had its own `episode_name_links` shape
+  and a required episode; it is a `music_track` list now, and the episode is
+  optional on all four lists. The Song Type stays on OP and ED alone - an
+  insert song is whatever cut plays in that episode, and an OST is the
+  soundtrack rather than a cut of one theme.
+- **Song Type became an open vocabulary.** It was the closed `MUSIC_TYPES`
+  tuple; now any text is accepted and the "Song Type" option category only
+  suggests (`kind_category`). A new cut is an option an admin adds, not a
+  deploy.
+- **Links became text-URL pairs, but only on the song lists and 彩蛋.** A song
+  is heard on several services and a reader needs to know which link is
+  which, so a song link is `{"text", "url"}`, its text suggested from "Song
+  Source". Every other section keeps URL strings: converting them would
+  rewrite every links row in the table for a label nobody asked for there.
+  Which shape a section takes is the registry's call (`uses_link_pairs`),
+  never a row's, and the validator refuses the other, so no reader ever has
+  to guess. Pull reads an old backup's URL strings on those sections as pairs
+  with no text.
+- **彩蛋 is `structured` with a `link_pairs` field** rather than a new shape: it
+  is an episode, a required description and links, which the structured
+  shape already expresses once its link editor can hold pairs.
+- **The migration is reversible.** Its downgrade rebuilds the one-row OST from
+  the OST's list status, turns the pairs back into URL strings and restores
+  the old index. What it cannot keep is what only the new shape can say - a
+  link's text, OST songs, the "All Done" / "Not Done" distinction - and an
+  automatic rollback runs within a minute of a deploy, before any of that
+  exists. Not marking it `irreversible` keeps that rollback available.

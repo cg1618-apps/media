@@ -33,6 +33,7 @@ from app.utils.constants import GAME_COMPLETION_FLAGS
 # Character and person gender / my_rating, folded the way the revision that
 # closed those vocabularies folded the stored rows.
 from app.utils.entity_vocab import normalize_gender, normalize_my_rating
+from app.utils.note_sections import as_link_pairs, section_by_key, uses_link_pairs
 
 # The scope -> owner column map. plan_next_kinds imports only media_resolver,
 # so there is no cycle.
@@ -1761,6 +1762,15 @@ def parse_resource_node_from_sheet(raw: dict) -> dict:
     }
 
 
+def _note_links(raw: dict):
+    """The Note tab's `links` cell, in the shape the row's section takes."""
+    links = json.loads(raw["links"]) if raw.get("links") else None
+    section = section_by_key(parse_from_sheet(raw.get("section"), str) or "")
+    if section is not None and uses_link_pairs(section):
+        return as_link_pairs(links)
+    return links
+
+
 def parse_note_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Note sheet into typed data ready for the
@@ -1799,7 +1809,10 @@ def parse_note_from_sheet(raw: dict) -> dict:
         "status": parse_from_sheet(raw.get("status"), str),
         "title": parse_from_sheet(raw.get("title"), str),
         "content": parse_from_sheet(raw.get("content"), str),
-        "links": json.loads(raw["links"]) if raw.get("links") else None,
+        # A section whose links are text-URL pairs reads URL strings from a
+        # backup taken before they were pairs as pairs with no text, so the
+        # row lands in the one shape its section takes.
+        "links": _note_links(raw),
         # The name_entries shape, parsed exactly like `links` beside it. Absent
         # here, Backup would still write the column and Pull would drop it -
         # every guides / builds_and_mods item lost on the round trip.

@@ -64,7 +64,7 @@ export const TIER1_GROUPS = [
   },
   {
     title: "Production Status",
-    keys: ["music_status", "seiyuu_status"],
+    keys: ["music_status", "music_type_status", "seiyuu_status"],
   },
   {
     title: "Franchise",
@@ -122,6 +122,12 @@ export const TIER2_GROUPS = [
       "Serialization Platform",
       "Reference Source",
     ],
+  },
+  // The suggestions the music note sections draw on: an OP or ED's cut, and
+  // the label of a song link.
+  {
+    title: "Music",
+    categories: ["Song Type", "Song Source"],
   },
 ];
 

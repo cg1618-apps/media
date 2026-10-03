@@ -119,23 +119,28 @@ class Note(Base):
     # `locator_placeholder` in app/utils/note_sections.py) and whether it is
     # required, the way a citation pairs a locator with the kind of locator.
     locator = Column(String, nullable=True)
-    # Only populated where the section declares `kinds`.
+    # Only populated where the section declares `kinds` or a `kind_category`
+    # (free text). On music_status it names the song list the row is about.
     kind = Column(String, nullable=True)
-    # The second dropdown, used by the music_track shape alone: how far the
-    # tracking of one song has got. Separate from `kind` because the two answer
-    # different questions - `kind` is a property of the song (which cut it is),
-    # `status` a property of my work on it - and one row needs both.
+    # The second dropdown: how far the tracking of one song has got on the
+    # song lists, of one whole list on music_status. Separate from `kind`
+    # because the two answer different questions - `kind` is a property of the
+    # song (which cut it is), `status` a property of my work on it - and one
+    # row needs both.
     status = Column(String, nullable=True)
     # The name half of a name_links item.
     title = Column(String, nullable=True)
     content = Column(Text, nullable=True)
-    # List of URLs. A list even where the old shape held one, so `resources`
-    # gains multi-link support without another migration.
+    # List of URL strings - or, for the sections note_sections.uses_link_pairs
+    # names (the song lists and 彩蛋), of {"text": str|null, "url": str}
+    # pairs. Which one is a property of the section, never of the row. A list
+    # even where a shape holds one link, so multi-link support needs no
+    # migration.
     links = Column(JSONB, nullable=True)
     # A list of mixed items for the name_entries shape: each is
     # {"type": "text"|"link", "value": str, "label": str|None}, in array order.
-    # Distinct from `links`, which is a plain list of URL strings for seven
-    # other sections - one column meaning two things is how subtle bugs start.
+    # Distinct from `links`, which holds URLs (or text-URL pairs) and nothing
+    # else - one column meaning two things is how subtle bugs start.
     entries = Column(JSONB, nullable=True)
     # The `structured` shape's registry-declared fields, as a flat object keyed
     # by NoteField.key, plus any nested list a field of type `list` holds.
@@ -232,14 +237,15 @@ class Note(Base):
             postgresql_nulls_not_distinct=True,
             postgresql_where=text("section = 'remark'"),
         ),
-        # `ost` is one row per anime: a type and a status, not a list of
-        # songs. Catalog-scope and anime-only, so media_id is the whole owner.
-        # Mirrors revision o1s2tsingle3 - keep the name and the predicate
-        # identical.
+        # `music_status` is one row per anime per song list, the list named
+        # by `kind`. Catalog-scope and anime-only, so media_id is the whole
+        # owner. Mirrors revision m1s2ongstat3 - keep the name and the
+        # predicate identical.
         Index(
-            "ix_note_one_ost_per_owner",
+            "ix_note_one_music_status_per_kind",
             "media_id",
+            "kind",
             unique=True,
-            postgresql_where=text("section = 'ost'"),
+            postgresql_where=text("section = 'music_status'"),
         ),
     )

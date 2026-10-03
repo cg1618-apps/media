@@ -73,6 +73,7 @@ from app.services.pipelines.tabs import (
 )
 from app.services.rbac.gated_types import REQUIRED_LABEL_FOR_TYPE
 from app.services.security import UNUSABLE_PASSWORD_HASH
+from app.utils.constants import MUSIC_STATUSES
 from app.utils.credit_roles import (
     CREDIT_ROLES,
     credit_roles_for,
@@ -84,7 +85,7 @@ from app.utils.formatter import (
     parse_from_sheet,
     parse_row_to_dict,
 )
-from app.utils.note_sections import section_by_key
+from app.utils.note_sections import MUSIC_STATUS_SECTION, section_by_key
 
 logger = logging.getLogger(__name__)
 
@@ -549,6 +550,29 @@ def _match_note_twin(
         if all(getattr(local, c) == payload[c] for c in compared):
             return local
     return None
+
+
+def _fold_one_row_ost(payload: dict) -> None:
+    """
+    Turn an `ost` row from a backup taken while OST was one row per anime into
+    that anime's OST list status.
+
+    Such a row is a type and a status and nothing else (o1s2tsingle3 made it
+    so). The OST is a song list now, and its songs never carry a type - so a
+    sheet `ost` row WITH a type can only be the old one, and what it says is
+    the list's status, not a song. It becomes the music_status row for `ost`,
+    which the retargeting below then folds onto the anime's own row.
+    """
+    if payload.get("section") != "ost" or not payload.get("kind"):
+        return
+    status = payload.get("status")
+    payload["section"] = MUSIC_STATUS_SECTION
+    payload["kind"] = "ost"
+    payload["status"] = (
+        status
+        if status in MUSIC_STATUSES
+        else section_by_key(MUSIC_STATUS_SECTION).default_status
+    )
 
 
 def _resolve_owner_columns(db: Session, tab_name: str, payload: dict):
@@ -1612,19 +1636,25 @@ def execute_pull_specific(
         # remark row the owner already has and update it in place, keeping the
         # local system_id (popped from the payload so it is not overwritten).
         #
-        # Every singleton section takes the same path. `ost` is the other one
-        # (ix_note_one_ost_per_owner), and a backup from before it became one
-        # row holds two per anime - so the second folds onto the first here
-        # instead of failing the tab.
+        # A one_per_kind section takes the same path per (owner, kind):
+        # music_status holds one row per anime per song list
+        # (ix_note_one_music_status_per_kind), and its revision minted those
+        # rows separately on every database, so the sheet's copy of a list's
+        # status folds onto the local row for that list.
+        if tab_name == "Note":
+            _fold_one_row_ost(clean_header_dict)
         singleton = section_by_key(clean_header_dict.get("section") or "")
-        if tab_name == "Note" and singleton and singleton.singleton:
+        if (
+            tab_name == "Note"
+            and singleton
+            and (singleton.singleton or singleton.one_per_kind)
+        ):
             rk_owner = _note_owner_filters(clean_header_dict)
             if rk_owner:
-                local_row = (
-                    db.query(Note)
-                    .filter(*rk_owner, Note.section == singleton.key)
-                    .first()
-                )
+                rk_filters = [*rk_owner, Note.section == singleton.key]
+                if singleton.one_per_kind:
+                    rk_filters.append(Note.kind == clean_header_dict.get("kind"))
+                local_row = db.query(Note).filter(*rk_filters).first()
                 if local_row is not None:
                     clean_header_dict.pop(pk_field, None)
                     pk_value = local_row.system_id

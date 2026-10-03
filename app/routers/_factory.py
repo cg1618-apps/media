@@ -348,6 +348,8 @@ def make_media_router(spec) -> APIRouter:
         # After the pre-commit hook: the list row's FK points at `media`, and
         # that row is written by Step 0's write path as part of the flush.
         db.flush()
+        if spec.create_hook:
+            spec.create_hook(db, entry, viewer)
         _write_list(db, entry, personal, viewer)
         db.commit()
         db.refresh(entry)

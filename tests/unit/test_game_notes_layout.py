@@ -76,7 +76,7 @@ def test_a_game_has_no_analysis_card_left_to_render():
     """
     The reason the override is the right shape rather than a second section.
 
-    `analysis_group` holds 解析, 分鏡/演出, 巧思, 伏筆 and 對稱, and a game has
+    `analysis_group` holds 解析, 分鏡/演出, 巧思, 伏筆, 對稱 and 彩蛋, and a game has
     only the first. Moving it leaves that card with nothing, so it is not
     rendered at all - rather than standing there holding one section, which is
     what it did before.
@@ -84,7 +84,7 @@ def test_a_game_has_no_analysis_card_left_to_render():
     assert [s.key for s in sections_out("game") if s.group == "analysis_group"] == []
     assert [
         s.key for s in sections_out("anime") if s.group == "analysis_group"
-    ] == ["analysis", "cinematography", "foreshadowing", "symmetry"]
+    ] == ["analysis", "cinematography", "foreshadowing", "symmetry", "easter_eggs"]
 
 
 # --- 5: 備註列表 Remark List ----------------------------------------------

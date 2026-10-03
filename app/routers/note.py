@@ -187,17 +187,22 @@ def _reject_second_singleton(
     author_id: Optional[uuid.UUID] = None,
 ) -> None:
     """
-    A singleton section holds at most one row per owner.
+    A singleton section holds at most one row per owner; a `one_per_kind`
+    section (music_status) at most one per owner and kind.
 
     Enforced here rather than in the schema layer because it needs a query.
+    The database enforces both as well, but its refusal would surface as a
+    500 at commit rather than as this 422.
     """
     section = section_by_key(payload.section or "")
-    if not section or not section.singleton:
+    if not section or not (section.singleton or section.one_per_kind):
         return
     query = db.query(models.Note).filter(
         *_owner_filters(payload.owner_type, payload.owner_id),
         models.Note.section == section.key,
     )
+    if section.one_per_kind:
+        query = query.filter(models.Note.kind == payload.kind)
     if section.scope == SCOPE_PERSONAL and author_id is not None:
         # One remark per owner PER AUTHOR. See Task 9 of the Step 5 plan for
         # why the database's index is still per-owner.
@@ -205,9 +210,10 @@ def _reject_second_singleton(
     if exclude_id:
         query = query.filter(models.Note.system_id != exclude_id)
     if query.first():
+        what = f" for '{payload.kind}'" if section.one_per_kind else ""
         raise HTTPException(
             status_code=422,
-            detail=f"This owner already has a '{section.key}' note.",
+            detail=f"This owner already has a '{section.key}' note{what}.",
         )
 
 

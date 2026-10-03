@@ -69,6 +69,7 @@ from app.services.domain.hentai import (
     hentai_progress_hook,
     hentai_progress_hook_list,
 )
+from app.services.domain.music_status import seed_music_status
 from app.services.domain.sources import media_sources_writer
 from app.services.pipelines import (
     execute_replace_single_cartoon,
@@ -118,6 +119,12 @@ class MediaTypeSpec:
     progress_counter: Optional[Callable] = None
     write_hook: Optional[Callable] = None   # async (db, id_str, action_type, log_action), after commit
     pre_commit_hook: Optional[Callable] = None  # (db, entry) inside the create/update transaction
+    # (db, entry, viewer) -> None, on CREATE only, inside its transaction and
+    # after the flush that writes the `media` row, so rows pointing at it may
+    # be added. Distinct from pre_commit_hook, which update runs too: what an
+    # entry starts with is written once. Only anime uses this (its
+    # music_status rows).
+    create_hook: Optional[Callable] = None
     # Payload key -> writer(db, entry, value, viewer), popped before the
     # model is built because the value is not a column (sources, novel's
     # units, game's copies) or because its write must see the stored value
@@ -211,6 +218,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed_list=mark_tv_list,
         progress_counter=episode_counter,
         pre_commit_hook=prepare_anime_write,
+        create_hook=seed_music_status,
         extra_filters=_anime_airing_season,
         nested_collections={"sources": media_sources_writer("anime")},
     ),
