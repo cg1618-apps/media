@@ -366,7 +366,6 @@ export const TYPE_FIELD_META = {
       source: { kind: "publisher", scope: "anime" },
       group: "Credits",
     },
-    seiyuu: { label: "Seiyuu", group: "Credits" },
     is_main_entry: {
       label: "Is Main Entry",
       control: "checkbox",
