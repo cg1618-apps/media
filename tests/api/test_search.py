@@ -294,3 +294,44 @@ class TestGameAndPublisherBuckets:
 
         body = client.get("/api/search/?q=bandai").json()
         assert [p["system_id"] for p in body["results"]["publisher"]] == [str(pub.system_id)]
+
+
+class TestPersonalFields:
+    """A search card is the same card a library shows, so it needs the same
+    per-viewer fields: the status and progress live on user_media_list and
+    have to be attached, or every result reads as an untouched entry."""
+
+    @pytest.fixture
+    def tracked_anime(self, admin_client):
+        created = admin_client.post(
+            "/api/anime/", json={"anime_name_en": "Tracked Sentinel", "airing_type": "TV"}
+        ).json()
+        response = admin_client.patch(
+            f"/api/anime/{created['system_id']}",
+            json={"watching_status": "Active Watching", "ep_fin": 3},
+        )
+        assert response.status_code == 200, response.text
+        return created["system_id"]
+
+    def _row(self, client, system_id):
+        payload = client.get("/api/search/?q=Tracked+Sentinel").json()
+        return next(r for r in payload["results"]["anime"] if r["system_id"] == system_id)
+
+    def test_search_carries_the_viewers_status_and_progress(self, admin_client, tracked_anime):
+        row = self._row(admin_client, tracked_anime)
+        assert row["watching_status"] == "Active Watching"
+        assert row["ep_fin"] == 3
+
+    def test_search_row_matches_the_list_row(self, admin_client, tracked_anime):
+        listed = next(
+            r for r in admin_client.get("/api/anime/").json() if r["system_id"] == tracked_anime
+        )
+        searched = self._row(admin_client, tracked_anime)
+        for field in ("watching_status", "ep_fin", "my_rating", "sources", "remark"):
+            assert searched.get(field) == listed.get(field), field
+
+    def test_a_stranger_sees_no_status(self, admin_client, client, tracked_anime):
+        # The mirror case, on the same row that carries a status for its
+        # owner: a logged-out search must not be shown it.
+        row = self._row(client, tracked_anime)
+        assert row["watching_status"] is None

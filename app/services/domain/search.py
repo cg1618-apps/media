@@ -22,10 +22,9 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.registry import MEDIA_REGISTRY
 from app.services.domain.content_labels import attach_franchise_content_labels
-from app.services.domain.credits import attach_link_fields, credit_summaries
+from app.services.domain.credits import credit_summaries
 from app.services.domain.entity_photos import person_media
-from app.services.domain.h_comic import attach_animation_status
-from app.services.domain.plan_next import planned_entry_ids
+from app.services.domain.entry_fields import attach_entry_list_fields
 from app.services.rbac.enforcement import (
     apply_entry_visibility,
     apply_franchise_visibility,
@@ -35,7 +34,6 @@ from app.services.rbac.field_gate import gate
 from app.services.rbac.gated_types import unseeable_gated_types
 from app.services.rbac.resolver import viewer_user_id
 from app.services.rbac.shared_visibility import CONNECTIONS, apply_shared_visibility
-from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS
 
 # The characters cleanString deletes: whitespace plus the punctuation that
 # separates words in a title. translate() drops every character listed here
@@ -346,13 +344,9 @@ def _decorate(db: Session, viewer, spec: SearchableType, entries: list):
             # would read as "no labels" rather than "not loaded".
             attach_franchise_content_labels(db, entries)
         return entries
-    user_id = viewer_user_id(viewer)
-    for field, kind in PLAN_FLAG_FIELDS.get(spec.owner_type, ()):
-        planned = planned_entry_ids(db, spec.owner_type, kind, user_id=user_id)
-        for entry in entries:
-            setattr(entry, field, entry.system_id in planned)
-    attach_link_fields(db, spec.owner_type, entries)
-    attach_animation_status(db, spec.owner_type, entries)
+    # The same fields the media list routes attach, so a search card shows
+    # the viewer's status and progress rather than an untouched entry's.
+    attach_entry_list_fields(db, spec.owner_type, entries, viewer)
     return gate(viewer, spec.owner_type, entries, spec.response_schema)
 
 
