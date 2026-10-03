@@ -133,7 +133,7 @@ def test_mapping_the_character_record():
 def test_mapping_a_cast_keeps_only_japanese_voices():
     rows = map_tenrai_cast(FMA_CAST)
     assert [r["name_en"] for r in rows] == ["Edward Elric", "Alphonse Elric", "Roy Mustang"]
-    assert [r["role"] for r in rows] == ["Main", "Main", "Supporting"]
+    assert [r["role"] for r in rows] == ["Main", "Main", "Other"]
     assert [v["name_en"] for v in rows[0]["voices"]] == ["Romi Park"]
 
 
@@ -206,7 +206,7 @@ def test_a_mal_cast_creates_what_is_missing_and_reuses_what_is_not(
     cast = body["cast"]
     assert [row["character_name"] for row in cast] == ["Ed", "Alphonse Elric", "Roy Mustang"]
     assert cast[0]["character_id"] == str(edward.system_id)
-    assert [row["role"] for row in cast] == ["Main", "Main", "Supporting"]
+    assert [row["role"] for row in cast] == ["Main", "Main", "Other"]
     assert [[v["person_name"] for v in row["voices"]] for row in cast] == [
         ["Romi Park"], ["Rie Kugimiya"], ["Shinichiro Miki"],
     ]
