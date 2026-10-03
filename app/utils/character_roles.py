@@ -19,9 +19,10 @@ is unchanged.
 from typing import Optional
 
 # In dropdown order - /api/constants serves it as `character_role` as is.
-# Used by two independent columns: character_casting.role (what the character
-# is to one entry) and character.role (what the character is overall). Both
-# are nullable: an admin need not classify.
+# Used by two columns: character_casting.role (what the character is to one
+# entry) and character.role (what the character is overall). Both are
+# nullable: an admin need not classify. A NULL character.role is filled from
+# the castings' roles, earliest in this order first.
 CHARACTER_ROLES: tuple[str, ...] = ("Main", "Core", "Supporting", "Other")
 
 

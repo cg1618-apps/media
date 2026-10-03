@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-09-29
+Last verified: 2026-10-02
 
 ## What this is for
 
@@ -213,10 +213,11 @@ the work.
 
 **How the page reorders one.** `PATCH /api/notes/reorder` takes ids naming
 *exactly* that section's notes and answers 400 otherwise, which is what keeps a
-partial list from quietly renumbering half a section. A move only swaps two
-siblings, so the page flattens its whole tree depth-first with that swap
-applied and sends all of it — which also leaves `sort_index` ascending in the
-order the page draws.
+partial list from quietly renumbering half a section, and also when it names
+one note twice. A row is dragged among its own siblings only — it never changes
+parent by being dragged — so the page flattens its whole tree depth-first with
+that move applied and sends all of it, which also leaves `sort_index` ascending
+in the order the page draws.
 
 A row whose `parent_id` names something not in the fetched list renders as a
 **root**. That should not happen — the router refuses a foreign parent and a
@@ -386,17 +387,19 @@ h-comic's `location`, which an h-game highlight does not have.
 `NotesProvider` - Game's composition, with 待辦 Todo in the Progress slip - is
 handed the entry row, `highlight_group_order` and the callback that PATCHes a
 new order, and the section renders exactly as on a KR h-comic: one group per
-female character, headers dragged or stepped, rows not movable. An h-game has
+female character, groups dragged by their header's handle or stepped with the arrow keys on it, rows not movable. An h-game has
 no cast, so the `names` inputs offer no suggestions and take any name typed.
 
 **On the h-comic page** (`frontend/src/pages/detail/HComic.jsx`, `HComicNotes.jsx`):
 the detail page hands the notes page the entry row, the cast's character names
 and the stored group order. A JP entry gets no Highlights card at all
 (`owner_where`, see below). The rows render one group per female character
-name; each group header can be dragged onto another, or stepped with its
-arrows, and the drop PATCHes the entry's `highlight_group_order` with the whole
-new order of the names on screen - which is how a name no row carries any more
-drops out of the list. The rows inside a group have no handle: they follow
+name; each group is dragged by the grip on its header (or moved one place with
+ArrowUp / ArrowDown on that grip), and the drop PATCHes the entry's
+`highlight_group_order` with the whole new order of the names on screen -
+which is how a name no row carries any more drops out of the list. The new
+order shows at once and every group handle is disabled until the PATCH
+settles; a failed save puts the stored order back. The rows inside a group have no handle: they follow
 `sort_index`. A row naming two female characters is drawn under both, and
 under each it lists the other female characters it names, not the group's own.
 The `names` inputs suggest the entry's cast by display name and accept any
@@ -533,13 +536,13 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | GET | `/api/notes/sections` | public | `?owner_type=` | `List[NoteSectionOut]` — registry resolved for that owner, display order | 400 unknown owner_type |
 | GET | `/api/notes` | public (viewer-aware) | `?owner_type=&owner_id=`, optional `?author=<username>` | `List[NoteResponse]`, sorted by registry position then `sort_index` (`_ordered`) | 400 unknown owner_type; 404 owner not visible |
 | POST | `/api/notes` | by scope | body `NoteCreate` (`owner_type`, `owner_id`, `section`, `locator`, `kind`, `status`, `title`, `content`, `links`, `sort_index`) | 201 `NoteResponse`; `sort_index` defaults to last-in-section + 1 | 422 validation / second singleton |
-| PATCH | `/api/notes/reorder` | by scope | body `NoteReorder` `{owner_type, owner_id, section, ordered_ids}` | `{"status":"success","reordered":n}`; rewrites `sort_index` as 0,1,2… | 400 unknown owner_type / unknown section / `ordered_ids` not exactly the section's rows |
+| PATCH | `/api/notes/reorder` | by scope | body `NoteReorder` `{owner_type, owner_id, section, ordered_ids}` | `{"status":"success","reordered":n}`; rewrites `sort_index` as 0,1,2… | 400 unknown owner_type / unknown section / `ordered_ids` names a note twice / `ordered_ids` not exactly the section's rows |
 | PATCH | `/api/notes/{note_id}` | by scope | body `NoteUpdate` (partial; `exclude_unset`) | `NoteResponse` | 404; 422 — the merged row (current values + patch, built from `NoteUpdate.model_fields`) is validated **before** mutation so autoflush never writes a bad row. A PATCH may move a note to another owner. |
 | DELETE | `/api/notes/{note_id}` | by scope | — | 204 | 404. Audited via `log_deleted_record(db, note, "Note")` (`app/utils/data_control_utils.py`). |
 
 "By scope" means the section decides: a **catalogue** section needs `manage.catalog`, a **personal** one needs an account holding `self.personal_notes` and reaches only that account's own rows. Somebody else's personal note answers **404**, worded exactly as a missing one — there is no 403 anywhere in this router, because a 403 confirms the row exists as surely as a 200 does. A reorder over a personal section renumbers the caller's rows alone. See [Scope](#scope). `?author=` answers **404** for an unknown user, a private list, or a viewer without `field_group.personal_notes` — the same reply for all three.
 
-`/reorder` is declared before `/{note_id}` on purpose (FastAPI matches in order). No frontend calls it yet; it is intentional surface kept for a future reorder UI and covered by tests — do not delete as unused.
+`/reorder` is declared before `/{note_id}` on purpose (FastAPI matches in order). The notes page calls it (`reorderNotes` in `frontend/src/pages/notes/api.js`) whenever a structured section's rows or groups are dragged into a new order.
 
 ## UI
 
@@ -576,7 +579,7 @@ The notes page is three pieces:
 
 | Piece | File | What it is |
 | --- | --- | --- |
-| `NotesProvider` / `useNotes` | `NotesContext.jsx` | The data. Fetches the registry and the rows, owns the mutations (`onCreate` / `onUpdate` / `onDelete` / `onReorder`), dispatches a section on its shape (`renderSection`) and counts a card's rows (`blockCount`). |
+| `NotesProvider` / `useNotes` | `NotesContext.jsx` | The data. Fetches the registry and the rows, owns the mutations (`onCreate` / `onUpdate` / `onDelete` / `onReorder` — a reorder is applied locally first through the pure `withSectionOrder`, and while one section's reorder is in flight a second one for that section is dropped and the section is told to disable its grips), dispatches a section on its shape (`renderSection`) and counts a card's rows (`blockCount`). |
 | `NotesBlocks` | `NotesTemplate.jsx` | The layout: which sections go in which card. Takes `hideSections` and `hideGroups`. |
 | `NotesGroup` | `NotesTemplate.jsx` | **One** group's sections with no card of their own, for a screen that puts a group somewhere else. |
 
@@ -626,10 +629,10 @@ once when both are used.
 | `TextOrLinkSection.jsx` (+ `textOrLink.js`) | text_or_link | content xor one link |
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
 | `NameLinksSection.jsx` | name_links | title, links |
-| `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, reorderable in the form). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
-| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns the up/down reorder buttons (`PATCH /api/notes/reorder`), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): the group headers are draggable and carry arrows, the rows are not movable. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry arrows, and every move sends the section's whole row order, grouped. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; its arrows move a row by its place among all its siblings, so they are right while folded, and a move that carries a top-level row past the third place unfolds the section so the row does not vanish. A grouped section is capped **per group**, each group with its own toggle, and every group header stays on screen: the headers are what a reader scans and what drags, and a folded-away header could be neither found nor dropped on. |
+| `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, dragged into order in the form by its grip). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
+| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns drag-to-reorder (a grip per row from `components/ui/Sortable.jsx`; each drop is one `PATCH /api/notes/reorder`, applied on screen at once by `NotesContext`, with that section's grips disabled until the save settles), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move — among a row's own siblings, never to another parent — that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): each group header carries a grip (drag, or ArrowUp / ArrowDown on it), the rows are not movable. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry grips — a row moves only within its own group — and every move sends the section's whole row order, grouped. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; a row's grip moves it by its place among all its siblings, folded or not, so the last row shown can still be moved down past the fold, and a move that carries a row past the cap unfolds the section so the row does not vanish. A grouped section is capped **per group**, each group with its own toggle, and every group header stays on screen: the headers are what a reader scans and what carries a group's grip, and a folded-away header could be neither found nor dragged. |
 | `NamesInput.jsx` | — | the `names` input: chosen names as removable tags, a combobox suggesting `nameSuggestions` filtered by what is typed, any other text accepted |
-| `groupedRows.js` | — | pure: `groupNotes` (one group per name, a row under every name it carries, stored order first then first appearance, a trailing unnamed group only when a row names nobody), `movedGroupOrder`, `namesOf` |
+| `groupedRows.js` | — | pure: `groupNotes` (one group per name, a row under every name it carries, stored order first then first appearance, a trailing unnamed group only when a row names nobody), `movedGroupOrder`, `groupedIds`, `movedRow(groups, gi, from, to)` (a row taken out and put back at `to` within its own group, as a drop does), `namesOf` |
 | `EpisodeNameLinksSection.jsx` | episode_name_links | locator, title, content, links, status |
 | `MusicTrackSection.jsx` | music_track | title, kind (starts on `default_kind`), status, link, content |
 | `QuoteSection.jsx` / `MemeSection.jsx` | external | adapt the long-lived quote/meme components; report counts |

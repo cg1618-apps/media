@@ -28,7 +28,7 @@ class CharacterBase(BaseModel):
     # character is cast on (the router checks; 422 otherwise).
     photo_fallback_entry_id: Optional[UUID] = None
     # What the character is to their story overall - CHARACTER_ROLES or None.
-    # Independent of each casting's own role.
+    # When None, a cast save or Calculate fills it from the castings' roles.
     role: Optional[str] = None
     remark: Optional[str] = None
     # MAL's character record; mal_id is derived from mal_link on every write.

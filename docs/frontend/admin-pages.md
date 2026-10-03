@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -347,7 +347,7 @@ the picker.
 
 **Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
 owned or wanted (storefront, ownership, format, acquisition, price paid +
-currency, acquired date, remark), with move-up/down and remove. It is fully
+currency, acquired date, remark), with a drag grip (`components/ui/Sortable.jsx`; ArrowUp / ArrowDown on it moves a row one place) and remove. It is fully
 controlled on the `NovelUnitsEditor` contract: no internal state, the parent
 owns `items`, the array handed in is never mutated, and every change goes out
 through `onChange` with `position` renumbered 1..n. `acquired_date` is free text,
@@ -377,9 +377,9 @@ Supporting, Other — `CHARACTER_ROLES`), the same Gender and My Rating selects,
 a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
 page; the server reads the MAL id from it and, on save, fills the blank names
 and the photo from MAL — see [api.md](../api.md#character--apicharacter)),
-the photo and the remark. The Role is the character's own and is
-independent of the role any casting gives it: neither is derived from nor
-prefilled by the other. It starts
+the photo and the remark. The Role is the character's own. Left blank, it
+is filled from the highest-ranked role the character's castings give it on
+the next cast save or Calculate All; once set it is never overwritten. It starts
 with gender unset; only a character minted from an entry's cast editor starts
 with one (女 on an h-comic or a hentai — `NEW_CAST_CHARACTER_GENDER`, see
 `CastEditor` in [components.md](components.md)). `CharacterFields` is exported
@@ -403,7 +403,14 @@ Below the scope and usage pickers sits `forms/AliasPicker.jsx`, repeating
 purpose: no scopes means *offered everywhere* and no usages means *every
 usage*, but no aliases means *nothing maps to this*.
 
-The picker appears **only for the categories in `ALIAS_CATEGORIES`** — Game
+The usage picker (`forms/UsagePicker.jsx`) appears **only for `Platform`**
+(`USAGE_CATEGORIES`, mirroring `app/utils/source_fields.py`), hidden for the
+same reason; its hint spells out the two choices — `watch` is Main Sources
+only, `origin` is Official Source only, none is both. Both pages send an empty
+`usages` list for any other category, so a usage picked before switching the
+category away from Platform is dropped rather than refused.
+
+The alias picker appears **only for the categories in `ALIAS_CATEGORIES`** — Game
 Genre, Game Theme, Game Mode, Game Platform (`forms/AliasPicker.jsx`, mirroring
 `app/utils/source_fields.py`; see [../options.md](../options.md) for why the
 list is code). Hidden rather than disabled: unlike the multi-value case below,
@@ -517,6 +524,11 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
 h-game - each stored as a `type_slots` map on the row it
 holds — a franchise, a series or an entry; see
 [pages.md](pages.md#statistics--statistics--completions--completions)).
+Beside each grid a ranked list of its nine slots reorders it: a row dragged
+onto another slot **swaps** the two (`swapSlots`; nothing else moves, and an
+empty slot simply takes the row), ArrowUp / ArrowDown on a focused row swaps
+it with its neighbour, and each grid has its own drag context, so a row can
+only land in its own grid. The swap is a draft until **Save Grid**.
 
 - **Data loading** is `hooks/useEntryLists.js`, as on `/add`: collections,
   franchises and series eagerly, the media lists per tab. The three

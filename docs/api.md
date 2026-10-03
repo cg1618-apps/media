@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -592,7 +592,7 @@ per-entry `watch_order` Float column, which has been dropped.
 | `PUT`    | `/items/{item_id}`            | Admin  | Full update of one step. Body: `WatchOrderItemUpdate`.                                                                                             |
 | `PATCH`  | `/items/{item_id}`            | Admin  | Partial update (episode range, optional flag, note). Body: raw JSON dict.                                                                          |
 | `DELETE` | `/items/{item_id}`            | Admin  | Remove one step.                                                                                                                                   |
-| `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N, and optionally re-file each step into a part. Body: `WatchOrderReorder` (`item_ids`, optional `section_ids`). 400 unless the payload names every item of the list exactly once, or if the order would split a part. |
+| `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N, and optionally re-file each step into a part. Body: `WatchOrderReorder` (`item_ids`, optional `section_ids`, optional `section_positions`). 400 unless the payload names every item of the list exactly once, if `section_positions` names a part twice or misses one, or if the order would split a part. |
 
 `WatchOrderReorder.section_ids` is optional and runs parallel to `item_ids` —
 one entry per step, `null` for unfiled. Order and part travel in one request
@@ -600,6 +600,16 @@ because a drag changes both at once; committing them separately would leave the
 guide reordered but still filed under the part the step was dragged out of.
 Omitting it leaves every step filed where it already is. An order that would
 split a part is rejected with 400 and nothing is written.
+
+`WatchOrderReorder.section_positions` is optional too: a list of
+`{section_id, position}` naming **every** part of the list exactly once (400
+otherwise, before anything is written), and each part's `position` is written
+in the same commit as the steps. It carries positions rather than an id order
+because an empty part is anchored by a fractional position between two steps'
+1..N positions, and renumbering parts 1..N would draw every empty part after
+the wrong step. The editor sends it on every move, so moving a part — steps
+and all, or empty — is one request. Omitting it leaves every part where it
+is.
 
 **Built-in orders.** A list with `auto_source = "release"` has no
 `watch_order_item` rows: `GET /lists/{id}` computes its steps from the entries'
@@ -952,7 +962,7 @@ tier on a write is resolved from the id, never from the payload's
 | `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`).                            |
 | `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`.                                        |
 | `POST`   | `""`           | Admin  | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, or on a second row in a singleton section. `sort_index` defaults to the end.     |
-| `PATCH`  | `/reorder`     | Admin  | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes.                |
+| `PATCH`  | `/reorder`     | Admin  | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once.                |
 | `PATCH`  | `/{note_id}`   | Admin  | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination.                      |
 | `DELETE` | `/{note_id}`   | Admin  | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have.        |
 
@@ -982,12 +992,13 @@ then `sort_index` within it, which is exactly the page's render order.
 
 `/reorder` is declared **before** `/{note_id}`: FastAPI matches in declaration
 order, so the dynamic route would otherwise swallow `reorder` as a note id.
-The `structured` shape's up/down buttons are its caller. `ordered_ids` must
+The `structured` shape's drag handles are its caller. `ordered_ids` must
 name exactly that section's notes, which is what keeps a partial list from
-quietly renumbering half a section — so a hierarchical section, whose move
-only swaps two siblings, sends its whole tree flattened depth-first with the
-swap applied. That also leaves `sort_index` ascending in the order the page
-draws.
+quietly renumbering half a section, and must not name one twice — set equality
+alone would accept `[a, a, b]` and let the later position win. So a
+hierarchical section, whose drag moves a row only among its own siblings,
+sends its whole tree flattened depth-first with the move applied. That also
+leaves `sort_index` ascending in the order the page draws.
 
 ---
 
@@ -1251,7 +1262,9 @@ editor cannot see.
 (`app/utils/source_fields.py` — `igdb` today). A non-empty `aliases` list is
 rejected unless `category` is in `ALIAS_CATEGORIES` (`Game Genre`, `Game
 Theme`, `Game Mode`, `Game Platform` — the four IGDB fields Fill resolves) —
-the category itself saves fine, only its alias rows are refused. There is no
+the category itself saves fine, only its alias rows are refused. A non-empty
+`usages` list is refused the same way unless `category` is in
+`USAGE_CATEGORIES` (`Platform` alone). There is no
 per-alias endpoint: a single row is removed by `PUT`ting the option without
 it. All three drop duplicates,
 aliases on the `(source, value)` pair: the writes insert those rows directly,
@@ -1672,8 +1685,10 @@ fields resolved **for the viewer** from the entries they may see
 on `PersonResponse`, and the list resolves every row in one pass. `role` is
 what the character is overall — `Main`, `Core`, `Supporting`, `Other` or null
 (`CHARACTER_ROLES`, served as `character_role` by `/api/constants`); a write
-outside it is a 422 and `""` is null. It is independent of each casting's own
-`role`: neither is derived from the other.
+outside it is a 422 and `""` is null. While it is null it is filled from the
+character's castings: the highest-ranked casting `role` (`CHARACTER_ROLES`
+order, Main first) is written on every cast `PUT` and by Calculate All. A set
+role is never overwritten, and nothing flows from it to a casting.
 
 **MAL.** `mal_link` is the character's `myanimelist.net/character/<id>` page;
 `mal_id` is derived from it on every `POST`, `PUT` and `PATCH` that carries
@@ -1713,7 +1728,7 @@ hentai (`VOICED_MEDIA_TYPES`).
 | `GET`  | `/sources?franchise_id=&exclude=` | `manage.catalog` | What the cast editor can import a cast from: `{sources: [{media_type, entry_id, public_id, display_name, cast_count}]}`, every entry of `franchise_id`, of any castable type, that has at least one casting and that the caller can see (`filter_visible_pairs`), newest-created first. `exclude` leaves out the entry being edited. Keyed on the franchise rather than an entry because the Add form has a franchise before its entry exists. |
 | `POST` | `/mal` | `manage.catalog` | Builds a cast from MyAnimeList, for the cast editor to append. Body: `{media_type, mal_link}`, where `mal_link` is the entry's own MAL page: `/anime/<id>` for anime, anime-movie and hentai (Tenrai `GET /anime/{id}/characters`), `/manga/<id>` for manga, novel and h-comic (`GET /manga/{id}/characters`). Returns `{cast, created_characters, created_people, warnings}`: `cast` rows have the shape of `GET /{media_type}/{entry_id}` rows (no casting photo or remark), in MAL's order. A character is matched by `character.mal_id` only, among the characters the caller can see, and created with `name_en`, `mal_id` and `mal_link` when unmatched. Only Japanese voice actors are taken: each is matched by `person.mal_id`, then by name through `resolve_person` (find-or-create), and given the `seiyuu` role for `media_type`; a name-matched person without a `mal_id` takes MAL's. A name that matches more than one person is a `warnings` entry and is skipped. Manga, novel and h-comic rows carry no voices. The created characters and people are committed; **the cast is not written** — the editor's `PUT` saves it. A created character's portrait downloads after the response, its `photo_file` already set to the key the download writes. 422 for an unknown `media_type` or a link of the wrong kind; 502 when Tenrai answers with no cast. Keyed on the link rather than an entry, like `/sources`, so Add can use it. See [systems/credits-and-tags.md](systems/credits-and-tags.md). |
 | `GET`  | `/{media_type}/{entry_id}` | Public | The entry's cast, ordered by `position`. 400 for an unknown `media_type`; missing **or hidden** entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
-| `PUT`  | `/{media_type}/{entry_id}` | Admin  | Replaces the whole cast in the submitted order. Body: `{cast: [{character_id, voices?: [{person_id, remark?}], role?, position?, photo_file?, photo_focus?, remark?}]}`. `voices` are the row's seiyuu in display order (default `[]`); a voice `remark` says which voice it is (`child`, `ep 13-`). `photo_focus` is the cast photo's focal point (`"X% Y%"`, 422 otherwise, `""` stored as null). `position` defaults to list index when omitted. `role` is optional: null, `""` and whitespace all store no role. Rejects (422), in Python, voices on a media type outside `anime`/`anime-movie`/`hentai`, the same `person_id` twice within one row's voices, an unknown `character_id` or `person_id`, or a non-blank `role` outside `CHARACTER_ROLES` — before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice` in the database. |
+| `PUT`  | `/{media_type}/{entry_id}` | Admin  | Replaces the whole cast in the submitted order. Body: `{cast: [{character_id, voices?: [{person_id, remark?}], role?, position?, photo_file?, photo_focus?, remark?}]}`. `voices` are the row's seiyuu in display order (default `[]`); a voice `remark` says which voice it is (`child`, `ep 13-`). `photo_focus` is the cast photo's focal point (`"X% Y%"`, 422 otherwise, `""` stored as null). `position` defaults to list index when omitted. `role` is optional: null, `""` and whitespace all store no role. Every character in the cast whose own `role` is null then takes the highest-ranked role its castings carry (see `character.role` above). Rejects (422), in Python, voices on a media type outside `anime`/`anime-movie`/`hentai`, the same `person_id` twice within one row's voices, an unknown `character_id` or `person_id`, or a non-blank `role` outside `CHARACTER_ROLES` — before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice` in the database. |
 
 A character may have several seiyuu in one entry, and one seiyuu may voice
 several characters: that is one `person_id` in several rows' `voices`, which
@@ -2025,7 +2040,6 @@ refuse a built-in (generated) list, the same way the item endpoints do.
 | PUT | `/api/watch-order/sections/{section_id}` | `WatchOrderSectionUpdate` | Full update. |
 | PATCH | `/api/watch-order/sections/{section_id}` | free dict | Partial: name, position, remark. |
 | DELETE | `/api/watch-order/sections/{section_id}` | — | Steps are **not** deleted; `section_id` is SET NULL and they become ungrouped. |
-| PUT | `/api/watch-order/lists/{system_id}/sections/reorder` | `WatchOrderSectionReorder` | Renumbers 1..N. Payload must name every section exactly once. Only moves **empty** parts — a part with steps reads where its steps read, so it is moved by reordering them. |
 
 `GET /api/watch-order/lists/{system_id}` also returns `sections`. `items` stays
 a **flat list in reading order** — ordered by `position` alone. Each item names

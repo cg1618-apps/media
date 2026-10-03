@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-02
+Last verified: 2026-10-03
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -487,7 +487,7 @@ languages. CHECKs: `ck_novel_unit_kind` (`unit_kind` in
 | `system_id` | UUID | no | uuid4 | PK |
 | `novel_id` | UUID | no | | FK `novel.system_id` ON DELETE CASCADE |
 | `unit_kind` | String | no | | `volume`, `arc`, `story` or `chapter` - see NOVEL_UNIT_KINDS_BY_TYPE in options.md |
-| `position` | Float | no | | Order within the novel. **Not unique** - the editor reorders by swapping two rows' positions, and a unique constraint would fire mid-swap |
+| `position` | Float | no | | Order within the novel. **Not unique** - the editor renumbers every row after a drag, and a unique constraint could fire mid-save while two rows briefly share a value |
 | `unit_key` | String | yes | | Explicit label (e.g. a volume subtitle's short code). When blank, the display key falls back to `"{prefix} {position}"` (`unit_display_key` / `unitDisplayKey`) |
 | `name_cn` / `name_en` | String | yes | | |
 | `remark` | String | yes | | |
@@ -1171,7 +1171,7 @@ with one intentional deviation - see the constraints note below.
 | `my_rating` | String | yes | | MY_RATINGS, or NULL |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. Filled from MAL's character picture for a character with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
-| `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. Independent of every `character_casting.role`: nothing derives, syncs or defaults one from the other |
+| `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. While NULL it is filled from the highest-ranked `character_casting.role` (`CHARACTER_ROLES` order) on each cast save and by Calculate All; a set value is never overwritten |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose picture stands in when `photo_file` is NULL; must be an entry the character is cast on. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `remark` | Text | yes | | |
 | `mal_id` | Integer | yes | | MAL character id. Indexed (`ix_character_mal_id`), **not unique**, like `person.mal_id`: a duplicate is fixed by merge, not refused. Derived from `mal_link` by `extract_mal_id_character` on every write. The key the MAL cast import matches a character on, and the key the character is filled from MAL on |
@@ -1212,7 +1212,7 @@ the casting, because one character may have several seiyuu in one entry.
 | `character_id` | UUID | no | | FK `character.system_id` **ON DELETE CASCADE**, indexed |
 | `media_type` | String | no | | Hyphenated key: one of `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `novel`, `h-comic`, `hentai`) |
 | `entry_id` | UUID | no | | FK-less - see [Cross-table references](#cross-table-references-without-foreign-keys) |
-| `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Independent of `character.role` |
+| `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Fills a NULL `character.role`; never written from it |
 | `position` | Integer | no | `0` (server default too) | Display / drag-reorder order |
 | `photo_file` | String | yes | | Storage key: this character as she appears in this entry, usually a library image (`library/<checksum>.jpg`) set through the cast editor's picker. NULL falls back to `character.photo_file` at read time. Not an attachment - castings are re-inserted on every cast save, so their ids cannot own one - so the image library reads this column itself when it asks whether an image is in use. |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Written by the cast save with the photo. Falls back with the photo: a casting with no `photo_file` reads the character's `photo_focus` beside the character's photo. A forced image delete that NULLs `photo_file` NULLs this too |
@@ -1809,10 +1809,12 @@ Constraint: `uq_system_option_scope` UNIQUE (`option_id`, `scope`).
 
 ### `system_option_usage`
 
-Which roles a vocabulary value may be used in — parallel to
+Which picker a `Platform` value is offered in — parallel to
 `system_option_scope`, which answers "in which media types" this answers "for
-what". A value with **no** usage rows serves every usage. Model:
-`SystemOptionUsage` (`app/models/system.py`).
+what". A value with **no** usage rows serves every usage. Only `Platform`
+values carry usage rows (`USAGE_CATEGORIES` in `app/utils/source_fields.py`);
+the API refuses them on any other category. Model: `SystemOptionUsage`
+(`app/models/system.py`).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|

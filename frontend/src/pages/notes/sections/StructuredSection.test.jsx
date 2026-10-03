@@ -6,7 +6,7 @@
 // no blob-backed field sends `fields: null` rather than an empty object, and
 // that the reorder and quick-edit affordances call the right handler with the
 // right shape of argument.
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import StructuredSection from "./StructuredSection";
@@ -211,13 +211,63 @@ it("reorders by sending the section's ids in their new order", async () => {
     onReorder,
   });
 
-  await userEvent.click(screen.getAllByRole("button", { name: /move entry down/i })[0]);
+  fireEvent.keyDown(screen.getByLabelText("Reorder first"), { key: "ArrowDown" });
   expect(onReorder).toHaveBeenCalledWith("controls", ["b", "a"]);
 });
 
-it("shows no move buttons on a single row", () => {
+it("refuses a move while the last one is still being saved", () => {
+  const onReorder = vi.fn();
+  renderSection({
+    notes: [
+      { system_id: "a", title: "first" },
+      { system_id: "b", title: "second" },
+    ],
+    onReorder,
+    reordering: true,
+  });
+
+  expect(screen.getByLabelText("Reorder first")).toBeDisabled();
+  fireEvent.keyDown(screen.getByLabelText("Reorder first"), { key: "ArrowDown" });
+  expect(onReorder).not.toHaveBeenCalled();
+});
+
+it("reorders a nested list's rows in the form, saved with the row", async () => {
+  const onUpdate = vi.fn();
+  renderSection({
+    section: ENEMIES,
+    notes: [
+      {
+        system_id: "n1",
+        title: "Malenia",
+        fields: {
+          drops: [
+            { item: "Great Rune", rate: "100%" },
+            { item: "Hand of Malenia", rate: "100%" },
+          ],
+        },
+      },
+    ],
+    onUpdate,
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+  fireEvent.keyDown(screen.getByLabelText("Reorder Drops row 2"), { key: "ArrowUp" });
+  // The inputs follow their row, not their slot.
+  expect(screen.getByLabelText("Drops row 1 Item")).toHaveValue("Hand of Malenia");
+  expect(screen.getByLabelText("Drops row 2 Item")).toHaveValue("Great Rune");
+  // Nothing is saved until the row's own Save.
+  expect(onUpdate).not.toHaveBeenCalled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onUpdate.mock.calls[0][1].fields.drops).toEqual([
+    { item: "Hand of Malenia", rate: "100%" },
+    { item: "Great Rune", rate: "100%" },
+  ]);
+});
+
+it("shows no reorder handle on a single row", () => {
   renderSection({ notes: [{ system_id: "a", title: "only" }] });
-  expect(screen.queryByRole("button", { name: /move entry/i })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Reorder /i })).toBeNull();
 });
 
 it("quick-edits one field without opening the row, merging the blob", async () => {
@@ -343,15 +393,20 @@ it("reorders within one set of siblings, sending only those ids", () => {
   const onReorder = vi.fn();
   renderTree({ onReorder });
 
-  // Only the two roots have a sibling to swap with; an only child gets no
-  // buttons at all. So there are two, one per root, and the last one is
-  // disabled rather than absent.
-  const moves = screen.getAllByRole("button", { name: /move entry down/i });
-  expect(moves).toHaveLength(2);
-  expect(moves[1]).toBeDisabled();
+  // Only the two roots have a sibling to move among; an only child gets no
+  // handle at all.
+  const handles = screen.getAllByRole("button", { name: /^Reorder / });
+  expect(handles.map((h) => h.getAttribute("aria-label"))).toEqual([
+    "Reorder Limgrave",
+    "Reorder Liurnia",
+  ]);
 
-  moves[0].click();
-  // The whole section, flattened depth-first with the swap applied - the
+  // A root moves among the roots only: down from the last root is nowhere.
+  fireEvent.keyDown(screen.getByLabelText("Reorder Liurnia"), { key: "ArrowDown" });
+  expect(onReorder).not.toHaveBeenCalled();
+
+  fireEvent.keyDown(screen.getByLabelText("Reorder Limgrave"), { key: "ArrowDown" });
+  // The whole section, flattened depth-first with the move applied - the
   // endpoint refuses a payload that does not name every note of the section,
   // and a depth-first order leaves sort_index ascending as the page draws.
   expect(onReorder).toHaveBeenCalledWith("story_list_main", [

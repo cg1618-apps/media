@@ -31,6 +31,7 @@ from app.services.domain.autofill import (
 from app.services.domain.casting import (
     CastingValidationError,
     casting_rows,
+    fill_character_roles,
     replace_casting,
 )
 from app.services.domain.checking import (
@@ -222,6 +223,7 @@ __all__ = [
     "rating_rank_case",
     "casting_rows",
     "replace_casting",
+    "fill_character_roles",
     "CastingValidationError",
     "resolve_series_parent_hierarchy",
     "resolve_anime_parent_hierarchy",

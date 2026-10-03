@@ -83,6 +83,20 @@ const EXTERNAL_SHAPES = {
 
 const NotesContext = createContext(null);
 
+// `notes` with one section's rows put in `orderedIds` order, every other row
+// where it was. The page draws a section in array order, so this is how a
+// reorder shows before the server has answered. Ids not in the section are
+// ignored; a row the list does not name keeps its place after those it does.
+export function withSectionOrder(notes, section, orderedIds) {
+  const position = new Map(orderedIds.map((id, i) => [id, i]));
+  const rank = (n) => position.get(n.system_id) ?? orderedIds.length;
+  const sorted = notes
+    .filter((n) => n.section === section)
+    .sort((a, b) => rank(a) - rank(b));
+  let next = 0;
+  return notes.map((n) => (n.section === section ? sorted[next++] : n));
+}
+
 // Whether a section applies to this owner ROW, not just this owner type.
 // `owner_where` ({column: [allowed values]}) narrows a section to some rows of
 // its owner types - 亮點 Highlights is KR h-comics only - and the server
@@ -133,6 +147,10 @@ export function NotesProvider({
   const [externalCounts, setExternalCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // The sections whose reorder is still being saved. The ref is the guard
+  // (read synchronously by onReorder); the state is what the sections render.
+  const reorderingRef = useRef(new Set());
+  const [reordering, setReordering] = useState(() => new Set());
 
   // Only the rows change while the page is open, so a mutation refetches them
   // alone; the registry is static for the session.
@@ -224,12 +242,28 @@ export function NotesProvider({
       // Takes every id of the section in its new order - the endpoint refuses
       // anything else. A hierarchical section flattens its tree depth-first,
       // so sort_index ascends in the order the page draws.
+      //
+      // One reorder per section at a time. The next move is built from
+      // `notes`, so a second one sent before the first has been reloaded would
+      // be computed from a stale order and undo it; while a save is in flight
+      // the section is told so (`reordering`) and disables its handles, and a
+      // call that slips through anyway is dropped here. The new order is
+      // applied locally first, so the dropped row stays where it was put;
+      // a failed save reloads the stored order and says why.
       onReorder: async (section, orderedIds) => {
+        if (reorderingRef.current.has(section)) return;
+        reorderingRef.current.add(section);
+        setReordering(new Set(reorderingRef.current));
+        setNotes((prev) => withSectionOrder(prev, section, orderedIds));
         try {
           await api.reorderNotes(ownerType, ownerId, section, orderedIds);
           await reloadNotes();
         } catch (e) {
+          await reloadNotes();
           setError(String(e.message || e));
+        } finally {
+          reorderingRef.current.delete(section);
+          setReordering(new Set(reorderingRef.current));
         }
       },
     }),
@@ -262,6 +296,7 @@ export function NotesProvider({
         nameSuggestions={nameSuggestions}
         groupOrder={groupOrder}
         onGroupOrderChange={onGroupOrderChange}
+        reordering={reordering.has(section.key)}
         {...handlers}
       />
     );

@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-01
+Last verified: 2026-10-03
 
 ## What this is for
 
@@ -35,7 +35,7 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 | `publisher_scope` | Which media types a publisher is offered on: `publisher_id` (FK, cascade), `scope` (**NOT NULL**, a hyphenated media-type key, one of `legal_scopes("publisher")`). Explicit rather than derived from credits, for `person_role`'s reason — a distributor added today must appear in the anime picker before its first credit exists. **No `role` column**: a publisher holds exactly one role, so a column whose value is the constant `publisher` on every row would encode nothing. Zero rows means offered *nowhere*, which is what makes auto-scoping on write purely additive. `studio` has no counterpart — a studio list offering every studio is not wrong the way a distributor list offering 木棉花 on a game would be. | `uq_publisher_scope (publisher_id, scope)` — plain, not NULLS NOT DISTINCT: `scope` is NOT NULL, so nothing in the key is nullable |
 | `media_credit` | One person, studio **or** publisher on one entry: `media_id` FK → `media.system_id` (cascade), `role` (one of `CREDIT_ROLE_KEYS`), `person_id` / `studio_id` / `publisher_id` (all three FK, cascade on delete), `position` (order of the original comma list), `remark`. Exactly one of the three is set. | `ck_media_credit_one_target` CHECK `num_nonnulls(person_id, studio_id, publisher_id) = 1`; `uq_media_credit_row (media_id, role, person_id, studio_id, publisher_id)` NULLS NOT DISTINCT; index on `media_id` |
 | `media_tag` | One vocabulary value on one entry: `media_id` FK → `media.system_id` (cascade), `field` (one of `TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. Column is `field`, not `category`: one category can back several fields, one field maps to exactly one category. | `uq_media_tag_row (media_id, field, option_id)`; index on `media_id` |
-| `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `photo_fallback_entry_id`, `role` (overall, `CHARACTER_ROLES`, independent of any casting's role), `remark`, timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
+| `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `photo_fallback_entry_id`, `role` (overall, `CHARACTER_ROLES`; a NULL one is filled from the castings' highest-ranked role), `remark`, timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
 | `character_casting` | THE cast record for one character, in one entry: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `role` (optional; `CHARACTER_ROLES` or NULL), `position`, `photo_file`, `remark`. Its seiyuu are `character_casting_voice` rows. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, media_type, entry_id)`; `uq_character_casting_entry (system_id, media_type, entry_id)`, the composite FK's target; index on `(media_type, entry_id)` |
 | `character_casting_voice` | One seiyuu voicing one casting: `casting_id`, the casting's `media_type` and `entry_id` repeated, `person_id` (FK, **cascade**), `position`, `remark` (free text: `child`, `ep 13-`). A casting has zero or more. | `fk_casting_voice_casting (casting_id, media_type, entry_id)` → `character_casting (system_id, media_type, entry_id)`, cascade on delete and update; `uq_casting_voice (casting_id, person_id)`; `ck_casting_voice_scope` (only on `anime`/`anime-movie`/`hentai`); index on `(media_type, entry_id)` |
 
@@ -387,8 +387,13 @@ Three tables, and the shape is deliberate on the points recorded below.
   `photo_fallback_entry_id`, `role`, `remark`, and `mal_id` / `mal_link`
   (indexed, not unique - see [MAL](#mal-a-characters-link-and-a-cast-import)
   below). `role` is what the character
-  is overall; it is independent of `character_casting.role` - nothing
-  derives, syncs or defaults one from the other. `ck_character_has_a_name` requires at
+  is overall. While it is NULL, `fill_character_roles`
+  (`app/services/domain/casting.py`) fills it with the highest-ranked
+  `character_casting.role` (`CHARACTER_ROLES` order, Main first): for the
+  cast's characters on every cast save, and for every character in Calculate
+  All's `run_sync_character_roles`, the net under Pull and a sheet restore.
+  A set role is never overwritten, so clearing one only lasts until the next
+  fill while a casting still names a role; nothing flows from it to a casting. `ck_character_has_a_name` requires at
   least one name. `gender` and `my_rating` are the same closed vocabularies
   as on `person` ([options.md](../options.md)); a write outside them is a 422.
 - `character_casting` — THE cast record: one character, in one entry, with
@@ -623,7 +628,9 @@ the at-least-one-name rule, server columns, non-admins refused, and the
 fallback-must-be-linked check on `PUT`, `PATCH` and `POST`),
 `test_entity_photos.py` ([Photo fallback](#photo-fallback)), and in
 `test_casting_router.py` the optional cast role (blank or null stores no role;
-an unknown role is still a 422). `character.role` is covered by the same
+an unknown role is still a 422) and the role fill (a cast save fills a
+role-less character, never overwrites a held role, and Calculate takes the
+highest-ranked casting role). `character.role` is covered by the same
 unit file (vocabulary, blank as null, Sheets restore) and by
 `test_character_person_patch.py` (POST / PUT / PATCH, and that setting it
 leaves every casting's role alone).

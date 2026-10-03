@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import ComboBox from "./ComboBox";
 import ImagePicker from "./ImagePicker";
+import { DragHandle, SortableItem, SortableList, arrayMove } from "../ui/Sortable";
 import { useConstants } from "../../config/useConstants";
 import { endpoints } from "../../api/endpoints";
 import { buildCreateRequest } from "../../lib/ensureSourceValues";
@@ -37,11 +38,14 @@ const SEIYUU_MEDIA_TYPES = new Set(["anime", "anime-movie", "hentai"]);
 const cellCls =
   "border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface";
 
-// The POST body for a character minted from this editor: the typed name,
-// plus the gender NEW_CAST_CHARACTER_GENDER gives this media type, if any.
+// The POST body for a character minted from this editor: the typed name as
+// its CN name and display name, plus the gender NEW_CAST_CHARACTER_GENDER
+// gives this media type, if any. A MAL import mints with MAL's name_en
+// instead - that one is MAL's romanisation, this one is what the admin typed.
 export function newCharacterBody(name, mediaType) {
+  const body = { name_cn: name, display_name_field: "cn" };
   const gender = NEW_CAST_CHARACTER_GENDER[mediaType];
-  return gender ? { name_en: name, gender } : { name_en: name };
+  return gender ? { ...body, gender } : body;
 }
 
 // One seiyuu on a cast row. A row may hold several - a child and an adult
@@ -292,16 +296,13 @@ export default function CastEditor({
       rows.filter((_, j) => j !== i).map((r, j) => ({ ...r, position: j })),
     );
 
-  // Swap adjacent rows and renumber, the same shape as NovelUnitsEditor's
-  // move — up/down controls rather than a drag library, matching this
-  // codebase's existing reorder pattern.
-  const move = (i, delta) => {
-    const j = i + delta;
-    if (j < 0 || j >= rows.length) return;
-    const next = [...rows];
-    [next[i], next[j]] = [next[j], next[i]];
-    onChange(next.map((r, k) => ({ ...r, position: k })));
-  };
+  // A row is dragged by its handle (components/ui/Sortable, the reorder
+  // control every list uses) and the rows renumbered, the same shape as
+  // NovelUnitsEditor's move. A row not saved yet has no system_id, so it is
+  // identified by its index until it has one.
+  const rowIds = rows.map((r, i) => r.system_id || `new-${i}`);
+  const move = (from, to) =>
+    onChange(arrayMove(rows, from, to).map((r, k) => ({ ...r, position: k })));
 
   // Searches GET /api/character/?name= (Fix round 1: this used to fetch the
   // whole table). Debounced per row, and fetches /entries ONLY for the
@@ -466,156 +467,155 @@ export default function CastEditor({
 
   return (
     <div className="space-y-2">
-      {rows.map((row, i) => (
-        <div
-          key={row.system_id || i}
-          className="flex gap-1.5 items-start border border-border rounded-lg p-2 bg-surface"
-        >
-          <div className="flex flex-col shrink-0 pt-2">
-            <button
-              type="button"
-              disabled={i === 0}
-              onClick={() => move(i, -1)}
-              aria-label="Move up"
-              className="text-text-faint/60 hover:text-text-faint disabled:opacity-20 leading-none px-0.5"
-            >
-              <i className="fas fa-chevron-up text-[9px]" />
-            </button>
-            <button
-              type="button"
-              disabled={i === rows.length - 1}
-              onClick={() => move(i, 1)}
-              aria-label="Move down"
-              className="text-text-faint/60 hover:text-text-faint disabled:opacity-20 leading-none px-0.5"
-            >
-              <i className="fas fa-chevron-down text-[9px]" />
-            </button>
-          </div>
-
-          <div className="flex-1 min-w-0" aria-label="Character">
-            <ComboBox
-              items={characterItems(row, i)}
-              selectedId={row.character_id || null}
-              inputText={row.character_name || ""}
-              onSelect={(id) => handleCharacterSelect(i, id)}
-              onType={(text) => {
-                updateRow(i, { character_name: text });
-                scheduleCharacterSearch(i, text);
-              }}
-              onClear={() => {
-                updateRow(i, { character_id: null, character_name: "" });
-                setCharacterResults((prev) => ({ ...prev, [i]: [] }));
-              }}
-              placeholder="Character name..."
+      <SortableList ids={rowIds} onMove={move}>
+        {rows.map((row, i) => (
+          <SortableItem
+            key={rowIds[i]}
+            id={rowIds[i]}
+            className="flex gap-2 items-start border border-border rounded-lg p-2 bg-surface"
+          >
+            <DragHandle
+              label={row.character_name || `cast member ${i + 1}`}
+              className="pt-2"
             />
-          </div>
 
-          {showSeiyuu ? (
-            <div className="flex-1 min-w-0 flex flex-col gap-1" aria-label="Seiyuu">
-              {voiceLines(row).map((voice, v) => (
-                <div
-                  // By index: a voice is never reordered, and keying on
-                  // person_id would remount the box the moment one is picked.
-                  key={v}
-                  className="flex gap-1 items-start"
-                  onBlur={(e) => resolveSeiyuu(i, v, e)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <ComboBox
-                      items={seiyuuList.map((p) => ({
-                        id: p.system_id,
-                        label: p.display_name,
-                        searchText: p.display_name,
-                      }))}
-                      selectedId={voice.person_id || null}
-                      inputText={voice.person_name || ""}
-                      onSelect={(id, label) =>
-                        updateVoice(i, v, { person_id: id, person_name: label })
-                      }
-                      onType={(text) => updateVoice(i, v, { person_name: text })}
-                      onClear={() =>
-                        updateVoice(i, v, { person_id: null, person_name: "" })
-                      }
-                      placeholder="Seiyuu name..."
-                      allowNew
-                    />
-                  </div>
-                  <input
-                    className={cellCls + " shrink-0 w-24"}
-                    placeholder="e.g. child"
-                    value={voice.remark || ""}
-                    onChange={(e) => updateVoice(i, v, { remark: e.target.value })}
-                    aria-label="Voice remark"
+            {/* Two lines, so no cell is squeezed to nothing on a narrow form:
+                who the character is and what they are here, then who voices
+                them and the casting's remark. The second line wraps the
+                remark under the seiyuu when even that is too tight. */}
+            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+              <div className="flex gap-1.5 items-center">
+                <div className="flex-1 min-w-0" aria-label="Character">
+                  <ComboBox
+                    items={characterItems(row, i)}
+                    selectedId={row.character_id || null}
+                    inputText={row.character_name || ""}
+                    onSelect={(id) => handleCharacterSelect(i, id)}
+                    onType={(text) => {
+                      updateRow(i, { character_name: text });
+                      scheduleCharacterSearch(i, text);
+                    }}
+                    onClear={() => {
+                      updateRow(i, { character_id: null, character_name: "" });
+                      setCharacterResults((prev) => ({ ...prev, [i]: [] }));
+                    }}
+                    placeholder="Character name..."
                   />
-                  {row.voices?.length > 0 && (
+                </div>
+                <select
+                  className={cellCls + " shrink-0 w-28"}
+                  value={row.role || ""}
+                  onChange={(e) => updateRow(i, { role: e.target.value })}
+                  aria-label="Role"
+                >
+                  <option value="">—</option>
+                  {roleOptions.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+
+                {/* No ownerType or ownerId: a casting cannot own an attachment,
+                    because replace_casting re-inserts every row on each save. The
+                    picked key rides in photo_file with the cast PUT, and the image
+                    library counts it as in use by reading that column. Its focal
+                    point rides beside it in photo_focus. */}
+                <div role="group" aria-label="Photo" className="shrink-0">
+                  <ImagePicker
+                    compact
+                    value={row.photo_file || ""}
+                    onChange={(key) => updateRow(i, { photo_file: key || null })}
+                    focus={row.photo_focus || null}
+                    onFocusChange={(focus) => updateRow(i, { photo_focus: focus })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 items-start">
+                {showSeiyuu ? (
+                  <div
+                    className="flex-[2_1_18rem] min-w-0 flex flex-col gap-1"
+                    aria-label="Seiyuu"
+                  >
+                    {voiceLines(row).map((voice, v) => (
+                      <div
+                        // By index: a voice is never reordered, and keying on
+                        // person_id would remount the box the moment one is picked.
+                        key={v}
+                        className="flex gap-1 items-start"
+                        onBlur={(e) => resolveSeiyuu(i, v, e)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <ComboBox
+                            items={seiyuuList.map((p) => ({
+                              id: p.system_id,
+                              label: p.display_name,
+                              searchText: p.display_name,
+                            }))}
+                            selectedId={voice.person_id || null}
+                            inputText={voice.person_name || ""}
+                            onSelect={(id, label) =>
+                              updateVoice(i, v, { person_id: id, person_name: label })
+                            }
+                            onType={(text) => updateVoice(i, v, { person_name: text })}
+                            onClear={() =>
+                              updateVoice(i, v, { person_id: null, person_name: "" })
+                            }
+                            placeholder="Seiyuu name..."
+                            allowNew
+                          />
+                        </div>
+                        <input
+                          className={cellCls + " shrink-0 w-28"}
+                          placeholder="e.g. child"
+                          value={voice.remark || ""}
+                          onChange={(e) => updateVoice(i, v, { remark: e.target.value })}
+                          aria-label="Voice remark"
+                        />
+                        {row.voices?.length > 0 && (
+                          <button
+                            type="button"
+                            className="text-text-faint hover:text-danger px-1 pt-2 shrink-0"
+                            aria-label="Remove seiyuu"
+                            onClick={() => removeVoice(i, v)}
+                          >
+                            <i className="fas fa-minus text-[10px]" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
                     <button
                       type="button"
-                      className="text-text-faint hover:text-danger px-1 pt-2 shrink-0"
-                      aria-label="Remove seiyuu"
-                      onClick={() => removeVoice(i, v)}
+                      className="self-start text-[11px] text-brand hover:underline"
+                      onClick={() => addVoice(i)}
                     >
-                      <i className="fas fa-minus text-[10px]" />
+                      + Another seiyuu
                     </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                className="self-start text-[11px] text-brand hover:underline"
-                onClick={() => addVoice(i)}
-              >
-                + Another seiyuu
-              </button>
+                  </div>
+                ) : null}
+
+                <input
+                  className={cellCls + " flex-[1_1_12rem] min-w-0"}
+                  placeholder="Remark"
+                  value={row.remark || ""}
+                  onChange={(e) => updateRow(i, { remark: e.target.value })}
+                  aria-label="Remark"
+                />
+              </div>
             </div>
-          ) : null}
 
-          <select
-            className={cellCls + " shrink-0 w-28"}
-            value={row.role || ""}
-            onChange={(e) => updateRow(i, { role: e.target.value })}
-            aria-label="Role"
-          >
-            <option value="">—</option>
-            {roleOptions.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-
-          {/* No ownerType or ownerId: a casting cannot own an attachment,
-              because replace_casting re-inserts every row on each save. The
-              picked key rides in photo_file with the cast PUT, and the image
-              library counts it as in use by reading that column. Its focal
-              point rides beside it in photo_focus. */}
-          <div role="group" aria-label="Photo" className="shrink-0 pt-0.5">
-            <ImagePicker
-              compact
-              value={row.photo_file || ""}
-              onChange={(key) => updateRow(i, { photo_file: key || null })}
-              focus={row.photo_focus || null}
-              onFocusChange={(focus) => updateRow(i, { photo_focus: focus })}
-            />
-          </div>
-
-          <input
-            className={cellCls + " flex-1 min-w-0"}
-            placeholder="Remark"
-            value={row.remark || ""}
-            onChange={(e) => updateRow(i, { remark: e.target.value })}
-            aria-label="Remark"
-          />
-
-          <button
-            type="button"
-            className="text-danger/70 hover:text-danger px-1 shrink-0"
-            aria-label="Remove"
-            onClick={() => removeRow(i)}
-          >
-            <i className="fas fa-times" />
-          </button>
-        </div>
-      ))}
+            <button
+              type="button"
+              className="text-danger/70 hover:text-danger px-1 pt-2 shrink-0"
+              aria-label="Remove"
+              onClick={() => removeRow(i)}
+            >
+              <i className="fas fa-times" />
+            </button>
+          </SortableItem>
+        ))}
+      </SortableList>
       <div className="flex flex-wrap items-center gap-3 mt-1">
         <button
           type="button"

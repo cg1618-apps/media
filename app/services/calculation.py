@@ -56,6 +56,7 @@ from app.services.domain import (
     derive_novel_catalog,
     derive_novel_list,
     extract_system_options,
+    fill_character_roles,
     manga_post_processing,
     sync_seasonal_counts,
     tv_show_post_processing,
@@ -606,9 +607,25 @@ def run_sync(db: Session) -> dict:
     run_sync_hentai(db)
     run_sync_gated_labels(db)
     run_sync_size_groups(db)
+    run_sync_character_roles(db)
     return {
         "status": "success",
         "message": "All synchronization tasks completed.",
+    }
+
+
+def run_sync_character_roles(db: Session) -> dict:
+    """
+    Every character with no role of its own takes the highest-ranked role
+    its castings carry (app/services/domain/casting.py). A cast save does
+    this for the characters it touches; this is the net under the paths that
+    write castings without one - a Pull, a sheet restore.
+    """
+    filled = fill_character_roles(db)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Character roles filled for {filled} character(s).",
     }
 
 

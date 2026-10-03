@@ -93,9 +93,10 @@ class Character(Base, NameFallbackMixin):
     # choice (app/services/domain/entity_photos.py).
     photo_fallback_entry_id = Column(UUID(as_uuid=True), nullable=True)
     # One of character_roles.CHARACTER_ROLES, or NULL: what the character is
-    # to their story overall. Independent of character_casting.role, which is
-    # what they are in one entry - neither is derived from, synced with or
-    # defaulted from the other.
+    # to their story overall. character_casting.role is what they are in one
+    # entry; when this is NULL it is filled from the castings' highest-ranked
+    # role (domain/casting.py fill_character_roles), never overwritten once
+    # set, and nothing flows the other way.
     role = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
     # MAL's character record, as person carries its people record: mal_link

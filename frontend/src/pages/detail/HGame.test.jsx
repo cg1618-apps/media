@@ -6,8 +6,7 @@
 // highlight_group_order - moved on the page and saved whole by PATCH, the way
 // h-comic's is.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -144,7 +143,6 @@ describe("HGame detail page", () => {
   });
 
   it("orders highlight groups by the entry and saves a move whole", async () => {
-    const user = userEvent.setup();
     const fetchMock = mockFetch(ENTRY, [note("n1", ["Bora"]), note("n2", ["Ahri"])]);
     mount();
     expect(await screen.findByText("亮點 Highlights")).toBeInTheDocument();
@@ -155,12 +153,14 @@ describe("HGame detail page", () => {
         .map((h) => within(h).getByRole("heading").textContent);
     expect(names()).toEqual(["Ahri", "Bora"]);
 
-    await user.click(screen.getByRole("button", { name: "Move group Bora up" }));
+    fireEvent.keyDown(screen.getByLabelText("Reorder group Bora"), { key: "ArrowUp" });
 
     const patch = fetchMock.mock.calls.find(
       ([url, options]) => String(url) === "/api/h-game/hg1" && options?.method === "PATCH"
     );
     expect(patch).toBeDefined();
+    // The handles stay frozen until that save has come back.
+    await waitFor(() => expect(screen.getByLabelText("Reorder group Ahri")).not.toBeDisabled());
     expect(JSON.parse(patch[1].body)).toEqual({ highlight_group_order: ["Bora", "Ahri"] });
   });
 });

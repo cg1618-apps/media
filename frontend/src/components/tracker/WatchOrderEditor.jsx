@@ -3,7 +3,16 @@
 // Everything that writes to /api/watch-order lives here. The read-only
 // renderer is WatchOrderGuide; this component deliberately does not reuse it,
 // because an editable row needs inputs where the guide needs links.
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DndContext,
+  MeasuringStrategy,
+  pointerWithin,
+  useDndContext,
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 
 import { buildUrl, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
@@ -12,12 +21,22 @@ import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
+import { useDragSensors } from "../ui/Sortable";
 import {
   buildBlocks,
   MediaScopeLine,
   specialLabel,
   supportsEpisodeRange,
 } from "./WatchOrderGuide";
+import {
+  buildTokens,
+  changesNothing,
+  moveBlock,
+  moveStepByIndex,
+  moveStepIntoGap,
+  moveStepIntoPart,
+  orderPayload,
+} from "./watchOrderLayout";
 
 // The rungs a step can sit on, most important first. Mirrors ITEM_IMPORTANCE
 // in app/services/domain/watch_order.py, which validates them.
@@ -52,6 +71,77 @@ const TYPE_LABELS = {
   hentai: "Hentai",
 };
 
+// Steps and parts are dragged on dnd-kit's pointer events, not native HTML5
+// drag: a native drag swallows the mouse wheel on Windows, and a guide can run
+// to a hundred steps, so the page has to keep scrolling under the wheel while
+// a row is held. Ids are namespaced because a step, a part and a gap are all
+// drop targets in one context.
+const dragId = {
+  item: (id) => `drag-item:${id}`,
+  part: (id) => `drag-part:${id}`,
+};
+const dropId = {
+  row: (id) => `row:${id}`,
+  part: (id) => `part:${id}`,
+  gap: (index) => `gap:${index}`,
+};
+
+const lockToVerticalAxis = ({ transform }) => ({ ...transform, x: 0 });
+
+const SCREEN_READER = {
+  draggable:
+    "Drag to reorder, or press the up and down arrow keys to move one place.",
+};
+
+// The innermost target wins: a row or a gap inside a part box beats the box,
+// so dropping onto a row is never mistaken for "append to this part".
+function innermostUnderPointer(args) {
+  const hits = pointerWithin(args);
+  const inner = hits.find((hit) => !String(hit.id).startsWith("part:"));
+  return inner ? [inner] : hits.slice(0, 1);
+}
+
+/**
+ * The grip a step or a part is dragged by - the same look, labels and keys as
+ * the shared DragHandle in ui/Sortable, which this cannot use directly: a
+ * watch order is not one flat sortable list but steps, parts and gaps.
+ *
+ * It is never `disabled`, only aria-disabled while a save is in flight: a
+ * disabled button drops focus, and a held arrow key has to keep moving the
+ * same row once the save lands.
+ */
+function Grip({ label, drag, busy, onStep, registerHandle }) {
+  const ref = (el) => {
+    drag.setActivatorNodeRef(el);
+    registerHandle(el);
+  };
+  return (
+    <button
+      type="button"
+      ref={ref}
+      {...drag.attributes}
+      {...drag.listeners}
+      aria-disabled={busy}
+      onKeyDown={(e) => {
+        if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+        e.preventDefault();
+        onStep(e.key === "ArrowUp" ? -1 : 1);
+      }}
+      aria-label={`Reorder ${label}`}
+      title="Drag to reorder (or focus and press ↑/↓)"
+      className={`shrink-0 touch-none select-none px-1 text-text-faint/60 hover:text-text-faint aria-disabled:opacity-30 ${
+        drag.isDragging ? "cursor-grabbing" : "cursor-grab"
+      }`}
+    >
+      <i className="fas fa-grip-vertical text-[11px]" aria-hidden="true" />
+    </button>
+  );
+}
+
+function dragStyle(drag) {
+  return { transform: CSS.Translate.toString(drag.transform) };
+}
+
 function ItemRow({
   item,
   index,
@@ -59,11 +149,21 @@ function ItemRow({
   onPatch,
   onRemove,
   onMove,
-  isFirst,
-  isLast,
-  dragHandlers,
+  busy = false,
+  registerHandle,
   readOnly = false,
 }) {
+  const drag = useDraggable({
+    id: dragId.item(item.system_id),
+    data: { type: "item", itemId: item.system_id },
+    disabled: readOnly || busy,
+  });
+  const drop = useDroppable({
+    id: dropId.row(item.system_id),
+    data: { type: "row", itemId: item.system_id },
+    disabled: readOnly,
+  });
+
   // Episode inputs are held locally so typing doesn't fire a request per
   // keystroke; the value is committed on blur.
   const [epStart, setEpStart] = useState(item.ep_start ?? "");
@@ -108,32 +208,44 @@ function ItemRow({
       return;
     }
     const target = Math.min(Math.max(parsed, 1), total);
-    if (target === index) {
-      // Normalizes what is shown: typing 0 on the first row is not a move,
-      // but the box should still read 1 afterwards.
+    // Typing 0 on the first row is not a move, and a move refused because the
+    // last one is still saving is not either: either way the box goes back to
+    // reading the step's real slot.
+    if (target === index || !onMove(index - 1, target - 1)) {
       setSlot(String(index));
-      return;
     }
-    onMove(index - 1, target - 1);
   }
+
+  const overByOther = drop.isOver && !drag.isDragging;
 
   return (
     <li
-      draggable={!readOnly}
-      {...dragHandlers}
+      ref={(el) => {
+        drag.setNodeRef(el);
+        drop.setNodeRef(el);
+      }}
+      style={dragStyle(drag)}
       className={`flex flex-col gap-2 p-3 border bg-surface ${
         item.missing ? "border-dashed border-danger" : "border-border"
+      } ${drag.isDragging ? "relative z-10 opacity-80" : ""} ${
+        overByOther ? "ring-2 ring-brand" : ""
       }`}
     >
       <div className="flex items-center gap-3">
         {!readOnly && (
-          <i className="fas fa-grip-vertical text-text-faint cursor-grab" aria-hidden="true"></i>
+          <Grip
+            label={item.display_name || `step ${index}`}
+            drag={drag}
+            busy={busy}
+            onStep={(delta) => onMove(index - 1, index - 1 + delta)}
+            registerHandle={registerHandle}
+          />
         )}
         {/*
           A box rather than the old circle: a caret and two digits do not fit a
-          28px round badge. Typing a slot is the third way to reorder, beside
-          dragging and the arrows, and the only one that works when the
-          destination is off-screen.
+          28px round badge. Typing a slot is the second way to reorder, beside
+          dragging, and the only one that works when the destination is
+          off-screen.
         */}
         {readOnly ? (
           <span className="w-9 h-7 shrink-0 border border-brand text-brand font-mono text-xs flex items-center justify-center">
@@ -194,26 +306,6 @@ function ItemRow({
         )}
 
         <div className={`flex items-center gap-1 ${readOnly ? "hidden" : ""}`}>
-          <button
-            type="button"
-            onClick={() => onMove(index - 1, index - 2)}
-            disabled={isFirst}
-            title="Move up"
-            aria-label="Move up"
-            className="w-7 h-7 inline-flex items-center justify-center border border-border-strong text-text-muted hover:text-text hover:border-text disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <i className="fas fa-chevron-up text-xs"></i>
-          </button>
-          <button
-            type="button"
-            onClick={() => onMove(index - 1, index)}
-            disabled={isLast}
-            title="Move down"
-            aria-label="Move down"
-            className="w-7 h-7 inline-flex items-center justify-center border border-border-strong text-text-muted hover:text-text hover:border-text disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <i className="fas fa-chevron-down text-xs"></i>
-          </button>
           <button
             type="button"
             onClick={() => onRemove(item.system_id)}
@@ -538,11 +630,20 @@ function PartBox({
   onRemove,
   onMove,
   onAddHere,
-  isFirst,
-  isLast,
+  registerHandle,
+  readOnly = false,
   children,
-  dropHandlers,
 }) {
+  const drag = useDraggable({
+    id: dragId.part(section.system_id),
+    data: { type: "part", sectionId: section.system_id },
+    disabled: readOnly || busy,
+  });
+  const drop = useDroppable({
+    id: dropId.part(section.system_id),
+    data: { type: "part", sectionId: section.system_id },
+    disabled: readOnly,
+  });
   const [name, setName] = useState(section.section_name ?? "");
   const [remark, setRemark] = useState(section.remark ?? "");
 
@@ -553,10 +654,30 @@ function PartBox({
 
   return (
     <section
-      {...dropHandlers}
-      className="border border-border-strong bg-surface"
+      ref={(el) => {
+        drag.setNodeRef(el);
+        drop.setNodeRef(el);
+      }}
+      style={dragStyle(drag)}
+      className={`border border-border-strong bg-surface ${
+        drag.isDragging ? "relative z-10 opacity-80" : ""
+      } ${drop.isOver && !drag.isDragging ? "ring-2 ring-brand" : ""}`}
     >
       <header className="px-3 py-2 border-b border-border flex flex-wrap items-center gap-2">
+        {/*
+          Moves the whole part - every step in it, in one commit. A part is a
+          block, so there is no such thing as moving its heading past its own
+          steps.
+        */}
+        {!readOnly && (
+          <Grip
+            label={`part ${section.section_name || "Untitled Section"}`}
+            drag={drag}
+            busy={busy}
+            onStep={onMove}
+            registerHandle={registerHandle}
+          />
+        )}
         <Eyebrow as="span" className="shrink-0">Part</Eyebrow>
         <input
           type="text"
@@ -579,31 +700,6 @@ function PartBox({
           {count === 1 ? " step" : " steps"}
         </Eyebrow>
         <div className="flex items-center gap-1">
-          {/*
-            Moves the whole part — every step in it, in one commit. A part is
-            a block, so there is no such thing as moving its heading past its
-            own steps.
-          */}
-          <button
-            type="button"
-            disabled={busy || isFirst}
-            onClick={() => onMove(-1)}
-            title="Move part up"
-            aria-label="Move part up"
-            className="w-7 h-7 inline-flex items-center justify-center border border-border-strong text-text-muted hover:text-text hover:border-text disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <i className="fas fa-chevron-up text-xs"></i>
-          </button>
-          <button
-            type="button"
-            disabled={busy || isLast}
-            onClick={() => onMove(1)}
-            title="Move part down"
-            aria-label="Move part down"
-            className="w-7 h-7 inline-flex items-center justify-center border border-border-strong text-text-muted hover:text-text hover:border-text disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <i className="fas fa-chevron-down text-xs"></i>
-          </button>
           {/*
             Deletes the part, never its steps: the FK is SET NULL, so they stay
             in the order and simply become unfiled where they already sit.
@@ -650,17 +746,25 @@ function PartBox({
  * *between* two parts: dropping onto a row adopts that row's part, so every
  * landing spot would belong to one part or another.
  */
-function UnfileGap({ active, dropHandlers }) {
+function UnfileGap({ index }) {
+  const { active } = useDndContext();
+  const { setNodeRef, isOver } = useDroppable({
+    id: dropId.gap(index),
+    data: { type: "gap", blockIndex: index },
+  });
+  const open = Boolean(active) && isOver;
+  // A part dropped here simply moves here; only a step is unfiled by it.
+  const isPart = active?.data.current?.type === "part";
   return (
     <div
-      {...dropHandlers}
+      ref={setNodeRef}
       className={`h-2 -my-1 transition-colors ${
-        active ? "h-8 my-0 border border-dashed border-brand bg-brand-soft" : ""
+        open ? "h-8 my-0 border border-dashed border-brand bg-brand-soft" : ""
       }`}
     >
-      {active && (
+      {open && (
         <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-brand text-center leading-7">
-          Drop here to leave it out of any part
+          {isPart ? "Drop here to move the part here" : "Drop here to leave it out of any part"}
         </p>
       )}
     </div>
@@ -675,11 +779,17 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  // The flat index of the row being dragged, and the gap it is hovering. Both
-  // are state rather than a ref: the gap that would receive the drop draws
-  // itself open, so a render has to follow the pointer.
-  const [dragging, setDragging] = useState(null);
-  const [gapOver, setGapOver] = useState(null);
+  // How many writes are in flight, counted synchronously. `busy` is what the
+  // page draws, but it lands a render late, and two key presses in one tick
+  // would both read it as false; a move checks this instead, so a second move
+  // is refused until the first is saved and an older response can never
+  // overwrite a newer order.
+  const inFlight = useRef(0);
+  const sensors = useDragSensors();
+  // Grips by key ("item:<id>" / "part:<id>"), so a keyboard move can put focus
+  // back on the grip it moved - the row usually remounts in another block.
+  const handles = useRef(new Map());
+  const focusAfterMove = useRef(null);
   // Which part the picker files new entries into, or null for none. Set by a
   // part's own "Add entry to this part" button.
   const [addTarget, setAddTarget] = useState(null);
@@ -711,7 +821,20 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
       .catch(() => setCandidates([]));
   }, [list?.franchise_id, list?.collection_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const key = focusAfterMove.current;
+    if (key == null) return;
+    focusAfterMove.current = null;
+    handles.current.get(key)?.focus();
+  });
+
+  const registerHandle = (key) => (el) => {
+    if (el) handles.current.set(key, el);
+    else handles.current.delete(key);
+  };
+
   async function send(url, method, body) {
+    inFlight.current += 1;
     setBusy(true);
     try {
       const res = await fetch(url, {
@@ -725,7 +848,8 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
       }
       return res;
     } finally {
-      setBusy(false);
+      inFlight.current -= 1;
+      if (inFlight.current === 0) setBusy(false);
     }
   }
 
@@ -899,195 +1023,127 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
   );
 
   /**
-   * Which part a moved step ends up in when nothing says explicitly.
+   * Commits a token stream as ONE reorder request: the step order, each
+   * step's part and every part's position travel together, so a move - a
+   * whole part included - either lands entirely or not at all.
    *
-   * It adopts the run it lands in, read off its new neighbours: the one they
-   * agree on, else the step above it, else the step below. Every answer
-   * extends an existing run rather than starting a second one, so a move can
-   * never split a part — which is the invariant the server enforces and would
-   * otherwise reject the request for.
-   *
-   * The practical reading: nudging a step down past the last step of its part
-   * takes it out of that part, and nudging one up into the middle of a part
-   * puts it in. Both are what the arrows look like they should do.
+   * Returns false when the move was refused or changes nothing, so the typed
+   * position box knows to put its number back.
    */
-  function adoptedSection(reordered, index) {
-    const previous = index > 0 ? reordered[index - 1] : null;
-    const next = index + 1 < reordered.length ? reordered[index + 1] : null;
-    const above = previous ? previous.section_id || null : null;
-    const below = next ? next.section_id || null : null;
-    if (previous && next && above === below) return above;
-    if (previous) return above;
-    return below;
-  }
-
-  /**
-   * Commits a new order. The backend requires every item exactly once, so the
-   * full id sequence is always sent, not just the moved one - and the parts
-   * ride along with it, because a drag changes both at once.
-   */
-  async function commitOrder(items, anchors = []) {
-    try {
-      // Anchors go first: they are expressed against the 1..N the reorder is
-      // about to write, so patching them afterwards would race the response
-      // this function then trusts.
-      for (const anchor of anchors) {
-        await send(endpoints.watchOrder.patchSection(anchor.id), "PATCH", {
-          position: anchor.position,
-        });
-      }
-      const res = await send(endpoints.watchOrder.reorder(listId), "PUT", {
-        item_ids: items.map((i) => i.system_id),
-        section_ids: items.map((i) => i.section_id || null),
-      });
-      setList(await res.json());
-      onListChanged?.();
-    } catch (e) {
-      showToast("error", e.message);
-      loadList();
+  function commitTokens(tokens, focusKey) {
+    if (!tokens || inFlight.current > 0) return false;
+    const payload = orderPayload(tokens, sections);
+    if (focusKey?.startsWith("item:") && changesNothing(list.items, payload)) {
+      return false;
     }
-  }
-
-  /**
-   * Moves one step. `section` names the part it lands in when the gesture says
-   * so - a drop onto a row takes that row's part, a drop in a gap takes none -
-   * and is left undefined by the arrows, which infer it from the neighbours.
-   */
-  function moveItem(from, to, section) {
-    if (!list || to < 0 || to >= list.items.length) return;
-    const reordered = [...list.items];
-    const [moved] = reordered.splice(from, 1);
-    reordered.splice(to, 0, moved);
-    const landed =
-      section === undefined ? adoptedSection(reordered, to) : section;
-    // A step dropped onto its own slot has still moved if it changed parts -
-    // which is exactly what dropping into an empty part next to it does.
-    if (from === to && landed === (moved.section_id || null)) return;
-    reordered[to] = { ...moved, section_id: landed };
+    focusAfterMove.current = focusKey ?? null;
     // Optimistic: reorder locally first so the row doesn't visibly snap back
     // while the request is in flight.
-    setList({ ...list, items: reordered });
-    commitOrder(reordered);
+    setList({ ...list, items: payload.items, sections: payload.sections });
+    (async () => {
+      try {
+        const res = await send(endpoints.watchOrder.reorder(listId), "PUT", payload.body);
+        setList(await res.json());
+        onListChanged?.();
+      } catch (e) {
+        showToast("error", e.message);
+        loadList();
+      }
+    })();
+    return true;
   }
 
+  const tokens = () => buildTokens(blocks);
+
   /**
-   * Moves a whole part, steps and all, past the block on either side of it.
-   *
-   * A part is a block, so this is the only meaning "move this part" can have:
-   * there is no heading to slide independently of the steps under it.
+   * Moves one step to flat index `to` - the typed box, the arrow keys on its
+   * grip, and a drop onto another row. `section` names the part it lands in
+   * when the gesture says so (a drop onto a row takes that row's part) and is
+   * left undefined by the box and the keys, which infer it from the new
+   * neighbours, so a step nudged past the end of its part leaves it.
    */
-  function movePart(blockIndex, direction) {
-    const target = blockIndex + direction;
-    if (target < 0 || target >= blocks.length) return;
+  function moveItem(from, to, section) {
+    if (!list || inFlight.current > 0) return false;
+    const moved = list.items[from];
+    if (!moved) return false;
+    return commitTokens(
+      moveStepByIndex(tokens(), sections, from, to, section),
+      `item:${moved.system_id}`
+    );
+  }
 
-    const order = [...blocks];
-    const [moved] = order.splice(blockIndex, 1);
-    order.splice(target, 0, moved);
-    const reordered = order.flatMap((b) => b.rows.map((r) => r.item));
-    if (reordered.length !== list.items.length) return;
+  /** Moves a whole part, steps and all, to block index `to`. */
+  function movePart(blockIndex, to) {
+    if (!list || inFlight.current > 0) return false;
+    const block = blocks[blockIndex];
+    return commitTokens(
+      moveBlock(blocks, blockIndex, to),
+      `part:${block.section.system_id}`
+    );
+  }
 
-    // An empty part holds no steps, so a swap past one changes no item order
-    // at all - its own `position` is the only thing that says where its box is
-    // drawn, and it has to be moved by hand. The reorder renumbers steps to
-    // 1..N, so each anchor is counted against that: half a slot past the last
-    // step above it.
-    let above = 0;
-    const anchors = [];
-    for (const block of order) {
-      if (block.kind === "part" && block.rows.length === 0) {
-        anchors.push({ id: block.section.system_id, position: above + 0.5 });
-      } else {
-        above += block.rows.length;
+  const blockOfItem = (itemId) =>
+    blocks.findIndex((b) => b.rows.some((r) => r.item.system_id === itemId));
+  const blockOfPart = (sectionId) =>
+    blocks.findIndex(
+      (b) => b.kind === "part" && b.section.system_id === sectionId
+    );
+
+  /**
+   * One drop, by what was dragged and what it landed on.
+   *
+   * A step dropped
+   *  - on a row takes that row's slot and that row's part (or none);
+   *  - on a part's own chrome joins the end of that part, or becomes the
+   *    first step of an empty one, where that part is drawn;
+   *  - in a gap between blocks is unfiled there - the only way to put a step
+   *    between two parts.
+   *
+   * A part dropped on a block (its box, or any row in it) takes that block's
+   * place; dropped in a gap it moves to that gap.
+   */
+  function onDragEnd({ active, over }) {
+    if (!over || inFlight.current > 0) return;
+    const dragged = active.data.current;
+    const target = over.data.current;
+    if (!dragged || !target) return;
+
+    if (dragged.type === "item") {
+      const from = list.items.findIndex((i) => i.system_id === dragged.itemId);
+      if (from < 0) return;
+      if (target.type === "row") {
+        const to = list.items.findIndex((i) => i.system_id === target.itemId);
+        if (to < 0 || to === from) return;
+        moveItem(from, to, list.items[to].section_id || null);
+      } else if (target.type === "part") {
+        commitTokens(
+          moveStepIntoPart(tokens(), sections, dragged.itemId, target.sectionId),
+          `item:${dragged.itemId}`
+        );
+      } else if (target.type === "gap") {
+        commitTokens(
+          moveStepIntoGap(tokens(), sections, blocks, dragged.itemId, target.blockIndex),
+          `item:${dragged.itemId}`
+        );
       }
+      return;
     }
 
-    const anchored = new Map(anchors.map((a) => [a.id, a.position]));
-    setList({
-      ...list,
-      items: reordered,
-      sections: (list.sections || []).map((section) =>
-        anchored.has(section.system_id)
-          ? { ...section, position: anchored.get(section.system_id) }
-          : section
-      ),
-    });
-    commitOrder(reordered, anchors);
-  }
-
-  // Drag state. `dragging` is the flat index of the row being dragged;
-  // `gapOver` is the gap it is currently hovering, which only that gap draws.
-  function rowHandlers(row) {
-    const index = row.number - 1;
-    return {
-      onDragStart: () => setDragging(index),
-      onDragOver: (e) => {
-        e.preventDefault();
-        setGapOver(null);
-      },
-      onDrop: (e) => {
-        e.stopPropagation();
-        // A drop onto a row is explicit about the part: the step joins
-        // whichever part that row is in, or leaves every part if that row is
-        // in none.
-        if (dragging !== null && dragging !== index) {
-          moveItem(dragging, index, row.item.section_id || null);
-        }
-        setDragging(null);
-        setGapOver(null);
-      },
-    };
-  }
-
-  // Dropping on a part's chrome rather than one of its rows appends to it.
-  function partHandlers(block) {
-    return {
-      onDragOver: (e) => {
-        e.preventDefault();
-        setGapOver(null);
-      },
-      onDrop: () => {
-        if (dragging !== null && block.rows.length) {
-          const last = block.rows[block.rows.length - 1].number - 1;
-          moveItem(dragging, last, block.section.system_id);
-        } else if (dragging !== null) {
-          // An empty part: the step becomes its first, landing where the part
-          // is anchored in the list.
-          moveItem(dragging, dragging, block.section.system_id);
-        }
-        setDragging(null);
-        setGapOver(null);
-      },
-    };
-  }
-
-  /**
-   * The gap before `blockIndex`, or the tail when `block` is null.
-   *
-   * Dropping here unfiles the step. It is the only landing spot that does:
-   * every row belongs to some run, so without these gaps a step could never be
-   * placed between two parts.
-   */
-  function gapHandlers(blockIndex, block) {
-    return {
-      onDragOver: (e) => {
-        e.preventDefault();
-        setGapOver(blockIndex);
-      },
-      onDragLeave: () => setGapOver((g) => (g === blockIndex ? null : g)),
-      onDrop: (e) => {
-        e.stopPropagation();
-        if (dragging !== null) {
-          const at = block?.rows.length
-            ? block.rows[0].number - 1
-            : list.items.length;
-          // Removing the dragged row first shifts everything below it up one,
-          // so a downward move lands one slot earlier than the gap's index.
-          moveItem(dragging, dragging < at ? at - 1 : at, null);
-        }
-        setDragging(null);
-        setGapOver(null);
-      },
-    };
+    if (dragged.type === "part") {
+      const from = blockOfPart(dragged.sectionId);
+      if (from < 0) return;
+      let to;
+      if (target.type === "gap") {
+        // The gap before block g: removing the part first shifts every block
+        // below it up one.
+        to = target.blockIndex > from ? target.blockIndex - 1 : target.blockIndex;
+      } else if (target.type === "part") {
+        to = blockOfPart(target.sectionId);
+      } else {
+        to = blockOfItem(target.itemId);
+      }
+      if (to >= 0 && to !== from) movePart(from, to);
+    }
   }
 
   if (!listId) {
@@ -1229,70 +1285,70 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
           No steps yet — add entries above.
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {blocks.map((block, blockIndex) => {
-            const gapBefore = !isBuiltIn && (
-              <UnfileGap
-                key={`gap-${blockIndex}`}
-                active={dragging !== null && gapOver === blockIndex}
-                dropHandlers={gapHandlers(blockIndex, block)}
-              />
-            );
+        <DndContext
+          sensors={sensors}
+          collisionDetection={innermostUnderPointer}
+          modifiers={[lockToVerticalAxis]}
+          // Re-measured continuously: the gap under the pointer opens up as
+          // it is hovered, which moves every target below it.
+          measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+          accessibility={{ screenReaderInstructions: SCREEN_READER }}
+          onDragEnd={onDragEnd}
+        >
+          <div className="flex flex-col gap-2">
+            {blocks.map((block, blockIndex) => {
+              const gapBefore = !isBuiltIn && (
+                <UnfileGap key={`gap-${blockIndex}`} index={blockIndex} />
+              );
 
-            const rows = block.rows.map((row) => (
-              <ItemRow
-                key={row.item.system_id}
-                item={row.item}
-                index={row.number}
-                readOnly={isBuiltIn}
-                isFirst={row.number === 1}
-                total={list.items.length}
-                isLast={row.number === list.items.length}
-                onPatch={patchItem}
-                onRemove={removeItem}
-                onMove={moveItem}
-                dragHandlers={isBuiltIn ? {} : rowHandlers(row)}
-              />
-            ));
+              const rows = block.rows.map((row) => (
+                <ItemRow
+                  key={row.item.system_id}
+                  item={row.item}
+                  index={row.number}
+                  readOnly={isBuiltIn}
+                  busy={busy}
+                  total={list.items.length}
+                  onPatch={patchItem}
+                  onRemove={removeItem}
+                  onMove={moveItem}
+                  registerHandle={registerHandle(`item:${row.item.system_id}`)}
+                />
+              ));
 
-            if (block.kind === "part") {
+              if (block.kind === "part") {
+                return (
+                  <Fragment key={block.key}>
+                    {gapBefore}
+                    <PartBox
+                      section={block.section}
+                      count={block.rows.length}
+                      busy={busy}
+                      onPatch={patchSection}
+                      onRemove={removeSection}
+                      onMove={(direction) => movePart(blockIndex, blockIndex + direction)}
+                      onAddHere={setAddTarget}
+                      registerHandle={registerHandle(`part:${block.section.system_id}`)}
+                      readOnly={isBuiltIn}
+                    >
+                      {rows}
+                    </PartBox>
+                  </Fragment>
+                );
+              }
+
               return (
                 <Fragment key={block.key}>
                   {gapBefore}
-                  <PartBox
-                    section={block.section}
-                    count={block.rows.length}
-                    busy={busy}
-                    onPatch={patchSection}
-                    onRemove={removeSection}
-                    onMove={(direction) => movePart(blockIndex, direction)}
-                    onAddHere={setAddTarget}
-                    isFirst={blockIndex === 0}
-                    isLast={blockIndex === blocks.length - 1}
-                    dropHandlers={isBuiltIn ? {} : partHandlers(block)}
-                  >
-                    {rows}
-                  </PartBox>
+                  <div className="flex flex-col gap-2">{rows}</div>
                 </Fragment>
               );
-            }
+            })}
 
-            return (
-              <Fragment key={block.key}>
-                {gapBefore}
-                <div className="flex flex-col gap-2">{rows}</div>
-              </Fragment>
-            );
-          })}
-
-          {/* The tail gap, so a step can be dropped past the last part. */}
-          {!isBuiltIn && blocks.length > 0 && (
-            <UnfileGap
-              active={dragging !== null && gapOver === blocks.length}
-              dropHandlers={gapHandlers(blocks.length, null)}
-            />
-          )}
-        </div>
+            {/* The tail gap, so a step can be dropped past the last part. */}
+            {!isBuiltIn && blocks.length > 0 && <UnfileGap index={blocks.length} />}
+          </div>
+        </DndContext>
       )}
 
       {!isBuiltIn && (

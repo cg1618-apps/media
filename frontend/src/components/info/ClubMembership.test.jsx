@@ -1,5 +1,5 @@
 // Frontend: tests for club membership on the person page.
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -77,7 +77,7 @@ describe("ClubMembership", () => {
     renderFor(CLUB);
     await screen.findByRole("list", { name: "Members" });
     await user.click(screen.getAllByRole("button", { name: "Edit" })[0]);
-    await user.click(screen.getByRole("button", { name: "Move Baek up" }));
+    fireEvent.keyDown(screen.getByRole("button", { name: "Reorder Baek" }), { key: "ArrowUp" });
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(putBodies).toHaveLength(1));
     expect(putBodies[0].url).toBe("/api/person/club-1/members");

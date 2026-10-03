@@ -483,9 +483,8 @@ def create_note(
 # Declared before "/{note_id}" on purpose: FastAPI matches in declaration order,
 # so the dynamic route would otherwise swallow "reorder" as a note id.
 #
-# No frontend calls this yet - the half-built reorder plumbing was removed as
-# dead code. The endpoint is intentional surface kept for a future reorder UI
-# (it is covered by tests); do not delete it as unused.
+# The notes page calls this (frontend/src/pages/notes/api.js `reorderNotes`)
+# whenever a structured section's rows are dragged into a new order.
 @router.patch("/reorder")
 def reorder_notes(
     payload: schemas.NoteReorder,
@@ -512,6 +511,12 @@ def reorder_notes(
         query = query.filter(models.Note.author_id == viewer.user_id)
     rows = query.all()
     by_id = {r.system_id: r for r in rows}
+    # Set equality alone would accept an id named twice (`[a, a, b]` for a
+    # section of `a, b`), and the later position would silently win.
+    if len(set(payload.ordered_ids)) != len(payload.ordered_ids):
+        raise HTTPException(
+            status_code=400, detail="ordered_ids must not name a note twice."
+        )
     if set(payload.ordered_ids) != set(by_id):
         raise HTTPException(
             status_code=400,

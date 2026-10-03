@@ -34,6 +34,7 @@ import {
   cleanAliases,
 } from "../../components/forms/AliasPicker";
 import AliasTab from "../../components/forms/AliasTab";
+import { categoryHasUsages } from "../../components/forms/UsagePicker";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
 import PersonAddTab, { defaultPerson } from "../add-tabs/PersonAddTab";
 import CharacterAddTab, {
@@ -237,7 +238,7 @@ export default function Add() {
   // Explicit because a save no longer derives it - see Ruling R27 and
   // components/forms/ScopePicker.jsx.
   const [optScopes, setOptScopes] = useState([]);
-  // Which roles (watch / origin) the new values are offered in. Empty =
+  // Which picker (watch / origin) new Platform values are offered in. Empty =
   // both. Explicit for the same reason as optScopes - see Ruling R27 and
   // components/forms/UsagePicker.jsx.
   const [optUsages, setOptUsages] = useState([]);
@@ -1171,7 +1172,9 @@ export default function Add() {
             category: optCategory.trim(),
             value: val.trim(),
             scopes: optScopes,
-            usages: optUsages,
+            // Same as aliases below: switching off Platform hides the picker
+            // but keeps what was picked in state, and sending it would 422.
+            usages: categoryHasUsages(optCategory.trim()) ? optUsages : [],
             // vals.length > 1 disables the picker, so this is empty in the
             // bulk case rather than copied onto every value. The category
             // check matters too: switching the category hides the picker but

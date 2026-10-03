@@ -1,13 +1,24 @@
-// Which roles a system option may be used in. Parallel to ScopePicker,
-// which answers "in which media types"; this answers "in which role" -
-// somewhere to watch a title (watch) vs. where it first appeared (origin).
+// Which picker a Platform value is offered in. Parallel to ScopePicker,
+// which answers "in which media types"; this answers "in which field" -
+// Main Sources, where a title is watched (watch), vs. Official Source, where
+// it first appeared (origin).
 //
 // Like scopes, usages are ADMIN-MANAGED data, never derived on save (Ruling
-// R27 applies here too): a value with none selected serves every usage,
-// which is the common case.
+// R27 applies here too): a value with none selected serves both, which is the
+// common case.
 import { Field } from "./FormField";
 
 export const USAGES = ["watch", "origin"];
+
+// Mirrors USAGE_CATEGORIES in app/utils/source_fields.py. Platform is the only
+// category that feeds two pickers, so it is the only one a usage can narrow;
+// the API rejects a usage anywhere else.
+export const USAGE_CATEGORIES = ["Platform"];
+
+/** Whether this system_option category may carry usage rows at all. */
+export function categoryHasUsages(category) {
+  return USAGE_CATEGORIES.includes(category);
+}
 
 export default function UsagePicker({ usages, setUsages }) {
   const selected = new Set(usages || []);
@@ -25,7 +36,7 @@ export default function UsagePicker({ usages, setUsages }) {
   return (
     <Field
       label="Usages"
-      hint="Which roles this value is offered in. None selected = offered everywhere."
+      hint="watch = Main Sources only. origin = Official Source only. None selected = both."
     >
       <div className="flex flex-wrap gap-1.5">
         {USAGES.map((key) => (
