@@ -22,6 +22,7 @@ import {
   toggleIn,
 } from "../../lib/entityScopes";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
+import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
 import {
   ALIAS_CATEGORIES,
   optionWithoutAlias,
@@ -181,21 +182,21 @@ function SearchBox({ placeholder, onSelect, items, renderItem, type }) {
         />
       </div>
       {open && filtered.length > 0 && (
-        <div className="absolute z-50 left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-xl max-h-56 overflow-y-auto">
+        <SuggestList anchorRef={ref}>
           {filtered.map((item) => (
-            <div
+            <SuggestItem
               key={item.system_id || item.id}
-              className="px-4 py-2.5 hover:bg-danger/10 cursor-pointer group"
-              onMouseDown={() => {
+              truncate={false}
+              onPick={() => {
                 onSelect(item);
                 setOpen(false);
                 setQuery(getDisplayTitle(item, type));
               }}
             >
               {renderItem(item)}
-            </div>
+            </SuggestItem>
           ))}
-        </div>
+        </SuggestList>
       )}
     </div>
   );

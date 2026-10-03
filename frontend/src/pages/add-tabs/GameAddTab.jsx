@@ -32,6 +32,7 @@ import {
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
+import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
 
 export { defaultGame } from "../../config/formFactories";
 
@@ -141,21 +142,19 @@ export function IgdbSearchBox({ onPick, searchUrl = endpoints.game.searchIgdb })
         )}
       </div>
       {open && results.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto">
+        <SuggestList anchorRef={boxRef}>
           {results.map((g) => {
             const cover = igdbCover(g);
             const year = igdbYear(g.first_release_date);
             return (
-              <button
+              <SuggestItem
                 key={g.id}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
+                truncate={false}
+                onPick={() => {
                   onPick(g);
                   setQuery("");
                   setOpen(false);
                 }}
-                className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-border last:border-0"
               >
                 <div className="flex items-center gap-3">
                   {cover ? (
@@ -177,10 +176,10 @@ export function IgdbSearchBox({ onPick, searchUrl = endpoints.game.searchIgdb })
                     </span>
                   )}
                 </div>
-              </button>
+              </SuggestItem>
             );
           })}
-        </div>
+        </SuggestList>
       )}
     </div>
   );

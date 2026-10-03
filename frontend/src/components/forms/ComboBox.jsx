@@ -1,5 +1,8 @@
 // Frontend: form component file for ComboBox.
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
+
+import { rankByMatch } from "../../lib/suggest";
+import { SuggestItem, SuggestList, SuggestNote, stepActive } from "./SuggestList";
 
 // ComboBox: search existing items by label, or type a new value (if allowNew).
 // Props:
@@ -12,6 +15,14 @@ import { useState, useRef, useEffect } from "react";
 //   placeholder: string
 //   allowNew: bool            — if true, typed unmatched text shows "Will create new" hint
 //   required: bool
+//   rankMatches: bool         — order what the typed text matches as exact,
+//                               then prefix, then contains, each tier in the
+//                               order `items` came in; otherwise matches keep
+//                               the order of `items`
+//
+// The list is the shared SuggestList (portaled, so a modal or scroll box
+// cannot clip it). ArrowUp/ArrowDown highlight a result and Enter picks it;
+// Enter with nothing highlighted is left to the form.
 export default function ComboBox({
   items = [],
   selectedId = null,
@@ -22,9 +33,12 @@ export default function ComboBox({
   placeholder = "Search...",
   allowNew = false,
   required = false,
+  rankMatches = false,
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const listId = useId();
   const containerRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -34,6 +48,7 @@ export default function ComboBox({
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setOpen(false);
         setQuery("");
+        setActive(-1);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -51,13 +66,15 @@ export default function ComboBox({
       .replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
   }
 
-  const filtered = query
-    ? items
-        .filter((i) =>
-          cleanStr(i.searchText || i.label).includes(cleanStr(query)),
-        )
-        .slice(0, 10)
-    : items.slice(0, 10);
+  const keyOf = (i) => cleanStr(i.searchText || i.label);
+  const typed = cleanStr(query);
+  const filtered = (
+    !typed
+      ? items
+      : rankMatches
+        ? rankByMatch(items, typed, keyOf)
+        : items.filter((i) => keyOf(i).includes(typed))
+  ).slice(0, 10);
 
   const isNewValue = allowNew && inputText && !selectedId;
 
@@ -65,6 +82,7 @@ export default function ComboBox({
     const val = e.target.value;
     setQuery(val);
     setOpen(true);
+    setActive(-1);
     onType?.(val);
     if (selectedId) onClear?.(); // typing clears any existing selection
   }
@@ -73,6 +91,7 @@ export default function ComboBox({
     onSelect?.(item.id, item.label);
     setQuery("");
     setOpen(false);
+    setActive(-1);
   }
 
   function handleClear(e) {
@@ -84,13 +103,24 @@ export default function ComboBox({
   }
 
   function handleKeyDown(e) {
-    if (e.key === "Escape") {
-      setOpen(false);
-      setQuery("");
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!open) {
+        setOpen(true);
+        return;
+      }
+      setActive((c) => stepActive(c, e.key === "ArrowDown" ? 1 : -1, filtered.length));
+      return;
     }
-    if (e.key === "Tab") {
+    if (e.key === "Enter" && open && active >= 0 && filtered[active]) {
+      e.preventDefault();
+      handleSelect(filtered[active]);
+      return;
+    }
+    if (e.key === "Escape" || e.key === "Tab") {
       setOpen(false);
       setQuery("");
+      setActive(-1);
     }
   }
 
@@ -120,6 +150,11 @@ export default function ComboBox({
             onChange={handleInputChange}
             onFocus={() => setOpen(true)}
             onKeyDown={handleKeyDown}
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
             placeholder={placeholder}
             required={required && !selectedId && !inputText}
             className="w-full border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
@@ -139,27 +174,27 @@ export default function ComboBox({
 
       {/* Dropdown */}
       {open && !selectedId && (
-        <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto">
+        <SuggestList anchorRef={inputRef} id={listId}>
           {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-text-faint font-medium">
+            <SuggestNote>
               {allowNew && query
                 ? `"${query}" — will be created as new`
                 : "No matches found"}
-            </div>
+            </SuggestNote>
           ) : (
-            filtered.map((item) => (
-              <button
+            filtered.map((item, index) => (
+              <SuggestItem
                 key={item.id}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => handleSelect(item)}
-                className="w-full text-left px-3 py-2 text-sm font-medium text-text-muted hover:bg-brand/10 hover:text-brand transition-colors first:rounded-t-xl last:rounded-b-xl truncate"
+                id={`${listId}-${index}`}
+                active={index === active}
+                onPick={() => handleSelect(item)}
+                onHover={() => setActive(index)}
               >
                 {item.label}
-              </button>
+              </SuggestItem>
             ))
           )}
-        </div>
+        </SuggestList>
       )}
 
       {/* "Will create new" hint */}

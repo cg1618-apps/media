@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 import DefaultsTab from "./DefaultsTab";
 
@@ -91,8 +91,27 @@ describe("DefaultsTab", () => {
         "MANGA18",
         "MANGADNA",
       ]);
-      const list = document.getElementById(prefillInputs()[1].getAttribute("list"));
-      expect([...list.options].map((o) => o.value)).toContain("ToonGod");
+    });
+
+    it("suggests each region's own names on its rows", () => {
+      renderTab("h-comic", {
+        defaults: {},
+        autofill: [],
+        restricted_prefill: { JP: [""], KR: [""] },
+      });
+      // A blank row suggests every name its region offers; the list is
+      // portaled, so it is read off the open listbox.
+      const offered = (input) => {
+        fireEvent.focus(input);
+        const names = within(screen.getByRole("listbox"))
+          .getAllByRole("option")
+          .map((o) => o.textContent);
+        fireEvent.blur(input);
+        return names;
+      };
+      const [jp, kr] = prefillInputs();
+      expect(offered(kr)).toContain("ToonGod");
+      expect(offered(jp)).not.toContain("ToonGod");
     });
 
     it("picks one prefill on every other type, suggesting its optional names too", () => {
