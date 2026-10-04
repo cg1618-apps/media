@@ -10,6 +10,10 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=character, the
 // detail page's Quick edit): that character's editor opens on mount.
+//
+// `sources` is Modify.jsx's fetchAllSources() bag, which the Appearance and
+// Trait pickers suggest from; a save can create values in either vocabulary,
+// so it calls `refreshSources` to make them selectable straight away.
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -28,6 +32,7 @@ import { CharacterFields, CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAdd
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
+import { characterTagsPayload, characterTagsToForm } from "../../lib/characterForm";
 
 function cleanString(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
@@ -48,10 +53,15 @@ function characterToForm(c) {
     mal_link: c.mal_link || "",
     remark: c.remark || "",
     photo_fallback_entry_id: c.photo_fallback_entry_id || null,
+    ...characterTagsToForm(c),
   };
 }
 
-export default function CharacterModifyTab({ initialId = null } = {}) {
+export default function CharacterModifyTab({
+  initialId = null,
+  sources,
+  refreshSources,
+} = {}) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -146,11 +156,15 @@ export default function CharacterModifyTab({ initialId = null } = {}) {
             mal_link: characterForm.mal_link?.trim() || null,
             remark: characterForm.remark || null,
             photo_fallback_entry_id: characterForm.photo_fallback_entry_id || null,
+            ...characterTagsPayload(characterForm),
           }),
         },
       );
       await queryClient.invalidateQueries({ queryKey: ["characters-admin"] });
       setCharacterForm(characterToForm(updated));
+      // Not awaited: the save already succeeded, and stale suggestions are
+      // no reason to report it as failed.
+      Promise.resolve(refreshSources?.()).catch(() => {});
       // Back to the top: the toast renders at the top of the page and
       // the form is long enough to have scrolled it out of sight.
       window.scrollTo(0, 0);
@@ -244,6 +258,7 @@ export default function CharacterModifyTab({ initialId = null } = {}) {
               characterForm={characterForm}
               ucf={ucf}
               ownerId={selectedId}
+              sources={sources}
             />
           </div>
 

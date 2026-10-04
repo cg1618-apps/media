@@ -30,7 +30,7 @@ import {
   useEntityPatch,
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
-import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { Chip, Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
@@ -185,6 +185,10 @@ export default function Character() {
                 { label: "Role", value: character.role },
                 { label: "Gender", value: character.gender },
               ],
+              // Each tag list as chips, in its stored order; an empty list
+              // reads "—" like every other unset row.
+              { label: "Appearance", value: tagChips(character.appearance) },
+              { label: "Trait", value: tagChips(character.trait) },
               {
                 label: "MAL",
                 value: character.mal_link ? (
@@ -244,6 +248,20 @@ export default function Character() {
         </div>
       </div>
     </div>
+  );
+}
+
+// A character's appearance or trait list as a row of Chips - the primitive
+// every other short label on the site is set in. null for an empty list, so
+// the InfoRow shows its "—" (an element that renders nothing would not).
+function tagChips(values) {
+  if (!values?.length) return null;
+  return (
+    <span className="flex flex-wrap gap-1.5">
+      {values.map((value) => (
+        <Chip key={value}>{value}</Chip>
+      ))}
+    </span>
   );
 }
 

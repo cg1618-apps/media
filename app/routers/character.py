@@ -26,6 +26,13 @@ from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
 from app.services.domain.autofill import autofill_character_from_mal
+from app.services.domain.character_tags import (
+    character_tag_values,
+    merge_character_tags,
+    pop_character_tags,
+    pop_patch_tags,
+    write_character_tags,
+)
 from app.services.domain.derivation import apply_extract_mal_id_character
 from app.services.domain.entity_photos import EntityMedia, character_media
 from app.services.domain.merge_fill import fill_blank_casting, finish_merge
@@ -70,6 +77,7 @@ def _to_response(
     character: models.Character,
     viewer=None,
     media: Optional[EntityMedia] = None,
+    tags: Optional[dict[str, list[str]]] = None,
 ) -> schemas.CharacterResponse:
     # casting_count, the picture and the media types all count only castings
     # on entries the viewer may see, exactly as person._to_response counts
@@ -81,6 +89,9 @@ def _to_response(
     # leaves it None and pays for one.
     if media is None:
         media = character_media(db, viewer, [character])[character.system_id]
+    # The same arrangement for the tag lists (character_tags.character_tag_values).
+    if tags is None:
+        tags = character_tag_values(db, [character.system_id])[character.system_id]
     return schemas.CharacterResponse(
         system_id=character.system_id,
         public_id=character.public_id,
@@ -104,6 +115,8 @@ def _to_response(
         display_photo_focus=media.display_photo_focus,
         media_types=media.media_types,
         restricted=media.restricted,
+        appearance=tags["appearance"],
+        trait=tags["trait"],
     )
 
 
@@ -155,8 +168,11 @@ def get_all_characters(
     # with a per-row choice, so no single ORDER BY column can express it.
     characters.sort(key=lambda c: c.display_name.casefold())
     media = character_media(db, viewer, characters)
+    tags = character_tag_values(db, [c.system_id for c in characters])
     return [
-        _to_response(db, character, viewer, media[character.system_id])
+        _to_response(
+            db, character, viewer, media[character.system_id], tags[character.system_id]
+        )
         for character in characters
     ]
 
@@ -343,14 +359,21 @@ def create_character(
 
     A new character is cast on nothing, so any photo_fallback_entry_id is a
     422 - resolve_fallback has no link to find.
+
+    appearance and trait are written once the row exists; a value with no
+    system_option yet creates one (character_tags.replace_character_tags).
     """
     if payload.photo_fallback_entry_id is not None:
         raise HTTPException(
             status_code=422,
             detail="photo_fallback_entry_id must name an entry this character is linked to.",
         )
-    character = models.Character(**payload.model_dump())
+    data = payload.model_dump()
+    tags = pop_character_tags(data)
+    character = models.Character(**data)
     db.add(character)
+    db.flush()
+    write_character_tags(db, character.system_id, tags)
     _derive_and_fill_from_mal(db, character)
     db.commit()
     db.refresh(character)
@@ -372,6 +395,9 @@ def update_character(
     photo_fallback_entry_id must name an entry this character is cast on
     (422 otherwise); a null keeps a choice this editor cannot see - see
     _entity_patch.resolve_fallback.
+
+    appearance and trait replace their lists whole; one left out or null is
+    unchanged.
     """
     character = db.get(models.Character, system_id)
     if character is None:
@@ -379,12 +405,14 @@ def update_character(
     require_visible_shared(db, admin, models.Character, system_id, NOT_FOUND)
 
     data = payload.model_dump()
+    tags = pop_character_tags(data)
     data["photo_fallback_entry_id"] = resolve_fallback(
         db, admin, models.Character, character,
         data["photo_fallback_entry_id"], "character",
     )
     for key, value in data.items():
         setattr(character, key, value)
+    write_character_tags(db, system_id, tags)
     _derive_and_fill_from_mal(db, character)
 
     db.commit()
@@ -410,7 +438,9 @@ def patch_character(
     is en / cn / jp / alt, at least one name survives the patch, and a
     photo_fallback_entry_id names an entry this character is cast on. Server
     columns (system_id, public_id, timestamps) are a 422; keys that are not
-    columns are ignored (_patching.apply_column_patch). A mal_link in the
+    columns are ignored (_patching.apply_column_patch) - except appearance
+    and trait, which are popped out first and replace their lists as on PUT
+    (a list of strings, else 422; null is unchanged). A mal_link in the
     patch re-derives mal_id; the MAL fetch itself stays with POST and PUT.
     """
     character = db.get(models.Character, system_id)
@@ -418,6 +448,10 @@ def patch_character(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Character, system_id, NOT_FOUND)
 
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=422, detail="A PATCH body must be a JSON object.")
+    payload = dict(payload)
+    tags = pop_patch_tags(payload)
     data = prepare_patch(
         character, payload, "character", {"role": check_character_role}
     )
@@ -427,6 +461,7 @@ def patch_character(
             data["photo_fallback_entry_id"], "character",
         )
     apply_column_patch(character, data)
+    write_character_tags(db, system_id, tags)
     if "mal_link" in data:
         apply_extract_mal_id_character(character)
 
@@ -490,7 +525,8 @@ def merge_character(
 
     Every column this character leaves blank is filled from the source's,
     and an entry both are cast in keeps this character's casting, its blanks
-    filled from the source's (`merge_fill`).
+    filled from the source's (`merge_fill`). Each tag list ends as the union
+    of both: this character's values first, then the source's it lacked.
     """
     if system_id == payload.source_id:
         raise HTTPException(
@@ -535,6 +571,8 @@ def merge_character(
             continue
         casting.character_id = system_id
         moved += 1
+
+    merge_character_tags(db, system_id, payload.source_id)
 
     finish_merge(db, "character", keep, drop)
     return {"status": "success", "castings_moved": moved}

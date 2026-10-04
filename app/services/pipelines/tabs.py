@@ -61,6 +61,11 @@ class SheetTab:
     # else. Backup is deliberately NOT gated: it writes local -> sheet and
     # cannot change this database. Decision 10 in the authorization spec.
     requires_authz: bool = False
+    # True for the Character tab: it carries one comma-joined cell per
+    # character tag field (appearance, trait - credit_roles.CHARACTER_TAG_FIELDS),
+    # headed by the field key, after the plain and extra columns. The entry
+    # tabs' credit/tag columns are the same idea, keyed by media_type instead.
+    character_tags: bool = False
 
 
 def _resolved_option(row: Any, db: Session) -> Optional["models.SystemOption"]:
@@ -214,7 +219,14 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # this tab is what carries the ones that are not.
     SheetTab("Publisher Scope", models.PublisherScope, f.parse_publisher_scope_from_sheet),
     # Also before every media tab: Character Casting rows point at characters.
-    SheetTab("Character", models.Character, f.parse_character_from_sheet),
+    # After System Options, so its appearance and trait cells resolve onto the
+    # restored vocabulary rather than minting values of their own.
+    SheetTab(
+        "Character",
+        models.Character,
+        f.parse_character_from_sheet,
+        character_tags=True,
+    ),
     # Key/value rows (announcements, form defaults) nothing else references.
     SheetTab("System Configs", models.SystemConfigs, f.parse_system_config_from_sheet),
     # Grouping tiers, parent first.

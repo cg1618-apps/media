@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import ComboBox from "./ComboBox";
+import QuickPicks from "./QuickPicks";
 import ImagePicker from "./ImagePicker";
 import { DragHandle, SortableItem, SortableList, arrayMove } from "../ui/Sortable";
 import { useConstants } from "../../config/useConstants";
@@ -528,8 +529,12 @@ export default function CastEditor({
                     placeholder="Character name..."
                   />
                 </div>
+                {/* The casting's role, twice over: a select below lg, where
+                    the row has no room to spare, and one chip per role from
+                    lg up, where it has. Both edit the same value; clicking
+                    the pressed chip clears it, as "—" does in the select. */}
                 <select
-                  className={cellCls + " shrink-0 w-28"}
+                  className={cellCls + " shrink-0 w-28 lg:hidden"}
                   value={row.role || ""}
                   onChange={(e) => updateRow(i, { role: e.target.value })}
                   aria-label="Role"
@@ -541,6 +546,14 @@ export default function CastEditor({
                     </option>
                   ))}
                 </select>
+                <div className="hidden lg:block shrink-0">
+                  <QuickPicks
+                    label="Role quick picks"
+                    options={roleOptions}
+                    value={row.role || ""}
+                    onChange={(role) => updateRow(i, { role })}
+                  />
+                </div>
 
                 {/* No ownerType or ownerId: a casting cannot own an attachment,
                     because replace_casting re-inserts every row on each save. The

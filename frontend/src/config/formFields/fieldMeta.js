@@ -1636,6 +1636,21 @@ export const TYPE_FIELD_META = {
       group: "Classification",
       autofillable: false,
     },
+    // One vocabulary each, the same for every character - no scope.
+    appearance: {
+      label: "Appearance",
+      control: "tags",
+      source: { kind: "option", category: "Character Appearance" },
+      group: "Classification",
+      autofillable: false,
+    },
+    trait: {
+      label: "Trait",
+      control: "tags",
+      source: { kind: "option", category: "Character Trait" },
+      group: "Classification",
+      autofillable: false,
+    },
     my_rating: { autofillable: false },
     photo_file: {
       label: "Photo File",

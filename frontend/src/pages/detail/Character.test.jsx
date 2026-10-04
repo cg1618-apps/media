@@ -166,6 +166,30 @@ describe("Character detail page", () => {
     expect(within(profile).getByText("女")).toBeInTheDocument();
   });
 
+  it("shows appearance and trait as chips on the Profile card, in stored order", async () => {
+    mockFetch({
+      character: { ...CHARACTER, appearance: ["Short Hair", "Glasses"], trait: ["Kuudere"] },
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "Yuki Nagato" });
+    const profile = screen.getByText("Profile").closest("section");
+    const appearance = within(profile).getByText("Appearance").nextElementSibling;
+    expect([...appearance.querySelectorAll("span span")].map((c) => c.textContent)).toEqual([
+      "Short Hair",
+      "Glasses",
+    ]);
+    expect(within(profile).getByText("Kuudere")).toBeInTheDocument();
+  });
+
+  it("reads an empty tag list as a dash, like any unset row", async () => {
+    mockFetch({ character: { ...CHARACTER, appearance: [], trait: [] } });
+    renderPage();
+    await screen.findByRole("heading", { name: "Yuki Nagato" });
+    const profile = screen.getByText("Profile").closest("section");
+    expect(within(profile).getByText("Appearance").nextElementSibling).toHaveTextContent("—");
+    expect(within(profile).getByText("Trait").nextElementSibling).toHaveTextContent("—");
+  });
+
   it("lists all four names on a Naming card", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Yuki Nagato" });

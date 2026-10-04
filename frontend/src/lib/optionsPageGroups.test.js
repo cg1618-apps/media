@@ -133,6 +133,8 @@ describe("groupTier1Keys", () => {
 // The categories OPTION_CATEGORIES actually yields today, in the order
 // /api/options serves them (by category name).
 const CATEGORIES = [
+  "Character Appearance",
+  "Character Trait",
   "Combat Mode",
   "Comic Continuity",
   "Comic Era",
@@ -172,6 +174,16 @@ describe("groupTier2Categories", () => {
       "Genre Sub",
       "Label",
       "Quality",
+    ]);
+  });
+
+  it("reads a character's two tag vocabularies together", () => {
+    const character = groupTier2Categories(CATEGORIES).find(
+      (s) => s.title === "Character",
+    );
+    expect(character.categories).toEqual([
+      "Character Appearance",
+      "Character Trait",
     ]);
   });
 
