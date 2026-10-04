@@ -44,13 +44,12 @@ Column declaration order is also the Google Sheets column order, because `format
 
 ### Shapes
 
-A shape names which columns a section uses. Declared as constants at the top of `app/utils/note_sections.py`; the nine stored ones are collected in `STORED_SHAPES`.
+A shape names which columns a section uses. Declared as constants at the top of `app/utils/note_sections.py`; the eight stored ones are collected in `STORED_SHAPES`.
 
 | Shape | Columns used | Rule of thumb |
 | --- | --- | --- |
 | `text` | `content` | A plain bullet. |
 | `text_links` | `content`, `links`, optional `locator` | A body *and* its sources. |
-| `text_or_link` | `content` **xor** `links[0]` | Either what someone said or where they said it, never both. |
 | `episode_text` | `locator`, `content`, `kind` where declared | Anchored to an episode/chapter. |
 | `name_links` | `title`, `links` | A named resource. |
 | `name_entries` | `title`, `entries` | A named list whose items are each a line of text **or** a labelled link, in one ordered array. **Currently owned by no section** — see the component table below. |
@@ -170,9 +169,9 @@ where a section lands. `analysis` is below; the other five are h-game's -
 which have nothing else of 評論 to share a card with), and the four
 `story_list_*` strands render in 劇情, because an h-game has no prose plot.
 
-For a film or a series, 解析 Analysis sits beside 分鏡/演出, 伏筆 and 對稱 in
-its own card, because those four are one subject. A game has none of the other
-three, so that card would hold exactly one section — and an analysis of a game
+For a film or a series, 解析 Analysis sits beside 分鏡/演出, 伏筆, 對稱 and 猜測 in
+its own card, because they are one subject. A game has none of the others,
+so that card would hold exactly one section — and an analysis of a game
 is read *with* the opinions rather than apart from them. So for `game` and
 `h-game` it is the last subsection of 評論 Reviews, and `analysis_group` is not
 rendered for either. H-comic and hentai have no 解析 at all.
@@ -231,12 +230,12 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `remark` | 備註 Remark | text | flat | All | — | — | — | no | **yes** | no |
 | `remark_list` | 備註列表 Remark List | text_links | flat | All | — | — | — | no | no | no |
-| `reviews_and_comments` | 評論 Reviews and Comments | text | flat (**reviews** for h-game) | h-comic, hentai, h-game | — | — | — | no | no | no |
+| `reviews_and_comments` | 評論 Reviews and Comments | text_links | flat (**reviews** for h-game) | h-comic, hentai, h-game | — | — | — | no | no | no |
 | `introduction` | 介紹 Introduction | text_links | reviews (first) | All but h-comic, hentai | — | — | — | no | no | no |
-| `advantages` | 優點 Advantages | text | reviews | All but h-comic, hentai | — | — | — | no | no | no |
-| `disadvantages` | 缺點 Disadvantages | text | reviews | All but h-comic, hentai | — | — | — | no | no | no |
-| `double_edged` | 優缺點 | text | reviews | All but h-comic, hentai | — | — | — | no | no | no |
-| `public_reviews` | 大眾評價 Public Reviews | text_or_link | reviews | All but H | — | — | — | no | no | no |
+| `advantages` | 優點 Advantages | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
+| `disadvantages` | 缺點 Disadvantages | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
+| `double_edged` | 優缺點 | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
+| `public_reviews` | 大眾評價 Public Reviews | text_links | reviews | All but H | — | — | — | no | no | no |
 | `personal_reviews` | 我的評價 Personal Reviews | text | reviews | All but H | — | — | — | no | no | no |
 | `episode_comments` | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | text_links | reviews | anime, tv-show, cartoon, game | — | — | "Episode, e.g. ep 1" (game: "Chapter / Part, e.g. Ch 3") | **yes** | no | no |
 | `highlights` | 神回/神片段 Highlights | episode_text | flat | anime | 神回, 神片段, 神篇章 | — | "Episode(s), e.g. ep 6" | **yes** | no | no |
@@ -250,6 +249,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
 | `foreshadowing` | Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
+| `speculation` | 猜測 Speculation | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `easter_eggs` | 彩蛋 Easter Eggs | structured | analysis_group | anime | — | — | field `episode` → `locator` ("Episode(s), e.g. ep 3") | no | no | field `description` → `content` is **required**; `links` → `links` as link pairs |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
@@ -314,8 +314,8 @@ than everything their owner group would give them.
 
 - **H-comic and hentai** keep 備註, 備註列表, Resources and - h-comic, KR only -
   亮點 Highlights. In place of the whole 評論 card, 解析, Questions and 名言/梗
-  they have one list, `reviews_and_comments` (評論 Reviews and Comments): plain
-  text, one row per remark, personal like the 我的評價 it replaces. With
+  they have one list, `reviews_and_comments` (評論 Reviews and Comments): text
+  and any number of links, one row per remark, personal like the 我的評價 it replaces. With
   nothing else of 評論 to share a card with, it renders flat in the Notes card.
 - **H-game** keeps game's notes less what does not describe how it plays:
   - 評論: 優點, 缺點, 優缺點 and 解析 stay; `reviews_and_comments` replaces
@@ -521,7 +521,7 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 | 6 | If `status` given: section has statuses, and the value is one of them | Section '…' takes no status. / '…' is not a valid status for section '…'. |
 | 7 | `desc_required` for this owner ⇒ stripped `content` non-empty | Section '…' requires content. |
 | 8 | `locator_required` ⇒ stripped `locator` non-empty | Section '…' requires a locator. |
-| 9 | Emptiness, by shape: `name_links` needs content or title or links; `name_entries` needs a title or at least one entry ("Section '…' needs a name or an entry." — a named bookmark with neither a name nor a single entry is nothing); `text_or_link` needs content or a non-blank link, forbids both ("takes text or a link, not both"), and allows at most one link ("takes one link per note"); `episode_text` needs content or locator; `music_track` needs any of content/title/status/locator/links (kind alone never counts, since OP and ED default it to `normal`); `music_status` needs a kind and a status ("Section '…' needs a kind: one of …." / "needs a status.") and takes nothing else ("Section '…' takes no '…'."); every other shape needs content or links | Section '…' note is empty. |
+| 9 | Emptiness, by shape: `name_links` needs content or title or links; `name_entries` needs a title or at least one entry ("Section '…' needs a name or an entry." — a named bookmark with neither a name nor a single entry is nothing); `episode_text` needs content or locator; `music_track` needs any of content/title/status/locator/links (kind alone never counts, since OP and ED default it to `normal`); `music_status` needs a kind and a status ("Section '…' needs a kind: one of …." / "needs a status.") and takes nothing else ("Section '…' takes no '…'."); every other shape needs content or links | Section '…' note is empty. |
 
 A `structured` section takes none of this path: check 4 is followed by the nesting rule (a flat section refuses a `parent_id`) and then by `_validate_structured`, which returns. Checks 5 to 9 are per-shape, and a structured section's equivalents live in its spec — see [Structured sections](#structured-sections). A non-structured section given a `fields` payload is refused outright ("Section '…' takes no structured fields.").
 
@@ -669,7 +669,6 @@ once when both are used.
 | --- | --- | --- |
 | `TextSection.jsx` | text | content |
 | `TextLinksSection.jsx` | text_links | locator (only if the section has a `locator_placeholder`), content, links; enforces `desc_required` / `locator_required` client-side |
-| `TextOrLinkSection.jsx` (+ `textOrLink.js`) | text_or_link | content xor one link |
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
 | `NameLinksSection.jsx` | name_links | title, links |
 | `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, dragged into order in the form by its grip). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |

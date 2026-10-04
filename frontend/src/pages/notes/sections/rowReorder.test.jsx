@@ -13,14 +13,12 @@ import MusicTrackSection from "./MusicTrackSection";
 import NameEntriesSection from "./NameEntriesSection";
 import NameLinksSection from "./NameLinksSection";
 import TextLinksSection from "./TextLinksSection";
-import TextOrLinkSection from "./TextOrLinkSection";
 import TextSection from "./TextSection";
 import { noteLabel } from "./ui";
 
 const SHAPES = [
   ["text", TextSection],
   ["text_links", TextLinksSection],
-  ["text_or_link", TextOrLinkSection],
   ["episode_text", EpisodeTextSection],
   ["name_links", NameLinksSection],
   ["name_entries", NameEntriesSection],

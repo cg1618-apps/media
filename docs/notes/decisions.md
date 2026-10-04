@@ -2755,3 +2755,31 @@ dnd-kit's `useDraggable` / `useDroppable` with the same sensors.
   link's text, OST songs, the "All Done" / "Not Done" distinction - and an
   automatic rollback runs within a minute of a deploy, before any of that
   exists. Not marking it `irreversible` keeps that rollback available.
+
+### The 評論 review lists are text plus links; `text_or_link` is gone (2026-10-04)
+
+評論 Reviews and Comments, 優點, 缺點, 優缺點 and 大眾評價 Public Reviews are
+`text_links`: a body and any number of links, like 介紹, 各集評論 and 解析
+beside them. 我的評價 Personal Reviews stays plain `text` - it is my own
+verdict, which has no source to cite.
+
+- **`text_or_link` was retired, not kept.** It existed so a public review was
+  either what someone said or where they said it, never both. In use that
+  forced a review's title and its link into one row of text, with the URL
+  unclickable inside it. Public Reviews was its only section, so once it moved
+  the shape owned nothing; unlike `name_entries`, no rows remain in it either,
+  so its validator, component and tests went with it.
+- **The rows needed no column change.** Every shape keeps its body in
+  `content` and its URLs in `links`, so the old rows were already valid
+  `text_links`. Revision `r2v3textlink4` only tidies what the old shapes
+  forced: a URL typed into a body moves into `links` (with the spaces before
+  it, so the sentence still reads), and an empty `links` - stored as SQL NULL,
+  JSON null or `[]` - becomes `[]`.
+- **The revision is not `irreversible`**, so the platform's automatic rollback
+  stays available. Its downgrade is a no-op: the previous code reads the
+  reshaped rows - links it does not draw are kept, not lost - and nothing can
+  tell a moved URL from one added as a link, so putting URLs back into bodies
+  is not attempted.
+- **A Pull from a backup taken before the revision** brings back the old
+  bodies, URLs inside them. They are valid rows that read a little worse; the
+  revision does not run again on them.
