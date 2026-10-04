@@ -129,6 +129,11 @@ export const TIER2_GROUPS = [
     title: "Music",
     categories: ["Song Type", "Song Source"],
   },
+  // A character's two tag lists - one vocabulary each, for every character.
+  {
+    title: "Character",
+    categories: ["Character Appearance", "Character Trait"],
+  },
 ];
 
 /** The heading the leftovers live under. */

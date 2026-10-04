@@ -25,6 +25,7 @@ export const UNRATED = "Unrated";
 export const GENDER_NOT_SET = "Not set";
 export const ROLE_NOT_SET = "Not set";
 export const COUNTRY_NOT_SET = "Not set";
+export const TAGS_NOT_SET = "Not set";
 // The entry-type chip for a row whose media_types is empty.
 export const NO_ENTRIES = "No entries";
 
@@ -128,13 +129,38 @@ function characterRoleDef() {
   };
 }
 
-/** The character library's defs: entry type, role, rating, gender. */
+/**
+ * A group over one of a character's tag lists (appearance, trait): the values
+ * the loaded rows hold, sorted, plus Not set when a row's list is empty. A
+ * row matches when it holds ANY ticked value, or has none and Not set is on.
+ */
+function tagListDef(key, label) {
+  return {
+    key,
+    label,
+    type: "set-dynamic",
+    deriveOptions: (rows) => {
+      const values = [...new Set(rows.flatMap((r) => r[key] || []))].sort();
+      return rows.some((r) => !(r[key] || []).length) ? [...values, TAGS_NOT_SET] : values;
+    },
+    match: (item, active) => {
+      const values = item[key] || [];
+      return values.length === 0
+        ? active.has(TAGS_NOT_SET)
+        : values.some((v) => active.has(v));
+    },
+  };
+}
+
+/** The character library's defs: entry type, role, rating, gender, appearance, trait. */
 export function characterFilterDefs(auth) {
   return [
     mediaTypeDef(auth, CHARACTER_MEDIA_TYPES, CHARACTER_RESTRICTED_TYPES),
     characterRoleDef(),
     ratingDef,
     genderDef(),
+    tagListDef("appearance", "Appearance"),
+    tagListDef("trait", "Trait"),
   ];
 }
 

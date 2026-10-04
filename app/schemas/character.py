@@ -50,7 +50,15 @@ class CharacterWrite(CharacterBase):
 
     Not on CharacterBase, which CharacterResponse also extends: a response
     reports what is stored and has no business refusing it.
+
+    appearance and trait are the character's tag lists
+    (credit_roles.CHARACTER_TAG_FIELDS). None leaves a list as it is; a list
+    replaces it whole. Values are stripped, blanks dropped and duplicates
+    folded by the service, and a value with no system_option yet creates one.
     """
+
+    appearance: Optional[List[str]] = None
+    trait: Optional[List[str]] = None
 
     @field_validator("gender")
     @classmethod
@@ -124,5 +132,8 @@ class CharacterResponse(CharacterBase):
     # on, sorted and distinct; restricted is True when one is a gated type.
     media_types: List[str] = []
     restricted: bool = False
+    # The tag lists, in stored order; empty when the character has none.
+    appearance: List[str] = []
+    trait: List[str] = []
 
     model_config = ConfigDict(from_attributes=True)

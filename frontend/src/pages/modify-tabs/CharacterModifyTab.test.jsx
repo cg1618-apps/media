@@ -1,7 +1,7 @@
 // Character Modify tab: a type tab and scope chips narrow a grid listing
 // every character up front; picking one loads its form, and a successful save scrolls the page back to the toast at the top.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ToastProvider } from "../../hooks/useToast";
@@ -265,19 +265,24 @@ it("has no photo fallback picker without an ownerId", async () => {
   expect(screen.getByLabelText("Gender")).toBeInTheDocument();
 });
 
-// A character's own role: "—" (null) plus the four CHARACTER_ROLES. It is
-// never read from or written to a casting's role.
-it("edits the character's own role through a closed select", async () => {
+// A character's own role: one chip per CHARACTER_ROLES value, unset (null)
+// when none is pressed. It is never read from or written to a casting's role.
+it("edits the character's own role through its chips", async () => {
   vi.stubGlobal("scrollTo", vi.fn());
   const user = userEvent.setup();
   mount({ initialId: "c1" });
-  const role = await screen.findByLabelText("Role");
-  expect([...role.options].map((o) => o.textContent)).toEqual([
-    "—", "Main", "Core", "Supporting", "Other",
+  const role = await screen.findByRole("group", { name: "Role" });
+  const chips = [...role.querySelectorAll("button")];
+  expect(chips.map((b) => b.textContent)).toEqual([
+    "Main", "Core", "Supporting", "Other",
   ]);
-  expect(role).toHaveValue("");
+  expect(chips.every((b) => b.getAttribute("aria-pressed") === "false")).toBe(true);
 
-  await user.selectOptions(role, "Core");
+  await user.click(within(role).getByRole("button", { name: "Core" }));
+  expect(within(role).getByRole("button", { name: "Core" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await user.click(screen.getByRole("button", { name: /save changes/i }));
   await waitFor(() =>
     expect(fetch).toHaveBeenCalledWith(
@@ -289,11 +294,71 @@ it("edits the character's own role through a closed select", async () => {
   expect(JSON.parse(init.body)).toMatchObject({ role: "Core" });
 });
 
+it("clears the role when its pressed chip is clicked again", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "c1" });
+  const role = await screen.findByRole("group", { name: "Role" });
+  await user.click(within(role).getByRole("button", { name: "Main" }));
+  await user.click(within(role).getByRole("button", { name: "Main" }));
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  await waitFor(() =>
+    expect(fetch.mock.calls.some(([, o]) => o?.method === "PUT")).toBe(true),
+  );
+  const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  expect(JSON.parse(init.body).role).toBeNull();
+});
+
+// 男 and 女 are one click; the select beside them still offers every gender
+// and follows whatever is picked.
+it("sets gender from its quick picks and keeps the select in step", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "c1" });
+  const picks = await screen.findByRole("group", { name: "Gender quick picks" });
+  await user.click(within(picks).getByRole("button", { name: "女" }));
+  expect(screen.getByLabelText("Gender")).toHaveValue("女");
+  expect(within(picks).getByRole("button", { name: "女" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  await waitFor(() =>
+    expect(fetch.mock.calls.some(([, o]) => o?.method === "PUT")).toBe(true),
+  );
+  const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  expect(JSON.parse(init.body).gender).toBe("女");
+});
+
+// Appearance and trait load from the response's arrays and go back as
+// arrays - [] for an empty list, since the server replaces each wholesale.
+it("loads and saves appearance and trait as arrays", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  const original = CHARACTERS[0];
+  CHARACTERS[0] = { ...original, appearance: ["Green Hair"], trait: [] };
+  try {
+    mount({ initialId: "c1" });
+    expect(await screen.findByText("Green Hair")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    await waitFor(() =>
+      expect(fetch.mock.calls.some(([, o]) => o?.method === "PUT")).toBe(true),
+    );
+    const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+    expect(JSON.parse(init.body)).toMatchObject({
+      appearance: ["Green Hair"],
+      trait: [],
+    });
+  } finally {
+    CHARACTERS[0] = original;
+  }
+});
+
 it("sends an unset role as null", async () => {
   vi.stubGlobal("scrollTo", vi.fn());
   const user = userEvent.setup();
   mount({ initialId: "c1" });
-  await screen.findByLabelText("Role");
+  await screen.findByRole("group", { name: "Role" });
   await user.click(screen.getByRole("button", { name: /save changes/i }));
   await waitFor(() =>
     expect(fetch.mock.calls.some(([, o]) => o?.method === "PUT")).toBe(true),

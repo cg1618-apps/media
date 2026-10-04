@@ -3964,6 +3964,8 @@ export default function Modify() {
       {activeTab === "character" && (
         <CharacterModifyTab
           initialId={entityDeepLink?.type === "character" ? entityDeepLink.id : null}
+          sources={sources}
+          refreshSources={async () => setSources(await fetchAllSources())}
         />
       )}
 

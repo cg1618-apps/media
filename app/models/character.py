@@ -1,4 +1,4 @@
-"""Character entity ORM models: characters and their per-entry castings."""
+"""Character entity ORM models: characters, their tags and their per-entry castings."""
 
 import uuid
 
@@ -114,6 +114,12 @@ class Character(Base, NameFallbackMixin):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    tags = relationship(
+        "CharacterTag",
+        back_populates="character",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     _DISPLAY_FIELDS = {
         "en": "name_en", "cn": "name_cn", "jp": "name_jp", "alt": "name_alt",
@@ -148,6 +154,52 @@ class Character(Base, NameFallbackMixin):
             ("Alt", self.name_alt),
         ]
         return self.get_fallback_name(sequence, "EN")
+
+
+class CharacterTag(Base):
+    """
+    One vocabulary value attached to one character - media_tag's twin.
+
+    `field` is one of credit_roles.CHARACTER_TAG_FIELD_KEYS (appearance,
+    trait), each backed by its own system_option category. A separate table
+    rather than more media_tag rows, because media_tag.media_id is a real FK
+    up to `media` and a character is not an entry.
+    """
+
+    __tablename__ = "character_tag"
+    __table_args__ = (
+        UniqueConstraint(
+            "character_id", "field", "option_id", name="uq_character_tag_row"
+        ),
+        Index("ix_character_tag_character", "character_id"),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        # Declared as well as the Python default so a raw INSERT gets an id
+        # too, as media_content_label does.
+        server_default=text("gen_random_uuid()"),
+        index=True,
+    )
+    character_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("character.system_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # One of credit_roles.CHARACTER_TAG_FIELD_KEYS.
+    field = Column(String, nullable=False)
+    option_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("system_option.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime, default=get_taipei_now)
+
+    character = relationship("Character", back_populates="tags")
 
 
 class CharacterCasting(Base):

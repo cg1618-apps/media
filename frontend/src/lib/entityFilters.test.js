@@ -9,6 +9,7 @@ import {
   GENDER_NOT_SET,
   NO_ENTRIES,
   ROLE_NOT_SET,
+  TAGS_NOT_SET,
   UNRATED,
   characterFilterDefs,
   defaultEntityFilters,
@@ -106,6 +107,51 @@ describe("characterFilterDefs", () => {
     expect(def(defs, "gender").options).toEqual([
       "男", "女", "中性/無性", "雙性混和", "其他", GENDER_NOT_SET,
     ]);
+  });
+});
+
+describe("characterFilterDefs appearance and trait", () => {
+  const ROWS = [
+    { id: "a", appearance: ["Red Hair", "Glasses"], trait: ["Kuudere"] },
+    { id: "b", appearance: ["Glasses"], trait: [] },
+    { id: "c", appearance: [], trait: ["Tsundere", "Kuudere"] },
+    { id: "d" },
+  ];
+
+  it("offers the values the rows hold, sorted, plus Not set for an empty list", () => {
+    const defs = characterFilterDefs(SEES_ALL);
+    expect(def(defs, "appearance").type).toBe("set-dynamic");
+    expect(def(defs, "appearance").deriveOptions(ROWS)).toEqual([
+      "Glasses", "Red Hair", TAGS_NOT_SET,
+    ]);
+    expect(def(defs, "trait").deriveOptions(ROWS)).toEqual([
+      "Kuudere", "Tsundere", TAGS_NOT_SET,
+    ]);
+  });
+
+  it("offers no Not set when every row holds a value", () => {
+    const defs = characterFilterDefs(SEES_ALL);
+    expect(def(defs, "trait").deriveOptions(ROWS.slice(0, 1))).toEqual(["Kuudere"]);
+  });
+
+  it("matches a row holding any ticked value", () => {
+    const defs = characterFilterDefs(SEES_ALL);
+    expect(filtered(defs, ROWS, { appearance: ["Red Hair"] })).toEqual(["a"]);
+    expect(filtered(defs, ROWS, { appearance: ["Red Hair", "Glasses"] })).toEqual(["a", "b"]);
+    expect(filtered(defs, ROWS, { trait: ["Kuudere"] })).toEqual(["a", "c"]);
+  });
+
+  it("matches an empty or missing list only under Not set", () => {
+    const defs = characterFilterDefs(SEES_ALL);
+    expect(filtered(defs, ROWS, { appearance: [TAGS_NOT_SET] })).toEqual(["c", "d"]);
+    expect(filtered(defs, ROWS, { trait: [TAGS_NOT_SET, "Tsundere"] })).toEqual(["b", "c", "d"]);
+  });
+
+  it("ANDs the two lists with each other", () => {
+    const defs = characterFilterDefs(SEES_ALL);
+    expect(
+      filtered(defs, ROWS, { appearance: ["Glasses"], trait: ["Kuudere"] }),
+    ).toEqual(["a"]);
   });
 });
 

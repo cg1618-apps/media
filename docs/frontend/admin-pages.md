@@ -409,10 +409,12 @@ entry's Ownership is derived from these rows, not typed.
 `PersonSubTabBar` here — the
 bar filters a list, and Add has no list; the role × scope matrix inside the
 form already says which types a new person holds. `PersonFields` holds the four name fields with a
-"Display name" select, the **role × scope matrix**, then gender and rating as
-closed selects (`GenderRatingFields` from `components/forms/EntityProfileFields.jsx`:
-Gender is "—" plus `GENDERS`, My Rating is "Unrated" plus `MY_RATINGS`; unset
-saves as null), a **MAL Link** (`mal_link`; the server reads the MAL id from
+"Display name" select, the **role × scope matrix**, then gender and rating
+(`GenderRatingFields` from `components/forms/EntityProfileFields.jsx`: Gender
+is **男** and **女** as `QuickPicks` chips beside a closed select of "—" plus
+every `GENDERS` value — one click picks, clicking the pressed chip clears, and
+the select follows either way and is how the other genders are picked; My
+Rating is a select of "Unrated" plus `MY_RATINGS`; unset saves as null), a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), the photo
 and the remark. Ticking a type selects its first legal media type, because a
 scopeless role is a 422; the legal types per role come from
@@ -424,9 +426,16 @@ rejects. Submit is blocked until at least one name is filled, matching
 **Character tab (Entity).** `CharacterAddTab.jsx`. Its only search box is the
 MAL `ExternalSearchBox`, over the form. `CharacterFields` is the
 person form without the role × scope matrix: the four name fields, the
-"Display name" select, a **Role** select ("—" for none, plus Main, Core,
-Supporting, Other — `CHARACTER_ROLES`), the same Gender and My Rating selects,
-a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
+"Display name" select, a **Role** as `QuickPicks` chips — one per
+`CHARACTER_ROLES` value, Main, Core, Supporting, Other, with no select beside
+them since all four fit at any width; clicking the pressed chip clears it to
+none — the same Gender and My Rating fields, **Appearance** and **Trait**
+(`MultiSelect`s suggesting from the `Character Appearance` and `Character
+Trait` option categories — one vocabulary each, for every character, no
+scope; `lib/characterForm.js` turns the comma-joined form strings into the
+arrays the `POST` sends, `[]` for an empty list, and a typed value the
+vocabulary lacks is created by the character write itself, so the tab runs no
+`ensureSourceValues`; the sources are refetched after the save), a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
 page; the server reads the MAL id from it and, on save, fills the blank names
 and the photo from MAL — see [api.md](../api.md#character--apicharacter)),
 the photo and the remark. The Role is the character's own. Left blank, it
@@ -721,7 +730,11 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   loads `CharacterFields` with the same **Photo fallback** select over
   `GET /api/character/{id}/entries`; for a character the chosen entry lends
   its casting photo first and its cover only when the casting has none, and
-  the hint says so. Save is `PUT /api/character/{id}`.
+  the hint says so. The form loads `appearance` and `trait` from the
+  response's arrays (`characterTagsToForm`) and its pickers suggest from the
+  `sources` bag `Modify.jsx` already holds. Save is `PUT /api/character/{id}`,
+  carrying both lists (an emptied one as `[]`, which clears it); it then calls
+  `refreshSources` so a value the save created is offered at once.
 
 ## /delete (`Delete.jsx`)
 
@@ -923,7 +936,8 @@ work is this" lists together under Entry Type, files the game lists by the
 question they answer (`game_release_status` under Publication Status,
 `playing_status` under My Progress) and keeps only the game_copy vocabularies
 in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, Comic and Source & Platform. That last group holds the
+reads as Tags, Game, Comic, Source & Platform, Music and **Character** (the
+`Character Appearance` and `Character Trait` vocabularies). That last group holds the
 platform and reference vocabularies, the ones that name an outside party.
 Publishers and distributors are **not** among them — they are entities, edited
 on the Entity → Publisher tab.

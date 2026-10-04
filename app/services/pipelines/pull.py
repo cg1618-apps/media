@@ -45,6 +45,11 @@ from app.services.domain import (
     resolve_novel_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
 )
+from app.services.domain.character_tags import (
+    character_tag_sheet_headers,
+    character_tags_from_sheet,
+    replace_character_tags,
+)
 from app.services.domain.credits import (
     AmbiguousNameError,
     find_person,
@@ -378,7 +383,9 @@ def unexpected_headers(tab_name: str, headers: list) -> list[str]:
 
     The legacy credit and tag headers (studio, director, genre_main, ...) are
     expected too: they back no column, but execute_pull_specific pops them out
-    by name and applies them through replace_credits / replace_tags.
+    by name and applies them through replace_credits / replace_tags. So are
+    the Character tab's appearance and trait, applied through
+    replace_character_tags.
     """
     model = TAB_MODELS[tab_name]
     known = set(drop_non_columns(model, {h: None for h in headers if h}))
@@ -389,6 +396,8 @@ def unexpected_headers(tab_name: str, headers: list) -> list[str]:
             known.add(sheet_column_for(media_type, role.key))
         for field in tag_fields_for(media_type):
             known.add(sheet_column_for(media_type, field.key))
+    if TAB_BY_NAME[tab_name].character_tags:
+        known.update(character_tag_sheet_headers())
 
     seen: list[str] = []
     for header in headers:
@@ -1046,6 +1055,17 @@ def execute_pull_specific(
                 header = sheet_column_for(media_type, field.key)
                 if header in clean_header_dict:
                     pending_tags.append((field.key, clean_header_dict.pop(header)))
+
+        # The Character tab's appearance and trait cells, the same idea. The
+        # parser does not carry them, so they are read from the raw row - and
+        # only when the header is there: a sheet written before the columns
+        # existed leaves a character's tags as they are, while a present but
+        # empty cell clears them, the rule every other column follows.
+        pending_character_tags: list[tuple[str, object]] = []
+        if TAB_BY_NAME[tab_name].character_tags:
+            for header in character_tag_sheet_headers():
+                if header in raw_header_dict:
+                    pending_character_tags.append((header, raw_header_dict[header]))
 
         # A child of a derived-identity tab cites its parent by the uuid the
         # OTHER database minted. Translate it to the local one before anything
@@ -1830,6 +1850,14 @@ def execute_pull_specific(
                 except AmbiguousNameError as e:
                     credit_conflicts.append(f"{tab_name} [{field_key}]: {e}")
                     logger.warning("Ambiguous %s on '%s' row: %s", field_key, tab_name, e)
+
+        if pending_character_tags:
+            if entry.system_id is None:
+                db.flush()
+            for field_key, raw_value in pending_character_tags:
+                replace_character_tags(
+                    db, entry.system_id, field_key, character_tags_from_sheet(raw_value)
+                )
 
         processed += 1
 

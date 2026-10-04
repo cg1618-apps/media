@@ -394,6 +394,9 @@ export const OPTION_CATEGORIES = [
   "H Genre Plot",
   "H Genre Appearance",
   "H Genre Relation",
+  // A character's two tag lists (CHARACTER_OPTION_CATEGORIES there).
+  "Character Appearance",
+  "Character Trait",
   "Franchise for Filter",
 ];
 

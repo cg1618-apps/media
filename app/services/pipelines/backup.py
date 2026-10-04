@@ -9,6 +9,10 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import engine
+from app.services.domain.character_tags import (
+    character_tag_sheet_headers,
+    character_tag_sheet_rows,
+)
 from app.services.domain.credits import sheet_link_headers, sheet_link_rows
 from app.services.integrations.sheets import bulk_overwrite_sheet
 from app.services.pipelines.tabs import SHEET_TABS
@@ -177,6 +181,10 @@ def _write_backup(db: Session, action_type: str, on_progress: Optional[Progress]
                 headers += sheet_link_headers(tab.media_type)
                 for row, links in zip(matrix, sheet_link_rows(db, tab.media_type, rows)):
                     row.extend(links)
+            if tab.character_tags:
+                headers += character_tag_sheet_headers()
+                for row, tags in zip(matrix, character_tag_sheet_rows(db, rows)):
+                    row.extend(tags)
             bulk_overwrite_sheet(tab.name, [headers] + matrix)
 
         logger.info("Backup Pipeline completed successfully.")
