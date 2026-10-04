@@ -18,6 +18,9 @@ import {
   EmptyHint,
   ItemActions,
   LinkPill,
+  ReorderHandle,
+  ReorderList,
+  ReorderRow,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
@@ -25,6 +28,7 @@ import {
   inputCls,
   tagCls,
   useEntryCap,
+  useRowReorder,
 } from "./ui";
 
 const emptyItem = () => ({ type: "text", value: "", label: "" });
@@ -184,6 +188,8 @@ export default function NameEntriesSection({
   onCreate,
   onUpdate,
   onDelete,
+  onReorder,
+  reordering,
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(empty());
@@ -192,6 +198,7 @@ export default function NameEntriesSection({
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
+  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
 
   // Matches the server rule: a named list with neither a name nor a single
   // entry is nothing.
@@ -218,63 +225,60 @@ export default function NameEntriesSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {cap.visible.map((n) => (
-        <div key={n.system_id} className="flex gap-2 items-start group">
-          <span className="text-xs text-text-faint shrink-0 pt-0.5">•</span>
-          <div className="flex-1 min-w-0">
-            {editId === n.system_id ? (
-              <div>
-                <NameEntriesForm
-                  section={section}
-                  val={editVal}
-                  setVal={setEditVal}
-                />
-                <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {n.kind && <span className={tagCls}>{n.kind}</span>}
-                  {n.title && (
-                    <span className="text-sm text-text-muted">{n.title}</span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1">
-                  {(n.entries || []).map((e, j) =>
-                    e.type === "link" ? (
-                      <div key={j} className="flex items-center gap-2 flex-wrap">
-                        {e.label && (
-                          <span className="text-xs text-text-faint">
-                            {e.label}
-                          </span>
-                        )}
-                        <LinkPill url={e.value} />
-                      </div>
-                    ) : (
-                      <p
-                        key={j}
-                        className="text-sm text-text whitespace-pre-wrap break-words"
-                      >
-                        {e.value}
-                      </p>
-                    ),
-                  )}
-                </div>
-              </div>
+      <ReorderList reorder={reorder}>
+        {cap.visible.map((n) => (
+          <ReorderRow
+            key={n.system_id}
+            reorder={reorder}
+            id={n.system_id}
+            className="flex gap-2 items-start group"
+          >
+            {editId !== n.system_id && (
+              <ReorderHandle reorder={reorder} note={n} className="pt-0.5" />
             )}
-          </div>
-          {editId !== n.system_id && (
-            <ItemActions
-              isAdmin={isAdmin}
-              onEdit={() => {
-                setEditId(n.system_id);
-                setEditVal(fromNote(n));
-              }}
-              onDelete={() => onDelete(n.system_id)}
-            />
-          )}
-        </div>
-      ))}
+            <span className="text-xs text-text-faint shrink-0 pt-0.5">•</span>
+            <div className="flex-1 min-w-0">
+              {editId === n.system_id ? (
+                <div>
+                  <NameEntriesForm section={section} val={editVal} setVal={setEditVal} />
+                  <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {n.kind && <span className={tagCls}>{n.kind}</span>}
+                    {n.title && <span className="text-sm text-text-muted">{n.title}</span>}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {(n.entries || []).map((e, j) =>
+                      e.type === "link" ? (
+                        <div key={j} className="flex items-center gap-2 flex-wrap">
+                          {e.label && <span className="text-xs text-text-faint">{e.label}</span>}
+                          <LinkPill url={e.value} />
+                        </div>
+                      ) : (
+                        <p key={j} className="text-sm text-text whitespace-pre-wrap break-words">
+                          {e.value}
+                        </p>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            {editId !== n.system_id && (
+              <ItemActions
+                isAdmin={isAdmin}
+                onEdit={() => {
+                  setEditId(n.system_id);
+                  setEditVal(fromNote(n));
+                }}
+                onDelete={() => onDelete(n.system_id)}
+              />
+            )}
+          </ReorderRow>
+        ))}
+      </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>

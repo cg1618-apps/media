@@ -504,11 +504,9 @@ not drawn. The character, person and studio libraries use it for
   and one naming none inside `fields`, which `fromNote` and `toPayload` are
   the only places to know. A `singleton` section loses its Add button once
   it holds its row, so that row changes by Edit; no structured section is a
-  singleton today, but the rule stays with the component. It also owns the two affordances the other shapes
-  lack — drag-to-reorder (a `DragHandle` per row; each drop calls
-  `PATCH /api/notes/reorder`, the provider applies the new order before the
-  server answers through the pure `withSectionOrder`, and the section's grips
-  are disabled until the save settles), and an inline
+  singleton today, but the rule stays with the component. It owns its own
+  drag-to-reorder, because it orders a tree and groups rather than a flat
+  list, and an inline
   `quick_edit` input that saves on blur without opening the row. For a
   `hierarchical` section it also draws the tree: an Add button per row opening
   a draft that carries that row's id as `parent_id`, children indented behind
@@ -523,7 +521,10 @@ not drawn. The character, person and studio libraries use it for
   section with `group_by` reads as one group per name (`groupedRows.js`), the
   groups reorderable by the grip on each header (drag, or ArrowUp / ArrowDown)
   through `onGroupOrderChange` - every group grip disabled until the owner's
-  save settles - the rows inside a group not reorderable at all. The
+  save settles. A row there can sit in two groups, so the rows are not
+  reorderable in the grouped view; a **Group by** toggle in the card header
+  (remembered per section in the browser, like the one below) switches to the
+  flat list, where they are. The
   provider passes both in from the owner page; `NotesContext` also drops a
   section whose `owner_where` the owner row fails (`ownerMatches`). A section
   with `groupable_by` gets a **Group by type** toggle (`SectionCard`'s
@@ -536,8 +537,15 @@ not drawn. The character, person and studio libraries use it for
   "Show all (N)" - `useEntryCap` and `ShowAllToggle` in `ui.jsx`, one hook
   and one control shared by all of them rather than a copy per shape. The row
   being edited and the draft row are never folded away; `StructuredSection`
-  caps top-level rows, or each group of a grouped section. The rules are in
-  `docs/systems/notes.md`.
+  caps top-level rows, or each group of a grouped section. Every list section
+  is also reorderable by an admin, the same way: a `DragHandle` per row (none
+  on the row being edited, none while there is only one row), each move sent
+  to `onReorder` as the section's whole order for `PATCH /api/notes/reorder`,
+  applied on screen at once through the provider's pure `withSectionOrder`,
+  and the section's grips disabled until the save settles. The flat shapes
+  share `useRowReorder`, `ReorderList`, `ReorderRow` and `ReorderHandle` in
+  `ui.jsx`; a grip is labelled by `noteLabel` (the row's name, locator, text
+  or first link). The rules are in `docs/systems/notes.md`.
 
 ## Dropdown lists
 
