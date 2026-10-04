@@ -2885,3 +2885,22 @@ verdict, which has no source to cite.
 - **One sort key.** `season_part_sort_key` is shared with
   `derive_ep_previous_anime`, so the two never disagree about which season
   comes first.
+
+### An anime's genres and labels are imported from a franchise sibling, into the form (2026-10-04)
+
+A sequel usually shares its predecessor's genres and labels, so the anime
+Add and Modify forms offer the same kind of import the cast editor does.
+
+- **Genre Main, Genre Sub and Label, not Quality.** Quality (神作畫,
+  作畫崩壞, ...) judges one entry's production, which a sibling does not
+  share; copying it would assert something nobody checked.
+- **Siblings are the franchise's other anime only.** Genre Main and Genre
+  Sub exist on no other type (`TAG_FIELDS` in `app/utils/credit_roles.py`),
+  so an anime movie or a manga would have nothing to give.
+- **No new endpoint.** `GET /api/anime/?franchise_id=` already returns every
+  sibling with its tag fields through the viewer's visibility, so the picker
+  reads that rather than adding a `sources` route like the cast's, which
+  exists because a cast is not on the list response.
+- **Appended, not replaced, and nothing saved** - the cast import's rule: the
+  form's own tags stay first, a tag already held is skipped, and the save
+  writes them.

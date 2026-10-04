@@ -3,6 +3,7 @@ import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import CastEditor from "../../components/forms/CastEditor";
+import TagImport from "../../components/forms/TagImport";
 import SourcesEditor from "../../components/forms/SourcesEditor";
 import ImagePicker from "../../components/forms/ImagePicker";
 import {
@@ -19,6 +20,7 @@ import {
   AIRING_STATUSES,
   ANIME_AIRING_TYPES,
   IS_MAIN,
+  ANIME_IMPORTED_TAGS,
   MY_RATINGS,
   PART_NUMS,
   RELEASE_SEASONS,
@@ -502,6 +504,15 @@ export default function AnimeAddTab({
           />
         </Field>
       </div>
+      {/* Quality is left out on purpose: it rates this entry's production,
+          which a sibling does not share. */}
+      <TagImport
+        mediaType="anime"
+        franchiseId={af.franchise_id}
+        fields={ANIME_IMPORTED_TAGS}
+        values={af}
+        onChange={ua}
+      />
 
       <SectionHeader icon="fa-industry" title="Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
