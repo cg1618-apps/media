@@ -2063,7 +2063,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST`   | `/calculate/download-missing-covers` | Re-download missing cover images. Body: `{system_ids?: string[]}`. Skips an entry whose cover attachment points at an uploaded `image` (`uploaded_by` set) rather than re-fetching from MAL over it — an uploaded file cannot be re-fetched by anything, so overwriting the reference would destroy it. Response: `{status, message}`, with a `skipped_uploads` count folded into `message` when non-zero. |
 | `DELETE` | `/calculate/delete-orphaned-covers`  | Delete orphaned cover image files from storage. Returns `{deleted_count}`.                  |
 | `GET`    | `/check/duplicates`                  | Find and report all duplicate entries across all tables. Returns grouped clusters.          |
-| `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks, grouped by media type — the Remarks Review Queue. A remark belongs to its author, so the response carries one per entry. |
+| `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks (`section = 'remark'` only), one key per media type — all twelve. A remark belongs to its author, so the response carries one per entry. Each row carries `system_id`, `public_id`, its type's name columns and disambiguating columns, the caller's status (`watching_status` / `reading_status` / `playing_status`, read from `user_media_list`) and `remark`; a movie row carries `release_date` (USA, else TW). |
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.
 

@@ -17,7 +17,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 |---|---|---|
 | `/system` | `pages/admin/Admin.jsx` | Control Center: pipelines, announcements, review modals |
 | `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit |
-| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Remarks and duplicate clusters to act on |
+| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates |
 | `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes |
 | `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete |
 | `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) |
@@ -64,9 +64,9 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   pickers default to the season after today's (`nextSeason` in
   `lib/season.js`; seasons are calendar quarters, so late September offers
   `FAL` of the same year and December offers `WIN` of the next).
-- **Remarks / Duplicates modals.** The same views as the Review Queue, opened
-  in place. (The Remarks modal's media-type tab list must include every type;
-  `ReviewQueue.jsx` is the reference copy.)
+- **Remarks / Duplicates modals.** The Review Queue's own views, opened in
+  place: both modals render `RemarksView` and `DuplicatesView` from
+  `components/review/`, so the tab lists cannot drift apart.
 
 ## /data-history (`DataHistory.jsx`)
 
@@ -77,13 +77,26 @@ back to the owning franchise/series where the ids still exist.
 
 ## /review-queue (`ReviewQueue.jsx`)
 
-- **Remarks section** — `GET /api/data-control/check/remarks`: every entry
-  whose remark note is non-empty, grouped by media type, with the remark
-  editable in place through `RemarkModal` (PATCH on the entry; the remark is a
-  note section, see [../systems/notes.md](../systems/notes.md)).
-- **Duplicates section** — `GET /api/data-control/check/duplicates`: clusters
-  per type (see `find_all_duplicates` in
-  [../business-rules.md](../business-rules.md)) with links to Modify/Delete.
+Each block is one check under `GET /api/data-control/check/`, loaded when its
+button is pressed and reloaded by the same button. The blocks share one shell
+(`components/review/ReviewBlock.jsx`: title, count line, load button, empty
+state, error line) and one tab bar. A gated type's tab (h-comic, hentai,
+h-game) is drawn only for a session that may see the type
+(`visibleByType`, `lib/gatedTypes.js`); the server does not filter by access
+mode (the data-control router is gated on `manage.pipelines` alone).
+
+- **Entries with remarks** — `GET /check/remarks` (`RemarksView`): the
+  caller's own `remark` notes, one tab per media type, all twelve. Each row
+  shows the names, the type's disambiguating column, the caller's status and
+  the remark; clicking a row opens the entry's detail page (by `public_id`).
+  The remark is read-only here: it is edited on the entry or its notes page
+  (see [../systems/notes.md](../systems/notes.md)).
+- **Potential duplicates** — `GET /check/duplicates` (`DuplicatesView`):
+  clusters per tab (see `find_all_duplicates` in
+  [../business-rules.md](../business-rules.md)) — franchise, series, every
+  media type, system options (`[id] option_value` per member) and people &
+  companies (the `entities` clusters: `kind` and each member's name). Read
+  only; a cluster is resolved on `/modify`, `/delete` or a person's merge.
 
 ## /add (`Add.jsx`)
 

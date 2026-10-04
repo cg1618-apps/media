@@ -860,7 +860,7 @@ the garbage into the sheet and destroy the evidence.
 | Route | Function | Returns |
 |---|---|---|
 | `GET /check/duplicates` | `find_all_duplicates(db)` (`app/services/domain/duplicates.py`) | one key per check: `franchise`, `series`, `anime`, `anime_movie`, `cartoon`, `movie`, `tv_show`, `manga`, `novel`, `comic`, `game`, `h_comic`, `h_game`, `hentai`, `system_options`, `entities` — each a list of duplicate groups (h-comic's key: same franchise, series, `region` and `series_number` plus a shared name; h-game's: same franchise, series, `game_type` and `series_number` plus a shared name; hentai's: same franchise, series and `series_number` plus a shared name) (lists of dicts). Matching rules are in [business-rules.md](business-rules.md). |
-| `GET /check/remarks` | `find_all_remarks(db)` (`app/services/domain/remarks.py`) | entries with a non-empty `remark`, grouped by media type (`anime`, `anime_movie`, `movie`, `tv_show`, `cartoon`, ...), newest `updated_at` first, each with `system_id`, its name columns, status and `remark`. |
+| `GET /check/remarks` | `find_all_remarks(db, viewer.user_id)` (`app/services/domain/remarks.py`) | the caller's own non-empty `remark` notes, one key per media type (`anime`, `anime_movie`, `movie`, `tv_show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h_comic`, `hentai`, `h_game`), newest `updated_at` first, each with `system_id`, `public_id`, its name columns, the caller's status (`attach_list_fields`, so an unlisted entry reads its type's default) and `remark`. |
 
 Neither writes a log row.
 
