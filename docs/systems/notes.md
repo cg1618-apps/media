@@ -161,10 +161,10 @@ not sourced, and a write-up worth keeping belongs in 攻略資源 Guide Resource
 `group` for named owner types, the same way `labels` and `kinds_by_owner`
 override their defaults, and `group_for(section, owner_type)` resolves it —
 `/api/notes/sections` serves the resolved value, so the page never learns that
-an override exists. **Six sections use it**, and a test pins the list: an
+an override exists. **Seven sections use it**, and a test pins the list: an
 override puts the same rows in a different card, so a reader of
 `NOTE_SECTIONS` who sees `group=` and misses the override would be wrong about
-where a section lands. `analysis` is below; the other five are h-game's -
+where a section lands. `analysis` and `easter_eggs` are below; the other five are h-game's -
 `reviews_and_comments` opens its 評論 card (it is flat for h-comic and hentai,
 which have nothing else of 評論 to share a card with), and the four
 `story_list_*` strands render in 劇情, because an h-game has no prose plot.
@@ -173,8 +173,10 @@ For a film or a series, 解析 Analysis sits beside 分鏡/演出, 伏筆, 對�
 its own card, because they are one subject. A game has none of the others,
 so that card would hold exactly one section — and an analysis of a game
 is read *with* the opinions rather than apart from them. So for `game` and
-`h-game` it is the last subsection of 評論 Reviews, and `analysis_group` is not
-rendered for either. H-comic and hentai have no 解析 at all.
+`h-game` it is a subsection of 評論 Reviews, and `analysis_group` is not
+rendered for either. 彩蛋 Easter Eggs follows it there for `game`, so it is
+the last subsection of a game's 評論 and 解析 the one before it. H-comic and
+hentai have no 解析 at all, and no gated type has 彩蛋.
 
 **Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情 → 劇情列表 → 世界觀 → 待辦 → 音樂 → 名言/梗 → Resources → Questions.
 
@@ -250,7 +252,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `foreshadowing` | Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `speculation` | 猜測 Speculation | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
-| `easter_eggs` | 彩蛋 Easter Eggs | text_links | analysis_group | anime | — | — | "Episode(s), e.g. ep 3" | no | no | no |
+| `easter_eggs` | 彩蛋 Easter Eggs | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, novel: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `controls` | 操作 Controls | **structured** | guides | game, h-game | — | — | — | no | no | no |
@@ -613,8 +615,9 @@ category (`link_text_category`). `GET /api/notes/sections` reports
 `link_pairs: true` on every section whose links take this shape, which is the
 four song lists and nothing else.
 
-**彩蛋 Easter Eggs** sits last in 解析: a hidden reference, the episode it
-plays in and where somebody spotted it. It is `text_links` like the rest of
+**彩蛋 Easter Eggs** sits last in 解析 on every entry type outside the gated
+ones (last in 評論 for a game): a hidden reference, where it plays and where
+somebody spotted it. It is `text_links` like the rest of
 解析 - an optional episode in `locator`, a description in `content` and any
 number of URL strings in `links`, with no link text.
 

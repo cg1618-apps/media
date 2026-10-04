@@ -408,7 +408,7 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | `craft` (`巧思`) | | | | | | | x | | | |  | |
 | `foreshadowing` | x | x | | x | x | x | x | | | |  | both |
 | `symmetry` | x | x | | x | x | x | x | | | |  | both |
-| `easter_eggs` (`彩蛋`) | x | | | | | | | | | |  | |
+| `easter_eggs` (`彩蛋`; in 評論 for game) | x | x | x | x | x | x | x | x | x | |  | |
 | `music_status` (hidden; one row per song list, created with the anime) | x | | | | | | | | | |  | |
 | `op`, `ed`, `insert_songs`, `ost` (`music_track`) | x | | | | | | | | | |  | |
 | `op_ed_changes` | x | | | x | x | | | | | |  | |
