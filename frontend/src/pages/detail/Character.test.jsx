@@ -190,6 +190,22 @@ describe("Character detail page", () => {
     expect(within(profile).getByText("Trait").nextElementSibling).toHaveTextContent("—");
   });
 
+  it("links MyAnimeList beside the name when the character has a MAL link", async () => {
+    const link = "https://myanimelist.net/character/251/Yuki_Nagato";
+    mockFetch({ character: { ...CHARACTER, mal_link: link, mal_id: 251 } });
+    renderPage();
+    const button = await screen.findByRole("link", { name: "Open on MyAnimeList" });
+    expect(button).toHaveAttribute("href", link);
+    expect(button).toHaveAttribute("target", "_blank");
+  });
+
+  it("draws no MyAnimeList button for a character without a MAL link", async () => {
+    mockFetch();
+    renderPage();
+    await screen.findByRole("heading", { name: "Yuki Nagato" });
+    expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
+  });
+
   it("lists all four names on a Naming card", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Yuki Nagato" });
