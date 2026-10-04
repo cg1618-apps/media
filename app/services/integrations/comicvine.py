@@ -21,6 +21,12 @@ from tenacity import (
 )
 
 from app.config import settings
+from app.services.integrations.external_search import (
+    SEARCH_TIMEOUT,
+    ExternalSearchError,
+    cached_search,
+)
+from app.utils.comicvine_utils import _pick_cover_url
 
 logger = logging.getLogger(__name__)
 
@@ -181,29 +187,104 @@ def fetch_comicvine_volume(volume_id: int) -> Optional[Dict[str, Any]]:
     return payload.get("results") or None
 
 
-@retry(
-    stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=(
-        retry_if_exception_type(requests.exceptions.RequestException)
-        | retry_if_exception_type(RateLimitExceeded)
-    ),
-    reraise=False,
-)
+def _search_request(params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    One Comic Vine search for the Add-tab picker: a single attempt with
+    ``SEARCH_TIMEOUT``, raising ``ExternalSearchError`` on any failure.
+
+    Fill's ``_request`` retries through tenacity and degrades to None; a search
+    box can do neither. Nor can it wait out the hourly cap the way a backfill
+    does, so an exhausted limiter is reported rather than slept on.
+    """
+    if not comicvine_rate_limiter.has_capacity():
+        raise ExternalSearchError("Comic Vine's hourly request limit is used up; try again later.")
+    comicvine_rate_limiter.wait_if_needed()
+
+    try:
+        response = requests.get(
+            f"{COMICVINE_BASE_URL}/search/",
+            params=params,
+            headers={"User-Agent": COMICVINE_USER_AGENT},
+            timeout=SEARCH_TIMEOUT,
+        )
+    except requests.exceptions.RequestException as e:
+        logger.error("Comic Vine search failed to connect: %s", e)
+        raise ExternalSearchError("Comic Vine could not be reached.") from e
+
+    if response.status_code == 401:
+        raise ExternalSearchError("Comic Vine rejected the API key (401).")
+    if response.status_code in (420, 429):
+        raise ExternalSearchError("Comic Vine rate limit reached; try again later.")
+    if response.status_code >= 400:
+        raise ExternalSearchError(f"Comic Vine answered with an error ({response.status_code}).")
+
+    try:
+        payload = response.json()
+    except ValueError as e:
+        raise ExternalSearchError("Comic Vine returned a response that is not JSON.") from e
+    if not isinstance(payload, dict):
+        raise ExternalSearchError("Comic Vine returned an unexpected response.")
+
+    # Comic Vine reports application errors in the body with HTTP 200;
+    # status_code 1 is OK.
+    if payload.get("status_code") != 1:
+        raise ExternalSearchError(f"Comic Vine error: {payload.get('error') or 'unknown error'}.")
+
+    results = payload.get("results") or []
+    return results if isinstance(results, list) else []
+
+
+def _start_year(value: Any) -> Optional[int]:
+    """``start_year`` arrives as a string ("2015"), sometimes junk or empty."""
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _volume_detail(volume: Dict[str, Any]) -> Optional[str]:
+    """``"Marvel · 75 issues"`` — whichever halves Comic Vine supplied."""
+    parts = []
+    publisher = (volume.get("publisher") or {}).get("name")
+    if publisher:
+        parts.append(publisher)
+    issues = volume.get("count_of_issues")
+    if isinstance(issues, int):
+        parts.append(f"{issues} issue" if issues == 1 else f"{issues} issues")
+    return " · ".join(parts) or None
+
+
+def _map_search_result(volume: Dict[str, Any]) -> Dict[str, Any]:
+    """One Comic Vine volume onto ``ExternalSearchResult``. ``link`` is
+    ``site_detail_url`` (``.../<slug>/4050-<id>/``), which
+    ``extract_comicvine_id`` parses back to the same id."""
+    return {
+        "external_id": str(volume["id"]),
+        "link": volume.get("site_detail_url"),
+        "title": volume["name"],
+        "title_alt": None,
+        "year": _start_year(volume.get("start_year")),
+        "detail": _volume_detail(volume),
+        "cover_url": _pick_cover_url(volume.get("image")),
+    }
+
+
+@cached_search
 def search_comicvine_volumes(query: str, limit: int = 10) -> List[Dict[str, Any]]:
     """
-    Searches volumes by name so the admin can pick the right run and store its ID.
-    Returns a (possibly empty) list of raw volume results.
+    Searches volumes by name for the Add-tab picker, so the admin can pick the
+    right run and store its ID. One attempt, no retry; a missing key or any
+    failure raises ``ExternalSearchError``. Returns
+    ``ExternalSearchResult``-shaped dicts.
     """
     if not query or not query.strip():
         return []
 
     api_key = _get_api_key()
     if not api_key:
-        return []
+        raise ExternalSearchError("Comic Vine is not configured (COMICVINE_API_KEY).")
 
-    payload = _request(
-        "search/",
+    results = _search_request(
         {
             "api_key": api_key,
             "format": "json",
@@ -211,11 +292,10 @@ def search_comicvine_volumes(query: str, limit: int = 10) -> List[Dict[str, Any]
             "query": query.strip(),
             "limit": limit,
             "field_list": SEARCH_FIELD_LIST,
-        },
-        context=f"search '{query}'",
+        }
     )
-
-    if not payload:
-        return []
-
-    return payload.get("results") or []
+    return [
+        _map_search_result(volume)
+        for volume in results
+        if isinstance(volume, dict) and volume.get("id") is not None and volume.get("name")
+    ]

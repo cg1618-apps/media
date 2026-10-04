@@ -26,6 +26,7 @@ They are converted to hours here because the `hltb_*` columns are hours.
 
 import logging
 import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -37,6 +38,11 @@ from tenacity import (
 )
 
 from app.config import settings
+from app.services.integrations.external_search import (
+    SEARCH_TIMEOUT,
+    ExternalSearchError,
+    cached_search,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +65,14 @@ GAME_FIELDS = (
     # superset while IGDB migrates.
     "external_games.category,external_games.external_game_source,external_games.uid"
 )
-SEARCH_FIELDS = "name,summary,first_release_date,cover.url,url"
+# The picker search maps these onto ExternalSearchResult; `platforms` feeds
+# the one-line `detail` that tells a remaster from the original.
+SEARCH_FIELDS = (
+    "name,summary,first_release_date,cover.url,url,platforms.abbreviation,platforms.name"
+)
+
+# How many platforms the picker's detail line names before it stops.
+SEARCH_DETAIL_PLATFORMS = 3
 
 TIME_TO_BEAT_FIELDS = "game_id,hastily,normally,completely,count"
 
@@ -122,7 +135,7 @@ class RateLimitExceeded(Exception):
     pass
 
 
-def _get_token() -> Optional[str]:
+def _get_token(timeout: float = 15) -> Optional[str]:
     """
     Returns a valid bearer token, fetching a new one only when the cached one
     is missing or close to expiry. Returns None when either credential is
@@ -147,7 +160,7 @@ def _get_token() -> Optional[str]:
                 "client_secret": client_secret,
                 "grant_type": "client_credentials",
             },
-            timeout=15,
+            timeout=timeout,
         )
         if response.status_code >= 400:
             logger.error(
@@ -304,19 +317,107 @@ def fetch_igdb_time_to_beat(igdb_id: int) -> Optional[Dict[str, Any]]:
     }
 
 
-@retry(
-    stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=(
-        retry_if_exception_type(requests.exceptions.RequestException)
-        | retry_if_exception_type(RateLimitExceeded)
-    ),
-    reraise=False,
-)
+def _search_request(body: str) -> List[Dict[str, Any]]:
+    """
+    One IGDB request for the Add-tab picker: a single attempt with
+    ``SEARCH_TIMEOUT``, raising ``ExternalSearchError`` on any failure.
+
+    Fill's ``_request`` retries through tenacity and degrades to None; a search
+    box can do neither, so this is a separate path rather than a flag on that one.
+    """
+    if not settings.igdb_client_id or not settings.igdb_client_secret:
+        raise ExternalSearchError("IGDB is not configured (IGDB_CLIENT_ID / IGDB_CLIENT_SECRET).")
+
+    token = _get_token(timeout=SEARCH_TIMEOUT)
+    if not token:
+        raise ExternalSearchError("Could not obtain an IGDB token from Twitch.")
+
+    igdb_rate_limiter.wait_if_needed()
+
+    headers = {
+        "Client-ID": settings.igdb_client_id,
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+    }
+    try:
+        response = requests.post(
+            f"{IGDB_BASE_URL}/games", data=body, headers=headers, timeout=SEARCH_TIMEOUT
+        )
+    except requests.exceptions.RequestException as e:
+        logger.error("IGDB search failed to connect: %s", e)
+        raise ExternalSearchError("IGDB could not be reached.") from e
+
+    if response.status_code == 401:
+        _TOKEN_CACHE.clear()
+        raise ExternalSearchError("IGDB rejected the access token (401).")
+    if response.status_code == 429:
+        raise ExternalSearchError("IGDB rate limit reached; try again in a moment.")
+    if response.status_code >= 400:
+        raise ExternalSearchError(f"IGDB answered with an error ({response.status_code}).")
+
+    try:
+        payload = response.json()
+    except ValueError as e:
+        raise ExternalSearchError("IGDB returned a response that is not JSON.") from e
+    if not isinstance(payload, list):
+        raise ExternalSearchError("IGDB returned an unexpected response.")
+    return payload
+
+
+def _release_year(seconds: Any) -> Optional[int]:
+    """IGDB's ``first_release_date`` is Unix seconds, UTC."""
+    if seconds is None:
+        return None
+    try:
+        return datetime.fromtimestamp(int(seconds), tz=timezone.utc).year
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+
+
+def _absolute_cover_url(game: Dict[str, Any]) -> Optional[str]:
+    """IGDB cover URLs are protocol-relative (``//images.igdb.com/...``)."""
+    url = (game.get("cover") or {}).get("url")
+    if not url:
+        return None
+    return f"https:{url}" if url.startswith("//") else url
+
+
+def _platforms_detail(game: Dict[str, Any]) -> Optional[str]:
+    """``"PC · PS5 · XSX"``: the first few platforms, abbreviated where IGDB has one."""
+    names = [
+        p.get("abbreviation") or p.get("name")
+        for p in (game.get("platforms") or [])
+        if isinstance(p, dict)
+    ]
+    names = [n for n in names if n]
+    if not names:
+        return None
+    shown = " · ".join(names[:SEARCH_DETAIL_PLATFORMS])
+    extra = len(names) - SEARCH_DETAIL_PLATFORMS
+    return f"{shown} +{extra}" if extra > 0 else shown
+
+
+def _map_search_result(game: Dict[str, Any]) -> Dict[str, Any]:
+    """One IGDB game onto ``ExternalSearchResult``. ``external_id`` carries the
+    numeric id because ``link`` is the www slug page, which ``extract_igdb_id``
+    cannot parse — the SPA writes ``igdb_id`` from it separately."""
+    return {
+        "external_id": str(game["id"]),
+        "link": game.get("url"),
+        "title": game["name"],
+        "title_alt": None,
+        "year": _release_year(game.get("first_release_date")),
+        "detail": _platforms_detail(game),
+        "cover_url": _absolute_cover_url(game),
+    }
+
+
+@cached_search
 def search_igdb_games(query: str, limit: int = 10) -> List[Dict[str, Any]]:
     """
-    Searches games by name so the admin can pick the right entry and store its
-    ID. Returns a (possibly empty) list of raw game results.
+    Searches games by name for the Add-tab picker, so the admin can pick the
+    right entry and store its ID. One attempt, no retry; any failure raises
+    ``ExternalSearchError``. Returns ``ExternalSearchResult``-shaped dicts.
     """
     if not query or not query.strip():
         return []
@@ -324,10 +425,9 @@ def search_igdb_games(query: str, limit: int = 10) -> List[Dict[str, Any]]:
     # An APIcalypse search term is a quoted string; a stray quote would end it.
     term = query.strip().replace('"', "")
 
-    results = _request(
-        "games",
-        f'search "{term}"; fields {SEARCH_FIELDS}; limit {int(limit)};',
-        context=f"search '{query}'",
-    )
-
-    return results or []
+    results = _search_request(f'search "{term}"; fields {SEARCH_FIELDS}; limit {int(limit)};')
+    return [
+        _map_search_result(game)
+        for game in results
+        if isinstance(game, dict) and game.get("id") is not None and game.get("name")
+    ]

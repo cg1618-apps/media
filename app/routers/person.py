@@ -23,7 +23,9 @@ from sqlalchemy.orm import Session, selectinload
 from app import models, schemas
 from app.dependencies import get_db
 from app.routers._entity_patch import prepare_patch, resolve_fallback
+from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._patching import apply_column_patch
+from app.schemas.external_search import ExternalSearchResult
 from app.services.domain.autofill import autofill_person_from_mal
 from app.services.domain.credits import find_person
 from app.services.domain.derivation import apply_extract_mal_id_person
@@ -36,6 +38,7 @@ from app.services.domain.membership import (
     replace_members,
 )
 from app.services.domain.merge_fill import finish_merge
+from app.services.integrations.tenrai import search_mal_people
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
     label_hidden_entry_ids,
@@ -178,6 +181,21 @@ def get_all_people(
         _to_response(db, person, viewer, media[person.system_id], hidden)
         for person in people
     ]
+
+
+# Before every /{system_id} route, which would otherwise swallow this path.
+@router.get(
+    "/search-mal",
+    response_model=List[ExternalSearchResult],
+    summary="Search MyAnimeList People",
+)
+def search_mal(
+    q: str = SEARCH_QUERY,
+    limit: int = SEARCH_LIMIT,
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """Searches MAL people by name for the Add-tab picker, which writes `mal_link`."""
+    return run_search(search_mal_people, q, limit)
 
 
 @router.get(

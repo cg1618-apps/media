@@ -24,6 +24,12 @@ from tenacity import (
     wait_exponential,
 )
 
+from app.services.integrations.external_search import (
+    SEARCH_TIMEOUT,
+    ExternalSearchError,
+    cached_search,
+)
+
 logger = logging.getLogger(__name__)
 
 OPENLIBRARY_BASE_URL = "https://openlibrary.org"
@@ -167,3 +173,68 @@ def fetch_openlibrary_work(
                 authors.append(author)
 
     return {"work": work, "editions": editions, "authors": authors}
+
+
+# ==========================================
+# Add-tab picker search
+# ==========================================
+
+OPENLIBRARY_SEARCH_FIELDS = "key,title,subtitle,first_publish_year,author_name,cover_i"
+OPENLIBRARY_SEARCH_COVER_URL = "https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
+# A work can credit a dozen contributors; the picker line needs the first few.
+SEARCH_DETAIL_AUTHORS = 2
+
+
+def _map_search_doc(doc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    key = doc.get("key") or ""
+    title = doc.get("title")
+    if not key.startswith("/works/") or not title:
+        return None
+    work_id = key[len("/works/") :]
+    authors = [name for name in (doc.get("author_name") or []) if name]
+    year = doc.get("first_publish_year")
+    cover_id = doc.get("cover_i")
+    return {
+        "external_id": work_id,
+        "link": f"{OPENLIBRARY_BASE_URL}/works/{work_id}",
+        "title": title,
+        "title_alt": doc.get("subtitle") or None,
+        "year": year if isinstance(year, int) else None,
+        "detail": ", ".join(authors[:SEARCH_DETAIL_AUTHORS]) or None,
+        "cover_url": OPENLIBRARY_SEARCH_COVER_URL.format(cover_id=cover_id) if cover_id else None,
+    }
+
+
+@cached_search
+def search_openlibrary_works(q: str, limit: int) -> List[Dict[str, Any]]:
+    """
+    Searches Open Library works for the Add-tab picker, as ExternalSearchResult
+    dicts. One unretried request; any failure is an ExternalSearchError.
+    """
+    openlibrary_rate_limiter.wait_if_needed()
+    try:
+        response = requests.get(
+            f"{OPENLIBRARY_BASE_URL}/search.json",
+            params={"q": q, "fields": OPENLIBRARY_SEARCH_FIELDS, "limit": limit},
+            headers={"User-Agent": OPENLIBRARY_USER_AGENT},
+            timeout=SEARCH_TIMEOUT,
+        )
+    except requests.exceptions.RequestException as exc:
+        logger.warning("Open Library search for %r failed: %s", q, exc)
+        raise ExternalSearchError("Open Library could not be reached. Try again in a moment.")
+
+    if response.status_code == 429:
+        raise ExternalSearchError("Open Library is rate limiting requests. Try again shortly.")
+    if response.status_code != 200:
+        logger.warning("Open Library search for %r answered %s.", q, response.status_code)
+        raise ExternalSearchError(f"Open Library answered with an error ({response.status_code}).")
+
+    try:
+        data = response.json()
+    except ValueError:
+        raise ExternalSearchError("Open Library sent a response that could not be read.")
+    if not isinstance(data, dict):
+        raise ExternalSearchError("Open Library sent a response that could not be read.")
+
+    rows = [row for row in map(_map_search_doc, data.get("docs") or []) if row]
+    return rows[:limit]
