@@ -668,7 +668,9 @@ hand-built beside `Person.jsx` and `Studio.jsx` rather than reusing a media
 detail shape — the header is a profile and the body is the entries this
 character is cast in. Two raw fetches, the profile then `.../entries` by the
 `system_id` it returns; the character call failing is the page's 404, the
-entries call failing is not. The Profile card shows the character's own
+entries call failing is not. Beside the appearance count under the name, a
+character with a `mal_link` gets a **MyAnimeList** button (the MAL icon,
+opening in a new tab); one without draws none. The Profile card shows the character's own
 **Role** beside Gender — its own field, not derived from any casting's role —
 then **Appearance** and **Trait**, each list as a row of `Chip`s in its stored
 order ("—" when empty, like every unset row), and a **MAL** row: the `mal_link` as an external link reading
