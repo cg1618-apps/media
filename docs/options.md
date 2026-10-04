@@ -344,7 +344,7 @@ out. What the three gated types keep is in
 | `ed` | music_track | ED | anime | music | same as `op` |
 | `insert_songs` | music_track | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES`; no Song Type; link text from `Song Source` |
 | `ost` | music_track | OST | anime | music | same as `insert_songs` |
-| `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS` |
+| `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS`; `takes_links` (URL-string links) |
 | `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
 | `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status |

@@ -1,12 +1,16 @@
 // Frontend: renders one `episode_text`-shaped section - a comment pinned to a
 // locator (an episode, a chapter, a scene, a timestamp - the registry supplies
 // the label), with a kind dropdown where the registry declares one
-// (op_ed_changes, highlights) and none where it does not.
+// (op_ed_changes, highlights) and none where it does not, and any number of
+// URL links where the registry says the section `takes_links` (op_ed_changes) -
+// edited and drawn exactly as a text_links row's are.
 import { useState } from "react";
 
 import {
   EmptyHint,
   ItemActions,
+  LinkPill,
+  LinksEditor,
   ReorderHandle,
   ReorderList,
   ReorderRow,
@@ -22,18 +26,25 @@ import {
   useRowReorder,
 } from "./ui";
 
-const empty = () => ({ locator: "", kind: "", content: "" });
+const empty = () => ({ locator: "", kind: "", content: "", links: [""] });
 
 const fromNote = (n) => ({
   locator: n.locator || "",
   kind: n.kind || "",
   content: n.content || "",
+  links: n.links?.length ? n.links : [""],
 });
 
+// Links go out only where the section takes them, blank ones dropped - the same
+// list text_links sends. A section that takes none sends no `links` key, so an
+// edit there never touches the column.
 const toFields = (val, section) => ({
   locator: val.locator.trim() || null,
   kind: section.kinds?.length ? val.kind.trim() || null : null,
   content: val.content.trim() || null,
+  ...(section.takes_links && {
+    links: (val.links || []).map((l) => l.trim()).filter(Boolean),
+  }),
 });
 
 function EpisodeTextForm({ val, setVal, section }) {
@@ -71,6 +82,12 @@ function EpisodeTextForm({ val, setVal, section }) {
         }
         className={inputCls}
       />
+      {section.takes_links && (
+        <LinksEditor
+          links={val.links}
+          onChange={(links) => setVal({ ...val, links })}
+        />
+      )}
     </div>
   );
 }
@@ -148,6 +165,10 @@ export default function EpisodeTextSection({
                   {n.content && (
                     <p className="text-sm text-text whitespace-pre-wrap">{n.content}</p>
                   )}
+                  {section.takes_links &&
+                    (n.links || [])
+                      .filter(Boolean)
+                      .map((l, j) => <LinkPill key={j} url={l} />)}
                 </div>
                 <ItemActions
                   isAdmin={isAdmin}

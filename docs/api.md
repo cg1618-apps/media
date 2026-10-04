@@ -980,7 +980,8 @@ tier on a write is resolved from the id, never from the payload's
 
 **Response models:** `NoteResponse`, `NoteSectionOut` (one resolved registry
 entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
-`locator_required`, `singleton`, `desc_required`, and for a structured section
+`locator_required`, `takes_links` (an `episode_text` section whose rows also
+carry URL-string links - `op_ed_changes`), `singleton`, `desc_required`, and for a structured section
 `fields` - each field's `type` may be `names`, a list of strings stored under
 `fields[key]` - `require_any`, `hierarchical`, `group_by` (the `names` field
 the read view groups by, or `null`), `groupable_by` (the `select` field the
