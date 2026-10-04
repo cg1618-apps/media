@@ -1,7 +1,7 @@
 // Frontend: tests for the `text_links` shape - a body, any number of URL
 // links, and an episode where the section declares a locator placeholder.
 //
-// What these pin, on 彩蛋 Easter Eggs as it is registered: the episode is
+// What these pin, on 彩蛋/致敬 Easter Eggs/References as it is registered: the episode is
 // optional and a blank one draws nothing (no stray tag, no number), and the
 // links are sent as URL strings - several of them, with no link text.
 import { render, screen } from "@testing-library/react";
@@ -13,7 +13,7 @@ import TextLinksSection from "./TextLinksSection";
 const EASTER_EGGS = {
   key: "easter_eggs",
   shape: "text_links",
-  label: "彩蛋 Easter Eggs",
+  label: "彩蛋/致敬 Easter Eggs/References",
   locator_placeholder: "Episode(s), e.g. ep 3",
   locator_required: false,
   desc_required: false,

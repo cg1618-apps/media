@@ -7,7 +7,7 @@
 // bordered surface, a mono eyebrow title on a dotted rule, hairline dividers
 // between rows. The cards stay `div.bg-surface` because NotesTemplate.test.jsx
 // locates them by that selector.
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 
 import { Button } from "../../../components/ui/primitives";
 import { DragHandle, SortableItem, SortableList, arrayMove } from "../../../components/ui/Sortable";
@@ -54,11 +54,33 @@ const chevron = (collapsed) => (
 
 const countCls = "font-mono text-[10px] text-text-faint tabular-nums";
 
+// What the notes provider plugs into a section's card beyond the section's
+// own rows, without any shape component having to know about it.
+//
+// - `appendix` is drawn at the end of the card body, after the section's own
+//   rows, its draft and its fold toggle: the read-only rows the entry's series
+//   and franchise hold in the same section (`GroupNotes`).
+// - `appendixCount` is how many rows the appendix holds. It joins the card's
+//   own count, so a section with no rows of its own but some of its group's
+//   opens rather than collapsing, and its "No entries." hint stays away.
+// - `bare` draws a card's body with no card around it - no header, no Add, no
+//   collapse. That is how a group's rows render inside the entry's card
+//   through the very shape component, and so the very read view, the section
+//   already uses.
+//
+// The default is an ordinary card, so a section rendered anywhere else is
+// unchanged.
+const SectionCardContext = createContext({ bare: false, appendix: null, appendixCount: 0 });
+export const SectionCardProvider = SectionCardContext.Provider;
+
 // `actions` are extra header controls drawn before Add - a section's view
 // toggles. They sit in the header's click-shielded strip, so pressing one
 // never collapses the card.
 export function SectionCard({ label, count, isAdmin, onAdd, actions, children }) {
-  const [collapsed, setCollapsed] = useCollapsed(count);
+  const { bare, appendix, appendixCount } = useContext(SectionCardContext);
+  const total = appendixCount ? (count || 0) + appendixCount : count;
+  const [collapsed, setCollapsed] = useCollapsed(total);
+  if (bare) return <div className="space-y-2">{children}</div>;
   return (
     <div className="bg-surface border border-border">
       <div
@@ -68,7 +90,7 @@ export function SectionCard({ label, count, isAdmin, onAdd, actions, children })
         <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted shrink-0">
           {label}
         </h4>
-        {count > 0 && <span className={countCls}>{count}</span>}
+        {total > 0 && <span className={countCls}>{total}</span>}
         <span className="flex-1 border-t border-dotted border-border-strong/60" />
         <div
           className="flex items-center gap-2 shrink-0"
@@ -92,7 +114,12 @@ export function SectionCard({ label, count, isAdmin, onAdd, actions, children })
           <span onClick={() => setCollapsed(!collapsed)}>{chevron(collapsed)}</span>
         </div>
       </div>
-      {!collapsed && <div className="p-3 space-y-2">{children}</div>}
+      {!collapsed && (
+        <div className="p-3 space-y-2">
+          {children}
+          {appendix}
+        </div>
+      )}
     </div>
   );
 }
@@ -343,4 +370,10 @@ export function ReorderHandle({ reorder, note, className = "" }) {
   return <DragHandle label={noteLabel(note)} className={className} />;
 }
 
-export const EmptyHint = () => <p className="text-xs text-text-faint">No entries.</p>;
+// Nothing when the card holds its group's rows instead: "No entries." above
+// rows would contradict them.
+export function EmptyHint() {
+  const { appendixCount } = useContext(SectionCardContext);
+  if (appendixCount) return null;
+  return <p className="text-xs text-text-faint">No entries.</p>;
+}

@@ -191,6 +191,8 @@ export default function NotesTemplate({
   nameSuggestions,
   groupOrder,
   onGroupOrderChange,
+  series,
+  franchise,
 }) {
   return (
     <NotesProvider
@@ -201,6 +203,8 @@ export default function NotesTemplate({
       nameSuggestions={nameSuggestions}
       groupOrder={groupOrder}
       onGroupOrderChange={onGroupOrderChange}
+      series={series}
+      franchise={franchise}
     >
       <NotesBlocks hideSections={hideSections} hideGroups={hideGroups} />
     </NotesProvider>

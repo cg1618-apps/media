@@ -457,6 +457,8 @@ export default function Hentai() {
             hentai={hentai}
             isAdmin={isAdmin}
             hideSections={hentai.remark ? ["remark"] : []}
+            series={series}
+            franchise={franchise}
           />
         </div>
       </div>

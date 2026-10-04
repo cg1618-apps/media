@@ -167,7 +167,7 @@ def test_note_option_categories_come_from_the_registry():
 
 def test_easter_eggs_is_text_links_like_the_rest_of_analysis():
     sec = ns.section_by_key("easter_eggs")
-    assert sec.label == "彩蛋 Easter Eggs"
+    assert sec.label == "彩蛋/致敬 Easter Eggs/References"
     assert sec.shape == ns.SHAPE_TEXT_LINKS
     assert sec.scope == ns.SCOPE_CATALOG
     assert sec.group == "analysis_group"
