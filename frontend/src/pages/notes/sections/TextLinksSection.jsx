@@ -8,6 +8,9 @@ import {
   ItemActions,
   LinkPill,
   LinksEditor,
+  ReorderHandle,
+  ReorderList,
+  ReorderRow,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
@@ -16,6 +19,7 @@ import {
   inputCls,
   rowCls,
   useEntryCap,
+  useRowReorder,
 } from "./ui";
 
 const empty = () => ({ locator: "", content: "", links: [""] });
@@ -71,6 +75,8 @@ export default function TextLinksSection({
   onCreate,
   onUpdate,
   onDelete,
+  onReorder,
+  reordering,
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(empty());
@@ -79,6 +85,7 @@ export default function TextLinksSection({
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
+  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
 
   // An empty row is never worth storing, and some sections demand a body.
   const invalid = (val) => {
@@ -110,52 +117,42 @@ export default function TextLinksSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {cap.visible.map((n) => (
-        <div
-          key={n.system_id}
-          className={rowCls}
-        >
-          {editId === n.system_id ? (
-            <div>
-              <TextLinksForm
-                val={editVal}
-                setVal={setEditVal}
-                section={section}
-              />
-              <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
-            </div>
-          ) : (
-            <div className="flex gap-2 items-start">
-              <div className="flex-1 space-y-1">
-                {n.locator && (
-                  <span className={brandTagCls}>
-                    {n.locator}
-                  </span>
-                )}
-                {n.content && (
-                  <p className="text-sm text-text whitespace-pre-wrap">
-                    {n.content}
-                  </p>
-                )}
-                {(n.links || []).filter(Boolean).map((l, j) => (
-                  <LinkPill key={j} url={l} />
-                ))}
-                {!n.content && !(n.links || []).filter(Boolean).length && (
-                  <span className="text-xs text-text-faint">(empty)</span>
-                )}
+      <ReorderList reorder={reorder}>
+        {cap.visible.map((n) => (
+          <ReorderRow key={n.system_id} reorder={reorder} id={n.system_id} className={rowCls}>
+            {editId === n.system_id ? (
+              <div>
+                <TextLinksForm val={editVal} setVal={setEditVal} section={section} />
+                <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
               </div>
-              <ItemActions
-                isAdmin={isAdmin}
-                onEdit={() => {
-                  setEditId(n.system_id);
-                  setEditVal(fromNote(n));
-                }}
-                onDelete={() => onDelete(n.system_id)}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+            ) : (
+              <div className="flex gap-2 items-start">
+                <ReorderHandle reorder={reorder} note={n} className="pt-0.5" />
+                <div className="flex-1 space-y-1">
+                  {n.locator && <span className={brandTagCls}>{n.locator}</span>}
+                  {n.content && (
+                    <p className="text-sm text-text whitespace-pre-wrap">{n.content}</p>
+                  )}
+                  {(n.links || []).filter(Boolean).map((l, j) => (
+                    <LinkPill key={j} url={l} />
+                  ))}
+                  {!n.content && !(n.links || []).filter(Boolean).length && (
+                    <span className="text-xs text-text-faint">(empty)</span>
+                  )}
+                </div>
+                <ItemActions
+                  isAdmin={isAdmin}
+                  onEdit={() => {
+                    setEditId(n.system_id);
+                    setEditVal(fromNote(n));
+                  }}
+                  onDelete={() => onDelete(n.system_id)}
+                />
+              </div>
+            )}
+          </ReorderRow>
+        ))}
+      </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>

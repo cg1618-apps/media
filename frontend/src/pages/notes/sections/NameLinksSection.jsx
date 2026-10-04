@@ -7,12 +7,16 @@ import {
   ItemActions,
   LinkPill,
   LinksEditor,
+  ReorderHandle,
+  ReorderList,
+  ReorderRow,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
   draftCls,
   inputCls,
   useEntryCap,
+  useRowReorder,
 } from "./ui";
 
 const empty = () => ({ title: "", links: [""] });
@@ -51,6 +55,8 @@ export default function NameLinksSection({
   onCreate,
   onUpdate,
   onDelete,
+  onReorder,
+  reordering,
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(empty());
@@ -59,6 +65,7 @@ export default function NameLinksSection({
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
+  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
 
   // A bookmark with neither a name nor a link is nothing.
   const invalid = (val) =>
@@ -84,40 +91,44 @@ export default function NameLinksSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {cap.visible.map((n) => (
-        <div key={n.system_id} className="flex gap-2 items-center group">
-          <span className="text-xs text-text-faint shrink-0">•</span>
-          <div className="flex-1 min-w-0">
-            {editId === n.system_id ? (
-              <div>
-                <NameLinksForm val={editVal} setVal={setEditVal} />
-                <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 flex-wrap">
-                {n.title && (
-                  <span className="text-sm text-text-muted shrink-0">
-                    {n.title}
-                  </span>
-                )}
-                {(n.links || []).filter(Boolean).map((l, j) => (
-                  <LinkPill key={j} url={l} />
-                ))}
-              </div>
+      <ReorderList reorder={reorder}>
+        {cap.visible.map((n) => (
+          <ReorderRow
+            key={n.system_id}
+            reorder={reorder}
+            id={n.system_id}
+            className="flex gap-2 items-center group"
+          >
+            {editId !== n.system_id && <ReorderHandle reorder={reorder} note={n} />}
+            <span className="text-xs text-text-faint shrink-0">•</span>
+            <div className="flex-1 min-w-0">
+              {editId === n.system_id ? (
+                <div>
+                  <NameLinksForm val={editVal} setVal={setEditVal} />
+                  <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {n.title && <span className="text-sm text-text-muted shrink-0">{n.title}</span>}
+                  {(n.links || []).filter(Boolean).map((l, j) => (
+                    <LinkPill key={j} url={l} />
+                  ))}
+                </div>
+              )}
+            </div>
+            {editId !== n.system_id && (
+              <ItemActions
+                isAdmin={isAdmin}
+                onEdit={() => {
+                  setEditId(n.system_id);
+                  setEditVal(fromNote(n));
+                }}
+                onDelete={() => onDelete(n.system_id)}
+              />
             )}
-          </div>
-          {editId !== n.system_id && (
-            <ItemActions
-              isAdmin={isAdmin}
-              onEdit={() => {
-                setEditId(n.system_id);
-                setEditVal(fromNote(n));
-              }}
-              onDelete={() => onDelete(n.system_id)}
-            />
-          )}
-        </div>
-      ))}
+          </ReorderRow>
+        ))}
+      </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>

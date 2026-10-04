@@ -6,7 +6,7 @@
 // only its `group_by` and its field types.
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import StructuredSection from "./StructuredSection";
 
@@ -176,6 +176,47 @@ describe("grouped read view", () => {
     renderSection({ notes: [note("r1", ["Ahri"]), note("r2", ["Bora"])], isAdmin: false });
     expect(groupNames()).toEqual(["Ahri", "Bora"]);
     expect(screen.queryByRole("button", { name: /^Reorder /i })).toBeNull();
+  });
+});
+
+describe("reordering rows in the flat list", () => {
+  // The toggle is remembered in localStorage, which outlives one test.
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  const rows = () => [
+    note("r1", ["Ahri", "Bora"], { locator: "1" }),
+    note("r2", ["Bora"], { locator: "2" }),
+    note("r3", ["Ahri"], { locator: "3" }),
+  ];
+
+  it("has no row grips while grouped, since a row can sit in two groups", () => {
+    renderSection({ notes: rows() });
+    expect(screen.getByRole("button", { name: "Group by female characters" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    const handles = screen.getAllByRole("button", { name: /^Reorder / });
+    expect(handles.every((h) => h.getAttribute("aria-label").startsWith("Reorder group "))).toBe(
+      true
+    );
+  });
+
+  it("moves a row in the flat list and saves the section's order", () => {
+    const { onReorder } = renderSection({ notes: rows() });
+    fireEvent.click(screen.getByRole("button", { name: "Group by female characters" }));
+    expect(screen.queryAllByTestId("group-header")).toHaveLength(0);
+    // Each row once, a grip apiece.
+    const handles = screen.getAllByRole("button", { name: /^Reorder / });
+    expect(handles).toHaveLength(3);
+    fireEvent.keyDown(handles[2], { key: "ArrowUp" });
+    expect(onReorder).toHaveBeenCalledWith("h_comic_highlights", ["r1", "r3", "r2"]);
+  });
+
+  it("remembers the flat view", () => {
+    renderSection({ notes: rows() });
+    fireEvent.click(screen.getByRole("button", { name: "Group by female characters" }));
+    expect(localStorage.getItem("notes.grouped.h_comic_highlights")).toBe("0");
   });
 });
 
