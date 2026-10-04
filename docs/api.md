@@ -1772,7 +1772,7 @@ one (`apply_extract_mal_id_character`), and is what the MAL cast import matches
 a character on. It is indexed but not unique: a duplicate is fixed by `merge`.
 On `POST` and `PUT` a character with a `mal_id` is then filled from Tenrai's
 `GET /characters/{id}/full`, **fill-only**: a blank `name_en` (MAL's name in
-western order), a blank `name_jp` (`name_kanji`), a blank `name_alt` (the
+western order), a blank `name_jp` (`name_kanji`, with its spaces removed), a blank `name_alt` (the
 nicknames, comma-joined) and the photo when `cover_needs_download` says so.
 There is no name-collision check, unlike a person: character names are not
 unique. A Tenrai failure is logged and swallowed, so it never fails the save

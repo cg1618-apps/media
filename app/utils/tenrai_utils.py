@@ -468,12 +468,15 @@ def map_tenrai_to_character_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         for n in raw_data.get("nicknames") or []
         if isinstance(n, str) and n.strip()
     ]
+    # MAL separates family and given name with a space ("安曇 美姫"); a
+    # Japanese name is written without one, full-width spaces included.
     name_jp = raw_data.get("name_kanji")
+    name_jp = "".join(name_jp.split()) if isinstance(name_jp, str) else ""
     return {
         "photo_url": _mal_photo(raw_data),
         "mal_link": raw_data.get("url"),
         "name_en": _western_order(raw_data.get("name")),
-        "name_jp": name_jp.strip() if isinstance(name_jp, str) and name_jp.strip() else None,
+        "name_jp": name_jp or None,
         "name_alt": ", ".join(nicknames) or None,
     }
 
