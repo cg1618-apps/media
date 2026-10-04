@@ -402,7 +402,7 @@ def test_a_mainstream_entry_never_attaches_to_a_hentai_franchise(admin_client, d
 
 
 def test_a_mainstream_franchise_named_by_id_is_refused(admin_client, db_session):
-    mainstream = _franchise(db_session, "Anime")
+    mainstream = _franchise(db_session, "ACG")
     response = admin_client.post(
         f"{ROUTE}/",
         json={"hentai_name_cn": TITLE, "franchise_id": str(mainstream.system_id)},
@@ -414,7 +414,7 @@ def test_a_mainstream_franchise_named_by_id_is_refused_on_the_update(
     admin_client, db_session
 ):
     body = _create(admin_client)
-    mainstream = _franchise(db_session, "Anime")
+    mainstream = _franchise(db_session, "ACG")
     response = admin_client.put(
         f"{ROUTE}/{body['system_id']}", json={"franchise_id": str(mainstream.system_id)}
     )

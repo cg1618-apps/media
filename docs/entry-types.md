@@ -24,10 +24,10 @@ Two lists exist on purpose (see the comment above `FRANCHISE_TYPES` in `app/util
 
 | Where | Values |
 |---|---|
-| `FranchiseType` enum (backend logic, auto-creation) | `"Anime"`, `"Movie"`, `"TV"`, `"Cartoon"`, `"Comic"`, `"ACG"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
+| `FranchiseType` enum (backend logic, auto-creation) | `"Movie"`, `"TV"`, `"Cartoon"`, `"Comic"`, `"ACG"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
 | `FRANCHISE_TYPES` tuple (what `/api/constants` serves to the dropdown) | `"ACG"`, `"Anime Movie"`, `"TV"`, `"Movie"`, `"Cartoon"`, `"Comic"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
 
-A franchise may carry a comma-separated list of types; duplicate detection buckets it under each one.
+A franchise may carry a comma-separated list of types; duplicate detection buckets it under each one. `"ACG"` is the one type for anime and manga franchises; `"Anime"` is not a franchise type, and Pull folds it onto `"ACG"` ([business-rules.md](business-rules.md)).
 
 #### Franchise families (`FRANCHISE_FAMILY_FOR_TYPE`, `app/utils/constants.py`)
 
@@ -66,9 +66,9 @@ kept apart in both directions:
 
 | Media / owner key | Stamped `franchise_type` |
 |---|---|
-| `"anime"` | `FranchiseType.ANIME` (`"Anime"`) |
-| `"anime-movie"` | `FranchiseType.ANIME` (`"Anime"`) |
-| `"series"` | `FranchiseType.ANIME` (`"Anime"`) |
+| `"anime"` | `FranchiseType.ACG` (`"ACG"`) |
+| `"anime-movie"` | `FranchiseType.ACG` (`"ACG"`) |
+| `"series"` | `FranchiseType.ACG` (`"ACG"`) |
 | `"movie"` | `FranchiseType.MOVIE` (`"Movie"`) |
 | `"tv-show"` | `FranchiseType.TV` (`"TV"`) |
 | `"cartoon"` | `FranchiseType.CARTOON` (`"Cartoon"`) |

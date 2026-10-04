@@ -852,7 +852,7 @@ def test_resetting_removes_a_link_reaching_out_of_the_scope(
     # to take it too - otherwise the press leaves a line still on screen.
     other_franchise = models.Franchise(
         system_id=uuid.uuid4(),
-        franchise_type="Anime",
+        franchise_type="ACG",
         franchise_name_en="Other Franchise",
     )
     db_session.add(other_franchise)
@@ -889,7 +889,7 @@ def test_resetting_one_scope_leaves_an_unrelated_franchise_alone(
 ):
     other = models.Franchise(
         system_id=uuid.uuid4(),
-        franchise_type="Anime",
+        franchise_type="ACG",
         franchise_name_en="Untouched Franchise",
     )
     db_session.add(other)

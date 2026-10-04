@@ -42,7 +42,7 @@ def season_two(db_session, sample_franchise):
 @pytest.fixture
 def unrelated_anime(db_session):
     franchise = models.Franchise(
-        system_id=uuid.uuid4(), franchise_type="Anime", franchise_name_en="Other"
+        system_id=uuid.uuid4(), franchise_type="ACG", franchise_name_en="Other"
     )
     db_session.add(franchise)
     db_session.flush()
