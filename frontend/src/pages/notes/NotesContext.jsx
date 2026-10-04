@@ -21,7 +21,9 @@ import {
   useState,
 } from "react";
 
+import { getDisplayName } from "../../lib/naming";
 import * as api from "./api";
+import GroupNotes from "./GroupNotes";
 import TextSection from "./sections/TextSection";
 import TextLinksSection from "./sections/TextLinksSection";
 import EpisodeTextSection from "./sections/EpisodeTextSection";
@@ -31,6 +33,7 @@ import StructuredSection from "./sections/StructuredSection";
 import MusicTrackSection from "./sections/MusicTrackSection";
 import QuoteSection from "./sections/QuoteSection";
 import MemeSection from "./sections/MemeSection";
+import { SectionCardProvider } from "./sections/ui";
 
 const SHAPES = {
   text: TextSection,
@@ -120,6 +123,12 @@ export function useNotes() {
 // (`groupOrder`) with the callback that saves a new one (`onGroupOrderChange`)
 // for a section with `group_by`. An owner type has at most one grouped
 // section, so one order is enough.
+//
+// `series` and `franchise` are an entry's series and franchise rows, passed by
+// the entry's detail page. Each section the entry has then also shows the
+// rows those two hold in the same section, read-only - see `groupNotesFor`.
+// Either may be absent (an anime movie has no series), and neither is passed
+// anywhere else, so every other screen is unchanged.
 export function NotesProvider({
   ownerType,
   ownerId,
@@ -128,6 +137,8 @@ export function NotesProvider({
   nameSuggestions,
   groupOrder,
   onGroupOrderChange,
+  series,
+  franchise,
   children,
 }) {
   const [allSections, setSections] = useState([]);
@@ -200,6 +211,66 @@ export function NotesProvider({
       cancelled = true;
     };
   }, [ownerType, ownerId]);
+
+  // The series' and franchise's rows, fetched through the same notes endpoint
+  // their own pages use, so the visibility rules are theirs exactly: a
+  // personal section returns the viewer's own rows, a gated section none, and
+  // a group the viewer may not see answers 404 - which leaves it out here
+  // rather than raising a banner over the entry's notes. Fetched once per
+  // group; nothing on this page writes them.
+  const groupOwners = useMemo(
+    () =>
+      [
+        ["series", series],
+        ["franchise", franchise],
+      ].filter(([, row]) => row?.system_id),
+    [series, franchise],
+  );
+  const groupKey = groupOwners.map(([type, row]) => `${type}:${row.system_id}`).join(",");
+  // Stored with the key they were fetched for, so rows of a previous entry's
+  // groups are never shown while the next entry's load.
+  const [fetchedGroups, setFetchedGroups] = useState({ key: "", groups: [] });
+  const groupRows = fetchedGroups.key === groupKey ? fetchedGroups.groups : [];
+  useEffect(() => {
+    if (!groupOwners.length) return;
+    let cancelled = false;
+    Promise.all(
+      groupOwners.map(([ownerType, row]) =>
+        Promise.resolve(api.fetchNotes(ownerType, row.system_id))
+          .then((rows) => ({
+            ownerType,
+            owner: row,
+            name: getDisplayName(row, ownerType),
+            notes: Array.isArray(rows) ? rows : [],
+          }))
+          .catch(() => null),
+      ),
+    ).then((groups) => {
+      if (!cancelled) setFetchedGroups({ key: groupKey, groups: groups.filter(Boolean) });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // groupKey stands for groupOwners: the rows are fresh objects whenever the
+    // page refetches, and only their ids decide what to load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupKey]);
+
+  // One section's rows from each group that has any, series first. A
+  // singleton (備註 Remark) takes none: it is one editable textarea, not a
+  // list a group's row could join, and the entry's detail page hides it
+  // anyway. Hidden and external sections never reach here.
+  const groupNotesFor = (section) => {
+    if (section.singleton || section.shape === "external" || section.hidden) return [];
+    return groupRows
+      .map((group) => ({
+        ...group,
+        notes: group.notes.filter((n) => n.section === section.key),
+      }))
+      .filter((group) => group.notes.length > 0);
+  };
+  const groupCount = (section) =>
+    groupNotesFor(section).reduce((total, group) => total + group.notes.length, 0);
 
   useEffect(() => {
     const categories = [
@@ -323,7 +394,8 @@ export function NotesProvider({
           (n) => n.kind === section.key,
         )
       : undefined;
-    return (
+    const groups = groupNotesFor(section);
+    const own = (
       <Component
         key={section.key}
         section={section}
@@ -337,6 +409,26 @@ export function NotesProvider({
         reordering={reordering.has(section.key)}
         {...handlers}
       />
+    );
+    if (!groups.length) return own;
+    return (
+      <SectionCardProvider
+        key={section.key}
+        value={{
+          bare: false,
+          appendixCount: groupCount(section),
+          appendix: (
+            <GroupNotes
+              section={section}
+              groups={groups}
+              Component={Component}
+              optionValues={optionValues}
+            />
+          ),
+        }}
+      >
+        {own}
+      </SectionCardProvider>
     );
   };
 
@@ -352,7 +444,7 @@ export function NotesProvider({
         if (n == null) return null;
         total += n;
       } else {
-        total += (bySection[sec.key] || []).length;
+        total += (bySection[sec.key] || []).length + groupCount(sec);
       }
     }
     return total;

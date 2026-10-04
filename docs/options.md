@@ -253,7 +253,7 @@ can only hold URLs and `text_links` has no title, so neither could say
 | Key | Label |
 |---|---|
 | `reviews` | 評論 Reviews and Comments |
-| `analysis_group` | 解析 Analysis and Cinematography (a game and an h-game read `analysis` in `reviews` instead) |
+| `analysis_group` | 解析/解惑/討論 Analysis/Discussion (a game and an h-game read `analysis` in `reviews` instead) |
 | `guides` | 攻略 Guides |
 | `builds` | 養成&流派 Builds & Growth |
 | `gear` | 物品 Items & Gear |
@@ -293,13 +293,13 @@ out. What the three gated types keep is in
 | `highlight_moments` | episode_text | 神場景 Highlights | game | | locator required, placeholder "Chapter / Boss" |
 | `h_comic_highlights` | structured | 亮點 Highlights | h-comic | | KR entries only (`owner_where`); grouped by the `female_characters` names field; usefulness select `H_COMIC_USEFULNESS` |
 | `h_game_highlights` | structured | 亮點 Highlights | h-game | | female/male characters, route / scene (`locator`), dialogue audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness, description; every h-game; grouped by `female_characters` |
-| `analysis` | text_links | 解析 Analysis | All but h-comic, hentai | analysis_group; **reviews** for game and h-game | Last in the 評論 card for a game - see `groups_by_owner` |
-| `cinematography` | text_links | 分鏡/演出/巧思 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
+| `analysis` | text_links | 解析/解惑/討論 Analysis/Discussion | All but h-comic, hentai | analysis_group; **reviews** for game and h-game | Last in the 評論 card for a game - see `groups_by_owner` |
+| `cinematography` | text_links | 分鏡/演出/巧思/細節 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
 | `craft` | text_links | 巧思 | novel | analysis_group | |
-| `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
+| `foreshadowing` | text_links | 伏筆/前後呼應 Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
 | `speculation` | text_links | 猜測 Speculation | same as foreshadowing | analysis_group | |
-| `easter_eggs` | text_links | 彩蛋 Easter Eggs | every entry type but h-comic, hentai, h-game | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
+| `easter_eggs` | text_links | 彩蛋/致敬 Easter Eggs/References | every entry type but h-comic, hentai, h-game | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
 | `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description |
 | `controls` | structured | 操作 Controls | game, h-game | guides | Fields: control (`title`), description (`content`), links |

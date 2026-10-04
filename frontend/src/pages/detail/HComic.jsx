@@ -646,6 +646,8 @@ export default function HComic() {
             hComic={hComic}
             isAdmin={isAdmin}
             hideSections={hComic.remark ? ["remark"] : []}
+            series={series}
+            franchise={franchise}
             nameSuggestions={castNames}
             onGroupOrderChange={(names) =>
               performPatch({ highlight_group_order: names }, "Group order saved")

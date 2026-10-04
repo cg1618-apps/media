@@ -13,6 +13,8 @@ export default function HComicNotes({
   hideSections,
   nameSuggestions,
   onGroupOrderChange,
+  series,
+  franchise,
 }) {
   return (
     <NotesTemplate
@@ -20,6 +22,8 @@ export default function HComicNotes({
       ownerId={hComic.system_id}
       isAdmin={isAdmin}
       hideSections={hideSections}
+      series={series}
+      franchise={franchise}
       owner={hComic}
       nameSuggestions={nameSuggestions}
       groupOrder={hComic.highlight_group_order}

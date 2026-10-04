@@ -648,6 +648,8 @@ export default function Novel() {
             novel={novel}
             isAdmin={isAdmin}
             hideSections={novel.remark ? ["remark"] : []}
+            series={series}
+            franchise={franchise}
           />
         </div>
       </div>

@@ -404,7 +404,7 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | 世界觀 group — `lore`, `timeline`, `mysteries`, `story_other` (`text_links`), `story_terms` (`structured`) | | | | | | | | | x | |  | |
 | NG 多周目 group — `ng_flow`, `ng_carried_over`, `ng_reset`, `ng_before_starting` (`structured`) | | | | | | | | | x | | x | |
 | 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`), `saves` (`structured`), all personal scope | | | | | | | | | x | | x | |
-| `cinematography` (`分鏡/演出/巧思`) | x | x | | x | x | x | | | | |  | series |
+| `cinematography` (`分鏡/演出/巧思/細節`) | x | x | | x | x | x | | | | |  | series |
 | `craft` (`巧思`) | | | | | | | x | | | |  | |
 | `foreshadowing` | x | x | | x | x | x | x | | | |  | both |
 | `symmetry` | x | x | | x | x | x | x | | | |  | both |
