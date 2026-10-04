@@ -15,6 +15,7 @@ import { inputCls } from "../../components/forms/FormField";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { getQuoteImageUrl } from "../../lib/covers";
 
 export default function QuoteManageTab({ mode = "modify" }) {
@@ -29,13 +30,24 @@ export default function QuoteManageTab({ mode = "modify" }) {
   const [confirmId, setConfirmId] = useState(null);
   const [busy, setBusy] = useState(false);
 
+  const isDelete = mode === "delete";
+
+  // Delete mode lists nothing until it is asked for something: the unfiltered
+  // list is up to 500 quotes with their images, and nobody deletes by
+  // scrolling it. So there the search is debounced and the query waits for a
+  // search or a picked entry. Modify keeps listing on mount and filtering
+  // per keystroke.
+  const debouncedSearch = useDebouncedValue(search);
+  const effectiveSearch = (isDelete ? debouncedSearch : search).trim();
+  const queryEnabled = !isDelete || Boolean(effectiveSearch || entryId);
+
   const params = useMemo(() => {
     const p = {};
     if (mediaType) p.media_type = mediaType;
     if (entryId) p.entry_id = entryId;
-    if (search.trim()) p.search_query = search.trim();
+    if (effectiveSearch) p.search_query = effectiveSearch;
     return p;
-  }, [mediaType, entryId, search]);
+  }, [mediaType, entryId, effectiveSearch]);
 
   const queryKey = ["quotes-admin", params];
   const { data: quotes = [], isLoading } = useQuery({
@@ -45,6 +57,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
       return fetchJson(endpoints.quotes.list(qs));
     },
     staleTime: 10_000,
+    enabled: queryEnabled,
   });
 
   const refresh = async () => {
@@ -84,8 +97,6 @@ export default function QuoteManageTab({ mode = "modify" }) {
     }
   };
 
-  const isDelete = mode === "delete";
-
   return (
     <div className="space-y-4">
       <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
@@ -103,11 +114,13 @@ export default function QuoteManageTab({ mode = "modify" }) {
           placeholder={`Search quotes to ${isDelete ? "delete" : "modify"}...`}
           className={inputCls}
         />
-        <p className="text-[11px] text-text-faint font-medium">
-          {isLoading
-            ? "Loading..."
-            : `${quotes.length} quote${quotes.length === 1 ? "" : "s"} shown`}
-        </p>
+        {queryEnabled && (
+          <p className="text-[11px] text-text-faint font-medium">
+            {isLoading
+              ? "Loading..."
+              : `${quotes.length} quote${quotes.length === 1 ? "" : "s"} shown`}
+          </p>
+        )}
       </div>
 
       {quotes.map((q) => {
@@ -218,7 +231,13 @@ export default function QuoteManageTab({ mode = "modify" }) {
         );
       })}
 
-      {!isLoading && !quotes.length && (
+      {!queryEnabled && (
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-8 text-center">
+          <p className="text-sm text-text-faint">Search or pick an entry to find quotes.</p>
+        </div>
+      )}
+
+      {queryEnabled && !isLoading && !quotes.length && (
         <div className="bg-surface rounded-2xl border border-border shadow-sm p-8 text-center">
           <p className="text-sm text-text-faint italic">No quotes found.</p>
         </div>
