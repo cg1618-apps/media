@@ -736,8 +736,10 @@ deleting costs: `media_credit.studio_id` is `ON DELETE CASCADE`, so deleting
 destroys this studio's *n* credits on every entry linked to it. The panel
 therefore offers **Merge Into Another Studio** beside Delete — merge
 (`POST /api/studio/{keep}/merge` with the selected studio as `source_id`)
-repoints the credits onto the survivor first, and is the correct fix for a
-duplicate. Delete itself is two-step (confirm, then execute) and writes no
+repoints the credits onto the survivor first, fills the survivor's blank
+fields from the duplicate, and is the correct fix for a duplicate. Every
+Merge Into Another confirmation says so, and a refused merge shows the
+server's message - a 409 when the filled names would equal another record's. Delete itself is two-step (confirm, then execute) and writes no
 `deleted_record`.
 
 **Publisher tab (Entity).** The same shape as the studio tab above: a picker

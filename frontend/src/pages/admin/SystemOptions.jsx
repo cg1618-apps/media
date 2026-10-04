@@ -596,8 +596,7 @@ function Tier3({ roleCounts, studioCount, loading }) {
         <strong className="text-text-faint">Not built:</strong>{" "}
         <code className="font-mono">character</code> and{" "}
         <code className="font-mono">character_voice</code> were designed but
-        deferred. <code className="font-mono">anime.seiyuu</code> is unrelated —
-        it is a Need/Done status column, never a cast list.
+        deferred.
       </p>
     </section>
   );

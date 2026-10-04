@@ -153,7 +153,6 @@ def _constants() -> dict[str, list[str]]:
         # The status of a whole song list (an anime's OPs, EDs, insert songs
         # or OST), as opposed to one song's music_status above.
         "music_type_status": list(c.MUSIC_TYPE_STATUSES),
-        "seiyuu_status": list(c.SEIYUU_STATUSES),
         "watch_order_importance": list(ITEM_IMPORTANCE),
         "character_role": list(CHARACTER_ROLES),
         # Two closed vocabularies the ADMIN forms need. person_role was

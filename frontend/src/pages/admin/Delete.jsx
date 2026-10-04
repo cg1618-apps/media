@@ -480,7 +480,12 @@ export default function Delete() {
           credentials: "include",
         },
       );
-      if (!res.ok) throw new Error("Failed to merge people");
+      if (!res.ok) {
+        // A 409 says the merge would give the survivor another record's
+        // names; the server's message says what to do about it.
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Failed to merge people");
+      }
       const data = await res.json();
       setSelectedPerson(null);
       setPersonMergeMode(false);
@@ -536,7 +541,12 @@ export default function Delete() {
           credentials: "include",
         },
       );
-      if (!res.ok) throw new Error("Failed to merge characters");
+      if (!res.ok) {
+        // A 409 says the merge would give the survivor another record's
+        // names; the server's message says what to do about it.
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Failed to merge characters");
+      }
       const data = await res.json();
       setSelectedCharacter(null);
       setCharacterMergeMode(false);
@@ -566,7 +576,12 @@ export default function Delete() {
           credentials: "include",
         },
       );
-      if (!res.ok) throw new Error("Failed to merge publishers");
+      if (!res.ok) {
+        // A 409 says the merge would give the survivor another record's
+        // names; the server's message says what to do about it.
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Failed to merge publishers");
+      }
       const data = await res.json();
       setSelectedPublisher(null);
       setPublisherMergeMode(false);
@@ -593,7 +608,12 @@ export default function Delete() {
           credentials: "include",
         },
       );
-      if (!res.ok) throw new Error("Failed to merge studios");
+      if (!res.ok) {
+        // A 409 says the merge would give the survivor another record's
+        // names; the server's message says what to do about it.
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Failed to merge studios");
+      }
       const data = await res.json();
       setSelectedStudio(null);
       setStudioMergeMode(false);
@@ -2566,7 +2586,8 @@ export default function Delete() {
                         </span>
                         . All {selectedStudio.credit_count} credit
                         {selectedStudio.credit_count === 1 ? "" : "s"} move
-                        to the surviving studio; the duplicate is deleted.
+                        to the surviving studio; its blank fields are filled
+                        from this one, and the duplicate is deleted.
                       </div>
                       <button
                         onClick={executeStudioMerge}
@@ -2746,7 +2767,8 @@ export default function Delete() {
                         </span>
                         . All {selectedPublisher.credit_count} credit
                         {selectedPublisher.credit_count === 1 ? "" : "s"} move
-                        to the surviving publisher; the duplicate is deleted.
+                        to the surviving publisher; its blank fields are filled
+                        from this one, and the duplicate is deleted.
                       </div>
                       <button
                         onClick={executePublisherMerge}
@@ -2938,7 +2960,8 @@ export default function Delete() {
                         </span>
                         . All {selectedPerson.credit_count} credit
                         {selectedPerson.credit_count === 1 ? "" : "s"} move to
-                        the surviving person; the duplicate is deleted.
+                        the surviving person; its blank fields are filled from
+                        this one, and the duplicate is deleted.
                       </div>
                       <button
                         onClick={executePersonMerge}
@@ -3132,7 +3155,8 @@ export default function Delete() {
                         </span>
                         . All {selectedCharacter.casting_count} casting
                         {selectedCharacter.casting_count === 1 ? "" : "s"} move
-                        to the surviving character; the duplicate is deleted.
+                        to the surviving character; its blank fields are filled
+                        from this one, and the duplicate is deleted.
                       </div>
                       <button
                         onClick={executeCharacterMerge}

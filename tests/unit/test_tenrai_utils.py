@@ -11,6 +11,7 @@ from app.utils.tenrai_utils import (
     _convert_airing_type,
     _convert_season,
     _extract_external_links,
+    map_tenrai_cast,
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
     map_tenrai_to_manga_data,
@@ -359,3 +360,27 @@ class TestAnimeMovieReleaseDateIsHonest:
 
     def test_a_missing_aired_block_yields_no_date(self):
         assert map_tenrai_to_anime_movie_data({})["release_date_jp"] is None
+
+
+def _cast_role(role):
+    """One MAL cast item carrying `role`, with no voices."""
+    return {
+        "character": {"mal_id": 1, "url": "https://myanimelist.net/character/1/x", "name": "A"},
+        "role": role,
+        "voice_actors": [],
+    }
+
+
+@pytest.mark.parametrize(
+    "mal_role,role",
+    [
+        ("Main", "Main"),
+        # Everyone MAL does not call Main is filed as Other, not Supporting:
+        # which side characters are worth Supporting or Core is mine to say.
+        ("Supporting", "Other"),
+        (None, "Other"),
+        ("Something new", "Other"),
+    ],
+)
+def test_a_mal_cast_is_main_or_other(mal_role, role):
+    assert map_tenrai_cast([_cast_role(mal_role)])[0]["role"] == role

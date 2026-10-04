@@ -119,7 +119,6 @@ type it serves is seeable.
 | `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
 | `MUSIC_STATUSES` | `Need`, `Pending`, `Done` | `note.status` on a song of the `op`, `ed`, `insert_songs`, `ost` sections. The note registry imports this tuple; it is not restated there | `music_status` |
 | `MUSIC_TYPE_STATUSES` | `All Done`, `Done`, `Need`, `Pending`, `Not Done` | `note.status` on a `music_status` row: how far one whole song list of an anime has got. Every anime starts each list on `Not Done` (`MUSIC_TYPE_STATUS_DEFAULT`) | `music_type_status` |
-| `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
 | `CHARACTER_ROLES` (`app/utils/character_roles.py`) | `Main`, `Core`, `Supporting`, `Other` | Two independent columns: `character_casting.role` (what the character is in one entry) and `character.role` (what the character is overall). A NULL `character.role` is filled from the highest-ranked casting role (this order) on each cast save and by Calculate All; a set one is never overwritten, and nothing flows from it to a casting. Both are optional - blank or `""` is NULL - and a write naming anything else is a 422; a Sheets Pull restores a value outside the list as blank | `character_role` |
 | `H_COMIC_REGIONS` | `JP`, `KR` | `h_comic.region`, required on every write; decides which columns the entry keeps ([entry-types.md](entry-types.md#h-comic-regions-region_clears-appservicesdomainh_comicpy)) | `h_comic_region` |
 | `H_COMIC_ORIGINALITY` | `原創`, `同人` | `h_comic.originality` (JP only), `hentai.originality` | `h_comic_originality` |
@@ -133,15 +132,6 @@ type it serves is seeable.
 | `H_GAME_ART_STYLES` | `2D`, `2.5D`, `3D`, `Pixel`, `Live2D`, `Live-action-like`, `Live-action` | `h_game.art_style`, a JSONB list kept in this order. What the game looks like, independent of `h_presentation` | `h_game_art_style` |
 | `H_GAME_H_ART_STYLES` | `2D`, `Live2D`, `2.5D`, `3D模型`, `Live-action-like`, `Live-action`, `null`, `unknown` | `h_game.h_art_style` (H 演出 art style), a JSONB list kept in this order. What the H scenes look like, beside `art_style`; `null` and `unknown` are options the owner picks, stored as those strings - not the column's null | `h_game_h_art_style` |
 | `H_GAME_PLATFORMS` | `Steam`, `DLsite`, `Nintendo`, `Other` | `h_game.platform`, a JSONB list kept in this order; hand-set, never filled from IGDB, and unrelated to the `game_platform` tag field | `h_game_platform` |
-
-`anime.seiyuu` and the `seiyuu` **person role** below are unrelated, and the
-name collision is worth flagging: `anime.seiyuu` is a `Need`/`Done` to-do flag
-with no list of who voices whom. The real seiyuu concept is elsewhere
-(`character`,
-`character_casting`, `character_casting_voice` - see [data-model.md](data-model.md#people-studios-and-links)
-and [systems/credits-and-tags.md](systems/credits-and-tags.md)), do not read
-one as evidence for the other: an anime can show `seiyuu: Done` while having
-zero castings, and vice versa.
 
 **All nine game lists reach `/api/constants`.** `get_constants()`
 (`app/routers/constants.py`) returns `playing_status`, `game_type`,
@@ -945,9 +935,7 @@ designed but not built (see the old "Deferred" note this replaced in
 [systems/credits-and-tags.md](systems/credits-and-tags.md)); the feature that
 was actually built uses different names and a different shape - `character`
 and `character_casting` (migration `c1h2a3r4a5c6`) - and diverges from that
-old design in three deliberate ways detailed there. `anime.seiyuu` remains a
-`Need`/`Done` to-do status, unrelated to the `seiyuu` person role above - see
-the note under `SEIYUU_STATUSES` [above](#apputilsconstantspy).
+old design in three deliberate ways detailed there.
 
 ---
 

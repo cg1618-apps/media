@@ -298,7 +298,6 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     mal_id: af.mal_id !== "" ? parseInt(af.mal_id) : null,
     mal_link: af.mal_link || null,
     sources: sourcesPayload(af.sources),
-    seiyuu: af.seiyuu || null,
     watch_next: af.watch_next ?? null,
     cover_image_file: af.cover_image_file || null,
     cover_image_focus: af.cover_image_focus || null,

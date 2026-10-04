@@ -325,8 +325,6 @@ export const MUSIC_TYPE_STATUSES = [
   "Not Done",
 ];
 
-export const SEIYUU_STATUSES = ["Need", "Done"];
-
 // The person_role vocabulary a credit can imply. Derived in Python from
 // CREDIT_ROLES (app/utils/credit_roles.py) and served by GET /api/constants -
 // this array is the pre-fetch fallback, NOT a second source of truth. It used
@@ -449,7 +447,6 @@ export const CONSTANTS_FALLBACK = {
   day_of_week: WEEKDAYS,
   music_status: MUSIC_STATUSES,
   music_type_status: MUSIC_TYPE_STATUSES,
-  seiyuu_status: SEIYUU_STATUSES,
   person_role: PERSON_ROLES,
   media_type: MEDIA_TYPES,
   option_categories: OPTION_CATEGORIES,

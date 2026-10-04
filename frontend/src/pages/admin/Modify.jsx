@@ -158,7 +158,6 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     mal_id: anime.mal_id ?? "",
     mal_link: anime.mal_link || "",
     sources: anime.sources || [],
-    seiyuu: anime.seiyuu || "",
     watch_next: anime.watch_next ?? false,
     cover_image_file: anime.cover_image_file || "",
     cover_image_focus: anime.cover_image_focus || null,

@@ -580,8 +580,7 @@ export default function AnimeAddTab({
 
       {/* Cast: character/seiyuu/role rows, saved separately via
           PUT /api/casting/anime/{id} once the entry exists - never part of
-          the entry payload above. Not the "Seiyuu" Need/Done flag further
-          down, which is an unrelated to-do status. */}
+          the entry payload above. */}
       <SectionHeader icon="fa-users" title="Cast" />
       <CastEditor
         mediaType="anime"
@@ -669,22 +668,6 @@ export default function AnimeAddTab({
       />
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Field label="Seiyuu">
-          <select
-            className={selectCls}
-            value={af.seiyuu}
-            onChange={(e) => ua("seiyuu", e.target.value)}
-          >
-            <option value="">—</option>
-            {["Need", "Done"].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
       <Field label="Cover Image">
         <ImagePicker
           ownerType="anime"

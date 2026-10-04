@@ -275,7 +275,7 @@ All.
 | `PUT /api/person/{id}` | admin | Full metadata update; replaces the role set. `photo_fallback_entry_id` must name an entry the person is linked to and the editor can see (422); a null keeps a stored choice the editor cannot see. `mal_id` is derived from `mal_link`, and a person holding the `seiyuu` role is then filled from MAL, empty columns only (as `POST /` does on its create branch) - see [external-apis.md](../external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data). |
 | `PATCH /api/person/{id}` | admin | Partial update of the person's own columns (not roles), for inline rating and remark edits. The `PUT` rules - vocabularies, at least one name, the fallback check - are checked first; server columns are a 422. A `mal_link` re-derives `mal_id`; no MAL fetch. |
 | `DELETE /api/person/{id}?credits=N` | admin | Credits and voice rows cascade away — wrong fix for a duplicate; the castings those voices sat on stay (Decision H). `credits` is **required** and is the count the confirmation dialog showed — `media_credit` rows plus `character_casting_voice` rows; a mismatch is a 409, because an admin who agreed to destroy three credits did not agree to destroy the five that exist now. |
-| `POST /api/person/{id}/merge` `{source_id}` | admin | Repoints every credit from source onto target (drops ones that would collide on `(media_type, entry_id, role)`), repoints every voice row (drops one on a casting the target already voices), unions `person_role` rows, moves both ends of every club membership (dropping a duplicate or a self-membership), deletes the source. 400 on self-merge. Returns `credits_moved`, which counts moved voices too. |
+| `POST /api/person/{id}/merge` `{source_id}` | admin | Repoints every credit from source onto target (drops ones that would collide on `(media_type, entry_id, role)`), repoints every voice row (drops one on a casting the target already voices), unions `person_role` rows, moves both ends of every club membership (dropping a duplicate or a self-membership), deletes the source, then fills every column the target leaves blank from the source's (see **Merging fills blanks** below). 400 on self-merge. Returns `credits_moved`, which counts moved voices too. |
 | `GET /api/person/{id}/clubs` | public | The clubs this person belongs to, as `MembershipRef` (`system_id`, `public_id`, `display_name`, `position`), ordered by name. Hidden clubs are omitted; 404 when the person is hidden. |
 | `PUT /api/person/{id}/clubs` `{club_ids}` | admin | Whole-list replace. Each id must be a person the writer may see (422 otherwise) holding the `club` role (422), and not the person itself (422). A new membership joins the end of its club's list. Memberships of clubs the writer cannot see are kept. Returns the new list. |
 | `GET /api/person/{id}/members` | public | A club's members in `position` order, as `MembershipRef`; hidden members are omitted, and a person who is not a club answers `[]`. 404 when the club is hidden. |
@@ -290,7 +290,7 @@ All.
 | `PUT /api/character/{id}` | admin | Full metadata update. `photo_fallback_entry_id` must name an entry the character is cast on and the editor can see (422); a null keeps a stored choice the editor cannot see. |
 | `PATCH /api/character/{id}` | admin | Partial update, for inline rating and remark edits; the `PUT` rules are checked first and server columns are a 422. |
 | `DELETE /api/character/{id}?castings=N` | admin | Same count-guard shape as `DELETE /api/person?credits=N`: castings cascade away, and a count that moved underneath the admin is a 409. |
-| `POST /api/character/{id}/merge` `{source_id}` | admin | Repoints every casting from source onto target, deletes the source. Where both are cast on the same entry (which would collide on `uq_character_casting`), the source's casting is dropped and its voices the target's casting lacks are appended to the target's. The correct fix for a duplicate, since a delete would cascade the castings away. |
+| `POST /api/character/{id}/merge` `{source_id}` | admin | Repoints every casting from source onto target, deletes the source. Where both are cast on the same entry (which would collide on `uq_character_casting`), the source's casting is dropped, its voices the target's casting lacks are appended to the target's, and the target's casting fills its blank role, remark and photo from it. Then fills the target's blank columns, as person does. The correct fix for a duplicate, since a delete would cascade the castings away. |
 | `GET /api/casting/{media_type}/{entry_id}` | public (viewer) | The entry's cast, ordered by `position`; each row carries `voices: [{person_id, person_public_id, person_name, remark}]` in voice order. Missing or hidden entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
 | `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order, each row with its `voices: [{person_id, remark?}]` in order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, novel, h-comic, hentai). `role` is optional - null or blank stores no role. Rejects (422) voices on a non-voiced media type - h-comic included - one person twice in a row's voices, or a non-blank role outside `CHARACTER_ROLES`, before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice`. |
 
@@ -471,6 +471,30 @@ so. `about` is dropped. `PATCH` re-derives `mal_id` but never fetches. A
 failure is logged and swallowed. There is no name-collision check, unlike the
 person autofill: character names are not unique (Decision G).
 
+**Merging fills blanks.** Every merge - character, person, studio,
+publisher - ends in `finish_merge` (`app/services/domain/merge_fill.py`):
+once the links are repointed, the loser is deleted and every column the
+survivor leaves blank (`NULL` or whitespace) is filled from the loser's. A
+column the survivor holds is never overwritten - it is the record the admin
+chose to keep - and the ids and timestamps are never copied.
+
+- **The picture travels whole.** A photo or logo is taken only when the
+  survivor has none, and its focus comes with it, since a focus describes one
+  picture. A downloaded one is stored under the loser's id
+  (`<owner_type>/<loser_id>.jpg`) and `/api/covers/` checks visibility through
+  the owner that id names, so it is renamed onto the survivor's own key after
+  the commit - with any backfilled `image` row naming it - rather than shared.
+  An upload (`library/...`) belongs to no owner and is simply shared. The
+  loser's image attachments move to the survivor.
+- **A casting both hold fills too.** When both characters are cast in one
+  entry, the survivor's casting keeps its own values and fills a blank role,
+  remark, or photo with its focus, from the loser's.
+- **The loser goes before the fill.** Person, studio and publisher are unique
+  on their four names together, and filling can give the survivor exactly the
+  loser's names; deleting and flushing the loser first keeps that from
+  colliding. Filled names that equal a THIRD record's are a real clash: a 409
+  that changes nothing.
+
 **Importing a cast.** `POST /api/casting/mal` (`manage.catalog`,
 `app/services/domain/mal_cast.py`) takes `{media_type, mal_link}`, the
 entry's own MAL page: `/anime/<id>` for anime, anime-movie and hentai, read
@@ -483,6 +507,9 @@ the shape `GET /api/casting/{media_type}/{entry_id}` returns, in MAL's order.
   (`apply_shared_visibility`) - reusing a hidden one would put its name in the
   caller's form. An unmatched one is created with `name_en`, `mal_id` and
   `mal_link`; a duplicate this produces is folded by merge.
+- **Only MAL's Main characters are Main; every other row is Other.** MAL's
+  Supporting means "not Main", so it is not carried as Supporting - which
+  side characters earn Core or Supporting is set by hand.
 - **Only Japanese voice actors are taken.** MAL lists every dub; a casting
   records the original cast. Manga, novel and h-comic rows carry no voices.
 - **A seiyuu is matched by `person.mal_id`, then by name** through

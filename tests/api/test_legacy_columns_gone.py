@@ -12,6 +12,9 @@ REMOVED = [
     (models.Anime, "distributor_tw"),
     (models.Anime, "genre_main"),
     (models.Anime, "genre_sub"),
+    # The Need/Done seiyuu flag, dropped with no data carried anywhere. The
+    # cast's seiyuu live in character_casting_voice and are unaffected.
+    (models.Anime, "seiyuu"),
     (models.AnimeMovies, "studio"),
     (models.AnimeMovies, "director"),
     (models.Movies, "director"),
@@ -37,11 +40,6 @@ REMOVED = [
 @pytest.mark.parametrize("model,column", REMOVED)
 def test_column_is_gone(model, column):
     assert column not in model.__table__.columns
-
-
-def test_seiyuu_status_survived():
-    # anime.seiyuu is a Need/Done status column, not a cast list.
-    assert "seiyuu" in models.Anime.__table__.columns
 
 
 def test_manga_anime_studio_survived():
