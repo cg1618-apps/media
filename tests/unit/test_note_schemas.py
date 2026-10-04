@@ -409,7 +409,7 @@ def test_song_refuses_a_bare_url_string(section):
 
 
 def test_a_url_string_section_refuses_a_link_pair():
-    # The mirror: everything outside the songs and 彩蛋 keeps URL strings.
+    # The mirror: everything outside the songs keeps URL strings.
     validate_note_payload(
         _payload(section="analysis", links=["https://a.example"])
     )
@@ -542,28 +542,38 @@ def _egg(**kw):
     return _payload(**base)
 
 
-def test_easter_egg_with_a_description_passes():
+def test_easter_egg_takes_an_episode_a_description_and_several_urls():
     validate_note_payload(_egg())
-    validate_note_payload(_egg(locator="ep 3", links=[_pair(), _pair(text=None)]))
+    validate_note_payload(
+        _egg(locator="ep 3", links=["https://a.example", "https://b.example"])
+    )
+    # Like the rest of 解析, a link alone is a note.
+    validate_note_payload(_egg(content=None, links=["https://a.example"]))
 
 
-def test_easter_egg_needs_a_description():
-    with pytest.raises(ValueError, match="Description is required"):
+def test_easter_egg_refuses_link_pairs():
+    with pytest.raises(ValueError, match="must be URLs"):
+        validate_note_payload(_egg(links=[_pair()]))
+
+
+def test_an_empty_easter_egg_is_refused():
+    with pytest.raises(ValueError, match="note is empty"):
         validate_note_payload(_egg(content=None, locator="ep 3"))
 
 
-def test_easter_egg_links_are_pairs():
-    with pytest.raises(ValueError, match="text-and-URL pairs"):
-        validate_note_payload(_egg(links=["https://a.example"]))
-    with pytest.raises(ValueError, match="needs a URL"):
-        validate_note_payload(_egg(links=[_pair(url="")]))
-
-
-def test_easter_egg_takes_no_title_or_status():
-    with pytest.raises(ValueError, match="takes no"):
-        validate_note_payload(_egg(title="x"))
-    with pytest.raises(ValueError, match="takes no"):
+def test_easter_egg_takes_no_status_or_structured_fields():
+    with pytest.raises(ValueError, match="takes no status"):
         validate_note_payload(_egg(status="Done"))
+    with pytest.raises(ValueError, match="takes no structured fields"):
+        validate_note_payload(_egg(fields={}))
+
+
+def test_section_out_reports_url_string_links_for_easter_eggs():
+    out = section_out(section_by_key("easter_eggs"), "anime")
+    assert out.shape == "text_links"
+    assert out.link_pairs is False
+    assert out.fields == []
+    assert out.locator_placeholder == "Episode(s), e.g. ep 3"
 
 
 def test_music_sections_are_anime_only():

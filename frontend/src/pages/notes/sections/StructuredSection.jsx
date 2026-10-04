@@ -42,13 +42,6 @@ import {
   movedRow,
   namesOf,
 } from "./groupedRows";
-import { LinkPairPills, LinkPairsEditor } from "./LinkPairs";
-import {
-  hasLinkPair,
-  pairsFromLinks,
-  pairsIncomplete,
-  pairsToLinks,
-} from "./linkPairValues";
 
 import {
   EmptyHint,
@@ -78,13 +71,7 @@ const isBlank = (v) =>
 // the registry's `default` where it declares one, which is how a new
 // collectible opens on "not collected" and a new enemy on "to beat".
 // Fields whose form value is an array rather than a string.
-const ARRAY_TYPES = new Set(["links", "link_pairs", "list", "names"]);
-
-// Whether one field's form value counts as unfilled. Link pairs count only
-// once a row carries a URL: the editor always shows one blank row, and that
-// row says nothing.
-const fieldBlank = (field, value) =>
-  field.type === "link_pairs" ? !hasLinkPair(value) : isBlank(value);
+const ARRAY_TYPES = new Set(["links", "list", "names"]);
 
 const emptyValue = (field) =>
   ARRAY_TYPES.has(field.type) ? [] : field.default || "";
@@ -98,7 +85,6 @@ const fromNote = (section, note) =>
   Object.fromEntries(
     section.fields.map((f) => {
       const raw = f.column ? note[f.column] : (note.fields || {})[f.key];
-      if (f.type === "link_pairs") return [f.key, pairsFromLinks(raw)];
       if (ARRAY_TYPES.has(f.type)) return [f.key, raw || []];
       return [f.key, raw == null ? "" : String(raw)];
     }),
@@ -115,9 +101,6 @@ const toPayload = (section, val) => {
     let out;
     if (f.type === "links") {
       out = (raw || []).map((l) => l.trim()).filter(Boolean);
-      if (!out.length) out = null;
-    } else if (f.type === "link_pairs") {
-      out = pairsToLinks(raw);
       if (!out.length) out = null;
     } else if (f.type === "names") {
       // Deduplicated, blanks dropped: the server refuses a blank name.
@@ -149,19 +132,11 @@ const invalid = (section, val) => {
   const carrying = section.fields.filter((f) => !f.default);
   if (
     (carrying.length ? carrying : section.fields).every((f) =>
-      fieldBlank(f, val[f.key]),
+      isBlank(val[f.key]),
     )
   )
     return true;
-  if (section.fields.some((f) => f.required && fieldBlank(f, val[f.key])))
-    return true;
-  // A link label with no URL: the server refuses the pair, and dropping it
-  // would lose what was typed.
-  if (
-    section.fields.some(
-      (f) => f.type === "link_pairs" && pairsIncomplete(val[f.key]),
-    )
-  )
+  if (section.fields.some((f) => f.required && isBlank(val[f.key])))
     return true;
   return (section.require_any || []).some((group) =>
     group.every((key) => isBlank(val[key])),
@@ -317,17 +292,6 @@ function StructuredForm({ section, val, setVal, nameSuggestions }) {
         if (field.type === "links") {
           return (
             <LinksEditor key={field.key} links={val[field.key]} onChange={set} />
-          );
-        }
-        if (field.type === "link_pairs") {
-          // Plain text labels: no structured section names a suggestion
-          // category for them.
-          return (
-            <LinkPairsEditor
-              key={field.key}
-              pairs={val[field.key]}
-              onChange={set}
-            />
           );
         }
         if (field.type === "list") {
@@ -505,7 +469,8 @@ function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy 
 
   return (
     <div className="flex-1 min-w-0 space-y-1">
-      {(heading || tags.length || quick.length) && (
+      {/* Booleans, not lengths: `0 && ...` renders the 0. */}
+      {(heading || tags.length > 0 || quick.length > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {heading && (
             <span className="text-sm text-text font-medium">
@@ -558,11 +523,6 @@ function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy 
             <LinkPill key={i} url={l} />
           ))}
       </div>
-      {section.fields
-        .filter((f) => f.type === "link_pairs")
-        .map((f) => (
-          <LinkPairPills key={f.key} links={readValue(f, note)} />
-        ))}
     </div>
   );
 }

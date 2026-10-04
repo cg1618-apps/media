@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-03
+Last verified: 2026-10-04
 
 ## What this is for
 
@@ -2748,13 +2748,41 @@ dnd-kit's `useDraggable` / `useDroppable` with the same sensors.
   with no text.
 - **彩蛋 is `structured` with a `link_pairs` field** rather than a new shape: it
   is an episode, a required description and links, which the structured
-  shape already expresses once its link editor can hold pairs.
+  shape already expresses once its link editor can hold pairs. *Superseded
+  the same day: 彩蛋 is `text_links` now, its links URL strings - see the next
+  entry.*
 - **The migration is reversible.** Its downgrade rebuilds the one-row OST from
   the OST's list status, turns the pairs back into URL strings and restores
   the old index. What it cannot keep is what only the new shape can say - a
   link's text, OST songs, the "All Done" / "Not Done" distinction - and an
   automatic rollback runs within a minute of a deploy, before any of that
   exists. Not marking it `irreversible` keeps that rollback available.
+
+### 彩蛋 is `text_links` like the rest of 解析; its link text is dropped (2026-10-04)
+
+- **Why.** 彩蛋 was the one 解析 section edited and drawn differently from its
+  neighbours: a structured form with a required description and a link-text
+  box beside every URL. The owner wanted it the same as every other analysis
+  note - an episode, a description, several links - and no link text. So it
+  is `text_links` with the "Episode(s), e.g. ep 3" locator, like 猜測 and
+  對稱 above it, and its description is optional like theirs: a link alone is
+  a note.
+- **The pairs reach only the song lists now.** With 彩蛋 gone, nothing used
+  the structured `link_pairs` field type, so `FIELD_LINK_PAIRS`, its validator
+  branch and `StructuredSection`'s editor and read paths for it were removed
+  rather than left as dead code. `uses_link_pairs` is simply "is this a
+  `music_track` section". `LinkPairsEditor` / `LinkPairPills` and
+  `linkPairValues.js` stay: the song lists use every one of them.
+- **The migration drops the link text.** `e4s5teggurl6` rewrites each 彩蛋
+  row's pairs into their URLs (in order, blanks and exact repeats dropped,
+  `[]` for none) and clears the `fields` blob the structured editor wrote,
+  which `text_links` refuses on the merged row a PATCH validates. It is not
+  `irreversible`: the downgrade turns the URLs back into pairs with no text,
+  which the structured validator accepts. The text itself does not come back.
+- **Pull reads an old backup's pairs as URLs.** `_note_links` gained the
+  inverse of the song lists' URL-to-pair reading: pairs on a section that does
+  not take them become their URL strings, so a sheet backed up before this
+  change lands in the shape the section takes.
 
 ### The 評論 review lists are text plus links; `text_or_link` is gone (2026-10-04)
 

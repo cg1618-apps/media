@@ -132,7 +132,7 @@ class Note(Base):
     title = Column(String, nullable=True)
     content = Column(Text, nullable=True)
     # List of URL strings - or, for the sections note_sections.uses_link_pairs
-    # names (the song lists and 彩蛋), of {"text": str|null, "url": str}
+    # names (the song lists), of {"text": str|null, "url": str}
     # pairs. Which one is a property of the section, never of the row. A list
     # even where a shape holds one link, so multi-link support needs no
     # migration.

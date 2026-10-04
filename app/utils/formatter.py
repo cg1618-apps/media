@@ -33,7 +33,13 @@ from app.utils.constants import GAME_COMPLETION_FLAGS
 # Character and person gender / my_rating, folded the way the revision that
 # closed those vocabularies folded the stored rows.
 from app.utils.entity_vocab import normalize_gender, normalize_my_rating
-from app.utils.note_sections import as_link_pairs, section_by_key, uses_link_pairs
+from app.utils.note_sections import (
+    SHAPE_STRUCTURED,
+    as_link_pairs,
+    as_link_urls,
+    section_by_key,
+    uses_link_pairs,
+)
 
 # The scope -> owner column map. plan_next_kinds imports only media_resolver,
 # so there is no cycle.
@@ -1762,13 +1768,38 @@ def parse_resource_node_from_sheet(raw: dict) -> dict:
     }
 
 
+def _note_section(raw: dict):
+    """The registry entry the Note tab's row belongs to, or None."""
+    return section_by_key(parse_from_sheet(raw.get("section"), str) or "")
+
+
 def _note_links(raw: dict):
-    """The Note tab's `links` cell, in the shape the row's section takes."""
+    """
+    The Note tab's `links` cell, in the shape the row's section takes. A sheet
+    backed up before a section changed shape carries the other one: URL
+    strings on a section that now takes pairs, or pairs (彩蛋, which was
+    structured) on one that now takes URL strings.
+    """
     links = json.loads(raw["links"]) if raw.get("links") else None
-    section = section_by_key(parse_from_sheet(raw.get("section"), str) or "")
-    if section is not None and uses_link_pairs(section):
+    section = _note_section(raw)
+    if section is None:
+        return links
+    if uses_link_pairs(section):
         return as_link_pairs(links)
-    return links
+    return as_link_urls(links)
+
+
+def _note_fields(raw: dict):
+    """
+    The Note tab's `fields` cell. Only a structured section reads the blob, and
+    every other shape refuses one on its next edit, so a row whose section is
+    no longer structured (彩蛋) arrives without it.
+    """
+    fields = json.loads(raw["fields"]) if raw.get("fields") else None
+    section = _note_section(raw)
+    if section is not None and section.shape != SHAPE_STRUCTURED:
+        return None
+    return fields
 
 
 def parse_note_from_sheet(raw: dict) -> dict:
@@ -1809,9 +1840,8 @@ def parse_note_from_sheet(raw: dict) -> dict:
         "status": parse_from_sheet(raw.get("status"), str),
         "title": parse_from_sheet(raw.get("title"), str),
         "content": parse_from_sheet(raw.get("content"), str),
-        # A section whose links are text-URL pairs reads URL strings from a
-        # backup taken before they were pairs as pairs with no text, so the
-        # row lands in the one shape its section takes.
+        # Read in the one shape the row's section takes, whichever shape the
+        # backup wrote - see _note_links.
         "links": _note_links(raw),
         # The name_entries shape, parsed exactly like `links` beside it. Absent
         # here, Backup would still write the column and Pull would drop it -
@@ -1821,7 +1851,7 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # JSONB columns above it and for the same reason: absent here, Backup
         # writes the column and Pull drops it, losing every variant, alias,
         # stat value and nested build list on the round trip.
-        "fields": json.loads(raw["fields"]) if raw.get("fields") else None,
+        "fields": _note_fields(raw),
         "sort_index": parse_from_sheet(raw.get("sort_index"), float),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
