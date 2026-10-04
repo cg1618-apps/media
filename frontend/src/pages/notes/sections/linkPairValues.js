@@ -1,7 +1,7 @@
 // Frontend: the text-and-URL link pairs some note sections store in `links`.
 //
 // A section whose registry entry reports `link_pairs: true` (the four song
-// lists and 彩蛋 Easter Eggs) stores each link as `{"text": str | null, "url":
+// lists) stores each link as `{"text": str | null, "url":
 // str}` rather than a bare URL: a song is heard on several services, and the
 // text is the label a reader sees on the pill. Every other section keeps URL
 // strings. These are the pure halves of the editor in LinkPairs.jsx (a different name on

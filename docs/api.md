@@ -995,8 +995,8 @@ card of its own), and `type_status_section` / `type_statuses` /
 this section's key as `kind`, with that status's vocabulary and default)).
 
 `links` on `NoteCreate` / `NoteUpdate` / `NoteResponse` is a list of URL
-strings, or - on a section reporting `link_pairs: true` (the four song lists
-and `easter_eggs`) - a list of `{"text": str | null, "url": str}`. Each
+strings, or - on a section reporting `link_pairs: true` (the four song
+lists) - a list of `{"text": str | null, "url": str}`. Each
 section takes exactly one of the two; the other is a 422, as is a pair with a
 blank `url` or a key other than those two.
 

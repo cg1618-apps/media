@@ -142,10 +142,6 @@ FIELD_TEXT = "text"  # one line
 FIELD_TEXTAREA = "textarea"  # a body
 FIELD_SELECT = "select"  # a dropdown over `options`
 FIELD_LINKS = "links"  # the repeatable URL editor
-# The repeatable text-and-URL editor: each item `{"text": str | None, "url":
-# str}`, the same pairs a music_track row holds. Claims the `links` column,
-# which then holds pairs for that section - see `uses_link_pairs`.
-FIELD_LINK_PAIRS = "link_pairs"
 FIELD_LIST = "list"  # a repeatable row of `item_fields`
 # A list of free-text names, e.g. the characters a highlight is about. Always
 # stored in `fields`, never in a column: no `note` column holds a list of
@@ -1038,34 +1034,16 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     NoteSection(
         # A hidden reference: something planted in one scene for a reader to
         # catch, where it plays, and where somebody spotted it. Last in 解析
-        # because it is the lightest of them - a find, not a reading.
-        #
-        # Structured rather than text_links because its links are text-and-URL
-        # pairs, the same as a song's, and text_links holds URL strings.
+        # because it is the lightest of them - a find, not a reading. Shaped
+        # like the rest of 解析: an episode, a description and any number of
+        # URL links.
         key="easter_eggs",
-        shape=SHAPE_STRUCTURED,
+        shape=SHAPE_TEXT_LINKS,
         label="彩蛋 Easter Eggs",
         owners=("anime",),
         scope=SCOPE_CATALOG,
+        locator_placeholder="Episode(s), e.g. ep 3",
         group="analysis_group",
-        fields=(
-            NoteField(
-                key="episode",
-                label="Episode",
-                column="locator",
-                placeholder="Episode(s), e.g. ep 3",
-            ),
-            NoteField(
-                key="description",
-                label="Description",
-                type=FIELD_TEXTAREA,
-                column="content",
-                required=True,
-            ),
-            NoteField(
-                key="links", label="Links", type=FIELD_LINK_PAIRS, column="links"
-            ),
-        ),
     ),
     # --- 攻略 Guides ------------------------------------------------------
     # Fifteen sections rather than one section with a kind, because each is a
@@ -2021,14 +1999,11 @@ def uses_link_pairs(section: NoteSection) -> bool:
 
     Per section, never per row, so a reader of one section never has to guess
     which of the two shapes a row is in. The pairs reach only the song lists
-    and 彩蛋: every other section's links are URL strings, and converting
-    those would rewrite thousands of rows for a label nobody asked for there.
+    (the music_track shape): every other section's links are URL strings, and
+    converting those would rewrite thousands of rows for a label nobody asked
+    for there.
     """
-    if section.shape == SHAPE_MUSIC_TRACK:
-        return True
-    return any(
-        f.type == FIELD_LINK_PAIRS and f.column == "links" for f in section.fields
-    )
+    return section.shape == SHAPE_MUSIC_TRACK
 
 
 def as_link_pairs(links: list | None) -> list | None:
@@ -2036,6 +2011,25 @@ def as_link_pairs(links: list | None) -> list | None:
     if not links:
         return links
     return [{"text": None, "url": l} if isinstance(l, str) else l for l in links]
+
+
+def as_link_urls(links: list | None) -> list | None:
+    """
+    Pairs as URL strings, the inverse of `as_link_pairs`: each pair's text is
+    dropped, a pair with no URL goes, and a URL already taken is not taken
+    twice. URL strings and None pass through.
+    """
+    if not links:
+        return links
+    urls: list = []
+    for link in links:
+        if isinstance(link, dict):
+            url = (link.get("url") or "").strip()
+            if url and url not in urls:
+                urls.append(url)
+        else:
+            urls.append(link)
+    return urls
 
 
 LINK_PAIR_SECTIONS: frozenset[str] = frozenset(

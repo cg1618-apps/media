@@ -93,3 +93,45 @@ def test_entries_round_trip_through_the_sheet():
 def test_blank_entries_cell_becomes_none():
     parsed = parse_note_from_sheet({"section": "guides", "entries": ""})
     assert parsed["entries"] is None
+
+
+def test_old_link_pairs_on_a_url_string_section_pull_as_urls():
+    # 彩蛋 held text-and-URL pairs before it became text_links like the rest
+    # of 解析. A sheet backed up then still carries them; Pull reads the URLs
+    # in order and drops the text, which the section no longer shows.
+    pairs = [
+        {"text": "Bilibili", "url": "https://b23.tv/x"},
+        {"text": None, "url": "https://youtu.be/y"},
+        {"text": "blank", "url": "  "},
+        {"text": "again", "url": "https://b23.tv/x"},
+    ]
+    parsed = parse_note_from_sheet(
+        {"section": "easter_eggs", "links": json.dumps(pairs), "fields": "{}"}
+    )
+    assert parsed["links"] == ["https://b23.tv/x", "https://youtu.be/y"]
+    # A structured row's empty `fields` blob does not follow it into a shape
+    # that refuses one, or the row's next edit would be refused.
+    assert parsed["fields"] is None
+
+
+def test_url_strings_on_a_url_string_section_pass_through():
+    parsed = parse_note_from_sheet(
+        {"section": "easter_eggs", "links": '["https://a.example"]'}
+    )
+    assert parsed["links"] == ["https://a.example"]
+
+
+def test_a_song_still_pulls_old_url_strings_as_pairs():
+    # The mirror: the sections that DO take pairs keep converting the other
+    # way, so the inverse above is not applied everywhere.
+    parsed = parse_note_from_sheet(
+        {"section": "op", "links": '["https://youtu.be/a"]'}
+    )
+    assert parsed["links"] == [{"text": None, "url": "https://youtu.be/a"}]
+
+
+def test_a_structured_section_keeps_its_fields():
+    parsed = parse_note_from_sheet(
+        {"section": "builds_and_styles", "fields": '{"stats": []}'}
+    )
+    assert parsed["fields"] == {"stats": []}

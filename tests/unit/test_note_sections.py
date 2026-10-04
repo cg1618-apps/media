@@ -105,9 +105,9 @@ def test_song_links_are_text_and_url_pairs_suggested_from_song_source():
         assert sec.link_text_category == ns.SONG_SOURCE_CATEGORY == "Song Source"
 
 
-def test_link_pairs_are_confined_to_the_songs_and_easter_eggs():
+def test_link_pairs_are_confined_to_the_songs():
     paired = {s.key for s in ns.NOTE_SECTIONS if ns.uses_link_pairs(s)}
-    assert paired == set(SONG_SECTIONS) | {"easter_eggs"}
+    assert paired == set(SONG_SECTIONS)
     assert ns.LINK_PAIR_SECTIONS == frozenset(paired)
 
 
@@ -165,19 +165,24 @@ def test_note_option_categories_come_from_the_registry():
     assert ns.NOTE_OPTION_CATEGORIES == ("Song Type", "Song Source")
 
 
-def test_easter_eggs_is_a_list_under_analysis():
+def test_easter_eggs_is_text_links_like_the_rest_of_analysis():
     sec = ns.section_by_key("easter_eggs")
     assert sec.label == "彩蛋 Easter Eggs"
-    assert sec.shape == ns.SHAPE_STRUCTURED
+    assert sec.shape == ns.SHAPE_TEXT_LINKS
     assert sec.owners == ("anime",)
     assert sec.scope == ns.SCOPE_CATALOG
     assert sec.group == "analysis_group"
+    assert sec.locator_placeholder == "Episode(s), e.g. ep 3"
     assert not sec.singleton
-    assert [(f.key, f.column, f.type, f.required) for f in sec.fields] == [
-        ("episode", "locator", ns.FIELD_TEXT, False),
-        ("description", "content", ns.FIELD_TEXTAREA, True),
-        ("links", "links", ns.FIELD_LINK_PAIRS, False),
-    ]
+    assert sec.fields == ()
+    assert not ns.uses_link_pairs(sec)
+    # The same shape as its neighbours, so it reads and edits like them.
+    speculation = ns.section_by_key("speculation")
+    assert (sec.shape, sec.locator_placeholder, sec.desc_required) == (
+        speculation.shape,
+        speculation.locator_placeholder,
+        speculation.desc_required,
+    )
 
 
 def test_every_group_is_a_known_group():

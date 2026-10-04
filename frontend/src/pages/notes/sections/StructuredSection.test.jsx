@@ -599,128 +599,13 @@ it("offers no Add once a singleton section holds its one row", () => {
   expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
 });
 
-// Mirrors `easter_eggs`: an episode, a required description, and links as
-// text-and-URL pairs whose labels are plain text.
-const EASTER_EGGS = {
-  key: "easter_eggs",
-  shape: "structured",
-  label: "彩蛋 Easter Eggs",
-  require_any: [],
-  hierarchical: false,
-  link_pairs: true,
-  fields: [
-    {
-      key: "episode",
-      label: "Episode",
-      type: "text",
-      column: "locator",
-      options: [],
-      placeholder: "Episode(s), e.g. ep 3",
-    },
-    {
-      key: "description",
-      label: "Description",
-      type: "textarea",
-      column: "content",
-      options: [],
-      required: true,
-    },
-    { key: "links", label: "Links", type: "link_pairs", column: "links", options: [] },
-  ],
-};
-
-it("sends an easter egg's links as text-and-URL pairs", async () => {
-  const onCreate = vi.fn();
-  renderSection({ section: EASTER_EGGS, onCreate });
-
-  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
-  await userEvent.type(screen.getByLabelText("Description"), "The poster.");
-  await userEvent.type(screen.getByLabelText("Link text"), "Bilibili");
-  await userEvent.type(screen.getByLabelText("Link URL"), "https://b23.tv/x");
-  await userEvent.click(screen.getByRole("button", { name: "+ Add link" }));
-  await userEvent.type(screen.getAllByLabelText("Link URL")[1], "https://a.example/y");
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
-
-  expect(onCreate).toHaveBeenCalledWith(
-    expect.objectContaining({
-      section: "easter_eggs",
-      content: "The poster.",
-      links: [
-        { text: "Bilibili", url: "https://b23.tv/x" },
-        { text: null, url: "https://a.example/y" },
-      ],
-    }),
-  );
-});
-
-it("gives an easter egg's link text no suggestions", async () => {
-  renderSection({ section: EASTER_EGGS });
-  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
-  expect(screen.getByLabelText("Link text")).not.toHaveAttribute("role", "combobox");
-});
-
-it("refuses an easter egg with links but no description", async () => {
-  const onCreate = vi.fn();
-  renderSection({ section: EASTER_EGGS, onCreate });
-
-  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
-  await userEvent.type(screen.getByLabelText("Link URL"), "https://b23.tv/x");
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
-  expect(onCreate).not.toHaveBeenCalled();
-});
-
-it("holds the save while a link label has no URL", async () => {
-  const onCreate = vi.fn();
-  renderSection({ section: EASTER_EGGS, onCreate });
-
-  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
-  await userEvent.type(screen.getByLabelText("Description"), "The poster.");
-  await userEvent.type(screen.getByLabelText("Link text"), "Bilibili");
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
-  expect(onCreate).not.toHaveBeenCalled();
-
-  // The mirror: the same draft saves once the label has its URL.
-  await userEvent.type(screen.getByLabelText("Link URL"), "https://b23.tv/x");
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
-  expect(onCreate).toHaveBeenCalled();
-});
-
-it("shows an easter egg's links labelled with their text, else the host", () => {
+// A row whose only filled field is a body has no heading, no tags and no
+// quick-edit value. The heading line must then render nothing at all - a
+// `length && ...` there renders the number 0 as text.
+it("draws no stray 0 for a row with only a body", () => {
   renderSection({
-    section: EASTER_EGGS,
-    notes: [
-      {
-        system_id: "n1",
-        locator: "ep 3",
-        content: "The poster.",
-        links: [
-          { text: "Bilibili", url: "https://b23.tv/x" },
-          { text: null, url: "https://example.com/y" },
-        ],
-      },
-    ],
+    notes: [{ system_id: "n1", content: "Press X to parry." }],
   });
-  expect(screen.getByRole("link", { name: /Bilibili/ })).toHaveAttribute(
-    "href",
-    "https://b23.tv/x",
-  );
-  expect(screen.getByRole("link", { name: /example\.com/ })).toBeInTheDocument();
-});
-
-it("reads an easter egg's stored pairs back into the editor", async () => {
-  const onUpdate = vi.fn();
-  renderSection({
-    section: EASTER_EGGS,
-    notes: [
-      {
-        system_id: "n1",
-        content: "The poster.",
-        links: [{ text: "Bilibili", url: "https://b23.tv/x" }],
-      },
-    ],
-    onUpdate,
-  });
-  await userEvent.click(screen.getByRole("button", { name: "Edit" }));
-  expect(screen.getByLabelText("Link text")).toHaveValue("Bilibili");
-  expect(screen.getByLabelText("Link URL")).toHaveValue("https://b23.tv/x");
+  const body = screen.getByText("Press X to parry.");
+  expect(body.parentElement.textContent).toBe("Press X to parry.");
 });
