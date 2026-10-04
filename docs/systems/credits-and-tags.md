@@ -511,7 +511,7 @@ carries one. On `POST` and `PUT /api/character` a character with a `mal_id`
 is then filled from Tenrai's `GET /characters/{id}/full`
 (`autofill_character_from_mal`), **fill-only**: a blank `name_en` (MAL's name
 in western order, "Elric, Edward" → "Edward Elric"), a blank `name_jp`
-(`name_kanji`), a blank `name_alt` (the nicknames, comma-joined), and the
+(`name_kanji`, spaces removed: `安曇 美姫` → `安曇美姫`), a blank `name_alt` (the nicknames, comma-joined), and the
 portrait under `character/<system_id>.jpg` when `cover_needs_download` says
 so. `about` is dropped. `PATCH` re-derives `mal_id` but never fetches. A
 failure is logged and swallowed. There is no name-collision check, unlike the
