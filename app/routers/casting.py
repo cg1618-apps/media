@@ -157,6 +157,9 @@ class MalCastIn(BaseModel):
     # The MAL page of the entry being cast: /anime/<id> for a voiced type,
     # /manga/<id> otherwise.
     mal_link: str
+    # The characters the editor's form holds, saved or not. A MAL character
+    # no mal_id matches may match one of these by name - and only these.
+    character_ids: List[UUID] = []
 
 
 @router.post("/mal", summary="Build a cast from MyAnimeList")
@@ -168,7 +171,8 @@ def import_mal_cast(
 ):
     """
     The MAL entry's cast as cast rows, for the editor to append and save.
-    Characters are matched on mal_id and seiyuu on mal_id then name; any
+    Characters are matched on mal_id, then by name among the form's own
+    `character_ids` that have none; seiyuu on mal_id then name. Any
     missing are created and committed here, the cast itself is not; new
     characters' portraits download after the response. 422 for
     a bad link or an unknown type, 502 when MAL answers with no cast. Keyed
@@ -176,7 +180,7 @@ def import_mal_cast(
     """
     try:
         result, portraits = mal_cast_service.mal_cast_rows(
-            db, admin, payload.media_type, payload.mal_link
+            db, admin, payload.media_type, payload.mal_link, payload.character_ids
         )
     except mal_cast_service.MalCastError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

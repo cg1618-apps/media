@@ -659,6 +659,7 @@ it("imports a cast from the entry's MAL link and reports what it created", async
       expect(JSON.parse(init.body)).toEqual({
         media_type: "anime",
         mal_link: "https://myanimelist.net/anime/5114",
+        character_ids: ["c1"],
       });
       return Promise.resolve({
         ok: true,
@@ -687,6 +688,61 @@ it("imports a cast from the entry's MAL link and reports what it created", async
   expect(rows[1].voices).toEqual([{ person_id: "p9", person_name: "Romi Park", remark: "" }]);
   expect(await importStatus()).toHaveTextContent(
     "Imported 1 from MyAnimeList (1 already in this cast). Created 1 new characters and 1 new seiyuu.",
+  );
+});
+
+it("sends the characters the form holds, so a hand-added one is matched, not duplicated", async () => {
+  // The server reuses a held character with no MAL id when its name matches,
+  // and answers with that character's own id - which the editor then skips.
+  const reused = {
+    character_id: "c1",
+    character_public_id: 1,
+    character_name: "Edward Elric",
+    role: "Main",
+    position: 0,
+    photo_file: null,
+    photo_focus: null,
+    remark: null,
+    voices: [],
+  };
+  let sent;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url, init) => {
+      if (url === "/api/casting/mal") {
+        sent = JSON.parse(init.body);
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ cast: [reused], created_characters: 0, created_people: 0, warnings: [] }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    }),
+  );
+  const onChangeSpy = vi.fn();
+  render(
+    <Controlled
+      mediaType="anime"
+      initialRows={[
+        row({ character_id: "c1", character_name: "Edward Elric" }),
+        row(),
+        row({ system_id: "s7", character_id: "c7", character_name: "Saved One" }),
+      ]}
+      onChangeSpy={onChangeSpy}
+      malLink="https://myanimelist.net/anime/5114"
+    />,
+  );
+
+  fireEvent.click(screen.getByText("Import from MAL"));
+
+  await waitFor(() => expect(onChangeSpy).toHaveBeenCalled());
+  // Every row's character, saved or not; a row with none sends nothing.
+  expect(sent.character_ids).toEqual(["c1", "c7"]);
+  const rows = onChangeSpy.mock.calls.at(-1)[0];
+  expect(rows.map((r) => r.character_name)).toEqual(["Edward Elric", "", "Saved One"]);
+  expect(await importStatus()).toHaveTextContent(
+    "Imported 0 from MyAnimeList (1 already in this cast).",
   );
 });
 
