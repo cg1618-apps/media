@@ -319,6 +319,20 @@ def test_op_ed_kinds_exclude_retired_values():
     assert "特別OP" not in sec.kinds  # normalized to 特殊OP
 
 
+def test_only_op_ed_changes_takes_links_beside_its_episode_text():
+    # The other episode_text sections - highlights, 加長, questions - stay a
+    # locator, a kind and a description.
+    assert [s.key for s in ns.NOTE_SECTIONS if s.takes_links] == ["op_ed_changes"]
+
+
+def test_takes_links_is_only_set_on_the_episode_text_shape():
+    # Every other link-carrying shape takes links by construction, so the flag
+    # would say nothing there.
+    for sec in ns.NOTE_SECTIONS:
+        if sec.takes_links:
+            assert sec.shape == ns.SHAPE_EPISODE_TEXT, sec.key
+
+
 def test_retired_sections_are_gone():
     assert ns.section_by_key("special_changes") is None
     assert ns.section_by_key("special_episodes") is None

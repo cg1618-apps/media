@@ -39,7 +39,7 @@ from app.utils.media_resolver import MEDIA_TYPE_KEYS, OWNER_TYPE_KEYS
 # shape does not name stay null.
 SHAPE_TEXT = "text"  # content
 SHAPE_TEXT_LINKS = "text_links"  # content, links, optional episode
-SHAPE_EPISODE_TEXT = "episode_text"  # episode, content, kind where declared
+SHAPE_EPISODE_TEXT = "episode_text"  # episode, content, kind where declared, links where takes_links
 SHAPE_NAME_LINKS = "name_links"  # title, links
 # A named list whose items are each either a line of text or a labelled link,
 # in one ordered array. name_links can only hold URLs, and text_links has no
@@ -341,6 +341,12 @@ class NoteSection:
     # per-owner, unlike `desc_required` - that is true of every owner the
     # section has.
     locator_required: bool = False
+    # `episode_text` sections only: rows also carry any number of links, as
+    # URL strings like a text_links row's. OP/ED 變動 is the one that does -
+    # where the changed OP or ED can be watched. Every other link-carrying
+    # shape takes links by construction, so a test keeps this flag to
+    # episode_text.
+    takes_links: bool = False
     # At most one row per owner.
     singleton: bool = False
     # Owner types where `content` may not be empty.
@@ -1781,6 +1787,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="music",
         kinds=OP_ED_KINDS,
         locator_placeholder="Episode(s), e.g. ep 3",
+        takes_links=True,
     ),
     NoteSection(
         key="extended_episodes",

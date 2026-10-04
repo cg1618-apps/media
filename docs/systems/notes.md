@@ -50,7 +50,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | --- | --- | --- |
 | `text` | `content` | A plain bullet. |
 | `text_links` | `content`, `links`, optional `locator` | A body *and* its sources. |
-| `episode_text` | `locator`, `content`, `kind` where declared | Anchored to an episode/chapter. |
+| `episode_text` | `locator`, `content`, `kind` where declared, `links` (URL strings) where the section `takes_links` | Anchored to an episode/chapter. |
 | `name_links` | `title`, `links` | A named resource. |
 | `name_entries` | `title`, `entries` | A named list whose items are each a line of text **or** a labelled link, in one ordered array. **Currently owned by no section** — see the component table below. |
 | `music_track` | `title`, `status`, `locator`, `links` (link pairs), `content`, and `kind` where the section declares a `kind_category` | One song, whichever list it is in — OP, ED, insert song or OST. |
@@ -295,7 +295,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `ed` | ED | music_track | music | anime | same as `op` | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
 | `insert_songs` | 插入曲 Insert Song | music_track | music | anime | — | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
 | `ost` | OST | music_track | music | anime | — | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
-| `op_ed_changes` | OP/ED 變動 | episode_text | music | anime, tv-show, cartoon | 變化OP, 變化ED, 無OP, 無ED, 特殊OP, 特殊ED | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
+| `op_ed_changes` | OP/ED 變動 | episode_text, **takes links** | music | anime, tv-show, cartoon | 變化OP, 變化ED, 無OP, 無ED, 特殊OP, 特殊ED | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `extended_episodes` | 加長 | episode_text | flat | anime, tv-show, cartoon | — | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, novel, series, franchise | — | — | — | no | no | anime, anime-movie, novel |
 | `mods_and_tools` | 模組&工具 Mods & Tools | **structured** | tools | game, h-game | — | — | — | no | no | no |
@@ -505,6 +505,7 @@ Design rules baked into the registry:
 | **Music sections stay separate** (`op`, `ed`, `insert_songs`, `ost`, `op_ed_changes`) rather than one section with a dropdown, so "which OPs do I still need?" stays a section, not a filter. Each song list's own status is a `music_status` row keyed by the list's section key, not a fifth list. | Comment above `music_status` in the registry. |
 | `group` and `standalone` are mutually exclusive; a test forbids setting both. | `NoteSection` docstring. |
 | `locator_required` is section-wide; `desc_required` is per owner. | `NoteSection` fields. |
+| **`takes_links` is for `episode_text` alone**: it gives that shape's rows any number of URL-string links, as a `text_links` row has. `op_ed_changes` is the one section that sets it — where the changed OP or ED can be watched; the other episode_text sections stay a locator, a kind and a description. Every other link-carrying shape takes links by construction, so a test keeps the flag to episode_text. Validation is the same either way (check 5 below), and a row's links never count toward check 9: an episode_text row still needs content or a locator. | `takes_links` on `NoteSection`; served on `NoteSectionOut`. |
 
 ### Validation (`validate_note_payload`, `app/schemas/note.py`)
 
@@ -669,7 +670,7 @@ once when both are used.
 | --- | --- | --- |
 | `TextSection.jsx` | text | content |
 | `TextLinksSection.jsx` | text_links | locator (only if the section has a `locator_placeholder`), content, links; enforces `desc_required` / `locator_required` client-side |
-| `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
+| `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content, and links when the section `takes_links` — the same `LinksEditor` and `LinkPill`s as `TextLinksSection`, sent as URL strings with blanks dropped; a section without the flag sends no `links` key |
 | `NameLinksSection.jsx` | name_links | title, links |
 | `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, dragged into order in the form by its grip). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
 | `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns drag-to-reorder (a grip per row from `components/ui/Sortable.jsx`; each drop is one `PATCH /api/notes/reorder`, applied on screen at once by `NotesContext`, with that section's grips disabled until the save settles), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move — among a row's own siblings, never to another parent — that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): each group header carries a grip (drag, or ArrowUp / ArrowDown on it), and the rows are not movable there; a **Group by** toggle in the card header switches to the flat list, where they are. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry grips — a row moves only within its own group — and every move sends the section's whole row order, grouped. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; a row's grip moves it by its place among all its siblings, folded or not, so the last row shown can still be moved down past the fold, and a move that carries a row past the cap unfolds the section so the row does not vanish. A grouped section is capped **per group**, each group with its own toggle, and every group header stays on screen: the headers are what a reader scans and what carries a group's grip, and a folded-away header could be neither found nor dragged. |

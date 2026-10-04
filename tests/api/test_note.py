@@ -446,6 +446,47 @@ def test_sections_endpoint_reports_the_locator_contract(admin_client):
     assert by_key["advantages"]["locator_placeholder"] is None
 
 
+# --- OP/ED 變動 links over the wire ----------------------------------------
+
+
+def test_sections_endpoint_reports_which_sections_take_links(client):
+    r = client.get("/api/notes/sections", params={"owner_type": "anime"})
+    by_key = {s["key"]: s for s in r.json()}
+    assert by_key["op_ed_changes"]["takes_links"] is True
+    assert by_key["extended_episodes"]["takes_links"] is False
+
+
+def test_op_ed_change_links_round_trip(admin_client, sample_anime):
+    r = admin_client.post(
+        "/api/notes",
+        json={
+            "owner_type": "anime",
+            "owner_id": str(sample_anime.system_id),
+            "section": "op_ed_changes",
+            "locator": "ep 10",
+            "kind": "變化OP",
+            "links": ["https://youtu.be/a", "https://b23.tv/b"],
+        },
+    )
+    assert r.status_code == 201, r.text
+    note = r.json()
+    assert note["links"] == ["https://youtu.be/a", "https://b23.tv/b"]
+
+    r = admin_client.patch(
+        f"/api/notes/{note['system_id']}",
+        json={"links": ["https://youtu.be/c"]},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["links"] == ["https://youtu.be/c"]
+
+    r = admin_client.get(
+        "/api/notes",
+        params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
+    )
+    (row,) = [n for n in r.json() if n["section"] == "op_ed_changes"]
+    assert row["links"] == ["https://youtu.be/c"]
+
+
 # --- music_track rows over the wire ---------------------------------------
 
 

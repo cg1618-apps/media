@@ -147,6 +147,8 @@ class NoteSectionOut(BaseModel):
     statuses: List[str] = []
     locator_placeholder: Optional[str] = None
     locator_required: bool = False
+    # An episode_text section whose rows also carry URL links (OP/ED 變動).
+    takes_links: bool = False
     singleton: bool = False
     desc_required: bool = False
     # Empty for every shape but `structured`, which is entirely described by it.
@@ -230,6 +232,7 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         statuses=list(section.statuses),
         locator_placeholder=locator_for(section, owner_type),
         locator_required=section.locator_required,
+        takes_links=section.takes_links,
         singleton=section.singleton,
         desc_required=owner_type in section.desc_required,
         fields=[field_out(f) for f in section.fields],
