@@ -270,6 +270,23 @@ def apply_calculate_seasonal_from_month(anime: Anime) -> bool:
     return True
 
 
+def season_part_sort_key(season_part: Any) -> tuple[int, int]:
+    """
+    Where a season_part sits in its series: (season, part).
+
+    A missing number counts as 1, so "Season 3" is (3, 1), "Part 2" is (1, 2)
+    and an unset value is (1, 1). Shared by derive_ep_previous_anime and
+    seed_sequel_relations (app/services/domain/media_relation.py), which order
+    the same sibling group and must agree on what comes first.
+    """
+    s_part = str(season_part or "")
+    s_match = SEASON_PATTERN.search(s_part)
+    p_match = PART_PATTERN.search(s_part)
+    s_num = int(s_match.group(1)) if s_match else 1
+    p_num = int(p_match.group(1)) if p_match else 1
+    return (s_num, p_num)
+
+
 _SERIES_UNSET = object()
 
 
@@ -288,12 +305,7 @@ def derive_ep_previous_anime(
         return
 
     def get_sort_key(a: Anime):
-        s_part = str(a.season_part or "")
-        s_match = SEASON_PATTERN.search(s_part)
-        p_match = PART_PATTERN.search(s_part)
-        s_num = int(s_match.group(1)) if s_match else 1
-        p_num = int(p_match.group(1)) if p_match else 1
-        return (s_num, p_num)
+        return season_part_sort_key(a.season_part)
 
     def process_group(siblings: list) -> None:
         if not siblings:

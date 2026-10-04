@@ -18,11 +18,14 @@ from uuid import UUID
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
-from app.models import MediaRelation
+from app.models import Anime, Franchise, Media, MediaRelation
+from app.services.domain.derivation import season_part_sort_key
+from app.services.domain.hierarchy import franchise_type_tokens
 from app.services.domain.watch_order import (
     entry_exists,  # noqa: F401 (re-export)
     list_candidate_entries,
 )
+from app.utils.constants import FranchiseType
 from app.utils.media_resolver import MEDIA_TABLES, entry_ref_for, resolve_entries
 from app.utils.relation_kinds import (
     INPUT_ONLY_KINDS,
@@ -172,6 +175,131 @@ def find_duplicate(
     if exclude_id is not None:
         query = query.filter(MediaRelation.system_id != exclude_id)
     return query.first()
+
+
+# The airing types that make a sibling group, the same ones
+# derive_ep_previous_anime chains ep_previous across.
+_SEED_AIRING_TYPES = ("TV", "ONA")
+
+
+def seed_sequel_relations(db: Session) -> Dict[str, int]:
+    """
+    Writes the obvious anime sequel chains into ACG franchises that have no
+    relations at all yet.
+
+    Relations are curated by hand; this is a one-time seed, not a derivation.
+    So the gate is the whole franchise: one row touching any of its entries,
+    of any type, at either end, means somebody has started curating it and
+    nothing is written. A franchise seeded once has rows, so every later run
+    skips it - idempotent by construction, and a season added afterwards is
+    linked by hand.
+
+    Eligible entries are those derive_ep_previous_anime chains: anime with an
+    airing_type of TV or ONA, a non-blank season_part and no ep_special. They
+    are grouped by series, entries with no series forming one group of their
+    own, and each group is ordered by season_part_sort_key - the same key
+    ep_previous uses. Each adjacent pair becomes one `sequel` row with the
+    later entry at `from`. A group in which two entries share a key is
+    skipped whole rather than guessed at.
+
+    Commits nothing; the caller does. Returns relations_created,
+    franchises_seeded and groups_skipped_tied.
+    """
+    counts = {
+        "relations_created": 0,
+        "franchises_seeded": 0,
+        "groups_skipped_tied": 0,
+    }
+
+    acg = FranchiseType.ACG.value
+    franchise_ids = [
+        fid
+        for fid, franchise_type in db.query(
+            Franchise.system_id, Franchise.franchise_type
+        ).all()
+        if acg in franchise_type_tokens(franchise_type)
+    ]
+    if not franchise_ids:
+        return counts
+
+    # Every endpoint any relation names. The table is hand-curated and small,
+    # so one read of it beats an IN list over every entry of every franchise.
+    related: set = set()
+    for from_type, from_id, to_type, to_id in db.query(
+        MediaRelation.from_type,
+        MediaRelation.from_id,
+        MediaRelation.to_type,
+        MediaRelation.to_id,
+    ).all():
+        related.add((from_type, from_id))
+        related.add((to_type, to_id))
+
+    # The franchise's entries are its `media` rows, every type at once - the
+    # parent link lives there, as list_candidate_entries and
+    # derive_ep_previous_anime both read it.
+    curated: set = set()
+    for media_type, entry_id, franchise_id in (
+        db.query(Media.media_type, Media.system_id, Media.franchise_id)
+        .filter(Media.franchise_id.in_(franchise_ids))
+        .all()
+    ):
+        if (media_type, entry_id) in related:
+            curated.add(franchise_id)
+    seedable = [fid for fid in franchise_ids if fid not in curated]
+    if not seedable:
+        return counts
+
+    eligible = (
+        db.query(Anime)
+        .join(Anime.media_row)
+        .filter(
+            Media.franchise_id.in_(seedable),
+            Anime.airing_type.in_(_SEED_AIRING_TYPES),
+            Anime.ep_special.is_(None),
+            Anime.season_part.isnot(None),
+        )
+        .all()
+    )
+    groups: Dict[Tuple[UUID, Optional[UUID]], List[Anime]] = {}
+    for anime in eligible:
+        if not str(anime.season_part).strip():
+            continue
+        groups.setdefault((anime.franchise_id, anime.series_id), []).append(anime)
+
+    seeded: set = set()
+    for (franchise_id, _series_id), siblings in groups.items():
+        if len(siblings) < 2:
+            continue
+        keyed = sorted(
+            ((season_part_sort_key(a.season_part), a) for a in siblings),
+            key=lambda pair: pair[0],
+        )
+        keys = [key for key, _ in keyed]
+        if len(set(keys)) != len(keys):
+            counts["groups_skipped_tied"] += 1
+            continue
+        for (_, earlier), (_, later) in zip(keyed, keyed[1:]):
+            row = normalize_relation(
+                "anime", later.system_id, "sequel", "anime", earlier.system_id
+            )
+            if find_duplicate(db, *row) is not None:
+                continue
+            from_type, from_id, kind, to_type, to_id = row
+            db.add(
+                MediaRelation(
+                    from_type=from_type,
+                    from_id=from_id,
+                    relation_type=kind,
+                    to_type=to_type,
+                    to_id=to_id,
+                )
+            )
+            counts["relations_created"] += 1
+            seeded.add(franchise_id)
+
+    db.flush()
+    counts["franchises_seeded"] = len(seeded)
+    return counts
 
 
 def _touching(media_type: str, entry_id: UUID):

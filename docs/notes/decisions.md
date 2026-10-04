@@ -2861,3 +2861,27 @@ verdict, which has no source to cite.
   Pull restores.
 - **`deleted_record.franchise_type` is left as it was.** It is a tombstone of
   what a deleted entry's franchise was typed at the time, not a live type.
+
+### Calculate All seeds anime sequel chains, once per franchise (2026-10-04)
+
+- **Relations stay hand-curated.** The old prequel/sequel derivation was
+  retired because it guessed wrong; this does not bring it back. It is a
+  one-time seed (`seed_sequel_relations`) of the one chain that is rarely
+  wrong - TV and ONA anime in one series ordered by their `season_part` -
+  so a newly imported ACG franchise does not start with an empty canvas.
+- **Gated on the franchise having no relations at all.** One row touching
+  any entry of the franchise, of any type, at either end, means somebody has
+  started curating it, and the seed writes nothing there. So it never
+  overrides or fights curation: it cannot add a link beside a hand-made
+  one, and deleting a seeded row is never undone by the next run.
+- **A franchise is seeded once.** Its own rows close the gate, so a season
+  added later is linked by hand rather than by a re-seed. Idempotence comes
+  from the gate, not from a marker column; seeded rows are ordinary rows.
+- **Ties are skipped, not guessed.** Two entries in a group with the same
+  `(season, part)` key - a `Cour` the key does not read, a `Season 2` beside a
+  `Season 2 Part 1` - leave the whole group unwritten and are counted in the
+  Calculate All message. `ep_previous` breaks the same tie by query order;
+  a wrong stored relation is worse than a missing one, so the seed does not.
+- **One sort key.** `season_part_sort_key` is shared with
+  `derive_ep_previous_anime`, so the two never disagree about which season
+  comes first.
