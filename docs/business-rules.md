@@ -202,12 +202,14 @@ with no series form their own group. Each group is processed independently.
 When a caller passes an explicit `series_id` (the anime write path does), only
 that one group is processed; when omitted, every group in the franchise is.
 
-**Ordering inside a group.** Sort key is `(season number, part number)` parsed
+**Ordering inside a group.** Sort key is `season_part_sort_key`, shared with the
+sequel seed (section 13): `(season number, part number)` parsed
 from `season_part` with `SEASON_PATTERN` (`season\s*(\d+)`) and `PART_PATTERN`
 (`part\s*(\d+)`); a missing number defaults to 1. So `"Season 2"` sorts as
 `(2, 1)`, `"Season 2 Part 2"` as `(2, 2)`. **"Cour N" is not read** by this sort
 (only by the title extractor), so `"Season 1 Cour 2"` sorts as `(1, 1)` — the
-same as `"Season 1"`, and the tie is broken by query order.
+same as `"Season 1"`, and the tie is broken by query order (the sequel seed
+skips a tied group instead).
 
 **Assignment**, walking the sorted list:
 
@@ -921,6 +923,25 @@ reachable through a chain, marked `derived: true`, `system_id: null`, with
 **Visibility.** For a non-root viewer, any edge whose far end or `via`
 intermediate the viewer may not see is **removed**, not blanked.
 
+### The sequel seed (`seed_sequel_relations`)
+
+Relations are curated by hand, except for one seed Calculate All runs: the
+anime sequel chains of an ACG franchise that has no relations yet.
+
+- **Franchises**: `franchise_type` holds the token `ACG`.
+- **Gate**: a franchise is skipped whole if any `media_relation` row names any
+  of its entries (any media type, via `media.franchise_id`) at either end. A
+  seeded franchise therefore never seeds again, and a later season is linked
+  by hand.
+- **Entries**: anime, `airing_type` `TV` or `ONA`, `season_part` set and not
+  blank, `ep_special` `NULL` - the `ep_previous` eligibility (section 3).
+- **Groups**: by `series_id`, entries with no series forming their own group;
+  never chained across groups. Fewer than two entries writes nothing.
+- **Order**: `season_part_sort_key`, the `ep_previous` sort key. A group with
+  two equal keys is **skipped and counted**, not guessed at.
+- **Rows**: per adjacent pair, `later —sequel→ earlier`, no remark, through
+  `normalize_relation` / `find_duplicate`.
+
 ---
 
 ### A derived h-comic animation status
@@ -1074,7 +1095,7 @@ row's `option_id` where a caller has it.
 
 | Rule / column                                                    | Migration                                                       | Replaced by                                                                                          |
 | ---------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `prequel_id`, `sequel_id`, `alternative`, `derive_related` columns on every media table, and the prequel/sequel derivation from release order | `media_relation_drop_legacy.py`                                 | `media_relation` rows, hand-curated (section 13). The derivation guessed wrong too often — it could not tell a sequel from a side story. |
+| `prequel_id`, `sequel_id`, `alternative`, `derive_related` columns on every media table, and the prequel/sequel derivation from release order | `media_relation_drop_legacy.py`                                 | `media_relation` rows, hand-curated (section 13), plus a one-time sequel seed for uncurated ACG franchises that orders by season/part rather than release order. The derivation guessed wrong too often — it could not tell a sequel from a side story. |
 | Watch-order derivation (`derive_related_anime` assigning `watch_order`)   | (function removed; `derive_ep_previous_all_anime` is what is left) | `watch_order_list` / `watch_order_section` / `watch_order_item`, curated by hand                 |
 | `watch_next` / `read_next` boolean columns; `franchise.watch_next_group`  | `b872c435410b_add_plan_next_table.py`                           | `plan_next` rows with `kind="next"`; `watch_next_group` values were copied into `size_group_manual.anime` |
 | `to_rewatch` (franchise, series, anime_movies, movies, tv_shows, cartoons) and `to_reread` (manga, novel, comic) columns | `9b0bcb763e8c_add_plan_next_kind_and_drop_rewatch_.py` | `plan_next` rows with `kind="rewatch"` (section 14)                                             |
