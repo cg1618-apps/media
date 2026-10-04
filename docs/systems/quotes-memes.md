@@ -1,6 +1,6 @@
 # Quotes and memes
 
-Last verified: 2026-10-01
+Last verified: 2026-10-04
 
 ## What this is for
 
@@ -188,6 +188,11 @@ row offers inline edit (PATCH), favourite toggle (PATCH) and delete, all via
 | Add | `meme` | `pages/add-tabs/MemeAddTab.jsx` → `POST /api/meme/` |
 | Modify / Delete | `quote` | `pages/modify-tabs/QuoteManageTab.jsx` (one component, `mode` prop) |
 | Modify / Delete | `meme` | `pages/modify-tabs/MemeManageTab.jsx` (same pattern) |
+
+`mode="modify"` lists on mount and filters per keystroke. `mode="delete"`
+queries nothing until there is a search (debounced 250 ms) or a picked entry
+or owner, and says so in its empty state - see
+[../frontend/admin-pages.md](../frontend/admin-pages.md#delete-deletejsx).
 
 ### Pickers and forms (`frontend/src/components/forms/`)
 

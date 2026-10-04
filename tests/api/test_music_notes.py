@@ -54,7 +54,7 @@ def test_sections_describe_the_status_bar_and_the_song_rows(client):
         assert song["link_text_category"] == "Song Source"
         assert song["type_status_section"] == "music_status"
         assert song["type_statuses"] == [
-            "All Done", "Done", "Need", "Pending", "Not Done",
+            "All Done", "Done", "Need", "Pending", "No Full Version", "Not Done",
         ]
         assert song["type_status_default"] == "Not Done"
         assert song["singleton"] is False
@@ -115,6 +115,22 @@ def test_moving_a_status_onto_a_taken_list_is_refused(admin_client, sample_anime
         f"/api/notes/{ed['system_id']}", json={"kind": "ed", "status": "Need"}
     )
     assert r.status_code == 200, r.text
+
+
+def test_a_song_and_a_list_can_have_no_full_version(admin_client, sample_anime):
+    # An OP whose full-length version was never released: the song cannot
+    # reach Done, and neither can its list.
+    song = admin_client.post(
+        "/api/notes",
+        json={**_owner(sample_anime), "section": "op", "title": "TV Size",
+              "status": "No Full Version"},
+    )
+    assert song.status_code == 201, song.text
+    assert song.json()["status"] == "No Full Version"
+    listed = admin_client.post(
+        "/api/notes", json=_status_row(sample_anime, status="No Full Version")
+    )
+    assert listed.status_code == 201, listed.text
 
 
 def test_a_list_status_outside_the_vocabulary_is_refused(admin_client, sample_anime):

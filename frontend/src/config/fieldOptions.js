@@ -320,13 +320,14 @@ export const H_GAME_PLATFORMS = ["Steam", "DLsite", "Nintendo", "Other"];
 // for h-comic, and anime's AIRING_STATUSES. Gated the same way.
 export const HENTAI_SOURCE_MATERIALS = ["Original", "Manga", "Novel"];
 
-export const MUSIC_STATUSES = ["Need", "Pending", "Done"];
+export const MUSIC_STATUSES = ["Need", "Pending", "No Full Version", "Done"];
 // The status of a whole song list (an anime's OPs, EDs, insert songs or OST).
 export const MUSIC_TYPE_STATUSES = [
   "All Done",
   "Done",
   "Need",
   "Pending",
+  "No Full Version",
   "Not Done",
 ];
 

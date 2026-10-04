@@ -119,4 +119,5 @@ class TestSeriesNewColumns:
             "size_group_manual",
             "created_at",
             "updated_at",
+            "alone_reviewed_media_id",
         ]

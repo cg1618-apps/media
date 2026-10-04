@@ -474,6 +474,20 @@ def parse_plan_next_from_sheet(raw: dict) -> dict:
     }
 
 
+def _alone_reviewed_from_sheet(raw: dict) -> dict:
+    """
+    franchise/series `alone_reviewed_media_id`, only when the sheet has the
+    column.
+
+    A backup taken before the column existed has no such header; restoring it
+    must leave a review made since alone rather than clear it, the way
+    collection_id is handled. A cell that is not a uuid restores as blank.
+    """
+    if "alone_reviewed_media_id" not in raw:
+        return {}
+    return {"alone_reviewed_media_id": _uuid_or_none(raw.get("alone_reviewed_media_id"))}
+
+
 def parse_franchise_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Franchise sheet into typed data ready for the Database.
@@ -504,6 +518,8 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+
+    parsed.update(_alone_reviewed_from_sheet(raw))
 
     # Only surface collection_id when the sheet actually has that column.
     # Including it unconditionally would set collection_id=None on every franchise
@@ -579,6 +595,7 @@ def parse_series_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_alone_reviewed_from_sheet(raw))
     parsed.update(_public_id_from_sheet(raw))
     return parsed
 

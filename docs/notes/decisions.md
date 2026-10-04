@@ -1756,14 +1756,25 @@ Two things were deliberately NOT done.
   touching the gate, and is the cheaper thing to do first if this is ever
   worth revisiting.
 
-- **Delete does not lazy-load behind its confirmation.** `entriesIn` and
-  `standaloneEntriesIn` count across every media type to decide whether to
-  offer deleting a now-orphaned franchise or series, and `deleteChildren`
-  walks every list. An unfetched list reads as empty, which would understate
-  the cascade and offer to delete a franchise that still holds entries — so
-  opening the modal and executing the delete both wait for every list. That is
-  stricter than the old code, which trusted a load that had already failed
-  with nothing but a toast to show for it.
+- **Delete does not lazy-load behind an entry's confirmation.** `entriesIn`
+  counts across every media type to decide whether to offer deleting a
+  now-orphaned franchise or series. An unfetched list reads as empty, which
+  would offer to delete a franchise that still holds entries — so opening an
+  entry's modal waits for every list. That is stricter than the old code,
+  which trusted a load that had already failed with nothing but a toast to
+  show for it.
+
+- **The group tabs ask the server what a group holds.** The collection,
+  franchise and series tabs read none of the entry lists, so under per-tab
+  loading their counts read every unfetched list as empty, the series counts
+  covered four types, and the cascade (`deleteChildren`, which walked the
+  client lists) deleted nothing it had not loaded and never checked a
+  response. `useGroupMembers` instead asks each type's list endpoint for the
+  rows filtered by `franchise_id` / `series_id` (and `/api/franchise/` by
+  `collection_id`), re-checks the parent id on every row it gets back, and the
+  cascade deletes exactly that set, stopping at the first failure. Fetching
+  all twelve lists on selection would also have been correct, at about 4MB
+  per selection; twelve filtered requests return only the members.
 
 ### The `anime_site` names became `media` (2026-09-21)
 
@@ -2922,4 +2933,35 @@ act on every anime of a season. Three choices:
   ever moved to Airing; a Rumored entry may never have aired at all.
 - **Autofill skips an anime with no MAL link** rather than failing on it,
   and the confirmation says how many it will skip.
+
+### Single-entry groups remember the entry that was reviewed, not a flag (2026-10-04)
+
+The review queue lists every franchise and series holding exactly one media
+entry, and some of them are single on purpose, so each can be marked
+"Reviewed – keep".
+
+- **The mark is the reviewed entry's id** (`alone_reviewed_media_id` on
+  `franchise` and `series`), and a group is listed when it has one entry whose
+  id differs from it. So the review is about a particular state of the group:
+  if the reviewed entry is moved out and another becomes the only one, the
+  group comes back by itself, because the decision that was made is not a
+  decision about the new entry.
+- **Rejected: a boolean `alone_reviewed` flag.** It would hide the group for
+  good. A flag can be made to reset when the group's entries change, but only
+  by hooking every write path that moves an entry - create, update, delete,
+  Pull, the merge and relation tools - and one missed path leaves a group
+  hidden for a reason that no longer holds. Comparing ids needs no hook.
+- **No foreign key to `media`.** The owner's design named an FK with
+  `ON DELETE SET NULL`; it was not added. `media.franchise_id` and
+  `media.series_id` already point the other way, and Pull restores the
+  Franchise and Series tabs before the Media tab, committing each tab on its
+  own, so a restore into an empty database would insert a franchise naming a
+  media row that does not exist yet and fail. The column is a plain uuid like
+  `cover_entry_id` beside it. Nothing is lost: a stale id matches no live
+  entry, so the group is listed again, which is what `SET NULL` would have
+  caused.
+- **It travels.** `system_id` is the identity a Backup and a Pull preserve,
+  so the id means the same entry on both machines. The Franchise and Series
+  parsers read the column only when the sheet has it, so restoring a backup
+  taken before it existed does not clear a review made since.
 

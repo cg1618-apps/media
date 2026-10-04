@@ -445,7 +445,7 @@ def test_section_out_exposes_the_song_contract():
         assert out.locator_placeholder == "Episode(s), e.g. ep 3"
         assert not out.locator_required
         assert not out.singleton
-        assert out.statuses == ["Need", "Pending", "Done"]
+        assert out.statuses == ["Need", "Pending", "No Full Version", "Done"]
         assert out.link_pairs is True
         assert out.link_text_category == "Song Source"
         # The per-type status bar is rendered from these three alone.
@@ -455,6 +455,7 @@ def test_section_out_exposes_the_song_contract():
             "Done",
             "Need",
             "Pending",
+            "No Full Version",
             "Not Done",
         ]
         assert out.type_status_default == "Not Done"
@@ -592,7 +593,7 @@ def test_section_out_carries_the_group_and_both_dropdowns():
     assert out.group_label == "音樂 Music"
     assert out.group_icon == "fa-music"
     assert out.default_kind == "normal"
-    assert out.statuses == ["Need", "Pending", "Done"]
+    assert out.statuses == ["Need", "Pending", "No Full Version", "Done"]
 
 
 def test_an_ungrouped_section_reports_no_group():

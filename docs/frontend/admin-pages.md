@@ -17,7 +17,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 |---|---|---|
 | `/system` | `pages/admin/Admin.jsx` | Control Center: pipelines, announcements, review modals |
 | `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit |
-| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Remarks and duplicate clusters to act on |
+| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music, single-entry groups |
 | `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes |
 | `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete |
 | `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) |
@@ -64,9 +64,9 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   pickers default to the season after today's (`nextSeason` in
   `lib/season.js`; seasons are calendar quarters, so late September offers
   `FAL` of the same year and December offers `WIN` of the next).
-- **Remarks / Duplicates modals.** The same views as the Review Queue, opened
-  in place. (The Remarks modal's media-type tab list must include every type;
-  `ReviewQueue.jsx` is the reference copy.)
+- **Remarks / Duplicates modals.** The Review Queue's own views, opened in
+  place: both modals render `RemarksView` and `DuplicatesView` from
+  `components/review/`, so the tab lists cannot drift apart.
 
 ## /data-history (`DataHistory.jsx`)
 
@@ -77,13 +77,39 @@ back to the owning franchise/series where the ids still exist.
 
 ## /review-queue (`ReviewQueue.jsx`)
 
-- **Remarks section** — `GET /api/data-control/check/remarks`: every entry
-  whose remark note is non-empty, grouped by media type, with the remark
-  editable in place through `RemarkModal` (PATCH on the entry; the remark is a
-  note section, see [../systems/notes.md](../systems/notes.md)).
-- **Duplicates section** — `GET /api/data-control/check/duplicates`: clusters
-  per type (see `find_all_duplicates` in
-  [../business-rules.md](../business-rules.md)) with links to Modify/Delete.
+Each block is one check under `GET /api/data-control/check/`, loaded when its
+button is pressed and reloaded by the same button. The blocks share one shell
+(`components/review/ReviewBlock.jsx`: title, count line, load button, empty
+state, error line) and one tab bar. A gated type's tab (h-comic, hentai,
+h-game) is drawn only for a session that may see the type
+(`visibleByType`, `lib/gatedTypes.js`); the server does not filter by access
+mode (the data-control router is gated on `manage.pipelines` alone).
+
+- **Entries with remarks** — `GET /check/remarks` (`RemarksView`): the
+  caller's own `remark` notes, one tab per media type, all twelve. Each row
+  shows the names, the type's disambiguating column, the caller's status and
+  the remark; clicking a row opens the entry's detail page (by `public_id`).
+  The remark is read-only here: it is edited on the entry or its notes page
+  (see [../systems/notes.md](../systems/notes.md)).
+- **Potential duplicates** — `GET /check/duplicates` (`DuplicatesView`):
+  clusters per tab (see `find_all_duplicates` in
+  [../business-rules.md](../business-rules.md)) — franchise, series, every
+  media type, system options (`[id] option_value` per member) and people &
+  companies (the `entities` clusters: `kind` and each member's name). Read
+  only; a cluster is resolved on `/modify`, `/delete` or a person's merge.
+- **Music to track** — `GET /check/music` (`MusicView`): every anime whose
+  music is waiting, with only its flagged song lists and songs (name, episode,
+  status). Three chips — Need, Pending, No Full Version, all on at first —
+  narrow the rows to the statuses picked; an anime stays while any of its
+  flagged items matches. A row opens the anime's detail page, where its music
+  notes are.
+- **Single-entry groups** — `GET /check/alone-groups` (`RelationView`): two
+  tabs, Franchise and Series, each row the group (linked), its one entry's
+  type and the entry (linked). **Reviewed – keep** POSTs
+  `/check/alone-groups/{kind}/{system_id}/reviewed` and drops the row; the
+  group comes back by itself once its lone entry is replaced. A 409 (the group
+  changed since the list loaded) is shown above the table. A row whose entry
+  is of a gated type the session cannot see is not drawn.
 
 ## /add (`Add.jsx`)
 
@@ -739,17 +765,41 @@ only land in its own grid. The swap is a draft until **Save Grid**.
 ## /delete (`Delete.jsx`)
 
 Loads the five entity lists (options, studios, publishers, people,
-characters) on mount and the entry lists per tab, the same way `/add` does.
-Every list carries `limit=2000`; the API default of 500 would silently truncate
-the search and the checks below. For a selected row it shows a confirmation
-modal with the consequences:
+characters) and the three group lists (collection, franchise, series) on
+mount, and the entry lists per tab, the same way `/add` does. Every list
+carries `limit=2000`; the API default of 500 would silently truncate the
+search and the checks below. Each tab is a search box over its list; picking
+a row shows its card, and the card's Delete button opens a confirmation modal
+with the consequences:
 
 | Deleting | What is offered |
 |---|---|
 | Collection | Never cascades; member franchises become uncollected. |
-| Franchise | **Cascade** (checkbox): deletes every series and every media entry of *every* type under it (`deleteChildren("franchise_id", id)`), or leaves them with `franchise_id = NULL` if unchecked. |
-| Series | Cascade over every media type holding that `series_id`. |
+| Franchise | **Cascade** (checkbox): deletes every series and every media entry of *every* type listed under it, or leaves them with `franchise_id = NULL` if unchecked. |
+| Series | **Cascade** over every entry listed under it, of every type; unchecked, they keep their franchise and lose the series. **Orphan franchise** offer when it is its franchise's only series and the franchise holds no entry outside a series. |
 | Any media entry | **Orphan series** offer when it is the last entry of any type in its series; **orphan franchise** offer when it is the last entry of any type in the franchise and the franchise has no (remaining) series. |
+
+**Collection, franchise and series show what they hold.** Selecting one reads
+its members from the server (`hooks/useGroupMembers.js`), not from the page's
+entry lists, which on these tabs are never loaded: a collection's franchises
+(`/api/franchise/?collection_id=`), a franchise's series
+(`/api/series/?franchise_id=`) and its entries of all twelve media types, a
+series' entries of eleven - each type's list endpoint filtered by
+`franchise_id` or `series_id`. Anime movies are not asked for a series, since
+`anime_movies` has no `series_id` and the endpoint would ignore the filter
+and answer with every anime movie. The card and the modal both show a count
+per type, then every member by name, grouped by type and linking to its
+page. The search dropdown shows names only; the counts are on the card.
+
+**What is shown is what a cascade deletes.** The cascade walks exactly the
+listed members - entries first, then a franchise's series, then the group,
+then a ticked orphan franchise - through each type's `DELETE` endpoint, and
+stops at the first one that fails, naming it in an error toast; whatever was
+deleted before it stays deleted, and the cards re-read what is left. Confirm
+Delete stays disabled while the members are loading or if they failed to load.
+The modal also says that the group's memes, notes and watch orders are
+deleted with it: each is `ON DELETE CASCADE` on the collection, franchise or
+series that owns it.
 
 The **Game tab**'s panel adds one line of its own: when the selected game has
 copy rows it warns how many will be deleted with it. Its DLC and expansion rows
@@ -767,15 +817,23 @@ included; nothing is deleted until **Confirm Delete** is pressed, and Cancel
 deletes nothing. The studio, publisher, person and character panels, and the
 quote and meme tabs, confirm inline instead (Delete, then Confirm Delete).
 
-Counts are computed across all twelve media types (`entriesIn`,
-`standaloneEntriesIn`), so **opening the confirmation waits for every media
-list to be in** — lazily loaded ones included. A list that was never fetched reads as empty,
-which would understate the cascade and offer to delete a franchise that still
-holds entries. The modal says "Checking what else this would delete…" while
-that completes. Deletion order is children first, then the row, then
-any orphaned parents the admin ticked. Every delete goes through the type's
-`DELETE` endpoint, which also removes cover images, plan rows, credit links and
-writes a `deleted_record`.
+A media entry's orphan offers are computed across all twelve media types
+(`entriesIn`), so **opening an entry's confirmation waits for every media
+list to be in** — lazily loaded ones included. A list that was never fetched
+reads as empty, which would offer to delete a franchise that still holds
+entries. The modal says "Checking what else this would delete…" while that
+completes. Deletion order is the entry, then any orphaned parents the admin
+ticked. Every delete goes through the type's `DELETE` endpoint, which also
+removes cover images, plan rows, credit links and writes a `deleted_record`.
+
+**The quote and meme tabs list nothing until asked.** They render
+`QuoteManageTab` and `MemeManageTab` with `mode="delete"`, which query
+`/api/quote/` or `/api/meme/` only once there is a search or a picked entry
+(owner, for memes), and debounce the search by 250 ms
+(`hooks/useDebouncedValue.js`). Until then the tab says "Search or pick an
+entry to find quotes." (or an owner, for memes). Modify renders the same
+components with `mode="modify"`, which list on mount and filter on every
+keystroke.
 
 **Entity pickers are filtered the way the Modify tab's are.** Person and
 Character carry the same type tabs — All first, which lists records holding
