@@ -39,10 +39,6 @@ from app.utils.media_resolver import MEDIA_TYPE_KEYS, OWNER_TYPE_KEYS
 # shape does not name stay null.
 SHAPE_TEXT = "text"  # content
 SHAPE_TEXT_LINKS = "text_links"  # content, links, optional episode
-# content XOR one link. Distinct from text_links, which lets one row carry a
-# body AND its sources: a public review is either what someone said or a
-# pointer to where they said it, so mixing the two in one row is ambiguous.
-SHAPE_TEXT_OR_LINK = "text_or_link"  # content or links[0], never both
 SHAPE_EPISODE_TEXT = "episode_text"  # episode, content, kind where declared
 SHAPE_NAME_LINKS = "name_links"  # title, links
 # A named list whose items are each either a line of text or a labelled link,
@@ -67,7 +63,7 @@ SHAPE_MUSIC_TRACK = "music_track"  # title, kind, status, locator, links, conten
 # its rows are drawn above the lists they describe (see `hidden` and
 # `type_status_section`).
 SHAPE_MUSIC_STATUS = "music_status"  # kind, status
-# The registry-driven shape. Unlike the eight above, `structured` does not name
+# The registry-driven shape. Unlike the seven above, `structured` does not name
 # a fixed set of columns: the SECTION declares an ordered `fields` spec, each
 # field saying what it is called, how it is edited, and where it is stored -
 # either one of `note`'s existing content columns or a key inside the `fields`
@@ -88,7 +84,6 @@ STORED_SHAPES = frozenset(
     {
         SHAPE_TEXT,
         SHAPE_TEXT_LINKS,
-        SHAPE_TEXT_OR_LINK,
         SHAPE_EPISODE_TEXT,
         SHAPE_NAME_LINKS,
         SHAPE_NAME_ENTRIES,
@@ -727,8 +722,12 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # card - see `groups_by_owner`.
         #
         # Personal, like 我的評價 it stands in for.
+        #
+        # Every list of 評論 but 我的評價 is a body with any number of links -
+        # a remark is often worth its source - while 我的評價 is the one place
+        # for my own verdict and stays plain text.
         key="reviews_and_comments",
-        shape=SHAPE_TEXT,
+        shape=SHAPE_TEXT_LINKS,
         label="評論 Reviews and Comments",
         owners=H_OWNERS,
         scope=SCOPE_PERSONAL,
@@ -736,7 +735,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         key="advantages",
-        shape=SHAPE_TEXT,
+        shape=SHAPE_TEXT_LINKS,
         label="優點 Advantages",
         owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_PERSONAL,
@@ -744,7 +743,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         key="disadvantages",
-        shape=SHAPE_TEXT,
+        shape=SHAPE_TEXT_LINKS,
         label="缺點 Disadvantages",
         owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_PERSONAL,
@@ -752,7 +751,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         key="double_edged",
-        shape=SHAPE_TEXT,
+        shape=SHAPE_TEXT_LINKS,
         label="優缺點",
         owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_PERSONAL,
@@ -760,7 +759,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         key="public_reviews",
-        shape=SHAPE_TEXT_OR_LINK,
+        shape=SHAPE_TEXT_LINKS,
         label="大眾評價 Public Reviews",
         owners=_all_but(ALL_OWNERS, *H_OWNERS),
         scope=SCOPE_CATALOG,
@@ -1015,9 +1014,31 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="analysis_group",
     ),
     NoteSection(
+        # What the work has not said yet: a guess at where the story goes or
+        # what something means, with the scene it rests on and anyone else who
+        # made it. Beside Foreshadowing because a guess is usually read off
+        # one, and held by the same owners - the works with a story to guess
+        # at. Shared like the rest of 解析, not personal.
+        key="speculation",
+        shape=SHAPE_TEXT_LINKS,
+        label="猜測 Speculation",
+        owners=(
+            "anime",
+            "anime-movie",
+            "tv-show",
+            "cartoon",
+            "manga",
+            "novel",
+        )
+        + _SERIES_AND_UP,
+        scope=SCOPE_CATALOG,
+        locator_placeholder="Episode(s), e.g. ep 3",
+        group="analysis_group",
+    ),
+    NoteSection(
         # A hidden reference: something planted in one scene for a reader to
         # catch, where it plays, and where somebody spotted it. Last in 解析
-        # because it is the lightest of the five - a find, not a reading.
+        # because it is the lightest of them - a find, not a reading.
         #
         # Structured rather than text_links because its links are text-and-URL
         # pairs, the same as a song's, and text_links holds URL strings.

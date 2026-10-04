@@ -463,7 +463,7 @@ not drawn. The character, person and studio libraries use it for
   endpoints on one page.
 - **`pages/notes/sections`** — one component per note shape (`TextSection`,
   `TextLinksSection`, `EpisodeTextSection`, `NameLinksSection`,
-  `MusicTrackSection`, `QuoteSection`, `MemeSection`, `TextOrLinkSection`,
+  `MusicTrackSection`, `QuoteSection`, `MemeSection`,
   `NameEntriesSection`, `StructuredSection`) plus `ui.jsx` chrome. The hidden
   `music_status` shape has no component: `NotesProvider` drops every section
   the registry marks `hidden` before layout, counting or rendering sees it.
@@ -532,7 +532,7 @@ not drawn. The character, person and studio libraries use it for
   groups and rows move by their grips - a row only within its own group
   (`movedRow` in `groupedRows.js`) - and each move goes to `onReorder` as the
   section's whole row order, grouped - nothing else stores the group order.
-  `NotesTemplate`'s `SHAPES` map covers all nine stored shapes.
+  `NotesTemplate`'s `SHAPES` map covers every stored shape but the hidden `music_status`.
   Every list section shows its first three rows and folds the rest behind
   "Show all (N)" - `useEntryCap` and `ShowAllToggle` in `ui.jsx`, one hook
   and one control shared by all of them rather than a copy per shape. The row

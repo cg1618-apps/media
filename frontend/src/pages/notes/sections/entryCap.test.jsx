@@ -18,7 +18,6 @@ import NameEntriesSection from "./NameEntriesSection";
 import NameLinksSection from "./NameLinksSection";
 import StructuredSection from "./StructuredSection";
 import TextLinksSection from "./TextLinksSection";
-import TextOrLinkSection from "./TextOrLinkSection";
 import TextSection from "./TextSection";
 import { VISIBLE_ENTRIES, capEntries } from "./ui";
 
@@ -67,7 +66,6 @@ const STRUCTURED_FIELDS = [
 const SHAPES = [
   ["TextSection", TextSection, section("text")],
   ["TextLinksSection", TextLinksSection, section("text_links")],
-  ["TextOrLinkSection", TextOrLinkSection, section("text_or_link")],
   ["EpisodeTextSection", EpisodeTextSection, section("episode_text")],
   ["NameLinksSection", NameLinksSection, section("name_links")],
   ["NameEntriesSection", NameEntriesSection, section("name_entries")],

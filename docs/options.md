@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-10-03
+Last verified: 2026-10-04
 
 ## What this is for
 
@@ -237,9 +237,9 @@ claims no sameness.
 The registry of what a `note` row may be. Full behaviour is in
 [systems/notes.md](systems/notes.md); this lists only the vocabularies.
 
-**Shapes**: `text`, `text_links`, `text_or_link`, `episode_text`,
+**Shapes**: `text`, `text_links`, `episode_text`,
 `name_links`, `name_entries`, `music_track`, `music_status`,
-`structured` (the nine
+`structured` (the eight
 `STORED_SHAPES`) plus `external` (quotes and memes, which live in their own
 tables). `structured` is the newest: the section declares its own ordered
 field spec and one component renders it. `name_entries` is owned by no
@@ -279,12 +279,12 @@ out. What the three gated types keep is in
 |---|---|---|---|---|---|
 | `remark` | text | 備註 Remark | All | | singleton |
 | `remark_list` | text_links | 備註列表 Remark List | All | | Personal scope, many rows - 備註 is the singleton block |
-| `reviews_and_comments` | text | 評論 Reviews and Comments | h-comic, hentai, h-game | flat; **reviews** for h-game | personal scope; in place of 大眾評價 and 我的評價 |
+| `reviews_and_comments` | text_links | 評論 Reviews and Comments | h-comic, hentai, h-game | flat; **reviews** for h-game | personal scope; in place of 大眾評價 and 我的評價 |
 | `introduction` | text_links | 介紹 Introduction | All but h-comic, hentai | reviews | First in the 評論 card; shaped and scoped like 解析 |
-| `advantages` | text | 優點 Advantages | All but h-comic, hentai | reviews | |
-| `disadvantages` | text | 缺點 Disadvantages | All but h-comic, hentai | reviews | |
-| `double_edged` | text | 優缺點 | All but h-comic, hentai | reviews | |
-| `public_reviews` | text_or_link | 大眾評價 Public Reviews | All but H | reviews | |
+| `advantages` | text_links | 優點 Advantages | All but h-comic, hentai | reviews | |
+| `disadvantages` | text_links | 缺點 Disadvantages | All but h-comic, hentai | reviews | |
+| `double_edged` | text_links | 優缺點 | All but h-comic, hentai | reviews | |
+| `public_reviews` | text_links | 大眾評價 Public Reviews | All but H | reviews | |
 | `personal_reviews` | text | 我的評價 Personal Reviews | All but H | reviews | gated by field group `personal_notes` |
 | `episode_comments` | text_links | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | anime, tv-show, cartoon, game | reviews | locator required; game's placeholder is "Chapter / Part" |
 | `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
@@ -298,6 +298,7 @@ out. What the three gated types keep is in
 | `craft` | text_links | 巧思 | novel | analysis_group | |
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
+| `speculation` | text_links | 猜測 Speculation | same as foreshadowing | analysis_group | |
 | `easter_eggs` | structured | 彩蛋 Easter Eggs | anime | analysis_group | episode, description (required), links as text-URL pairs |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
 | `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description |

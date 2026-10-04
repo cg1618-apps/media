@@ -10,7 +10,6 @@ def test_every_section_has_a_known_shape():
     valid = {
         ns.SHAPE_TEXT,
         ns.SHAPE_TEXT_LINKS,
-        ns.SHAPE_TEXT_OR_LINK,
         ns.SHAPE_EPISODE_TEXT,
         ns.SHAPE_NAME_LINKS,
         ns.SHAPE_NAME_ENTRIES,
@@ -210,8 +209,21 @@ def test_the_analysis_group_holds_cinematography_and_its_novel_twin():
         "craft",
         "foreshadowing",
         "symmetry",
+        "speculation",
         "easter_eggs",
     ]
+
+
+def test_speculation_is_shaped_and_owned_like_foreshadowing():
+    speculation = ns.section_by_key("speculation")
+    foreshadowing = ns.section_by_key("foreshadowing")
+    assert speculation.label == "猜測 Speculation"
+    assert speculation.shape == ns.SHAPE_TEXT_LINKS
+    assert speculation.scope == ns.SCOPE_CATALOG
+    assert speculation.locator_placeholder == foreshadowing.locator_placeholder
+    assert speculation.owners == foreshadowing.owners
+    # No game: a game has no 解析 card, only 解析 itself inside 評論.
+    assert not set(speculation.owners) & set(ns.GAME_OWNERS)
 
 
 def test_the_quotes_memes_group_holds_both_external_sections():
@@ -327,6 +339,7 @@ def test_anime_sections_in_registry_order():
         "cinematography",
         "foreshadowing",
         "symmetry",
+        "speculation",
         "easter_eggs",
         "music_status",
         "op",
@@ -429,17 +442,31 @@ def test_labels_use_ascii_solidus():
             assert "／" not in value
 
 
-def test_public_reviews_takes_text_or_a_link():
-    # A public review is either something someone said or a pointer to where
-    # they said it, never both in one row.
-    sec = ns.section_by_key("public_reviews")
-    assert sec.shape == ns.SHAPE_TEXT_OR_LINK
-    assert ns.SHAPE_TEXT_OR_LINK in ns.STORED_SHAPES
+REVIEW_LISTS = (
+    "reviews_and_comments",
+    "advantages",
+    "disadvantages",
+    "double_edged",
+    "public_reviews",
+    "introduction",
+    "episode_comments",
+)
 
 
-def test_public_reviews_is_the_only_text_or_link_section():
-    keys = [s.key for s in ns.NOTE_SECTIONS if s.shape == ns.SHAPE_TEXT_OR_LINK]
-    assert keys == ["public_reviews"]
+def test_every_review_list_but_personal_reviews_is_text_and_links():
+    for key in REVIEW_LISTS:
+        assert ns.section_by_key(key).shape == ns.SHAPE_TEXT_LINKS, key
+
+
+def test_the_review_lists_are_every_reviews_section_but_personal_reviews():
+    """The mirror: a section joining 評論 must be named above, or this fails."""
+    in_reviews = {
+        s.key
+        for s in ns.NOTE_SECTIONS
+        if s.group == "reviews" or "reviews" in s.groups_by_owner.values()
+    }
+    # 解析 Analysis joins 評論 for games only, and is text_links already.
+    assert in_reviews - {"analysis"} == set(REVIEW_LISTS) | {"personal_reviews"}
 
 
 def test_personal_reviews_stays_plain_text():
@@ -588,6 +615,7 @@ CATALOG_KEYS = {
     "craft",
     "foreshadowing",
     "symmetry",
+    "speculation",
     "easter_eggs",
     # 攻略 Guides
     "beginner",
@@ -675,7 +703,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 73
+    assert len(stored) == 74
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 

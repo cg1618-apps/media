@@ -121,11 +121,11 @@ def test_the_section_is_offered_to_h_comic_with_its_grouping(admin_client):
     ],
 )
 def test_h_comic_and_hentai_keep_one_list_of_reviews(admin_client, owner_type, expected):
-    """No 評論 card, 解析, Questions or 名言/梗 - one list of text instead."""
+    """No 評論 card, 解析, Questions or 名言/梗 - one list of reviews instead."""
     sections = admin_client.get("/api/notes/sections", params={"owner_type": owner_type}).json()
     assert [s["key"] for s in sections] == expected
     reviews = next(s for s in sections if s["key"] == "reviews_and_comments")
-    assert reviews["shape"] == "text"
+    assert reviews["shape"] == "text_links"
     assert reviews["scope"] == "personal"
 
 

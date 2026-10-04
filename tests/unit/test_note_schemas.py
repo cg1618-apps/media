@@ -158,18 +158,30 @@ def test_blank_text_links_row_rejected():
         )
 
 
-# --- text_or_link (public_reviews) ------------------------------------------
-# A public review row is one thing: a quoted opinion, or a link to where the
-# opinion lives. Both at once is ambiguous, so the shape rejects it.
+# --- the 評論 review lists as text_links --------------------------------------
+# A review row is a body with any number of links: what was said, and where.
 
 
-def test_text_or_link_row_may_be_text_only():
+@pytest.mark.parametrize(
+    "section", ["public_reviews", "advantages", "disadvantages", "double_edged"]
+)
+def test_review_row_takes_text_and_several_links(section):
+    validate_note_payload(
+        _payload(
+            section=section,
+            content="評價兩極，節奏被詬病",
+            links=["https://myanimelist.net/reviews/12345", "https://b.example/2"],
+        )
+    )
+
+
+def test_review_row_may_be_text_only():
     validate_note_payload(
         _payload(section="public_reviews", content="評價兩極，節奏被詬病")
     )
 
 
-def test_text_or_link_row_may_be_link_only():
+def test_review_row_may_be_link_only():
     validate_note_payload(
         _payload(
             section="public_reviews",
@@ -179,29 +191,7 @@ def test_text_or_link_row_may_be_link_only():
     )
 
 
-def test_text_or_link_row_rejects_text_and_link_together():
-    with pytest.raises(ValueError, match="text or a link"):
-        validate_note_payload(
-            _payload(
-                section="public_reviews",
-                content="評價兩極",
-                links=["https://myanimelist.net/reviews/12345"],
-            )
-        )
-
-
-def test_text_or_link_row_rejects_more_than_one_link():
-    with pytest.raises(ValueError, match="one link"):
-        validate_note_payload(
-            _payload(
-                section="public_reviews",
-                content=None,
-                links=["https://a.example/1", "https://b.example/2"],
-            )
-        )
-
-
-def test_blank_text_or_link_row_rejected():
+def test_blank_review_row_rejected():
     with pytest.raises(ValueError, match="empty"):
         validate_note_payload(
             _payload(section="public_reviews", content="  ", links=None)
