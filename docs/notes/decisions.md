@@ -1756,14 +1756,25 @@ Two things were deliberately NOT done.
   touching the gate, and is the cheaper thing to do first if this is ever
   worth revisiting.
 
-- **Delete does not lazy-load behind its confirmation.** `entriesIn` and
-  `standaloneEntriesIn` count across every media type to decide whether to
-  offer deleting a now-orphaned franchise or series, and `deleteChildren`
-  walks every list. An unfetched list reads as empty, which would understate
-  the cascade and offer to delete a franchise that still holds entries — so
-  opening the modal and executing the delete both wait for every list. That is
-  stricter than the old code, which trusted a load that had already failed
-  with nothing but a toast to show for it.
+- **Delete does not lazy-load behind an entry's confirmation.** `entriesIn`
+  counts across every media type to decide whether to offer deleting a
+  now-orphaned franchise or series. An unfetched list reads as empty, which
+  would offer to delete a franchise that still holds entries — so opening an
+  entry's modal waits for every list. That is stricter than the old code,
+  which trusted a load that had already failed with nothing but a toast to
+  show for it.
+
+- **The group tabs ask the server what a group holds.** The collection,
+  franchise and series tabs read none of the entry lists, so under per-tab
+  loading their counts read every unfetched list as empty, the series counts
+  covered four types, and the cascade (`deleteChildren`, which walked the
+  client lists) deleted nothing it had not loaded and never checked a
+  response. `useGroupMembers` instead asks each type's list endpoint for the
+  rows filtered by `franchise_id` / `series_id` (and `/api/franchise/` by
+  `collection_id`), re-checks the parent id on every row it gets back, and the
+  cascade deletes exactly that set, stopping at the first failure. Fetching
+  all twelve lists on selection would also have been correct, at about 4MB
+  per selection; twelve filtered requests return only the members.
 
 ### The `anime_site` names became `media` (2026-09-21)
 

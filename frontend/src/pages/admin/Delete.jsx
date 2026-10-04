@@ -1,7 +1,12 @@
 // Frontend: page component file for Delete.
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { endpoints } from "../../api/endpoints";
 import { useEntryLists, GROUP_LIST_TYPES } from "../../hooks/useEntryLists";
+import { useGroupMembers } from "../../hooks/useGroupMembers";
+import { mediaTypeLabel } from "../../config/mediaRegistry";
+import { entityPath } from "../../lib/entityPath";
 import { ADD_TAB_LISTS, listsForTab } from "../../config/adminEntryLists";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
@@ -123,6 +128,8 @@ function getDisplayTitle(item, type) {
       item.collection_name_cn ||
       item.collection_name_en ||
       item.collection_name_roman ||
+      item.collection_name_jp ||
+      item.collection_name_alt ||
       "Unknown"
     );
   if (type === "franchise")
@@ -140,6 +147,15 @@ function getDisplayTitle(item, type) {
       "Unknown"
     );
   return item.value || "Unknown";
+}
+
+// The English and alternative names of a group row, leaving out whichever
+// one getDisplayTitle already shows.
+function altNames(item, type) {
+  const title = getDisplayTitle(item, type);
+  return [item[`${type}_name_en`], item[`${type}_name_alt`]].filter(
+    (name) => name && name !== title,
+  );
 }
 
 function SearchBox({ placeholder, onSelect, items, renderItem, type }) {
@@ -202,6 +218,94 @@ function SearchBox({ placeholder, onSelect, items, renderItem, type }) {
   );
 }
 
+// What a collection, franchise or series holds (useGroupMembers), on its
+// selected card and again in the confirmation: a count per type, then every
+// member by name, each linking to its page. A cascade deletes exactly the
+// entries and series listed here.
+function GroupMembers({ tier, members }) {
+  if (members.isLoading) {
+    return (
+      <p className="text-xs text-text-faint mt-2 flex items-center gap-2">
+        <i className="fas fa-spinner fa-spin"></i>
+        Loading what this {tier} holds…
+      </p>
+    );
+  }
+  if (members.isError) {
+    return (
+      <p className="text-xs text-danger mt-2">
+        Could not load what this {tier} holds. Reload the page before deleting
+        it.
+      </p>
+    );
+  }
+
+  const groups = [
+    ...(members.franchises.length
+      ? [{ type: "franchise", label: "Franchise", rows: members.franchises }]
+      : []),
+    ...(members.series.length
+      ? [{ type: "series", label: "Series", rows: members.series }]
+      : []),
+    ...members.entries.map((g) => ({ ...g, label: mediaTypeLabel(g.type) })),
+  ];
+
+  return (
+    <div className="mt-2 space-y-2">
+      <p
+        data-testid="group-member-counts"
+        className="text-sm font-bold text-text-muted"
+      >
+        {groups.map((g) => `${g.rows.length} ${g.label}`).join(" · ") ||
+          "No entries"}
+      </p>
+      {groups.length > 0 && (
+        <div className="max-h-64 overflow-y-auto border border-border rounded-lg divide-y divide-border text-left">
+          {groups.map((g) => (
+            <div key={g.type} className="px-3 py-2">
+              <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+                {g.label} · {g.rows.length}
+              </div>
+              <ul className="mt-1 space-y-0.5">
+                {g.rows.map((row) => {
+                  const title = getDisplayTitle(row, g.type);
+                  const path = entityPath(g.type, row);
+                  return (
+                    <li key={row.system_id} className="text-xs text-text">
+                      {path ? (
+                        <Link
+                          to={path}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-brand hover:underline"
+                        >
+                          {title}
+                        </Link>
+                      ) : (
+                        title
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The rows a collection, franchise or series takes with it when deleted: its
+// memes, notes and watch orders are ON DELETE CASCADE on the tier.
+function TierOwnedNote() {
+  return (
+    <div className="bg-surface-2 border border-border rounded-xl p-3 text-xs text-text-muted">
+      Its memes, notes and watch orders are deleted with it.
+    </div>
+  );
+}
+
 export default function Delete() {
   const { showToast } = useToast();
   const [tab, setTab] = useState("anime");
@@ -231,21 +335,6 @@ export default function Delete() {
   const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game", "h-comic", "h-game", "hentai"];
   const entriesIn = (field, id) =>
     MEDIA_KEYS.reduce((n, k) => n + db[k].filter((e) => e[field] === id).length, 0);
-  const standaloneEntriesIn = (franchiseId) =>
-    MEDIA_KEYS.reduce(
-      (n, k) => n + db[k].filter((e) => e.franchise_id === franchiseId && !e.series_id).length,
-      0,
-    );
-  async function deleteChildren(field, id) {
-    for (const key of MEDIA_KEYS) {
-      for (const e of db[key].filter((x) => x[field] === id)) {
-        await fetch(endpoints.resource(key).detail(e.system_id), {
-          method: "DELETE",
-          credentials: "include",
-        });
-      }
-    }
-  }
 
   const [selectedAnime, setSelectedAnime] = useState(null);
   const [selectedAnimeMovie, setSelectedAnimeMovie] = useState(null);
@@ -259,8 +348,32 @@ export default function Delete() {
   const [selectedHComic, setSelectedHComic] = useState(null);
   const [selectedHGame, setSelectedHGame] = useState(null);
   const [selectedHentai, setSelectedHentai] = useState(null);
+  const [selectedCollection, setSelectedCollection] = useState(null);
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
+  // The three group tabs show, and cascade over, what the server says each
+  // group holds - see hooks/useGroupMembers.js. The series tab also reads its
+  // parent franchise's members, for the orphan-franchise offer.
+  const queryClient = useQueryClient();
+  const collectionMembers = useGroupMembers(
+    "collection",
+    selectedCollection?.system_id,
+  );
+  const franchiseMembers = useGroupMembers(
+    "franchise",
+    selectedFranchise?.system_id,
+  );
+  const seriesMembers = useGroupMembers("series", selectedSeries?.system_id);
+  const seriesParentMembers = useGroupMembers(
+    "franchise",
+    selectedSeries?.franchise_id,
+  );
+  const membersOf = (tier) =>
+    tier === "collection"
+      ? collectionMembers
+      : tier === "franchise"
+        ? franchiseMembers
+        : seriesMembers;
   const [selectedOption, setSelectedOption] = useState(null);
   const [selectedPublisher, setSelectedPublisher] = useState(null);
   const [publisherConfirm, setPublisherConfirm] = useState(false);
@@ -384,17 +497,20 @@ export default function Delete() {
     return s ? getDisplayTitle(s, "series") : "Unknown";
   }
 
-  // entriesIn() and standaloneEntriesIn() count across every media type, and
-  // the modal uses those counts to decide whether to offer deleting a
-  // now-orphaned franchise or series. An undercount would offer to delete a
-  // franchise that still holds entries, so the modal does not open until
-  // every list is in - lazily loaded ones included.
+  // entriesIn() counts across every media type, and the modal uses those
+  // counts to decide whether to offer deleting a now-orphaned franchise or
+  // series. An undercount would offer to delete a franchise that still holds
+  // entries, so an entry's modal does not open until every list is in -
+  // lazily loaded ones included. The group tiers read their members from the
+  // server instead (useGroupMembers) and need none of the lists.
   async function initDelete(type, item) {
-    setPreparing(true);
-    try {
-      await ensureAll();
-    } finally {
-      setPreparing(false);
+    if (!GROUP_LIST_TYPES.includes(type)) {
+      setPreparing(true);
+      try {
+        await ensureAll();
+      } finally {
+        setPreparing(false);
+      }
     }
     setCascadeChecked(false);
     setOrphanSeriesChecked(false);
@@ -628,6 +744,53 @@ export default function Delete() {
     } finally {
       setDeleting(false);
     }
+  }
+
+  // One DELETE of a group's cascade. A failure stops the run where it is,
+  // naming the row, so the admin is never told a cascade finished that did
+  // not: whatever was deleted before it stays deleted, and nothing after it
+  // is attempted.
+  async function deleteOrStop(type, row) {
+    const res = await fetch(endpoints.resource(type).remove(row.system_id), {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      throw new Error(
+        `Stopped: could not delete ${mediaTypeLabel(type)} "${getDisplayTitle(row, type)}" (HTTP ${res.status}). Nothing after it was deleted.`,
+      );
+    }
+  }
+
+  // Collection, franchise and series. The cascade runs over exactly the
+  // members the modal listed (useGroupMembers): children first, then a
+  // franchise's series, then the row, then a parent franchise the admin
+  // ticked as orphaned. A collection never cascades - its franchises keep
+  // existing with collection_id = NULL.
+  async function executeGroupDelete(type, item) {
+    const members = membersOf(type);
+    if (cascadeChecked && type !== "collection") {
+      for (const group of members.entries) {
+        for (const row of group.rows) await deleteOrStop(group.type, row);
+      }
+      for (const row of members.series) await deleteOrStop("series", row);
+    }
+    await deleteOrStop(type, item);
+    if (type === "series" && orphanFranchiseChecked && item.franchise_id) {
+      await deleteOrStop(
+        "franchise",
+        db.franchise.find((f) => f.system_id === item.franchise_id) || {
+          system_id: item.franchise_id,
+        },
+      );
+    }
+
+    setSelectedCollection(null);
+    setSelectedFranchise(null);
+    setSelectedSeries(null);
+    showToast("success", "Deletion successful");
+    await Promise.all([loadDb(), reloadLoaded()]);
+    setModal(null);
   }
 
   async function executeDelete() {
@@ -918,19 +1081,9 @@ export default function Delete() {
         return;
       }
 
-      // Cascade deletions
-      if (type === "franchise" && cascadeChecked) {
-        await deleteChildren("franchise_id", item.system_id);
-        for (const s of db.series.filter(
-          (x) => x.franchise_id === item.system_id,
-        )) {
-          await fetch(`/api/series/${s.system_id}`, {
-            method: "DELETE",
-            credentials: "include",
-          });
-        }
-      } else if (type === "series" && cascadeChecked) {
-        await deleteChildren("series_id", item.system_id);
+      if (GROUP_LIST_TYPES.includes(type)) {
+        await executeGroupDelete(type, item);
+        return;
       }
 
       // Primary deletion
@@ -954,26 +1107,18 @@ export default function Delete() {
             credentials: "include",
           });
         }
-      } else if (
-        type === "series" &&
-        orphanFranchiseChecked &&
-        item.franchise_id
-      ) {
-        await fetch(`/api/franchise/${item.franchise_id}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
       }
 
       setSelectedAnime(null);
-      setSelectedFranchise(null);
-      setSelectedSeries(null);
       showToast("success", "Deletion successful");
       await Promise.all([loadDb(), reloadLoaded()]);
       setModal(null);
     } catch (e) {
       showToast("error", e.message);
     } finally {
+      // A cascade that stopped part-way has changed what each group holds,
+      // and one that finished has changed it too: the cards re-read it.
+      queryClient.invalidateQueries({ queryKey: ["group-members"] });
       setDeleting(false);
     }
   }
@@ -1001,6 +1146,11 @@ export default function Delete() {
         )
         .sort((a, b) => a.alias_value.localeCompare(b.alias_value, "en"))
     : [];
+
+  // A group's confirmation is held until its members are in, since they are
+  // what a cascade deletes.
+  const isGroupModal = !!modal && GROUP_LIST_TYPES.includes(modal.type);
+  const modalMembers = isGroupModal ? membersOf(modal.type) : null;
 
   if (loading) {
     return (
@@ -1035,6 +1185,11 @@ export default function Delete() {
           setSelectedManga(null);
           setSelectedNovel(null);
           setSelectedComic(null);
+          setSelectedGame(null);
+          setSelectedHComic(null);
+          setSelectedHGame(null);
+          setSelectedHentai(null);
+          setSelectedCollection(null);
           setSelectedFranchise(null);
           setSelectedSeries(null);
           setSelectedOption(null);
@@ -1046,6 +1201,14 @@ export default function Delete() {
           setPublisherConfirm(false);
           setPublisherMergeMode(false);
           setPublisherMergeTarget(null);
+          setSelectedPerson(null);
+          setPersonConfirm(false);
+          setPersonMergeMode(false);
+          setPersonMergeTarget(null);
+          setSelectedCharacter(null);
+          setCharacterConfirm(false);
+          setCharacterMergeMode(false);
+          setCharacterMergeTarget(null);
         }}
       />
 
@@ -2212,6 +2375,71 @@ export default function Delete() {
         </div>
       )}
 
+      {/* COLLECTION TAB */}
+      {tab === "collection" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search collection to delete..."
+              items={db.collection}
+              type="collection"
+              onSelect={setSelectedCollection}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "collection")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {altNames(item, "collection").join(" · ")}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedCollection && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-text text-base">
+                    {getDisplayTitle(selectedCollection, "collection")}
+                  </h3>
+                  <p className="text-sm text-text-faint">
+                    {[
+                      selectedCollection.collection_name_en,
+                      selectedCollection.collection_name_alt,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "No alt names"}
+                  </p>
+                  <p className="text-xs font-mono text-text-faint mt-1">
+                    {selectedCollection.system_id}
+                  </p>
+                  <GroupMembers
+                    tier="collection"
+                    members={collectionMembers}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedCollection(null)}
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() => initDelete("collection", selectedCollection)}
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* FRANCHISE TAB */}
       {tab === "franchise" && (
         <div className="space-y-4">
@@ -2221,68 +2449,25 @@ export default function Delete() {
               items={db.franchise}
               type="franchise"
               onSelect={setSelectedFranchise}
-              renderItem={(item) => {
-                const fid = item.system_id;
-                const counts = [
-                  {
-                    label: "series",
-                    n: db.series.filter((s) => s.franchise_id === fid).length,
-                  },
-                  {
-                    label: "anime",
-                    n: db.anime.filter((a) => a.franchise_id === fid).length,
-                  },
-                  {
-                    label: "anime movie",
-                    n: db["anime-movie"].filter((m) => m.franchise_id === fid)
-                      .length,
-                  },
-                  {
-                    label: "movie",
-                    n: db.movie.filter((m) => m.franchise_id === fid).length,
-                  },
-                  {
-                    label: "TV show",
-                    n: db["tv-show"].filter((t) => t.franchise_id === fid)
-                      .length,
-                  },
-                  {
-                    label: "cartoon",
-                    n: db.cartoon.filter((c) => c.franchise_id === fid).length,
-                  },
-                  {
-                    label: "manga",
-                    n: db.manga.filter((m) => m.franchise_id === fid).length,
-                  },
-                  {
-                    label: "novel",
-                    n: db.novel.filter((n) => n.franchise_id === fid).length,
-                  },
-                  {
-                    label: "comic",
-                    n: db.comic.filter((c) => c.franchise_id === fid).length,
-                  },
-                ].filter((x) => x.n > 0);
-                return (
-                  <div>
-                    <div className="font-bold text-text text-sm">
-                      {getDisplayTitle(item, "franchise")}
-                    </div>
-                    <div className="text-[11px] text-text-faint">
-                      {counts.length > 0
-                        ? counts.map((x) => `${x.n} ${x.label}`).join(" · ")
-                        : "No entries"}
-                    </div>
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "franchise")}
                   </div>
-                );
-              }}
+                  <div className="text-[11px] text-text-faint">
+                    {[...altNames(item, "franchise"), item.franchise_type]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                </div>
+              )}
             />
           </div>
 
           {selectedFranchise && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
-              <div className="flex items-start justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
                   <h3 className="font-black text-text text-base">
                     {getDisplayTitle(selectedFranchise, "franchise")}
                   </h3>
@@ -2302,22 +2487,7 @@ export default function Delete() {
                   <p className="text-xs font-mono text-text-faint mt-1">
                     {selectedFranchise.system_id}
                   </p>
-                  <p className="text-sm font-bold text-text-muted mt-2">
-                    {[
-                      { label: "Series", n: db.series.filter((s) => s.franchise_id === selectedFranchise.system_id).length },
-                      { label: "Anime", n: db.anime.filter((a) => a.franchise_id === selectedFranchise.system_id).length },
-                      { label: "Anime Movie", n: db["anime-movie"].filter((m) => m.franchise_id === selectedFranchise.system_id).length },
-                      { label: "Movie", n: db.movie.filter((m) => m.franchise_id === selectedFranchise.system_id).length },
-                      { label: "TV Show", n: db["tv-show"].filter((t) => t.franchise_id === selectedFranchise.system_id).length },
-                      { label: "Cartoon", n: db.cartoon.filter((c) => c.franchise_id === selectedFranchise.system_id).length },
-                      { label: "Manga", n: db.manga.filter((m) => m.franchise_id === selectedFranchise.system_id).length },
-                      { label: "Novel", n: db.novel.filter((n) => n.franchise_id === selectedFranchise.system_id).length },
-                      { label: "Comic", n: db.comic.filter((c) => c.franchise_id === selectedFranchise.system_id).length },
-                    ]
-                      .filter((x) => x.n > 0)
-                      .map((x) => `${x.n} ${x.label}`)
-                      .join(" · ") || "No entries"}
-                  </p>
+                  <GroupMembers tier="franchise" members={franchiseMembers} />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2348,47 +2518,23 @@ export default function Delete() {
               items={db.series}
               type="series"
               onSelect={setSelectedSeries}
-              renderItem={(item) => {
-                const sid = item.system_id;
-                const counts = [
-                  {
-                    label: "anime",
-                    n: db.anime.filter((a) => a.series_id === sid).length,
-                  },
-                  {
-                    label: "manga",
-                    n: db.manga.filter((m) => m.series_id === sid).length,
-                  },
-                  {
-                    label: "novel",
-                    n: db.novel.filter((n) => n.series_id === sid).length,
-                  },
-                  {
-                    label: "comic",
-                    n: db.comic.filter((c) => c.series_id === sid).length,
-                  },
-                ].filter((x) => x.n > 0);
-                return (
-                  <div>
-                    <div className="font-bold text-text text-sm">
-                      {getDisplayTitle(item, "series")}
-                    </div>
-                    <div className="text-[11px] text-text-faint">
-                      {getFranchiseTitle(item.franchise_id)}
-                      {counts.length > 0 &&
-                        " · " +
-                          counts.map((x) => `${x.n} ${x.label}`).join(" · ")}
-                    </div>
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "series")}
                   </div>
-                );
-              }}
+                  <div className="text-[11px] text-text-faint">
+                    {getFranchiseTitle(item.franchise_id)}
+                  </div>
+                </div>
+              )}
             />
           </div>
 
           {selectedSeries && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
-              <div className="flex items-start justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
                   <h3 className="font-black text-text text-base">
                     {getDisplayTitle(selectedSeries, "series")}
                   </h3>
@@ -2406,17 +2552,7 @@ export default function Delete() {
                   <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedSeries.franchise_id)}
                   </p>
-                  <p className="text-sm font-bold text-text-muted mt-1">
-                    {[
-                      { label: "Anime", n: db.anime.filter((a) => a.series_id === selectedSeries.system_id).length },
-                      { label: "Manga", n: db.manga.filter((m) => m.series_id === selectedSeries.system_id).length },
-                      { label: "Novel", n: db.novel.filter((n) => n.series_id === selectedSeries.system_id).length },
-                      { label: "Comic", n: db.comic.filter((c) => c.series_id === selectedSeries.system_id).length },
-                    ]
-                      .filter((x) => x.n > 0)
-                      .map((x) => `${x.n} ${x.label}`)
-                      .join(" · ") || "No entries"}
-                  </p>
+                  <GroupMembers tier="series" members={seriesMembers} />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -3311,31 +3447,34 @@ export default function Delete() {
             </div>
 
             <div className="space-y-3 mb-5">
+              {/* A group lists what it holds - the set a cascade deletes -
+                  and says what goes with it regardless. */}
+              {isGroupModal && (
+                <>
+                  <GroupMembers tier={modal.type} members={modalMembers} />
+                  <TierOwnedNote />
+                </>
+              )}
+
               {/* Collections never cascade: members simply become uncollected. */}
-              {modal.type === "collection" && (
+              {modal.type === "collection" && !modalMembers.isLoading && (
                 <div className="bg-brand-soft border border-brand/30 rounded-xl p-3">
                   <div className="text-xs font-bold text-text">
                     <i className="fas fa-info-circle mr-1"></i> Member
                     franchises are NOT deleted
                   </div>
                   <div className="text-xs text-text-muted mt-1">
-                    {
-                      db.franchise.filter(
-                        (f) => f.collection_id === modal.item.system_id,
-                      ).length
-                    }{" "}
-                    franchise(s) will simply become uncollected. Their entries
-                    are untouched.
+                    {modalMembers.franchises.length} franchise(s) become
+                    uncollected. Their entries are untouched.
                   </div>
                 </div>
               )}
 
-              {/* Cascade option for franchise */}
-              {modal.type === "franchise" &&
-                (db.series.filter(
-                  (s) => s.franchise_id === modal.item.system_id,
-                ).length > 0 ||
-                  entriesIn("franchise_id", modal.item.system_id) > 0) && (
+              {/* Cascade option for franchise and series: exactly the members
+                  listed above. */}
+              {(modal.type === "franchise" || modal.type === "series") &&
+                (modalMembers.series.length > 0 ||
+                  modalMembers.entryCount > 0) && (
                   <label className="flex items-start gap-3 bg-danger/10 border border-danger/40 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -3350,38 +3489,10 @@ export default function Delete() {
                       </div>
                       <div className="text-xs text-danger mt-0.5">
                         Also delete{" "}
-                        {
-                          db.series.filter(
-                            (s) => s.franchise_id === modal.item.system_id,
-                          ).length
-                        }{" "}
-                        series and{" "}
-                        {entriesIn("franchise_id", modal.item.system_id)}{" "}
-                        media entries of every type.
-                      </div>
-                    </div>
-                  </label>
-                )}
-
-              {/* Cascade option for series */}
-              {modal.type === "series" &&
-                entriesIn("series_id", modal.item.system_id) > 0 && (
-                  <label className="flex items-start gap-3 bg-danger/10 border border-danger/40 rounded-xl p-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={cascadeChecked}
-                      onChange={(e) => setCascadeChecked(e.target.checked)}
-                      className="mt-0.5 rounded border-danger accent-danger w-4 h-4"
-                    />
-                    <div>
-                      <div className="text-xs font-bold text-danger">
-                        <i className="fas fa-trash-restore mr-1"></i> Cascade
-                        Delete
-                      </div>
-                      <div className="text-xs text-danger mt-0.5">
-                        Also delete{" "}
-                        {entriesIn("series_id", modal.item.system_id)}{" "}
-                        media entries of every type.
+                        {modal.type === "franchise" &&
+                          `${modalMembers.series.length} series and `}
+                        the {modalMembers.entryCount} media entries listed
+                        above. Unticked, they are kept with no {modal.type}.
                       </div>
                     </div>
                   </label>
@@ -3439,13 +3550,16 @@ export default function Delete() {
                   </label>
                 )}
 
-              {/* Orphan franchise warning (series) */}
+              {/* Orphan franchise warning (series): this is the parent's
+                  only series and the parent holds no entry outside a series. */}
               {modal.type === "series" &&
                 modal.item.franchise_id &&
-                db.series.filter(
-                  (s) => s.franchise_id === modal.item.franchise_id,
-                ).length === 1 &&
-                standaloneEntriesIn(modal.item.franchise_id) === 0 && (
+                !seriesParentMembers.isLoading &&
+                !seriesParentMembers.isError &&
+                seriesParentMembers.series.length === 1 &&
+                seriesParentMembers.entries.every((g) =>
+                  g.rows.every((row) => row.series_id),
+                ) && (
                   <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -3751,7 +3865,11 @@ export default function Delete() {
               </button>
               <button
                 onClick={executeDelete}
-                disabled={deleting}
+                disabled={
+                  deleting ||
+                  (isGroupModal &&
+                    (modalMembers.isLoading || modalMembers.isError))
+                }
                 className="flex-1 px-4 py-2.5 bg-danger text-white rounded-xl text-sm font-bold hover:bg-danger-hover transition disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <i
