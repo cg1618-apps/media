@@ -1043,13 +1043,27 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # because it is the lightest of them - a find, not a reading. Shaped
         # like the rest of 解析: an episode, a description and any number of
         # URL links.
+        #
+        # Every entry type outside the gated ones: any work can hide a
+        # reference. For a game it sits in 評論 Reviews, right after 解析
+        # Analysis, which moved there for the same reason - a game has no
+        # 解析 card of its own.
         key="easter_eggs",
         shape=SHAPE_TEXT_LINKS,
         label="彩蛋 Easter Eggs",
-        owners=("anime",),
+        owners=_all_but(ENTRY_OWNERS, *H_OWNERS),
         scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
+        locator_placeholders={
+            "anime-movie": "Scene, e.g. 1:02:30",
+            "movie": "Scene, e.g. 1:02:30",
+            "manga": "Chapter(s), e.g. ch 6",
+            "novel": "Chapter(s), e.g. ch 6",
+            "comic": "Issue(s), e.g. #3",
+            "game": "Chapter / Part, e.g. Ch 3",
+        },
         group="analysis_group",
+        groups_by_owner={"game": "reviews"},
     ),
     # --- 攻略 Guides ------------------------------------------------------
     # Fifteen sections rather than one section with a kind, because each is a
