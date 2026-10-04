@@ -85,11 +85,12 @@ class AnimeAiringType(str, Enum):
 
 
 class FranchiseType(str, Enum):
-    ANIME = "Anime"
     MOVIE = "Movie"
     TV = "TV"
     CARTOON = "Cartoon"
     COMIC = "Comic"
+    # The one type for anime and manga franchises: an anime, an anime movie,
+    # a series and a manga all auto-create their franchise as ACG.
     ACG = "ACG"
     NOVEL = "Novel"
     GAME = "Game"
@@ -209,12 +210,12 @@ MUSIC_TYPE_STATUS_DEFAULT = "Not Done"
 
 # ---------------------------------------------------------------------------
 # frontend/src/config/fieldOptions.js diverges from the Enum classes above for
-# these two fields (FranchiseType has "Anime" and no "Anime Movie";
-# AnimeAiringType lacks the trailing "Other"). The /api/constants endpoint
-# must serve what the dropdowns show today, so it reads these tuples instead
-# of the enums — see Ruling R10 in the system-options-redesign spec. The
-# Enum classes stay untouched; backend logic keeps using them. Do not
-# collapse these back into `_values(c.FranchiseType)` /
+# these two fields (FranchiseType has no "Anime Movie"; AnimeAiringType lacks
+# the trailing "Other"). The /api/constants endpoint must serve what the
+# dropdowns show, so it reads these tuples instead of the enums (Ruling R10
+# of the options redesign); backend logic keeps using the enums. Every
+# FranchiseType value is in FRANCHISE_TYPES, so whatever auto-creation stamps
+# is a type the dropdown offers. Do not collapse these back into `_values(c.FranchiseType)` /
 # `_values(c.AnimeAiringType)` without first reconciling the two lists.
 FRANCHISE_TYPES: tuple[str, ...] = (
     "ACG",

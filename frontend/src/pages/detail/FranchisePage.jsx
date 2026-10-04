@@ -388,11 +388,7 @@ export default function FranchisePage() {
     () => parseTypes(franchise?.franchise_type),
     [franchise],
   );
-  const hasACG = useMemo(
-    () => types.includes("ACG") || types.includes("Anime"),
-    [types],
-  );
-  const hasACGFull = useMemo(() => types.includes("ACG"), [types]);
+  const hasACG = useMemo(() => types.includes("ACG"), [types]);
   const hasNovel = useMemo(
     () => types.includes("Novel") || types.includes("ACG"),
     [types],
@@ -428,8 +424,9 @@ export default function FranchisePage() {
   }, [franchise]);
 
   // Media types this franchise actually holds entries for, driven by the
-  // per-type entry lists rather than franchise_type (which is multi-valued,
-  // bundles types together, and carries a legacy "Anime" value).
+  // per-type entry lists rather than franchise_type (which is multi-valued
+  // and bundles types together: ACG alone covers anime, anime movies, manga
+  // and novels).
   const franchiseMediaTypes = useMemo(() => {
     const list = [];
     if (animeList.length) list.push("anime");
@@ -473,7 +470,7 @@ export default function FranchisePage() {
     return [
       hasACG && animeList.length && "Anime",
       (hasACG || hasAnimeMovie) && animeMovieList.length && "Anime Movies",
-      hasACGFull && mangaList.length && "Manga",
+      hasACG && mangaList.length && "Manga",
       hasNovel && novelList.length && "Novel",
       hasComic && comicList.length && "Comic",
       hasGame && gameList.length && "Game",
@@ -487,7 +484,6 @@ export default function FranchisePage() {
   }, [
     franchise,
     hasACG,
-    hasACGFull,
     hasNovel,
     hasComic,
     hasGame,
