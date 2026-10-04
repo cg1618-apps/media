@@ -274,9 +274,9 @@ The MAL cast import (`POST /api/casting/mal`, `app/services/domain/mal_cast.py`)
 
 | Tenrai field | Becomes | Rule |
 |---|---|---|
-| `character.mal_id` | the character match key | matched against `character.mal_id` among characters the caller can see; an unmatched one is created with `name_en`, `mal_id` and `mal_link` |
-| `character.url` | `character.mal_link` of a created character | as-is |
-| `character.name` | `character.name_en` of a created character | `_western_order` |
+| `character.mal_id` | the character match key | matched against `character.mal_id` among characters the caller can see; failing that, by name among the request's `character_ids` that have no `mal_id`, which then take it; an unmatched one is created with `name_en`, `mal_id` and `mal_link` |
+| `character.url` | `character.mal_link` of a created character, or of a name-matched one whose `mal_link` is blank | as-is |
+| `character.name` | `character.name_en` of a created character (`name_en` in the row); the row's `name_mal` keeps it as MAL wrote it | `_western_order`; both orders are compared when matching a held character by name |
 | `character.images.jpg.image_url` | `character.photo_file` of a created character | `_mal_photo`; downloaded after the response (see [credits-and-tags.md](systems/credits-and-tags.md)) |
 | `role` | the casting's `role` | `Main` kept; everything else, MAL's `Supporting` included, becomes `Other` (`_mal_cast_role`). Which side characters are Core or Supporting is set by hand |
 | `voice_actors[]` where `language` is `Japanese` | the casting's voices | each `person.mal_id` matched against `person.mal_id`, then `person.name` (western order) through `resolve_person`; other languages are dropped. A manga, novel or h-comic row carries no voices. |

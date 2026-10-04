@@ -2631,6 +2631,32 @@ import was designed on them) into cast rows. Five choices:
   treats as needing one, so the character's next MAL fill repairs it with no
   bookkeeping of its own.
 
+### A MAL cast import matches a hand-added character by name, within the cast (2026-10-04)
+
+Matching only by `mal_id` meant a character added to a cast by hand, with no
+MAL link, was not recognised by a later "Import from MAL": the import minted a
+second character carrying the MAL id and the editor appended a second row for
+the same person. The editor now sends the character ids its form holds, and a
+MAL row no `mal_id` matches is compared by name with those of them that have
+no `mal_id`.
+
+- **Only within the cast, never database-wide.** Decision G still holds for
+  the database: "Yuki" recurs across unrelated works. A character already in
+  this entry's cast is a different case - the admin has already said this
+  character belongs to this work, and MAL listing the same name for the same
+  work is the same character.
+- **One match is reused; more than one is a warning.** Two held characters
+  answering to the name are not guessed between: the row is dropped and named
+  in `warnings`, the same treatment an ambiguous seiyuu name gets, and nothing
+  is created for it.
+- **A held character with a `mal_id` is never matched by name.** Its MAL
+  identity is settled, and a different id means a different character.
+- **Both name orders.** The mapper's `name_en` is western order, which cannot
+  be turned back, so the row keeps MAL's own "Last, First" as `name_mal`; a
+  hand-typed name is matched in either order, with or without the comma,
+  through `normalize_name` against every name column, `name_alt` split on
+  commas.
+
 ### Every list reorders by dnd-kit drag (2026-10-02)
 
 Every reorderable list - the cast, novel-unit, game-copy and club-member

@@ -542,17 +542,34 @@ chose to keep - and the ids and timestamps are never copied.
   that changes nothing.
 
 **Importing a cast.** `POST /api/casting/mal` (`manage.catalog`,
-`app/services/domain/mal_cast.py`) takes `{media_type, mal_link}`, the
-entry's own MAL page: `/anime/<id>` for anime, anime-movie and hentai, read
+`app/services/domain/mal_cast.py`) takes `{media_type, mal_link,
+character_ids}`. `mal_link` is the entry's own MAL page: `/anime/<id>` for anime, anime-movie and hentai, read
 through Tenrai's `GET /anime/{id}/characters`; `/manga/<id>` for manga, novel
 and h-comic, through `GET /manga/{id}/characters`. It returns `{cast, created_characters, created_people, warnings}`, where `cast` rows have
 the shape `GET /api/casting/{media_type}/{entry_id}` returns, in MAL's order.
+`character_ids` (optional, default empty) is every character the editor's
+form holds, saved or not.
 
-- **A character is matched by `character.mal_id` only**, never by name
-  (Decision G), and only among the characters the caller can see
-  (`apply_shared_visibility`) - reusing a hidden one would put its name in the
-  caller's form. An unmatched one is created with `name_en`, `mal_id` and
-  `mal_link`; a duplicate this produces is folded by merge.
+- **A character is matched by `character.mal_id` first**, and never by name
+  across the database (Decision G), only among the characters the caller can
+  see (`apply_shared_visibility`) - reusing a hidden one would put its name in
+  the caller's form.
+- **Within this cast, a character with no `mal_id` is matched by name.** A
+  MAL row no `mal_id` matches is compared with the `character_ids` characters
+  the caller can see that have no `mal_id`, so a character added to the cast
+  by hand is not minted a second time. Names compare through
+  `normalize_name` (width, case and spacing ignored) against `name_en`,
+  `name_cn`, `name_jp` and each comma-separated `name_alt`; the MAL side
+  answers to its western-order name, MAL's own "Last, First", and that order
+  without the comma. Exactly one match is reused: it takes the row's
+  `mal_id`, and its `mal_link` when blank, and the row carries its id, so the
+  editor skips it as already held. Two or more matches are not guessed
+  between: the row is dropped and named in `warnings`, and nothing is
+  created for it. A held character with a `mal_id` - another one - is never
+  matched by name, and nor is any character outside `character_ids`.
+- **An unmatched character is created** with `name_en`, `mal_id` and
+  `mal_link`; a duplicate this produces is folded by merge. Only created
+  characters count in `created_characters`.
 - **Only MAL's Main characters are Main; every other row is Other.** MAL's
   Supporting means "not Main", so it is not carried as Supporting - which
   side characters earn Core or Supporting is set by hand.

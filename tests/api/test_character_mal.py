@@ -146,6 +146,7 @@ def test_a_blank_kanji_name_is_no_name():
 def test_mapping_a_cast_keeps_only_japanese_voices():
     rows = map_tenrai_cast(FMA_CAST)
     assert [r["name_en"] for r in rows] == ["Edward Elric", "Alphonse Elric", "Roy Mustang"]
+    assert rows[0]["name_mal"] == "Elric, Edward"
     assert [r["role"] for r in rows] == ["Main", "Main", "Other"]
     assert [v["name_en"] for v in rows[0]["voices"]] == ["Romi Park"]
 
@@ -274,3 +275,140 @@ def test_mal_answering_nothing_is_a_502(admin_client, monkeypatch, no_downloads)
 def test_a_guest_cannot_import(client, cast_calls):
     assert _import(client).status_code in (401, 403)
     assert cast_calls == []
+
+
+# --- matching a hand-added character in this cast by name ---------------------
+#
+# Every test here holds a character with no mal_id whose name is one MAL
+# lists: that is what gives the name match something to match, so a test that
+# expects a NEW character proves the rule refused, not that nothing was there.
+
+
+def _import_holding(client, *characters):
+    return client.post(
+        "/api/casting/mal",
+        json={
+            "media_type": "anime",
+            "mal_link": FMA_LINK,
+            "character_ids": [str(c.system_id) for c in characters],
+        },
+    )
+
+
+def _character(db_session, **columns):
+    character = models.Character(system_id=uuid.uuid4(), **columns)
+    db_session.add(character)
+    db_session.commit()
+    return character
+
+
+def _with_mal_id(db_session, mal_id):
+    return db_session.query(models.Character).filter_by(mal_id=mal_id).all()
+
+
+def test_a_held_character_without_a_mal_id_is_reused_by_name(
+    admin_client, db_session, cast_calls
+):
+    edward = _character(db_session, name_en="Edward Elric")
+
+    r = _import_holding(admin_client, edward)
+    assert r.status_code == 200, r.text
+    body = r.json()
+
+    assert body["cast"][0]["character_id"] == str(edward.system_id)
+    assert body["created_characters"] == 2  # Alphonse and Roy, not Edward
+    db_session.expire_all()
+    edward = db_session.get(models.Character, edward.system_id)
+    assert edward.mal_id == 11
+    assert edward.mal_link == "https://myanimelist.net/character/11/x"
+    assert [c.system_id for c in _with_mal_id(db_session, 11)] == [edward.system_id]
+
+
+@pytest.mark.parametrize(
+    "columns",
+    [
+        {"name_en": "  edward   ELRIC "},
+        {"name_en": "Ｅｄｗａｒｄ Ｅｌｒｉｃ"},
+        {"name_en": "Elric, Edward"},
+        {"name_en": "Elric Edward"},
+        {"name_jp": "edward elric"},
+        {"name_cn": "Edward Elric"},
+        {"name_alt": "Fullmetal, Edward Elric"},
+    ],
+    ids=["case-and-spacing", "full-width", "mal-order", "family-first", "jp", "cn", "alt"],
+)
+def test_the_name_match_is_normalised_across_every_name_column(
+    admin_client, db_session, cast_calls, columns
+):
+    edward = _character(db_session, **columns)
+    body = _import_holding(admin_client, edward).json()
+    assert body["cast"][0]["character_id"] == str(edward.system_id)
+
+
+def test_a_name_match_outside_the_cast_still_creates_a_new_character(
+    admin_client, db_session, cast_calls
+):
+    edward = _character(db_session, name_en="Edward Elric")
+
+    body = _import_holding(admin_client).json()  # holds nothing
+
+    assert body["cast"][0]["character_id"] != str(edward.system_id)
+    assert body["created_characters"] == 3
+    db_session.expire_all()
+    assert db_session.get(models.Character, edward.system_id).mal_id is None
+
+
+def test_a_request_without_character_ids_matches_no_name(
+    admin_client, db_session, cast_calls
+):
+    edward = _character(db_session, name_en="Edward Elric")
+
+    body = _import(admin_client).json()
+
+    assert body["cast"][0]["character_id"] != str(edward.system_id)
+    assert body["created_characters"] == 3
+
+
+def test_a_held_character_with_another_mal_id_is_not_matched_by_name(
+    admin_client, db_session, cast_calls
+):
+    other = _character(db_session, name_en="Edward Elric", mal_id=999)
+
+    body = _import_holding(admin_client, other).json()
+
+    assert body["cast"][0]["character_id"] != str(other.system_id)
+    assert body["created_characters"] == 3
+    db_session.expire_all()
+    assert db_session.get(models.Character, other.system_id).mal_id == 999
+
+
+def test_two_held_characters_with_the_name_are_not_guessed_between(
+    admin_client, db_session, cast_calls
+):
+    first = _character(db_session, name_en="Edward Elric")
+    second = _character(db_session, name_jp="Edward Elric")
+
+    body = _import_holding(admin_client, first, second).json()
+
+    assert [row["character_name"] for row in body["cast"]] == [
+        "Alphonse Elric", "Roy Mustang",
+    ]
+    assert body["created_characters"] == 2
+    assert any("Edward Elric" in w for w in body["warnings"])
+    db_session.expire_all()
+    assert _with_mal_id(db_session, 11) == []
+
+
+def test_a_reused_characters_set_mal_link_is_kept(
+    admin_client, db_session, cast_calls
+):
+    kept = "https://myanimelist.net/character/11/Edward_Elric"
+    edward = _character(db_session, name_en="Edward Elric", mal_link=kept)
+
+    body = _import_holding(admin_client, edward).json()
+
+    assert body["cast"][0]["character_id"] == str(edward.system_id)
+    db_session.expire_all()
+    edward = db_session.get(models.Character, edward.system_id)
+    assert edward.mal_id == 11
+    assert edward.mal_link == kept

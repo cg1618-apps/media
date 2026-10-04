@@ -498,12 +498,17 @@ def map_tenrai_cast(items: list) -> list[Dict[str, Any]]:
     the character's MAL id, link, western-order name and picture, the role,
     and its Japanese voice actors - MAL lists every dub, and a casting
     records the original cast. An item with no character id is dropped.
+
+    `name_mal` keeps the name as MAL wrote it ("Elric, Edward"): the
+    western-order `name_en` cannot be turned back, and the cast import
+    matches a hand-typed name in either order.
     """
     rows = []
     for item in items or []:
         character = item.get("character") or {}
         if not character.get("mal_id"):
             continue
+        name = character.get("name")
         voices = [
             {
                 "mal_id": (va.get("person") or {}).get("mal_id"),
@@ -517,7 +522,8 @@ def map_tenrai_cast(items: list) -> list[Dict[str, Any]]:
             {
                 "mal_id": character["mal_id"],
                 "mal_link": character.get("url"),
-                "name_en": _western_order(character.get("name")),
+                "name_en": _western_order(name),
+                "name_mal": (name.strip() or None) if isinstance(name, str) else None,
                 "photo_url": _mal_photo(character),
                 "role": _mal_cast_role(item.get("role")),
                 "voices": voices,
