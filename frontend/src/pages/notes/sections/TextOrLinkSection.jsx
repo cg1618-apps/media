@@ -10,11 +10,15 @@ import {
   EmptyHint,
   ItemActions,
   LinkPill,
+  ReorderHandle,
+  ReorderList,
+  ReorderRow,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
   inputCls,
   useEntryCap,
+  useRowReorder,
 } from "./ui";
 
 function Row({ note }) {
@@ -34,6 +38,8 @@ export default function TextOrLinkSection({
   onCreate,
   onUpdate,
   onDelete,
+  onReorder,
+  reordering,
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
@@ -42,6 +48,7 @@ export default function TextOrLinkSection({
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
+  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
 
   const commit = () => {
     const fields = classify(draft);
@@ -67,37 +74,40 @@ export default function TextOrLinkSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {cap.visible.map((n) => (
-        <div key={n.system_id}>
-          {editId === n.system_id ? (
-            <div>
-              <textarea
-                value={editVal}
-                onChange={(e) => setEditVal(e.target.value)}
-                rows={2}
-                className={inputCls}
-                autoFocus
-              />
-              <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
-            </div>
-          ) : (
-            <div className="flex gap-2 items-start group">
-              <span className="text-xs text-text-faint mt-0.5 shrink-0">•</span>
-              <div className="flex-1 min-w-0">
-                <Row note={n} />
+      <ReorderList reorder={reorder}>
+        {cap.visible.map((n) => (
+          <ReorderRow key={n.system_id} reorder={reorder} id={n.system_id}>
+            {editId === n.system_id ? (
+              <div>
+                <textarea
+                  value={editVal}
+                  onChange={(e) => setEditVal(e.target.value)}
+                  rows={2}
+                  className={inputCls}
+                  autoFocus
+                />
+                <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
               </div>
-              <ItemActions
-                isAdmin={isAdmin}
-                onEdit={() => {
-                  setEditId(n.system_id);
-                  setEditVal(toInput(n));
-                }}
-                onDelete={() => onDelete(n.system_id)}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+            ) : (
+              <div className="flex gap-2 items-start group">
+                <ReorderHandle reorder={reorder} note={n} className="pt-0.5" />
+                <span className="text-xs text-text-faint mt-0.5 shrink-0">•</span>
+                <div className="flex-1 min-w-0">
+                  <Row note={n} />
+                </div>
+                <ItemActions
+                  isAdmin={isAdmin}
+                  onEdit={() => {
+                    setEditId(n.system_id);
+                    setEditVal(toInput(n));
+                  }}
+                  onDelete={() => onDelete(n.system_id)}
+                />
+              </div>
+            )}
+          </ReorderRow>
+        ))}
+      </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div>

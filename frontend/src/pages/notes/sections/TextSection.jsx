@@ -10,11 +10,15 @@ import { Button } from "../../../components/ui/primitives";
 import {
   EmptyHint,
   ItemActions,
+  ReorderHandle,
+  ReorderList,
+  ReorderRow,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
   inputCls,
   useEntryCap,
+  useRowReorder,
 } from "./ui";
 
 // ─── Singleton (Remark) ──────────────────────────────────────────────────────
@@ -130,7 +134,16 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
 
 // ─── List ────────────────────────────────────────────────────────────────────
 
-function TextList({ section, notes, isAdmin, onCreate, onUpdate, onDelete }) {
+function TextList({
+  section,
+  notes,
+  isAdmin,
+  onCreate,
+  onUpdate,
+  onDelete,
+  onReorder,
+  reordering,
+}) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const [editId, setEditId] = useState(null);
@@ -138,6 +151,7 @@ function TextList({ section, notes, isAdmin, onCreate, onUpdate, onDelete }) {
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
+  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
 
   const commit = () => {
     const content = draft.trim();
@@ -161,37 +175,38 @@ function TextList({ section, notes, isAdmin, onCreate, onUpdate, onDelete }) {
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {cap.visible.map((n) => (
-        <div key={n.system_id}>
-          {editId === n.system_id ? (
-            <div>
-              <textarea
-                value={editVal}
-                onChange={(e) => setEditVal(e.target.value)}
-                rows={2}
-                className={inputCls}
-                autoFocus
-              />
-              <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
-            </div>
-          ) : (
-            <div className="flex gap-2 items-start group">
-              <span className="text-xs text-text-faint mt-0.5 shrink-0">•</span>
-              <span className="text-sm text-text flex-1 whitespace-pre-wrap">
-                {n.content}
-              </span>
-              <ItemActions
-                isAdmin={isAdmin}
-                onEdit={() => {
-                  setEditId(n.system_id);
-                  setEditVal(n.content || "");
-                }}
-                onDelete={() => onDelete(n.system_id)}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+      <ReorderList reorder={reorder}>
+        {cap.visible.map((n) => (
+          <ReorderRow key={n.system_id} reorder={reorder} id={n.system_id}>
+            {editId === n.system_id ? (
+              <div>
+                <textarea
+                  value={editVal}
+                  onChange={(e) => setEditVal(e.target.value)}
+                  rows={2}
+                  className={inputCls}
+                  autoFocus
+                />
+                <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
+              </div>
+            ) : (
+              <div className="flex gap-2 items-start group">
+                <ReorderHandle reorder={reorder} note={n} className="pt-0.5" />
+                <span className="text-xs text-text-faint mt-0.5 shrink-0">•</span>
+                <span className="text-sm text-text flex-1 whitespace-pre-wrap">{n.content}</span>
+                <ItemActions
+                  isAdmin={isAdmin}
+                  onEdit={() => {
+                    setEditId(n.system_id);
+                    setEditVal(n.content || "");
+                  }}
+                  onDelete={() => onDelete(n.system_id)}
+                />
+              </div>
+            )}
+          </ReorderRow>
+        ))}
+      </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div>

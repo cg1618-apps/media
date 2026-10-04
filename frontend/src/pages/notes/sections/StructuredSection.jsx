@@ -19,7 +19,8 @@
 //   - a section naming `group_by` reads as one group per name of that field
 //     (groupedRows.js). The GROUPS are ordered - by the owner's stored order,
 //     `groupOrder`, which a drag of a group header rewrites through
-//     `onGroupOrderChange` - and the rows inside a group are not;
+//     `onGroupOrderChange`. Rows are not moved inside a group, since one row
+//     can sit in two; a toggle switches to the flat list, where they are;
 //   - a section naming `groupable_by` (a `select` field) gets a toggle that
 //     reads it one group per value. Nothing extra is stored for it: the
 //     groups follow the rows' `sort_index`, so moving a group or a row within
@@ -813,9 +814,10 @@ function GroupedRows({
 
 // --- Section --------------------------------------------------------------
 
-// Whether a `groupable_by` section is read grouped: on until the reader turns
-// it off, and remembered per section in this browser. Storage can be missing
-// or refuse (a private window, blocked site data), which leaves the default.
+// Whether a `group_by` or `groupable_by` section is read grouped: on until
+// the reader turns it off, and remembered per section in this browser.
+// Storage can be missing or refuse (a private window, blocked site data),
+// which leaves the default.
 function useGroupToggle(sectionKey) {
   const storageKey = `notes.grouped.${sectionKey}`;
   const [on, setOn] = useState(() => {
@@ -1033,6 +1035,20 @@ export default function StructuredSection({
           setAddingUnder(null);
         };
 
+  // The header toggle between the grouped view and the flat list, for a
+  // section grouped by `field`. Only shown once there is something to group.
+  const groupToggle = (field) =>
+    notes.length > 0 && (
+      <button
+        type="button"
+        aria-pressed={groupedByField}
+        onClick={() => setGroupedByField(!groupedByField)}
+        className={`${groupedByField ? brandTagCls : tagCls} cursor-pointer`}
+      >
+        {`Group by ${(field?.label || "group").toLowerCase()}`}
+      </button>
+    );
+
   if (groupableField) {
     const on = groupedByField;
     return (
@@ -1041,18 +1057,7 @@ export default function StructuredSection({
         count={notes.length}
         isAdmin={isAdmin}
         onAdd={openDraft}
-        actions={
-          notes.length > 0 && (
-            <button
-              type="button"
-              aria-pressed={on}
-              onClick={() => setGroupedByField(!on)}
-              className={`${on ? brandTagCls : tagCls} cursor-pointer`}
-            >
-              {`Group by ${groupableField.label.toLowerCase()}`}
-            </button>
-          )
-        }
+        actions={groupToggle(groupableField)}
       >
         {on ? (
           <GroupedRows
@@ -1078,24 +1083,38 @@ export default function StructuredSection({
     );
   }
 
+  // Grouped by a `names` field, where a row naming two names sits in two
+  // groups - so a row cannot be moved within a group without also moving in
+  // the other one. Rows are reordered in the flat list instead, behind the
+  // same toggle a `groupable_by` section has; the groups then show the rows
+  // in that order. Group order is the owner's own (`groupOrder`), untouched.
   if (section.group_by && !section.hierarchical) {
+    const on = groupedByField;
     return (
       <SectionCard
         label={section.label}
         count={notes.length}
         isAdmin={isAdmin}
         onAdd={openDraft}
+        actions={groupToggle(section.fields.find((f) => f.key === section.group_by))}
       >
-        <GroupedRows
-          section={section}
-          notes={notes}
-          isAdmin={isAdmin}
-          groupOrder={groupOrder}
-          onGroupOrderChange={onGroupOrderChange}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          nameSuggestions={nameSuggestions}
-        />
+        {on ? (
+          <GroupedRows
+            section={section}
+            notes={notes}
+            isAdmin={isAdmin}
+            groupOrder={groupOrder}
+            onGroupOrderChange={onGroupOrderChange}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            nameSuggestions={nameSuggestions}
+          />
+        ) : (
+          <>
+            {renderNodes(tree, 0)}
+            <ShowAllToggle {...cap.toggle} />
+          </>
+        )}
         {addingUnder === null && renderDraft()}
         {!notes.length && addingUnder === false && <EmptyHint />}
       </SectionCard>

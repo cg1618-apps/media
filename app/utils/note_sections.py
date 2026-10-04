@@ -1120,7 +1120,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # STARTING; this is everything else, and having it keeps a stray note
         # out of whichever list happens to be open.
         #
-        # Order carries no meaning, so its rows are appended and left alone.
+        # Order carries no meaning: rows are appended, and can be moved by hand
+        # like any list section's.
         #
         # Plain text, no links: a guide note is a remark, and a write-up worth
         # pointing at belongs in 攻略資源 Guide Resources.
@@ -1861,7 +1862,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # `resources`: two cards reading "Resources" on one page would be
         # unreadable, which is why the keys and the labels both differ.
         #
-        # Order carries no meaning, so its rows are appended and left alone.
+        # Order carries no meaning: rows are appended, and can be moved by hand
+        # like any list section's.
         key="guide_resources",
         shape=SHAPE_STRUCTURED,
         label="攻略資源 Guide Resources",
