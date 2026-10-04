@@ -7,6 +7,7 @@ import { getRatingWeight } from "../../utils/media";
 import DashboardCard from "../../components/tracker/DashboardCard";
 import { progressToast } from "../../lib/progressToast";
 import RatingDistributionBlock from "../../components/info/RatingDistributionBlock";
+import SeasonBulkActions from "../../components/tracker/SeasonBulkActions";
 import { Eyebrow, ProgressRule, RatingStamp, Slip } from "../../components/ui/primitives";
 
 // Section definitions — display order and status membership
@@ -106,6 +107,8 @@ export default function SeasonalDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [savingRating, setSavingRating] = useState(false);
+  // Bumped after a season-wide action so the season and its anime reload.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -142,7 +145,7 @@ export default function SeasonalDetail() {
       }
     }
     load();
-  }, [seasonalId]);
+  }, [seasonalId, reloadKey]);
 
   async function handleRatingChange(newRating) {
     const value = newRating === "" ? null : newRating;
@@ -288,9 +291,9 @@ export default function SeasonalDetail() {
             </div>
           </div>
 
-          {/* Right: admin rating control */}
+          {/* Right: admin rating control and season-wide actions */}
           {isAdmin && (
-            <div className="shrink-0">
+            <div className="shrink-0 space-y-4">
               <Eyebrow as="label" className="block mb-1.5">
                 Seasonal rating
               </Eyebrow>
@@ -312,6 +315,10 @@ export default function SeasonalDetail() {
                   <i className="fas fa-spinner fa-spin text-brand text-sm"></i>
                 )}
               </div>
+              <SeasonBulkActions
+                anime={animeData}
+                onDone={() => setReloadKey((k) => k + 1)}
+              />
             </div>
           )}
         </div>

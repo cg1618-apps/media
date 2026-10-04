@@ -2885,3 +2885,41 @@ verdict, which has no source to cite.
 - **One sort key.** `season_part_sort_key` is shared with
   `derive_ep_previous_anime`, so the two never disagree about which season
   comes first.
+
+### An anime's genres and labels are imported from a franchise sibling, into the form (2026-10-04)
+
+A sequel usually shares its predecessor's genres and labels, so the anime
+Add and Modify forms offer the same kind of import the cast editor does.
+
+- **Genre Main, Genre Sub and Label, not Quality.** Quality (神作畫,
+  作畫崩壞, ...) judges one entry's production, which a sibling does not
+  share; copying it would assert something nobody checked.
+- **Siblings are the franchise's other anime only.** Genre Main and Genre
+  Sub exist on no other type (`TAG_FIELDS` in `app/utils/credit_roles.py`),
+  so an anime movie or a manga would have nothing to give.
+- **No new endpoint.** `GET /api/anime/?franchise_id=` already returns every
+  sibling with its tag fields through the viewer's visibility, so the picker
+  reads that rather than adding a `sources` route like the cast's, which
+  exists because a cast is not on the list response.
+- **Appended, not replaced, and nothing saved** - the cast import's rule: the
+  form's own tags stay first, a tag already held is skipped, and the save
+  writes them.
+
+### Season-wide actions loop over the per-anime endpoints in the browser (2026-10-04)
+
+The seasonal detail page's **Autofill & update** and **Mark finished airing**
+act on every anime of a season. Three choices:
+
+- **No batch endpoint.** Each button calls an endpoint that already exists
+  per anime - the single-entry Replace and the ordinary `PATCH` - once per
+  anime, sequentially. A season is a dozen or two entries, so a loop costs
+  nothing worth a new route, and the two keep exactly the permission checks,
+  validation and side effects the detail page's buttons already have.
+  Sequential rather than parallel so Tenrai is not hit with a season's worth
+  of requests at once.
+- **Finish covers Airing and Not Yet Aired, not Rumored** - the owner's
+  choice. A season looked back on is over, whether or not its status was
+  ever moved to Airing; a Rumored entry may never have aired at all.
+- **Autofill skips an anime with no MAL link** rather than failing on it,
+  and the confirmation says how many it will skip.
+
