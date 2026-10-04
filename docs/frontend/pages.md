@@ -1041,6 +1041,17 @@ game-only sections did. Group cards render in registry first-appearance order,
 so a group's position is decided by where its first section sits in
 `NOTE_SECTIONS`.
 
+**The series' and franchise's notes show on an entry's detail page.** Every
+entry detail page passes the `series` and `franchise` rows it already resolves
+for its header to the notes (through the `*Notes.jsx` wrapper, or straight to
+`NotesProvider` on Game.jsx and HGame.jsx; Anime Movie passes no series, since
+it has none). Each section the entry has then also lists, after its own rows,
+the rows the series and then the franchise hold in that section, each under a
+mono "From series" / "From franchise" heading linking to the group's page,
+read-only. The Modify tabs and the Add page's notes panel pass neither, so
+they show the entry's own rows alone. The rules are in
+[systems/notes.md](../systems/notes.md#series-and-franchise-notes-on-an-entry).
+
 **Game.jsx and HGame.jsx use no `*Notes.jsx` wrapper** (`GameNotes` and
 `HGameNotes` are the Modify tabs'): each composes the three pieces itself, so
 that 待辦 Todo renders inside its Progress slip (`NotesGroup groupKey="todo"`)

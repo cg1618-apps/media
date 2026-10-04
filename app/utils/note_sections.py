@@ -226,7 +226,7 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # not have to work out which one a bare key means.
     NoteGroup(
         key="analysis_group",
-        label="解析 Analysis and Cinematography",
+        label="解析/解惑/討論 Analysis/Discussion",
         icon="fa-clapperboard",
     ),
     # The key `guides` is free only because the SECTION `guides` was retired
@@ -954,7 +954,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     NoteSection(
         key="analysis",
         shape=SHAPE_TEXT_LINKS,
-        label="解析 Analysis",
+        label="解析/解惑/討論 Analysis/Discussion",
         owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_CATALOG,
         group="analysis_group",
@@ -967,7 +967,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     NoteSection(
         key="cinematography",
         shape=SHAPE_TEXT_LINKS,
-        label="分鏡/演出/巧思",
+        label="分鏡/演出/巧思/細節",
         owners=("anime", "anime-movie", "tv-show", "cartoon", "manga", "series"),
         scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
@@ -984,7 +984,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     NoteSection(
         key="foreshadowing",
         shape=SHAPE_TEXT_LINKS,
-        label="Foreshadowing",
+        label="伏筆/前後呼應 Foreshadowing",
         owners=(
             "anime",
             "anime-movie",
@@ -1050,7 +1050,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # 解析 card of its own.
         key="easter_eggs",
         shape=SHAPE_TEXT_LINKS,
-        label="彩蛋 Easter Eggs",
+        label="彩蛋/致敬 Easter Eggs/References",
         owners=_all_but(ENTRY_OWNERS, *H_OWNERS),
         scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",

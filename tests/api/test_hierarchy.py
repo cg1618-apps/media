@@ -13,7 +13,7 @@ from app.services.domain import hierarchy as h
 from app.utils.constants import FranchiseType
 
 ENTRY_RESOLVERS = {
-    "anime": (h.resolve_anime_parent_hierarchy, FranchiseType.ANIME),
+    "anime": (h.resolve_anime_parent_hierarchy, FranchiseType.ACG),
     "movie": (h.resolve_movie_parent_hierarchy, FranchiseType.MOVIE),
     "tv-show": (h.resolve_tv_show_parent_hierarchy, FranchiseType.TV),
     "cartoon": (h.resolve_cartoon_parent_hierarchy, FranchiseType.CARTOON),
@@ -82,3 +82,27 @@ def test_anime_movie_resolver_has_no_series(db_session, existing):
 def test_series_entries_resolve_their_franchise_by_the_series_names(db_session, existing):
     f, _ = existing
     assert h.resolve_series_parent_hierarchy(db_session, None, {"en": "cowboy bebop"}) == f.system_id
+
+
+def test_an_anime_movie_creates_an_acg_franchise(db_session):
+    fid = h.resolve_anime_movie_parent_hierarchy(db_session, None, {"en": "Brand New Film"})
+    assert db_session.get(models.Franchise, fid).franchise_type == "ACG"
+
+
+def test_a_series_creates_an_acg_franchise(db_session):
+    fid = h.resolve_series_parent_hierarchy(db_session, None, {"en": "Brand New Series"})
+    assert db_session.get(models.Franchise, fid).franchise_type == "ACG"
+
+
+def test_anime_is_not_a_franchise_type():
+    """One type for anime and manga franchises: "Anime" is not a member."""
+    assert "Anime" not in {t.value for t in FranchiseType}
+    for media_type in ("anime", "anime-movie", "series", "manga"):
+        assert h.FRANCHISE_TYPE_FOR[media_type] is FranchiseType.ACG
+
+
+def test_every_auto_created_type_is_one_the_dropdown_offers():
+    """A stamped type outside FRANCHISE_TYPES hides the franchise from the type filter."""
+    from app.utils.constants import FRANCHISE_TYPES
+
+    assert {t.value for t in h.FRANCHISE_TYPE_FOR.values()} <= set(FRANCHISE_TYPES)

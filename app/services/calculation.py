@@ -63,6 +63,7 @@ from app.services.domain import (
 )
 from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import enforce_h_comic_invariants
+from app.services.domain.media_relation import seed_sequel_relations
 from app.services.domain.plan_next import derive_size_groups
 from app.services.domain.user_list import installation_owner_id, list_row
 from app.services.integrations.image_library import uploaded_image_ids
@@ -769,14 +770,34 @@ def run_sync_game(db: Session) -> dict:
     }
 
 
+def run_seed_sequel_relations(db: Session) -> dict:
+    """
+    The one-time seed of anime sequel chains in ACG franchises with no
+    relations yet (seed_sequel_relations, app/services/domain/media_relation.py).
+    """
+    counts = seed_sequel_relations(db)
+    db.commit()
+    return counts
+
+
 def run_calculate_all(db: Session) -> dict:
     try:
         run_post_processing(db)
         run_derive_ep_previous(db)
+        seeded = run_seed_sequel_relations(db)
         run_sync(db)
         bulk_check_cover_image(db)
         log_data_control(db, "Calculate", "Calculate All", "Manual", "Success")
-        return {"status": "success", "message": "Full calculation complete."}
+        return {
+            "status": "success",
+            "message": (
+                "Full calculation complete. "
+                f"Created {seeded['relations_created']} sequel relation(s) "
+                f"in {seeded['franchises_seeded']} franchise(s); "
+                f"{seeded['groups_skipped_tied']} group(s) skipped "
+                "(tied season/part)."
+            ),
+        }
     except Exception as e:
         log_data_control(
             db, "Calculate", "Calculate All", "Manual", "Failed", error_message=str(e)

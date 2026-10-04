@@ -57,11 +57,12 @@ FRANCHISE_NAME_COLUMNS = (
 )
 SERIES_NAME_COLUMNS = (Series.series_name_en, Series.series_name_cn, Series.series_name_alt)
 
-# Type stamped on an auto-created franchise, per media type.
+# Type stamped on an auto-created franchise, per media type. ACG is the one
+# type for anime and manga franchises, whichever of them created it.
 FRANCHISE_TYPE_FOR = {
-    "anime": FranchiseType.ANIME,
-    "anime-movie": FranchiseType.ANIME,
-    "series": FranchiseType.ANIME,
+    "anime": FranchiseType.ACG,
+    "anime-movie": FranchiseType.ACG,
+    "series": FranchiseType.ACG,
     "movie": FranchiseType.MOVIE,
     "tv-show": FranchiseType.TV,
     "cartoon": FranchiseType.CARTOON,
@@ -79,6 +80,38 @@ def franchise_type_tokens(value) -> list[str]:
     """A franchise's comma-separated franchise_type, as tokens."""
     raw = value.strip() if isinstance(value, str) else ""
     return [t.strip() for t in raw.split(",") if t.strip()]
+
+
+# Not a franchise type: a franchise_type value restored from a Franchise tab
+# that still carries it is folded onto ACG (normalize_franchise_type).
+_RETIRED_ANIME_TYPE = "Anime"
+
+
+def normalize_franchise_type(value):
+    """
+    A restored franchise_type with any "Anime" token folded onto "ACG".
+
+    Token-wise inside the comma list: the other tokens keep their order and
+    the separators their spacing, and a value that already names ACG keeps its
+    first ACG rather than listing it twice. "Anime Movie" is its own token and
+    is left alone. Anything that is not a string passes through.
+    """
+    if not isinstance(value, str):
+        return value
+    acg = FranchiseType.ACG.value
+    out: list[str] = []
+    seen_acg = False
+    for piece in value.split(","):
+        token = piece.strip()
+        if token == _RETIRED_ANIME_TYPE:
+            piece = piece.replace(_RETIRED_ANIME_TYPE, acg)
+            token = acg
+        if token == acg:
+            if seen_acg:
+                continue
+            seen_acg = True
+        out.append(piece)
+    return ",".join(out)
 
 
 def family_of_type(franchise_type: str) -> str:

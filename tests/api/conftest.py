@@ -726,7 +726,7 @@ def sample_collected_franchise(db_session, sample_collection):
     """A franchise that belongs to sample_collection."""
     f = models.Franchise(
         system_id=uuid.uuid4(),
-        franchise_type="Anime",
+        franchise_type="ACG",
         franchise_name_en="Collected Franchise",
         collection_id=sample_collection.system_id,
     )
@@ -739,7 +739,7 @@ def sample_collected_franchise(db_session, sample_collection):
 def sample_franchise(db_session):
     f = models.Franchise(
         system_id=uuid.uuid4(),
-        franchise_type="Anime",
+        franchise_type="ACG",
         franchise_name_en="Test Franchise",
         franchise_name_cn="測試系列",
     )
@@ -1106,7 +1106,7 @@ def entity_for(db_session, client):
         if base == "/api/series":
             owner = models.Franchise(
                 system_id=uuid.uuid4(),
-                franchise_type="Anime",
+                franchise_type="ACG",
                 franchise_name_en="Ref Owner Franchise",
             )
             db_session.add(owner)
@@ -1119,7 +1119,7 @@ def entity_for(db_session, client):
         elif base == WATCH_ORDER_LIST_BASE:
             owner = models.Franchise(
                 system_id=uuid.uuid4(),
-                franchise_type="Anime",
+                franchise_type="ACG",
                 franchise_name_en="Ref Owner Franchise",
             )
             db_session.add(owner)
@@ -1135,7 +1135,7 @@ def entity_for(db_session, client):
             row = model(system_id=uuid.uuid4())
             setattr(row, name_field, "Ref Entity")
             if model is models.Franchise:
-                row.franchise_type = "Anime"
+                row.franchise_type = "ACG"
 
         db_session.add(row)
         db_session.flush()

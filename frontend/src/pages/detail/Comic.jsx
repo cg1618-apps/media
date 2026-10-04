@@ -518,6 +518,8 @@ export default function Comic() {
             comic={comic}
             isAdmin={isAdmin}
             hideSections={comic.remark ? ["remark"] : []}
+            series={series}
+            franchise={franchise}
           />
         </div>
       </div>

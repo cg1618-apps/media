@@ -471,6 +471,8 @@ export default function Cartoon() {
             cartoon={cartoon}
             isAdmin={isAdmin}
             hideSections={cartoon.remark ? ["remark"] : []}
+            series={series}
+            franchise={franchise}
           />
         </div>
       </div>

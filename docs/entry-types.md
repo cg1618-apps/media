@@ -24,10 +24,10 @@ Two lists exist on purpose (see the comment above `FRANCHISE_TYPES` in `app/util
 
 | Where | Values |
 |---|---|
-| `FranchiseType` enum (backend logic, auto-creation) | `"Anime"`, `"Movie"`, `"TV"`, `"Cartoon"`, `"Comic"`, `"ACG"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
+| `FranchiseType` enum (backend logic, auto-creation) | `"Movie"`, `"TV"`, `"Cartoon"`, `"Comic"`, `"ACG"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
 | `FRANCHISE_TYPES` tuple (what `/api/constants` serves to the dropdown) | `"ACG"`, `"Anime Movie"`, `"TV"`, `"Movie"`, `"Cartoon"`, `"Comic"`, `"Novel"`, `"Game"`, `"H-Comic"`, `"H-Game"`, `"Hentai"` |
 
-A franchise may carry a comma-separated list of types; duplicate detection buckets it under each one.
+A franchise may carry a comma-separated list of types; duplicate detection buckets it under each one. `"ACG"` is the one type for anime and manga franchises; `"Anime"` is not a franchise type, and Pull folds it onto `"ACG"` ([business-rules.md](business-rules.md)).
 
 #### Franchise families (`FRANCHISE_FAMILY_FOR_TYPE`, `app/utils/constants.py`)
 
@@ -66,9 +66,9 @@ kept apart in both directions:
 
 | Media / owner key | Stamped `franchise_type` |
 |---|---|
-| `"anime"` | `FranchiseType.ANIME` (`"Anime"`) |
-| `"anime-movie"` | `FranchiseType.ANIME` (`"Anime"`) |
-| `"series"` | `FranchiseType.ANIME` (`"Anime"`) |
+| `"anime"` | `FranchiseType.ACG` (`"ACG"`) |
+| `"anime-movie"` | `FranchiseType.ACG` (`"ACG"`) |
+| `"series"` | `FranchiseType.ACG` (`"ACG"`) |
 | `"movie"` | `FranchiseType.MOVIE` (`"Movie"`) |
 | `"tv-show"` | `FranchiseType.TV` (`"TV"`) |
 | `"cartoon"` | `FranchiseType.CARTOON` (`"Cartoon"`) |
@@ -404,7 +404,7 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | 世界觀 group — `lore`, `timeline`, `mysteries`, `story_other` (`text_links`), `story_terms` (`structured`) | | | | | | | | | x | |  | |
 | NG 多周目 group — `ng_flow`, `ng_carried_over`, `ng_reset`, `ng_before_starting` (`structured`) | | | | | | | | | x | | x | |
 | 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`), `saves` (`structured`), all personal scope | | | | | | | | | x | | x | |
-| `cinematography` (`分鏡/演出/巧思`) | x | x | | x | x | x | | | | |  | series |
+| `cinematography` (`分鏡/演出/巧思/細節`) | x | x | | x | x | x | | | | |  | series |
 | `craft` (`巧思`) | | | | | | | x | | | |  | |
 | `foreshadowing` | x | x | | x | x | x | x | | | |  | both |
 | `symmetry` | x | x | | x | x | x | x | | | |  | both |

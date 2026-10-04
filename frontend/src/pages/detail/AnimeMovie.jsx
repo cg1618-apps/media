@@ -485,6 +485,7 @@ export default function AnimeMovie() {
             movie={movie}
             isAdmin={isAdmin}
             hideSections={movie.remark ? ["remark"] : []}
+            franchise={franchise}
           />
         </div>
       </div>
