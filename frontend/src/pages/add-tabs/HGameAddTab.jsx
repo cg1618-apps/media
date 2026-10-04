@@ -7,10 +7,11 @@
 // It is Game's form, reshaped for what h_game holds: no playtime, Metacritic,
 // achievement or collectible flags, and one credit (the developer); plus the
 // play style, All CG, usefulness, the language / audio / animation /
-// H-presentation / platform fields and the two DLsite links. The IGDB picker
-// is Game's, pointed at /api/h-game/search-igdb.
+// H-presentation / platform fields and the two DLsite links. The IGDB search
+// is the shared ExternalSearchBox, pointed at /api/h-game/search-igdb.
 import ComboBox from "../../components/forms/ComboBox";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import ChoiceChips from "../../components/forms/ChoiceChips";
 import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -45,7 +46,6 @@ import {
 } from "../../config/fieldOptions";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
-import { IgdbSearchBox } from "./GameAddTab";
 
 export { defaultHGame } from "../../config/formFactories";
 
@@ -505,7 +505,7 @@ export default function HGameAddTab({
   hGamesLoading,
   seriesItemsForHGame,
   sources,
-  applyHGameAutofill,
+  applyIgdbPick,
   applyHGameEntryAutofill,
 }) {
   return (
@@ -527,7 +527,11 @@ export default function HGameAddTab({
         onPick={applyHGameEntryAutofill}
         loading={hGamesLoading}
       />
-      <IgdbSearchBox onPick={applyHGameAutofill} searchUrl={endpoints.hGame.searchIgdb} />
+      <ExternalSearchBox
+        source="IGDB"
+        searchUrl={endpoints.hGame.searchIgdb}
+        onPick={applyIgdbPick}
+      />
       <SectionHeader icon="fa-gamepad" title="Titles & Naming" />
       <HGameLineageFields
         f={hgf}

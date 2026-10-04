@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import ImagePicker from "../../components/forms/ImagePicker";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import {
   GenderRatingFields,
   PhotoFallbackField,
@@ -223,16 +224,34 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
   );
 }
 
-export default function PersonAddTab({ personForm, upf, roles, setRoles }) {
+export default function PersonAddTab({
+  personForm,
+  upf,
+  roles,
+  setRoles,
+  applyMalPick,
+}) {
   const legalScopes = useRoleScopes();
 
   return (
-    <PersonFields
-      personForm={personForm}
-      upf={upf}
-      roles={roles}
-      setRoles={setRoles}
-      legalScopes={legalScopes}
-    />
+    <>
+      {/* The tab's only search box: a person has no "copy an existing
+          record" search. The server fills from MAL on save only for a
+          person holding the seiyuu role, as the Seiyuu Fill does. */}
+      <ExternalSearchBox
+        source="MAL"
+        searchUrl={endpoints.person.searchMal}
+        onPick={applyMalPick}
+        placeholder="Search MAL — type a name to link this person..."
+        hint="Links the MAL page. Names and photo are filled from MAL on save only for a seiyuu."
+      />
+      <PersonFields
+        personForm={personForm}
+        upf={upf}
+        roles={roles}
+        setRoles={setRoles}
+        legalScopes={legalScopes}
+      />
+    </>
   );
 }

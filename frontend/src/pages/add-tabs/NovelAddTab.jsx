@@ -29,6 +29,8 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import { endpoints } from "../../api/endpoints";
 
 export { defaultNovel } from "../../config/formFactories";
 
@@ -44,6 +46,8 @@ export default function NovelAddTab({
   novelFillResults,
   novelFillLoading,
   applyNovelAutofill,
+  applyMalPick,
+  applyOpenLibraryPick,
   allFranchises,
   seriesItemsForNovel,
   sources,
@@ -125,6 +129,16 @@ export default function NovelAddTab({
         )}
       </div>
 
+      <ExternalSearchBox
+        source="MAL"
+        searchUrl={endpoints.novel.searchMal}
+        onPick={applyMalPick}
+      />
+      <ExternalSearchBox
+        source="Open Library"
+        searchUrl={endpoints.novel.searchOpenLibrary}
+        onPick={applyOpenLibraryPick}
+      />
       <SectionHeader icon="fa-book" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox

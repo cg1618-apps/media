@@ -625,8 +625,35 @@ def test_plan_next_flags_play_next_and_to_replay(admin_client):
 def test_the_igdb_search_is_catalogue_editors_only(client, admin_client, monkeypatch):
     from app.routers import h_game as h_game_router
 
-    monkeypatch.setattr(h_game_router, "search_igdb_games", lambda q, limit: [{"id": 1, "name": q}])
+    monkeypatch.setattr(
+        h_game_router,
+        "search_igdb_games",
+        lambda q, limit: [{"external_id": "1", "title": q}],
+    )
     assert client.get(f"{ROUTE}/search-igdb", params={"q": "x"}).status_code in (401, 403)
     response = admin_client.get(f"{ROUTE}/search-igdb", params={"q": "x"})
     assert response.status_code == 200
-    assert response.json() == [{"id": 1, "name": "x"}]
+    assert response.json() == [
+        {
+            "external_id": "1",
+            "link": None,
+            "title": "x",
+            "title_alt": None,
+            "year": None,
+            "detail": None,
+            "cover_url": None,
+        }
+    ]
+
+
+def test_an_igdb_search_failure_is_a_502(admin_client, monkeypatch):
+    from app.routers import h_game as h_game_router
+    from app.services.integrations.external_search import ExternalSearchError
+
+    def failing(q, limit):
+        raise ExternalSearchError("IGDB could not be reached.")
+
+    monkeypatch.setattr(h_game_router, "search_igdb_games", failing)
+    response = admin_client.get(f"{ROUTE}/search-igdb", params={"q": "x"})
+    assert response.status_code == 502
+    assert response.json()["detail"] == "IGDB could not be reached."

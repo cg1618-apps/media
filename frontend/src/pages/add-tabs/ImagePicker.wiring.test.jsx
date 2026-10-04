@@ -109,7 +109,8 @@ describe("Add tabs render ImagePicker instead of a hand-typed storage key", () =
         allGames={[]}
         seriesItemsForGame={[]}
         sources={{}}
-        applyGameAutofill={() => {}}
+        applyGameEntryAutofill={() => {}}
+        applyIgdbPick={() => {}}
       />,
     );
     expectsPicker();

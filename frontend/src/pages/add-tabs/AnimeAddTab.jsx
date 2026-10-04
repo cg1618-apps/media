@@ -27,6 +27,8 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import { endpoints } from "../../api/endpoints";
 
 export { defaultAnime } from "../../config/formFactories";
 
@@ -42,6 +44,7 @@ export default function AnimeAddTab({
   fillResults,
   fillLoading,
   applyAutofill,
+  applyMalPick,
   allFranchises,
   franchiseItems,
   seriesItemsForAnime,
@@ -119,6 +122,11 @@ export default function AnimeAddTab({
         )}
       </div>
 
+      <ExternalSearchBox
+        source="MAL"
+        searchUrl={endpoints.anime.searchMal}
+        onPick={applyMalPick}
+      />
       <SectionHeader icon="fa-tag" title="Titles & Naming" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Franchise">

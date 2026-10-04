@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-10-03
+Last verified: 2026-10-04
 
 ## What this is for
 
@@ -16,6 +16,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 
 - [At a glance](#at-a-glance)
 - [Shared behaviour](#shared-behaviour)
+- [Add-tab picker searches](#add-tab-picker-searches)
 - [Tenrai (MyAnimeList)](#tenrai-myanimelist)
 - [AniList](#anilist)
 - [TMDB](#tmdb)
@@ -50,7 +51,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 | E-Hentai | `https://api.e-hentai.org/api.php` (the official gallery metadata API, `gdata`) | none | `app/services/integrations/ehentai.py` | `app/utils/ehentai_utils.py` | `h_comic` |
 | Google Sheets | via `gspread` | `settings.google_sheet_id` ← `GOOGLE_SHEET_ID`; `settings.google_credentials_json` ← `GOOGLE_CREDENTIALS_JSON` (falls back to a local `credentials.json`; the two branches are environment-split, see [Google Sheets](#google-sheets)) | `app/services/integrations/sheets.py` | `app/utils/formatter.py` | Backup / Pull |
 
-A missing key is never fatal: each client logs `"<NAME> environment variable is not set."` and returns `None` (or `[]`), so a Fill run simply fills nothing from that source. Open Library is the exception in a different direction: it has no key at all, so this failure mode does not apply to it — see [Open Library](#open-library).
+A missing key is never fatal: each client logs `"<NAME> environment variable is not set."` and returns `None` (or `[]`), so a Fill run simply fills nothing from that source. A picker search is the exception: it answers 502 naming the missing key — see [Add-tab picker searches](#add-tab-picker-searches). Open Library is the exception in a different direction: it has no key at all, so this failure mode does not apply to it — see [Open Library](#open-library).
 
 ## Shared behaviour
 
@@ -63,6 +64,72 @@ The metadata clients (Tenrai, TMDB, OMDb, Comic Vine, Open Library, IGDB) are bu
 | Retry | `tenacity` decorator: `stop_after_attempt(5)`, `wait_exponential(multiplier=1, min=2, max=10)`, retried only on `requests.exceptions.RequestException` (network / timeout) and the client's own `RateLimitExceeded` (raised on HTTP 429, plus 420 for Comic Vine). `reraise=False`. |
 | Not retried | HTTP 404 → warning, returns `None`. HTTP 5xx → warning `"… skipping retries"`, returns `None`. OMDb and Comic Vine also return `None` on 401 (bad key); IGDB's 401 additionally **clears the cached token** so the next call refetches one. |
 | When the 5 attempts run out | Because `reraise=False`, tenacity raises its own `tenacity.RetryError`. Every `autofill_*` function in `app/services/domain/autofill.py` wraps its whole body in `try: … except Exception as e: logger.error(...)`, so the `RetryError` is **swallowed**: the entry is left untouched, an error line is logged, and the pipeline moves on as if the entry had simply had nothing to fetch. Nothing in the UI distinguishes "no data" from "the network was down five times in a row". |
+
+## Add-tab picker searches
+
+Every Add tab can search the database Fill reads its type from, so the admin
+picks the right record and the form stores its id and link. The routes and
+the shared result shape are in [api.md](api.md#add-tab-picker-searches);
+this section is how the searches call out.
+
+| Tab | Source | Search function | Request | Writes on pick |
+| --- | --- | --- | --- | --- |
+| anime | Tenrai | `search_mal_anime` | `GET /anime?q=&sfw=true` | `mal_id`, `mal_link` |
+| anime movie | Tenrai | `search_mal_anime(..., media_type="movie")` | `GET /anime?q=&type=movie&sfw=true` | `mal_id`, `mal_link` |
+| manga | Tenrai | `search_mal_manga` | `GET /manga?q=&sfw=true`, over-fetched, light novels and novels dropped | `mal_id`, `mal_link` |
+| novel | Tenrai | `search_mal_novel` | `GET /manga?q=&type=lightnovel` and `&type=novel`, interleaved, duplicates dropped | `mal_id`, `mal_link` |
+| novel | Open Library | `search_openlibrary_works` | `GET /search.json?q=&fields=key,title,subtitle,first_publish_year,author_name,cover_i` | `openlibrary_id`, `openlibrary_link` |
+| person | Tenrai | `search_mal_people` | `GET /people?q=` | `mal_link` |
+| character | Tenrai | `search_mal_characters` | `GET /characters?q=` | `mal_link` |
+| movie, TV show, cartoon | TMDB | `search_tmdb(q, limit, kinds)` | `GET /search/movie`, `/search/tv`, or `/search/multi` for cartoon (movie and TV results only) | `imdb_id`, `imdb_link`, via `resolve_tmdb_imdb_id` |
+| comic | Comic Vine | `search_comicvine_volumes` | `GET /search/?resources=volume` | `comicvine_id`, `comicvine_link` |
+| game, h-game | IGDB | `search_igdb_games` | `POST /v4/games` with `search "…";` | `igdb_id`, `igdb_link` |
+
+**A search is not a Fill, so it does not retry.** Fill runs in the background
+and can afford five attempts with exponential backoff; a search box has an
+admin watching it, and a request that retries for half a minute and then
+fails helps nobody. Every search function, through
+`app/services/integrations/external_search.py`:
+
+- makes **one** request with `SEARCH_TIMEOUT` (8 s), still through the
+  service's rate limiter (and, for IGDB, its token cache);
+- raises `ExternalSearchError` with a human message when the service is
+  unreachable, answers with an error status or an unreadable body, or its key
+  is not set. The route turns that into a **502** whose `detail` the picker
+  shows. It never returns `[]` for a failure, because an empty list reads as
+  "no such title";
+- is wrapped in `cached_search`: a successful answer is kept for
+  `CACHE_TTL_SECONDS` (ten minutes), keyed on the arguments with the query
+  stripped and case-folded, up to `CACHE_MAX_ENTRIES` (256). Failures are not
+  cached. Like the rate limiters, the cache is per-process memory.
+
+Per source:
+
+- **Tenrai** search is Jikan-compatible. Anime and manga searches send
+  `sfw=true`, so Rx titles — the gated hentai and h-comic types, which have no
+  MAL picker — never appear. MAL's `type` filter takes one value, so the manga
+  picker over-fetches one unfiltered page and drops the two novel types, and
+  the novel picker makes two requests and interleaves them so neither type
+  crowds the other out at a small limit. Each `link` is the record's
+  `myanimelist.net` page, which the `MAL_*_ID_PATTERN`s parse back into
+  `mal_id`.
+- **TMDB** search results carry a TMDB id, not the IMDb id these rows are
+  keyed by. Fetching `external_ids` for every result would cost ten requests
+  per search against a 40-per-10-second budget, so `external_id` is a ref
+  (`movie/603`, `tv/1399`) and only the picked result is resolved, by
+  `resolve_tmdb_imdb_id` → `GET /{kind}/{id}/external_ids`. The ref is
+  validated against `(movie|tv)/(\d+)` before any request, outside the cache.
+- **Open Library**'s `link` is `https://openlibrary.org/works/OL…W`, which
+  `extract_openlibrary_id` parses back into `openlibrary_id`.
+- **Comic Vine** allows 200 requests an hour, so the comic picker searches on
+  Enter rather than as the admin types, and a search with no hourly capacity
+  left raises at once instead of waiting for the window, which could take the
+  rest of the hour. `comicvine_id` is derived from `comicvine_link` only inside
+  Fill, so the picker writes the id itself.
+- **IGDB**'s `link` is the public `www.igdb.com/games/<slug>` page, which
+  carries no id, so the picker writes `igdb_id` from `external_id`. The search
+  also asks for `platforms.abbreviation` and `platforms.name`, shown as
+  `detail`.
 
 ## Tenrai (MyAnimeList)
 
@@ -296,11 +363,11 @@ A Comic Vine **volume** is one numbered run, which is what one `comic` row is. T
 
 | Item | Value |
 |---|---|
-| Endpoints | `GET /volume/4050-{volume_id}/` (`fetch_comicvine_volume`) and `GET /search/?resources=volume&query=…&limit=…` (`search_comicvine_volumes`, exposed to admins at `GET /api/comic/search-comicvine?q=&limit=`). Both send `format=json` and a `field_list` (`VOLUME_FIELD_LIST`, `SEARCH_FIELD_LIST`) to keep responses small. |
+| Endpoints | `GET /volume/4050-{volume_id}/` (`fetch_comicvine_volume`) and `GET /search/?resources=volume&query=…&limit=…` (`search_comicvine_volumes`, the comic picker's search at `GET /api/comic/search-comicvine?q=&limit=` — single attempt, see [Add-tab picker searches](#add-tab-picker-searches)). Both send `format=json` and a `field_list` (`VOLUME_FIELD_LIST`, `SEARCH_FIELD_LIST`) to keep responses small. |
 | User-Agent | `COMICVINE_USER_AGENT = "CG1618-Media-Tracker/1.0"` — mandatory; default agents are rejected. |
 | ID from link | `extract_comicvine_id` matches `comicvine\.gamespot\.com/[^/]+/4050-(\d+)`. `4050` is the volume prefix; an issue URL (`4000-…`) is rejected rather than stored. |
 | Rate limiter | `ComicVineRateLimiter`: 200 requests per 3600 s. It also exposes `has_capacity()`, which `specs.py` wires in as the pipeline `budget` — Fill Comic **stops** when the hour's budget is gone instead of sleeping the rest of the hour. `COMICVINE_PAUSE = 1` second between entries. |
-| Extra failure codes | 420 (Comic Vine's own "rate limit exceeded") is treated like 429 and retried. A 200 whose body has `status_code != 1` is an application error: logged, returns `None`. |
+| Extra failure codes | 420 (Comic Vine's own "rate limit exceeded") is treated like 429 and retried by the fetcher; the picker search raises instead. A 200 whose body has `status_code != 1` is an application error: logged, returns `None`. |
 | Placeholder covers | Comic Vine returns a stock image instead of omitting `image`. `_pick_cover_url` walks `COVER_URL_KEYS = ("original_url", "super_url", "medium_url")` and returns `None` if the first present URL contains `blank.png` or `image_not_available` (`PLACEHOLDER_IMAGE_MARKERS`). |
 
 ### Mapping — `map_comicvine_to_comic_data` and what `autofill_comic_from_comicvine` writes
@@ -405,11 +472,11 @@ Three things make `igdb.py` a genuinely different client rather than a copy of
 
 | Item | Value |
 |---|---|
-| Endpoints | `POST /v4/games` twice over: `fields …; where id = {igdb_id}; limit 1;` (`fetch_igdb_game`) and `search "{term}"; fields …; limit {n};` (`search_igdb_games`, exposed to admins at `GET /api/game/search-igdb?q=&limit=`, `limit` 1–50). Plus `POST /v4/game_time_to_beats` (`fetch_igdb_time_to_beat`). |
+| Endpoints | `POST /v4/games` twice over: `fields …; where id = {igdb_id}; limit 1;` (`fetch_igdb_game`) and `search "{term}"; fields …; limit {n};` (`search_igdb_games`, the game and h-game pickers' search at `GET /api/game/search-igdb` and `/api/h-game/search-igdb` — single attempt, see [Add-tab picker searches](#add-tab-picker-searches)). Plus `POST /v4/game_time_to_beats` (`fetch_igdb_time_to_beat`). |
 | Field lists | `GAME_FIELDS` and `SEARCH_FIELDS` are the contract with `igdb_utils.py`: IGDB returns nothing you do not ask for, so a new mapped field means editing both. |
 | ID from link | `extract_igdb_id` matches `api\.igdb\.com/v\d+/games/(\d+)`. A public `www.igdb.com` URL carries only a **slug**, no id, and deliberately yields `None` — a slug URL is a link, not an identifier. `apply_extract_igdb_id` runs it over `igdb_link` on every entry at the start of a Fill run. |
 | Search-term safety | An APIcalypse `search` term is a quoted string, so `search_igdb_games` strips every `"` from the query before interpolating it; a stray quote would terminate the term. |
-| Failure codes | 401 → clear the token cache, log, return `None`. 404 → warning, `None`. 429 → `RateLimitExceeded`, retried. 5xx → warning, `None`, no retries. Same `@retry(stop_after_attempt(5), wait_exponential(1, 2, 10), reraise=False)` as every other client. |
+| Failure codes | 401 → clear the token cache, log, return `None`. 404 → warning, `None`. 429 → `RateLimitExceeded`, retried. 5xx → warning, `None`, no retries. Same `@retry(stop_after_attempt(5), wait_exponential(1, 2, 10), reraise=False)` as every other client, on the fetchers; `search_igdb_games` goes through its own single-attempt `_search_request` instead. |
 
 ### Time to beat
 
