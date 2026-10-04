@@ -256,6 +256,8 @@ export default function HGame() {
       ownerId={hGame.system_id}
       isAdmin={isAdmin}
       owner={hGame}
+      series={series}
+      franchise={franchise}
       groupOrder={hGame.highlight_group_order}
       onGroupOrderChange={(names) =>
         performPatch({ highlight_group_order: names }, "Group order saved")

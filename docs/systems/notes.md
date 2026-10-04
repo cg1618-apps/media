@@ -99,7 +99,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | Key | Label | Icon |
 | --- | --- | --- |
 | `reviews` | 評論 Reviews and Comments | `fa-comments` |
-| `analysis_group` | 解析 Analysis and Cinematography | `fa-clapperboard` (keyed `analysis_group` because a section already owns `analysis`) |
+| `analysis_group` | 解析/解惑/討論 Analysis/Discussion | `fa-clapperboard` (keyed `analysis_group` because a section already owns `analysis`) |
 | `guides` | 攻略 Guides | `fa-map` — game and h-game only: gameplay systems, controls, guide notes, and for game also beginner and trivia. The way in, not the content |
 | `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game and h-game only: stats, classes, skills, builds, team composition |
 | `gear` | 物品 Items & Gear | `fa-sack-xmark` — game and h-game only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
@@ -169,12 +169,12 @@ where a section lands. `analysis` and `easter_eggs` are below; the other five ar
 which have nothing else of 評論 to share a card with), and the four
 `story_list_*` strands render in 劇情, because an h-game has no prose plot.
 
-For a film or a series, 解析 Analysis sits beside 分鏡/演出, 伏筆, 對稱 and 猜測 in
+For a film or a series, 解析/解惑/討論 Analysis/Discussion sits beside 分鏡/演出, 伏筆, 對稱 and 猜測 in
 its own card, because they are one subject. A game has none of the others,
 so that card would hold exactly one section — and an analysis of a game
 is read *with* the opinions rather than apart from them. So for `game` and
 `h-game` it is a subsection of 評論 Reviews, and `analysis_group` is not
-rendered for either. 彩蛋 Easter Eggs follows it there for `game`, so it is
+rendered for either. 彩蛋/致敬 Easter Eggs/References follows it there for `game`, so it is
 the last subsection of a game's 評論 and 解析 the one before it. H-comic and
 hentai have no 解析 at all, and no gated type has 彩蛋.
 
@@ -246,13 +246,13 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `highlight_moments` | 神場景 Highlights | episode_text | flat | game | — | — | "Chapter / Boss, e.g. Ch 3" | **yes** | no | no |
 | `h_comic_highlights` | 亮點 Highlights | **structured** | flat | h-comic (**KR only**, `owner_where`) | — | — | *(on its `chapter` field)* | no | no | no |
 | `h_game_highlights` | 亮點 Highlights | **structured** | flat | h-game | — | — | *(on its `route_scene` field)* | no | no | no |
-| `analysis` | 解析 Analysis | text_links | analysis_group (**reviews** for game and h-game) | All but h-comic, hentai | — | — | — | no | no | no |
-| `cinematography` | 分鏡/演出/巧思 | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, series | — | — | "Episode(s), e.g. ep 3" | no | no | no |
+| `analysis` | 解析/解惑/討論 Analysis/Discussion | text_links | analysis_group (**reviews** for game and h-game) | All but h-comic, hentai | — | — | — | no | no | no |
+| `cinematography` | 分鏡/演出/巧思/細節 | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, series | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
-| `foreshadowing` | Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
+| `foreshadowing` | 伏筆/前後呼應 Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `speculation` | 猜測 Speculation | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
-| `easter_eggs` | 彩蛋 Easter Eggs | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, novel: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
+| `easter_eggs` | 彩蛋/致敬 Easter Eggs/References | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, novel: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `controls` | 操作 Controls | **structured** | guides | game, h-game | — | — | — | no | no | no |
@@ -615,7 +615,7 @@ category (`link_text_category`). `GET /api/notes/sections` reports
 `link_pairs: true` on every section whose links take this shape, which is the
 four song lists and nothing else.
 
-**彩蛋 Easter Eggs** sits last in 解析 on every entry type outside the gated
+**彩蛋/致敬 Easter Eggs/References** sits last in 解析 on every entry type outside the gated
 ones (last in 評論 for a game): a hidden reference, where it plays and where
 somebody spotted it. It is `text_links` like the rest of
 解析 - an optional episode in `locator`, a description in `content` and any
@@ -667,6 +667,32 @@ once when both are used.
 | `hideSections` — the second scoped exception — lets an embedding page suppress sections it renders itself. Detail pages pass `hideSections={entry.remark ? ["remark"] : []}` (e.g. `frontend/src/pages/detail/Comic.jsx`, `Cartoon.jsx`, `AnimeMovie.jsx`) because they keep a dedicated remark editor writing the *same* singleton row; two editors on one row means the form's stale state would revert or delete what was typed in the notes box. | `visibleSections` memo. |
 | Errors from any card show in one banner above all cards (a group card is a sibling of Notes, so an error must not report inside the wrong one). | `error` state. |
 
+### Series and franchise notes on an entry
+
+An entry's notes also show what its **series** and its **franchise** say in
+the same sections. They are plugged into the entry's own section cards, not
+drawn as a block of their own, because the reader of an entry's 伏筆 wants the
+series-wide 伏筆 beside it.
+
+| Rule | How |
+| --- | --- |
+| **Where.** The entry detail pages only. Each passes the `series` and `franchise` rows it already resolves for its header (`NotesTemplate` / `NotesProvider` props `series`, `franchise`). The Modify tabs and the Add page's notes panel pass neither and show the entry's own rows alone. | `pages/detail/*.jsx`, `*Notes.jsx` |
+| **Which sections.** Only sections the entry itself has. A group's row in a section the entry's owner type lacks (a franchise's `symmetry` on a game) is not shown on the entry. Singleton sections (`remark`) take none: 備註 is one editable textarea, not a list a group's row can join, and the detail pages hide it anyway. External sections (quotes, memes) are out of scope - they are their own tables and their own components. | `groupNotesFor` in `NotesContext.jsx` |
+| **Order.** The entry's own rows first, unchanged and editable; then the series' rows; then the franchise's. Each group's rows are their own sub-list, never interleaved with the entry's and never part of its reorder. | `GroupNotes.jsx` |
+| **Labelled.** Each sub-list sits under a dashed rule and a mono "From series" / "From franchise" heading with the group's display name, linked to the group's page (`entityPath`) - there is no separate notes route; Notes is a tab on that page. The sub-list is `role="group"` named "From series: <name>". | `GroupNotes.jsx` |
+| **Read-only.** A group's rows are drawn by the section's own shape component in its read view - `isAdmin={false}`, no mutation handlers, and `bare` (no card, no header, no Add) - so no row gets Edit, Delete, a grip, a quick-edit input or an Add-child button, and the read view is the one the section already has, hierarchical, structured and music ones included. The entry cap applies per sub-list. | `SectionCardProvider` in `sections/ui.jsx` |
+| **Visibility.** Each group's rows come from `GET /api/notes?owner_type=series｜franchise&owner_id=` - the endpoint the group's own page reads - so personal-scope sections return the viewer's own rows, gated sections return none, and a group the viewer may not see answers 404. A group whose fetch fails contributes nothing and raises no banner: the entry's own notes are the page's subject. The rows are fetched once per group and are not refetched after a mutation on the entry; nothing on the entry page writes them. | `NotesProvider` |
+| **Empty sections.** A section with no rows of its own but some of its groups' counts them: its card and its group card open rather than collapse (the count badge shows the total), and its "No entries." hint is not drawn. | `appendixCount` in `sections/ui.jsx`, `blockCount` |
+| **Nothing to show.** An entry with no series or franchise, or an anime movie (no `series_id`) for the series half, shows nothing extra. | `groupOwners` in `NotesProvider` |
+
+The plumbing is one context in `sections/ui.jsx`: the provider wraps a section
+in `SectionCardProvider` with an `appendix` (the `GroupNotes` sub-lists) and an
+`appendixCount`; `SectionCard` draws the appendix after the section's own body
+and adds the count, and a group's own render is wrapped in a `bare` provider so
+its `SectionCard` draws its rows and nothing else. No shape component knows
+about it. The notes page fetches through `pages/notes/api.js` rather than
+TanStack Query - it has never used a query hook - so the group rows do too.
+
 ### Section components (`frontend/src/pages/notes/sections/`)
 
 | Component | Shape | Fields it shows |
@@ -682,7 +708,7 @@ once when both are used.
 | `MusicTrackSection.jsx` | music_track | all four song lists: title, Song Type (`kind`, a `SuggestInput` over the `kind_category` values, only where the section has one, starting on `default_kind`), per-song status, episode (`locator`), link pairs (`LinkPairsEditor`, labels suggested from `link_text_category`), content. The list's own status sits in the card header: a select over `type_statuses` for an admin, a tag for a reader, reading the `music_status` row for this section's key (the provider's `typeStatusNote`) or `type_status_default`; the first change POSTs the row, later ones PATCH it. |
 | `LinkPairs.jsx` (+ `linkPairValues.js`) | — | `LinkPairsEditor` (repeatable label + URL, the label a `SuggestInput` when given `textOptions`) and `LinkPairPills` (pills labelled with the pair's text, else the host), used by `MusicTrackSection` |
 | `QuoteSection.jsx` / `MemeSection.jsx` | external | adapt the long-lived quote/meme components; report counts |
-| `ui.jsx` | — | `GroupCard`, `SectionCard`, `ItemActions`, `useCollapsed`, the entry cap (`VISIBLE_ENTRIES`, `capEntries`, `useEntryCap`, `ShowAllToggle`), shared classes |
+| `ui.jsx` | — | `GroupCard`, `SectionCard` (and `SectionCardProvider`, which plugs a series' and franchise's read-only rows into it - see above), `ItemActions`, `useCollapsed`, the entry cap (`VISIBLE_ENTRIES`, `capEntries`, `useEntryCap`, `ShowAllToggle`), shared classes |
 
 ### Remark as a note
 
@@ -706,7 +732,7 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
 | Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the owner's existing remark row and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
 | Music status rows | The same retargeting per `(owner, kind)`: a sheet `music_status` row folds onto the local row for the same anime and list, keeping the local id. Its revision minted those rows separately on every database, so the two machines' copies differ in id and nothing else. |
-| Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is Need, Pending or Done. A song list's links that arrive as URL strings are read as link pairs with no text, and link pairs that arrive on any other section - 彩蛋 Easter Eggs, from a backup taken while its links were pairs - are read as their URL strings, the text dropped, a blank URL and a repeat skipped (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
+| Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is Need, Pending or Done. A song list's links that arrive as URL strings are read as link pairs with no text, and link pairs that arrive on any other section - 彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs - are read as their URL strings, the text dropped, a blank URL and a repeat skipped (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
 | Round-trip | Because owner tables no longer have a `remark` column (and `format_model_for_sheet` walks real columns, so the column_property is not exported), **remark round-trips only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |
 
 ## Related

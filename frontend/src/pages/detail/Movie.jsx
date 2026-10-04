@@ -497,6 +497,8 @@ export default function Movie() {
             movie={movie}
             isAdmin={isAdmin}
             hideSections={movie.remark ? ["remark"] : []}
+            series={series}
+            franchise={franchise}
           />
         </div>
       </div>

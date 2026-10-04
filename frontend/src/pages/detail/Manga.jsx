@@ -767,6 +767,8 @@ export default function Manga() {
             manga={manga}
             isAdmin={isAdmin}
             hideSections={manga.remark ? ["remark"] : []}
+            series={series}
+            franchise={franchise}
           />
         </div>
       </div>

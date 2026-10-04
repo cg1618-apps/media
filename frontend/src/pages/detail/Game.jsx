@@ -288,7 +288,14 @@ export default function Game() {
     // two places: 待辦 Todo inside the Progress slip below, and everything
     // else at the bottom. Two NotesTemplates would be two fetches of the same two
     // endpoints, two loading states and two error banners for one page.
-    <NotesProvider key={game.system_id} ownerType="game" ownerId={game.system_id} isAdmin={isAdmin}>
+    <NotesProvider
+      key={game.system_id}
+      ownerType="game"
+      ownerId={game.system_id}
+      isAdmin={isAdmin}
+      series={series}
+      franchise={franchise}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <nav
           className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"

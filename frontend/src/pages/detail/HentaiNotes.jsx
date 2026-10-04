@@ -5,13 +5,15 @@
 // wrapper every such type has, as MovieNotes is.
 import NotesTemplate from "../notes/NotesTemplate";
 
-export default function HentaiNotes({ hentai, isAdmin, hideSections }) {
+export default function HentaiNotes({ hentai, isAdmin, hideSections, series, franchise }) {
   return (
     <NotesTemplate
       ownerType="hentai"
       ownerId={hentai.system_id}
       isAdmin={isAdmin}
       hideSections={hideSections}
+      series={series}
+      franchise={franchise}
     />
   );
 }

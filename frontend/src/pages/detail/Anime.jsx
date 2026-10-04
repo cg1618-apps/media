@@ -470,7 +470,13 @@ export default function Anime() {
           <CastSection cast={cast} />
 
           {/* Structured Notes */}
-          <AnimeNotes key={anime.system_id} anime={anime} isAdmin={isAdmin} />
+          <AnimeNotes
+            key={anime.system_id}
+            anime={anime}
+            isAdmin={isAdmin}
+            series={series}
+            franchise={franchise}
+          />
         </div>
       </div>
 

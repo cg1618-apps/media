@@ -455,6 +455,8 @@ export default function TV() {
             show={show}
             isAdmin={isAdmin}
             hideSections={show.remark ? ["remark"] : []}
+            series={series}
+            franchise={franchise}
           />
         </div>
       </div>
