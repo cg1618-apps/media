@@ -20,6 +20,8 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import { endpoints } from "../../api/endpoints";
 
 export { defaultComic } from "../../config/formFactories";
 
@@ -44,6 +46,7 @@ export default function ComicAddTab({
   comicFillResults,
   comicFillLoading,
   applyComicAutofill,
+  applyComicVinePick,
   allFranchises,
   seriesItemsForComic,
   sources,
@@ -138,6 +141,13 @@ export default function ComicAddTab({
         )}
       </div>
 
+      <ExternalSearchBox
+        source="Comic Vine"
+        searchUrl={endpoints.comic.searchComicVine}
+        onPick={applyComicVinePick}
+        submitOnEnter
+        hint="Searches on Enter, not as you type: Comic Vine allows 200 requests an hour."
+      />
       <SectionHeader icon="fa-book" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox

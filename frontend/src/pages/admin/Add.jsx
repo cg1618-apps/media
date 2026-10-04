@@ -92,6 +92,12 @@ import {
   resolveDefaults,
 } from "../../hooks/useFormDefaults";
 import { buildAutofillPatch } from "../../lib/autofill";
+import {
+  makeExternalPick,
+  makeTmdbPick,
+  toIntId,
+  toStringId,
+} from "../../lib/externalPick";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import { PERSON_NAME_FIELDS, STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
@@ -680,28 +686,83 @@ export default function Add() {
     setMovieFillQuery,
     setMovieFillOpen,
   );
-  // The game tab's picker is not makeApply's shape: the item is a raw IGDB
-  // object rather than an existing entry, so it identifies the game (id and
-  // link, always) and fills a name only where the admin left one blank.
-  const applyGameAutofill = (game) => {
-    setGmf((p) => ({
-      ...p,
-      igdb_id: game.id ?? p.igdb_id,
-      igdb_link: game.url || p.igdb_link,
-      game_name_en: p.game_name_en || game.name || "",
-    }));
-    showToast("success", `Linked to IGDB: ${game.name || game.id}`);
-  };
-  // The h-game tab's picker, the same shape over its own name column.
-  const applyHGameAutofill = (game) => {
-    setHgf((p) => ({
-      ...p,
-      igdb_id: game.id ?? p.igdb_id,
-      igdb_link: game.url || p.igdb_link,
-      h_game_name_en: p.h_game_name_en || game.name || "",
-    }));
-    showToast("success", `Linked to IGDB: ${game.name || game.id}`);
-  };
+  // Game draws the shared EntryAutofillSearch, like the gated tabs.
+  const applyGameEntryAutofill = applyEntryAutofill(setGmf, "game");
+
+  // The external search under each tab's auto-fill box (ExternalSearchBox).
+  // A pick always writes the id and link (lib/externalPick.js) and writes a
+  // name only where the admin left it blank, and only into the column that
+  // name actually is:
+  //   - MAL's title is the romaji one, so anime, anime movie, manga and novel
+  //     get it in their Romaji column; the create path's MAL autofill never
+  //     writes names, so nothing else would.
+  //   - Person and character get MAL's native name in name_jp, which is
+  //     exactly what their create-time MAL autofill writes. MAL's `title` is
+  //     family-name-first ("Hanazawa, Kana"), not the western-order name_en
+  //     that autofill derives, so it is not written.
+  //   - TMDB, Open Library, Comic Vine and IGDB titles are the English ones.
+  const malPick = (setter, nameField) =>
+    makeExternalPick(setter, showToast, {
+      source: "MAL",
+      idField: "mal_id",
+      cast: toIntId,
+      linkField: "mal_link",
+      nameField,
+    });
+  const applyAnimeMalPick = malPick(setAf, "anime_name_roman");
+  const applyAnimeMovieMalPick = malPick(setAmf, "anime_movie_name_roman");
+  const applyMangaMalPick = malPick(setMgf, "manga_name_roman");
+  const applyNovelMalPick = malPick(setNvf, "novel_name_roman");
+  const applyNovelOpenLibraryPick = makeExternalPick(setNvf, showToast, {
+    source: "Open Library",
+    idField: "openlibrary_id",
+    cast: toStringId,
+    linkField: "openlibrary_link",
+    nameField: "novel_name_en",
+  });
+  // Person and character forms carry only mal_link; the server derives
+  // mal_id from it on save.
+  const entityMalPick = (setter) =>
+    makeExternalPick(setter, showToast, {
+      source: "MAL",
+      linkField: "mal_link",
+      nameField: "name_jp",
+      nameOf: (result) => result.title_alt,
+    });
+  const applyPersonMalPick = entityMalPick(setPersonForm);
+  const applyCharacterMalPick = entityMalPick(setCharacterForm);
+  const applyMovieTmdbPick = makeTmdbPick(setMf, showToast, {
+    resolveUrl: endpoints.movie.tmdbImdbId,
+    nameField: "movie_name_en",
+  });
+  const applyTvShowTmdbPick = makeTmdbPick(setTvf, showToast, {
+    resolveUrl: endpoints.tvShow.tmdbImdbId,
+    nameField: "tv_name_en",
+  });
+  const applyCartoonTmdbPick = makeTmdbPick(setCf, showToast, {
+    resolveUrl: endpoints.cartoon.tmdbImdbId,
+    nameField: "cartoon_name_en",
+  });
+  // comicvine_id is written beside the link: the save path does not derive
+  // it (only Fill does), and Fill runs on the id.
+  const applyComicVinePick = makeExternalPick(setCmf, showToast, {
+    source: "Comic Vine",
+    idField: "comicvine_id",
+    cast: toIntId,
+    linkField: "comicvine_link",
+    nameField: "comic_name_en",
+  });
+  // IGDB's public link carries a slug, so the id travels on its own.
+  const igdbPick = (setter, nameField) =>
+    makeExternalPick(setter, showToast, {
+      source: "IGDB",
+      idField: "igdb_id",
+      cast: toIntId,
+      linkField: "igdb_link",
+      nameField,
+    });
+  const applyGameIgdbPick = igdbPick(setGmf, "game_name_en");
+  const applyHGameIgdbPick = igdbPick(setHgf, "h_game_name_en");
 
   const applyTvShowAutofill = makeApply(
     setTvf,
@@ -2525,6 +2586,8 @@ export default function Add() {
       reading_status: cmf.reading_status || freshForm("comic").reading_status,
       read_order: cmf.read_order !== "" ? parseFloat(cmf.read_order) : null,
       my_rating: cmf.my_rating || null,
+      // The picker sets the id with the link; it travels only beside one.
+      comicvine_id: cmf.comicvine_link ? toIntId(cmf.comicvine_id) || null : null,
       comicvine_link: cmf.comicvine_link || null,
       sources: (cmf.sources || [])
         .filter((s) => (s.name || "").trim())
@@ -3391,6 +3454,7 @@ export default function Add() {
             fillRef={fillRef}
             fillResults={fillResults}
             applyAutofill={applyAutofill}
+            applyMalPick={applyAnimeMalPick}
             allFranchises={allFranchises}
             franchiseItems={franchiseItems}
             seriesItemsForAnime={seriesItems}
@@ -3412,6 +3476,7 @@ export default function Add() {
             amFillRef={amFillRef}
             amFillResults={amFillResults}
             applyAnimeMovieAutofill={applyAnimeMovieAutofill}
+            applyMalPick={applyAnimeMovieMalPick}
             allFranchises={allFranchises}
             franchiseItems={franchiseItems}
             sources={sources}
@@ -3432,6 +3497,7 @@ export default function Add() {
             movieFillRef={movieFillRef}
             movieFillResults={movieFillResults}
             applyMovieAutofill={applyMovieAutofill}
+            applyTmdbPick={applyMovieTmdbPick}
             allFranchises={allFranchises}
             seriesItemsForMovie={seriesItemsForMovie}
             sources={sources}
@@ -3452,6 +3518,7 @@ export default function Add() {
             tvFillRef={tvFillRef}
             tvFillResults={tvFillResults}
             applyTvShowAutofill={applyTvShowAutofill}
+            applyTmdbPick={applyTvShowTmdbPick}
             allFranchises={allFranchises}
             seriesItemsForTvShow={seriesItemsForTvShow}
             sources={sources}
@@ -3472,6 +3539,7 @@ export default function Add() {
             cartoonFillRef={cartoonFillRef}
             cartoonFillResults={cartoonFillResults}
             applyCartoonAutofill={applyCartoonAutofill}
+            applyTmdbPick={applyCartoonTmdbPick}
             allFranchises={allFranchises}
             seriesItemsForCartoon={seriesItemsForCartoon}
             sources={sources}
@@ -3492,6 +3560,7 @@ export default function Add() {
             mangaFillRef={mangaFillRef}
             mangaFillResults={mangaFillResults}
             applyMangaAutofill={applyMangaAutofill}
+            applyMalPick={applyMangaMalPick}
             allFranchises={allFranchises}
             seriesItemsForManga={seriesItemsForManga}
             sources={sources}
@@ -3512,6 +3581,8 @@ export default function Add() {
             novelFillRef={novelFillRef}
             novelFillResults={novelFillResults}
             applyNovelAutofill={applyNovelAutofill}
+            applyMalPick={applyNovelMalPick}
+            applyOpenLibraryPick={applyNovelOpenLibraryPick}
             allFranchises={allFranchises}
             seriesItemsForNovel={seriesItemsForNovel}
             sources={sources}
@@ -3532,6 +3603,7 @@ export default function Add() {
             comicFillRef={comicFillRef}
             comicFillResults={comicFillResults}
             applyComicAutofill={applyComicAutofill}
+            applyComicVinePick={applyComicVinePick}
             allFranchises={allFranchises}
             seriesItemsForComic={seriesItemsForComic}
             sources={sources}
@@ -3548,7 +3620,9 @@ export default function Add() {
             allGames={allGames}
             seriesItemsForGame={seriesItemsForGame}
             sources={sources}
-            applyGameAutofill={applyGameAutofill}
+            gamesLoading={isLoading("game")}
+            applyGameEntryAutofill={applyGameEntryAutofill}
+            applyIgdbPick={applyGameIgdbPick}
           />
         )}
 
@@ -3579,7 +3653,7 @@ export default function Add() {
             hGamesLoading={isLoading("h-game")}
             seriesItemsForHGame={seriesItemsForHGame}
             sources={sources}
-            applyHGameAutofill={applyHGameAutofill}
+            applyIgdbPick={applyHGameIgdbPick}
             applyHGameEntryAutofill={applyHGameEntryAutofill}
           />
         )}
@@ -3674,13 +3748,18 @@ export default function Add() {
               upf={upf}
               roles={personRoles}
               setRoles={setPersonRoles}
+              applyMalPick={applyPersonMalPick}
             />
           </div>
         )}
 
         {/* ═══ CHARACTER TAB ═══ */}
         {activeTab === "character" && (
-          <CharacterAddTab characterForm={characterForm} ucf={ucf} />
+          <CharacterAddTab
+            characterForm={characterForm}
+            ucf={ucf}
+            applyMalPick={applyCharacterMalPick}
+          />
         )}
 
         {/* Content labels - one control for every media tab, and for the

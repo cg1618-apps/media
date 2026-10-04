@@ -21,6 +21,8 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import { endpoints } from "../../api/endpoints";
 
 export { defaultCartoon } from "../../config/formFactories";
 
@@ -36,6 +38,7 @@ export default function CartoonAddTab({
   cartoonFillResults,
   cartoonFillLoading,
   applyCartoonAutofill,
+  applyTmdbPick,
   allFranchises,
   seriesItemsForCartoon,
   sources,
@@ -112,6 +115,12 @@ export default function CartoonAddTab({
         )}
       </div>
 
+      <ExternalSearchBox
+        source="TMDB"
+        searchUrl={endpoints.cartoon.searchTmdb}
+        onPick={applyTmdbPick}
+        hint="A pick looks up the IMDb id TMDB holds for it; the entry is keyed by IMDb."
+      />
       <SectionHeader icon="fa-paint-brush" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox

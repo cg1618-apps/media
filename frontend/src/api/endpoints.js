@@ -197,6 +197,9 @@ export const endpoints = {
     // members, in display order. PUT bodies: {club_ids} / {member_ids}.
     clubs: (id) => `/api/person/${id}/clubs`,
     members: (id) => `/api/person/${id}/members`,
+    // The Add tab's MyAnimeList picker (ExternalSearchResult rows).
+    searchMal: (q, limit = 10) =>
+      `/api/person/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
   },
 
   credits: {
@@ -216,6 +219,9 @@ export const endpoints = {
     remove: (id, castings) => `/api/character/${id}?castings=${castings}`,
     merge: (id) => `/api/character/${id}/merge`,
     entries: (id) => `/api/character/${id}/entries`,
+    // The Add tab's MyAnimeList picker (ExternalSearchResult rows).
+    searchMal: (q, limit = 10) =>
+      `/api/character/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
   },
 
   casting: {
@@ -307,9 +313,59 @@ export const endpoints = {
     reorder: () => "/api/resources/reorder",
   },
 
-  // Game CRUD comes from resource("game"); this group holds the one endpoint
-  // that is not CRUD — the admin's IGDB picker, which answers with IGDB's raw
-  // game objects (id, name, first_release_date, cover.url, url).
+  // The Add tabs' external pickers. CRUD for each type comes from
+  // resource(type); these groups hold the endpoints that are not CRUD. Every
+  // search answers ExternalSearchResult rows (external_id, link, title,
+  // title_alt, year, detail, cover_url), or a 502 whose detail says why.
+  anime: {
+    searchMal: (q, limit = 10) =>
+      `/api/anime/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+  },
+
+  animeMovie: {
+    searchMal: (q, limit = 10) =>
+      `/api/anime-movie/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+  },
+
+  manga: {
+    searchMal: (q, limit = 10) =>
+      `/api/manga/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+  },
+
+  novel: {
+    searchMal: (q, limit = 10) =>
+      `/api/novel/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+    searchOpenLibrary: (q, limit = 10) =>
+      `/api/novel/search-openlibrary?q=${encodeURIComponent(q)}&limit=${limit}`,
+  },
+
+  // A TMDB result's external_id is a ref ("movie/603"), not the IMDb id the
+  // row is keyed by; tmdbImdbId(ref) turns the picked one into
+  // {imdb_id, imdb_link}, or a 404 when TMDB has none.
+  movie: {
+    searchTmdb: (q, limit = 10) =>
+      `/api/movies/search-tmdb?q=${encodeURIComponent(q)}&limit=${limit}`,
+    tmdbImdbId: (ref) => `/api/movies/tmdb-imdb-id?ref=${encodeURIComponent(ref)}`,
+  },
+
+  tvShow: {
+    searchTmdb: (q, limit = 10) =>
+      `/api/tv-shows/search-tmdb?q=${encodeURIComponent(q)}&limit=${limit}`,
+    tmdbImdbId: (ref) => `/api/tv-shows/tmdb-imdb-id?ref=${encodeURIComponent(ref)}`,
+  },
+
+  cartoon: {
+    searchTmdb: (q, limit = 10) =>
+      `/api/cartoon/search-tmdb?q=${encodeURIComponent(q)}&limit=${limit}`,
+    tmdbImdbId: (ref) => `/api/cartoon/tmdb-imdb-id?ref=${encodeURIComponent(ref)}`,
+  },
+
+  // Comic Vine allows 200 requests an hour, so its picker searches on Enter.
+  comic: {
+    searchComicVine: (q, limit = 10) =>
+      `/api/comic/search-comicvine?q=${encodeURIComponent(q)}&limit=${limit}`,
+  },
+
   game: {
     searchIgdb: (q, limit = 10) =>
       `/api/game/search-igdb?q=${encodeURIComponent(q)}&limit=${limit}`,
