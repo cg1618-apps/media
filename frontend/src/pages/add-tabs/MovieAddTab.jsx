@@ -21,6 +21,8 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import { endpoints } from "../../api/endpoints";
 
 export { defaultMovie } from "../../config/formFactories";
 
@@ -36,6 +38,7 @@ export default function MovieAddTab({
   movieFillResults,
   movieFillLoading,
   applyMovieAutofill,
+  applyTmdbPick,
   allFranchises,
   seriesItemsForMovie,
   sources,
@@ -112,6 +115,12 @@ export default function MovieAddTab({
         )}
       </div>
 
+      <ExternalSearchBox
+        source="TMDB"
+        searchUrl={endpoints.movie.searchTmdb}
+        onPick={applyTmdbPick}
+        hint="A pick looks up the IMDb id TMDB holds for it; the entry is keyed by IMDb."
+      />
       <SectionHeader icon="fa-ticket-alt" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox

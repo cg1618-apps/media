@@ -6,8 +6,9 @@ Uses IMDb ID as the entry point via TMDB's Find endpoint.
 """
 
 import logging
+import re
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 from tenacity import (
@@ -18,6 +19,11 @@ from tenacity import (
 )
 
 from app.config import settings
+from app.services.integrations.external_search import (
+    SEARCH_TIMEOUT,
+    ExternalSearchError,
+    cached_search,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -253,3 +259,138 @@ def fetch_tmdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
         data["_media_type"] = media_type
 
     return data
+
+
+# ==========================================
+# Add-tab picker search
+# ==========================================
+# Movie, TV show and cartoon rows are keyed by IMDb id, which IMDb offers no
+# API to search. So the picker searches TMDB, and only the result the admin
+# picks is resolved to an IMDb id — resolving every result would cost one
+# extra request each against TMDB's 40-per-10s limit.
+
+TMDB_WEB_URL = "https://www.themoviedb.org"
+TMDB_POSTER_URL = "https://image.tmdb.org/t/p/w185"
+TMDB_SEARCH_KINDS = ("movie", "tv")
+TMDB_KIND_LABELS = {"movie": "Movie", "tv": "TV"}
+TMDB_REF_PATTERN = re.compile(r"(movie|tv)/(\d+)")
+
+
+def _search_get(path: str, params: Dict[str, Any], context: str) -> Dict[str, Any]:
+    """One throttled, unretried TMDB GET for a picker; any failure is an ExternalSearchError."""
+    api_key = settings.tmdb_api_key
+    if not api_key:
+        raise ExternalSearchError("TMDB search is unavailable: TMDB_API_KEY is not configured.")
+
+    tmdb_rate_limiter.wait_if_needed()
+    try:
+        response = requests.get(
+            f"{TMDB_BASE_URL}{path}",
+            params={**params, "api_key": api_key},
+            timeout=SEARCH_TIMEOUT,
+        )
+    except requests.exceptions.RequestException as exc:
+        logger.warning("TMDB %s failed: %s", context, exc)
+        raise ExternalSearchError("TMDB could not be reached. Try again in a moment.")
+
+    if response.status_code == 429:
+        raise ExternalSearchError("TMDB is rate limiting requests. Try again in a few seconds.")
+    if response.status_code in (401, 403):
+        raise ExternalSearchError("TMDB rejected the configured API key.")
+    if response.status_code != 200:
+        logger.warning("TMDB %s answered %s.", context, response.status_code)
+        raise ExternalSearchError(f"TMDB answered with an error ({response.status_code}).")
+
+    try:
+        data = response.json()
+    except ValueError:
+        raise ExternalSearchError("TMDB sent a response that could not be read.")
+    if not isinstance(data, dict):
+        raise ExternalSearchError("TMDB sent a response that could not be read.")
+    return data
+
+
+def _year(value: Optional[str]) -> Optional[int]:
+    """'1999-03-30' -> 1999; TMDB sends '' for an unknown date."""
+    if value and len(value) >= 4 and value[:4].isdigit():
+        return int(value[:4])
+    return None
+
+
+def _map_search_result(item: Dict[str, Any], kind: str) -> Optional[Dict[str, Any]]:
+    tmdb_id = item.get("id")
+    title = item.get("title") if kind == "movie" else item.get("name")
+    if tmdb_id is None or not title:
+        return None
+    original = item.get("original_title") if kind == "movie" else item.get("original_name")
+    date_value = item.get("release_date") if kind == "movie" else item.get("first_air_date")
+    language = item.get("original_language")
+    detail = TMDB_KIND_LABELS[kind]
+    if language:
+        detail = f"{detail} · {language.upper()}"
+    poster = item.get("poster_path")
+    return {
+        "external_id": f"{kind}/{tmdb_id}",
+        "link": f"{TMDB_WEB_URL}/{kind}/{tmdb_id}",
+        "title": title,
+        "title_alt": original if original and original != title else None,
+        "year": _year(date_value),
+        "detail": detail,
+        "cover_url": f"{TMDB_POSTER_URL}{poster}" if poster else None,
+    }
+
+
+@cached_search
+def search_tmdb(q: str, limit: int, kinds: Tuple[str, ...]) -> List[Dict[str, Any]]:
+    """
+    Searches TMDB titles for the Add-tab picker, as ExternalSearchResult dicts.
+
+    ``kinds`` is drawn from ("movie", "tv"). One kind uses that kind's search
+    endpoint; both use /search/multi filtered to movie and tv results. Multi
+    is one request rather than two, and TMDB ranks its movie and TV hits
+    against each other — two calls would need a merge order invented here.
+    Its person results are dropped, which can leave fewer than ``limit`` rows
+    for a query that names a person; a title query rarely does.
+    """
+    if not kinds or any(kind not in TMDB_SEARCH_KINDS for kind in kinds):
+        raise ValueError(f"kinds must be drawn from {TMDB_SEARCH_KINDS}, got {kinds!r}")
+    wanted = set(kinds)
+    path = f"/search/{kinds[0]}" if len(wanted) == 1 else "/search/multi"
+    params = {"query": q, "include_adult": "false", "page": 1}
+    data = _search_get(path, params, context=f"search for {q!r}")
+
+    rows: List[Dict[str, Any]] = []
+    for item in data.get("results") or []:
+        # A single-kind endpoint omits media_type; multi sends it on every row.
+        kind = item.get("media_type") if len(wanted) > 1 else kinds[0]
+        if kind not in wanted:
+            continue
+        row = _map_search_result(item, kind)
+        if row:
+            rows.append(row)
+        if len(rows) >= limit:
+            break
+    return rows
+
+
+@cached_search
+def _fetch_tmdb_imdb_id(kind: str, tmdb_id: str) -> Optional[str]:
+    data = _search_get(
+        f"/{kind}/{tmdb_id}/external_ids", {}, context=f"external ids of {kind}/{tmdb_id}"
+    )
+    imdb_id = data.get("imdb_id")
+    return imdb_id if isinstance(imdb_id, str) and imdb_id.startswith("tt") else None
+
+
+def resolve_tmdb_imdb_id(ref: str) -> Optional[str]:
+    """
+    The IMDb id ("tt…") TMDB holds for a picked search result, or None.
+
+    ``ref`` is a search result's external_id: "movie/603" or "tv/1399".
+    Anything else is a ValueError, raised before any request is made.
+    One unretried request; an upstream failure is an ExternalSearchError.
+    """
+    match = TMDB_REF_PATTERN.fullmatch(ref or "")
+    if not match:
+        raise ValueError(f"Not a TMDB reference: {ref!r}. Expected 'movie/<id>' or 'tv/<id>'.")
+    return _fetch_tmdb_imdb_id(match.group(1), match.group(2))

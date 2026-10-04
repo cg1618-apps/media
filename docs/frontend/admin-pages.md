@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-03
+Last verified: 2026-10-04
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -178,18 +178,72 @@ replaced by the next media add, and goes when the banner is dismissed or a
 non-media row (collection, person, …) is added.
 
 **Autofill search box (anime, anime movie, movie, TV show, cartoon, manga,
-novel, comic, h-comic, h-game, hentai).** Typing filters that tab's list
+novel, comic, game, h-comic, h-game, hentai).** Typing filters that tab's list
 client-side; picking a row copies its fields into the form (`lib/autofill.js`,
 driven by `config/formFields/fieldMeta.js` and the auto-fill ticks on
-`/defaults`). Nothing is fetched from external APIs at this point. The three
-gated tabs draw the box with `EntryAutofillSearch`, which holds its own query
-and dropdown, and hand a pick to `applyEntryAutofill` in `Add.jsx`; the older
+`/defaults`). Nothing is fetched from external APIs by this box. The game and
+gated tabs draw it with `EntryAutofillSearch`, which holds its own query and
+dropdown, and hand a pick to `applyEntryAutofill` in `Add.jsx`; the older
 tabs inline the same markup and keep that state in `Add.jsx`. On h-comic a
 copied region carries the untouched suggested restricted sources over to it
 (`mergeHComicAutofill`), as choosing the region by hand does, unless the
-sources were copied too. **H-Game has two boxes**: this one, and the IGDB
-search below it. **Game is the exception** — its only box searches IGDB, see
-the Game tab below.
+sources were copied too.
+
+**External search box.** Directly below the auto-fill box (and, on the person
+and character tabs, the only box), `components/forms/ExternalSearchBox.jsx`
+links the new entry to its record on an outside source. Which source each tab
+searches, and what a pick writes:
+
+| Tab | Source | Endpoint (`api/endpoints.js`) | Writes |
+| --- | --- | --- | --- |
+| Anime | MAL | `anime.searchMal` | `mal_id`, `mal_link`, blank `anime_name_roman` |
+| Anime Movie | MAL (movies) | `animeMovie.searchMal` | `mal_id`, `mal_link`, blank `anime_movie_name_roman` |
+| Manga | MAL (no novels) | `manga.searchMal` | `mal_id`, `mal_link`, blank `manga_name_roman` |
+| Novel | MAL (novels) **and** Open Library, two boxes | `novel.searchMal`, `novel.searchOpenLibrary` | MAL: `mal_id`, `mal_link`, blank `novel_name_roman`; Open Library: `openlibrary_id` (a string), `openlibrary_link`, blank `novel_name_en` |
+| Movie / TV Show / Cartoon | TMDB | `movie` / `tvShow` / `cartoon` `.searchTmdb` | `imdb_id`, `imdb_link`, blank `*_name_en`, after a resolve (below) |
+| Comic | Comic Vine, **on Enter** | `comic.searchComicVine` | `comicvine_id`, `comicvine_link`, blank `comic_name_en` |
+| Game / H-Game | IGDB | `game.searchIgdb` / `hGame.searchIgdb` | `igdb_id`, `igdb_link`, blank `game_name_en` / `h_game_name_en` |
+| Person / Character | MAL | `person.searchMal` / `character.searchMal` | `mal_link`, blank `name_jp` from the native name |
+
+Every search answers the same rows (`external_id`, `link`, `title`,
+`title_alt`, `year`, `detail`, `cover_url`), so one component draws them all:
+cover (or a placeholder block), title, second title, year and a detail line.
+As-you-type it debounces 350 ms, fires nothing under two characters, and marks
+an in-flight answer cancelled when the term changes, so a slow reply to an
+earlier query never overwrites a newer one. Enter never submits the Add form
+from the box. A failing source answers 502 with a human `detail`, which the
+dropdown shows (a network failure gets a generic line); "No matches" is shown
+only for a genuine empty answer. **Comic Vine searches on Enter only**
+(`submitOnEnter`, with a hint under the box): it allows 200 requests an hour.
+
+The box never touches form state; a pick goes to a handler built in `Add.jsx`
+from `lib/externalPick.js`. `makeExternalPick` always overwrites the id (an
+integer for MAL, IGDB and Comic Vine, a string for Open Library and IMDb) and
+the link, writes the one name column the table names **only when it is
+blank**, and toasts "Linked to <source>: <title>". Nothing else is copied:
+the rest is Fill's job, or the create path's. The name column is the column
+the source's title actually is. MAL's `title` is the romaji one, and the
+create-time MAL autofill on anime never writes names, so nothing else would.
+Person and character get MAL's native name in `name_jp`, which is exactly
+what their create-time MAL autofill writes; MAL's `title` for them is
+family-name-first ("Hanazawa, Kana"), not the western-order `name_en` that
+autofill derives, so it is not written. Person and character forms carry
+only `mal_link`; the server derives `mal_id` from it on save and fills names
+and photo from MAL then, for a person only when it holds the seiyuu role,
+which the person box's hint says.
+
+**TMDB picks resolve before they write.** Movie, TV show and cartoon rows are
+keyed by IMDb, and a TMDB result's `external_id` is a TMDB ref (`movie/603`,
+`tv/1399`). `makeTmdbPick` first calls
+`GET /api/<prefix>/tmdb-imdb-id?ref=<ref>` (`endpoints.<type>.tmdbImdbId`)
+and only on `{imdb_id, imdb_link}` writes the two fields. A 404 (TMDB holds no
+IMDb id) or a 502 writes nothing and shows an error toast telling the admin to
+enter the IMDb link by hand.
+
+**Comic Vine writes `comicvine_id` too.** The save path does not derive it
+from `comicvine_link` (only Fill does), so the pick sets it, the form carries
+it (`defaultComic`; hidden on `/defaults`), and `submitComic` sends it beside
+the link, and only beside one, so a cleared link never leaves an orphan id.
 
 **Franchise / series pickers.** `ComboBox` over the loaded lists; "create new"
 opens `FranchiseCreateModal` / `CreateNewEntityModal`, which POST the group
@@ -208,16 +262,12 @@ Content labels reset only after a successful submit; a validation
 early-return or a failed POST keeps the selection. Network failures surface
 as an error toast.
 
-**Game tab.** `GameAddTab.jsx`. The one media tab whose search box is not the
-client-side "copy an existing entry" picker: `IgdbSearchBox` queries
-`GET /api/game/search-igdb?q=&limit=10` (`endpoints.game.searchIgdb`) and lists
-IGDB's own hits. It debounces 350 ms (IGDB is rate-limited), fires nothing under
-two characters, and its effect cleanup marks in-flight answers cancelled, so a
-slow reply to an earlier query can never overwrite a newer one. The rows read
-IGDB's **raw** objects — `name`, `first_release_date` (Unix seconds UTC, shown
-as a year) and `cover.url` (protocol-relative, so `https:` is prefixed) — because
-the endpoint does not reshape them. The widget never touches form state; it
-hands the raw object to `onPick`.
+**Game tab.** `GameAddTab.jsx`. Two boxes, like every media tab:
+`EntryAutofillSearch` over the loaded games (`applyEntryAutofill(setGmf,
+"game")`, so the Game tab's auto-fill ticks on `/defaults` decide what it
+copies), and under it the IGDB `ExternalSearchBox`
+(`GET /api/game/search-igdb?q=&limit=10`). IGDB is Fill's only handle on a
+game, so the admin links the right entry here before saving.
 
 Its sections run Classification → **Rating** → Status → Progress → Credits →
 Release & Prices → Copies → Sources → Flags → Notes. Rating holds `my_rating`
@@ -225,8 +275,7 @@ and the two Metacritic scores together, which is why the registry groups all
 three under `Ratings` (`fieldMeta.js`) rather than leaving `my_rating` in the
 shared `Status` group — /defaults reads those groups and is meant to match.
 
-`applyGameAutofill` (in `Add.jsx`) is what turns that object into fields, and it
-is deliberately not `makeApply`'s shape: it always sets `igdb_id` and
+An IGDB pick (`applyGameIgdbPick` in `Add.jsx`) always sets `igdb_id` and
 `igdb_link`, and fills `game_name_en` **only when the admin left it blank**.
 Nothing else is copied — the rest is Fill Game's job.
 
@@ -296,9 +345,9 @@ carries it, and the save adds it back. The form never sends
 `highlight_group_order` - the detail page's drag owns it.
 
 **H-Game tab.** `HGameAddTab.jsx`, gated like the H-Comic tab. It is the Game
-tab reshaped for `h_game`: the same **IGDB search** at the top (`IgdbSearchBox`
-pointed at `/api/h-game/search-igdb`, filling the id, the link and a blank EN
-name), then `HGameLineageFields` and `HGameFormBody`, which the Modify tab
+tab reshaped for `h_game`: the same two boxes at the top (`EntryAutofillSearch`
+over the loaded h-games, then the IGDB `ExternalSearchBox` pointed at
+`/api/h-game/search-igdb`, filling the id, the link and a blank EN name), then `HGameLineageFields` and `HGameFormBody`, which the Modify tab
 renders too. The franchise picker offers **H-Game franchises only**, and a new
 franchise typed there is created as `H-Game` - H-Game is a franchise family of
 its own, and the server refuses an h-game anywhere else. The **Base Game**
@@ -355,7 +404,9 @@ not `<input type="date">`, because it carries the same partial precision
 `release_date` does (invalid values are flagged with a danger border). The
 entry's Ownership is derived from these rows, not typed.
 
-**Person tab (Entity).** `PersonAddTab.jsx`. No `PersonSubTabBar` here — the
+**Person tab (Entity).** `PersonAddTab.jsx`. Its only search box is the MAL
+`ExternalSearchBox` (see "External search box" above), over the form. No
+`PersonSubTabBar` here — the
 bar filters a list, and Add has no list; the role × scope matrix inside the
 form already says which types a new person holds. `PersonFields` holds the four name fields with a
 "Display name" select, the **role × scope matrix**, then gender and rating as
@@ -370,7 +421,8 @@ rejects. Submit is blocked until at least one name is filled, matching
 `ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
 `PersonFields` is exported so the Modify tab renders the same inputs.
 
-**Character tab (Entity).** `CharacterAddTab.jsx`. `CharacterFields` is the
+**Character tab (Entity).** `CharacterAddTab.jsx`. Its only search box is the
+MAL `ExternalSearchBox`, over the form. `CharacterFields` is the
 person form without the role × scope matrix: the four name fields, the
 "Display name" select, a **Role** select ("—" for none, plus Main, Core,
 Supporting, Other — `CHARACTER_ROLES`), the same Gender and My Rating selects,
@@ -792,9 +844,9 @@ each from its link) and `mal_link` and `anidb_link` are not auto-fillable;
 `h-comic`'s `mal_id` and `mal_link` the same, and its `ehentai_link` (group
 Links) is neither defaultable nor auto-fillable.
 
-`game` is present here like any other media type, but its Add form has no
-"copy an existing entry" search (its box searches IGDB), so the auto-fill ticks
-on the Game tab currently drive nothing.
+`game` is present here like any other media type, and its auto-fill ticks
+drive the Game Add form's copy-an-existing-entry box (`BUILTIN_AUTOFILL.game`
+until a set is saved for it).
 
 **Repeater defaults (sources, game copies).** `sources` on every media tab and
 `copies` on the Game tab are lists of rows, not single values, so

@@ -24,7 +24,6 @@ import {
 import * as api from "./api";
 import TextSection from "./sections/TextSection";
 import TextLinksSection from "./sections/TextLinksSection";
-import TextOrLinkSection from "./sections/TextOrLinkSection";
 import EpisodeTextSection from "./sections/EpisodeTextSection";
 import NameLinksSection from "./sections/NameLinksSection";
 import NameEntriesSection from "./sections/NameEntriesSection";
@@ -36,7 +35,6 @@ import MemeSection from "./sections/MemeSection";
 const SHAPES = {
   text: TextSection,
   text_links: TextLinksSection,
-  text_or_link: TextOrLinkSection,
   episode_text: EpisodeTextSection,
   name_links: NameLinksSection,
   name_entries: NameEntriesSection,

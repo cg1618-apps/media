@@ -72,6 +72,14 @@ function mount() {
   );
 }
 
+// The first name input. The tab's MAL search box is a textbox too, and sits
+// above the form.
+function firstNameInput() {
+  return screen
+    .getAllByRole("textbox")
+    .find((el) => el.getAttribute("aria-label") !== "Search MAL");
+}
+
 async function goToPersonTab(user) {
   await waitFor(() =>
     expect(screen.queryByText(/loading/i)).not.toBeInTheDocument(),
@@ -92,7 +100,7 @@ describe("Add page — Person tab image attach", () => {
     mount();
     await goToPersonTab(user);
 
-    const [nameInput] = screen.getAllByRole("textbox");
+    const nameInput = firstNameInput();
     await user.type(nameInput, "Ada Lovelace");
     await user.click(
       screen.getByRole("button", { name: /simulate image pick/i }),
@@ -123,7 +131,7 @@ describe("Add page — Person tab image attach", () => {
     mount();
     await goToPersonTab(user);
 
-    const [nameInput] = screen.getAllByRole("textbox");
+    const nameInput = firstNameInput();
     await user.type(nameInput, "Grace Hopper");
     await user.click(
       screen.getByRole("button", { name: /simulate image pick/i }),
@@ -153,7 +161,7 @@ describe("Add page — Person tab image attach", () => {
     mount();
     await goToPersonTab(user);
 
-    const [nameInput] = screen.getAllByRole("textbox");
+    const nameInput = firstNameInput();
     await user.type(nameInput, "Kana Hanazawa");
     await user.type(
       screen.getByPlaceholderText("https://myanimelist.net/people/..."),

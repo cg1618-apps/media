@@ -1,12 +1,13 @@
 // Frontend: add tab page file for GameAddTab.
 //
-// The search at the top is not the comic tab's "auto-fill from an existing
-// entry": a game is identified against IGDB instead, because the IGDB id it
-// stores is Fill's only handle on the game. Everything else still comes from
-// the Fill pipeline, and the one field worth copying between entries (the base
-// game) has its own picker.
-import { useEffect, useRef, useState } from "react";
+// Two boxes at the top, as on every media tab: EntryAutofillSearch copies
+// fields from a game already in the catalogue, and the IGDB search under it
+// links the new entry to its IGDB record - the IGDB id it stores is Fill's
+// only handle on the game. Everything else comes from the Fill pipeline, and
+// the base game has its own picker below.
 import ComboBox from "../../components/forms/ComboBox";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
@@ -32,158 +33,8 @@ import {
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
-import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
 
 export { defaultGame } from "../../config/formFactories";
-
-// The endpoint answers with IGDB's raw game objects, so the three fields the
-// dropdown shows are read here rather than on the server.
-const IGDB_DEBOUNCE_MS = 350;
-
-/** IGDB's `first_release_date` is Unix seconds UTC; only the year is shown. */
-function igdbYear(seconds) {
-  if (seconds == null) return null;
-  const date = new Date(Number(seconds) * 1000);
-  return Number.isNaN(date.getTime()) ? null : date.getUTCFullYear();
-}
-
-/** IGDB cover URLs are protocol-relative; the thumb size is what search returns. */
-function igdbCover(game) {
-  const url = game?.cover?.url;
-  if (!url) return null;
-  return url.startsWith("//") ? `https:${url}` : url;
-}
-
-/**
- * Identifies the game against IGDB before it is saved. `onPick` receives the
- * raw IGDB object; turning it into form fields is the page's job, so this
- * widget never touches the form state itself.
- *
- * `searchUrl(q, limit)` names the endpoint: game's by default, and the h-game
- * tab passes its own, which answers the same way.
- */
-export function IgdbSearchBox({ onPick, searchUrl = endpoints.game.searchIgdb }) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const boxRef = useRef(null);
-
-  // Debounced: IGDB is rate-limited, so a request goes out only once the
-  // typing settles. The cleanup also drops the answer to a stale query.
-  useEffect(() => {
-    const term = query.trim();
-    if (term.length < 2) {
-      setResults([]);
-      setLoading(false);
-      return undefined;
-    }
-    let cancelled = false;
-    setLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(searchUrl(term, 10), {
-          credentials: "include",
-        });
-        const data = res.ok ? await res.json() : [];
-        if (!cancelled) setResults(Array.isArray(data) ? data : []);
-      } catch {
-        if (!cancelled) setResults([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }, IGDB_DEBOUNCE_MS);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query, searchUrl]);
-
-  // Clicking anywhere else closes the dropdown, as the comic picker does.
-  useEffect(() => {
-    function onDocClick(e) {
-      if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, []);
-
-  return (
-    <div ref={boxRef} className="relative mb-4">
-      <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
-        <i className="fas fa-magic text-brand text-sm"></i>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder="Search IGDB — type a game name to link and auto-fill..."
-          className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
-          autoComplete="off"
-        />
-        {loading && (
-          <i className="fas fa-spinner fa-spin text-brand text-xs"></i>
-        )}
-        {query && (
-          <button
-            type="button"
-            onClick={() => {
-              setQuery("");
-              setOpen(false);
-            }}
-            className="text-text-faint hover:text-text-muted"
-            aria-label="Clear IGDB search"
-          >
-            <i className="fas fa-times text-xs"></i>
-          </button>
-        )}
-      </div>
-      {open && results.length > 0 && (
-        <SuggestList anchorRef={boxRef}>
-          {results.map((g) => {
-            const cover = igdbCover(g);
-            const year = igdbYear(g.first_release_date);
-            return (
-              <SuggestItem
-                key={g.id}
-                truncate={false}
-                onPick={() => {
-                  onPick(g);
-                  setQuery("");
-                  setOpen(false);
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  {cover ? (
-                    <img
-                      loading="lazy"
-                      src={cover}
-                      alt={g.name}
-                      className="w-8 h-11 object-cover rounded shrink-0"
-                      // An IGDB search result, not a stored owner image.
-                      data-focus="none"
-                    />
-                  ) : (
-                    <span className="w-8 h-11 rounded bg-surface-2 shrink-0" />
-                  )}
-                  <span className="text-sm font-bold text-text">{g.name}</span>
-                  {year && (
-                    <span className="text-[11px] font-semibold text-text-faint shrink-0">
-                      {year}
-                    </span>
-                  )}
-                </div>
-              </SuggestItem>
-            );
-          })}
-        </SuggestList>
-      )}
-    </div>
-  );
-}
 
 /**
  * Every field below the franchise/series pickers, shared verbatim by the
@@ -807,14 +658,36 @@ export default function GameAddTab({
   ugm,
   allFranchises,
   allGames,
+  gamesLoading = false,
   seriesItemsForGame,
   sources,
-  applyGameAutofill,
+  applyGameEntryAutofill,
+  applyIgdbPick,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      {/* IGDB search */}
-      <IgdbSearchBox onPick={applyGameAutofill} />
+      {/* Two boxes, two sources: this one copies fields from a game already
+          in the catalogue, the IGDB one below links the new entry to its
+          IGDB record. */}
+      <EntryAutofillSearch
+        items={allGames}
+        names={(g) => [
+          g.game_name_cn,
+          g.game_name_en,
+          g.game_name_roman,
+          g.game_name_jp,
+          g.game_name_alt,
+        ]}
+        title={(g) => getDisplayName(g, "game")}
+        franchises={allFranchises}
+        onPick={applyGameEntryAutofill}
+        loading={gamesLoading}
+      />
+      <ExternalSearchBox
+        source="IGDB"
+        searchUrl={endpoints.game.searchIgdb}
+        onPick={applyIgdbPick}
+      />
       <SectionHeader icon="fa-gamepad" title="Titles & Naming" />
       <GameLineageFields
         f={gmf}

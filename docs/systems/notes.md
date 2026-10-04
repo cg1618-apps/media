@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-10-03
+Last verified: 2026-10-04
 
 ## What this is for
 
@@ -44,13 +44,12 @@ Column declaration order is also the Google Sheets column order, because `format
 
 ### Shapes
 
-A shape names which columns a section uses. Declared as constants at the top of `app/utils/note_sections.py`; the nine stored ones are collected in `STORED_SHAPES`.
+A shape names which columns a section uses. Declared as constants at the top of `app/utils/note_sections.py`; the eight stored ones are collected in `STORED_SHAPES`.
 
 | Shape | Columns used | Rule of thumb |
 | --- | --- | --- |
 | `text` | `content` | A plain bullet. |
 | `text_links` | `content`, `links`, optional `locator` | A body *and* its sources. |
-| `text_or_link` | `content` **xor** `links[0]` | Either what someone said or where they said it, never both. |
 | `episode_text` | `locator`, `content`, `kind` where declared | Anchored to an episode/chapter. |
 | `name_links` | `title`, `links` | A named resource. |
 | `name_entries` | `title`, `entries` | A named list whose items are each a line of text **or** a labelled link, in one ordered array. **Currently owned by no section** — see the component table below. |
@@ -78,7 +77,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `quick_edit` | Render an inline editor in the read view, saving on blur without opening the row. For a value that changes while playing rather than while writing. |
 | `placeholder` | Overrides the label in the input. |
 
-Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`groupable_by`** names one of the section's `select` fields - 職業 Classes, 技能 Skills, the three 物品 sections and the three typed NG 多周目 sections name `type`. The card then carries a **Group by type** toggle (on by default, remembered per section in the reader's browser) that draws one group per value, in the order each value first appears, with the rows carrying none in a trailing group. Unlike `group_by`, no group order is stored anywhere: the groups follow the rows' `sort_index`, so moving a group or a row within one saves the whole section's row order through `PATCH /api/notes/reorder`, grouped. It is checked at import the same way. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
+Four rules sit on the section rather than on a field: **`require_any`** is groups of keys where at least one must be filled (an entry needs an order number *or* a name, and may have both), and **`hierarchical`** lets rows carry a `parent_id` and render as a tree. A flat section refuses a parent outright. **`group_by`** names one of the section's `names` fields; the read view draws one group per name, and a row naming two appears under both. The card carries a **Group by** toggle for it too (on by default, remembered per section in the reader's browser); turned off, the rows read as one flat list, which is where they are reordered - a row in two groups cannot be moved within one of them without moving in the other. It is display-only, and it is checked when the module is imported: a `group_by` naming anything but a `names` field of the same section fails the import. **`groupable_by`** names one of the section's `select` fields - 職業 Classes, 技能 Skills, the three 物品 sections and the three typed NG 多周目 sections name `type`. The card then carries a **Group by type** toggle (on by default, remembered per section in the reader's browser) that draws one group per value, in the order each value first appears, with the rows carrying none in a trailing group. Unlike `group_by`, no group order is stored anywhere: the groups follow the rows' `sort_index`, so moving a group or a row within one saves the whole section's row order through `PATCH /api/notes/reorder`, grouped. It is checked at import the same way. **`owner_where`** limits a section to some owners of its types, as `{owner column: allowed values}`; the router refuses a row on any other owner (422, `_require_owner_where` in `app/routers/note.py`, after the owner is known to be visible) and the page renders no card for it. Both are published on `NoteSectionOut`.
 
 **Why one JSONB column and not a column per field.** Most of what the structured sections need already has a column — a name is `title`, a description is `content`, a dropdown is `kind` or `status` — so `fields` carries only the leftovers and the nested lists. A column per field would put a dozen mostly-blank columns on a table all twelve owner types share, and those columns are also the Google Sheets Note tab; the nested lists would need JSONB regardless. The cost, stated plainly: the leftover scalars have no database-level type and no column to filter on. The values worth filtering (a beaten status, a completion status) land in the real `status` column, which is why that cost stays theoretical.
 
@@ -170,9 +169,9 @@ where a section lands. `analysis` is below; the other five are h-game's -
 which have nothing else of 評論 to share a card with), and the four
 `story_list_*` strands render in 劇情, because an h-game has no prose plot.
 
-For a film or a series, 解析 Analysis sits beside 分鏡/演出, 伏筆 and 對稱 in
-its own card, because those four are one subject. A game has none of the other
-three, so that card would hold exactly one section — and an analysis of a game
+For a film or a series, 解析 Analysis sits beside 分鏡/演出, 伏筆, 對稱 and 猜測 in
+its own card, because they are one subject. A game has none of the others,
+so that card would hold exactly one section — and an analysis of a game
 is read *with* the opinions rather than apart from them. So for `game` and
 `h-game` it is the last subsection of 評論 Reviews, and `analysis_group` is not
 rendered for either. H-comic and hentai have no 解析 at all.
@@ -231,12 +230,12 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `remark` | 備註 Remark | text | flat | All | — | — | — | no | **yes** | no |
 | `remark_list` | 備註列表 Remark List | text_links | flat | All | — | — | — | no | no | no |
-| `reviews_and_comments` | 評論 Reviews and Comments | text | flat (**reviews** for h-game) | h-comic, hentai, h-game | — | — | — | no | no | no |
+| `reviews_and_comments` | 評論 Reviews and Comments | text_links | flat (**reviews** for h-game) | h-comic, hentai, h-game | — | — | — | no | no | no |
 | `introduction` | 介紹 Introduction | text_links | reviews (first) | All but h-comic, hentai | — | — | — | no | no | no |
-| `advantages` | 優點 Advantages | text | reviews | All but h-comic, hentai | — | — | — | no | no | no |
-| `disadvantages` | 缺點 Disadvantages | text | reviews | All but h-comic, hentai | — | — | — | no | no | no |
-| `double_edged` | 優缺點 | text | reviews | All but h-comic, hentai | — | — | — | no | no | no |
-| `public_reviews` | 大眾評價 Public Reviews | text_or_link | reviews | All but H | — | — | — | no | no | no |
+| `advantages` | 優點 Advantages | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
+| `disadvantages` | 缺點 Disadvantages | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
+| `double_edged` | 優缺點 | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
+| `public_reviews` | 大眾評價 Public Reviews | text_links | reviews | All but H | — | — | — | no | no | no |
 | `personal_reviews` | 我的評價 Personal Reviews | text | reviews | All but H | — | — | — | no | no | no |
 | `episode_comments` | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | text_links | reviews | anime, tv-show, cartoon, game | — | — | "Episode, e.g. ep 1" (game: "Chapter / Part, e.g. Ch 3") | **yes** | no | no |
 | `highlights` | 神回/神片段 Highlights | episode_text | flat | anime | 神回, 神片段, 神篇章 | — | "Episode(s), e.g. ep 6" | **yes** | no | no |
@@ -250,6 +249,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
 | `foreshadowing` | Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
+| `speculation` | 猜測 Speculation | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `easter_eggs` | 彩蛋 Easter Eggs | structured | analysis_group | anime | — | — | field `episode` → `locator` ("Episode(s), e.g. ep 3") | no | no | field `description` → `content` is **required**; `links` → `links` as link pairs |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
@@ -314,8 +314,8 @@ than everything their owner group would give them.
 
 - **H-comic and hentai** keep 備註, 備註列表, Resources and - h-comic, KR only -
   亮點 Highlights. In place of the whole 評論 card, 解析, Questions and 名言/梗
-  they have one list, `reviews_and_comments` (評論 Reviews and Comments): plain
-  text, one row per remark, personal like the 我的評價 it replaces. With
+  they have one list, `reviews_and_comments` (評論 Reviews and Comments): text
+  and any number of links, one row per remark, personal like the 我的評價 it replaces. With
   nothing else of 評論 to share a card with, it renders flat in the Notes card.
 - **H-game** keeps game's notes less what does not describe how it plays:
   - 評論: 優點, 缺點, 優缺點 and 解析 stay; `reviews_and_comments` replaces
@@ -390,7 +390,7 @@ h-comic's `location`, which an h-game highlight does not have.
 `NotesProvider` - Game's composition, with 待辦 Todo in the Progress slip - is
 handed the entry row, `highlight_group_order` and the callback that PATCHes a
 new order, and the section renders exactly as on a KR h-comic: one group per
-female character, groups dragged by their header's handle or stepped with the arrow keys on it, rows not movable. An h-game has
+female character, groups dragged by their header's handle or stepped with the arrow keys on it, rows reordered in the flat list behind the **Group by female characters** toggle. An h-game has
 no cast, so the `names` inputs offer no suggestions and take any name typed.
 
 **On the h-comic page** (`frontend/src/pages/detail/HComic.jsx`, `HComicNotes.jsx`):
@@ -403,7 +403,11 @@ ArrowUp / ArrowDown on that grip), and the drop PATCHes the entry's
 which is how a name no row carries any more drops out of the list. The new
 order shows at once and every group handle is disabled until the PATCH
 settles; a failed save puts the stored order back. The rows inside a group have no handle: they follow
-`sort_index`. A row naming two female characters is drawn under both, and
+`sort_index`. To reorder the rows, turn off **Group by female characters** in
+the card header: the rows then read as one list, each once, with a grip apiece,
+and a move saves the section's whole order through `PATCH /api/notes/reorder`.
+Turned back on, every group shows its rows in that order. The toggle is
+remembered per section in the reader's browser. A row naming two female characters is drawn under both, and
 under each it lists the other female characters it names, not the group's own.
 The `names` inputs suggest the entry's cast by display name and accept any
 other name typed (Enter, a comma, or leaving the field).
@@ -517,7 +521,7 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 | 6 | If `status` given: section has statuses, and the value is one of them | Section '…' takes no status. / '…' is not a valid status for section '…'. |
 | 7 | `desc_required` for this owner ⇒ stripped `content` non-empty | Section '…' requires content. |
 | 8 | `locator_required` ⇒ stripped `locator` non-empty | Section '…' requires a locator. |
-| 9 | Emptiness, by shape: `name_links` needs content or title or links; `name_entries` needs a title or at least one entry ("Section '…' needs a name or an entry." — a named bookmark with neither a name nor a single entry is nothing); `text_or_link` needs content or a non-blank link, forbids both ("takes text or a link, not both"), and allows at most one link ("takes one link per note"); `episode_text` needs content or locator; `music_track` needs any of content/title/status/locator/links (kind alone never counts, since OP and ED default it to `normal`); `music_status` needs a kind and a status ("Section '…' needs a kind: one of …." / "needs a status.") and takes nothing else ("Section '…' takes no '…'."); every other shape needs content or links | Section '…' note is empty. |
+| 9 | Emptiness, by shape: `name_links` needs content or title or links; `name_entries` needs a title or at least one entry ("Section '…' needs a name or an entry." — a named bookmark with neither a name nor a single entry is nothing); `episode_text` needs content or locator; `music_track` needs any of content/title/status/locator/links (kind alone never counts, since OP and ED default it to `normal`); `music_status` needs a kind and a status ("Section '…' needs a kind: one of …." / "needs a status.") and takes nothing else ("Section '…' takes no '…'."); every other shape needs content or links | Section '…' note is empty. |
 
 A `structured` section takes none of this path: check 4 is followed by the nesting rule (a flat section refuses a `parent_id`) and then by `_validate_structured`, which returns. Checks 5 to 9 are per-shape, and a structured section's equivalents live in its spec — see [Structured sections](#structured-sections). A non-structured section given a `fields` payload is refused outright ("Section '…' takes no structured fields.").
 
@@ -547,7 +551,7 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 
 "By scope" means the section decides: a **catalogue** section needs `manage.catalog`, a **personal** one needs an account holding `self.personal_notes` and reaches only that account's own rows. Somebody else's personal note answers **404**, worded exactly as a missing one — there is no 403 anywhere in this router, because a 403 confirms the row exists as surely as a 200 does. A reorder over a personal section renumbers the caller's rows alone. See [Scope](#scope). `?author=` answers **404** for an unknown user, a private list, or a viewer without `field_group.personal_notes` — the same reply for all three.
 
-`/reorder` is declared before `/{note_id}` on purpose (FastAPI matches in order). The notes page calls it (`reorderNotes` in `frontend/src/pages/notes/api.js`) whenever a structured section's rows or groups are dragged into a new order.
+`/reorder` is declared before `/{note_id}` on purpose (FastAPI matches in order). The notes page calls it (`reorderNotes` in `frontend/src/pages/notes/api.js`) whenever a section's rows, or a `groupable_by` section's groups, are dragged into a new order — every list section, whatever its shape. The singleton `remark` has nothing to order, `music_status` is never drawn as a list, and quotes and memes live in their own tables and are not reordered.
 
 ## UI
 
@@ -655,6 +659,7 @@ once when both are used.
 | Each group renders as its own `GroupCard` *beside* Notes (Music is a peer of Notes, not inside it). Standalone sections (`resources`, `questions`) render lifted out with no wrapper — every shape component already draws its own `SectionCard`. | Same. |
 | **Collapse-when-empty**: `GroupCard` starts collapsed when `count === 0` (`useCollapsed` in `sections/ui.jsx`); the user can toggle it. Notes card wears the same chrome but `showCount={false}`. External sections report their row count via `onCount`; while any is still `null` the card counts as unknown and stays open. | `blockCount`, `reporterFor`. |
 | **Entry cap**: a section shows its first **three** rows (`VISIBLE_ENTRIES`) and folds the rest behind a mono "Show all (N)" / "Show less" text button under the list; a section of three rows or fewer has no button. It starts folded on every page load and is per section, per page - nothing is stored. It never hides what is being written: the row being edited stays on screen when the section folds (in its own place in the list), and the draft row renders after the list, outside the cap. Every list shape, `QuoteSection` and `MemeSection` included, gets it from `useEntryCap` + `ShowAllToggle` in `sections/ui.jsx`; the singleton `remark` textarea is not a list and has none. `StructuredSection` applies it two ways, below. | `useEntryCap`, `capEntries`, `ShowAllToggle`. |
+| **Reordering**: every list section an admin sees with two rows or more carries a grip per row (`components/ui/Sortable.jsx` — drag it, or press ArrowUp / ArrowDown on it). Rows are only ever reordered within their own section; sections and groups of sections have a fixed place. Each move sends the section's whole order through `PATCH /api/notes/reorder`; the provider shows it at once and disables that section's grips until the save settles. The grip moves a row by its place among all the rows, folded or not, so the last row shown can be moved past the fold, which unfolds the section. The row being edited has no grip. The flat shapes share one implementation (`useRowReorder`, `ReorderList`, `ReorderRow`, `ReorderHandle` in `sections/ui.jsx`); `StructuredSection` has its own, because it orders a tree and groups. A locator-led section (`episode_text`) is ordered by hand like the rest, not by its locator: a locator is free text — an episode, a chapter, a boss, a source — and has no order to sort by. | `onReorder`, `reordering`, `sections/ui.jsx`. |
 | `hideSections` — the second scoped exception — lets an embedding page suppress sections it renders itself. Detail pages pass `hideSections={entry.remark ? ["remark"] : []}` (e.g. `frontend/src/pages/detail/Comic.jsx`, `Cartoon.jsx`, `AnimeMovie.jsx`) because they keep a dedicated remark editor writing the *same* singleton row; two editors on one row means the form's stale state would revert or delete what was typed in the notes box. | `visibleSections` memo. |
 | Errors from any card show in one banner above all cards (a group card is a sibling of Notes, so an error must not report inside the wrong one). | `error` state. |
 
@@ -664,11 +669,10 @@ once when both are used.
 | --- | --- | --- |
 | `TextSection.jsx` | text | content |
 | `TextLinksSection.jsx` | text_links | locator (only if the section has a `locator_placeholder`), content, links; enforces `desc_required` / `locator_required` client-side |
-| `TextOrLinkSection.jsx` (+ `textOrLink.js`) | text_or_link | content xor one link |
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
 | `NameLinksSection.jsx` | name_links | title, links |
 | `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, dragged into order in the form by its grip). No section uses it: `side_quests` was the last, and moved into 劇情列表 Story List. The shape, the column, the component and the Sheets parsing all stay — rows written before that change are still in the database and still have to Pull. |
-| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. A `link_pairs` field (彩蛋 Easter Eggs) edits with `LinkPairsEditor`, plain-text labels, and reads as `LinkPairPills`; a label with no URL holds Save. Also owns drag-to-reorder (a grip per row from `components/ui/Sortable.jsx`; each drop is one `PATCH /api/notes/reorder`, applied on screen at once by `NotesContext`, with that section's grips disabled until the save settles), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move — among a row's own siblings, never to another parent — that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): each group header carries a grip (drag, or ArrowUp / ArrowDown on it), the rows are not movable. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry grips — a row moves only within its own group — and every move sends the section's whole row order, grouped. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; a row's grip moves it by its place among all its siblings, folded or not, so the last row shown can still be moved down past the fold, and a move that carries a row past the cap unfolds the section so the row does not vanish. A grouped section is capped **per group**, each group with its own toggle, and every group header stays on screen: the headers are what a reader scans and what carries a group's grip, and a folded-away header could be neither found nor dragged. |
+| `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. A `link_pairs` field (彩蛋 Easter Eggs) edits with `LinkPairsEditor`, plain-text labels, and reads as `LinkPairPills`; a label with no URL holds Save. Also owns drag-to-reorder (a grip per row from `components/ui/Sortable.jsx`; each drop is one `PATCH /api/notes/reorder`, applied on screen at once by `NotesContext`, with that section's grips disabled until the save settles), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move — among a row's own siblings, never to another parent — that flattens the whole tree depth-first. A `names` field renders as `NamesInput.jsx` in the form and as tags in the row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): each group header carries a grip (drag, or ArrowUp / ArrowDown on it), and the rows are not movable there; a **Group by** toggle in the card header switches to the flat list, where they are. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry grips — a row moves only within its own group — and every move sends the section's whole row order, grouped. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; a row's grip moves it by its place among all its siblings, folded or not, so the last row shown can still be moved down past the fold, and a move that carries a row past the cap unfolds the section so the row does not vanish. A grouped section is capped **per group**, each group with its own toggle, and every group header stays on screen: the headers are what a reader scans and what carries a group's grip, and a folded-away header could be neither found nor dragged. |
 | `NamesInput.jsx` | — | the `names` input: chosen names as removable tags, a combobox suggesting `nameSuggestions` filtered by what is typed, any other text accepted |
 | `groupedRows.js` | — | pure: `groupNotes` (one group per name, a row under every name it carries, stored order first then first appearance, a trailing unnamed group only when a row names nobody), `movedGroupOrder`, `groupedIds`, `movedRow(groups, gi, from, to)` (a row taken out and put back at `to` within its own group, as a drop does), `namesOf` |
 | `MusicTrackSection.jsx` | music_track | all four song lists: title, Song Type (`kind`, a `SuggestInput` over the `kind_category` values, only where the section has one, starting on `default_kind`), per-song status, episode (`locator`), link pairs (`LinkPairsEditor`, labels suggested from `link_text_category`), content. The list's own status sits in the card header: a select over `type_statuses` for an admin, a tag for a reader, reading the `music_status` row for this section's key (the provider's `typeStatusNote`) or `type_status_default`; the first change POSTs the row, later ones PATCH it. |

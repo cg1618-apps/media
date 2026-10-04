@@ -1,7 +1,7 @@
 // Frontend: the chrome shared by every notes section — card, row actions,
-// save/cancel and link pills. These used to be private helpers inside the
-// 1500-line NotesTemplate; the shape components each own one file now, so the
-// chrome lives here instead of being duplicated four times.
+// save/cancel, link pills and row reorder. These used to be private helpers
+// inside the 1500-line NotesTemplate; the shape components each own one file
+// now, so the chrome lives here instead of being duplicated four times.
 //
 // Styled as archive slips (see docs/frontend/design-system.md): a flat
 // bordered surface, a mono eyebrow title on a dotted rule, hairline dividers
@@ -10,6 +10,7 @@
 import { useState } from "react";
 
 import { Button } from "../../../components/ui/primitives";
+import { DragHandle, SortableItem, SortableList, arrayMove } from "../../../components/ui/Sortable";
 
 // Collapse state for a card whose emptiness decides its default.
 //
@@ -277,6 +278,68 @@ export function ShowAllToggle({ total, expanded, onToggle }) {
   );
 }
 
-export const EmptyHint = () => (
-  <p className="text-xs text-text-faint">No entries.</p>
-);
+// --- Row reorder ----------------------------------------------------------
+
+// Drag-to-reorder for a flat section: every shape but `structured`, which
+// orders a tree and so does its own. `onReorder` and `reordering` come from
+// NotesProvider; `cap` is the section's useEntryCap.
+//
+// The sortable list holds EVERY row's id even while the section is folded, so
+// a row's index is its place among all of them and the last row shown can be
+// moved down past the fold - which unfolds the section, or the row would
+// vanish. Each move sends the whole section's order, which is what
+// PATCH /api/notes/reorder takes. While a move is being saved every handle is
+// disabled (`reordering`). Only an admin with two rows or more gets handles.
+export function useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap }) {
+  const ids = notes.map((n) => n.system_id);
+  return {
+    on: isAdmin && Boolean(onReorder) && ids.length > 1,
+    ids,
+    disabled: Boolean(reordering),
+    move: (from, to) => {
+      if (from === to) return;
+      if (to >= VISIBLE_ENTRIES) cap.expand();
+      onReorder(section.key, arrayMove(ids, from, to));
+    },
+  };
+}
+
+// The rows of a section, sortable when `reorder.on`.
+export function ReorderList({ reorder, children }) {
+  if (!reorder.on) return <>{children}</>;
+  return (
+    <SortableList ids={reorder.ids} onMove={reorder.move} disabled={reorder.disabled}>
+      {children}
+    </SortableList>
+  );
+}
+
+// One row: a SortableItem when the section is sortable, a plain div otherwise.
+export function ReorderRow({ reorder, id, className = "", children }) {
+  if (!reorder.on) return <div className={className}>{children}</div>;
+  return (
+    <SortableItem id={id} className={className}>
+      {children}
+    </SortableItem>
+  );
+}
+
+// What a row's grip is called for screen readers ("Reorder Episode 3"): the
+// first of its name, locator, text or first link, cut short. A link is a URL
+// string or, on the link-pair sections, a {text, url} pair.
+export function noteLabel(note) {
+  const link = (note.links || [])
+    .map((l) => (typeof l === "string" ? l : l?.text || l?.url))
+    .find(Boolean);
+  const text = (note.title || note.locator || note.content || link || "").trim();
+  if (!text) return "entry";
+  return text.length > 40 ? `${text.slice(0, 40)}…` : text;
+}
+
+// The grip, or nothing when the section is not sortable.
+export function ReorderHandle({ reorder, note, className = "" }) {
+  if (!reorder.on) return null;
+  return <DragHandle label={noteLabel(note)} className={className} />;
+}
+
+export const EmptyHint = () => <p className="text-xs text-text-faint">No entries.</p>;

@@ -7,6 +7,9 @@ import { useState } from "react";
 import {
   EmptyHint,
   ItemActions,
+  ReorderHandle,
+  ReorderList,
+  ReorderRow,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
@@ -16,6 +19,7 @@ import {
   rowCls,
   tagCls,
   useEntryCap,
+  useRowReorder,
 } from "./ui";
 
 const empty = () => ({ locator: "", kind: "", content: "" });
@@ -78,6 +82,8 @@ export default function EpisodeTextSection({
   onCreate,
   onUpdate,
   onDelete,
+  onReorder,
+  reordering,
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(empty());
@@ -86,6 +92,10 @@ export default function EpisodeTextSection({
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
+  // Dragged rather than sorted by locator: a locator is free text - an
+  // episode, but also a chapter, a boss, a scene or a source - so there is no
+  // order it could be sorted into.
+  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
 
   // A locator alone is a legitimate note, and so is text alone - except where
   // the section is only about where it points, and then the locator is the one
@@ -119,53 +129,39 @@ export default function EpisodeTextSection({
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
     >
-      {cap.visible.map((n) => (
-        <div
-          key={n.system_id}
-          className={rowCls}
-        >
-          {editId === n.system_id ? (
-            <div>
-              <EpisodeTextForm
-                val={editVal}
-                setVal={setEditVal}
-                section={section}
-              />
-              <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
-            </div>
-          ) : (
-            <div className="flex gap-2 items-start">
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {n.locator && (
-                    <span className={brandTagCls}>
-                      {n.locator}
-                    </span>
-                  )}
-                  {n.kind && (
-                    <span className={tagCls}>
-                      {n.kind}
-                    </span>
+      <ReorderList reorder={reorder}>
+        {cap.visible.map((n) => (
+          <ReorderRow key={n.system_id} reorder={reorder} id={n.system_id} className={rowCls}>
+            {editId === n.system_id ? (
+              <div>
+                <EpisodeTextForm val={editVal} setVal={setEditVal} section={section} />
+                <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
+              </div>
+            ) : (
+              <div className="flex gap-2 items-start">
+                <ReorderHandle reorder={reorder} note={n} className="pt-0.5" />
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {n.locator && <span className={brandTagCls}>{n.locator}</span>}
+                    {n.kind && <span className={tagCls}>{n.kind}</span>}
+                  </div>
+                  {n.content && (
+                    <p className="text-sm text-text whitespace-pre-wrap">{n.content}</p>
                   )}
                 </div>
-                {n.content && (
-                  <p className="text-sm text-text whitespace-pre-wrap">
-                    {n.content}
-                  </p>
-                )}
+                <ItemActions
+                  isAdmin={isAdmin}
+                  onEdit={() => {
+                    setEditId(n.system_id);
+                    setEditVal(fromNote(n));
+                  }}
+                  onDelete={() => onDelete(n.system_id)}
+                />
               </div>
-              <ItemActions
-                isAdmin={isAdmin}
-                onEdit={() => {
-                  setEditId(n.system_id);
-                  setEditVal(fromNote(n));
-                }}
-                onDelete={() => onDelete(n.system_id)}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+            )}
+          </ReorderRow>
+        ))}
+      </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>

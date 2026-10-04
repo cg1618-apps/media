@@ -22,6 +22,9 @@ import {
 import {
   EmptyHint,
   ItemActions,
+  ReorderHandle,
+  ReorderList,
+  ReorderRow,
   SaveCancel,
   SectionCard,
   ShowAllToggle,
@@ -31,6 +34,7 @@ import {
   rowCls,
   tagCls,
   useEntryCap,
+  useRowReorder,
 } from "./ui";
 
 const empty = (section) => ({
@@ -181,6 +185,8 @@ export default function MusicTrackSection({
   onDelete,
   optionValues,
   typeStatusNote,
+  onReorder,
+  reordering,
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState(() => empty(section));
@@ -189,6 +195,9 @@ export default function MusicTrackSection({
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
+  // Reorders this list's songs only. The list's own status lives in another
+  // section (`music_status`) and is never one of these rows.
+  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
 
   const commit = () => {
     if (invalid(draft)) return;
@@ -221,50 +230,47 @@ export default function MusicTrackSection({
         )
       }
     >
-      {cap.visible.map((n) => (
-        <div key={n.system_id} className={rowCls}>
-          {editId === n.system_id ? (
-            <div>
-              <MusicTrackForm
-                val={editVal}
-                setVal={setEditVal}
-                section={section}
-                optionValues={optionValues}
-              />
-              <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
-            </div>
-          ) : (
-            <div className="flex gap-2 items-start">
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {n.locator && <span className={tagCls}>{n.locator}</span>}
-                  {n.title && (
-                    <span className="text-sm font-semibold text-text">
-                      {n.title}
-                    </span>
-                  )}
-                  {n.kind && <span className={tagCls}>{n.kind}</span>}
-                  {n.status && <span className={brandTagCls}>{n.status}</span>}
-                </div>
-                {n.content && (
-                  <p className="text-sm text-text whitespace-pre-wrap">
-                    {n.content}
-                  </p>
-                )}
-                <LinkPairPills links={n.links} />
+      <ReorderList reorder={reorder}>
+        {cap.visible.map((n) => (
+          <ReorderRow key={n.system_id} reorder={reorder} id={n.system_id} className={rowCls}>
+            {editId === n.system_id ? (
+              <div>
+                <MusicTrackForm
+                  val={editVal}
+                  setVal={setEditVal}
+                  section={section}
+                  optionValues={optionValues}
+                />
+                <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
               </div>
-              <ItemActions
-                isAdmin={isAdmin}
-                onEdit={() => {
-                  setEditId(n.system_id);
-                  setEditVal(fromNote(n, section));
-                }}
-                onDelete={() => onDelete(n.system_id)}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+            ) : (
+              <div className="flex gap-2 items-start">
+                <ReorderHandle reorder={reorder} note={n} className="pt-0.5" />
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {n.locator && <span className={tagCls}>{n.locator}</span>}
+                    {n.title && <span className="text-sm font-semibold text-text">{n.title}</span>}
+                    {n.kind && <span className={tagCls}>{n.kind}</span>}
+                    {n.status && <span className={brandTagCls}>{n.status}</span>}
+                  </div>
+                  {n.content && (
+                    <p className="text-sm text-text whitespace-pre-wrap">{n.content}</p>
+                  )}
+                  <LinkPairPills links={n.links} />
+                </div>
+                <ItemActions
+                  isAdmin={isAdmin}
+                  onEdit={() => {
+                    setEditId(n.system_id);
+                    setEditVal(fromNote(n, section));
+                  }}
+                  onDelete={() => onDelete(n.system_id)}
+                />
+              </div>
+            )}
+          </ReorderRow>
+        ))}
+      </ReorderList>
       <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div className={draftCls}>
