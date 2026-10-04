@@ -261,7 +261,7 @@ MAL's character record, fetched for a character with a `mal_id` by `POST` / `PUT
 | `images.jpg.image_url` | `photo_file` | `_mal_photo`: MAL's `questionmark` placeholder is dropped. Downloaded by `download_cover_image(url, "character", str(system_id))` when `cover_needs_download` says so - no photo, or the character's own download whose file is missing. An upload is never replaced. |
 | `url` | `mal_link` | as-is. |
 | `name` | `name_en` | `_western_order`, as for a person: `"Elric, Edward"` → `"Edward Elric"`. |
-| `name_kanji` | `name_jp` | trimmed. |
+| `name_kanji` | `name_jp` | every space removed, full-width ones included: MAL's `安曇 美姫` is stored as `安曇美姫`. |
 | `nicknames[]` | `name_alt` | Joined with `", "`; nothing when the list is empty. |
 
 Deliberately dropped: `about` — the character table has no column for it.

@@ -760,3 +760,22 @@ describe("the seiyuu picker's order", () => {
     expect(offered()).toEqual(["Hana", "Hanazawa", "Hanae", "Hanami", "Hana Kana", "Aoi Hana"]);
   });
 });
+
+// From lg up a cast row offers its role as chips beside the select (which
+// is hidden there); below lg only the select shows. jsdom applies no media
+// queries, so this pins the classes and that both edit the same value.
+it("offers the casting role as chips from lg up and a select below", async () => {
+  const onChange = vi.fn();
+  render(<CastEditor mediaType="anime" value={[row({ role: "Main" })]} onChange={onChange} />);
+  const select = screen.getByLabelText("Role");
+  expect(select).toHaveClass("lg:hidden");
+  const picks = screen.getByRole("group", { name: "Role quick picks" });
+  expect(picks.parentElement).toHaveClass("hidden", "lg:block");
+  expect(within(picks).getByRole("button", { name: "Main" })).toHaveAttribute("aria-pressed", "true");
+
+  await userEvent.click(within(picks).getByRole("button", { name: "Core" }));
+  expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ role: "Core" })]);
+  await userEvent.click(within(picks).getByRole("button", { name: "Main" }));
+  expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ role: "" })]);
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});

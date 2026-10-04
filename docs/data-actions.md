@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-03
+Last verified: 2026-10-04
 
 ## What this is for
 
@@ -265,6 +265,17 @@ entry uuid like `cover_entry_id`; a cell that is not a uuid restores as blank.
 `Character` also carries `role` (`CHARACTER_ROLES`); a value outside the list
 restores as blank. It carries `mal_id` and `mal_link` too, restored as they
 are, as on `Person`.
+
+`Character` ends with two cells no column backs, `appearance` and `trait`:
+the character's tags (`character_tag`), each comma-joined in stored order,
+written by Backup after the plain columns (`SheetTab.character_tags`). Pull
+reads them once the character row exists and replaces each list through
+`replace_character_tags`, which resolves a value onto the existing option of
+its category (`Character Appearance`, `Character Trait`) by normalized name
+and creates one that is missing. A present but empty cell clears the list; a
+sheet without the header leaves the list as it is, and neither header is
+reported as unexpected. `System Options` restores before `Character`, so the
+cells land on the restored vocabulary.
 
 `Character Casting` sits after every media tab, because a casting reaches its
 entry by the FK-less `(media_type, entry_id)` pair, and carries no seiyuu

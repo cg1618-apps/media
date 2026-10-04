@@ -574,6 +574,21 @@ has no `game` rows at all**, by design: games never had legacy comma-joined
 columns, so every game credit and tag surfaces under its own key, in the API
 and in the sheet alike.
 
+`CHARACTER_TAG_FIELDS` is the vocabulary of `character_tag.field`: a
+character's two tag lists, each reading one Tier 2 category.
+
+| Key | Label | Tier 2 category |
+|---|---|---|
+| `appearance` | Appearance | `Character Appearance` |
+| `trait` | Trait | `Character Trait` |
+
+They are deliberately not `TagField`s. `TAG_FIELDS` is keyed by entry media
+types, and `gated_tag_categories`, `extract_system_options` and the entry
+tabs' sheet columns all walk it; a character belongs to no media type, so
+each of these is one vocabulary for every character - never gated, never
+scoped. The key is also the character's API attribute and its Character-tab
+sheet header. See [credits-and-tags.md](systems/credits-and-tags.md#character-tags).
+
 `original_source` replaced `source_official` (renamed, not added — same
 category rename `Official Source` → `Platform`, since the vocabulary now also
 serves `media_source` access rows) and gained `movie` as a third media type
@@ -606,7 +621,8 @@ backs `media_source` `kind='reference'` rows directly, resolved by
 Type` and `Song Source`, derived from the note sections that name them
 (`kind_category`, `link_text_category`) rather than listed, so a section that
 names a new category offers it with no second edit. `OPTION_CATEGORIES` = the
-tag-field categories plus these four,
+tag-field categories, the two character tag categories
+(`CHARACTER_OPTION_CATEGORIES`) and these four,
 served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
@@ -684,7 +700,7 @@ described in
 
 **Categories.** The category string is free text on the API
 (`SystemOptionCreate.category: str`), but the ones anything reads are the
-twenty-two in `OPTION_CATEGORIES`:
+twenty-four in `OPTION_CATEGORIES`:
 
 | Category | Offered in (scopes) | Read by |
 |---|---|---|
@@ -707,6 +723,8 @@ twenty-two in `OPTION_CATEGORIES`:
 | `H Genre Plot` | h-comic, h-game, hentai | tag field `h_genre_plot`; admin-managed, ships empty |
 | `H Genre Appearance` | h-comic, h-game, hentai | tag field `h_genre_appearance`; admin-managed, ships empty |
 | `H Genre Relation` | h-comic, h-game, hentai | tag field `h_genre_relation`; admin-managed, ships empty |
+| `Character Appearance` | unscoped (every character) | character tag field `appearance`; admin-managed, ships empty, and a value typed into the character form creates itself |
+| `Character Trait` | unscoped (every character) | character tag field `trait`; admin-managed, ships empty, and a value typed into the character form creates itself |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
 | `Song Type` | anime | suggestions for the Song Type (`note.kind`) of an `op` or `ed` row; `normal`, `different version`, `all inclusive version` seeded by `m1s2ongstat3`. Suggestions only - a value not in the list is stored as typed |
 | `Song Source` | anime | suggestions for a song link's label (`text` of a link pair on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |

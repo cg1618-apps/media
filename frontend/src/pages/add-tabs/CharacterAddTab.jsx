@@ -13,6 +13,8 @@
 // arrangement StudioFields/PersonFields use.
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ImagePicker from "../../components/forms/ImagePicker";
+import MultiSelect from "../../components/forms/MultiSelect";
+import QuickPicks from "../../components/forms/QuickPicks";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 import {
@@ -21,6 +23,8 @@ import {
 } from "../../components/forms/EntityProfileFields";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
 import { CHARACTER_ROLES } from "../../config/fieldOptions";
+import { CHARACTER_TAG_FIELDS } from "../../lib/characterForm";
+import { getSourceValues } from "../../lib/formatters";
 
 // A character carries the same four name columns and display_name_field
 // choice as a person or studio - see naming.js's STUDIO_NAME_FIELDS comment.
@@ -34,7 +38,10 @@ export { defaultCharacter } from "../../config/formFactories";
 // tab), the picked image cannot be attached until the character is saved, so
 // its id is kept as `pending_image_id` for CharacterAddTab's caller to
 // attach afterward.
-export function CharacterFields({ characterForm, ucf, ownerId }) {
+//
+// `sources` is the fetchAllSources() bag the Appearance and Trait pickers
+// draw their suggestions from; without it they still take typed values.
+export function CharacterFields({ characterForm, ucf, ownerId, sources }) {
   const hasAnyName = CHARACTER_NAME_FIELDS.some(
     ({ field }) => characterForm[field]?.trim(),
   );
@@ -76,23 +83,30 @@ export function CharacterFields({ characterForm, ucf, ownerId }) {
 
       <SectionHeader icon="fa-id-card" title="Profile" />
       {/* The character's own role - independent of any casting's role, and
-          never derived from or prefilled by one. */}
+          never derived from or prefilled by one. Chips alone: the four
+          values fit on any width, and clicking the picked one clears it. */}
       <Field label="Role">
-        <select
-          aria-label="Role"
-          className={selectCls}
+        <QuickPicks
+          label="Role"
+          options={CHARACTER_ROLES}
           value={characterForm.role ?? ""}
-          onChange={(e) => ucf("role", e.target.value)}
-        >
-          <option value="">—</option>
-          {CHARACTER_ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => ucf("role", v)}
+        />
       </Field>
       <GenderRatingFields form={characterForm} update={ucf} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {CHARACTER_TAG_FIELDS.map(({ field, label, category }) => (
+          <Field key={field} label={label}>
+            <MultiSelect
+              options={getSourceValues(sources, { kind: "option", category })}
+              value={characterForm[field] ?? ""}
+              onChange={(v) => ucf(field, v)}
+              placeholder={`Select ${label.toLowerCase()}...`}
+              limit={null}
+            />
+          </Field>
+        ))}
+      </div>
       <Field
         label="MAL Link"
         hint="The character's myanimelist.net/character/<id> page. On save, blank names and the photo are filled from it."
@@ -138,7 +152,12 @@ export function CharacterFields({ characterForm, ucf, ownerId }) {
   );
 }
 
-export default function CharacterAddTab({ characterForm, ucf, applyMalPick }) {
+export default function CharacterAddTab({
+  characterForm,
+  ucf,
+  applyMalPick,
+  sources,
+}) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
       {/* The tab's only search box: a character has no "copy an existing
@@ -151,7 +170,11 @@ export default function CharacterAddTab({ characterForm, ucf, applyMalPick }) {
         hint="Links the MAL page. Names and portrait are filled from MAL on save."
       />
       <SectionHeader icon="fa-user-ninja" title="Character" />
-      <CharacterFields characterForm={characterForm} ucf={ucf} />
+      <CharacterFields
+        characterForm={characterForm}
+        ucf={ucf}
+        sources={sources}
+      />
     </div>
   );
 }

@@ -7,29 +7,50 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { Field, selectCls } from "./FormField";
+import QuickPicks from "./QuickPicks";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../api/client";
 import { GENDERS, MY_RATINGS } from "../../config/fieldOptions";
 import { releaseYear } from "../../lib/releaseDate";
 
-/** Gender and My Rating selects. Both store "" for unset; the savers send null. */
+// The genders offered as one-click chips beside the Gender select - the two
+// almost every record takes. The select still offers every GENDERS value and
+// is how the rest are picked. Filtered against GENDERS, which /api/constants
+// refreshes in place, so a value the server stops serving is not offered.
+const GENDER_QUICK_PICKS = ["男", "女"];
+
+/**
+ * Gender (quick-pick chips beside a select) and My Rating (a select). Both
+ * store "" for unset; the savers send null.
+ */
 export function GenderRatingFields({ form, update }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Field label="Gender">
-        <select
-          aria-label="Gender"
-          className={selectCls}
-          value={form.gender ?? ""}
-          onChange={(e) => update("gender", e.target.value)}
-        >
-          <option value="">—</option>
-          {GENDERS.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <QuickPicks
+            label="Gender quick picks"
+            className="shrink-0"
+            options={GENDER_QUICK_PICKS.filter((g) => GENDERS.includes(g))}
+            value={form.gender ?? ""}
+            onChange={(v) => update("gender", v)}
+          />
+          <div className="flex-1 min-w-0">
+            <select
+              aria-label="Gender"
+              className={selectCls}
+              value={form.gender ?? ""}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">—</option>
+              {GENDERS.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </Field>
       <Field label="My Rating">
         <select

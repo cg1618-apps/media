@@ -21,7 +21,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy, h_comic, h_game, hentai
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
 - [Personal data](#personal-data): user_media_list, user_novel_unit_rating
-- [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_casting, character_casting_voice, media_credit, media_tag
+- [People, studios and links](#people-studios-and-links): person, person_role, person_membership, studio, publisher, publisher_scope, character, character_tag, character_casting, character_casting_voice, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
 - [Resources page](#resources-page): resource_node
@@ -1193,6 +1193,33 @@ resolves a normalized-name match because two spellings of one director really
 are one human, resolving a character payload against an existing row by name
 would silently fuse the "Yuki" of one work with the unrelated "Yuki" of
 another - exactly the collision Decision G accepts as normal instead.
+
+A character's **appearance** and **trait** tags are not columns: they are rows
+in [`character_tag`](#character_tag), surfaced on every character response as
+the `appearance` and `trait` lists.
+
+### `character_tag`
+
+One `system_option` value attached to one character - `media_tag`'s twin, in
+a table of its own because `media_tag.media_id` is a real FK up to `media` and
+a character is not an entry. Model: `CharacterTag`
+(`app/models/character.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 (server default `gen_random_uuid()` too) | PK, indexed |
+| `character_id` | UUID | no | | FK `character.system_id` ON DELETE CASCADE |
+| `field` | String | no | | One of `CHARACTER_TAG_FIELD_KEYS`: `appearance` (category `Character Appearance`) or `trait` (category `Character Trait`) |
+| `option_id` | UUID | no | | FK `system_option.system_id` ON DELETE CASCADE, indexed |
+| `position` | Integer | no | `0` (server default too) | Order within the field |
+| `created_at` | DateTime | yes | now | |
+
+Constraints: `uq_character_tag_row` UNIQUE (`character_id`, `field`,
+`option_id`); index `ix_character_tag_character` (`character_id`). Both FKs
+cascade: deleting a character takes its tags, and deleting a vocabulary value
+takes it off every character. A tag is **not** a connection in shared-record
+visibility, so a value used only by characters stays visible to everyone
+([authorization.md](authorization.md#shared-records)).
 
 ### `character_casting`
 

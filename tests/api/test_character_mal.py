@@ -130,6 +130,19 @@ def test_mapping_the_character_record():
     }
 
 
+@pytest.mark.parametrize(
+    "kanji",
+    ["安曇 美姫", " 安曇　美姫 ", "安曇  美姫"],
+    ids=["ascii-space", "ideographic-space", "double-space"],
+)
+def test_the_kanji_name_is_stored_without_spaces(kanji):
+    assert map_tenrai_to_character_data({"name_kanji": kanji})["name_jp"] == "安曇美姫"
+
+
+def test_a_blank_kanji_name_is_no_name():
+    assert map_tenrai_to_character_data({"name_kanji": " 　"})["name_jp"] is None
+
+
 def test_mapping_a_cast_keeps_only_japanese_voices():
     rows = map_tenrai_cast(FMA_CAST)
     assert [r["name_en"] for r in rows] == ["Edward Elric", "Alphonse Elric", "Roy Mustang"]

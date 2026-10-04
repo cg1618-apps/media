@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-02
+Last verified: 2026-10-04
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -608,7 +608,10 @@ entries, then a **Restricted** parent chip over h-comic and hentai (not
 h-game: nobody is cast on an h-game) — then **Role** — Main, Core,
 Supporting, Other, plus Not set for null, matched against the character's
 own `role` field and never against the roles its castings carry — then **My
-Rating** and **Gender**, with the same OR/AND rule. The panel is open when
+Rating** and **Gender**, then **Appearance** and **Trait** — `set-dynamic`
+groups over the values the loaded characters hold, sorted, plus Not set when a
+character's list is empty; a character matches when it holds any ticked
+value — with the same OR/AND rule. The panel is open when
 the page loads, on the shared default, with the same Clear all and Reset.
 
 Each `CharacterCard` shows `display_photo_file` — the photo, or the
@@ -667,7 +670,8 @@ character is cast in. Two raw fetches, the profile then `.../entries` by the
 `system_id` it returns; the character call failing is the page's 404, the
 entries call failing is not. The Profile card shows the character's own
 **Role** beside Gender — its own field, not derived from any casting's role —
-and a **MAL** row: the `mal_link` as an external link reading
+then **Appearance** and **Trait**, each list as a row of `Chip`s in its stored
+order ("—" when empty, like every unset row), and a **MAL** row: the `mal_link` as an external link reading
 `Character #<mal_id>` (`MyAnimeList` when no id was derived), "—" without a
 link. The layout and the admin controls — Quick edit
 to `/modify?id=<system_id>&type=character`, the My rating select, the

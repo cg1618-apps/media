@@ -6,6 +6,7 @@ Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
 
 from app import models
+from app.services.domain.character_tags import character_tag_sheet_headers
 from app.services.domain.credits import (
     replace_credits,
     sheet_link_headers,
@@ -47,6 +48,8 @@ def test_backup_writes_every_tab_in_registry_order(db_session, monkeypatch):
         expected += [name for name, _fn in tab.extra_columns]
         if tab.media_type:
             expected += sheet_link_headers(tab.media_type)
+        if tab.character_tags:
+            expected += character_tag_sheet_headers()
         assert headers[tab.name] == expected, tab.name
 
 

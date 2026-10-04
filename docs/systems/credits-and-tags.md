@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-03
+Last verified: 2026-10-04
 
 ## What this is for
 
@@ -36,6 +36,7 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 | `media_credit` | One person, studio **or** publisher on one entry: `media_id` FK → `media.system_id` (cascade), `role` (one of `CREDIT_ROLE_KEYS`), `person_id` / `studio_id` / `publisher_id` (all three FK, cascade on delete), `position` (order of the original comma list), `remark`. Exactly one of the three is set. | `ck_media_credit_one_target` CHECK `num_nonnulls(person_id, studio_id, publisher_id) = 1`; `uq_media_credit_row (media_id, role, person_id, studio_id, publisher_id)` NULLS NOT DISTINCT; index on `media_id` |
 | `media_tag` | One vocabulary value on one entry: `media_id` FK → `media.system_id` (cascade), `field` (one of `TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. Column is `field`, not `category`: one category can back several fields, one field maps to exactly one category. | `uq_media_tag_row (media_id, field, option_id)`; index on `media_id` |
 | `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `photo_fallback_entry_id`, `role` (overall, `CHARACTER_ROLES`; a NULL one is filled from the castings' highest-ranked role), `remark`, timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
+| `character_tag` | One vocabulary value on one character, `media_tag`'s twin: `character_id` FK → `character.system_id` (cascade), `field` (`appearance` or `trait`, one of `CHARACTER_TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. See [Character tags](#character-tags). | `uq_character_tag_row (character_id, field, option_id)`; index on `character_id` |
 | `character_casting` | THE cast record for one character, in one entry: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `role` (optional; `CHARACTER_ROLES` or NULL), `position`, `photo_file`, `remark`. Its seiyuu are `character_casting_voice` rows. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, media_type, entry_id)`; `uq_character_casting_entry (system_id, media_type, entry_id)`, the composite FK's target; index on `(media_type, entry_id)` |
 | `character_casting_voice` | One seiyuu voicing one casting: `casting_id`, the casting's `media_type` and `entry_id` repeated, `person_id` (FK, **cascade**), `position`, `remark` (free text: `child`, `ep 13-`). A casting has zero or more. | `fk_casting_voice_casting (casting_id, media_type, entry_id)` → `character_casting (system_id, media_type, entry_id)`, cascade on delete and update; `uq_casting_voice (casting_id, person_id)`; `ck_casting_voice_scope` (only on `anime`/`anime-movie`/`hentai`); index on `(media_type, entry_id)` |
 
@@ -182,7 +183,9 @@ as a vocabulary but backs no field. **There is no `publisher_tw` or
 a fact about the work, so it is a `publisher` credit on `media_credit`. The
 sheet shape is unaffected — `LEGACY_SHEET_COLUMN` maps the credit back onto
 the header.
-`OPTION_CATEGORIES` = every TagField category + filter-only ones.
+`OPTION_CATEGORIES` = every TagField category, the two character tag
+categories (`CHARACTER_OPTION_CATEGORIES`), the filter-only ones and the note
+registry's.
 Helpers: `credit_roles_for(media_type)`, `tag_fields_for(media_type)`.
 
 ### `LEGACY_SHEET_COLUMN` — the header trap
@@ -452,6 +455,49 @@ Two further, related design points worth knowing here:
   remains `CASCADE`. `POST /api/person/{id}/merge` repoints voice rows, so a
   duplicate seiyuu is merged without losing any.
 
+### Character tags
+
+A character carries two tag lists, `appearance` and `trait`
+(`CHARACTER_TAG_FIELDS` in `credit_roles.py`), drawn from the `system_option`
+categories `Character Appearance` and `Character Trait` and stored in
+`character_tag`. They are **not** `TagField`s: `TAG_FIELDS` is keyed by entry
+media types, and `gated_tag_categories`, `extract_system_options` and the
+entry tabs' sheet columns all walk it. A character belongs to no media type,
+so each list is one vocabulary for every character — no gated distinction, no
+scopes, and no category hidden from a narrow session.
+
+The service is `app/services/domain/character_tags.py`, the character-side
+twin of `replace_tags` / `tag_values`:
+
+- `replace_character_tags(db, character_id, field, values)` — a whole-set
+  replace for one field. Values are trimmed, blanks dropped and duplicates
+  (by `normalize_name`) folded onto the first; each resolves through
+  `resolve_option`, so it lands on an existing value by normalized name and
+  **creates** one that is missing, as entry tags do.
+- `character_tag_values(db, ids)` — `{character_id: {field: [value, ...]}}`
+  in stored order, an empty list for a field with none, in **one query**
+  however many characters: the list endpoint and Backup read a whole table.
+- `merge_character_tags(db, keep_id, drop_id)` — the survivor of a merge gets
+  the union per field: its own values first, then the loser's it lacked.
+
+The router pops both lists out of a write before the columns are set
+(`pop_character_tags`; `pop_patch_tags` for a `PATCH`, whose body no schema
+checked), because `_patching.apply_column_patch` silently ignores a key that is
+not a column. `null` or absent leaves a list as it is; a list replaces it.
+
+**Visibility.** A `character_tag` row is not a connection in
+`shared_visibility.py`: a value used only by characters has no connection at
+all and stays visible to everyone, which is right for an ungated vocabulary.
+
+**Sheets.** The Character tab (`SheetTab.character_tags`) carries one
+comma-joined cell per field, headed `appearance` and `trait`, after the plain
+columns. Pull reads them from the raw row once the character exists: a present
+but empty cell clears the list, and a sheet without the header leaves it as it
+is. `System Options` restores before `Character`, so the cells resolve onto
+the restored values; `uq_system_option_value` cannot collide with a value
+`resolve_option` created, because the Character cells were written from the
+stored spelling and `System Options` matches on the exact `(category, value)`.
+
 Deferred, deliberately, past this shape: a `language` column / dub casts, a
 `field_group` gating cast per role, and characters on the four non-ACG media
 types.
@@ -465,7 +511,7 @@ carries one. On `POST` and `PUT /api/character` a character with a `mal_id`
 is then filled from Tenrai's `GET /characters/{id}/full`
 (`autofill_character_from_mal`), **fill-only**: a blank `name_en` (MAL's name
 in western order, "Elric, Edward" → "Edward Elric"), a blank `name_jp`
-(`name_kanji`), a blank `name_alt` (the nicknames, comma-joined), and the
+(`name_kanji`, spaces removed: `安曇 美姫` → `安曇美姫`), a blank `name_alt` (the nicknames, comma-joined), and the
 portrait under `character/<system_id>.jpg` when `cover_needs_download` says
 so. `about` is dropped. `PATCH` re-derives `mal_id` but never fetches. A
 failure is logged and swallowed. There is no name-collision check, unlike the
@@ -626,7 +672,14 @@ assertions in `test_credits_sheets.py`
 `test_character_restores_before_every_media_tab`,
 `test_character_round_trips_through_the_sheet`,
 `test_casting_round_trips_through_the_sheet`,
-`test_a_casting_voice_round_trips_through_the_sheet`). The person behaviours
+`test_a_casting_voice_round_trips_through_the_sheet`). Character tags:
+`tests/api/test_character_tags.py` (both categories served and kept out of
+`TAG_FIELDS`; `POST`, `PUT` replace-or-unchanged, `PATCH` writing a list and
+refusing a non-list; trimming, blanks and case-folded duplicates; an existing
+value reused by normalized name and a missing one created; the list in a fixed
+number of queries; character and option deletes cascading; the merge union; a
+characters-only value visible to a guest; and the Character tab's Backup
+headers, Pull round trip, empty-cell clear and absent-column no-op). The person behaviours
 that read voices are regression-tested in `test_person_router.py`
 (`test_credit_count_includes_castings`,
 `test_person_delete_guard_counts_castings`) and `test_person_entries.py`

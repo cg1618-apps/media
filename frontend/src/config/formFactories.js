@@ -680,6 +680,10 @@ export const defaultCharacter = () => ({
   pending_image_id: null,
   mal_link: "",
   remark: "",
+  // Comma-joined, as MultiSelect edits them; lib/characterForm.js turns them
+  // into the arrays the API takes.
+  appearance: "",
+  trait: "",
 });
 
 // Keyed by the media-type slugs used in config/mediaRegistry.js, plus the

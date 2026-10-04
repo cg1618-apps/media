@@ -1,5 +1,5 @@
 """
-The vocabulary of `media_credit.role` and `media_tag.field`.
+The vocabulary of `media_credit.role`, `media_tag.field` and `character_tag.field`.
 
 Deliberately shaped like app/utils/relation_kinds.py and MEDIA_TABLES in
 app/utils/media_resolver.py: a frozen dataclass per entry, a dict keyed by the
@@ -237,6 +237,37 @@ TAG_FIELDS: dict[str, TagField] = {
 
 TAG_FIELD_KEYS: tuple[str, ...] = tuple(TAG_FIELDS.keys())
 
+
+@dataclass(frozen=True)
+class CharacterTagField:
+    """One vocabulary-backed list on a character."""
+
+    # Value stored in character_tag.field, and the character's API key and
+    # Character-tab sheet header.
+    key: str
+    label: str
+    # system_option.category the values are drawn from.
+    category: str
+
+
+# A character's tags. Kept OUT of TAG_FIELDS on purpose: that dict is keyed by
+# entry media types, and gated_tag_categories, extract_system_options and the
+# entry tabs' sheet columns all walk it. A character belongs to no media type,
+# so these vocabularies are one list each for every character - never gated,
+# never scoped.
+CHARACTER_TAG_FIELDS: dict[str, CharacterTagField] = {
+    "appearance": CharacterTagField(
+        "appearance", "Appearance", "Character Appearance"
+    ),
+    "trait": CharacterTagField("trait", "Trait", "Character Trait"),
+}
+
+CHARACTER_TAG_FIELD_KEYS: tuple[str, ...] = tuple(CHARACTER_TAG_FIELDS.keys())
+
+CHARACTER_OPTION_CATEGORIES: tuple[str, ...] = tuple(
+    f.category for f in CHARACTER_TAG_FIELDS.values()
+)
+
 # Categories that exist as vocabularies but back no entry column - they drive
 # list-page filters only, so no TagField names them.
 FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
@@ -263,14 +294,16 @@ TAG_CATEGORIES: tuple[str, ...] = (
     "Quality",
 )
 
-# Three sources, each declared where its readers live: the tag fields above,
-# the filter-only vocabularies, and the categories the note registry draws
-# suggestions from (Song Type, Song Source - see NOTE_OPTION_CATEGORIES). The
-# last are derived from NOTE_SECTIONS rather than listed here, so a section
-# that names a new category offers it without a second edit.
+# Four sources, each declared where its readers live: the entry tag fields
+# above, the character tag fields, the filter-only vocabularies, and the
+# categories the note registry draws suggestions from (Song Type, Song Source
+# - see NOTE_OPTION_CATEGORIES). The last are derived from NOTE_SECTIONS
+# rather than listed here, so a section that names a new category offers it
+# without a second edit.
 OPTION_CATEGORIES: tuple[str, ...] = tuple(
     dict.fromkeys(
         [f.category for f in TAG_FIELDS.values()]
+        + list(CHARACTER_OPTION_CATEGORIES)
         + list(FILTER_ONLY_CATEGORIES)
         + list(NOTE_OPTION_CATEGORIES)
     )
