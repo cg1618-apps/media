@@ -661,6 +661,25 @@ Results are returned as `find_all_duplicates(db)` from `GET
 
 ---
 
+## 9a. Single-entry groups (`alone_groups.py`)
+
+A franchise or a series is **alone** when exactly one `media` row points at it
+(`media.franchise_id`, `media.series_id`), whatever its type - all twelve
+count, an anime movie included (it has no series, so it counts for its
+franchise only). An empty group is not alone.
+
+An alone group is listed by `GET /api/data-control/check/alone-groups` unless
+its `alone_reviewed_media_id` equals the id of that one entry. Marking a group
+reviewed records the entry it holds **now**, so:
+
+- a reviewed group stays off the list while that entry is its only one;
+- a second entry takes it off the list (it is no longer alone);
+- if the reviewed entry leaves and another becomes the only one, the group is
+  listed again, with nothing reset by hand;
+- marking a group that does not hold exactly one entry is refused (409).
+
+---
+
 ## 10. Name normalisation (`app/utils/name_normalize.py`)
 
 `normalize_name(raw)` produces a comparison key **only** — the original

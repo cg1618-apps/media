@@ -17,7 +17,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 |---|---|---|
 | `/system` | `pages/admin/Admin.jsx` | Control Center: pipelines, announcements, review modals |
 | `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit |
-| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music |
+| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music, single-entry groups |
 | `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes |
 | `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete |
 | `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) |
@@ -103,6 +103,13 @@ mode (the data-control router is gated on `manage.pipelines` alone).
   narrow the rows to the statuses picked; an anime stays while any of its
   flagged items matches. A row opens the anime's detail page, where its music
   notes are.
+- **Single-entry groups** — `GET /check/alone-groups` (`RelationView`): two
+  tabs, Franchise and Series, each row the group (linked), its one entry's
+  type and the entry (linked). **Reviewed – keep** POSTs
+  `/check/alone-groups/{kind}/{system_id}/reviewed` and drops the row; the
+  group comes back by itself once its lone entry is replaced. A 409 (the group
+  changed since the list loaded) is shown above the table. A row whose entry
+  is of a gated type the session cannot see is not drawn.
 
 ## /add (`Add.jsx`)
 

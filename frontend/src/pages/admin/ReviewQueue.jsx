@@ -20,8 +20,15 @@ import DuplicatesView, {
   duplicateSummary,
 } from "../../components/review/DuplicatesView";
 import MusicView, { musicSummary } from "../../components/review/MusicView";
+import RelationView, {
+  aloneSummary,
+  countAloneGroups,
+} from "../../components/review/RelationView";
 
-/** One check's state: its last answer, whether it is loading, its error. */
+/**
+ * One check's state: its last answer, whether it is loading, its error.
+ * `setResults` lets a block drop a row it has acted on without a reload.
+ */
 export function useCheck(url) {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -39,7 +46,7 @@ export function useCheck(url) {
     }
   }, [url]);
 
-  return { results, loading, error, load };
+  return { results, setResults, loading, error, load };
 }
 
 export default function ReviewQueue() {
@@ -47,6 +54,13 @@ export default function ReviewQueue() {
   const remarks = useCheck(endpoints.dataControl.checkRemarks());
   const duplicates = useCheck(endpoints.dataControl.checkDuplicates());
   const music = useCheck(endpoints.dataControl.checkMusic());
+  const alone = useCheck(endpoints.dataControl.checkAloneGroups());
+
+  const dropAloneGroup = (kind, systemId) =>
+    alone.setResults((prev) => ({
+      ...prev,
+      [kind]: prev[kind].filter((g) => g.system_id !== systemId),
+    }));
 
   return (
     <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-10">
@@ -56,7 +70,8 @@ export default function ReviewQueue() {
             Review Queue
           </h1>
           <p className="text-sm text-text-faint mt-1">
-            Remarks, duplicates and music that may need attention.
+            Remarks, duplicates, music and single-entry groups that may need
+            attention.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -109,6 +124,20 @@ export default function ReviewQueue() {
         onRefresh={music.load}
       >
         <MusicView results={music.results} />
+      </ReviewBlock>
+
+      <ReviewBlock
+        title="Single-Entry Groups"
+        loadLabel="Find single-entry groups"
+        loaded={alone.results !== null}
+        loading={alone.loading}
+        error={alone.error}
+        total={countAloneGroups(alone.results, auth)}
+        summary={aloneSummary}
+        emptyText="No franchise or series is waiting with a single entry."
+        onRefresh={alone.load}
+      >
+        <RelationView results={alone.results} onReviewed={dropAloneGroup} />
       </ReviewBlock>
     </div>
   );

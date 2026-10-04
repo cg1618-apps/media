@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -19,7 +20,12 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.dependencies import get_db
-from app.schemas.review import MusicReviewRow
+from app.schemas.review import (
+    AloneGroupKind,
+    AloneGroupReviewed,
+    AloneGroupsReport,
+    MusicReviewRow,
+)
 from app.services.calculation import (
     bulk_check_cover_image,
     bulk_delete_orphaned_cover_images,
@@ -28,6 +34,12 @@ from app.services.calculation import (
     run_calculate_all,
 )
 from app.services.domain import find_all_duplicates, find_all_remarks
+from app.services.domain.alone_groups import (
+    GroupNotFound,
+    NotAlone,
+    find_alone_groups,
+    mark_alone_group_reviewed,
+)
 from app.services.domain.music_review import find_flagged_music
 from app.services.pipelines import fill, replace
 from app.services.pipelines.backup import BackupAlreadyRunning, start_backup
@@ -368,3 +380,31 @@ def check_music(db: Session = Depends(get_db)):
     # Version. Not per caller: the music sections are catalogue notes, one
     # shared set of rows per anime (music_review.py).
     return find_flagged_music(db)
+
+
+@router.get("/check/alone-groups", response_model=AloneGroupsReport)
+def check_alone_groups(db: Session = Depends(get_db)):
+    # Franchises and series holding exactly one entry, less those whose lone
+    # entry is the one recorded as reviewed (alone_groups.py).
+    return find_alone_groups(db)
+
+
+@router.post(
+    "/check/alone-groups/{kind}/{system_id}/reviewed",
+    response_model=AloneGroupReviewed,
+)
+def review_alone_group(
+    kind: AloneGroupKind, system_id: UUID, db: Session = Depends(get_db)
+):
+    # Records the group's CURRENT lone entry, so the group returns by itself
+    # once that entry is replaced. 409 when the group no longer holds exactly
+    # one entry: the page was showing something that has since changed.
+    try:
+        return mark_alone_group_reviewed(db, kind, system_id)
+    except GroupNotFound:
+        raise HTTPException(status_code=404, detail=f"No such {kind}.")
+    except NotAlone:
+        raise HTTPException(
+            status_code=409,
+            detail=f"This {kind} no longer holds exactly one entry.",
+        )

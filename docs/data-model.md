@@ -190,6 +190,7 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `size_group_derived` | JSONB | yes | | Size bucket per media type, e.g. `{"anime": "24ep", "tv-show": "2season"}`. Written by Calculate, rewritten freely. |
 | `size_group_manual` | JSONB | yes | | Same shape, written by the admin, never touched by Calculate. Manual key wins (`app/services/domain/size_group.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |
+| `alone_reviewed_media_id` | UUID | yes | | The `media.system_id` of the lone entry that was reviewed and kept on the review queue's single-entry check. The franchise is listed again whenever its one entry is any other id. No FK, like `cover_entry_id`: a stale id matches nothing (see [notes/decisions.md](notes/decisions.md)). |
 
 Relationships: `series`, `collection`, `animes`. Virtual: `remark`,
 `display_name`.
@@ -212,6 +213,7 @@ deliberate grouping). Model: `Series` (`app/models/franchise.py`).
 | `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Comic. There is no `type_covers` beside it: a series has no types, so `cover_entry_id` says everything a per-type map would. |
 | `size_group_derived` / `size_group_manual` | JSONB | yes | | As on franchise. |
 | `created_at` / `updated_at` | DateTime | yes | now | |
+| `alone_reviewed_media_id` | UUID | yes | | As on franchise: the reviewed lone entry of a single-entry series. No FK. |
 
 Relationships: `franchise`, `animes`. Virtual: `remark`, `display_name`,
 `names_dict`.

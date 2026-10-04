@@ -262,6 +262,10 @@ and anything still outside the vocabulary restores as blank
 vocabularies applied to the stored rows), so a backup from before then cannot
 bring the free text back. Both tabs carry `photo_fallback_entry_id`, a plain
 entry uuid like `cover_entry_id`; a cell that is not a uuid restores as blank.
+`Franchise` and `Series` carry `alone_reviewed_media_id` the same way (the
+review queue's single-entry check); a sheet with no such column - a backup
+from before it existed - leaves the local value as it is rather than
+clearing it.
 `Character` also carries `role` (`CHARACTER_ROLES`); a value outside the list
 restores as blank. It carries `mal_id` and `mal_link` too, restored as they
 are, as on `Person`.
@@ -855,7 +859,7 @@ the garbage into the sheet and destroy the evidence.
 
 ---
 
-## 9. Check duplicates / remarks / music
+## 9. Check duplicates / remarks / music / single-entry groups
 
 | Route | Function | Returns |
 |---|---|---|
@@ -863,7 +867,10 @@ the garbage into the sheet and destroy the evidence.
 | `GET /check/remarks` | `find_all_remarks(db, viewer.user_id)` (`app/services/domain/remarks.py`) | the caller's own non-empty `remark` notes, one key per media type (`anime`, `anime_movie`, `movie`, `tv_show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h_comic`, `hentai`, `h_game`), newest `updated_at` first, each with `system_id`, `public_id`, its name columns, the caller's status (`attach_list_fields`, so an unlisted entry reads its type's default) and `remark`. |
 | `GET /check/music` | `find_flagged_music(db)` (`app/services/domain/music_review.py`) | a list, one row per anime with a song list (`music_status` row) or a song (`op` / `ed` / `insert_songs` / `ost` row) on `Need`, `Pending` or `No Full Version` (`FLAGGED_MUSIC_STATUSES`), by display name: `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, `lists` (`[{kind, status}]`, flagged lists only, in song-list order) and `songs` (`[{section, title, status, locator}]`, flagged songs only, in song-list order then notes-page order). `Not Done` flags nothing: every list starts there. Not filtered by author - the music sections are catalogue notes (`MusicReviewRow`, `app/schemas/review.py`). |
 
-None of them writes a log row.
+| `GET /check/alone-groups` | `find_alone_groups(db)` (`app/services/domain/alone_groups.py`) | `{franchise: [...], series: [...]}`: every franchise and series with exactly one `media` row pointing at it (`media.franchise_id`, `media.series_id`, all twelve types), less those whose `alone_reviewed_media_id` is that row's id, by display name. Each: `system_id`, `public_id`, `display_name`, `entry: {system_id, media_type, public_id, display_name}` (`AloneGroupsReport`, `app/schemas/review.py`). |
+| `POST /check/alone-groups/{kind}/{system_id}/reviewed` | `mark_alone_group_reviewed(db, kind, system_id)` | sets `alone_reviewed_media_id` to the group's current lone entry. 409 when the group does not hold exactly one entry. |
+
+None of them writes a log row; the reviewed action writes the one column.
 
 ---
 
@@ -941,5 +948,7 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | GET | `/check/duplicates` | — | JSON, see section 9 | duplicate report |
 | GET | `/check/remarks` | — | JSON, see section 9 | remark report |
 | GET | `/check/music` | — | JSON, see section 9 | anime with music waiting |
+| GET | `/check/alone-groups` | — | JSON, see section 9 | single-entry franchises and series |
+| POST | `/check/alone-groups/{kind}/{system_id}/reviewed` | path `kind` = `franchise` or `series` | `{system_id, alone_reviewed_media_id}`; 404 unknown group, 409 when it no longer holds exactly one entry, 422 any other kind | mark the group's lone entry reviewed |
 
 Fill / Replace / Pull routes for media types are generated from `PIPELINES` and `MEDIA_TYPE_FOR_TAB` at import time; adding a type to those registries adds its routes. The generic listing in [api.md](api.md) covers the same paths in the context of every router.

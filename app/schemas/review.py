@@ -1,9 +1,9 @@
 """Pydantic schemas for the review queue's checks under /api/data-control/check."""
 
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class FlaggedMusicList(BaseModel):
@@ -30,3 +30,34 @@ class MusicReviewRow(BaseModel):
     display_name: str
     lists: list[FlaggedMusicList]
     songs: list[FlaggedSong]
+
+
+class LoneEntry(BaseModel):
+    system_id: UUID
+    media_type: str  # hyphenated, as on `media`
+    public_id: int
+    display_name: str
+
+
+class AloneGroup(BaseModel):
+    """A franchise or series holding exactly one media entry."""
+
+    system_id: UUID
+    public_id: int
+    display_name: str
+    entry: LoneEntry
+
+
+class AloneGroupsReport(BaseModel):
+    franchise: list[AloneGroup]
+    series: list[AloneGroup]
+
+
+class AloneGroupReviewed(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    system_id: UUID
+    alone_reviewed_media_id: UUID
+
+
+AloneGroupKind = Literal["franchise", "series"]

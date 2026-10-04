@@ -2923,3 +2923,34 @@ act on every anime of a season. Three choices:
 - **Autofill skips an anime with no MAL link** rather than failing on it,
   and the confirmation says how many it will skip.
 
+### Single-entry groups remember the entry that was reviewed, not a flag (2026-10-04)
+
+The review queue lists every franchise and series holding exactly one media
+entry, and some of them are single on purpose, so each can be marked
+"Reviewed – keep".
+
+- **The mark is the reviewed entry's id** (`alone_reviewed_media_id` on
+  `franchise` and `series`), and a group is listed when it has one entry whose
+  id differs from it. So the review is about a particular state of the group:
+  if the reviewed entry is moved out and another becomes the only one, the
+  group comes back by itself, because the decision that was made is not a
+  decision about the new entry.
+- **Rejected: a boolean `alone_reviewed` flag.** It would hide the group for
+  good. A flag can be made to reset when the group's entries change, but only
+  by hooking every write path that moves an entry - create, update, delete,
+  Pull, the merge and relation tools - and one missed path leaves a group
+  hidden for a reason that no longer holds. Comparing ids needs no hook.
+- **No foreign key to `media`.** The owner's design named an FK with
+  `ON DELETE SET NULL`; it was not added. `media.franchise_id` and
+  `media.series_id` already point the other way, and Pull restores the
+  Franchise and Series tabs before the Media tab, committing each tab on its
+  own, so a restore into an empty database would insert a franchise naming a
+  media row that does not exist yet and fail. The column is a plain uuid like
+  `cover_entry_id` beside it. Nothing is lost: a stale id matches no live
+  entry, so the group is listed again, which is what `SET NULL` would have
+  caused.
+- **It travels.** `system_id` is the identity a Backup and a Pull preserve,
+  so the id means the same entry on both machines. The Franchise and Series
+  parsers read the column only when the sheet has it, so restoring a backup
+  taken before it existed does not clear a review made since.
+
