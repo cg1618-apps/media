@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-02
+Last verified: 2026-10-04
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -801,7 +801,7 @@ cells.
 
 | Media type                       | Auto-created `franchise_type` |
 | -------------------------------- | ----------------------------- |
-| anime, anime-movie, series       | `Anime`                       |
+| anime, anime-movie, series       | `ACG`                         |
 | movie                            | `Movie`                       |
 | tv-show                          | `TV`                          |
 | cartoon                          | `Cartoon`                     |
@@ -835,9 +835,16 @@ A franchise gets the content label of each gated type its type list names -
 on auto-create here, and on every franchise write
 (`app/services/domain/gated_labels.py`).
 
-Note `"Anime"` is not in the `FRANCHISE_TYPES` dropdown tuple (which offers
-`ACG`, `Anime Movie`, …), so an auto-created anime franchise is invisible to the
-type filter until hand-fixed.
+`ACG` is the one franchise type for anime and manga franchises: an anime, an
+anime movie, a series and a manga all stamp it, and every type in the table is
+one the `FRANCHISE_TYPES` dropdown offers. `Anime` is not a franchise type.
+A Franchise tab that still carries it is folded onto `ACG` on Pull
+(`normalize_franchise_type`, applied by `parse_franchise_from_sheet`):
+token-wise inside the comma list, other tokens keeping their order and the
+separators their spacing, and a value that already names `ACG` keeping its
+first `ACG` rather than listing it twice - `"Game, Anime"` becomes
+`"Game, ACG"`, `"ACG, Anime"` becomes `"ACG"`. `Anime Movie` is its own type
+and is left alone.
 
 **Series** (`resolve_series`): a UUID passes through; a non-empty string is
 looked up case-insensitively across `series_name_en/cn/alt`; not found →

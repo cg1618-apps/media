@@ -109,7 +109,7 @@ def test_a_mainstream_entry_can_be_moved_within_its_family(
     """The mirror, on PUT only: PATCH never moves an entry - franchise_id is
     on `media`, not the entry's own table, so apply_column_patch skips it. Its
     refusal above is a guard for the day it does."""
-    other = _franchise(db_session, "Anime", name="Zvornik Other")
+    other = _franchise(db_session, "ACG", name="Zvornik Other")
     created = _manga(admin_client, franchise_id=str(mainstream_franchise.system_id))
     entry_id = created.json()["system_id"]
 

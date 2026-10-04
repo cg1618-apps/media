@@ -167,10 +167,9 @@ export default function StatsFranchiseSummary({
   const [seasonalPage, setSeasonalPage] = useState(0);
 
   // Anime (ACG) franchise rating distribution — counts franchises, not entries
-  const animeFranchises = franchises.filter((f) => {
-    const types = parseTypes(f.franchise_type);
-    return types.includes("ACG") || types.includes("Anime");
-  });
+  const animeFranchises = franchises.filter((f) =>
+    parseTypes(f.franchise_type).includes("ACG"),
+  );
   const { rows: animeRows, ratedCount: animeRatedCount } =
     computeRatingRows(animeFranchises);
 

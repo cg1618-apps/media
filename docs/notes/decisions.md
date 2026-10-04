@@ -2837,3 +2837,27 @@ verdict, which has no source to cite.
 - **A Pull from a backup taken before the revision** brings back the old
   bodies, URLs inside them. They are valid rows that read a little worse; the
   revision does not run again on them.
+
+### Anime franchises are ACG (2026-10-04)
+
+- **One type for anime and manga franchises.** `ACG` is that type; the
+  `FranchiseType.ANIME` (`"Anime"`) value is gone. An anime, an anime movie,
+  a series and a manga all auto-create their franchise as `ACG`, so the same
+  kind of franchise is typed the same way whichever entry created it.
+- **Why it mattered.** The auto-create path for anime, anime movies and
+  series stamped `Anime`, a type the `FRANCHISE_TYPES` dropdown does not
+  offer, so those franchises were invisible to the franchise type filter and
+  to the Favourite ACG grid until someone retyped them by hand. Manga already
+  stamped `ACG`. A test now holds every stamped type inside
+  `FRANCHISE_TYPES`.
+- **Revision `a1n2imeacg3` rewrites the stored values** token-wise inside the
+  comma list: `Anime` becomes `ACG`, other tokens keep their order and the
+  separators their spacing, and a franchise already naming `ACG` keeps one.
+  It is `irreversible = True`: the downgrade cannot know which `ACG` used to
+  be `Anime`, and inventing that would be worse than refusing.
+- **Pull folds the token too** (`normalize_franchise_type` in
+  `parse_franchise_from_sheet`), because a Franchise tab backed up before the
+  revision still says `Anime`, and the revision does not run again on what a
+  Pull restores.
+- **`deleted_record.franchise_type` is left as it was.** It is a tombstone of
+  what a deleted entry's franchise was typed at the time, not a live type.

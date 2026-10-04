@@ -261,7 +261,7 @@ def test_a_person_credited_on_an_entry_in_a_hidden_franchise_is_hidden(
 ):
     """The franchise half of the label gate counts as well."""
     franchise = models.Franchise(
-        system_id=uuid.uuid4(), franchise_type="Anime", franchise_name_en="Zvornik F"
+        system_id=uuid.uuid4(), franchise_type="ACG", franchise_name_en="Zvornik F"
     )
     db_session.add(franchise)
     db_session.flush()
@@ -433,7 +433,7 @@ def test_a_vocabulary_value_used_only_on_hidden_entries_is_hidden(
 def hidden_series(db_session, nsfw_label):
     franchise = models.Franchise(
         system_id=uuid.uuid4(),
-        franchise_type="Anime",
+        franchise_type="ACG",
         franchise_name_en="Zvornik Hidden Franchise",
     )
     db_session.add(franchise)

@@ -18,6 +18,9 @@ from app.schemas.image_focus import coerce_image_focus
 # for the same reason as GAME_COMPLETION_FLAGS below.
 from app.services.domain.h_game import CHOICE_LISTS, SINGLE_CHOICES, lenient_choice_list
 
+# A franchise_type restored from a tab that still says "Anime" comes back ACG.
+from app.services.domain.hierarchy import normalize_franchise_type
+
 # Imported rather than duplicated so the Sheets tab and the API agree on what
 # the three rungs are.
 from app.services.domain.watch_order import normalize_importance
@@ -477,7 +480,9 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
     """
     parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "franchise_type": parse_from_sheet(raw.get("franchise_type"), str),
+        "franchise_type": normalize_franchise_type(
+            parse_from_sheet(raw.get("franchise_type"), str)
+        ),
         "franchise_name_en": parse_from_sheet(raw.get("franchise_name_en"), str),
         "franchise_name_cn": parse_from_sheet(raw.get("franchise_name_cn"), str),
         "franchise_name_roman": parse_from_sheet(raw.get("franchise_name_roman"), str),
