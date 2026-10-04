@@ -8,7 +8,6 @@ from pydantic import BaseModel, ConfigDict
 
 from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import (
-    FIELD_LINK_PAIRS,
     FIELD_LINKS,
     FIELD_LIST,
     FIELD_NAMES,
@@ -37,7 +36,7 @@ from app.utils.note_sections import (
 class LinkPair(BaseModel):
     """
     One link of a section whose links are text-and-URL pairs - the song lists
-    and 彩蛋 (see note_sections.uses_link_pairs). `text` is the label shown
+    (see note_sections.uses_link_pairs). `text` is the label shown
     for the link (YouTube, Spotify, ...), suggested from the "Song Source"
     option category but free; `url` is required, which validate_note_payload
     enforces so the error names the section.
@@ -324,10 +323,6 @@ def _check_field(field: NoteField, value, where: str) -> None:
     if field.type == FIELD_LINKS:
         if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
             raise ValueError(f"{where} must be a list of URLs.")
-        return
-
-    if field.type == FIELD_LINK_PAIRS:
-        _check_link_pairs(value, where)
         return
 
     if field.type == FIELD_NAMES:

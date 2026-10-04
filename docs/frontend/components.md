@@ -492,7 +492,7 @@ not drawn. The character, person and studio libraries use it for
   `linkPairs.js`, which Windows would resolve for `./LinkPairs`):
   `LinkPairsEditor` is a repeatable row of label and URL, the label a
   `SuggestInput` when the caller passes `textOptions` (a song's "Song
-  Source") and a plain input otherwise (彩蛋's `link_pairs` field);
+  Source") and a plain input when it passes none;
   `LinkPairPills` draws each stored pair as a `LinkPill` labelled with its
   text, falling back to the host. Stored URL strings read as pairs with no
   text. `NameEntriesSection` renders the `name_entries` shape — a titled

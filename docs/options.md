@@ -299,7 +299,7 @@ out. What the three gated types keep is in
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
 | `speculation` | text_links | 猜測 Speculation | same as foreshadowing | analysis_group | |
-| `easter_eggs` | structured | 彩蛋 Easter Eggs | anime | analysis_group | episode, description (required), links as text-URL pairs |
+| `easter_eggs` | text_links | 彩蛋 Easter Eggs | anime | analysis_group | |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
 | `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description |
 | `controls` | structured | 操作 Controls | game, h-game | guides | Fields: control (`title`), description (`content`), links |

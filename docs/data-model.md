@@ -1451,7 +1451,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | `status` | String | yes | | Music tracking status: Need/Pending/Done on a `music_track` song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row; music sections only |
 | `title` | String | yes | | Name half of `name_links` / song name of a `music_track` row |
 | `content` | Text | yes | | Body |
-| `links` | JSONB | yes | | List of URL strings; on the four song lists and 彩蛋 Easter Eggs (`note_sections.uses_link_pairs`), a list of `{"text": str or null, "url": str}` pairs instead. Which shape is decided by the section, never per row |
+| `links` | JSONB | yes | | List of URL strings; on the four song lists (`note_sections.uses_link_pairs`), a list of `{"text": str or null, "url": str}` pairs instead. Which shape is decided by the section, never per row |
 | `entries` | JSONB | yes | | The `name_entries` shape's ordered items - each `{"type": "text" or "link", "value": str, "label": str or null}`. Deliberately not folded into `links`: one column meaning two things is how subtle bugs start. |
 | `fields` | JSONB | yes | | The `structured` shape's registry-declared fields, keyed by `NoteField.key`, plus any nested list. Only what the section's spec does not map onto a column - a structured name is `title` and its description `content` - so this holds the leftovers and the nested lists. Validated against the spec; an unknown key is a 422. |
 | `sort_index` | Float | yes | | Ordering within (owner, section) |

@@ -1,6 +1,6 @@
-// Frontend: the editor and the read view for text-and-URL link pairs, shared
-// by MusicTrackSection (OP, ED, insert songs, OST) and StructuredSection's
-// `link_pairs` field (彩蛋 Easter Eggs). The rules are in linkPairValues.js.
+// Frontend: the editor and the read view for text-and-URL link pairs, used by
+// MusicTrackSection (OP, ED, insert songs, OST). The rules are in
+// linkPairValues.js.
 import SuggestInput from "../../../components/forms/SuggestInput";
 import { LinkPill, inputCls } from "./ui";
 import { pairLabel, pairsFromLinks } from "./linkPairValues";

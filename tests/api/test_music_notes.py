@@ -1,6 +1,7 @@
 """
 API integration tests for the music group: the per-list status rows
-(`music_status`), the one song-row shape every list shares, and 彩蛋.
+(`music_status`), the one song-row shape every list shares, and 彩蛋's URL
+links.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
@@ -62,8 +63,9 @@ def test_sections_describe_the_status_bar_and_the_song_rows(client):
 
     egg = by_key["easter_eggs"]
     assert egg["group"] == "analysis_group"
-    assert egg["link_pairs"] is True
-    assert [f["type"] for f in egg["fields"]] == ["text", "textarea", "link_pairs"]
+    assert egg["shape"] == "text_links"
+    assert egg["link_pairs"] is False
+    assert egg["fields"] == []
 
 
 # --- music_status -----------------------------------------------------------
@@ -261,13 +263,16 @@ def test_an_easter_egg_round_trips(admin_client, sample_anime):
         "section": "easter_eggs",
         "locator": "ep 3",
         "content": "The poster is the ep 12 villain.",
-        "links": [{"text": "Bilibili", "url": "https://b23.tv/x"}],
+        "links": ["https://b23.tv/x", "https://youtu.be/y"],
     }
     r = admin_client.post("/api/notes", json=body)
     assert r.status_code == 201, r.text
     assert r.json()["links"] == body["links"]
+    assert r.json()["locator"] == "ep 3"
 
+    # Its links are URL strings, like the rest of 解析: a pair is refused.
     r = admin_client.post(
-        "/api/notes", json={**body, "content": None}
+        "/api/notes",
+        json={**body, "links": [{"text": "Bilibili", "url": "https://b23.tv/x"}]},
     )
     assert r.status_code == 422
