@@ -12,6 +12,7 @@ import { inputCls } from "../../components/forms/FormField";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { getQuoteImageUrl } from "../../lib/covers";
 
 export default function MemeManageTab({ mode = "modify" }) {
@@ -26,13 +27,24 @@ export default function MemeManageTab({ mode = "modify" }) {
   const [confirmId, setConfirmId] = useState(null);
   const [busy, setBusy] = useState(false);
 
+  const isDelete = mode === "delete";
+
+  // Delete mode lists nothing until it is asked for something: the unfiltered
+  // list is up to 500 memes with their images, and nobody deletes by
+  // scrolling it. So there the search is debounced and the query waits for a
+  // search or a picked owner. Modify keeps listing on mount and filtering
+  // per keystroke.
+  const debouncedSearch = useDebouncedValue(search);
+  const effectiveSearch = (isDelete ? debouncedSearch : search).trim();
+  const queryEnabled = !isDelete || Boolean(effectiveSearch || ownerId);
+
   const params = useMemo(() => {
     const p = {};
     if (ownerType) p.owner_type = ownerType;
     if (ownerId) p.owner_id = ownerId;
-    if (search.trim()) p.search_query = search.trim();
+    if (effectiveSearch) p.search_query = effectiveSearch;
     return p;
-  }, [ownerType, ownerId, search]);
+  }, [ownerType, ownerId, effectiveSearch]);
 
   const queryKey = ["memes-admin", params];
   const { data: memes = [], isLoading } = useQuery({
@@ -42,6 +54,7 @@ export default function MemeManageTab({ mode = "modify" }) {
       return fetchJson(endpoints.memes.list(qs));
     },
     staleTime: 10_000,
+    enabled: queryEnabled,
   });
 
   const refresh = async () => {
@@ -81,8 +94,6 @@ export default function MemeManageTab({ mode = "modify" }) {
     }
   };
 
-  const isDelete = mode === "delete";
-
   return (
     <div className="space-y-4">
       <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
@@ -100,11 +111,13 @@ export default function MemeManageTab({ mode = "modify" }) {
           placeholder={`Search memes to ${isDelete ? "delete" : "modify"}...`}
           className={inputCls}
         />
-        <p className="text-[11px] text-text-faint font-medium">
-          {isLoading
-            ? "Loading..."
-            : `${memes.length} meme${memes.length === 1 ? "" : "s"} shown`}
-        </p>
+        {queryEnabled && (
+          <p className="text-[11px] text-text-faint font-medium">
+            {isLoading
+              ? "Loading..."
+              : `${memes.length} meme${memes.length === 1 ? "" : "s"} shown`}
+          </p>
+        )}
       </div>
 
       {memes.map((m) => {
@@ -227,7 +240,13 @@ export default function MemeManageTab({ mode = "modify" }) {
         );
       })}
 
-      {!isLoading && !memes.length && (
+      {!queryEnabled && (
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-8 text-center">
+          <p className="text-sm text-text-faint">Search or pick an owner to find memes.</p>
+        </div>
+      )}
+
+      {queryEnabled && !isLoading && !memes.length && (
         <div className="bg-surface rounded-2xl border border-border shadow-sm p-8 text-center">
           <p className="text-sm text-text-faint italic">No memes found.</p>
         </div>

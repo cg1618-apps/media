@@ -739,17 +739,41 @@ only land in its own grid. The swap is a draft until **Save Grid**.
 ## /delete (`Delete.jsx`)
 
 Loads the five entity lists (options, studios, publishers, people,
-characters) on mount and the entry lists per tab, the same way `/add` does.
-Every list carries `limit=2000`; the API default of 500 would silently truncate
-the search and the checks below. For a selected row it shows a confirmation
-modal with the consequences:
+characters) and the three group lists (collection, franchise, series) on
+mount, and the entry lists per tab, the same way `/add` does. Every list
+carries `limit=2000`; the API default of 500 would silently truncate the
+search and the checks below. Each tab is a search box over its list; picking
+a row shows its card, and the card's Delete button opens a confirmation modal
+with the consequences:
 
 | Deleting | What is offered |
 |---|---|
 | Collection | Never cascades; member franchises become uncollected. |
-| Franchise | **Cascade** (checkbox): deletes every series and every media entry of *every* type under it (`deleteChildren("franchise_id", id)`), or leaves them with `franchise_id = NULL` if unchecked. |
-| Series | Cascade over every media type holding that `series_id`. |
+| Franchise | **Cascade** (checkbox): deletes every series and every media entry of *every* type listed under it, or leaves them with `franchise_id = NULL` if unchecked. |
+| Series | **Cascade** over every entry listed under it, of every type; unchecked, they keep their franchise and lose the series. **Orphan franchise** offer when it is its franchise's only series and the franchise holds no entry outside a series. |
 | Any media entry | **Orphan series** offer when it is the last entry of any type in its series; **orphan franchise** offer when it is the last entry of any type in the franchise and the franchise has no (remaining) series. |
+
+**Collection, franchise and series show what they hold.** Selecting one reads
+its members from the server (`hooks/useGroupMembers.js`), not from the page's
+entry lists, which on these tabs are never loaded: a collection's franchises
+(`/api/franchise/?collection_id=`), a franchise's series
+(`/api/series/?franchise_id=`) and its entries of all twelve media types, a
+series' entries of eleven - each type's list endpoint filtered by
+`franchise_id` or `series_id`. Anime movies are not asked for a series, since
+`anime_movies` has no `series_id` and the endpoint would ignore the filter
+and answer with every anime movie. The card and the modal both show a count
+per type, then every member by name, grouped by type and linking to its
+page. The search dropdown shows names only; the counts are on the card.
+
+**What is shown is what a cascade deletes.** The cascade walks exactly the
+listed members - entries first, then a franchise's series, then the group,
+then a ticked orphan franchise - through each type's `DELETE` endpoint, and
+stops at the first one that fails, naming it in an error toast; whatever was
+deleted before it stays deleted, and the cards re-read what is left. Confirm
+Delete stays disabled while the members are loading or if they failed to load.
+The modal also says that the group's memes, notes and watch orders are
+deleted with it: each is `ON DELETE CASCADE` on the collection, franchise or
+series that owns it.
 
 The **Game tab**'s panel adds one line of its own: when the selected game has
 copy rows it warns how many will be deleted with it. Its DLC and expansion rows
@@ -767,15 +791,23 @@ included; nothing is deleted until **Confirm Delete** is pressed, and Cancel
 deletes nothing. The studio, publisher, person and character panels, and the
 quote and meme tabs, confirm inline instead (Delete, then Confirm Delete).
 
-Counts are computed across all twelve media types (`entriesIn`,
-`standaloneEntriesIn`), so **opening the confirmation waits for every media
-list to be in** — lazily loaded ones included. A list that was never fetched reads as empty,
-which would understate the cascade and offer to delete a franchise that still
-holds entries. The modal says "Checking what else this would delete…" while
-that completes. Deletion order is children first, then the row, then
-any orphaned parents the admin ticked. Every delete goes through the type's
-`DELETE` endpoint, which also removes cover images, plan rows, credit links and
-writes a `deleted_record`.
+A media entry's orphan offers are computed across all twelve media types
+(`entriesIn`), so **opening an entry's confirmation waits for every media
+list to be in** — lazily loaded ones included. A list that was never fetched
+reads as empty, which would offer to delete a franchise that still holds
+entries. The modal says "Checking what else this would delete…" while that
+completes. Deletion order is the entry, then any orphaned parents the admin
+ticked. Every delete goes through the type's `DELETE` endpoint, which also
+removes cover images, plan rows, credit links and writes a `deleted_record`.
+
+**The quote and meme tabs list nothing until asked.** They render
+`QuoteManageTab` and `MemeManageTab` with `mode="delete"`, which query
+`/api/quote/` or `/api/meme/` only once there is a search or a picked entry
+(owner, for memes), and debounce the search by 250 ms
+(`hooks/useDebouncedValue.js`). Until then the tab says "Search or pick an
+entry to find quotes." (or an owner, for memes). Modify renders the same
+components with `mode="modify"`, which list on mount and filter on every
+keystroke.
 
 **Entity pickers are filtered the way the Modify tab's are.** Person and
 Character carry the same type tabs — All first, which lists records holding
