@@ -38,6 +38,7 @@ def test_analysis_is_the_only_section_with_a_per_owner_group():
     assert overridden == [
         "reviews_and_comments",
         "analysis",
+        "easter_eggs",
         "story_list_main",
         "story_list_side",
         "story_list_character",
@@ -64,12 +65,18 @@ def test_analysis_keeps_its_own_card_everywhere_else():
         assert _group_of("analysis", owner) == "analysis_group", owner
 
 
-def test_analysis_reads_last_in_the_reviews_card_for_a_game():
-    # Card contents follow registry order, and `analysis` is declared after
-    # every review section - so "last" needs no mechanism of its own, but it
-    # does need asserting, because moving the entry would silently change it.
+def test_analysis_then_easter_eggs_read_last_in_the_reviews_card_for_a_game():
+    # Card contents follow registry order, and both are declared after every
+    # review section - so "last" needs no mechanism of its own, but it does
+    # need asserting, because moving an entry would silently change it.
     reviews = [s.key for s in sections_out("game") if s.group == "reviews"]
-    assert reviews[-1] == "analysis"
+    assert reviews[-2:] == ["analysis", "easter_eggs"]
+
+
+def test_easter_eggs_is_a_review_subsection_for_a_game_only():
+    assert _group_of("easter_eggs", "game") == "reviews"
+    for owner in ("anime", "movie", "tv-show", "manga", "novel", "comic"):
+        assert _group_of("easter_eggs", owner) == "analysis_group", owner
 
 
 def test_a_game_has_no_analysis_card_left_to_render():

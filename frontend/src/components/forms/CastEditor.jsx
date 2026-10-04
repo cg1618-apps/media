@@ -262,15 +262,23 @@ export default function CastEditor({
   // The server matches MAL's characters and seiyuu to existing rows by MAL
   // id (a seiyuu by name too), creating the missing ones, and answers with
   // cast rows; Japanese voices only. It can take a while on a long cast.
+  // The characters this form holds go with the request: one with no MAL id
+  // whose name matches is reused rather than minted again, and comes back
+  // under its own id, so appendCast skips it like any held character.
   const [malImporting, setMalImporting] = useState(false);
   async function importFromMal() {
     setMalImporting(true);
     setImportMessage("Fetching the cast from MyAnimeList…");
+    const characterIds = latestRows.current.map((r) => r.character_id).filter(Boolean);
     try {
       const res = await fetch(endpoints.casting.fromMal(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ media_type: mediaType, mal_link: malLink }),
+        body: JSON.stringify({
+          media_type: mediaType,
+          mal_link: malLink,
+          character_ids: characterIds,
+        }),
         credentials: "include",
       });
       const payload = await res.json().catch(() => ({}));

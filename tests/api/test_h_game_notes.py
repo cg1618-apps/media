@@ -62,6 +62,7 @@ GAME_ONLY = {
     "story_other",
     "quotes",
     "memes",
+    "easter_eggs",
 }
 
 
