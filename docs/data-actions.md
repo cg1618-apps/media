@@ -855,14 +855,15 @@ the garbage into the sheet and destroy the evidence.
 
 ---
 
-## 9. Check duplicates / remarks
+## 9. Check duplicates / remarks / music
 
 | Route | Function | Returns |
 |---|---|---|
 | `GET /check/duplicates` | `find_all_duplicates(db)` (`app/services/domain/duplicates.py`) | one key per check: `franchise`, `series`, `anime`, `anime_movie`, `cartoon`, `movie`, `tv_show`, `manga`, `novel`, `comic`, `game`, `h_comic`, `h_game`, `hentai`, `system_options`, `entities` — each a list of duplicate groups (h-comic's key: same franchise, series, `region` and `series_number` plus a shared name; h-game's: same franchise, series, `game_type` and `series_number` plus a shared name; hentai's: same franchise, series and `series_number` plus a shared name) (lists of dicts). Matching rules are in [business-rules.md](business-rules.md). |
 | `GET /check/remarks` | `find_all_remarks(db, viewer.user_id)` (`app/services/domain/remarks.py`) | the caller's own non-empty `remark` notes, one key per media type (`anime`, `anime_movie`, `movie`, `tv_show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h_comic`, `hentai`, `h_game`), newest `updated_at` first, each with `system_id`, `public_id`, its name columns, the caller's status (`attach_list_fields`, so an unlisted entry reads its type's default) and `remark`. |
+| `GET /check/music` | `find_flagged_music(db)` (`app/services/domain/music_review.py`) | a list, one row per anime with a song list (`music_status` row) or a song (`op` / `ed` / `insert_songs` / `ost` row) on `Need`, `Pending` or `No Full Version` (`FLAGGED_MUSIC_STATUSES`), by display name: `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, `lists` (`[{kind, status}]`, flagged lists only, in song-list order) and `songs` (`[{section, title, status, locator}]`, flagged songs only, in song-list order then notes-page order). `Not Done` flags nothing: every list starts there. Not filtered by author - the music sections are catalogue notes (`MusicReviewRow`, `app/schemas/review.py`). |
 
-Neither writes a log row.
+None of them writes a log row.
 
 ---
 
@@ -937,7 +938,8 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | DELETE | `/calculate/delete-orphaned-covers` | — | `{"status", "deleted_count"}` | delete orphaned cover files |
 | POST | `/calculate/set-cover-image-fields` | — | `{"status", "updated_count"}` | link existing files to rows |
 | POST | `/calculate/download-missing-covers` | body `{"system_ids": [..]}` (optional; default all) | `{"status", "message"}` | re-download missing covers |
-| GET | `/check/duplicates` | — | JSON, see section 8 | duplicate report |
-| GET | `/check/remarks` | — | JSON, see section 8 | remark report |
+| GET | `/check/duplicates` | — | JSON, see section 9 | duplicate report |
+| GET | `/check/remarks` | — | JSON, see section 9 | remark report |
+| GET | `/check/music` | — | JSON, see section 9 | anime with music waiting |
 
 Fill / Replace / Pull routes for media types are generated from `PIPELINES` and `MEDIA_TYPE_FOR_TAB` at import time; adding a type to those registries adds its routes. The generic listing in [api.md](api.md) covers the same paths in the context of every router.

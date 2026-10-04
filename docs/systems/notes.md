@@ -608,6 +608,12 @@ resolves that section's vocabulary and default onto the list
 drawn from the registry alone. An import-time check keeps the two sides in
 step: the `music_status` kinds must be exactly the sections pointing at it.
 
+**Waiting music.** A list or a song on Need, Pending or No Full Version is
+waiting on something, and the review queue's music block lists every anime
+holding one (`GET /api/data-control/check/music`, `find_flagged_music` in
+`app/services/domain/music_review.py`). `Not Done` is not listed: every list
+starts there.
+
 **Link pairs.** A song is heard on several services, so a song link is
 `{"text": "YouTube", "url": "https://…"}` rather than a bare URL; `text` is
 the label shown and may be null, suggested from the "Song Source" option

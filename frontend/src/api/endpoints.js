@@ -392,6 +392,7 @@ export const endpoints = {
     cleanApply: () => "/api/data-control/clean/apply",
     checkDuplicates: () => "/api/data-control/check/duplicates",
     checkRemarks: () => "/api/data-control/check/remarks",
+    checkMusic: () => "/api/data-control/check/music",
     checkCoverImage: () => "/api/data-control/calculate/check-cover-image",
     setCoverFields: () => "/api/data-control/calculate/set-cover-image-fields",
     downloadMissingCovers: () => "/api/data-control/calculate/download-missing-covers",

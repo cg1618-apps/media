@@ -168,6 +168,7 @@ describe("named endpoint groups", () => {
     expect(endpoints.dataControl.calculateAll()).toBe("/api/data-control/calculate/all");
     expect(endpoints.dataControl.checkDuplicates()).toBe("/api/data-control/check/duplicates");
     expect(endpoints.dataControl.checkRemarks()).toBe("/api/data-control/check/remarks");
+    expect(endpoints.dataControl.checkMusic()).toBe("/api/data-control/check/music");
   });
 
   it("resources", () => {

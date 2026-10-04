@@ -17,7 +17,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 |---|---|---|
 | `/system` | `pages/admin/Admin.jsx` | Control Center: pipelines, announcements, review modals |
 | `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit |
-| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates |
+| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music |
 | `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes |
 | `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete |
 | `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) |
@@ -97,6 +97,12 @@ mode (the data-control router is gated on `manage.pipelines` alone).
   media type, system options (`[id] option_value` per member) and people &
   companies (the `entities` clusters: `kind` and each member's name). Read
   only; a cluster is resolved on `/modify`, `/delete` or a person's merge.
+- **Music to track** — `GET /check/music` (`MusicView`): every anime whose
+  music is waiting, with only its flagged song lists and songs (name, episode,
+  status). Three chips — Need, Pending, No Full Version, all on at first —
+  narrow the rows to the statuses picked; an anime stays while any of its
+  flagged items matches. A row opens the anime's detail page, where its music
+  notes are.
 
 ## /add (`Add.jsx`)
 

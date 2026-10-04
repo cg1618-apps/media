@@ -19,6 +19,7 @@ import DuplicatesView, {
   countDuplicates,
   duplicateSummary,
 } from "../../components/review/DuplicatesView";
+import MusicView, { musicSummary } from "../../components/review/MusicView";
 
 /** One check's state: its last answer, whether it is loading, its error. */
 export function useCheck(url) {
@@ -45,6 +46,7 @@ export default function ReviewQueue() {
   const auth = useAuth();
   const remarks = useCheck(endpoints.dataControl.checkRemarks());
   const duplicates = useCheck(endpoints.dataControl.checkDuplicates());
+  const music = useCheck(endpoints.dataControl.checkMusic());
 
   return (
     <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-10">
@@ -54,8 +56,7 @@ export default function ReviewQueue() {
             Review Queue
           </h1>
           <p className="text-sm text-text-faint mt-1">
-            Entries with your remarks and potential duplicates that may need
-            attention.
+            Remarks, duplicates and music that may need attention.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -94,6 +95,20 @@ export default function ReviewQueue() {
         onRefresh={duplicates.load}
       >
         <DuplicatesView results={duplicates.results} />
+      </ReviewBlock>
+
+      <ReviewBlock
+        title="Music To Track"
+        loadLabel="Find music"
+        loaded={music.results !== null}
+        loading={music.loading}
+        error={music.error}
+        total={music.results?.length ?? 0}
+        summary={musicSummary}
+        emptyText="No anime has music waiting."
+        onRefresh={music.load}
+      >
+        <MusicView results={music.results} />
       </ReviewBlock>
     </div>
   );

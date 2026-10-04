@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.dependencies import get_db
+from app.schemas.review import MusicReviewRow
 from app.services.calculation import (
     bulk_check_cover_image,
     bulk_delete_orphaned_cover_images,
@@ -27,6 +28,7 @@ from app.services.calculation import (
     run_calculate_all,
 )
 from app.services.domain import find_all_duplicates, find_all_remarks
+from app.services.domain.music_review import find_flagged_music
 from app.services.pipelines import fill, replace
 from app.services.pipelines.backup import BackupAlreadyRunning, start_backup
 from app.services.pipelines.clean import CleanAborted, apply_clean, scan_orphans
@@ -358,3 +360,11 @@ def check_remarks(
     # shape that only means something once an author is fixed. Identical to
     # the old answer on a single-account installation.
     return JSONResponse(content=find_all_remarks(db, viewer.user_id))
+
+
+@router.get("/check/music", response_model=list[MusicReviewRow])
+def check_music(db: Session = Depends(get_db)):
+    # Every anime with a song list or a song on Need, Pending or No Full
+    # Version. Not per caller: the music sections are catalogue notes, one
+    # shared set of rows per anime (music_review.py).
+    return find_flagged_music(db)
