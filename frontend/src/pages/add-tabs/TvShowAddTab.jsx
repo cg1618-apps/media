@@ -21,6 +21,8 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import { endpoints } from "../../api/endpoints";
 
 export { defaultTvShow } from "../../config/formFactories";
 
@@ -36,6 +38,7 @@ export default function TvShowAddTab({
   tvFillResults,
   tvFillLoading,
   applyTvShowAutofill,
+  applyTmdbPick,
   allFranchises,
   seriesItemsForTvShow,
   sources,
@@ -112,6 +115,12 @@ export default function TvShowAddTab({
         )}
       </div>
 
+      <ExternalSearchBox
+        source="TMDB"
+        searchUrl={endpoints.tvShow.searchTmdb}
+        onPick={applyTmdbPick}
+        hint="A pick looks up the IMDb id TMDB holds for it; the entry is keyed by IMDb."
+      />
       <SectionHeader icon="fa-video" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox

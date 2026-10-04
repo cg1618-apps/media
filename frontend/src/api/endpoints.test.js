@@ -121,6 +121,41 @@ describe("named endpoint groups", () => {
     );
   });
 
+  it("external pickers", () => {
+    expect(endpoints.anime.searchMal("frieren")).toBe(
+      "/api/anime/search-mal?q=frieren&limit=10",
+    );
+    expect(endpoints.animeMovie.searchMal("a b", 5)).toBe(
+      "/api/anime-movie/search-mal?q=a%20b&limit=5",
+    );
+    expect(endpoints.manga.searchMal("x")).toBe("/api/manga/search-mal?q=x&limit=10");
+    expect(endpoints.novel.searchMal("x")).toBe("/api/novel/search-mal?q=x&limit=10");
+    expect(endpoints.novel.searchOpenLibrary("dune")).toBe(
+      "/api/novel/search-openlibrary?q=dune&limit=10",
+    );
+    expect(endpoints.person.searchMal("kana")).toBe(
+      "/api/person/search-mal?q=kana&limit=10",
+    );
+    expect(endpoints.character.searchMal("lelouch")).toBe(
+      "/api/character/search-mal?q=lelouch&limit=10",
+    );
+    expect(endpoints.movie.searchTmdb("matrix")).toBe(
+      "/api/movies/search-tmdb?q=matrix&limit=10",
+    );
+    expect(endpoints.movie.tmdbImdbId("movie/603")).toBe(
+      "/api/movies/tmdb-imdb-id?ref=movie%2F603",
+    );
+    expect(endpoints.tvShow.searchTmdb("x")).toBe("/api/tv-shows/search-tmdb?q=x&limit=10");
+    expect(endpoints.tvShow.tmdbImdbId("tv/1399")).toBe(
+      "/api/tv-shows/tmdb-imdb-id?ref=tv%2F1399",
+    );
+    expect(endpoints.cartoon.searchTmdb("x")).toBe("/api/cartoon/search-tmdb?q=x&limit=10");
+    expect(endpoints.cartoon.tmdbImdbId("tv/1")).toBe("/api/cartoon/tmdb-imdb-id?ref=tv%2F1");
+    expect(endpoints.comic.searchComicVine("saga")).toBe(
+      "/api/comic/search-comicvine?q=saga&limit=10",
+    );
+  });
+
   it("dataControl", () => {
     expect(endpoints.dataControl.fill("anime")).toBe("/api/data-control/fill/anime");
     expect(endpoints.dataControl.fillAll()).toBe("/api/data-control/fill/all");

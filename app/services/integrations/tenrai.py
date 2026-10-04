@@ -6,7 +6,7 @@ Strictly responsible for fetching raw external JSON data and handling rate limit
 
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 from tenacity import (
@@ -14,6 +14,12 @@ from tenacity import (
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
+)
+
+from app.services.integrations.external_search import (
+    SEARCH_TIMEOUT,
+    ExternalSearchError,
+    cached_search,
 )
 
 logger = logging.getLogger(__name__)
@@ -395,3 +401,202 @@ def fetch_tenrai_cast(resource: str, mal_id: int) -> Optional[list]:
     return _get_tenrai_data(
         f"{resource.capitalize()} cast", f"{resource}/{mal_id}/characters", mal_id
     )
+
+
+# ==========================================
+# Add-tab picker searches
+# ==========================================
+#
+# Interactive, so they follow app/services/integrations/external_search.py
+# rather than the fetchers above: one attempt, a short timeout, and an
+# ExternalSearchError on any failure instead of a retry or a None. They still
+# take a slot from tenrai_rate_limiter, so a search and a running Fill share
+# one budget.
+
+# MAL's manga `type` values that are novels. The novel picker asks for exactly
+# these; the manga picker drops them.
+_NOVEL_TYPES = ("lightnovel", "novel")
+_NOVEL_TYPE_LABELS = {"Light Novel", "Novel"}
+# How far the manga picker over-fetches to make up for the novels it drops.
+_TENRAI_SEARCH_MAX_LIMIT = 50
+
+
+def _search_tenrai(resource: str, params: Dict[str, Any]) -> list:
+    """One throttled, unretried GET of a Tenrai search; the response's `data` list."""
+    tenrai_rate_limiter.wait_if_needed()
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0"}
+    try:
+        response = requests.get(
+            f"{TENRAI_BASE_URL}/{resource}",
+            params=params,
+            headers=headers,
+            timeout=SEARCH_TIMEOUT,
+        )
+    except requests.exceptions.RequestException as exc:
+        logger.warning("Tenrai %s search unreachable: %s", resource, exc)
+        raise ExternalSearchError("MyAnimeList search (Tenrai) is unreachable.") from exc
+
+    if response.status_code == 429:
+        raise ExternalSearchError(
+            "MyAnimeList search (Tenrai) is rate-limited; try again in a moment."
+        )
+    if not 200 <= response.status_code < 300:
+        logger.warning("Tenrai %s search answered %s", resource, response.status_code)
+        raise ExternalSearchError(
+            f"MyAnimeList search (Tenrai) failed with HTTP {response.status_code}."
+        )
+    try:
+        data = response.json().get("data")
+    except (ValueError, AttributeError) as exc:
+        raise ExternalSearchError(
+            "MyAnimeList search (Tenrai) returned an unreadable response."
+        ) from exc
+    if not isinstance(data, list):
+        raise ExternalSearchError("MyAnimeList search (Tenrai) returned an unreadable response.")
+    return data
+
+
+def _cover_url(item: Dict[str, Any]) -> Optional[str]:
+    images = item.get("images") or {}
+    for fmt in ("jpg", "webp"):
+        url = (images.get(fmt) or {}).get("image_url")
+        if url:
+            return url
+    return None
+
+
+def _start_year(item: Dict[str, Any], dates_key: str) -> Optional[int]:
+    """`year` when the payload has one, else the year of the aired/published from-date."""
+    if item.get("year"):
+        return item["year"]
+    dates = item.get(dates_key) or {}
+    return ((dates.get("prop") or {}).get("from") or {}).get("year")
+
+
+def _alt_title(item: Dict[str, Any]) -> Optional[str]:
+    """The English title when it differs from the romaji one, else the Japanese."""
+    english = item.get("title_english")
+    if english and english != item.get("title"):
+        return english
+    return item.get("title_japanese") or None
+
+
+def _count(n: Optional[int], singular: str, plural: str) -> Optional[str]:
+    if not n:
+        return None
+    return f"{n} {singular if n == 1 else plural}"
+
+
+def _detail(*parts: Optional[str]) -> Optional[str]:
+    return " · ".join(p for p in parts if p) or None
+
+
+def _map_anime(item: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "external_id": str(item["mal_id"]),
+        "link": item.get("url"),
+        "title": item.get("title") or "",
+        "title_alt": _alt_title(item),
+        "year": _start_year(item, "aired"),
+        "detail": _detail(item.get("type"), _count(item.get("episodes"), "ep", "eps")),
+        "cover_url": _cover_url(item),
+    }
+
+
+def _map_manga(item: Dict[str, Any]) -> Dict[str, Any]:
+    size = _count(item.get("volumes"), "vol", "vols") or _count(item.get("chapters"), "ch", "ch")
+    return {
+        "external_id": str(item["mal_id"]),
+        "link": item.get("url"),
+        "title": item.get("title") or "",
+        "title_alt": _alt_title(item),
+        "year": _start_year(item, "published"),
+        "detail": _detail(item.get("type"), size),
+        "cover_url": _cover_url(item),
+    }
+
+
+def _map_person(item: Dict[str, Any]) -> Dict[str, Any]:
+    native = f"{item.get('family_name') or ''}{item.get('given_name') or ''}"
+    birthday = (item.get("birthday") or "")[:10]
+    return {
+        "external_id": str(item["mal_id"]),
+        "link": item.get("url"),
+        "title": item.get("name") or "",
+        "title_alt": native or None,
+        "year": None,
+        "detail": f"Born {birthday}" if birthday else None,
+        "cover_url": _cover_url(item),
+    }
+
+
+def _map_character(item: Dict[str, Any]) -> Dict[str, Any]:
+    favourites = item.get("favorites")
+    return {
+        "external_id": str(item["mal_id"]),
+        "link": item.get("url"),
+        "title": item.get("name") or "",
+        "title_alt": item.get("name_kanji") or None,
+        "year": None,
+        "detail": f"{favourites:,} favourites" if favourites else None,
+        "cover_url": _cover_url(item),
+    }
+
+
+@cached_search
+def search_mal_anime(q: str, limit: int, media_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Searches MAL anime by title; `media_type` is MAL's `type` filter ("movie")."""
+    params: Dict[str, Any] = {"q": q, "limit": limit, "sfw": "true"}
+    if media_type:
+        params["type"] = media_type
+    return [_map_anime(item) for item in _search_tenrai("anime", params)]
+
+
+@cached_search
+def search_mal_manga(q: str, limit: int) -> List[Dict[str, Any]]:
+    """Searches MAL manga by title, leaving out novels and light novels.
+
+    MAL's `type` filter takes one value and the manga picker wants five
+    (manga, one-shot, doujinshi, manhwa, manhua), so this asks once with no
+    filter, over-fetching to make up for the novels it then drops.
+    """
+    fetch = max(limit, min(limit * 2, _TENRAI_SEARCH_MAX_LIMIT))
+    items = _search_tenrai("manga", {"q": q, "limit": fetch, "sfw": "true"})
+    kept = [i for i in items if i.get("type") not in _NOVEL_TYPE_LABELS]
+    return [_map_manga(item) for item in kept[:limit]]
+
+
+@cached_search
+def search_mal_novel(q: str, limit: int) -> List[Dict[str, Any]]:
+    """Searches MAL light novels and novels by title.
+
+    One request per type, because the filter takes one value and an
+    unfiltered search lets manga crowd the novels out. The two lists are
+    interleaved so neither type is hidden behind the other at a small limit.
+    """
+    per_type = [
+        _search_tenrai("manga", {"q": q, "limit": limit, "sfw": "true", "type": t})
+        for t in _NOVEL_TYPES
+    ]
+    merged: List[Dict[str, Any]] = []
+    seen = set()
+    for i in range(max(len(items) for items in per_type)):
+        for items in per_type:
+            if i < len(items) and items[i]["mal_id"] not in seen:
+                seen.add(items[i]["mal_id"])
+                merged.append(items[i])
+    return [_map_manga(item) for item in merged[:limit]]
+
+
+@cached_search
+def search_mal_people(q: str, limit: int) -> List[Dict[str, Any]]:
+    """Searches MAL people (voice actors, staff) by name."""
+    items = _search_tenrai("people", {"q": q, "limit": limit})
+    return [_map_person(item) for item in items]
+
+
+@cached_search
+def search_mal_characters(q: str, limit: int) -> List[Dict[str, Any]]:
+    """Searches MAL characters by name."""
+    items = _search_tenrai("characters", {"q": q, "limit": limit})
+    return [_map_character(item) for item in items]

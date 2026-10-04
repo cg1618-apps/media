@@ -1,9 +1,9 @@
-// Frontend: the IGDB picker at the top of the Add form's Game tab.
+// Frontend: the Add form's Game tab - its two search boxes and its form.
 //
-// IGDB is the only handle Fill has on a game, so the admin picks the right
-// entry here before saving. The endpoint answers with IGDB's raw game objects,
-// so this widget reads `id`, `name`, `first_release_date` (Unix seconds) and
-// `cover.url` (protocol-relative) itself.
+// The top box copies fields from a game already in the catalogue; the IGDB
+// box under it is the shared ExternalSearchBox (tested on its own), pointed
+// at the game endpoint. IGDB is the only handle Fill has on a game, so the
+// admin links the right entry here before saving.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -13,7 +13,7 @@ import { defaultGame } from "../../config/formFactories";
 
 // The form asks who is editing, because the Copies section is gated on
 // self.list - a copy is personal ownership, not catalogue data. These tests
-// are about the IGDB picker, so the account is whatever is convenient; the
+// are about the search boxes, so the account is whatever is convenient; the
 // gate itself is tested in GameCopiesGate.test.jsx.
 let mockHas = () => true;
 vi.mock("../../contexts/AuthContext", () => ({
@@ -21,11 +21,20 @@ vi.mock("../../contexts/AuthContext", () => ({
 }));
 
 const ELDEN = {
-  id: 119133,
-  name: "Elden Ring",
-  first_release_date: 1645747200, // 2022-02-25 UTC
-  cover: { url: "//images.igdb.com/igdb/image/upload/t_thumb/co4jni.jpg" },
-  url: "https://www.igdb.com/games/elden-ring",
+  external_id: "119133",
+  link: "https://www.igdb.com/games/elden-ring",
+  title: "Elden Ring",
+  title_alt: null,
+  year: 2022,
+  detail: "Main game",
+  cover_url: "https://images.igdb.com/igdb/image/upload/t_thumb/co4jni.jpg",
+};
+
+const SEKIRO = {
+  system_id: "g1",
+  game_name_cn: "隻狼",
+  game_name_en: "Sekiro",
+  franchise_id: null,
 };
 
 // The Cover Image field is now an ImagePicker, which reads react-query hooks
@@ -41,10 +50,11 @@ function renderTab(props = {}) {
         gmf={defaultGame()}
         ugm={() => {}}
         allFranchises={[]}
-        allGames={[]}
+        allGames={[SEKIRO]}
         seriesItemsForGame={[]}
         sources={[]}
-        applyGameAutofill={() => {}}
+        applyGameEntryAutofill={() => {}}
+        applyIgdbPick={() => {}}
         {...props}
       />
     </QueryClientProvider>,
@@ -60,40 +70,34 @@ beforeEach(() => {
   );
 });
 
-describe("GameAddTab IGDB search", () => {
-  it("queries the admin search endpoint once the typing settles", async () => {
+describe("GameAddTab search boxes", () => {
+  it("copies fields from an existing game through the top box", async () => {
     const user = userEvent.setup();
-    renderTab();
-    await user.type(screen.getByPlaceholderText(/search igdb/i), "elden");
+    const applyGameEntryAutofill = vi.fn();
+    renderTab({ applyGameEntryAutofill });
+    await user.type(
+      screen.getByRole("textbox", { name: "Auto-fill from existing entry" }),
+      "seki",
+    );
+    await user.click(screen.getByRole("option", { name: /隻狼/ }));
+    expect(applyGameEntryAutofill).toHaveBeenCalledWith(SEKIRO);
+    // The existing-entry box searches the loaded list; nothing is fetched.
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("searches the game IGDB endpoint and hands the picked row to applyIgdbPick", async () => {
+    const user = userEvent.setup();
+    const applyIgdbPick = vi.fn();
+    renderTab({ applyIgdbPick });
+    await user.type(screen.getByRole("textbox", { name: "Search IGDB" }), "elden");
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/game/search-igdb?q=elden&limit=10",
         expect.objectContaining({ credentials: "include" }),
       ),
     );
-    // Debounced: the five keystrokes are one request, not five.
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("reads the raw IGDB shape for the result row", async () => {
-    const user = userEvent.setup();
-    renderTab();
-    await user.type(screen.getByPlaceholderText(/search igdb/i), "elden");
-    const row = await screen.findByRole("option", { name: /Elden Ring/ });
-    expect(row).toHaveTextContent("2022");
-    expect(screen.getByAltText("Elden Ring")).toHaveAttribute(
-      "src",
-      "https://images.igdb.com/igdb/image/upload/t_thumb/co4jni.jpg",
-    );
-  });
-
-  it("hands the picked game to applyGameAutofill", async () => {
-    const user = userEvent.setup();
-    const applyGameAutofill = vi.fn();
-    renderTab({ applyGameAutofill });
-    await user.type(screen.getByPlaceholderText(/search igdb/i), "elden");
     await user.click(await screen.findByRole("option", { name: /Elden Ring/ }));
-    expect(applyGameAutofill).toHaveBeenCalledWith(ELDEN);
+    expect(applyIgdbPick).toHaveBeenCalledWith(ELDEN);
   });
 });
 

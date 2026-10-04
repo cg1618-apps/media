@@ -20,6 +20,8 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import { endpoints } from "../../api/endpoints";
 
 export { defaultAnimeMovie } from "../../config/formFactories";
 
@@ -35,6 +37,7 @@ export default function AnimeMovieAddTab({
   amFillResults,
   amFillLoading,
   applyAnimeMovieAutofill,
+  applyMalPick,
   allFranchises,
   franchiseItems,
   sources,
@@ -104,6 +107,11 @@ export default function AnimeMovieAddTab({
         )}
       </div>
 
+      <ExternalSearchBox
+        source="MAL"
+        searchUrl={endpoints.animeMovie.searchMal}
+        onPick={applyMalPick}
+      />
       <SectionHeader icon="fa-film" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox

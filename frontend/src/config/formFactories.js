@@ -315,6 +315,8 @@ export const defaultComic = () => ({
   end_date: "",
   is_main_entry: false,
   read_order: "",
+  // Set by the Comic Vine picker beside the link; hidden on /defaults.
+  comicvine_id: "",
   comicvine_link: "",
   sources: defaultRestrictedSources("comic"),
   read_next: false,

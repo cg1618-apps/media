@@ -37,7 +37,7 @@ function Harness({ franchises = [], hGames = [], entries, onPick = () => {} }) {
       allHGames={entries ?? hGames}
       seriesItemsForHGame={[]}
       sources={SOURCES}
-      applyHGameAutofill={() => {}}
+      applyIgdbPick={() => {}}
       applyHGameEntryAutofill={onPick}
     />
   );

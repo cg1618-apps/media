@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-03
+Last verified: 2026-10-04
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -535,7 +535,7 @@ titles).
 | `issue_total` | Integer | yes | | Also the entry's own size-bucket measure |
 | `serialization_status` | String | yes | | Same idiom as manga/novel; no dedicated tuple in `constants.py` |
 | `read_order` | Float | yes | | |
-| `comicvine_id` | Integer | yes | | Derived from `comicvine_link`; what Fill fetches on and what duplicate detection treats as conclusive |
+| `comicvine_id` | Integer | yes | | Derived from `comicvine_link` by Fill, or written beside it by the Add tab's Comic Vine picker; what Fill fetches on and what duplicate detection treats as conclusive |
 | `comicvine_link` | String | yes | | |
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,

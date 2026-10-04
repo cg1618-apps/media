@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-09-25
+Last verified: 2026-10-04
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -76,14 +76,14 @@ for the catch-all, which is last).
 | `collection` | `/api/collection` | |
 | `franchise` | `/api/franchise` | |
 | `series` | `/api/series` | |
-| `anime` | `/api/anime` | registry entry (factory) |
-| `anime_movie` | `/api/anime-movie` | registry entry (factory), no series |
-| `cartoon` | `/api/cartoon` | factory |
-| `movie` | `/api/movies` | factory |
-| `tv_show` | `/api/tv-show` | factory |
-| `manga` | `/api/manga` | factory |
+| `anime` | `/api/anime` | factory router nested in a prefix-less router that adds `GET /api/anime/search-mal` |
+| `anime_movie` | `/api/anime-movie` | factory, no series; adds `GET /api/anime-movie/search-mal` |
+| `cartoon` | `/api/cartoon` | factory; adds `GET /api/cartoon/search-tmdb` and `/tmdb-imdb-id` |
+| `movie` | `/api/movies` | factory; adds `GET /api/movies/search-tmdb` and `/tmdb-imdb-id` |
+| `tv_show` | `/api/tv-shows` | factory; adds `GET /api/tv-shows/search-tmdb` and `/tmdb-imdb-id` |
+| `manga` | `/api/manga` | factory; adds `GET /api/manga/search-mal` |
 | `note` | `/api/notes` | |
-| `novel` | `/api/novel` | factory |
+| `novel` | `/api/novel` | factory; adds `GET /api/novel/search-mal` and `/search-openlibrary` |
 | `comic` | `/api/comic` | factory router nested in a prefix-less router that adds `GET /api/comic/search-comicvine` |
 | `game` | `/api/game` | factory router nested in a prefix-less router that adds `GET /api/game/search-igdb` |
 | `h_comic` | `/api/h-comic` | factory; a gated type |
@@ -99,7 +99,7 @@ for the catch-all, which is last).
 | `form_defaults` | `/api/form-defaults` | |
 | `data_control` | `/api/data-control` | Fill / Replace / Pull / Backup / Calculate / Check |
 | `system` | `/api/system` | |
-| `person` | `/api/person` | |
+| `person` | `/api/person` | includes `GET /api/person/search-mal` |
 | `studio` | `/api/studio` | |
 | `credits` | `/api/credits` | |
 | `roles` | `/api/roles` | RBAC admin |

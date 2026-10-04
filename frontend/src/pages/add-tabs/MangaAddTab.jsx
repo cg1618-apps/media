@@ -22,6 +22,8 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import { endpoints } from "../../api/endpoints";
 
 export { defaultManga } from "../../config/formFactories";
 
@@ -37,6 +39,7 @@ export default function MangaAddTab({
   mangaFillResults,
   mangaFillLoading,
   applyMangaAutofill,
+  applyMalPick,
   allFranchises,
   seriesItemsForManga,
   sources,
@@ -113,6 +116,11 @@ export default function MangaAddTab({
         )}
       </div>
 
+      <ExternalSearchBox
+        source="MAL"
+        searchUrl={endpoints.manga.searchMal}
+        onPick={applyMalPick}
+      />
       <SectionHeader icon="fa-book" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox

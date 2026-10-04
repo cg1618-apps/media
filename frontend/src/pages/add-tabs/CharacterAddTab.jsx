@@ -13,6 +13,8 @@
 // arrangement StudioFields/PersonFields use.
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ImagePicker from "../../components/forms/ImagePicker";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import { endpoints } from "../../api/endpoints";
 import {
   GenderRatingFields,
   PhotoFallbackField,
@@ -136,9 +138,18 @@ export function CharacterFields({ characterForm, ucf, ownerId }) {
   );
 }
 
-export default function CharacterAddTab({ characterForm, ucf }) {
+export default function CharacterAddTab({ characterForm, ucf, applyMalPick }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+      {/* The tab's only search box: a character has no "copy an existing
+          record" search. */}
+      <ExternalSearchBox
+        source="MAL"
+        searchUrl={endpoints.character.searchMal}
+        onPick={applyMalPick}
+        placeholder="Search MAL — type a name to link this character..."
+        hint="Links the MAL page. Names and portrait are filled from MAL on save."
+      />
       <SectionHeader icon="fa-user-ninja" title="Character" />
       <CharacterFields characterForm={characterForm} ucf={ucf} />
     </div>
