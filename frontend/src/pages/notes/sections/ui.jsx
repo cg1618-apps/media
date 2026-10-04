@@ -190,7 +190,8 @@ export function LinkPill({ url, label: given }) {
   );
 }
 
-// A repeatable list of URL inputs, shared by the two link-carrying shapes.
+// A repeatable list of URL inputs, shared by every section whose links are URL
+// strings rather than pairs.
 export function LinksEditor({ links, onChange }) {
   const list = links?.length ? links : [""];
   const setLink = (i, v) => onChange(list.map((l, idx) => (idx === i ? v : l)));

@@ -622,3 +622,49 @@ def test_section_out_carries_the_registry_scope():
 
     external = section_out(ns.section_by_key("quotes"), "anime")
     assert external.scope is None
+
+
+# --- OP/ED 變動 links ----------------------------------------------------------
+# op_ed_changes is the one episode_text section whose rows also carry links:
+# where the changed OP or ED can be watched. URL strings, as on text_links,
+# never text-and-URL pairs.
+
+
+def test_op_ed_change_takes_an_episode_a_kind_text_and_several_links():
+    validate_note_payload(
+        _payload(
+            section="op_ed_changes",
+            locator="ep 10",
+            kind="變化OP",
+            content="換成劇中曲",
+            links=["https://youtu.be/a", "https://b23.tv/b"],
+        )
+    )
+
+
+def test_op_ed_change_may_be_only_an_episode_and_links():
+    validate_note_payload(
+        _payload(
+            section="op_ed_changes",
+            locator="ep 10",
+            content=None,
+            links=["https://youtu.be/a"],
+        )
+    )
+
+
+def test_op_ed_change_links_are_urls_not_pairs():
+    with pytest.raises(ValueError, match="must be URLs"):
+        validate_note_payload(
+            _payload(
+                section="op_ed_changes",
+                locator="ep 10",
+                links=[{"text": "YouTube", "url": "https://youtu.be/a"}],
+            )
+        )
+
+
+def test_section_out_reports_which_episode_text_sections_take_links():
+    assert section_out(section_by_key("op_ed_changes"), "anime").takes_links is True
+    for key in ("extended_episodes", "highlights", "questions"):
+        assert section_out(section_by_key(key), "anime").takes_links is False
