@@ -423,7 +423,7 @@ MUSIC_TYPE_KEYS = ("op", "ed", "insert_songs", "ost")
 MUSIC_STATUS_SECTION = "music_status"
 
 # Every song list shares these, so the four cannot drift apart. MUSIC_STATUSES
-# (Need / Pending / Done) is imported from constants.py, the same tuple
+# (Need / Pending / No Full Version / Done) is imported from constants.py, the same tuple
 # /api/constants serves as `music_status`.
 _SONG_LIST = dict(
     shape=SHAPE_MUSIC_TRACK,
@@ -1739,8 +1739,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     # list of OP rows, and folding the lists into one would make "which OPs do
     # I still need?" a filter rather than a section.
     #
-    # Two levels of status, both kept: every song carries Need / Pending /
-    # Done, and every LIST carries one of MUSIC_TYPE_STATUSES in its
+    # Two levels of status, both kept: every song carries one of
+    # MUSIC_STATUSES, and every LIST carries one of MUSIC_TYPE_STATUSES in its
     # music_status row - "All Done" is a claim about the list that no single
     # song can make.
     NoteSection(
