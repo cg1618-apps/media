@@ -169,7 +169,6 @@ def test_easter_eggs_is_text_links_like_the_rest_of_analysis():
     sec = ns.section_by_key("easter_eggs")
     assert sec.label == "彩蛋 Easter Eggs"
     assert sec.shape == ns.SHAPE_TEXT_LINKS
-    assert sec.owners == ("anime",)
     assert sec.scope == ns.SCOPE_CATALOG
     assert sec.group == "analysis_group"
     assert sec.locator_placeholder == "Episode(s), e.g. ep 3"
@@ -183,6 +182,33 @@ def test_easter_eggs_is_text_links_like_the_rest_of_analysis():
         speculation.locator_placeholder,
         speculation.desc_required,
     )
+
+
+def test_easter_eggs_reaches_every_unrestricted_media_type():
+    # Every entry type outside the gated ones, and no grouping tier.
+    assert ns.section_by_key("easter_eggs").owners == (
+        "anime",
+        "anime-movie",
+        "movie",
+        "tv-show",
+        "cartoon",
+        "manga",
+        "novel",
+        "comic",
+        "game",
+    )
+
+
+def test_easter_eggs_asks_for_the_locator_each_type_has():
+    sec = ns.section_by_key("easter_eggs")
+    assert ns.locator_for(sec, "anime") == "Episode(s), e.g. ep 3"
+    assert ns.locator_for(sec, "tv-show") == "Episode(s), e.g. ep 3"
+    assert ns.locator_for(sec, "manga") == "Chapter(s), e.g. ch 6"
+    assert ns.locator_for(sec, "novel") == "Chapter(s), e.g. ch 6"
+    assert ns.locator_for(sec, "comic") == "Issue(s), e.g. #3"
+    assert ns.locator_for(sec, "movie") == "Scene, e.g. 1:02:30"
+    assert ns.locator_for(sec, "anime-movie") == "Scene, e.g. 1:02:30"
+    assert ns.locator_for(sec, "game") == "Chapter / Part, e.g. Ch 3"
 
 
 def test_every_group_is_a_known_group():
@@ -484,8 +510,11 @@ def test_the_review_lists_are_every_reviews_section_but_personal_reviews():
         for s in ns.NOTE_SECTIONS
         if s.group == "reviews" or "reviews" in s.groups_by_owner.values()
     }
-    # 解析 Analysis joins 評論 for games only, and is text_links already.
-    assert in_reviews - {"analysis"} == set(REVIEW_LISTS) | {"personal_reviews"}
+    # 解析 Analysis and 彩蛋 Easter Eggs join 評論 for games only, and are
+    # text_links already.
+    assert in_reviews - {"analysis", "easter_eggs"} == set(REVIEW_LISTS) | {
+        "personal_reviews"
+    }
 
 
 def test_personal_reviews_stays_plain_text():
