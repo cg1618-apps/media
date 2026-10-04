@@ -262,6 +262,10 @@ and anything still outside the vocabulary restores as blank
 vocabularies applied to the stored rows), so a backup from before then cannot
 bring the free text back. Both tabs carry `photo_fallback_entry_id`, a plain
 entry uuid like `cover_entry_id`; a cell that is not a uuid restores as blank.
+`Franchise` and `Series` carry `alone_reviewed_media_id` the same way (the
+review queue's single-entry check); a sheet with no such column - a backup
+from before it existed - leaves the local value as it is rather than
+clearing it.
 `Character` also carries `role` (`CHARACTER_ROLES`); a value outside the list
 restores as blank. It carries `mal_id` and `mal_link` too, restored as they
 are, as on `Person`.
@@ -433,7 +437,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
    - **Singleton notes** (`remark`): a `Note` row in a singleton section is retargeted at the owner's existing row in that section (`ix_note_one_remark_per_owner` allows only one), keeping the local `system_id`.
    - **Music status notes** (`music_status`): the same, per owner **and list** - a row is retargeted at the anime's existing `music_status` row with the same `kind` (`ix_note_one_music_status_per_kind` allows one per list), keeping the local `system_id`. Revision `m1s2ongstat3` minted those rows separately on every database, so this is what folds the two machines' copies together instead of failing the tab at commit. `ost` rows are songs and are never folded.
-   - **Old-shape music rows**: an `ost` row carrying a type comes from a backup taken while the OST was one row per anime (an OST song has no type); it is read as that anime's `music_status` row for `ost`, its status kept when it is Need, Pending or Done and `Not Done` otherwise, and folded as above. Song-list links that arrive as URL strings are read as text-URL pairs with no text; text-URL pairs that arrive on any other section (彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs) are read as their URLs, the text dropped, and a `fields` blob on a section that is not `structured` is dropped.
+   - **Old-shape music rows**: an `ost` row carrying a type comes from a backup taken while the OST was one row per anime (an OST song has no type); it is read as that anime's `music_status` row for `ost`, its status kept when it is one of `MUSIC_STATUSES` (Need, Pending, No Full Version, Done) and `Not Done` otherwise, and folded as above. Song-list links that arrive as URL strings are read as text-URL pairs with no text; text-URL pairs that arrive on any other section (彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs) are read as their URLs, the text dropped, and a `fields` blob on a section that is not `structured` is dropped.
    - **Note twins under another uuid**: a `Note` row whose `system_id` is unknown locally is retargeted at a local row with the same owner, section and content (`parent_id`, `locator`, `kind`, `status`, `title`, `content`, `links`, `entries`, `fields`), keeping the local `system_id` (`_match_note_twin` in `pull.py`). It exists because the OP and ED rows were minted by a migration once per database, so the same row has a different uuid on every machine and would otherwise arrive as a second copy. Two guards keep genuinely separate identical rows apart: a local row whose own id is in the sheet is never a candidate, and each local row is claimed by at most one sheet row.
    - **The Note and Meme tabs carry four owner columns**, not an
      `owner_type` / `owner_id` pair: `media_id`, `collection_id`,
@@ -855,14 +859,18 @@ the garbage into the sheet and destroy the evidence.
 
 ---
 
-## 9. Check duplicates / remarks
+## 9. Check duplicates / remarks / music / single-entry groups
 
 | Route | Function | Returns |
 |---|---|---|
 | `GET /check/duplicates` | `find_all_duplicates(db)` (`app/services/domain/duplicates.py`) | one key per check: `franchise`, `series`, `anime`, `anime_movie`, `cartoon`, `movie`, `tv_show`, `manga`, `novel`, `comic`, `game`, `h_comic`, `h_game`, `hentai`, `system_options`, `entities` — each a list of duplicate groups (h-comic's key: same franchise, series, `region` and `series_number` plus a shared name; h-game's: same franchise, series, `game_type` and `series_number` plus a shared name; hentai's: same franchise, series and `series_number` plus a shared name) (lists of dicts). Matching rules are in [business-rules.md](business-rules.md). |
-| `GET /check/remarks` | `find_all_remarks(db)` (`app/services/domain/remarks.py`) | entries with a non-empty `remark`, grouped by media type (`anime`, `anime_movie`, `movie`, `tv_show`, `cartoon`, ...), newest `updated_at` first, each with `system_id`, its name columns, status and `remark`. |
+| `GET /check/remarks` | `find_all_remarks(db, viewer.user_id)` (`app/services/domain/remarks.py`) | the caller's own non-empty `remark` notes, one key per media type (`anime`, `anime_movie`, `movie`, `tv_show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h_comic`, `hentai`, `h_game`), newest `updated_at` first, each with `system_id`, `public_id`, its name columns, the caller's status (`attach_list_fields`, so an unlisted entry reads its type's default) and `remark`. |
+| `GET /check/music` | `find_flagged_music(db)` (`app/services/domain/music_review.py`) | a list, one row per anime with a song list (`music_status` row) or a song (`op` / `ed` / `insert_songs` / `ost` row) on `Need`, `Pending` or `No Full Version` (`FLAGGED_MUSIC_STATUSES`), by display name: `system_id`, `public_id`, `anime_name_cn`, `anime_name_en`, `display_name`, `lists` (`[{kind, status}]`, flagged lists only, in song-list order) and `songs` (`[{section, title, status, locator}]`, flagged songs only, in song-list order then notes-page order). `Not Done` flags nothing: every list starts there. Not filtered by author - the music sections are catalogue notes (`MusicReviewRow`, `app/schemas/review.py`). |
 
-Neither writes a log row.
+| `GET /check/alone-groups` | `find_alone_groups(db)` (`app/services/domain/alone_groups.py`) | `{franchise: [...], series: [...]}`: every franchise and series with exactly one `media` row pointing at it (`media.franchise_id`, `media.series_id`, all twelve types), less those whose `alone_reviewed_media_id` is that row's id, by display name. Each: `system_id`, `public_id`, `display_name`, `entry: {system_id, media_type, public_id, display_name}` (`AloneGroupsReport`, `app/schemas/review.py`). |
+| `POST /check/alone-groups/{kind}/{system_id}/reviewed` | `mark_alone_group_reviewed(db, kind, system_id)` | sets `alone_reviewed_media_id` to the group's current lone entry. 409 when the group does not hold exactly one entry. |
+
+None of them writes a log row; the reviewed action writes the one column.
 
 ---
 
@@ -937,7 +945,10 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | DELETE | `/calculate/delete-orphaned-covers` | — | `{"status", "deleted_count"}` | delete orphaned cover files |
 | POST | `/calculate/set-cover-image-fields` | — | `{"status", "updated_count"}` | link existing files to rows |
 | POST | `/calculate/download-missing-covers` | body `{"system_ids": [..]}` (optional; default all) | `{"status", "message"}` | re-download missing covers |
-| GET | `/check/duplicates` | — | JSON, see section 8 | duplicate report |
-| GET | `/check/remarks` | — | JSON, see section 8 | remark report |
+| GET | `/check/duplicates` | — | JSON, see section 9 | duplicate report |
+| GET | `/check/remarks` | — | JSON, see section 9 | remark report |
+| GET | `/check/music` | — | JSON, see section 9 | anime with music waiting |
+| GET | `/check/alone-groups` | — | JSON, see section 9 | single-entry franchises and series |
+| POST | `/check/alone-groups/{kind}/{system_id}/reviewed` | path `kind` = `franchise` or `series` | `{system_id, alone_reviewed_media_id}`; 404 unknown group, 409 when it no longer holds exactly one entry, 422 any other kind | mark the group's lone entry reviewed |
 
 Fill / Replace / Pull routes for media types are generated from `PIPELINES` and `MEDIA_TYPE_FOR_TAB` at import time; adding a type to those registries adds its routes. The generic listing in [api.md](api.md) covers the same paths in the context of every router.

@@ -90,6 +90,16 @@ class Franchise(Base, NameFallbackMixin):
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+    # The review queue's "alone" check: when this franchise holds exactly one
+    # entry, the id of the one that was reviewed and kept. The franchise is
+    # listed again as soon as its lone entry is any other id, so replacing
+    # the entry re-opens the question by itself. A plain media.system_id with
+    # no FK, like cover_entry_id: an FK here would close a cycle with
+    # media.franchise_id that a Pull, which restores this tab before the Media
+    # tab, could not satisfy. A stale id simply matches nothing - the franchise
+    # is listed again, which is what SET NULL would have done.
+    # See docs/notes/decisions.md.
+    alone_reviewed_media_id = Column(UUID(as_uuid=True), nullable=True)
 
     # Relationships
     series = relationship("Series", back_populates="franchise")
@@ -182,6 +192,16 @@ class Series(Base, NameFallbackMixin):
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+    # The review queue's "alone" check: when this series holds exactly one
+    # entry, the id of the one that was reviewed and kept. The series is
+    # listed again as soon as its lone entry is any other id, so replacing
+    # the entry re-opens the question by itself. A plain media.system_id with
+    # no FK, like cover_entry_id: an FK here would close a cycle with
+    # media.series_id that a Pull, which restores this tab before the Media
+    # tab, could not satisfy. A stale id simply matches nothing - the series
+    # is listed again, which is what SET NULL would have done.
+    # See docs/notes/decisions.md.
+    alone_reviewed_media_id = Column(UUID(as_uuid=True), nullable=True)
 
     # Relationships
     franchise = relationship("Franchise", back_populates="series")

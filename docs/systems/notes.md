@@ -20,7 +20,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `parent_id` | UUID, indexed | FK `note.system_id` ON DELETE CASCADE. The row this one nests under, for a section whose registry entry sets `hierarchical`. Unbounded depth. CASCADE rather than SET NULL: promoting every child to a root on a delete reads as a flat pile rather than as a loss, which is harder to notice. Nothing at the database level keeps a child in its parent's section — a CHECK cannot read another row — so `_validate_parent` in `app/routers/note.py` owns that, along with refusing a cycle at any depth. |
 | `locator` | String | "Where in the work": episode, chapter, scene, timestamp, or source. One free-text column; the section supplies the label and whether it is required. Renamed from `episode` by migration `alembic/versions/l1o2c3a4t5o6_note_episode_to_locator.py`. |
 | `kind` | String | First dropdown, only where the section declares `kinds` (highlight type, OP/ED change type) or a `kind_category` (the free-text Song Type of an OP or ED). On `music_status` it names the song list the row is about. |
-| `status` | String | Second dropdown, only in the music group: Need / Pending / Done on a song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row. Kept separate from `kind` because one row needs both (which cut it is vs. how far my tracking has got). |
+| `status` | String | Second dropdown, only in the music group: Need / Pending / No Full Version / Done on a song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row. Kept separate from `kind` because one row needs both (which cut it is vs. how far my tracking has got). |
 | `title` | String | The name half of a `name_links` row, or the song name on a `music_track` row. |
 | `content` | Text | The body. |
 | `links` | JSONB | A list of URL strings — or, on the sections `uses_link_pairs` names (the four song lists), of **link pairs** `{"text": str｜null, "url": str}`. Which of the two is a property of the section, never of the row, and the validator refuses the other. Always a list, even for shapes that allow one link, so multi-link support needs no migration. See [Music](#music). |
@@ -292,11 +292,11 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `todo_later` | 未來 To do in the future | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `todo_maybe` | 可能 Might do | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `saves` | 存檔 Saves | **structured** | todo | game, h-game | — | — | — | no | no | no |
-| `music_status` | 音樂狀態 Music Status | music_status | music (**hidden**) | anime | op, ed, insert_songs, ost — one row each (`one_per_kind`) | All Done, Done, Need, Pending, Not Done (default `Not Done`) | — | no | per kind | no |
-| `op` | OP | music_track | music | anime | free text, suggested from "Song Type" (default `normal`) | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
-| `ed` | ED | music_track | music | anime | same as `op` | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
-| `insert_songs` | 插入曲 Insert Song | music_track | music | anime | — | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
-| `ost` | OST | music_track | music | anime | — | Need, Pending, Done | "Episode(s), e.g. ep 3" | no | no | no |
+| `music_status` | 音樂狀態 Music Status | music_status | music (**hidden**) | anime | op, ed, insert_songs, ost — one row each (`one_per_kind`) | All Done, Done, Need, Pending, No Full Version, Not Done (default `Not Done`) | — | no | per kind | no |
+| `op` | OP | music_track | music | anime | free text, suggested from "Song Type" (default `normal`) | Need, Pending, No Full Version, Done | "Episode(s), e.g. ep 3" | no | no | no |
+| `ed` | ED | music_track | music | anime | same as `op` | Need, Pending, No Full Version, Done | "Episode(s), e.g. ep 3" | no | no | no |
+| `insert_songs` | 插入曲 Insert Song | music_track | music | anime | — | Need, Pending, No Full Version, Done | "Episode(s), e.g. ep 3" | no | no | no |
+| `ost` | OST | music_track | music | anime | — | Need, Pending, No Full Version, Done | "Episode(s), e.g. ep 3" | no | no | no |
 | `op_ed_changes` | OP/ED 變動 | episode_text, **takes links** | music | anime, tv-show, cartoon | 變化OP, 變化ED, 無OP, 無ED, 特殊OP, 特殊ED | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `extended_episodes` | 加長 | episode_text | flat | anime, tv-show, cartoon | — | — | "Episode(s), e.g. ep 3" | **yes** | no | no |
 | `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, novel, series, franchise | — | — | — | no | no | anime, anime-movie, novel |
@@ -582,7 +582,7 @@ form has reset to a blank entry, so its Remark field no longer edits that row.
 An anime has four **song lists** — OP, ED, 插入曲 Insert Song and OST — and
 every one is a `music_track` section holding the same row: the song's name
 (`title`), how far tracking that song has got (`status`: Need, Pending,
-Done), the episode it plays in (`locator`, optional for every list), where to
+No Full Version, Done — `MUSIC_STATUSES`), the episode it plays in (`locator`, optional for every list), where to
 hear it (`links`, any number of link pairs) and a remark (`content`). OP and
 ED add a **Song Type** (`kind`), free text suggested from the "Song Type"
 option category and starting on `normal`; insert songs and the OST have none.
@@ -590,7 +590,7 @@ A row must say something besides its type: any of name, status, episode, a
 link or a remark.
 
 **Two levels of status.** Each song carries its own, and each *list* carries
-one more — "All Done", "Done", "Need", "Pending" or "Not Done"
+one more — "All Done", "Done", "Need", "Pending", "No Full Version" or "Not Done"
 (`MUSIC_TYPE_STATUSES` in `app/utils/constants.py`) — in a `music_status` row:
 `section = 'music_status'`, `kind` = the list's section key, `status` = the
 value. One row per `(anime, list)`, refused twice by the router (422) and by
@@ -607,6 +607,12 @@ resolves that section's vocabulary and default onto the list
 (`type_statuses`, `type_status_default`), so the status bar above a list is
 drawn from the registry alone. An import-time check keeps the two sides in
 step: the `music_status` kinds must be exactly the sections pointing at it.
+
+**Waiting music.** A list or a song on Need, Pending or No Full Version is
+waiting on something, and the review queue's music block lists every anime
+holding one (`GET /api/data-control/check/music`, `find_flagged_music` in
+`app/services/domain/music_review.py`). `Not Done` is not listed: every list
+starts there.
 
 **Link pairs.** A song is heard on several services, so a song link is
 `{"text": "YouTube", "url": "https://…"}` rather than a bare URL; `text` is
@@ -715,7 +721,7 @@ TanStack Query - it has never used a query hook - so the group rows do too.
 | Piece | Where |
 | --- | --- |
 | The `remark` column is **dropped** from all eleven owner tables (`alembic/versions/r1e2m3a4r5k6_remark_column_to_note.py`). | migration |
-| Read side: each owner model gets a read-only `column_property` — a correlated scalar subquery selecting `note.content` where `section = 'remark'` for that owner — attached at the bottom of `app/models/__init__.py` (`_REMARK_OWNERS` loop). It reads like a plain column in response schemas, detail pages, `Delete.jsx` previews and `find_all_remarks`; assigning to it raises. | `app/models/__init__.py` |
+| Read side: `remark` is a **plain attribute** on each owner model, defaulted to `None` on the class and set per request by `attach_remark(db, owner_type, entries, user_id)`, which reads the caller's own `remark` rows - one query per page. It is not a SQL expression, so `find_all_remarks` (the review queue) queries `note` directly. | `app/models/__init__.py`, `app/services/domain/remark_field.py` |
 | `remark` stays on every owner's Pydantic Base schema, so the Add form, Modify form and hub `RemarkModal` still send a plain string to the owner's own endpoint. | `app/schemas/*` |
 | Write side: `pop_remark(data)` splits `remark` out of the payload and returns `(rest, value, was_present)`; `upsert_remark(db, owner_type, owner_id, text)` creates/updates the singleton row, or **deletes it when the text is empty or whitespace**. Absent ≠ None: a PATCH that never mentions `remark` leaves the row alone; a PUT/PATCH that sends null clears it. Called from the create/update/patch handlers in `app/routers/_factory.py` and from `collection.py`, `franchise.py`, `series.py`. | `app/services/domain/remark_field.py` |
 | Because the form and the Notes page write the same row, **last write wins** between them; `hideSections` on the detail pages is the mitigation. | see UI |
@@ -732,7 +738,7 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
 | Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the owner's existing remark row and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
 | Music status rows | The same retargeting per `(owner, kind)`: a sheet `music_status` row folds onto the local row for the same anime and list, keeping the local id. Its revision minted those rows separately on every database, so the two machines' copies differ in id and nothing else. |
-| Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is Need, Pending or Done. A song list's links that arrive as URL strings are read as link pairs with no text, and link pairs that arrive on any other section - 彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs - are read as their URL strings, the text dropped, a blank URL and a repeat skipped (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
+| Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is one of `MUSIC_STATUSES`. A song list's links that arrive as URL strings are read as link pairs with no text, and link pairs that arrive on any other section - 彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs - are read as their URL strings, the text dropped, a blank URL and a repeat skipped (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
 | Round-trip | Because owner tables no longer have a `remark` column (and `format_model_for_sheet` walks real columns, so the column_property is not exported), **remark round-trips only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |
 
 ## Related

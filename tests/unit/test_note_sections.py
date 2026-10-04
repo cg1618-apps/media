@@ -79,7 +79,7 @@ def test_song_sections_are_music_track_shaped_and_anime_only():
 def test_every_song_carries_the_per_song_status_and_an_optional_episode():
     for key in SONG_SECTIONS:
         sec = ns.section_by_key(key)
-        assert sec.statuses == ns.MUSIC_STATUSES == ("Need", "Pending", "Done")
+        assert sec.statuses == ns.MUSIC_STATUSES == ("Need", "Pending", "No Full Version", "Done")
         assert ns.locator_for(sec, "anime") == "Episode(s), e.g. ep 3"
         assert not sec.locator_required
         assert not sec.singleton
@@ -135,6 +135,7 @@ def test_music_status_holds_one_row_per_song_list():
         "Done",
         "Need",
         "Pending",
+        "No Full Version",
         "Not Done",
     )
     assert sec.default_status == ns.MUSIC_TYPE_STATUS_DEFAULT == "Not Done"

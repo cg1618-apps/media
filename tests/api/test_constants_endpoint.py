@@ -177,12 +177,13 @@ def test_serves_both_music_status_vocabularies(client):
     both come from constants.py, which the note registry also reads.
     """
     body = client.get("/api/constants").json()
-    assert body["music_status"] == ["Need", "Pending", "Done"]
+    assert body["music_status"] == ["Need", "Pending", "No Full Version", "Done"]
     assert body["music_type_status"] == [
         "All Done",
         "Done",
         "Need",
         "Pending",
+        "No Full Version",
         "Not Done",
     ]
 

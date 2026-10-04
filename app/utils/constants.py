@@ -193,17 +193,21 @@ WEEKDAYS: tuple[str, ...] = (
 
 # How far tracking one song has got. The note registry's song lists
 # (app/utils/note_sections.py) read this tuple rather than restating it.
-MUSIC_STATUSES: tuple[str, ...] = ("Need", "Pending", "Done")
+# "No Full Version" is a song whose full-length cut has not been released, so
+# it cannot reach "Done" yet and has to be looked at again later.
+MUSIC_STATUSES: tuple[str, ...] = ("Need", "Pending", "No Full Version", "Done")
 # How far tracking a whole song list of one anime has got - its OPs, its EDs,
 # its insert songs, its OST - held by the `music_status` note rows. A separate
 # vocabulary from MUSIC_STATUSES because it answers about the list, not one
 # song: "All Done" (every song there is) is not the same claim as "Done", and
-# "Not Done" (nothing started) is what every new anime begins on.
+# "Not Done" (nothing started) is what every new anime begins on. "No Full
+# Version" is a list held up by a song whose full-length cut is not out yet.
 MUSIC_TYPE_STATUSES: tuple[str, ...] = (
     "All Done",
     "Done",
     "Need",
     "Pending",
+    "No Full Version",
     "Not Done",
 )
 MUSIC_TYPE_STATUS_DEFAULT = "Not Done"

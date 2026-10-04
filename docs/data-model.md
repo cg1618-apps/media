@@ -190,6 +190,7 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | `size_group_derived` | JSONB | yes | | Size bucket per media type, e.g. `{"anime": "24ep", "tv-show": "2season"}`. Written by Calculate, rewritten freely. |
 | `size_group_manual` | JSONB | yes | | Same shape, written by the admin, never touched by Calculate. Manual key wins (`app/services/domain/size_group.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |
+| `alone_reviewed_media_id` | UUID | yes | | The `media.system_id` of the lone entry that was reviewed and kept on the review queue's single-entry check. The franchise is listed again whenever its one entry is any other id. No FK, like `cover_entry_id`: a stale id matches nothing (see [notes/decisions.md](notes/decisions.md)). |
 
 Relationships: `series`, `collection`, `animes`. Virtual: `remark`,
 `display_name`.
@@ -212,6 +213,7 @@ deliberate grouping). Model: `Series` (`app/models/franchise.py`).
 | `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Comic. There is no `type_covers` beside it: a series has no types, so `cover_entry_id` says everything a per-type map would. |
 | `size_group_derived` / `size_group_manual` | JSONB | yes | | As on franchise. |
 | `created_at` / `updated_at` | DateTime | yes | now | |
+| `alone_reviewed_media_id` | UUID | yes | | As on franchise: the reviewed lone entry of a single-entry series. No FK. |
 
 Relationships: `franchise`, `animes`. Virtual: `remark`, `display_name`,
 `names_dict`.
@@ -1448,7 +1450,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | `parent_id` | UUID | yes | | FK `note.system_id` ON DELETE CASCADE, indexed. The row this one nests under, for a section the registry marks `hierarchical`; unbounded depth. A child is kept in its parent's owner and section by the router, not by the database - a CHECK cannot read another row. |
 | `locator` | String | yes | | Where in the work: episode, chapter, scene, timestamp, or a question's source. The section supplies the label and whether it is required. |
 | `kind` | String | yes | | Only where the section declares `kinds` or a `kind_category` (free text - an OP or ED's Song Type). On a `music_status` row, the song list it is about (`op`, `ed`, `insert_songs`, `ost`) |
-| `status` | String | yes | | Music tracking status: Need/Pending/Done on a `music_track` song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row; music sections only |
+| `status` | String | yes | | Music tracking status: one of `MUSIC_STATUSES` (Need/Pending/No Full Version/Done) on a `music_track` song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row; music sections only |
 | `title` | String | yes | | Name half of `name_links` / song name of a `music_track` row |
 | `content` | Text | yes | | Body |
 | `links` | JSONB | yes | | List of URL strings; on the four song lists (`note_sections.uses_link_pairs`), a list of `{"text": str or null, "url": str}` pairs instead. Which shape is decided by the section, never per row |

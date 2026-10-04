@@ -653,11 +653,30 @@ b.get_all_names()` is non-empty (case-insensitive, every name column).
 | `h_game`          | with a franchise                       | `(franchise_id, series_id, game_type, is_main, series_number)` | shared name |
 | `hentai`          | with a franchise                       | `(franchise_id, series_id, series_number)` - the numbered entries of a series share its name | shared name |
 | `system_options`  | all options                            | `(category lower, value lower)`                                             | always — catches `Netflix` vs `netflix`, which the exact UNIQUE cannot                                  |
-| `entities`        | persons, studios (scanned separately)  | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: all four of `name_en` / `name_cn` / `name_jp` / `name_alt`, for a person as for a studio |
+| `entities`        | persons, studios, publishers (scanned separately) | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: all four of `name_en` / `name_cn` / `name_jp` / `name_alt`, for a person as for a studio |
 
 Entries with no franchise are ignored by every per-type finder except anime.
 Results are returned as `find_all_duplicates(db)` from `GET
 /api/data-control/check/duplicates`.
+
+---
+
+## 9a. Single-entry groups (`alone_groups.py`)
+
+A franchise or a series is **alone** when exactly one `media` row points at it
+(`media.franchise_id`, `media.series_id`), whatever its type - all twelve
+count, an anime movie included (it has no series, so it counts for its
+franchise only). An empty group is not alone.
+
+An alone group is listed by `GET /api/data-control/check/alone-groups` unless
+its `alone_reviewed_media_id` equals the id of that one entry. Marking a group
+reviewed records the entry it holds **now**, so:
+
+- a reviewed group stays off the list while that entry is its only one;
+- a second entry takes it off the list (it is no longer alone);
+- if the reviewed entry leaves and another becomes the only one, the group is
+  listed again, with nothing reset by hand;
+- marking a group that does not hold exactly one entry is refused (409).
 
 ---
 
