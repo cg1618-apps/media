@@ -1106,6 +1106,16 @@ both of the two planned statuses together. Both render `DashboardCard`s with the
 optimistic `PATCH /api/anime/{id} { ep_fin }`. **Admin-only**: a "Seasonal
 Rating" select → `PATCH /api/seasonal/{id} { my_rating }`, plus the hint to
 set the current season under Admin → System Config when none is set.
+Detail's hero also carries `components/tracker/SeasonBulkActions.jsx`, two
+buttons that act on the whole season, each behind a `ConfirmModal` and each
+reloading the page when done: **Autofill & update** runs the anime detail
+page's own Autofill & update (`POST /api/data-control/replace/anime/{id}`)
+for every anime in the season with a `mal_link`, one request at a time, the
+button counting `Autofilling 3/12…`; **Mark finished airing (n)** sends
+`PATCH /api/anime/{id} { airing_status: "Finished Airing" }` for each anime
+still `Airing` or `Not Yet Aired`, and is not shown when there is none. A
+toast reports how many succeeded and names each failure with the server's
+`detail`.
 
 ### Statistics — `/statistics` · Completions — `/completions`
 
