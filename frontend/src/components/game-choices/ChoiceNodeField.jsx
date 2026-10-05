@@ -1,5 +1,5 @@
 // Frontend: the `choice_node` field of a structured note section - a save's
-// link to a point in its game's choice graph.
+// link to a block in its game's choice graph.
 //
 // StructuredSection dispatches on the field type and hands over the owner's id,
 // which for a save is the game's. Both halves read the same graph query the
@@ -7,11 +7,15 @@
 import { useChoiceGraph } from "../../api/mutations/useGameChoiceMutations";
 import { nodesByKind } from "./choiceGraphData";
 
-/** The edit control: this game's points grouped by kind, or none. */
+/**
+ * The edit control: this game's blocks grouped by kind (start, part, ending),
+ * or none. Only blocks: a save sits in a story part, never on a branch, and
+ * branches are edges, which this list never reads.
+ */
 export function ChoiceNodeSelect({ field, gameId, value, onChange, className }) {
   const { data } = useChoiceGraph(gameId);
   const nodes = data?.nodes || [];
-  // A link to a point this list does not hold (deleted elsewhere, or not
+  // A link to a block this list does not hold (deleted elsewhere, or not
   // loaded yet) is kept as an option so the select still shows a value.
   const unknown = value && !nodes.some((n) => n.id === value);
   return (
@@ -22,7 +26,7 @@ export function ChoiceNodeSelect({ field, gameId, value, onChange, className }) 
       className={className}
     >
       <option value="">{field.label}: none</option>
-      {unknown ? <option value={value}>Unknown point</option> : null}
+      {unknown ? <option value={value}>Unknown block</option> : null}
       {nodesByKind(nodes).map((group) => (
         <optgroup key={group.key} label={group.label}>
           {group.nodes.map((n) => (
@@ -36,7 +40,7 @@ export function ChoiceNodeSelect({ field, gameId, value, onChange, className }) 
   );
 }
 
-/** The read view: the linked point's title, or nothing at all. */
+/** The read view: the linked block's title, or nothing at all. */
 export function ChoiceNodeName({ field, gameId, value, tagCls }) {
   const { data } = useChoiceGraph(value ? gameId : null);
   const node = (data?.nodes || []).find((n) => n.id === value);

@@ -3,7 +3,7 @@
 // A still picture - fixed height, fitted to view, no pan or zoom, no clicks -
 // with the counts and "View all", which opens the whole graph in
 // ChoiceGraphModal. Editing and the viewer's own marks happen there; the
-// preview only shows them (done points and options, note marks, save badges).
+// preview only shows them (done blocks and branches, note marks, save badges).
 //
 // Rendered inside the page's NotesProvider, which is where the save badges
 // come from (useChoiceGraphView).
@@ -22,17 +22,18 @@ export default function ChoiceGraphCard({ gameId, title }) {
   const { isAdmin, has } = useAuth();
   const canMark = Boolean(has?.("self.personal_notes"));
   const { query, graph, marks, saves } = useChoiceGraphView(gameId);
-  // null when shut; otherwise whether it opens on the new-point form.
+  // null when shut; otherwise whether it opens on the new-block form.
   const [modal, setModal] = useState(null);
 
   const counts = graphCounts(graph, marks);
-  const empty = query.isSuccess && counts.points === 0;
+  const empty = query.isSuccess && counts.parts === 0;
 
   const actions =
     query.isSuccess && !empty ? (
       <>
         <span data-testid="choice-counts" className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
-          {plural(counts.points, "point", "points")} · {plural(counts.endings, "ending", "endings")}
+          {plural(counts.parts, "part", "parts")} · {plural(counts.choices, "choice", "choices")} ·{" "}
+          {plural(counts.endings, "ending", "endings")}
           {canMark && counts.endings > 0
             ? ` · ${counts.endingsDone} / ${counts.endings} endings done`
             : ""}
@@ -54,11 +55,12 @@ export default function ChoiceGraphCard({ gameId, title }) {
       ) : empty ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-text-faint">
-            No choice points yet. The graph maps the options in this game and where they lead.
+            No story parts yet. The graph maps this game's parts, the choices between them and
+            where they lead.
           </p>
           {isAdmin ? (
             <Button size="sm" kind="primary" onClick={() => setModal({ adding: true })}>
-              Add the first point
+              Add the first block
             </Button>
           ) : null}
         </div>

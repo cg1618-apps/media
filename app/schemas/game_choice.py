@@ -8,7 +8,7 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 class GameChoiceNodeCreate(BaseModel):
     """
-    One new point. `kind` and `title` are plain strings here and checked by
+    One new block. `kind` and `title` are plain strings here and checked by
     the router, so a bad value answers with the same one-line `detail` every
     other refusal on this router carries.
     """
@@ -30,7 +30,7 @@ class GameChoiceNodeUpdate(BaseModel):
 
 
 class GameChoiceNodeResponse(BaseModel):
-    """A stored point. The table's `system_id` is sent as `id`."""
+    """A stored block. The table's `system_id` is sent as `id`."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -43,21 +43,33 @@ class GameChoiceNodeResponse(BaseModel):
 
 
 class GameChoiceEdgeCreate(BaseModel):
+    """
+    One new edge: a branch (`choice` or `condition`) or a `link`. Like the
+    node, `kind` and `title` are plain strings checked by the router. A
+    branch's `to_node_id` may be left out: it leads nowhere yet.
+    """
+
     game_id: UUID
+    kind: Optional[str] = None
     from_node_id: UUID
-    to_node_id: UUID
-    # Blank means "continues to" and is stored as NULL.
-    option: Optional[str] = None
+    to_node_id: Optional[UUID] = None
+    title: Optional[str] = None
+    content: Optional[str] = None
     sort_index: Optional[int] = None
 
 
 class GameChoiceEdgeUpdate(BaseModel):
     """
-    Only the option text and the order. Repointing an arrow is deleting it and
-    drawing the right one, so this never has to re-check the two ends.
+    Partial: only the fields sent are changed, and the merged row is
+    validated as a new one would be. `to_node_id: null` clears a branch's next
+    part. `kind` may only switch between choice and condition. The block an
+    edge hangs from and its game never change.
     """
 
-    option: Optional[str] = None
+    kind: Optional[str] = None
+    to_node_id: Optional[UUID] = None
+    title: Optional[str] = None
+    content: Optional[str] = None
     sort_index: Optional[int] = None
 
 
@@ -66,14 +78,31 @@ class GameChoiceEdgeResponse(BaseModel):
 
     id: UUID = Field(validation_alias=AliasChoices("system_id", "id"))
     game_id: UUID
+    kind: str
     from_node_id: UUID
-    to_node_id: UUID
-    option: Optional[str] = None
+    to_node_id: Optional[UUID] = None
+    title: Optional[str] = None
+    content: Optional[str] = None
     sort_index: int
 
 
+class GameChoiceNextCreate(BaseModel):
+    """The block a branch's /next creates. `kind` defaults to a part."""
+
+    title: Optional[str] = None
+    kind: Optional[str] = "part"
+    content: Optional[str] = None
+
+
+class GameChoiceNextResponse(BaseModel):
+    """The new block, and the branch now leading to it."""
+
+    node: GameChoiceNodeResponse
+    edge: GameChoiceEdgeResponse
+
+
 class GameChoiceMarkWrite(BaseModel):
-    """The whole of the viewer's mark on one point or option."""
+    """The whole of the viewer's mark on one block or edge."""
 
     done: bool = False
     note: Optional[str] = None

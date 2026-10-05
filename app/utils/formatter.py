@@ -1283,6 +1283,10 @@ def parse_game_copy_from_sheet(raw: dict) -> dict:
     }
 
 
+# The block kinds g2c3hbranch4 folded into `part`.
+_OLD_PART_KINDS = frozenset({"choice", "scene"})
+
+
 def parse_game_choice_node_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Game Choice Node sheet into typed data
@@ -1290,11 +1294,18 @@ def parse_game_choice_node_from_sheet(raw: dict) -> dict:
 
     Plain uuid identity: a node is created by hand on one machine and travels
     with its uuid, which is also what a save's `choice_node` names.
+
+    A sheet written before blocks were start, part and ending carries the old
+    kinds `choice` and `scene`; both read as `part`, which is what the revision
+    did to the stored rows, so the tab's CHECK does not roll the tab back.
     """
+    kind = parse_from_sheet(raw.get("kind"), str)
+    if kind in _OLD_PART_KINDS:
+        kind = "part"
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "game_id": _uuid_or_none(raw.get("game_id")),
-        "kind": parse_from_sheet(raw.get("kind"), str),
+        "kind": kind,
         "title": parse_from_sheet(raw.get("title"), str),
         "content": parse_from_sheet(raw.get("content"), str),
         "sort_index": parse_from_sheet(raw.get("sort_index"), int) or 0,
@@ -1307,14 +1318,27 @@ def parse_game_choice_edge_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Game Choice Edge sheet into typed data
     ready for the Database. Both ends are real foreign keys onto the node tab,
-    which restores first.
+    which restores first; a blank to_node_id is a branch that leads nowhere.
+
+    A sheet written before edges had a kind carries `option` and neither
+    `kind` nor `title`. Its option text is the title, and the kind follows from
+    it: text was a choice, none was a plain arrow - a link. Pull puts the two
+    derived keys back after its header filter (see execute_pull_specific).
     """
+    if "kind" in raw or "title" in raw:
+        kind = parse_from_sheet(raw.get("kind"), str)
+        title = parse_from_sheet(raw.get("title"), str)
+    else:
+        title = (parse_from_sheet(raw.get("option"), str) or "").strip() or None
+        kind = "choice" if title else "link"
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "game_id": _uuid_or_none(raw.get("game_id")),
+        "kind": kind,
         "from_node_id": _uuid_or_none(raw.get("from_node_id")),
         "to_node_id": _uuid_or_none(raw.get("to_node_id")),
-        "option": parse_from_sheet(raw.get("option"), str),
+        "title": title,
+        "content": parse_from_sheet(raw.get("content"), str),
         "sort_index": parse_from_sheet(raw.get("sort_index"), int) or 0,
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),

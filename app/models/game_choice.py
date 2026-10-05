@@ -1,4 +1,4 @@
-"""Game choice graph ORM models - the points, options and personal marks of one game's branching story."""
+"""Game choice graph ORM models - the blocks, branches and personal marks of one game's branching story."""
 
 import uuid
 
@@ -18,20 +18,26 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base, get_taipei_now
 
-# The four kinds of point. Validated by the CHECK below and by the router, so a
-# Pull cannot write a kind the editor would refuse.
-NODE_KINDS: tuple[str, ...] = ("start", "choice", "scene", "ending")
+# The three kinds of block. Validated by the CHECK below and by the router, so
+# a Pull cannot write a kind the editor would refuse.
+NODE_KINDS: tuple[str, ...] = ("start", "part", "ending")
+
+# The two kinds of branch - the player picks, or the game decides - and the
+# plain link, which carries no text and always leads somewhere.
+BRANCH_KINDS: tuple[str, ...] = ("choice", "condition")
+LINK_KIND = "link"
+EDGE_KINDS: tuple[str, ...] = (*BRANCH_KINDS, LINK_KIND)
 
 
 class GameChoiceNode(Base):
     """
-    One point of a game's choice graph: a start, a choice, a scene or an
-    ending.
+    One block of a game's choice graph - a part of the story: the start, a
+    part, or an ending.
 
     One shared graph per game, written by catalogue admins. game_id is a real
     foreign key onto `media.system_id`, as `game_copy`'s is, so one table
     covers game and h-game alike. Positions are not stored: the page lays the
-    graph out from the rows, and `sort_index` only orders points within a
+    graph out from the rows, and `sort_index` only orders blocks within a
     layer.
 
     Column order matters: `format_model_for_sheet` walks __table__.columns in
@@ -41,7 +47,7 @@ class GameChoiceNode(Base):
     __tablename__ = "game_choice_node"
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('start', 'choice', 'scene', 'ending')",
+            "kind IN ('start', 'part', 'ending')",
             name="ck_game_choice_node_kind",
         ),
         CheckConstraint(
@@ -60,7 +66,7 @@ class GameChoiceNode(Base):
     )
     kind = Column(String, nullable=False)
     title = Column(String, nullable=False)
-    # A free note on the point.
+    # The block's shared description.
     content = Column(Text, nullable=True)
     sort_index = Column(Integer, nullable=False, default=0, server_default="0")
 
@@ -70,19 +76,45 @@ class GameChoiceNode(Base):
 
 class GameChoiceEdge(Base):
     """
-    One option of a game's choice graph: an arrow from one point to another,
-    carrying the option's text. A NULL option reads "continues to".
+    One edge out of a block: a BRANCH or a LINK.
 
-    Branches may rejoin and the graph may cycle (a hub you return to); only a
-    self-loop is refused, here and in the router. game_id is denormalised so a
+    A branch is a `choice` (the player picks) or a `condition` (the game
+    decides - a roll, an earlier decision, affection >= 5). It has a title and
+    may carry a shared description; it exists before it leads anywhere
+    (to_node_id NULL) and then leads to exactly one block, which may be the
+    block it hangs from ("ask again"). Deleting the block it leads to leaves
+    the branch leading nowhere again (ON DELETE SET NULL).
+
+    A link joins one block straight to another: no title, no description, and
+    always a target other than its own block. The router deletes the links
+    into a block before deleting it, since SET NULL would leave one that the
+    CHECK refuses.
+
+    Branches may rejoin and the graph may cycle. game_id is denormalised so a
     whole graph is one indexed query per table; a CHECK cannot see across
-    rows, so the router refuses an edge whose two nodes belong to another game.
+    rows, so the router refuses an edge whose nodes belong to another game.
+
+    Column order is the Sheets column order, as on the node.
     """
 
     __tablename__ = "game_choice_edge"
     __table_args__ = (
         CheckConstraint(
-            "from_node_id <> to_node_id", name="ck_game_choice_edge_no_self"
+            "kind IN ('choice', 'condition', 'link')",
+            name="ck_game_choice_edge_kind",
+        ),
+        CheckConstraint(
+            "kind <> 'link' OR "
+            "(to_node_id IS NOT NULL AND title IS NULL AND content IS NULL)",
+            name="ck_game_choice_edge_link",
+        ),
+        CheckConstraint(
+            "kind = 'link' OR (title IS NOT NULL AND btrim(title) <> '')",
+            name="ck_game_choice_edge_branch_title",
+        ),
+        CheckConstraint(
+            "kind <> 'link' OR to_node_id <> from_node_id",
+            name="ck_game_choice_edge_no_self",
         ),
         Index("ix_game_choice_edge_game", "game_id"),
         Index("ix_game_choice_edge_from", "from_node_id"),
@@ -97,18 +129,23 @@ class GameChoiceEdge(Base):
         ForeignKey("media.system_id", ondelete="CASCADE"),
         nullable=False,
     )
+    kind = Column(String, nullable=False)
     from_node_id = Column(
         UUID(as_uuid=True),
         ForeignKey("game_choice_node.system_id", ondelete="CASCADE"),
         nullable=False,
     )
+    # NULL: a branch that leads nowhere yet. Never NULL on a link.
     to_node_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("game_choice_node.system_id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("game_choice_node.system_id", ondelete="SET NULL"),
+        nullable=True,
     )
-    option = Column(Text, nullable=True)
-    # The order of the options out of one node.
+    # A branch's text; NULL on a link.
+    title = Column(Text, nullable=True)
+    # A branch's shared description; NULL on a link.
+    content = Column(Text, nullable=True)
+    # The order of the edges out of one block.
     sort_index = Column(Integer, nullable=False, default=0, server_default="0")
 
     created_at = Column(DateTime, default=get_taipei_now)
@@ -117,7 +154,7 @@ class GameChoiceEdge(Base):
 
 class GameChoiceMark(Base):
     """
-    One person's mark on one point or one option: whether they have done it,
+    One person's mark on one block or one edge: whether they have done it,
     and a note of their own.
 
     Personal, unlike the graph it marks: each user holds their own row, and a

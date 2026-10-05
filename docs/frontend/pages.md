@@ -1063,11 +1063,15 @@ places the frontend names a registry key; see systems/notes.md.
 sits right after the Progress and Todo slip on both pages, inside the same
 provider, because it reads the viewer's 存檔 Saves from it. It is a still
 preview of the game's choice graph - fixed height, fitted to view, no pan,
-zoom or clicks - headed by the point and ending counts (and, for a viewer who
-can mark, how many endings they have marked done) and a **View all** button
-opening `ChoiceGraphModal`, where the graph is browsed, marked and edited. An
-empty graph reads "No choice points yet." and, for a manage.catalog holder,
-offers **Add the first point**, which opens the modal on the new-point form.
+zoom or clicks - headed by the counts, "n parts · n choices · n endings"
+(parts counts every block, choices both kinds of branch; and, for a viewer
+who can mark, "x / y endings done"), and a **View all** button opening
+`ChoiceGraphModal`, where the graph is browsed, marked and edited: the canvas
+in the middle, a left drawer for the selected block, branch or link, and a
+right rail listing the story's starts and endings, each with **Show in
+graph**. An empty graph reads "No story parts yet." and, for a manage.catalog
+holder, offers **Add the first block**, which opens the modal on the
+new-block form.
 The rules are in [systems/game-choices.md](../systems/game-choices.md).
 
 ### WatchOrderPage — `/watch-order/:system_id`

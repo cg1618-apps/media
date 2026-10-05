@@ -752,11 +752,13 @@ from either end without a second copy of the kind vocabulary.
 
 ## Game Choice — `/api/game-choice`
 
-One game's choice graph - its points (nodes), the options between them
-(edges) - and each viewer's own marks on either. Router
-`app/routers/game_choice.py`, schemas `app/schemas/game_choice.py`; the
-system is [systems/game-choices.md](systems/game-choices.md). Kept apart from
-the generic media factory, as Media Relation is.
+One game's choice graph - its blocks (story parts, `nodes`) and the edges out
+of them: **branches** (`choice` or `condition`), each leading to at most one
+next block, and plain **links** from one block to another - and each viewer's
+own marks on either. Router `app/routers/game_choice.py`, schemas
+`app/schemas/game_choice.py`; the system is
+[systems/game-choices.md](systems/game-choices.md). Kept apart from the
+generic media factory, as Media Relation is.
 
 Every route needs the game visible to the caller (`require_visible_media`): a
 hidden or unknown game answers **404 "Game not found."**, and a visible entry
@@ -768,19 +770,20 @@ account cannot write marks and reads none. The tables' `system_id` is sent as
 
 | Method   | Path                    | Auth | Description |
 | -------- | ----------------------- | -------- | ----------- |
-| `GET`    | `/graph?game_id=`       | Public   | `GameChoiceGraphResponse` `{nodes, edges, marks}`. Nodes and edges each ordered by `sort_index`, then creation. `marks` holds only the caller's own rows, and is `[]` for a caller without `self.personal_notes` (a guest, the `admin` account). Saves are **not** sent: the page reads the viewer's own `saves` notes from `/api/notes`. |
-| `POST`   | `/nodes`                | `manage.catalog` | Create (201). Body `GameChoiceNodeCreate`: `game_id`, `kind`, `title`, `content?`, `sort_index?`. 422 on an unknown `kind` or a blank `title`. Title is trimmed; blank `content` is stored as `null`. |
-| `PATCH`  | `/nodes/{node_id}`      | `manage.catalog` | Partial update of `kind`, `title`, `content`, `sort_index` (`GameChoiceNodeUpdate`, only the keys sent). A node never moves to another game. |
-| `DELETE` | `/nodes/{node_id}`      | `manage.catalog` | **204**. Logs the node, and every edge touching it, to `deleted_record` (types "Game Choice Node" / "Game Choice Edge"); the edges and every mark on the node or on those edges go by foreign key; `choice_node` is removed from the `fields` of every note naming the node, other users' saves included. One transaction. |
-| `PUT`    | `/nodes/{node_id}/mark` | `self.personal_notes` | The caller's whole mark on one node. Body `GameChoiceMarkWrite` `{done, note?}`. An upsert; `done: false` with a blank note deletes the row, and the response then carries `id: null`. Response `GameChoiceMarkResponse` `{id, node_id, edge_id, done, note}`. |
-| `POST`   | `/edges`                | `manage.catalog` | Create (201). Body `GameChoiceEdgeCreate`: `game_id`, `from_node_id`, `to_node_id`, `option?`, `sort_index?`. 422 "An option cannot lead back to its own node." for a self-loop; 422 "Both ends of an option must be nodes of the same game." when either end is missing or belongs to another game. Rejoins and cycles are accepted. Blank `option` is stored as `null` ("continues to"). |
-| `PATCH`  | `/edges/{edge_id}`      | `manage.catalog` | `option` and `sort_index` only (`GameChoiceEdgeUpdate`). Repointing an arrow is deleting it and drawing the right one. |
-| `DELETE` | `/edges/{edge_id}`      | `manage.catalog` | **204**. Logs to `deleted_record` as type "Game Choice Edge"; its marks go by foreign key. The two nodes are untouched. |
-| `PUT`    | `/edges/{edge_id}/mark` | `self.personal_notes` | The same as the node mark, for one option. |
+| `GET`    | `/graph?game_id=`       | Public   | `GameChoiceGraphResponse` `{nodes, edges, marks}`. Nodes (`id, game_id, kind, title, content, sort_index`) and edges (`id, game_id, kind, from_node_id, to_node_id, title, content, sort_index`) each ordered by `sort_index`, then creation. `marks` holds only the caller's own rows, and is `[]` for a caller without `self.personal_notes` (a guest, the `admin` account). Saves are **not** sent: the page reads the viewer's own `saves` notes from `/api/notes`. |
+| `POST`   | `/nodes`                | `manage.catalog`  | Create a block (201). Body `GameChoiceNodeCreate`: `game_id`, `kind` (`start`, `part`, `ending`), `title`, `content?`, `sort_index?`. 422 on an unknown `kind` or a blank `title`. Title is trimmed; blank `content` is stored as `null`. |
+| `PATCH`  | `/nodes/{node_id}`      | `manage.catalog`  | Partial update of `kind`, `title`, `content`, `sort_index` (`GameChoiceNodeUpdate`, only the keys sent). A block never moves to another game. |
+| `DELETE` | `/nodes/{node_id}`      | `manage.catalog`  | **204**. The edges out of the block and every mark on the block or on them go by foreign key; the **links** into it are deleted; the **branches** into it are kept, leading nowhere (`to_node_id` set to `null`); `choice_node` is removed from the `fields` of every note naming the block, other users' saves included. The block and each edge that goes are logged to `deleted_record` (types "Game Choice Node" / "Game Choice Edge"). One transaction. |
+| `PUT`    | `/nodes/{node_id}/mark` | `self.personal_notes` | The caller's whole mark on one block. Body `GameChoiceMarkWrite` `{done, note?}`. An upsert; `done: false` with a blank note deletes the row, and the response then carries `id: null`. Response `GameChoiceMarkResponse` `{id, node_id, edge_id, done, note}`. |
+| `POST`   | `/edges`                | `manage.catalog`  | Create an edge (201). Body `GameChoiceEdgeCreate`: `game_id`, `kind` (`choice`, `condition`, `link`), `from_node_id`, `to_node_id?`, `title?`, `content?`, `sort_index?`. A branch needs a `title` ("A branch needs a title.") and may leave `to_node_id` out or point it at its own block. A link needs a `to_node_id` ("A link must lead to a block."), takes no `title` or `content` ("A link carries no title or description."), and may not point at its own block ("A link cannot lead back to its own block."). Every end must be a block of the game ("Both ends of an edge must be blocks of the same game."). All 422. Blank text is stored as `null`. |
+| `PATCH`  | `/edges/{edge_id}`      | `manage.catalog`  | Partial update of `kind`, `to_node_id`, `title`, `content`, `sort_index` (`GameChoiceEdgeUpdate`, only the keys sent); the merged row is checked as a new one would be. `kind` may only switch between `choice` and `condition` (422 "An edge may only switch between choice and condition."). `to_node_id` sets a branch's next block, and `to_node_id: null` clears it. The block an edge hangs from never changes. |
+| `POST`   | `/edges/{edge_id}/next` | `manage.catalog`  | Create a branch's next block and point the branch at it, in one transaction (201). Body `GameChoiceNextCreate`: `title`, `kind?` (default `part`), `content?`. The block takes the `sort_index` after every block in the game. Response `GameChoiceNextResponse` `{node, edge}`. 422 "Only a branch takes a next block, not a link." on a link; **409** "This branch already leads to a block." |
+| `DELETE` | `/edges/{edge_id}`      | `manage.catalog`  | **204**. Logs to `deleted_record` as type "Game Choice Edge"; its marks go by foreign key. The blocks it joins are untouched. |
+| `PUT`    | `/edges/{edge_id}/mark` | `self.personal_notes` | The same as the block mark, for one branch. A link takes no mark: **422** "Only blocks and branches can be marked." |
 
 A path id that is not a uuid, or names no row, answers **404** ("Node not
 found." / "Edge not found."). A mark route answers **401** "You may not write
-personal notes." before it looks the node up.
+personal notes." before it looks the block or edge up.
 
 ---
 
@@ -1019,8 +1022,8 @@ entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
 carry URL-string links - `op_ed_changes`), `singleton`, `desc_required`, and for a structured section
 `fields` - each field's `type` may be `names`, a list of strings stored under
 `fields[key]`, or `choice_node`, the uuid of a node of the owner game's choice
-graph, also under `fields[key]` (a value naming another game's node, or none,
-is a 422 on POST and PATCH) - `require_any`, `hierarchical`, `group_by` (the `names` field
+graph - a block, never a branch - also under `fields[key]` (a value naming
+another game's block, or none, is a 422 on POST and PATCH) - `require_any`, `hierarchical`, `group_by` (the `names` field
 the read view groups by, or `null`), `groupable_by` (the `select` field the
 reader may toggle a one-group-per-value view on, or `null`), `owner_where` (`{owner column:
 [allowed values]}`, `{}` for none), and the music-group fields: `link_pairs`

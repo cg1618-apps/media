@@ -165,10 +165,11 @@ export const endpoints = {
     graph: () => "/api/media-relation/graph",
   },
 
-  // One game's choice graph: its points (nodes), the options between them
-  // (edges), and the viewer's own done/note marks on either. The graph read
-  // takes `?game_id=`; node and edge writes need manage.catalog, a mark needs
-  // self.personal_notes.
+  // One game's choice graph: its blocks (nodes), the branches and links out
+  // of them (edges), and the viewer's own done/note marks on either. The graph
+  // read takes `?game_id=`; node and edge writes need manage.catalog, a mark
+  // needs self.personal_notes. `nextPart` creates a branch's next block and
+  // points the branch at it in one write.
   gameChoice: {
     graph: () => "/api/game-choice/graph",
     createNode: () => "/api/game-choice/nodes",
@@ -178,6 +179,7 @@ export const endpoints = {
     createEdge: () => "/api/game-choice/edges",
     patchEdge: (id) => `/api/game-choice/edges/${id}`,
     removeEdge: (id) => `/api/game-choice/edges/${id}`,
+    nextPart: (id) => `/api/game-choice/edges/${id}/next`,
     markEdge: (id) => `/api/game-choice/edges/${id}/mark`,
   },
 

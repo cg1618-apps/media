@@ -240,13 +240,24 @@ comes first, `Game Choice Edge` after it (both ends are FKs onto nodes), and
 `Game Choice Mark` last (it names one node or one edge). Nodes and edges
 travel with their uuid - they are written by hand on one machine, and a
 save's `fields.choice_node` names a node by that uuid, so the `Note` tab
-further down needs nothing translated. Marks are personal and are written on
+further down needs nothing translated. The edge tab's columns are
+`system_id, game_id, kind, from_node_id, to_node_id, title, content,
+sort_index, created_at, updated_at`; a blank `to_node_id` is a branch that
+leads nowhere yet. A tab written before edges had a kind carries `option` and
+neither `kind` nor `title`: `parse_game_choice_edge_from_sheet` reads the
+option text as the title and derives the kind - text was a `choice`, none a
+`link`, as the revision that renamed the column did to the stored rows - and
+Pull puts those two derived keys back after its header filter, only when the
+sheet carries neither. `RENAMED_HEADERS` in `pull.py` lists `option` for the
+tab, so `unexpected_headers` does not report it as stale. The node tab is
+translated too: `parse_game_choice_node_from_sheet` reads a block of the old
+kind `choice` or `scene` as a `part`, as the revision did. Marks are personal and are written on
 each machine, so the same person's mark carries a different `system_id` here
 and there: Pull files every mark under the installation owner, as it does a
 copy, and `Game Choice Mark` is in `DERIVED_IDENTITY_KEYS` with the natural
 key `(user_id, node_id, edge_id)`, the pair the two partial unique indexes
 name (the unset one compares `IS NULL`). A mark whose uuid is unknown here is
-therefore matched to the local mark on the same point or option rather than
+therefore matched to the local mark on the same block or edge rather than
 inserted beside it. Parsers: `parse_game_choice_node_from_sheet`,
 `parse_game_choice_edge_from_sheet`, `parse_game_choice_mark_from_sheet` in
 `app/utils/formatter.py`.

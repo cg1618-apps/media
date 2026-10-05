@@ -5,50 +5,75 @@ import { vi } from "vitest";
 
 export const GAME_ID = "11111111-1111-1111-1111-111111111111";
 
-export const node = (id, kind, title, sort_index = 0) => ({
+/** A block. */
+export const node = (id, kind, title, sort_index = 0, content = null) => ({
   id,
   game_id: GAME_ID,
   kind,
   title,
+  content,
+  sort_index,
+});
+
+/** A branch (`choice` or `condition`); `to` null is one with no next part yet. */
+export const branch = (id, kind, from, to, title, sort_index = 0, content = null) => ({
+  id,
+  game_id: GAME_ID,
+  kind,
+  from_node_id: from,
+  to_node_id: to,
+  title,
+  content,
+  sort_index,
+});
+
+/** A plain link from one block straight to another. */
+export const link = (id, from, to, sort_index = 0) => ({
+  id,
+  game_id: GAME_ID,
+  kind: "link",
+  from_node_id: from,
+  to_node_id: to,
+  title: null,
   content: null,
   sort_index,
 });
 
-export const edge = (id, from, to, option = null, sort_index = 0) => ({
-  id,
-  game_id: GAME_ID,
-  from_node_id: from,
-  to_node_id: to,
-  option,
-  sort_index,
-});
-
-// A start, one choice and two endings, one of them marked done by the viewer.
+// A start linked to the bridge; out of the bridge two choices, each to an
+// ending (one marked done by the viewer), and a condition that leads nowhere
+// yet.
 export const GRAPH = {
   nodes: [
     node("n-start", "start", "Prologue"),
-    node("n-choice", "choice", "The bridge"),
-    node("n-good", "ending", "Good end", 0),
-    node("n-bad", "ending", "Bad end", 1),
+    node("n-bridge", "part", "The bridge", 1, "A troll guards it."),
+    node("n-good", "ending", "Good end", 2),
+    node("n-bad", "ending", "Bad end", 3),
   ],
   edges: [
-    edge("e1", "n-start", "n-choice"),
-    edge("e2", "n-choice", "n-good", "Cross it", 0),
-    edge("e3", "n-choice", "n-bad", "Turn back", 1),
+    link("l-start", "n-start", "n-bridge"),
+    branch("b-cross", "choice", "n-bridge", "n-good", "Cross it", 0),
+    branch("b-back", "choice", "n-bridge", "n-bad", "Turn back", 1),
+    branch("b-luck", "condition", "n-bridge", null, "Luck ≥ 5", 2, "Rolled at the gate"),
   ],
   marks: [{ id: "m1", node_id: "n-good", edge_id: null, done: true, note: "Got it" }],
 };
 
 export const EMPTY_GRAPH = { nodes: [], edges: [], marks: [] };
 
-/** Answers the graph read with `graph` and every write with `{}`. */
-export function stubFetch(graph = GRAPH) {
+/** Answers the graph read with `graph` and every write with `writeBody`. */
+export function stubFetch(graph = GRAPH, writeBody = { id: null }) {
   const fetchMock = vi.fn(async (url, init = {}) => {
-    const body = !init.method || init.method === "GET" ? graph : { id: null };
+    const body = !init.method || init.method === "GET" ? graph : writeBody;
     return { ok: true, status: 200, json: async () => body };
   });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
+}
+
+/** The first call matching `method` and `url`, with its JSON body parsed. */
+export function findCall(fetchMock, method, url) {
+  const call = fetchMock.mock.calls.find(([u, init]) => u === url && init?.method === method);
+  return call ? { url: call[0], body: call[1].body ? JSON.parse(call[1].body) : undefined } : null;
 }
 
 /** React Flow measures with ResizeObserver, which jsdom does not have. */

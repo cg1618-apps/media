@@ -1,7 +1,7 @@
 // Frontend: the choice graph's preview card.
 //
 // Pins the card's three faces - empty, populated and failed - and that the
-// first-point action and the done count follow their own permissions:
+// first-block action and the done count follow their own permissions:
 // manage.catalog (isAdmin) for the first, self.personal_notes for the second.
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -36,25 +36,25 @@ describe("ChoiceGraphCard", () => {
     expect(fetchMock.mock.calls[0][0]).toBe(`/api/game-choice/graph?game_id=${GAME_ID}`);
   });
 
-  it("offers an admin the first point on an empty graph", async () => {
+  it("offers an admin the first block on an empty graph", async () => {
     stubFetch(EMPTY_GRAPH);
     auth = viewer({ isAdmin: true });
     renderWithQuery(<ChoiceGraphCard gameId={GAME_ID} />);
 
-    expect(await screen.findByText(/No choice points yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/No story parts yet/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "View all" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add the first point" }));
-    // The modal opens on the new-point form.
+    fireEvent.click(screen.getByRole("button", { name: "Add the first block" }));
+    // The modal opens on the new-block form.
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("New point")).toBeInTheDocument();
+    expect(screen.getByText("New block")).toBeInTheDocument();
   });
 
   it("shows the empty state without the action to anyone else", async () => {
     stubFetch(EMPTY_GRAPH);
     renderWithQuery(<ChoiceGraphCard gameId={GAME_ID} />);
-    expect(await screen.findByText(/No choice points yet/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add the first point" })).not.toBeInTheDocument();
+    expect(await screen.findByText(/No story parts yet/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add the first block" })).not.toBeInTheDocument();
   });
 
   it("draws the preview with its counts and the viewer's done endings", async () => {
@@ -63,9 +63,9 @@ describe("ChoiceGraphCard", () => {
     renderWithQuery(<ChoiceGraphCard gameId={GAME_ID} />);
 
     const counts = await screen.findByTestId("choice-counts");
-    expect(counts).toHaveTextContent("4 points · 2 endings · 1 / 2 endings done");
+    expect(counts).toHaveTextContent("4 parts · 3 choices · 2 endings · 1 / 2 endings done");
     expect(screen.getByRole("button", { name: "View all" })).toBeInTheDocument();
-    // The done mark reaches the preview's node.
+    // The done mark reaches the preview's block.
     await waitFor(() =>
       expect(screen.getByTestId("choice-node-n-good")).toHaveAttribute("data-done", "true"),
     );
@@ -76,7 +76,7 @@ describe("ChoiceGraphCard", () => {
     stubFetch(GRAPH);
     renderWithQuery(<ChoiceGraphCard gameId={GAME_ID} />);
     const counts = await screen.findByTestId("choice-counts");
-    expect(counts).toHaveTextContent("4 points · 2 endings");
+    expect(counts).toHaveTextContent("4 parts · 3 choices · 2 endings");
     expect(counts).not.toHaveTextContent("done");
   });
 

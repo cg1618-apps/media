@@ -1,22 +1,24 @@
-// Frontend: one point on the choice graph.
+// Frontend: one block - a story part - on the choice graph.
 //
-// Fixed-size, like RelationNode, because the layout's pitch is computed from
-// CHOICE_NODE_WIDTH and CHOICE_NODE_HEIGHT; the two numbers are applied
-// inline so they cannot drift from the layout's.
+// A plain rectangle. Its size comes from choiceLayout's sizeOf and is applied
+// inline, with the paddings and line heights sizeOf counts (BLOCK), so the
+// layout's spacing and the drawing agree. A title-only block is compact; one
+// with a shared description shows a two-line excerpt of it; one holding the
+// viewer's note shows a one-line excerpt of that, behind a note icon.
 //
-// Every kind is drawn as the same plain block holding only its title: the
-// graph is blocks and arrows. Kind lives in the side panel and the card's
-// endings count, not on the canvas.
+// Kind is drawn only where it matters to the story's shape: a start carries a
+// small play icon and an ending a small flag. A part carries nothing.
 //
-// Four handles. Top in and bottom out carry the forward options. The two on
-// the right carry only return arrows (the layout's back edges), which leave
-// and re-enter at the side so a loop is drawn around the graph rather than
-// back up through it; they are never offered for a drag. As in RelationNode,
-// handles go invisible rather than unmounting on a read-only canvas, since an
-// edge is drawn from its mounted handles.
+// Four handles. Top in and bottom out carry the forward arrows - to its
+// branches and its links, and from whatever leads here. The two on the right
+// carry only return arrows (the layout's back arrows), which leave and
+// re-enter at the side so a loop is drawn around the graph rather than back up
+// through it; they are never offered for a drag. Handles go invisible rather
+// than unmounting on a read-only canvas, since an edge is drawn from its
+// mounted handles.
 import { Handle, Position } from "@xyflow/react";
 
-import { CHOICE_NODE_HEIGHT, CHOICE_NODE_WIDTH } from "../../lib/choiceLayout";
+import { BLOCK } from "../../lib/choiceLayout";
 import { saveLabel } from "./choiceGraphData";
 
 export const HANDLE_IN = "in";
@@ -24,20 +26,33 @@ export const HANDLE_OUT = "out";
 export const HANDLE_RETURN_IN = "return-in";
 export const HANDLE_RETURN_OUT = "return-out";
 
+const KIND_ICON = {
+  start: { icon: "fa-play", label: "Start" },
+  ending: { icon: "fa-flag", label: "Ending" },
+};
+
 export default function ChoiceNode({ data, isConnectable = true }) {
-  const { node, saves = [], mark, selected } = data;
+  const { node, saves = [], mark, selected, size } = data;
   const done = Boolean(mark?.done);
-  const hasNote = Boolean(mark?.note);
+  const note = (mark?.note || "").trim();
+  const content = (node.content || "").trim();
+  const plain = !content && !note;
+  const kindIcon = KIND_ICON[node.kind];
   const hidden = isConnectable ? "" : " !pointer-events-none !opacity-0";
 
   return (
     <div
       data-testid={`choice-node-${node.id}`}
+      data-kind={node.kind}
       data-done={done ? "true" : "false"}
-      style={{ width: CHOICE_NODE_WIDTH, height: CHOICE_NODE_HEIGHT }}
-      className={`relative flex items-center justify-center gap-1.5 bg-surface px-3 text-center text-text ${
-        done ? "border-2 border-brand" : "border border-border-strong"
-      } ${selected ? "ring-2 ring-brand ring-offset-2 ring-offset-surface-2" : ""}`}
+      style={{
+        width: size?.width,
+        height: size?.height,
+        padding: `${BLOCK.PAD_Y}px ${BLOCK.PAD_X}px`,
+      }}
+      className={`relative flex border bg-surface text-text ${done ? "border-brand ring-1 ring-brand" : "border-border-strong"} ${
+        selected ? "ring-2 ring-brand ring-offset-2 ring-offset-surface-2" : ""
+      }`}
     >
       <Handle
         id={HANDLE_IN}
@@ -55,17 +70,43 @@ export default function ChoiceNode({ data, isConnectable = true }) {
         className="!pointer-events-none !opacity-0"
       />
 
-      {done ? (
-        <i className="fas fa-check shrink-0 text-xs text-brand" title="Done" aria-label="Done"></i>
-      ) : null}
-      <span className="line-clamp-2 text-xs font-medium leading-tight">{node.title}</span>
-      {hasNote ? (
-        <i
-          className="fas fa-note-sticky shrink-0 text-xs text-text-faint"
-          title="You have a note here"
-          aria-label="Has my note"
-        ></i>
-      ) : null}
+      {/* Clipped, should the estimate fall short of the real text. */}
+      <div
+        className={`flex min-h-0 w-full flex-col justify-center overflow-hidden ${
+          plain ? "items-center text-center" : "items-stretch text-left"
+        }`}
+      >
+        <div className={`flex min-w-0 items-start gap-1 ${plain ? "justify-center" : ""}`}>
+          {kindIcon ? (
+            <i
+              className={`fas ${kindIcon.icon} mt-[3px] w-3 shrink-0 text-[10px] text-text-faint`}
+              title={kindIcon.label}
+              aria-label={kindIcon.label}
+            ></i>
+          ) : null}
+          <span className="line-clamp-2 min-w-0 text-xs font-medium leading-4">{node.title}</span>
+          {done ? (
+            <i className="fas fa-check mt-[2px] shrink-0 text-xs text-brand" title="Done" aria-label="Done"></i>
+          ) : null}
+        </div>
+        {content ? (
+          <p
+            data-testid="block-excerpt"
+            className="mt-1 line-clamp-2 text-[11px] leading-[14px] text-text-muted"
+          >
+            {content}
+          </p>
+        ) : null}
+        {note ? (
+          <p
+            data-testid="block-note"
+            className="mt-1 flex min-w-0 items-center gap-1 text-[11px] leading-[14px] text-text-faint"
+          >
+            <i className="fas fa-note-sticky shrink-0" title="My note" aria-label="Has my note"></i>
+            <span className="truncate">{note}</span>
+          </p>
+        ) : null}
+      </div>
 
       {saves.length > 0 ? (
         <span

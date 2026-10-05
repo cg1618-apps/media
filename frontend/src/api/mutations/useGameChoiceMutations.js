@@ -1,7 +1,7 @@
 // Frontend: the query and mutation hooks for one game's choice graph.
 //
-// One read - `GET /api/game-choice/graph?game_id=` answers the points, the
-// options between them and the viewer's own marks together - and every write
+// One read - `GET /api/game-choice/graph?game_id=` answers the blocks, the
+// branches and links out of them and the viewer's own marks together - and every write
 // refetches it, the way useResourceMutations does for the Resources tree. The
 // graph is small and the layout is a pure function of the rows, so there is
 // no optimistic cache update to keep in step with the server.
@@ -48,14 +48,22 @@ export function usePatchChoiceNode(gameId) {
   );
 }
 
-/** `id` → deletes the node; the server drops its edges and clears save links. */
+/**
+ * `id` → deletes the node. The server deletes the edges out of it and the links
+ * into it, leaves every branch that led to it with no next part, and clears the
+ * saves' links to it.
+ */
 export function useDeleteChoiceNode(gameId) {
   return useGraphMutation(gameId, (id) =>
     fetchJson(endpoints.gameChoice.removeNode(id), { method: "DELETE" }),
   );
 }
 
-/** `{ from_node_id, to_node_id, option?, sort_index? }` → the created edge. */
+/**
+ * `{ kind, from_node_id, to_node_id?, title?, content?, sort_index? }` → the
+ * created edge. A `choice` or `condition` is a branch and may have no
+ * `to_node_id` yet; a `link` always has one and no title.
+ */
 export function useCreateChoiceEdge(gameId) {
   return useGraphMutation(gameId, (body) =>
     fetchJson(endpoints.gameChoice.createEdge(), {
@@ -65,7 +73,11 @@ export function useCreateChoiceEdge(gameId) {
   );
 }
 
-/** `{ id, data: { option?, sort_index? } }` → the edge. */
+/**
+ * `{ id, data: { kind?, title?, content?, sort_index?, to_node_id? } }` → the
+ * edge. `kind` switches only between choice and condition; `to_node_id: null`
+ * clears a branch's next part.
+ */
 export function usePatchChoiceEdge(gameId) {
   return useGraphMutation(gameId, ({ id, data }) =>
     fetchJson(endpoints.gameChoice.patchEdge(id), { method: "PATCH", ...jsonBody(data) }),
@@ -76,6 +88,16 @@ export function usePatchChoiceEdge(gameId) {
 export function useDeleteChoiceEdge(gameId) {
   return useGraphMutation(gameId, (id) =>
     fetchJson(endpoints.gameChoice.removeEdge(id), { method: "DELETE" }),
+  );
+}
+
+/**
+ * `{ id, title, kind?, content? }` → `{ node, edge }`: creates the branch's
+ * next block and points the branch at it. Refused (409) if it already has one.
+ */
+export function useCreateNextPart(gameId) {
+  return useGraphMutation(gameId, ({ id, ...body }) =>
+    fetchJson(endpoints.gameChoice.nextPart(id), { method: "POST", ...jsonBody(body) }),
   );
 }
 

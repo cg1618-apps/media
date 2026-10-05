@@ -646,52 +646,67 @@ omits is deleted; `copies=None` means "not supplied", `copies=[]` means
 
 ### `game_choice_node`, `game_choice_edge`, `game_choice_mark`
 
-A game's choice graph: the points of its branching story, the options
-between them, and each person's own marks on either. Models:
-`GameChoiceNode`, `GameChoiceEdge`, `GameChoiceMark`
+A game's choice graph: the blocks of its branching story (the parts), the
+branches and links out of them, and each person's own marks on a block or a branch (a link takes none).
+Models: `GameChoiceNode`, `GameChoiceEdge`, `GameChoiceMark`
 (`app/models/game_choice.py`); the rules, API and page are
 [systems/game-choices.md](systems/game-choices.md).
 
 All three hang off `media.system_id` as `game_copy` does, so one set of
-tables covers game and h-game. The graph (nodes and edges) is **one shared
+tables covers game and h-game. The graph (blocks and edges) is **one shared
 copy per game**, written by catalogue admins; the marks are **personal**, one
 set per user. No positions are stored: the page lays the graph out from the
 rows.
 
 #### `game_choice_node`
 
+One block - a part of the story.
+
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK, indexed. Sent as `id` by the API. What a save's `fields.choice_node` names |
 | `game_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE, indexed (`ix_game_choice_node_game`). A game's or an h-game's id |
-| `kind` | String | **no** | | `start`, `choice`, `scene` or `ending` - CHECK `ck_game_choice_node_kind` (`NODE_KINDS`) |
+| `kind` | String | **no** | | `start`, `part` or `ending` - CHECK `ck_game_choice_node_kind` (`NODE_KINDS`) |
 | `title` | String | **no** | | CHECK `ck_game_choice_node_title` (`btrim(title) <> ''`). Stored trimmed |
-| `content` | Text | yes | | The point's shared description. Blank is stored as NULL |
+| `content` | Text | yes | | The block's shared description. Blank is stored as NULL |
 | `sort_index` | Integer | **no** | `0` (server default too) | Order within a layer of the drawn graph |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 #### `game_choice_edge`
 
-One option: an arrow from one point to another, carrying the option's text.
+One edge out of a block: a **branch** (`choice` - the player picks - or
+`condition` - the game decides) or a plain **link** to another block. A
+branch has a title, may carry a description, may exist before it leads
+anywhere, and may lead back to its own block; a link carries no text and
+always leads to another block.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK, indexed. Sent as `id` |
 | `game_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE, indexed (`ix_game_choice_edge_game`). Denormalised so a whole graph is one query per table; the router refuses an edge whose ends belong to another game, since a CHECK cannot see across rows |
-| `from_node_id` | UUID | **no** | | FK `game_choice_node.system_id` ON DELETE CASCADE, indexed (`ix_game_choice_edge_from`) |
-| `to_node_id` | UUID | **no** | | FK `game_choice_node.system_id` ON DELETE CASCADE, indexed (`ix_game_choice_edge_to`) |
-| `option` | Text | yes | | The option text. NULL reads "continues to"; blank is stored as NULL |
-| `sort_index` | Integer | **no** | `0` (server default too) | Order of the options out of one node |
+| `kind` | String | **no** | | `choice`, `condition` or `link` - CHECK `ck_game_choice_edge_kind` |
+| `from_node_id` | UUID | **no** | | FK `game_choice_node.system_id` ON DELETE CASCADE, indexed (`ix_game_choice_edge_from`). The block it hangs out of |
+| `to_node_id` | UUID | yes | | FK `game_choice_node.system_id` ON DELETE **SET NULL**, indexed (`ix_game_choice_edge_to`). A branch's next block, NULL while it leads nowhere; never NULL on a link |
+| `title` | Text | yes | | A branch's text, required on a branch; NULL on a link |
+| `content` | Text | yes | | A branch's shared description; NULL on a link. Blank is stored as NULL |
+| `sort_index` | Integer | **no** | `0` (server default too) | Order of the edges out of one block |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Constraint: CHECK `ck_game_choice_edge_no_self` (`from_node_id <> to_node_id`).
-Branches may rejoin and the graph may cycle; a self-loop is the only shape
-refused. There is no unique constraint on the pair: two different options
-may lead from one point to the same other point.
+Constraints:
+
+- `ck_game_choice_edge_link`: `kind <> 'link' OR (to_node_id IS NOT NULL AND
+  title IS NULL AND content IS NULL)` - a link always leads somewhere and
+  carries no text.
+- `ck_game_choice_edge_branch_title`: `kind = 'link' OR (title IS NOT NULL
+  AND btrim(title) <> '')` - a branch needs a title.
+- `ck_game_choice_edge_no_self`: `kind <> 'link' OR to_node_id <>
+  from_node_id` - only a link is refused a loop onto its own block.
+
+There is no unique constraint on the pair.
 
 #### `game_choice_mark`
 
-One person's mark on one point or one option: whether they have done it, and
+One person's mark on one block or one edge: whether they have done it, and
 a note of their own.
 
 | Column | Type | Null | Default | Description |
@@ -709,14 +724,20 @@ Constraints: CHECK `ck_game_choice_mark_one_target`
 (`(node_id IS NULL) <> (edge_id IS NULL)`) - exactly one target; partial
 unique indexes `uq_game_choice_mark_node` (`user_id`, `node_id`) WHERE
 `node_id IS NOT NULL` and `uq_game_choice_mark_edge` (`user_id`, `edge_id`)
-WHERE `edge_id IS NOT NULL` - one mark per person per point and per option.
+WHERE `edge_id IS NOT NULL` - one mark per person per block and per edge.
 A mark that is neither done nor carries a note is deleted rather than stored.
 
-**Deletes.** Deleting a game takes all three tables' rows. Deleting a node
-takes its edges and every mark on it or on those edges, by foreign key, and
-the router also strips `fields.choice_node` from every `note` naming it - the
-one place the graph reaches into `note`, which has no foreign key to it.
-Deleting an edge takes its marks.
+**Deletes.** Deleting a game takes all three tables' rows. Deleting a block
+takes the edges out of it and every mark on the block or on those edges, by
+foreign key; the router deletes the **links** into it first (a link cannot
+lead nowhere), and every **branch** into it is kept, leading nowhere again
+(`SET NULL`). The router also strips `fields.choice_node` from every `note`
+naming the block - the one place the graph reaches into `note`, which has no
+foreign key to it. Deleting an edge takes its marks.
+
+The revision that gives edges their kind (`g2c3hbranch4`) is
+`irreversible = True`: it folds the block kinds `choice` and `scene` into
+`part`, and nothing records which was which.
 
 ### `h_comic`
 

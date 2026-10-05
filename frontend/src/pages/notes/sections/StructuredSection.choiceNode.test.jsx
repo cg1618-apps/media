@@ -1,8 +1,8 @@
 // Frontend: the `choice_node` field - a save's "At node", pointing into the
 // owner game's choice graph.
 //
-// Read, it is the linked point's title (and nothing when unset or unknown);
-// edited, a select of the game's points grouped by kind, with an empty option
+// Read, it is the linked block's title (and nothing when unset or unknown);
+// edited, a select of the game's blocks grouped by kind, with an empty option
 // that clears the link. The value is stored in `fields`, like based_on.
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -52,14 +52,14 @@ afterEach(() => {
 });
 
 describe("StructuredSection choice_node field", () => {
-  it("reads as the linked point's title", async () => {
+  it("reads as the linked block's title", async () => {
     const fetchMock = stubFetch(GRAPH);
-    renderSection([save({ choice_node: "n-choice" })]);
+    renderSection([save({ choice_node: "n-bridge" })]);
     expect(await screen.findByText("At node: The bridge")).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toBe(`/api/game-choice/graph?game_id=${GAME_ID}`);
   });
 
-  it("reads as nothing when unset or naming a point the graph does not hold", async () => {
+  it("reads as nothing when unset or naming a block the graph does not hold", async () => {
     const fetchMock = stubFetch(GRAPH);
     renderSection([save({ choice_node: "gone" })]);
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
@@ -67,7 +67,7 @@ describe("StructuredSection choice_node field", () => {
     expect(screen.queryByText(/At node/)).not.toBeInTheDocument();
   });
 
-  it("edits as a select of the game's points, grouped by kind, and saves into fields", async () => {
+  it("edits as a select of the game's blocks, grouped by kind, and saves into fields", async () => {
     stubFetch(GRAPH);
     const onUpdate = vi.fn();
     renderSection([save({ based_on: "1" })], { onUpdate });
@@ -77,7 +77,9 @@ describe("StructuredSection choice_node field", () => {
     await waitFor(() => expect(within(select).getByRole("option", { name: "Good end" })).toBeInTheDocument());
 
     const groups = [...select.querySelectorAll("optgroup")].map((g) => g.label);
-    expect(groups).toEqual(["Start", "Choice", "Ending"]);
+    expect(groups).toEqual(["Start", "Part", "Ending"]);
+    // Only blocks: no branch is offered as a place a save can sit.
+    expect(within(select).queryByRole("option", { name: "Cross it" })).toBeNull();
     expect(within(select).getByRole("option", { name: "At node: none" })).toHaveValue("");
 
     fireEvent.change(select, { target: { value: "n-good" } });
