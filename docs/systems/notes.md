@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-10-04
+Last verified: 2026-10-05
 
 ## What this is for
 
@@ -252,7 +252,7 @@ delete cascades — but dropping such a row would hide it with nothing to say so
 | `foreshadowing` | 伏筆/前後呼應 Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `speculation` | 猜測 Speculation | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
-| `easter_eggs` | 彩蛋/致敬 Easter Eggs/References | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, novel: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
+| `easter_eggs` | 彩蛋/致敬 Easter Eggs/References | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game, series, franchise | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, novel: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `controls` | 操作 Controls | **structured** | guides | game, h-game | — | — | — | no | no | no |
@@ -496,7 +496,7 @@ Design rules baked into the registry:
 
 | Rule | Where it shows |
 | --- | --- |
-| **Episode-anchored sections stop at entry level.** Anything whose point is a locator (`episode_comments`, `highlights`, `highlight_episodes`, `op_ed_changes`, `extended_episodes`) is limited to episodic entries — never series/franchise/collection. `cinematography`, `foreshadowing`, `symmetry` and `adaptation` reach series (and franchise for the last three) because their locator is optional. | `owners` on each entry in `NOTE_SECTIONS`. |
+| **Episode-anchored sections stop at entry level.** Anything whose point is a locator (`episode_comments`, `highlights`, `highlight_episodes`, `op_ed_changes`, `extended_episodes`) is limited to episodic entries — never series/franchise/collection. `cinematography`, `foreshadowing`, `symmetry`, `speculation`, `easter_eggs` and `adaptation` reach series (and franchise for all but `cinematography`) because their locator is optional. | `owners` on each entry in `NOTE_SECTIONS`. |
 | **`quotes` is entry-only.** A quote is said in a specific work (`ENTRY_OWNERS`; see the docstring in `app/models/quote.py`). | `NOTE_SECTIONS["quotes"]`. |
 | **`memes` is allowed on all owners**, because a running gag often spans a franchise; `meme` carries the same four owner columns `note` does, so every one of the twelve owners is reachable. | `NOTE_SECTIONS["memes"]`. |
 | **Similar sections are deliberately distinct** (`highlights` vs `highlight_episodes` vs `highlight_passages` vs `highlight_moments`; `cinematography` vs `craft`) so they can drift on purpose. | Module docstring of `app/utils/note_sections.py`. |
@@ -622,8 +622,9 @@ category (`link_text_category`). `GET /api/notes/sections` reports
 four song lists and nothing else.
 
 **彩蛋/致敬 Easter Eggs/References** sits last in 解析 on every entry type outside the gated
-ones (last in 評論 for a game): a hidden reference, where it plays and where
-somebody spotted it. It is `text_links` like the rest of
+ones (last in 評論 for a game), and on series and franchise: a hidden reference,
+where it plays and where somebody spotted it. One that recurs across a whole
+series is noted once on the series, and each entry shows it under its own rows. It is `text_links` like the rest of
 解析 - an optional episode in `locator`, a description in `content` and any
 number of URL strings in `links`, with no link text.
 
