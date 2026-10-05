@@ -540,10 +540,12 @@ def test_episode_comments_is_text_links_with_an_episode_field():
     sec = ns.section_by_key("episode_comments")
     assert sec.shape == ns.SHAPE_TEXT_LINKS
     assert ns.locator_for(sec, "anime") == "Episode, e.g. ep 1"
-    # A game is cut into chapters, so it reuses the section under its own label.
+    # Manga and games are cut into chapters, so they reuse the section under
+    # their own labels.
+    assert ns.locator_for(sec, "manga") == "Chapter, e.g. ch 1"
     assert ns.locator_for(sec, "game") == "Chapter / Part, e.g. Ch 3"
     # Not h-game: its comments go in 評論 Reviews and Comments.
-    assert sec.owners == ("anime", "tv-show", "cartoon", "game")
+    assert sec.owners == ("anime", "tv-show", "cartoon", "manga", "game")
 
 
 def test_unread_is_gone():

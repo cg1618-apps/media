@@ -2965,3 +2965,26 @@ entry, and some of them are single on purpose, so each can be marked
   parsers read the column only when the sheet has it, so restoring a backup
   taken before it existed does not clear a review made since.
 
+
+### Manga chapter comments widen `episode_comments`; a Resource's group is its `kind` (2026-10-05)
+
+- **Manga reuses 各集評論 rather than getting a section.** A comment on one
+  chapter is the same thing as a comment on one episode, so `manga` joins
+  `episode_comments`' owners with its own label (各話評論 Chapter Comments)
+  and locator placeholder, exactly as game did. Same scope, same required
+  locator, same card, no migration.
+- **The Resources group is stored in `note.kind`.** `name_links` used no
+  `kind`, and the Note tab already carries the column, so the group needed no
+  migration and no sheet reshape. A new registry flag, `kind_is_group`, makes
+  `kind` free text on that one section; the schema still refuses a kind on
+  every section without kinds, a `kind_category` or the flag. A group alone
+  does not make a row worth storing, for the same reason `default_kind` never
+  counts on a song: it says nothing about what the row points at.
+- **Rejected: a `group_by`-style `names` field.** That machinery belongs to
+  `structured` sections, files a row under several names and stores a group
+  order on the owner. A bookmark sits in one group, and the order the groups
+  are read in is simply the order the rows are in, so reordering rows is all
+  the ordering there is.
+- **Ungrouped rows go last, under "Other".** The owner's choice over drawing
+  them first with no heading: once some rows are grouped, an unlabelled run
+  at the top reads as a group whose heading is missing.

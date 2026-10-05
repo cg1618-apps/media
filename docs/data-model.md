@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-04
+Last verified: 2026-10-05
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1449,7 +1449,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
 | `parent_id` | UUID | yes | | FK `note.system_id` ON DELETE CASCADE, indexed. The row this one nests under, for a section the registry marks `hierarchical`; unbounded depth. A child is kept in its parent's owner and section by the router, not by the database - a CHECK cannot read another row. |
 | `locator` | String | yes | | Where in the work: episode, chapter, scene, timestamp, or a question's source. The section supplies the label and whether it is required. |
-| `kind` | String | yes | | Only where the section declares `kinds` or a `kind_category` (free text - an OP or ED's Song Type). On a `music_status` row, the song list it is about (`op`, `ed`, `insert_songs`, `ost`) |
+| `kind` | String | yes | | Only where the section declares `kinds`, a `kind_category` (free text - an OP or ED's Song Type) or `kind_is_group` (free text - a Resources row's group). On a `music_status` row, the song list it is about (`op`, `ed`, `insert_songs`, `ost`) |
 | `status` | String | yes | | Music tracking status: one of `MUSIC_STATUSES` (Need/Pending/No Full Version/Done) on a `music_track` song, one of `MUSIC_TYPE_STATUSES` on a `music_status` row; music sections only |
 | `title` | String | yes | | Name half of `name_links` / song name of a `music_track` row |
 | `content` | Text | yes | | Body |
