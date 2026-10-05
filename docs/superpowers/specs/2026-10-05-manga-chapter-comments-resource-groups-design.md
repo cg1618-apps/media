@@ -4,8 +4,8 @@ Working scaffolding: delete this file in the commit that finishes the work,
 after moving what is worth keeping into `docs/systems/notes.md` and
 `docs/systems/resources.md`.
 
-**Status: design proposed, NOT yet approved. Nothing implemented.** Two open
-questions at the bottom need the owner's answer before any code is written.
+**Status: design approved, open questions answered (see bottom). Nothing
+implemented yet — next step is implementation, tests first.**
 
 ## Request (owner's words)
 
@@ -50,7 +50,7 @@ links, lives in the 評論 card. No migration.
 - **Editing:** an optional "Group" input in `NameLinksSection.jsx`, suggesting
   (datalist) the group names already used in this owner's Resources.
 - **Read view:** one heading per group, groups in the order each first appears
-  in the row order; ungrouped rows with no heading (see open question 1).
+  in the row order; ungrouped rows **last**, under an "Other" heading.
   Reordering is unchanged.
 - Applies to all twelve owner types automatically — one section.
 
@@ -66,8 +66,7 @@ links, lives in the 評論 card. No migration.
 
 `docs/systems/notes.md`, `docs/systems/resources.md`, bump `Last verified`.
 
-## Open questions for the owner
+## Decisions (owner)
 
-1. Ungrouped resources: shown **first** with no heading (proposed default), or
-   **last** under an "Other" heading?
-2. Is `各話評論 Chapter Comments` the right manga label?
+1. Ungrouped resources go **last**, under an "Other" heading.
+2. The manga label is `各話評論 Chapter Comments`.
