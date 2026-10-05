@@ -84,11 +84,20 @@ def test_the_graph_round_trips_and_a_save_still_resolves(
     db.add_all([start, end])
     db.flush()
     edge = models.GameChoiceEdge(
-        system_id=uuid.uuid4(), game_id=a_game.system_id,
+        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="choice",
         from_node_id=start.system_id, to_node_id=end.system_id,
-        option="Spare him", sort_index=1,
+        title="Spare him", content="He remembers", sort_index=1,
     )
-    db.add(edge)
+    open_branch = models.GameChoiceEdge(
+        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="condition",
+        from_node_id=start.system_id, to_node_id=None,
+        title="Affection ≥ 5", sort_index=2,
+    )
+    link = models.GameChoiceEdge(
+        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="link",
+        from_node_id=end.system_id, to_node_id=start.system_id, sort_index=0,
+    )
+    db.add_all([edge, open_branch, link])
     save = models.Note(
         system_id=uuid.uuid4(), media_id=a_game.system_id,
         author_id=admin_user.id, section="saves", locator="1", kind="regular",
@@ -105,7 +114,10 @@ def test_the_graph_round_trips_and_a_save_still_resolves(
 
     def edge_state():
         return {
-            e.system_id: (e.game_id, e.from_node_id, e.to_node_id, e.option, e.sort_index)
+            e.system_id: (
+                e.game_id, e.kind, e.from_node_id, e.to_node_id, e.title,
+                e.content, e.sort_index,
+            )
             for e in db.query(models.GameChoiceEdge).all()
         }
 
@@ -115,8 +127,14 @@ def test_the_graph_round_trips_and_a_save_still_resolves(
         c.name for c in models.GameChoiceNode.__table__.columns
     ]
     assert len(written[NODE_TAB]) == 3
-    assert len(written[EDGE_TAB]) == 2
+    assert written[EDGE_TAB][0] == [
+        c.name for c in models.GameChoiceEdge.__table__.columns
+    ]
+    assert len(written[EDGE_TAB]) == 4
 
+    # Edges first: a bulk delete of every node may reach a link through the
+    # SET NULL on its target before the cascade from its own block.
+    db.query(models.GameChoiceEdge).delete()
     db.query(models.GameChoiceNode).delete()
     db.flush()
     assert db.query(models.GameChoiceEdge).count() == 0
@@ -138,7 +156,7 @@ def test_a_second_pull_updates_rather_than_duplicates(
     db, sheets, monkeypatch, a_game
 ):
     node = models.GameChoiceNode(
-        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="scene",
+        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="part",
         title="Only", sort_index=0,
     )
     db.add(node)
@@ -157,7 +175,7 @@ def test_a_mark_restores_onto_the_installation_owner(
     db, sheets, monkeypatch, a_game, plain_user
 ):
     node = models.GameChoiceNode(
-        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="scene",
+        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="part",
         title="Marked", sort_index=0,
     )
     db.add(node)
@@ -194,7 +212,7 @@ def test_a_mark_under_a_foreign_uuid_updates_the_local_one(
     Inserting the sheet's would collide with the one-mark-per-node index and
     roll the whole tab back, so the natural key retargets it."""
     node = models.GameChoiceNode(
-        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="scene",
+        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="part",
         title="Marked", sort_index=0,
     )
     db.add(node)
@@ -228,3 +246,128 @@ def test_a_mark_under_a_foreign_uuid_updates_the_local_one(
     assert marks[0].system_id == local_id
     assert marks[0].note == "from the sheet"
     assert marks[0].done is True
+
+
+def test_an_edge_tab_written_before_branches_still_restores(
+    db, sheets, monkeypatch, a_game
+):
+    """A sheet backed up before edges had a kind carries `option` and no
+    `kind` or `title`. An option with text was a choice; one without was a
+    plain arrow, which is a link now."""
+    start = models.GameChoiceNode(
+        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="start",
+        title="Prologue", sort_index=0,
+    )
+    end = models.GameChoiceNode(
+        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="ending",
+        title="Good End", sort_index=1,
+    )
+    db.add_all([start, end])
+    db.flush()
+    headers = [
+        "system_id", "game_id", "from_node_id", "to_node_id", "option",
+        "sort_index", "created_at", "updated_at",
+    ]
+    choice_id, link_id = uuid.uuid4(), uuid.uuid4()
+    rows = [
+        [str(choice_id), str(a_game.system_id), str(start.system_id),
+         str(end.system_id), "Spare him", "1", "", ""],
+        [str(link_id), str(a_game.system_id), str(end.system_id),
+         str(start.system_id), "", "0", "", ""],
+    ]
+    sheets({EDGE_TAB: [headers] + rows})
+
+    result = pull.execute_pull_specific(db, EDGE_TAB, log_action=False)
+
+    assert result["status"] == "success", result
+    assert result["rows_added"] == 2, result
+    assert not any("option" in ref for ref in result.get("unresolved_refs", [])), result
+    db.expire_all()
+    choice = db.get(models.GameChoiceEdge, choice_id)
+    assert (choice.kind, choice.title, choice.content) == ("choice", "Spare him", None)
+    assert choice.to_node_id == end.system_id
+    link = db.get(models.GameChoiceEdge, link_id)
+    assert (link.kind, link.title, link.to_node_id) == ("link", None, start.system_id)
+
+
+def test_a_current_edge_tab_ignores_no_kind(db, sheets, monkeypatch, a_game):
+    """The mirror: a sheet that carries `kind` and `title` is read as written,
+    so the legacy reading above is not applied to it."""
+    start = models.GameChoiceNode(
+        system_id=uuid.uuid4(), game_id=a_game.system_id, kind="start",
+        title="Prologue", sort_index=0,
+    )
+    db.add(start)
+    db.flush()
+    headers = [c.name for c in models.GameChoiceEdge.__table__.columns]
+    edge_id = uuid.uuid4()
+    row = {
+        "system_id": str(edge_id),
+        "game_id": str(a_game.system_id),
+        "kind": "condition",
+        "from_node_id": str(start.system_id),
+        "to_node_id": "",
+        "title": "Roll a six",
+        "content": "Dice",
+        "sort_index": "0",
+    }
+    sheets({EDGE_TAB: [headers, [row.get(h, "") for h in headers]]})
+
+    result = pull.execute_pull_specific(db, EDGE_TAB, log_action=False)
+
+    assert result["status"] == "success", result
+    db.expire_all()
+    edge = db.get(models.GameChoiceEdge, edge_id)
+    assert (edge.kind, edge.title, edge.content, edge.to_node_id) == (
+        "condition", "Roll a six", "Dice", None,
+    )
+
+
+def test_a_whole_graph_backed_up_before_branches_still_restores(
+    db, sheets, monkeypatch, a_game
+):
+    """A backup taken before blocks were start/part/ending: its node tab holds
+    the old kinds `choice` and `scene`, its edge tab `option` and no kind. The
+    node tab must restore - folding both old kinds into `part`, as the revision
+    did to stored rows - or its CHECK rolls the tab back and every edge fails
+    its foreign key after it."""
+    node_headers = [
+        "system_id", "game_id", "kind", "title", "content", "sort_index",
+        "created_at", "updated_at",
+    ]
+    start, fork, scene, end = (uuid.uuid4() for _ in range(4))
+    game = str(a_game.system_id)
+    node_rows = [
+        [str(start), game, "start", "Prologue", "", "0", "", ""],
+        [str(fork), game, "choice", "The fork", "", "1", "", ""],
+        [str(scene), game, "scene", "Rooftop", "", "2", "", ""],
+        [str(end), game, "ending", "Good End", "", "3", "", ""],
+    ]
+    edge_headers = [
+        "system_id", "game_id", "from_node_id", "to_node_id", "option",
+        "sort_index", "created_at", "updated_at",
+    ]
+    choice_id, link_id = uuid.uuid4(), uuid.uuid4()
+    edge_rows = [
+        [str(choice_id), game, str(fork), str(scene), "Spare him", "0", "", ""],
+        [str(link_id), game, str(scene), str(end), "", "0", "", ""],
+    ]
+    sheets({
+        NODE_TAB: [node_headers] + node_rows,
+        EDGE_TAB: [edge_headers] + edge_rows,
+    })
+
+    for tab, count in ((NODE_TAB, 4), (EDGE_TAB, 2)):
+        result = pull.execute_pull_specific(db, tab, log_action=False)
+        assert result["status"] == "success", result
+        assert result["rows_added"] == count, result
+
+    db.expire_all()
+    kinds = {n.system_id: n.kind for n in db.query(models.GameChoiceNode).all()}
+    assert kinds == {start: "start", fork: "part", scene: "part", end: "ending"}
+    choice = db.get(models.GameChoiceEdge, choice_id)
+    assert (choice.kind, choice.title, choice.from_node_id, choice.to_node_id) == (
+        "choice", "Spare him", fork, scene,
+    )
+    link = db.get(models.GameChoiceEdge, link_id)
+    assert (link.kind, link.title, link.to_node_id) == ("link", None, end)

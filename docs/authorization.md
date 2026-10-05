@@ -361,7 +361,7 @@ same way.
 
 `self.personal_notes` is what `app/routers/note.py` requires of every
 personal-scope note write, and what `app/routers/game_choice.py` requires of
-a done mark or personal note on a point or option of a game's choice graph
+a done mark or personal note on a block or edge of a game's choice graph
 ([systems/game-choices.md](systems/game-choices.md)). See
 [Note scope](#note-scope) below.
 

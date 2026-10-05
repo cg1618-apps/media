@@ -375,6 +375,16 @@ def drop_non_columns(model, payload: dict) -> dict:
     return {k: v for k, v in payload.items() if k in allowed}
 
 
+# Headers an older sheet carries for a column that has since been renamed, and
+# that the tab's parser still reads into the new column. They back no column,
+# but they are not stale either, so unexpected_headers does not report them.
+RENAMED_HEADERS: dict[str, frozenset[str]] = {
+    # `option` became `title`; parse_game_choice_edge_from_sheet derives the
+    # edge's kind and title from it.
+    "Game Choice Edge": frozenset({"option"}),
+}
+
+
 def unexpected_headers(tab_name: str, headers: list) -> list[str]:
     """
     The sheet headers this tab can neither store nor explain, in sheet order.
@@ -399,6 +409,7 @@ def unexpected_headers(tab_name: str, headers: list) -> list[str]:
     model = TAB_MODELS[tab_name]
     known = set(drop_non_columns(model, {h: None for h in headers if h}))
     known |= {name for name, _fn in TAB_BY_NAME[tab_name].extra_columns}
+    known |= RENAMED_HEADERS.get(tab_name, frozenset())
     media_type = _MEDIA_TYPE_FOR_TAB.get(tab_name)
     if media_type:
         for role in credit_roles_for(media_type):
@@ -952,6 +963,19 @@ def execute_pull_specific(
             for key in ("_legacy_owner_type", "_legacy_owner_id"):
                 if key in parsed_all:
                     clean_header_dict[key] = parsed_all[key]
+
+        # And for a Game Choice Edge tab written before edges had a kind: its
+        # parser derives `kind` and `title` from the old `option` column, and
+        # neither is in that header. Only when the sheet carries neither, so a
+        # current sheet is read exactly as written.
+        if (
+            tab_name == "Game Choice Edge"
+            and "option" in raw_header_dict
+            and "kind" not in raw_header_dict
+            and "title" not in raw_header_dict
+        ):
+            for column in ("kind", "title"):
+                clean_header_dict[column] = parsed_all[column]
 
         # The list tab carries a natural key and never the three ids, so this
         # has to run before ANYTHING tries to match the row: the natural-key

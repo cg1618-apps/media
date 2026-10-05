@@ -34,7 +34,7 @@ right and the doc needs the fix.
 |---|---|
 | [systems/watch-orders.md](systems/watch-orders.md) | lists, sections, items, release orders, the editor and the guide |
 | [systems/relations.md](systems/relations.md) | relation kinds, write/read rules, the relations canvas |
-| [systems/game-choices.md](systems/game-choices.md) | a game's choice graph: points, options, personal done marks and notes, the save link, the Choices card and popup |
+| [systems/game-choices.md](systems/game-choices.md) | a game's choice graph: blocks, choices and conditions, links, personal done marks and notes, the save link, the Choices card and popup |
 | [systems/plan-next.md](systems/plan-next.md) | watch-next / read-next / rewatch, size buckets, the Plan page |
 | [systems/notes.md](systems/notes.md) | the note registry, sections, validation, the Notes card, remark-as-note |
 | [systems/quotes-memes.md](systems/quotes-memes.md) | quotes and memes, pickers, pages |

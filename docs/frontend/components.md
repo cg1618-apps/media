@@ -35,7 +35,7 @@ src/
 | `api/client.js` `fetchJson(url, init)` | `fetch` with `credentials: "include"`; parses JSON; **throws** on `!res.ok` with the server `detail`. There is no automatic redirect on 401 — a stale session surfaces as a thrown error. |
 | `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, announcements, watchOrder, mediaRelation, gameChoice, formDefaults, person, studio, credits, system, quotes, memes, resources (the Resources tree - plural, because `resource` is the media builder), dataControl. |
 | `api/mutations/useResourceMutations.js` | `useCreateResource`, `usePatchResource`, `useDeleteResource`, `useReorderResources`: `useMutation` wrappers for `/api/resources` that invalidate `RESOURCES_QUERY_KEY` (`["resources"]`) when they settle. The reorder one also applies the move to the cache first (`applyReorder`) and restores the previous tree on failure. |
-| `api/mutations/useGameChoiceMutations.js` | One game's choice graph. `useChoiceGraph(gameId)` reads `GET /api/game-choice/graph?game_id=` (idle without a game id) under `choiceGraphQueryKey(gameId)` = `["game-choice-graph", gameId]`; `useCreateChoiceNode`, `usePatchChoiceNode`, `useDeleteChoiceNode`, `useCreateChoiceEdge`, `usePatchChoiceEdge`, `useDeleteChoiceEdge` and `useSetChoiceMark` (`{target: "node" \| "edge", id, done, note}`, a PUT) each invalidate that key when they settle. No optimistic update: the graph is small and its layout a pure function of the rows. |
+| `api/mutations/useGameChoiceMutations.js` | One game's choice graph. `useChoiceGraph(gameId)` reads `GET /api/game-choice/graph?game_id=` (idle without a game id) under `choiceGraphQueryKey(gameId)` = `["game-choice-graph", gameId]`; `useCreateChoiceNode`, `usePatchChoiceNode`, `useDeleteChoiceNode`, `useCreateChoiceEdge`, `usePatchChoiceEdge`, `useDeleteChoiceEdge`, `useCreateNextPart` (`POST /edges/{id}/next`: a branch's new next block, answering `{node, edge}`) and `useSetChoiceMark` (`{target: "node" \| "edge", id, done, note}`, a PUT) each invalidate that key when they settle. No optimistic update: the graph is small and its layout a pure function of the rows. |
 | `hooks/useApiQuery(key, url, {params})` | `useQuery` wrapper; key becomes `[...key, params]` when params exist. |
 | `hooks/useMediaList(type, {params})` | List query keyed `["media-list", type, params]`; `LIST_OPTIONS = { params: { limit: 2000 } }` is the full-table convention. |
 | `hooks/useMediaItem(type, id)` | Detail query keyed by `mediaItemQueryKey`. |
@@ -463,26 +463,34 @@ not drawn. The character, person and studio libraries use it for
 - **`components/game-choices`** — a game's choice graph
   ([systems/game-choices.md](../systems/game-choices.md)). `ChoiceGraphCard`
   (the 分歧 Choices slip on the game and h-game pages: a still preview fitted
-  to view, the point and ending counts, "View all", and "Add the first point"
-  for a manage.catalog holder on an empty graph), `ChoiceGraphModal` (the
-  whole graph in a popup - pan, zoom, minimap, a side panel for the selected
-  point or option, the admin's edit controls and the viewer's own mark),
-  `ChoiceGraph` (drawing only: the rows in, positions from
-  `lib/choiceLayout.js`, every gesture out through a callback; `toFlow` maps
-  rows to React Flow nodes and edges), `ChoiceNode` and `ChoiceEdge` (one
-  point, one option), `ChoiceNodeField` (`ChoiceNodeSelect` and
+  to view, the part, choice and ending counts, "View all", and "Add the first
+  block" for a manage.catalog holder on an empty graph), `ChoiceGraphModal`
+  (the whole graph in a popup - pan, zoom, minimap, a left drawer for the
+  selected block, branch or link with the admin's edit actions and the
+  viewer's own mark, and a right rail of collapsible Starts and Endings lists
+  with "Show in graph"), `ChoiceGraph` (drawing only: the rows in, positions
+  and sizes from `lib/choiceLayout.js`, every gesture out through a callback;
+  `toFlow` maps blocks and branches to React Flow nodes - a branch's id
+  prefixed `branch:` - and the layout's arrows to React Flow edges, and
+  `connectionIntent` reads a drag as a link or a branch's next part),
+  `ChoiceNode` (one block, content-sized, with description and note excerpts
+  and a start or ending icon), `ChoiceBranch` (one choice or condition, a pill
+  with its kind's icon and, on the editable canvas, "+ next part" while it
+  leads nowhere), `ChoiceEdge` (a plain arrow; a return is dashed and
+  stepped), `ChoiceNodeField` (`ChoiceNodeSelect` and
   `ChoiceNodeName`, a save's `choice_node` field in `StructuredSection`),
   `useChoiceGraphView` (the graph query plus the viewer's saves from the
   page's `NotesProvider`, through `useOptionalNotes`) and the pure helpers in
-  `choiceGraphData.js` (`CHOICE_KINDS`, `savesByNode`, `marksByTarget`,
-  `graphCounts`, `nodesByKind`, `saveLabel`).
+  `choiceGraphData.js` (`BLOCK_KINDS`, `BRANCH_KINDS`, `branchesFrom`,
+  `linksFrom`, `nextEdgeSortIndex`, `savesByNode`, `marksByTarget`,
+  `graphCounts`, `blocksOfKind`, `nodesByKind`, `saveLabel`).
 - **`components/charts`** — `BarChart` (div-based, vertical).
 - **`pages/notes`** — `NotesContext.jsx` holds the data (`NotesProvider`,
   `useNotes`): it fetches the registry and the rows, owns the mutations, and
   dispatches a section on its shape. Its value also carries `notes`,
   `ownerType`, `ownerId` and `reloadNotes`, for a card outside the notes
-  layout that reads the page's rows - the choice graph badges its points with
-  the viewer's saves and reloads them after deleting a point.
+  layout that reads the page's rows - the choice graph badges its blocks with
+  the viewer's saves and reloads them after deleting a block.
   `useOptionalNotes()` is `useNotes()` that answers null outside a provider,
   for a component that may sit on a notes page or off it. `NotesTemplate.jsx` holds the layout —
   `NotesBlocks` (every card, minus `hideSections` / `hideGroups`), `NotesGroup`
@@ -548,7 +556,7 @@ not drawn. The character, person and studio libraries use it for
   Highlights; `docs/systems/notes.md` lists each one's spec. Two registry
   features are rendered here and named nowhere else: a `names` field gets
   `NamesInput` (several free-text names, suggesting `nameSuggestions`) - and a
-  `choice_node` field gets `ChoiceNodeSelect` in the form and a "{label}: {point
+  `choice_node` field gets `ChoiceNodeSelect` in the form and a "{label}: {block
   title}" tag in the row, from `components/game-choices/ChoiceNodeField.jsx`,
   reading the owner's id from a context the component sets from its `ownerId`
   prop - and a
@@ -665,7 +673,7 @@ is a second place to keep in step.
 | `sources.js` | **not** related to `media_source`/`SourcesCard` despite the name — `fetchAllSources()` is the generic `{options, studios, publishers, people}` suggestion bag every Add/Modify dropdown (`ComboBox`, `SourcesEditor` included) draws from. `people` and `publishers` are **maps**, not flat lists: people fan out by `{role, scope}` and publishers by media type, one `/api/publisher/?scope=` request per scope, because a publisher is offered only where its `publisher_scope` rows say — a games publisher must not be suggested as an anime distributor. Studios stay a single flat list; they have no scope concept. Same naming collision as "label" - see [`CLAUDE.md`](../../CLAUDE.md) |
 | `enrich.js` | `enrichEntry(type, id)`: POST replace, re-read the entry, `null` on failure |
 | `relationLayout.js`, `relationHandles.js`, `relationUndo.js` | pure graph layout (union-find clusters on a hand-rolled grid; no dagre), handle geometry, undo stack |
-| `choiceLayout.js` | `choiceLayout(nodes, edges)` → `{positions, ranks, backEdges}`: a game's choice graph laid out top to bottom, pure and unit-tested. Roots are the `start` points (else the points nothing leads to, else the first); a depth-first walk marks back edges (returns), which are left out of ranking; a point's rank is its longest path; within a rank, points order by `sort_index`, then under their leftmost parent. `CHOICE_NODE_WIDTH` / `CHOICE_NODE_HEIGHT` fix the node size the pitch is computed from |
+| `choiceLayout.js` | `choiceLayout(nodes, edges, marks)` → `{blocks, branches, arrows}`: a game's choice graph laid out top to bottom, pure and unit-tested. Blocks and branches are both laid out as items, joined by block→branch, branch→next block and block→block (link) arrows. Roots are the `start` blocks (else the blocks nothing leads to, else the first); a depth-first walk marks back arrows (returns), which are left out of ranking; an item's rank is its longest path; within a rank a block orders by `sort_index` then under its leftmost parent, a branch under its block. Each item's size comes from its content - `sizeOf(item)` over `textWidth(text, charWidth)`, a full-width character counting double, within the `BLOCK` and `BRANCH` constants - and ranks and columns are spaced so nothing overlaps (`CHOICE_RANK_GAP`, `CHOICE_COLUMN_GAP`) |
 | `textFit.js` | width measurement for `FittedName` |
 | `clipboardImage.js` | copy an image to the clipboard (quotes/memes) |
 | `resourceTree.js` | The Resources tree's move arithmetic, pure: `findNode`, `parentIdOf`, `childrenOf`, `countDescendants`, `countByKind`, `flattenGroups`, `canDropInto` (refuses a group into itself or any descendant, and an item as a parent), `moveAmongSiblings` and `moveInto` (each returns the reorder body `{parent_id, ordered_ids}` - the complete new child list - or `null`), and `applyReorder` for the optimistic cache update |

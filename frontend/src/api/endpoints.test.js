@@ -192,6 +192,7 @@ describe("named endpoint groups", () => {
     expect(endpoints.gameChoice.createEdge()).toBe("/api/game-choice/edges");
     expect(endpoints.gameChoice.patchEdge("X")).toBe("/api/game-choice/edges/X");
     expect(endpoints.gameChoice.removeEdge("X")).toBe("/api/game-choice/edges/X");
+    expect(endpoints.gameChoice.nextPart("X")).toBe("/api/game-choice/edges/X/next");
     expect(endpoints.gameChoice.markEdge("X")).toBe("/api/game-choice/edges/X/mark");
   });
 

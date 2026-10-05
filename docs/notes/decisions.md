@@ -3045,9 +3045,53 @@ entry, and some of them are single on purpose, so each can be marked
   the tab's commit. Nodes and edges keep plain uuid identity: they are drawn
   by hand on one machine and travel, and a save's `choice_node` names a node
   by that uuid.
-- **Blank text is stored as NULL** on a node's description, an option's text
-  and a mark's note, so "no option text" has one representation, which the
-  page reads as "continues to".
-- **Left out: conditions on options** (flags, affection points) **and images
-  on points.** Each would be one more column on the tables above, so neither
-  shape is ruled out by this one.
+- **Blank text is stored as NULL** on every free-text column of the three
+  tables, so "no text" has one representation.
+- **Left out: images on blocks, and structured conditions** (a flag name, an
+  affection threshold the page could evaluate). A `condition` branch is text;
+  either would be one more column on the tables above.
+
+The first shape drew points (start, choice, scene, ending) joined by options
+- an arrow carrying its text. Revision `g2c3hbranch4` reshaped it, the same
+day, into blocks and branches:
+
+- **Branches are their own drawn items, with a nullable target.** The owner
+  wanted to grow the story from a choice: write the choice first, then add
+  the part it leads to - "+ next part" - rather than having to draw the
+  target block before the arrow that names it. An option that existed only as
+  an arrow between two existing points could not do that. So an edge row
+  became either a **branch**, which has a title and an optional description,
+  may exist leading nowhere (`to_node_id` NULL) and is drawn as a pill of its
+  own under its block, or a plain **link** from one block to another with no
+  text at all. `POST /edges/{id}/next` creates the next block and points the
+  branch at it in one transaction. Deleting a block a branch leads to keeps
+  the branch, leading nowhere again (`ON DELETE SET NULL`) - its title,
+  description and marks are somebody's writing - while a link into it is
+  deleted, since a link without a target means nothing. A branch may also
+  lead back to its own block ("ask again"); only a link is refused the
+  self-loop. The old `choice` and `scene` block kinds both became `part`: a
+  choice is now the branch, not the block before it.
+- **`condition` exists beside `choice`.** Not every split is the player's:
+  a roll, an earlier decision or an affection threshold sends the story one
+  way or the other without a menu. Drawn as a choice, it would claim a
+  decision the player never made. The two kinds share every rule and the
+  table's shape - only the icon and the wording differ - and a PATCH may
+  switch one to the other; a branch never becomes a link nor the reverse,
+  because the two have different invariants (a title; a target).
+- **Item sizes are computed from content, not measured.** Blocks and
+  branches now carry their description and the viewer's note as excerpts, so
+  a fixed node size either clipped a long title or wasted space on a short
+  one. React Flow can measure the rendered DOM, but only after a render, and
+  the layout has to run before it - ranks and columns are spaced by the
+  sizes - and has to stay a pure function the tests run without a DOM. So
+  `sizeOf` estimates width and height from the text (`textWidth`, a
+  full-width character counting double) within fixed clamps, and the
+  components apply exactly that size with the same paddings and line
+  heights; text the estimate falls short of is clamped, never overlapping.
+- **The revision is `irreversible = True`.** Folding `choice` and `scene`
+  into `part` keeps no record of which was which, so a downgrade cannot
+  restore the data, only an approximation of it (every part a `scene`, every
+  condition an option, branch descriptions dropped), and it cannot hold a
+  branch that leads nowhere or back to its own block at all. The platform's
+  rollback therefore must not run it; run by hand it refuses, changing
+  nothing, while either kind of branch exists.
