@@ -669,3 +669,89 @@ def test_section_out_reports_which_episode_text_sections_take_links():
     assert section_out(section_by_key("op_ed_changes"), "anime").takes_links is True
     for key in ("extended_episodes", "highlights", "questions"):
         assert section_out(section_by_key(key), "anime").takes_links is False
+
+
+# --- Manga chapter comments ------------------------------------------------
+
+
+def test_manga_chapter_comments_reuse_episode_comments():
+    # The same section anime's 各集評論 is, with manga's own label and locator.
+    section = section_by_key("episode_comments")
+    assert "manga" in section.owners
+    out = section_out(section, "manga")
+    assert out.label == "各話評論 Chapter Comments"
+    assert out.locator_placeholder == "Chapter, e.g. ch 1"
+    assert out.locator_required is True
+    assert out.group == "reviews"
+
+
+def test_manga_chapter_comment_accepted():
+    validate_note_payload(
+        _payload(
+            owner_type="manga",
+            section="episode_comments",
+            locator="ch 12",
+            content="伏筆回收",
+            links=["https://example.com/ch12"],
+        )
+    )
+
+
+def test_manga_chapter_comment_still_requires_a_chapter():
+    with pytest.raises(ValueError, match="requires a locator"):
+        validate_note_payload(
+            _payload(owner_type="manga", section="episode_comments", content="好看")
+        )
+
+
+# --- Resource groups -------------------------------------------------------
+
+
+def test_resources_kind_is_a_free_text_group():
+    assert section_by_key("resources").kind_is_group is True
+    assert section_out(section_by_key("resources"), "series").kind_is_group is True
+
+
+def test_resources_accept_a_group_on_every_owner_type():
+    from app.utils.note_sections import ALL_OWNERS
+
+    for owner_type in ALL_OWNERS:
+        validate_note_payload(
+            _payload(
+                owner_type=owner_type,
+                section="resources",
+                content=None,
+                title="官方設定集",
+                links=["https://example.com/artbook"],
+                kind="設定資料",
+            )
+        )
+
+
+def test_a_group_alone_is_still_an_empty_resource():
+    with pytest.raises(ValueError, match="empty"):
+        validate_note_payload(
+            _payload(section="resources", content=None, title=None, links=None,
+                     kind="設定資料")
+        )
+
+
+def test_kind_still_refused_on_a_section_without_the_group_flag():
+    # `extended_episodes` declares no kinds, no kind_category and no group
+    # flag, so the refusal below can only come from the kind check. Its
+    # mirror, the same payload with the kind dropped, must pass - or the
+    # refusal could be the row being invalid for some other reason.
+    section = section_by_key("extended_episodes")
+    assert not section.kinds and not section.kinds_by_owner
+    assert section.kind_category is None and section.kind_is_group is False
+    validate_note_payload(_payload(section="extended_episodes", locator="ep 12"))
+    with pytest.raises(ValueError, match="takes no kind"):
+        validate_note_payload(
+            _payload(section="extended_episodes", locator="ep 12", kind="設定資料")
+        )
+
+
+def test_only_resources_carry_the_group_flag():
+    from app.utils.note_sections import NOTE_SECTIONS
+
+    assert [s.key for s in NOTE_SECTIONS if s.kind_is_group] == ["resources"]

@@ -387,6 +387,11 @@ class NoteSection:
     # than closed to `kinds` - the Song Type of an OP or ED. Mutually
     # exclusive with `kinds`; checked at import.
     kind_category: str | None = None
+    # `kind` is a free-text group name the read view draws one heading per -
+    # Resources' optional Group. Nothing suggests it but the owner's own rows,
+    # and a group alone does not make a row worth storing. Mutually exclusive
+    # with `kinds` and `kind_category`; checked at import.
+    kind_is_group: bool = False
     # The system_option category suggesting a link pair's `text`. Only
     # meaningful where the section's links are pairs.
     link_text_category: str | None = None
@@ -781,13 +786,17 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="各集評論 Episode Comments",
         # Not h-game: its comments go in 評論 Reviews and Comments.
-        owners=("anime", "tv-show", "cartoon", "game"),
+        owners=("anime", "tv-show", "cartoon", "manga", "game"),
         scope=SCOPE_PERSONAL,
-        # A game is cut into chapters or parts rather than episodes, but the
-        # section is the same one: a comment on one segment of the work.
-        labels={"game": "各章評論 Part Reviews"},
+        # A manga is cut into chapters and a game into chapters or parts
+        # rather than episodes, but the section is the same one: a comment on
+        # one segment of the work.
+        labels={"manga": "各話評論 Chapter Comments", "game": "各章評論 Part Reviews"},
         locator_placeholder="Episode, e.g. ep 1",
-        locator_placeholders={"game": "Chapter / Part, e.g. Ch 3"},
+        locator_placeholders={
+            "manga": "Chapter, e.g. ch 1",
+            "game": "Chapter / Part, e.g. Ch 3",
+        },
         group="reviews",
     ),
     NoteSection(
@@ -1910,6 +1919,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         owners=ALL_OWNERS,
         scope=SCOPE_CATALOG,
         standalone=True,
+        # An optional Group per row; the card draws one heading per group.
+        kind_is_group=True,
     ),
     NoteSection(
         key="questions",
@@ -1985,6 +1996,12 @@ def _check_kind_category(section: NoteSection) -> None:
     if section.kind_category and (section.kinds or section.kinds_by_owner):
         raise ValueError(
             f"Section '{section.key}' declares both a kind_category and kinds."
+        )
+    if section.kind_is_group and (
+        section.kinds or section.kinds_by_owner or section.kind_category
+    ):
+        raise ValueError(
+            f"Section '{section.key}' makes kind a group and also declares kinds."
         )
 
 

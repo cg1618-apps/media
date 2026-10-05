@@ -174,6 +174,9 @@ class NoteSectionOut(BaseModel):
     # `kind` is free text suggested from this system_option category (the
     # Song Type of an OP or ED). Set only where `kinds` is empty.
     kind_category: Optional[str] = None
+    # `kind` is a free-text group name the card draws one heading per
+    # (Resources' Group). Set only where `kinds` is empty.
+    kind_is_group: bool = False
     # What a new row's `status` starts on.
     default_status: Optional[str] = None
     # At most one row per (owner, kind); a second is refused with a 422.
@@ -244,6 +247,7 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         link_pairs=uses_link_pairs(section),
         link_text_category=section.link_text_category,
         kind_category=section.kind_category,
+        kind_is_group=section.kind_is_group,
         default_status=section.default_status,
         one_per_kind=section.one_per_kind,
         hidden=section.hidden,
@@ -469,8 +473,9 @@ def validate_note_payload(payload: NoteBase) -> None:
 
     _check_links(section, payload.links)
 
-    # A kind_category makes `kind` free text: the category only suggests.
-    if payload.kind and not section.kind_category:
+    # A kind_category makes `kind` free text: the category only suggests. A
+    # group flag makes it free text too, with nothing to suggest from.
+    if payload.kind and not (section.kind_category or section.kind_is_group):
         allowed = kinds_for(section, owner_type)
         if not allowed:
             raise ValueError(
