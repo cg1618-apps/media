@@ -22,7 +22,7 @@ src/
   config/             registries and vocab tables (see "Config catalog")
   lib/                pure helpers (naming, dates, layout, payloads…)
   utils/              media.js barrel, planNext.js, statsUtils.js
-  components/         cards, hub, layout, forms, modals, plan, relations, tracker, info, charts
+  components/         cards, hub, layout, forms, modals, plan, relations, game-choices, tracker, info, charts
   pages/              public, detail, library (+configs), admin, add-tabs, modify-tabs,
                       defaults-tabs, notes (+sections), plan, statistics
   theme-tokens.test.js  guard against hard-coded greys
@@ -33,8 +33,9 @@ src/
 | Piece | What it does |
 |---|---|
 | `api/client.js` `fetchJson(url, init)` | `fetch` with `credentials: "include"`; parses JSON; **throws** on `!res.ok` with the server `detail`. There is no automatic redirect on 401 — a stale session surfaces as a thrown error. |
-| `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, announcements, watchOrder, mediaRelation, formDefaults, person, studio, credits, system, quotes, memes, resources (the Resources tree - plural, because `resource` is the media builder), dataControl. |
+| `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, announcements, watchOrder, mediaRelation, gameChoice, formDefaults, person, studio, credits, system, quotes, memes, resources (the Resources tree - plural, because `resource` is the media builder), dataControl. |
 | `api/mutations/useResourceMutations.js` | `useCreateResource`, `usePatchResource`, `useDeleteResource`, `useReorderResources`: `useMutation` wrappers for `/api/resources` that invalidate `RESOURCES_QUERY_KEY` (`["resources"]`) when they settle. The reorder one also applies the move to the cache first (`applyReorder`) and restores the previous tree on failure. |
+| `api/mutations/useGameChoiceMutations.js` | One game's choice graph. `useChoiceGraph(gameId)` reads `GET /api/game-choice/graph?game_id=` (idle without a game id) under `choiceGraphQueryKey(gameId)` = `["game-choice-graph", gameId]`; `useCreateChoiceNode`, `usePatchChoiceNode`, `useDeleteChoiceNode`, `useCreateChoiceEdge`, `usePatchChoiceEdge`, `useDeleteChoiceEdge` and `useSetChoiceMark` (`{target: "node" \| "edge", id, done, note}`, a PUT) each invalidate that key when they settle. No optimistic update: the graph is small and its layout a pure function of the rows. |
 | `hooks/useApiQuery(key, url, {params})` | `useQuery` wrapper; key becomes `[...key, params]` when params exist. |
 | `hooks/useMediaList(type, {params})` | List query keyed `["media-list", type, params]`; `LIST_OPTIONS = { params: { limit: 2000 } }` is the full-table convention. |
 | `hooks/useMediaItem(type, id)` | Detail query keyed by `mediaItemQueryKey`. |
@@ -49,7 +50,7 @@ src/
 
 Query defaults (`main.jsx`): `staleTime` 30 s, `retry` 1, no refetch on window
 focus. Query keys in use: `["media-list", type(, params)]`, media item keys,
-`["plan-next"]`, `["quotes-grouped"]`, `["memes-grouped"]`, `["resources"]`, `["announcements"]`,
+`["plan-next"]`, `["quotes-grouped"]`, `["memes-grouped"]`, `["resources"]`, `["game-choice-graph", gameId]`, `["announcements"]`,
 `["api","search",{q,scope}]`.
 
 Two data idioms still coexist: react-query hooks (libraries, detail pages,
@@ -456,11 +457,34 @@ not drawn. The character, person and studio libraries use it for
 - **`components/picker`** — `ModeStrip` (the random picker's All-plus-types strip: links on `/random`, buttons with an unsaved dot on `/random-defaults`) and `PickerWeights` (the picker's Weights tab, rendered from the tables in `lib/pickerWeights.js`).
 - **`components/relations`** — `RelationGraph`, `RelationNode`, `FanEdge`,
   `ConnectPopup`, `EdgeInspector`, `NodePanel`, `RelationForm`,
-  `RelationTypeFilter`.
+  `RelationTypeFilter`. `RelationGraph.jsx` also exports `tokenColor(name)`,
+  the hex behind a theme token read off `<html>` (React Flow's arrowhead
+  markers cannot resolve `var(...)`); the choice graph uses it too.
+- **`components/game-choices`** — a game's choice graph
+  ([systems/game-choices.md](../systems/game-choices.md)). `ChoiceGraphCard`
+  (the 分歧 Choices slip on the game and h-game pages: a still preview fitted
+  to view, the point and ending counts, "View all", and "Add the first point"
+  for a manage.catalog holder on an empty graph), `ChoiceGraphModal` (the
+  whole graph in a popup - pan, zoom, minimap, a side panel for the selected
+  point or option, the admin's edit controls and the viewer's own mark),
+  `ChoiceGraph` (drawing only: the rows in, positions from
+  `lib/choiceLayout.js`, every gesture out through a callback; `toFlow` maps
+  rows to React Flow nodes and edges), `ChoiceNode` and `ChoiceEdge` (one
+  point, one option), `ChoiceNodeField` (`ChoiceNodeSelect` and
+  `ChoiceNodeName`, a save's `choice_node` field in `StructuredSection`),
+  `useChoiceGraphView` (the graph query plus the viewer's saves from the
+  page's `NotesProvider`, through `useOptionalNotes`) and the pure helpers in
+  `choiceGraphData.js` (`CHOICE_KINDS`, `savesByNode`, `marksByTarget`,
+  `graphCounts`, `nodesByKind`, `saveLabel`).
 - **`components/charts`** — `BarChart` (div-based, vertical).
 - **`pages/notes`** — `NotesContext.jsx` holds the data (`NotesProvider`,
   `useNotes`): it fetches the registry and the rows, owns the mutations, and
-  dispatches a section on its shape. `NotesTemplate.jsx` holds the layout —
+  dispatches a section on its shape. Its value also carries `notes`,
+  `ownerType`, `ownerId` and `reloadNotes`, for a card outside the notes
+  layout that reads the page's rows - the choice graph badges its points with
+  the viewer's saves and reloads them after deleting a point.
+  `useOptionalNotes()` is `useNotes()` that answers null outside a provider,
+  for a component that may sit on a notes page or off it. `NotesTemplate.jsx` holds the layout —
   `NotesBlocks` (every card, minus `hideSections` / `hideGroups`), `NotesGroup`
   (one group's sections with no card, for a screen placing it elsewhere) and
   the default export that wraps a provider around blocks. The split exists for
@@ -520,10 +544,14 @@ not drawn. The character, person and studio libraries use it for
   whole tree depth-first (the reorder
   endpoint takes ids naming exactly the section, so a sibling-only payload is
   refused). Its owners are thirteen 攻略 sections, both 劇情 plot sections, the
-  four 劇情列表 strands, the standalone `guide_resources` card and 亮點
+  four 劇情列表 strands, the standalone `guide_resources` card, 存檔 Saves and 亮點
   Highlights; `docs/systems/notes.md` lists each one's spec. Two registry
   features are rendered here and named nowhere else: a `names` field gets
-  `NamesInput` (several free-text names, suggesting `nameSuggestions`), and a
+  `NamesInput` (several free-text names, suggesting `nameSuggestions`) - and a
+  `choice_node` field gets `ChoiceNodeSelect` in the form and a "{label}: {point
+  title}" tag in the row, from `components/game-choices/ChoiceNodeField.jsx`,
+  reading the owner's id from a context the component sets from its `ownerId`
+  prop - and a
   section with `group_by` reads as one group per name (`groupedRows.js`), the
   groups reorderable by the grip on each header (drag, or ArrowUp / ArrowDown)
   through `onGroupOrderChange` - every group grip disabled until the owner's
@@ -636,7 +664,8 @@ is a second place to keep in step.
 | `status.js` | status button configs (`getStatusButtonConfig`, `getReadingButtonConfig`, `getPlayingButtonConfig`) and `getCardStatusConfig(type, status)`, which picks between them from two `Set`s (`READ_TYPES`, `PLAY_TYPES`) rather than a chain of `||` — a tenth media type is one entry, not another ternary arm |
 | `sources.js` | **not** related to `media_source`/`SourcesCard` despite the name — `fetchAllSources()` is the generic `{options, studios, publishers, people}` suggestion bag every Add/Modify dropdown (`ComboBox`, `SourcesEditor` included) draws from. `people` and `publishers` are **maps**, not flat lists: people fan out by `{role, scope}` and publishers by media type, one `/api/publisher/?scope=` request per scope, because a publisher is offered only where its `publisher_scope` rows say — a games publisher must not be suggested as an anime distributor. Studios stay a single flat list; they have no scope concept. Same naming collision as "label" - see [`CLAUDE.md`](../../CLAUDE.md) |
 | `enrich.js` | `enrichEntry(type, id)`: POST replace, re-read the entry, `null` on failure |
-| `relationLayout.js`, `relationHandles.js`, `relationUndo.js` | pure graph layout (union-find contraction, dagre), handle geometry, undo stack |
+| `relationLayout.js`, `relationHandles.js`, `relationUndo.js` | pure graph layout (union-find clusters on a hand-rolled grid; no dagre), handle geometry, undo stack |
+| `choiceLayout.js` | `choiceLayout(nodes, edges)` → `{positions, ranks, backEdges}`: a game's choice graph laid out top to bottom, pure and unit-tested. Roots are the `start` points (else the points nothing leads to, else the first); a depth-first walk marks back edges (returns), which are left out of ranking; a point's rank is its longest path; within a rank, points order by `sort_index`, then under their leftmost parent. `CHOICE_NODE_WIDTH` / `CHOICE_NODE_HEIGHT` fix the node size the pitch is computed from |
 | `textFit.js` | width measurement for `FittedName` |
 | `clipboardImage.js` | copy an image to the clipboard (quotes/memes) |
 | `resourceTree.js` | The Resources tree's move arithmetic, pure: `findNode`, `parentIdOf`, `childrenOf`, `countDescendants`, `countByKind`, `flattenGroups`, `canDropInto` (refuses a group into itself or any descendant, and an item as a parent), `moveAmongSiblings` and `moveInto` (each returns the reorder body `{parent_id, ordered_ids}` - the complete new child list - or `null`), and `applyReorder` for the optimistic cache update |

@@ -26,7 +26,14 @@
 //     groups follow the rows' `sort_index`, so moving a group or a row within
 //     one saves the whole section's row order through `onReorder`.
 // None of them names a section: any section declaring them gets them.
-import { useState } from "react";
+//
+// And one field type points outside the notes: a `choice_node` field (a save's
+// "At node") names a point in the owner game's choice graph. It is edited as a
+// select of that game's points and read as the point's title, both drawn by
+// components/game-choices/ChoiceNodeField. The game's id is the owner id the
+// provider hands in, held in a context here so it does not have to be threaded
+// through every form and row.
+import { createContext, useContext, useState } from "react";
 
 import {
   DragHandle,
@@ -34,6 +41,10 @@ import {
   SortableList,
   arrayMove,
 } from "../../../components/ui/Sortable";
+import {
+  ChoiceNodeName,
+  ChoiceNodeSelect,
+} from "../../../components/game-choices/ChoiceNodeField";
 import NamesInput from "./NamesInput";
 import {
   groupNotes,
@@ -60,6 +71,9 @@ import {
   tagCls,
   useEntryCap,
 } from "./ui";
+
+// The owner's id, for a `choice_node` field: the game whose points it offers.
+const OwnerIdContext = createContext(null);
 
 const isBlank = (v) =>
   v == null ||
@@ -273,6 +287,19 @@ function ScalarInput({ field, value, onChange, ariaLabel }) {
   );
 }
 
+function ChoiceNodeInput({ field, value, onChange }) {
+  const ownerId = useContext(OwnerIdContext);
+  return (
+    <ChoiceNodeSelect
+      field={field}
+      gameId={ownerId}
+      value={value}
+      onChange={onChange}
+      className={inputCls}
+    />
+  );
+}
+
 function StructuredForm({ section, val, setVal, nameSuggestions }) {
   return (
     <div className="space-y-2">
@@ -292,6 +319,16 @@ function StructuredForm({ section, val, setVal, nameSuggestions }) {
         if (field.type === "links") {
           return (
             <LinksEditor key={field.key} links={val[field.key]} onChange={set} />
+          );
+        }
+        if (field.type === "choice_node") {
+          return (
+            <ChoiceNodeInput
+              key={field.key}
+              field={field}
+              value={val[field.key]}
+              onChange={set}
+            />
           );
         }
         if (field.type === "list") {
@@ -466,11 +503,15 @@ function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy 
     (f) => f.type === "textarea" && !isBlank(readValue(f, note)),
   );
   const quick = section.fields.filter((f) => f.quick_edit);
+  const choiceNodes = section.fields.filter(
+    (f) => f.type === "choice_node" && !isBlank(readValue(f, note)),
+  );
+  const ownerId = useContext(OwnerIdContext);
 
   return (
     <div className="flex-1 min-w-0 space-y-1">
       {/* Booleans, not lengths: `0 && ...` renders the 0. */}
-      {(heading || tags.length > 0 || quick.length > 0) && (
+      {(heading || tags.length > 0 || quick.length > 0 || choiceNodes.length > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {heading && (
             <span className="text-sm text-text font-medium">
@@ -489,6 +530,15 @@ function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy 
               note={note}
               isAdmin={isAdmin}
               onUpdate={onUpdate}
+            />
+          ))}
+          {choiceNodes.map((f) => (
+            <ChoiceNodeName
+              key={f.key}
+              field={f}
+              gameId={ownerId}
+              value={readValue(f, note)}
+              tagCls={tagCls}
             />
           ))}
         </div>
@@ -798,7 +848,16 @@ function useGroupToggle(sectionKey) {
   return [on, set];
 }
 
-export default function StructuredSection({
+// `ownerId` is the owner row's id, which only a `choice_node` field reads.
+export default function StructuredSection({ ownerId = null, ...props }) {
+  return (
+    <OwnerIdContext.Provider value={ownerId}>
+      <StructuredSectionBody {...props} />
+    </OwnerIdContext.Provider>
+  );
+}
+
+function StructuredSectionBody({
   section,
   notes,
   isAdmin,

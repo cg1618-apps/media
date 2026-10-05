@@ -246,6 +246,15 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     "Game Copy": (
         "user_id", "game_id", "storefront", "copy_format",
     ),  # uq_game_copy_row
+    # Marks are written through the page on each machine, so the same
+    # person's mark on the same node carries a different system_id here and
+    # there. user_id is resolved below, as Game Copy's is, and node_id /
+    # edge_id are plain uuids that travel - so the natural key is what the two
+    # partial unique indexes name. Exactly one of node_id / edge_id is set; the
+    # other compares IS NULL.
+    "Game Choice Mark": (
+        "user_id", "node_id", "edge_id",
+    ),  # uq_game_choice_mark_node / uq_game_choice_mark_edge
 }
 
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
@@ -1025,12 +1034,15 @@ def execute_pull_specific(
                 clean_header_dict["author_id"] = _restore_owner_id(db)
 
         # A copy row belongs to whoever bought it (Task 19). The sheet holds
-        # one person's collection and carries no owner column, so the acting
-        # user owns every row it restores - and a stale user_id that a Backup
-        # did write is ignored rather than trusted, because it names a uuid
-        # from whichever database wrote it. Runs before the natural-key match,
-        # which now keys on user_id.
-        if tab_name == "Game Copy":
+        # one person's collection, so every row it restores is filed under the
+        # installation owner (installation_owner_id - not whoever runs the
+        # Pull) - and a stale user_id that a Backup did write is ignored
+        # rather than trusted, because it names a uuid from whichever database
+        # wrote it. Runs before the natural-key match, which keys on user_id.
+        #
+        # A Game Choice Mark is personal in the same way and restored the same
+        # way: the installation owner holds every mark the sheet carries.
+        if tab_name in ("Game Copy", "Game Choice Mark"):
             owner = installation_owner_id(db)
             if owner is None:
                 rows_skipped += 1

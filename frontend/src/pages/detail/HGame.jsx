@@ -45,6 +45,7 @@ import { useToast } from "../../hooks/useToast";
 import { entityPath } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
+import ChoiceGraphCard from "../../components/game-choices/ChoiceGraphCard";
 import { NotesProvider } from "../notes/NotesContext";
 import { NotesBlocks, NotesGroup } from "../notes/NotesTemplate";
 import { GameCopiesSection, yesNo } from "./Game";
@@ -441,6 +442,12 @@ export default function HGame() {
                 <NotesGroup groupKey="todo" />
               </div>
             </Slip>
+
+            {/* The choice graph: a shared map of the options and where they
+              lead, with the viewer's saves (from 待辦 above) pinned to its
+              points. Its own card, inside the NotesProvider so the saves are
+              there to read. */}
+            <ChoiceGraphCard gameId={hGame.system_id} title={titleMain} />
 
             <div className="space-y-6">
               <NamingCard type="h-game" item={hGame} />

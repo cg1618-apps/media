@@ -40,6 +40,7 @@ from app.routers import (
     franchise,
     fx_rates,
     game,
+    game_choice,
     h_comic,
     h_game,
     health,
@@ -272,6 +273,7 @@ app.include_router(hentai.router)
 app.include_router(h_game.router)
 app.include_router(watch_order.router)
 app.include_router(media_relation.router)
+app.include_router(game_choice.router)
 app.include_router(plan_next.router)
 app.include_router(quote.router)
 app.include_router(meme.router)

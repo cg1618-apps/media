@@ -20,6 +20,7 @@ import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import GameCompletionBlock from "../../components/tracker/GameCompletionBlock";
+import ChoiceGraphCard from "../../components/game-choices/ChoiceGraphCard";
 import { NotesProvider } from "../notes/NotesContext";
 import { NotesBlocks, NotesGroup } from "../notes/NotesTemplate";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
@@ -505,6 +506,12 @@ export default function Game() {
                 <NotesGroup groupKey="todo" />
               </div>
             </Slip>
+
+            {/* The choice graph: a shared map of the options and where they
+              lead, with the viewer's saves (from 待辦 above) pinned to its
+              points. Its own card, inside the NotesProvider so the saves are
+              there to read. */}
+            <ChoiceGraphCard gameId={game.system_id} title={titleMain} />
 
             <div className="space-y-6">
               <NamingCard type="game" item={game} />

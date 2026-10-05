@@ -104,13 +104,49 @@ def test_saves_is_a_personal_structured_game_section():
 
 def test_a_save_is_number_name_checkpoint_note_and_the_slot_it_came_from():
     fields = {f.key: f for f in ns.section_by_key("saves").fields}
-    assert list(fields) == ["number", "name", "checkpoint", "note", "based_on"]
+    assert list(fields) == [
+        "number", "name", "checkpoint", "note", "based_on", "choice_node",
+    ]
     assert fields["number"].column == "locator"
     assert fields["name"].column == "title"
     assert fields["note"].column == "content"
     # Not a column: no `note` column means "the slot this one was copied
     # from", so it is stored in the `fields` blob.
     assert fields["based_on"].column is None
+
+
+def test_a_save_may_sit_on_a_node_of_the_choice_graph():
+    field = {f.key: f for f in ns.section_by_key("saves").fields}["choice_node"]
+    assert field.label == "At node"
+    assert field.type == ns.FIELD_CHOICE_NODE == "choice_node"
+    # In `fields`, like based_on: no `note` column holds a node id.
+    assert field.column is None
+
+
+def test_a_choice_node_must_be_a_uuid():
+    # Whether it names a node of THIS game needs a query, so the router owns
+    # that half; the schema refuses what cannot be an id at all.
+    with pytest.raises(ValueError):
+        validate_note_payload(
+            NoteCreate(
+                owner_type="game",
+                owner_id=None,
+                section="saves",
+                locator="1",
+                kind="regular",
+                fields={"choice_node": "the fork"},
+            )
+        )
+    validate_note_payload(
+        NoteCreate(
+            owner_type="game",
+            owner_id=None,
+            section="saves",
+            locator="1",
+            kind="regular",
+            fields={"choice_node": "8d0f6c1e-4b7a-4c55-9d43-2f6f0b8e1a11"},
+        )
+    )
 
 
 def test_both_slot_fields_say_which_slot_they_mean():

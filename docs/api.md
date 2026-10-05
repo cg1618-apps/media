@@ -48,6 +48,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [H-Game — `/api/h-game`](#h-game--apih-game)
 - [Watch Order — `/api/watch-order`](#watch-order--apiwatch-order)
 - [Media Relation — `/api/media-relation`](#media-relation--apimedia-relation)
+- [Game Choice — `/api/game-choice`](#game-choice--apigame-choice)
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
 - [Quote — `/api/quote`](#quote--apiquote)
 - [Meme — `/api/meme`](#meme--apimeme)
@@ -749,6 +750,40 @@ from either end without a second copy of the kind vocabulary.
 
 ---
 
+## Game Choice — `/api/game-choice`
+
+One game's choice graph - its points (nodes), the options between them
+(edges) - and each viewer's own marks on either. Router
+`app/routers/game_choice.py`, schemas `app/schemas/game_choice.py`; the
+system is [systems/game-choices.md](systems/game-choices.md). Kept apart from
+the generic media factory, as Media Relation is.
+
+Every route needs the game visible to the caller (`require_visible_media`): a
+hidden or unknown game answers **404 "Game not found."**, and a visible entry
+of any type but `game` or `h-game` answers **422**. Graph writes need
+`manage.catalog`; a mark needs a signed-in account holding
+`self.personal_notes`, which the root flag does not grant - so the `admin`
+account cannot write marks and reads none. The tables' `system_id` is sent as
+`id` in every response.
+
+| Method   | Path                    | Auth | Description |
+| -------- | ----------------------- | -------- | ----------- |
+| `GET`    | `/graph?game_id=`       | Public   | `GameChoiceGraphResponse` `{nodes, edges, marks}`. Nodes and edges each ordered by `sort_index`, then creation. `marks` holds only the caller's own rows, and is `[]` for a caller without `self.personal_notes` (a guest, the `admin` account). Saves are **not** sent: the page reads the viewer's own `saves` notes from `/api/notes`. |
+| `POST`   | `/nodes`                | `manage.catalog` | Create (201). Body `GameChoiceNodeCreate`: `game_id`, `kind`, `title`, `content?`, `sort_index?`. 422 on an unknown `kind` or a blank `title`. Title is trimmed; blank `content` is stored as `null`. |
+| `PATCH`  | `/nodes/{node_id}`      | `manage.catalog` | Partial update of `kind`, `title`, `content`, `sort_index` (`GameChoiceNodeUpdate`, only the keys sent). A node never moves to another game. |
+| `DELETE` | `/nodes/{node_id}`      | `manage.catalog` | **204**. Logs the node, and every edge touching it, to `deleted_record` (types "Game Choice Node" / "Game Choice Edge"); the edges and every mark on the node or on those edges go by foreign key; `choice_node` is removed from the `fields` of every note naming the node, other users' saves included. One transaction. |
+| `PUT`    | `/nodes/{node_id}/mark` | `self.personal_notes` | The caller's whole mark on one node. Body `GameChoiceMarkWrite` `{done, note?}`. An upsert; `done: false` with a blank note deletes the row, and the response then carries `id: null`. Response `GameChoiceMarkResponse` `{id, node_id, edge_id, done, note}`. |
+| `POST`   | `/edges`                | `manage.catalog` | Create (201). Body `GameChoiceEdgeCreate`: `game_id`, `from_node_id`, `to_node_id`, `option?`, `sort_index?`. 422 "An option cannot lead back to its own node." for a self-loop; 422 "Both ends of an option must be nodes of the same game." when either end is missing or belongs to another game. Rejoins and cycles are accepted. Blank `option` is stored as `null` ("continues to"). |
+| `PATCH`  | `/edges/{edge_id}`      | `manage.catalog` | `option` and `sort_index` only (`GameChoiceEdgeUpdate`). Repointing an arrow is deleting it and drawing the right one. |
+| `DELETE` | `/edges/{edge_id}`      | `manage.catalog` | **204**. Logs to `deleted_record` as type "Game Choice Edge"; its marks go by foreign key. The two nodes are untouched. |
+| `PUT`    | `/edges/{edge_id}/mark` | `self.personal_notes` | The same as the node mark, for one option. |
+
+A path id that is not a uuid, or names no row, answers **404** ("Node not
+found." / "Edge not found."). A mark route answers **401** "You may not write
+personal notes." before it looks the node up.
+
+---
+
 ## Plan Next — `/api/plan-next`
 
 What is queued to watch or read (kind `next`), or marked for rewatch/reread
@@ -983,7 +1018,9 @@ entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
 `locator_required`, `takes_links` (an `episode_text` section whose rows also
 carry URL-string links - `op_ed_changes`), `singleton`, `desc_required`, and for a structured section
 `fields` - each field's `type` may be `names`, a list of strings stored under
-`fields[key]` - `require_any`, `hierarchical`, `group_by` (the `names` field
+`fields[key]`, or `choice_node`, the uuid of a node of the owner game's choice
+graph, also under `fields[key]` (a value naming another game's node, or none,
+is a 422 on POST and PATCH) - `require_any`, `hierarchical`, `group_by` (the `names` field
 the read view groups by, or `null`), `groupable_by` (the `select` field the
 reader may toggle a one-group-per-value view on, or `null`), `owner_where` (`{owner column:
 [allowed values]}`, `{}` for none), and the music-group fields: `link_pairs`

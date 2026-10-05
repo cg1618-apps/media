@@ -69,6 +69,17 @@ from app.schemas.game import (
     GameSheetSync,
     GameUpdate,
 )
+from app.schemas.game_choice import (
+    GameChoiceEdgeCreate,
+    GameChoiceEdgeResponse,
+    GameChoiceEdgeUpdate,
+    GameChoiceGraphResponse,
+    GameChoiceMarkResponse,
+    GameChoiceMarkWrite,
+    GameChoiceNodeCreate,
+    GameChoiceNodeResponse,
+    GameChoiceNodeUpdate,
+)
 from app.schemas.h_comic import (
     HComicBase,
     HComicCreate,
@@ -436,6 +447,15 @@ __all__ = [
     "RelationGraphNode",
     "RelationGraphEdge",
     "RelationGraphResponse",
+    "GameChoiceEdgeCreate",
+    "GameChoiceEdgeResponse",
+    "GameChoiceEdgeUpdate",
+    "GameChoiceGraphResponse",
+    "GameChoiceMarkResponse",
+    "GameChoiceMarkWrite",
+    "GameChoiceNodeCreate",
+    "GameChoiceNodeResponse",
+    "GameChoiceNodeUpdate",
     "QuoteBase",
     "QuoteCreate",
     "QuoteUpdate",

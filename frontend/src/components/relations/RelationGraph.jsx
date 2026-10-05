@@ -75,7 +75,7 @@ export const FAMILY_STYLE = {
 // The hex behind a token, read off <html> so the current theme's value wins.
 // ReactFlow's arrowhead markers are SVG defs that cannot resolve `var(...)`,
 // which is why the value is looked up here rather than written as a variable.
-function tokenColor(name) {
+export function tokenColor(name) {
   if (typeof window === "undefined" || typeof getComputedStyle !== "function") return "#888";
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || "#888";
