@@ -1045,13 +1045,15 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # URL links.
         #
         # Every entry type outside the gated ones: any work can hide a
-        # reference. For a game it sits in 評論 Reviews, right after 解析
-        # Analysis, which moved there for the same reason - a game has no
-        # 解析 card of its own.
+        # reference. Series and franchise too, like Foreshadowing beside it:
+        # a reference that recurs across a whole series is noted once, on the
+        # series, and each entry shows it under its own rows. For a game it
+        # sits in 評論 Reviews, right after 解析 Analysis, which moved there
+        # for the same reason - a game has no 解析 card of its own.
         key="easter_eggs",
         shape=SHAPE_TEXT_LINKS,
         label="彩蛋/致敬 Easter Eggs/References",
-        owners=_all_but(ENTRY_OWNERS, *H_OWNERS),
+        owners=_all_but(ENTRY_OWNERS, *H_OWNERS) + _SERIES_AND_UP,
         scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
         locator_placeholders={

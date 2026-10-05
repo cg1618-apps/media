@@ -185,8 +185,10 @@ def test_easter_eggs_is_text_links_like_the_rest_of_analysis():
     )
 
 
-def test_easter_eggs_reaches_every_unrestricted_media_type():
-    # Every entry type outside the gated ones, and no grouping tier.
+def test_easter_eggs_reaches_every_unrestricted_media_type_and_the_tiers():
+    # Every entry type outside the gated ones, then series and franchise like
+    # the rest of 解析 - a reference planted across a whole series is noted
+    # once, on the series. Not collection, which has no 解析 beyond analysis.
     assert ns.section_by_key("easter_eggs").owners == (
         "anime",
         "anime-movie",
@@ -197,7 +199,17 @@ def test_easter_eggs_reaches_every_unrestricted_media_type():
         "novel",
         "comic",
         "game",
+        "series",
+        "franchise",
     )
+
+
+def test_series_and_franchise_hold_foreshadowing_and_easter_eggs():
+    for tier in ("series", "franchise"):
+        keys = {s.key for s in ns.sections_for(tier)}
+        assert {"foreshadowing", "easter_eggs"} <= keys
+        # In the 解析 card, not 評論 - only game moves easter eggs there.
+        assert ns.group_for(ns.section_by_key("easter_eggs"), tier) == "analysis_group"
 
 
 def test_easter_eggs_asks_for_the_locator_each_type_has():
