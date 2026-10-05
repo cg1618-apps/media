@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-04
+Last verified: 2026-10-05
 
 ## What this is for
 
@@ -2988,3 +2988,66 @@ entry, and some of them are single on purpose, so each can be marked
 - **Ungrouped rows go last, under "Other".** The owner's choice over drawing
   them first with no heading: once some rows are grouped, an unlabelled run
   at the top reads as a group whose heading is missing.
+
+### A game's choice graph is three tables; the graph is shared, the marks personal (2026-10-05)
+
+- **Its own tables, not note rows.** The owner pointed at the relation
+  system as the model, and the reason that system has its own table applies
+  here too. The cheaper shape was considered: points as `note` rows in a new
+  catalogue section, and each point's options as a JSONB list on it. It would
+  have added no table and no Sheets tab. It loses on integrity: an option is
+  a row that names two other rows, and in JSONB nothing removes it when
+  either end is deleted, so every delete would have to scan and rewrite its
+  sibling notes, and one missed path leaves arrows into nothing. As tables,
+  an edge's two ends are foreign keys with `ON DELETE CASCADE`, a self-loop is
+  a CHECK, and the one cross-row rule a CHECK cannot state - both ends
+  belong to the edge's game - is a router check with a test. The cost, stated
+  plainly: three Sheets tabs ("Game Choice Node", "Game Choice Edge", "Game
+  Choice Mark") and their place in the restore order - the price every new
+  table pays, since data travels between the machines by tab.
+- **One shared graph per game; marks and notes on it are personal.** The
+  owner's choice. What a game's story offers is a fact about the game, so it
+  is catalogue data written under `manage.catalog`, like a relation. Whether
+  you have reached an ending, and what you thought of a choice, is yours: the
+  done tick and the note are a `game_choice_mark` row per user under
+  `self.personal_notes`, the personal-note gate, so the `admin` account holds
+  none, and the graph read returns only the viewer's own. The point's shared
+  description stays on the node beside them. A mark is a table rather than a
+  personal note section because it hangs off a node or an edge, and the same
+  integrity argument applies: deleting a point must take every mark on it.
+- **Layout is computed; no positions are stored.** The relations canvas keeps
+  hand-dragged positions in memory and tidies on request; a choice graph has
+  an order of its own - where the story starts, which branch leads where, how
+  far down an ending is - so the layout can be read off the rows (start at the
+  top, longest path down, returns drawn as returns), and a stored position
+  would be one more thing to travel by Sheets and to fall out of step when a
+  point is added between two others. `sort_index` is the one hand-set input,
+  ordering points within a layer and options out of a point. Points are not
+  draggable, because a dragged point would jump back on the next refetch.
+- **The save link lives in `note.fields`.** A save is already a personal
+  structured note whose leftover fields (`based_on`) live in `fields`, and
+  `fields` already travels on the Note tab, so the link needed no column, no
+  migration of `note` and no reshape of the tab. A new structured field type,
+  `choice_node`, gives it a select of the game's points and a check that the
+  uuid names a node of the note's own game. The price is that the database
+  cannot cascade into JSONB, so deleting a point strips `choice_node` from
+  every note naming it in the same transaction - including other users'
+  saves, which is correct, since the point they named is gone. The graph
+  endpoint deliberately sends no saves: the page already holds the viewer's
+  own, so the notes router stays the one place deciding whose saves a viewer
+  sees.
+- **Marks Pull onto the installation owner, as Game Copy does.** A mark is
+  personal and the sheet's `user_id` names a uuid from whichever database
+  wrote it. Marks are written on each machine, so the same mark has a
+  different `system_id` on each; the natural key `(user_id, node_id,
+  edge_id)` - the pair the two partial unique indexes name - folds them
+  together instead of inserting a duplicate that the index would refuse at
+  the tab's commit. Nodes and edges keep plain uuid identity: they are drawn
+  by hand on one machine and travel, and a save's `choice_node` names a node
+  by that uuid.
+- **Blank text is stored as NULL** on a node's description, an option's text
+  and a mark's note, so "no option text" has one representation, which the
+  page reads as "continues to".
+- **Left out: conditions on options** (flags, affection points) **and images
+  on points.** Each would be one more column on the tables above, so neither
+  shape is ruled out by this one.

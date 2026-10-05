@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-10-01
+Last verified: 2026-10-05
 
 ## What this is for
 
@@ -294,7 +294,7 @@ handed the catalogue, or vice versa:
 | Name | Meaning | Source of keys |
 |---|---|---|
 | `admin.authz` | may **change who may do what** — roles, accounts, and the content-label **vocabulary** (minting, renaming, deleting a label) | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
-| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, catalogue notes, the Resources page, and **which labels an entry or franchise carries** | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, a game's choice graph, catalogue notes, the Resources page, and **which labels an entry or franchise carries** | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
 | `field_group.<key>` | may see the fields in one `FIELD_GROUPS` entry | `app/services/rbac/field_groups.py` |
@@ -360,7 +360,10 @@ the defaults, so an admin who narrowed guest gets a `user` role narrowed the
 same way.
 
 `self.personal_notes` is what `app/routers/note.py` requires of every
-personal-scope note write. See [Note scope](#note-scope) below.
+personal-scope note write, and what `app/routers/game_choice.py` requires of
+a done mark or personal note on a point or option of a game's choice graph
+([systems/game-choices.md](systems/game-choices.md)). See
+[Note scope](#note-scope) below.
 
 ### Field groups
 
@@ -860,6 +863,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | plan-next rows | `routers/plan_next.py` |
 | the Resources page | `routers/resources.py` — nothing to filter: a node names no entry, franchise or label, so every viewer reads the whole tree (the Quote list's gate, `get_viewer`) and every write is `require_manage_catalog` |
 | relations `for-entry`, `scope`, `graph` | `routers/media_relation.py` — hidden anchor → 404; an edge naming a hidden entry is dropped whole; graph is viewer-filtered |
+| a game's choice graph and its marks | `routers/game_choice.py` (`require_visible_media`) — a hidden game → 404 "Game not found." on the read and on every write; graph writes are `require_manage_catalog`, marks need `self.personal_notes` and the read returns only the viewer's own |
 | attaching an image to a media entry or an entity | `routers/images.py` → 404 "Entry not found." An entity owner is asked through `shared_record_visible`; quote/meme owners carry no label and are not checked |
 | serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404. The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible`; its folder is read from the path, which is safe because the folder names the file |
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
@@ -1084,7 +1088,7 @@ Two rules that are **not** this one:
 
 An administrative account administers the site. It does not keep a library on
 it — no list rows, no plan queue, no season ratings, no game copies, no
-personal notes.
+personal notes, no marks on a game's choice graph.
 
 **The rule is one condition in `Viewer.has()`: the root short-circuit
 does not cover the `self` family.** `self.list` and `self.personal_notes` are

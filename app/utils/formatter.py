@@ -1283,6 +1283,63 @@ def parse_game_copy_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_game_choice_node_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Game Choice Node sheet into typed data
+    ready for the Database.
+
+    Plain uuid identity: a node is created by hand on one machine and travels
+    with its uuid, which is also what a save's `choice_node` names.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "game_id": _uuid_or_none(raw.get("game_id")),
+        "kind": parse_from_sheet(raw.get("kind"), str),
+        "title": parse_from_sheet(raw.get("title"), str),
+        "content": parse_from_sheet(raw.get("content"), str),
+        "sort_index": parse_from_sheet(raw.get("sort_index"), int) or 0,
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_game_choice_edge_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Game Choice Edge sheet into typed data
+    ready for the Database. Both ends are real foreign keys onto the node tab,
+    which restores first.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "game_id": _uuid_or_none(raw.get("game_id")),
+        "from_node_id": _uuid_or_none(raw.get("from_node_id")),
+        "to_node_id": _uuid_or_none(raw.get("to_node_id")),
+        "option": parse_from_sheet(raw.get("option"), str),
+        "sort_index": parse_from_sheet(raw.get("sort_index"), int) or 0,
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_game_choice_mark_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Game Choice Mark sheet into typed data
+    ready for the Database. user_id is parsed but not trusted: Pull replaces
+    it with the installation owner, as it does for Game Copy.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "user_id": _uuid_or_none(raw.get("user_id")),
+        "game_id": _uuid_or_none(raw.get("game_id")),
+        "node_id": _uuid_or_none(raw.get("node_id")),
+        "edge_id": _uuid_or_none(raw.get("edge_id")),
+        "done": bool(parse_from_sheet(raw.get("done"), bool)),
+        "note": parse_from_sheet(raw.get("note"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_system_option_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Options sheet into typed data ready for the Database.

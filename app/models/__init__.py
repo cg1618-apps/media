@@ -30,6 +30,7 @@ from app.models.content_label import (
 )
 from app.models.franchise import Franchise, Series
 from app.models.game import Game
+from app.models.game_choice import GameChoiceEdge, GameChoiceMark, GameChoiceNode
 from app.models.game_copy import GameCopy
 from app.models.h_comic import HComic
 from app.models.h_game import HGame
@@ -102,6 +103,9 @@ __all__ = [
     "Comic",
     "Game",
     "GameCopy",
+    "GameChoiceNode",
+    "GameChoiceEdge",
+    "GameChoiceMark",
     "HComic",
     "Hentai",
     "HGame",

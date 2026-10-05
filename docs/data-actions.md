@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-04
+Last verified: 2026-10-05
 
 ## What this is for
 
@@ -31,7 +31,7 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (48 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (51 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -66,9 +66,10 @@ List** tab instead, and the twelve media tabs' parsers do not emit them.
 
 The restore order follows from that: `users` and every media tab must land
 before **User Media List**, because a list row is keyed by `(user_id,
-media_id)` and resolves both by natural key. **Game Copy** is restored to the
-acting user rather than to whatever `user_id` the sheet carries, since a uuid
-in the sheet names whichever database wrote it.
+media_id)` and resolves both by natural key. **Game Copy** and
+**Game Choice Mark** are restored to the installation owner rather than to
+whatever `user_id` the sheet carries, since a uuid in the sheet names
+whichever database wrote it.
 
 `SHEET_TABS` is the single list Backup writes and Pull restores.
 
@@ -92,7 +93,7 @@ Person / Studio / Publisher / Character / Content Label -> the media tabs
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
-`Seasonal` and `Game Copy` all carry a NOT NULL `user_id`. The enforcement is
+`Seasonal`, `Game Copy` and `Game Choice Mark` all carry a NOT NULL `user_id`. The enforcement is
 `tests/api/test_sheet_restore_order.py`; move the tab rather than weaken the
 test.
 
@@ -129,25 +130,28 @@ test.
 | 27 | `Comic` | `Comic` | `comic` |
 | 28 | `Game` | `Game` | `game` |
 | 29 | `Game Copy` | `GameCopy` |  |
-| 30 | `H-Comic` | `HComic` | `h-comic` |
-| 31 | `Hentai` | `Hentai` | `hentai` |
-| 32 | `H-Game` | `HGame` | `h-game` |
-| 33 | `User Media List` | `UserMediaList` |  |
-| 34 | `Watch Order List` | `WatchOrderList` |  |
-| 35 | `Watch Order Section` | `WatchOrderSection` |  |
-| 36 | `Watch Order Item` | `WatchOrderItem` |  |
-| 37 | `Media Relation` | `MediaRelation` |  |
-| 38 | `Plan Next` | `PlanNext` |  |
-| 39 | `Quote` | `Quote` |  |
-| 40 | `Character Casting` | `CharacterCasting` |  |
-| 41 | `Character Casting Voice` | `CharacterCastingVoice` |  |
-| 42 | `Meme` | `Meme` |  |
-| 43 | `Note` | `Note` |  |
-| 44 | `Resources` | `ResourceNode` |  |
-| 45 | `Media Source` | `MediaSource` |  |
-| 46 | `Media Content Label` | `MediaContentLabel` |  |
-| 47 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 48 | `Seasonal` | `Seasonal` |  |
+| 30 | `Game Choice Node` | `GameChoiceNode` |  |
+| 31 | `Game Choice Edge` | `GameChoiceEdge` |  |
+| 32 | `Game Choice Mark` | `GameChoiceMark` |  |
+| 33 | `H-Comic` | `HComic` | `h-comic` |
+| 34 | `Hentai` | `Hentai` | `hentai` |
+| 35 | `H-Game` | `HGame` | `h-game` |
+| 36 | `User Media List` | `UserMediaList` |  |
+| 37 | `Watch Order List` | `WatchOrderList` |  |
+| 38 | `Watch Order Section` | `WatchOrderSection` |  |
+| 39 | `Watch Order Item` | `WatchOrderItem` |  |
+| 40 | `Media Relation` | `MediaRelation` |  |
+| 41 | `Plan Next` | `PlanNext` |  |
+| 42 | `Quote` | `Quote` |  |
+| 43 | `Character Casting` | `CharacterCasting` |  |
+| 44 | `Character Casting Voice` | `CharacterCastingVoice` |  |
+| 45 | `Meme` | `Meme` |  |
+| 46 | `Note` | `Note` |  |
+| 47 | `Resources` | `ResourceNode` |  |
+| 48 | `Media Source` | `MediaSource` |  |
+| 49 | `Media Content Label` | `MediaContentLabel` |  |
+| 50 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 51 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -230,7 +234,24 @@ first, and a copy naming an h-game restores from the same tab as any other. `Gam
 credit or tag link columns, since a copy is a purchase record rather than an
 entry.
 
-`H-Comic` follows `Game Copy`, and `Hentai` follows `H-Comic`, both still
+The choice graph's three tabs follow `Game Copy`, for the same reason: each
+table's `game_id` is a real FK onto `media.system_id`. `Game Choice Node`
+comes first, `Game Choice Edge` after it (both ends are FKs onto nodes), and
+`Game Choice Mark` last (it names one node or one edge). Nodes and edges
+travel with their uuid - they are written by hand on one machine, and a
+save's `fields.choice_node` names a node by that uuid, so the `Note` tab
+further down needs nothing translated. Marks are personal and are written on
+each machine, so the same person's mark carries a different `system_id` here
+and there: Pull files every mark under the installation owner, as it does a
+copy, and `Game Choice Mark` is in `DERIVED_IDENTITY_KEYS` with the natural
+key `(user_id, node_id, edge_id)`, the pair the two partial unique indexes
+name (the unset one compares `IS NULL`). A mark whose uuid is unknown here is
+therefore matched to the local mark on the same point or option rather than
+inserted beside it. Parsers: `parse_game_choice_node_from_sheet`,
+`parse_game_choice_edge_from_sheet`, `parse_game_choice_mark_from_sheet` in
+`app/utils/formatter.py`.
+
+`H-Comic` follows `Game Choice Mark`, and `Hentai` follows `H-Comic`, both still
 before `User Media List`. Hentai's credit and tag columns (`studio`,
 `director`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) travel
 under their own keys the same way. Its `ep_total` is an ordinary column of the

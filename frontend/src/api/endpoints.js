@@ -165,6 +165,22 @@ export const endpoints = {
     graph: () => "/api/media-relation/graph",
   },
 
+  // One game's choice graph: its points (nodes), the options between them
+  // (edges), and the viewer's own done/note marks on either. The graph read
+  // takes `?game_id=`; node and edge writes need manage.catalog, a mark needs
+  // self.personal_notes.
+  gameChoice: {
+    graph: () => "/api/game-choice/graph",
+    createNode: () => "/api/game-choice/nodes",
+    patchNode: (id) => `/api/game-choice/nodes/${id}`,
+    removeNode: (id) => `/api/game-choice/nodes/${id}`,
+    markNode: (id) => `/api/game-choice/nodes/${id}/mark`,
+    createEdge: () => "/api/game-choice/edges",
+    patchEdge: (id) => `/api/game-choice/edges/${id}`,
+    removeEdge: (id) => `/api/game-choice/edges/${id}`,
+    markEdge: (id) => `/api/game-choice/edges/${id}/mark`,
+  },
+
   formDefaults: {
     list: () => "/api/form-defaults/",
     detail: (type) => `/api/form-defaults/${type}`,

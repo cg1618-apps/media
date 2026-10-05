@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-10-04
+Last verified: 2026-10-05
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -90,6 +90,7 @@ for the catch-all, which is last).
 | `h_game` | `/api/h-game` | factory router nested in a prefix-less router that adds `GET /api/h-game/search-igdb`; a gated type |
 | `watch_order` | `/api/watch-order` | |
 | `media_relation` | `/api/media-relation` | |
+| `game_choice` | `/api/game-choice` | a game's choice graph and each viewer's marks on it |
 | `plan_next` | `/api/plan-next` | |
 | `quote` | `/api/quote` | |
 | `meme` | `/api/meme` | |
