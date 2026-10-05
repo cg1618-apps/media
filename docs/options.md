@@ -286,7 +286,7 @@ out. What the three gated types keep is in
 | `double_edged` | text_links | 優缺點 | All but h-comic, hentai | reviews | |
 | `public_reviews` | text_links | 大眾評價 Public Reviews | All but H | reviews | |
 | `personal_reviews` | text | 我的評價 Personal Reviews | All but H | reviews | gated by field group `personal_notes` |
-| `episode_comments` | text_links | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | anime, tv-show, cartoon, game | reviews | locator required; game's placeholder is "Chapter / Part" |
+| `episode_comments` | text_links | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | anime, tv-show, cartoon, manga, game | reviews | locator required; manga's placeholder is "Chapter", game's "Chapter / Part" |
 | `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
 | `highlight_passages` | text | 神片段 | novel | | |
@@ -349,7 +349,7 @@ out. What the three gated types keep is in
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
 | `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status |
 | `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | name, description, links |
-| `resources` | name_links | Resources | All | standalone | |
+| `resources` | name_links | Resources | All | standalone | optional free-text Group in `kind` (`kind_is_group`) |
 | `questions` | episode_text | Questions | All but h-comic, hentai | standalone | description required everywhere |
 | `quotes` | external | 名言 Quotes | Entries but H | quotes_memes | |
 | `memes` | external | 梗/迷因 Memes | All but H | quotes_memes | |

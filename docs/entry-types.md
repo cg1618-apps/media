@@ -386,7 +386,7 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 
 | Section key | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `novel` | `comic` | `game` | `h-comic` | `h-game` | series / franchise |
 |---|---|---|---|---|---|---|---|---|---|---| --- |---|
-| `episode_comments` | x | | | x | x | | | | x (label `各章評論 Part Reviews`, locator "Chapter / Part") | |  | |
+| `episode_comments` | x | | | x | x | x (label `各話評論 Chapter Comments`, locator "Chapter") | | | x (label `各章評論 Part Reviews`, locator "Chapter / Part") | |  | |
 | `highlights` (kinds `神回`/`神片段`/`神篇章`) | x | | | | | | | | | |  | |
 | `highlight_episodes` | | | | x (kinds) | x (kinds) | x (label `神回`, locator "Chapter(s)") | | | | |  | |
 | `highlight_passages` | | | | | | | x | | | |  | |

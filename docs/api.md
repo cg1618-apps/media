@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-04
+Last verified: 2026-10-05
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -990,6 +990,8 @@ reader may toggle a one-group-per-value view on, or `null`), `owner_where` (`{ow
 (the section's `links` are `{"text", "url"}` pairs rather than URL strings),
 `link_text_category` (the option category suggesting a pair's `text`),
 `kind_category` (`kind` is free text suggested from this option category),
+`kind_is_group` (`kind` is a free-text group name the card draws a heading
+per - Resources),
 `default_status`, `one_per_kind` (one row per owner and `kind`), `hidden` (no
 card of its own), and `type_status_section` / `type_statuses` /
 `type_status_default` (the section holding this list's status row, keyed by
