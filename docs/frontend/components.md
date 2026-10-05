@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-10-04
+Last verified: 2026-10-05
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -213,7 +213,8 @@ not drawn. The character, person and studio libraries use it for
   `PlatformIcons` (an entry's available `main` access platforms — 動畫瘋,
   Netflix, Disney+ and the rest — drawn as their `lib/sourceIcons.js` icons on
   `MediaCard`'s poster and `DashboardCard`'s chip row; a row with a url links
-  to it, one without is faded, and a value with no icon is skipped),
+  to it, one without is faded, a value with no icon is skipped, and regional
+  variants sharing one icon — `Toptoon TW` and `Toptoon KR` — draw it once),
   `FranchiseCard` and `CollectionCard` (each takes `cover`, a resolved
   `{ url, focus }`), and `StaffCard`
   (`PersonCard` / `StudioCard` / `PublisherCard` over one shared body — the

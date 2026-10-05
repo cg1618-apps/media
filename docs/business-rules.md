@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-04
+Last verified: 2026-10-05
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -1102,6 +1102,9 @@ asymmetry is the intent of the restricted tier, not an oversight.
 
 The entry cards draw every available `main` access row as its icon
 (`components/cards/PlatformIcons.jsx`), matching on `bucket`, not on a name.
+Regional variants that share an icon are drawn once: an h-comic available on
+both `Toptoon TW` and `Toptoon KR` shows one Toptoon icon, linked to the first
+of them that carries a url, with both names in its tooltip.
 The icon itself is looked up by the vocabulary value's name in
 `lib/sourceIcons.js`, so renaming a `Platform` value on the admin Options page
 drops its icon until the map is updated — a missing icon, not lost data. The
