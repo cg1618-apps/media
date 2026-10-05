@@ -208,7 +208,7 @@ Node size is fixed (`CHOICE_NODE_WIDTH` 180, `CHOICE_NODE_HEIGHT` 64) and the pi
 
 ### Drawing — `ChoiceGraph.jsx`, `ChoiceNode.jsx`, `ChoiceEdge.jsx`
 
-- **Kind is told by shape and fill, never by hue**, and is always written in the node too: a start is a pill, a choice a slip with a strong border, a scene a quiet inset slip, and an ending is inverted to ink.
+- **Every point is the same plain block** holding only its title, on a plain canvas: the graph is blocks and arrows. Kind is not drawn; it shows in the side panel and in the card's endings count.
 - **Done** is the accent: a done point gets a brand border and a check; a done option a thicker brand stroke and a check on its label. A point or option holding the viewer's note shows a note icon.
 - **Saves**: a point with saves on it wears a badge at its corner - a disk icon and the slot numbers - with a tooltip listing each save.
 - **Options** are curves from the bottom of one point to the top of the next, labelled with the option text through `EdgeLabelRenderer`. A **return** (a back edge) is a dashed, stepped line out of the right side of the later point into the right side of the earlier one, with a return icon on its label, so a loop reads as "goes back to" rather than as one more branch. Return handles are never offered for a drag. On the interactive canvas a label is also a click target.

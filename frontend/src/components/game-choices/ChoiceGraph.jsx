@@ -10,7 +10,6 @@
 // its shape.
 import { useMemo } from "react";
 import {
-  Background,
   Controls,
   MarkerType,
   MiniMap,
@@ -145,7 +144,6 @@ function Canvas({
       minZoom={0.1}
       proOptions={{ hideAttribution: false }}
     >
-      <Background gap={24} />
       {interactive ? <Controls showInteractive={false} /> : null}
       {interactive ? <MiniMap pannable zoomable /> : null}
     </ReactFlow>

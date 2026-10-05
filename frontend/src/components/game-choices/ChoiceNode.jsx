@@ -4,10 +4,9 @@
 // CHOICE_NODE_WIDTH and CHOICE_NODE_HEIGHT; the two numbers are applied
 // inline so they cannot drift from the layout's.
 //
-// Kind is told by shape and fill, never by hue (design-system rule 5), and is
-// always also written in the node: a start is a pill, a choice a square slip
-// with a strong rule, a scene a quiet inset slip, and an ending is inverted to
-// ink - the one fill that reads as "this is where it stops" in both themes.
+// Every kind is drawn as the same plain block holding only its title: the
+// graph is blocks and arrows. Kind lives in the side panel and the card's
+// endings count, not on the canvas.
 //
 // Four handles. Top in and bottom out carry the forward options. The two on
 // the right carry only return arrows (the layout's back edges), which leave
@@ -18,34 +17,26 @@
 import { Handle, Position } from "@xyflow/react";
 
 import { CHOICE_NODE_HEIGHT, CHOICE_NODE_WIDTH } from "../../lib/choiceLayout";
-import { kindLabel, saveLabel } from "./choiceGraphData";
+import { saveLabel } from "./choiceGraphData";
 
 export const HANDLE_IN = "in";
 export const HANDLE_OUT = "out";
 export const HANDLE_RETURN_IN = "return-in";
 export const HANDLE_RETURN_OUT = "return-out";
 
-const KIND_CLS = {
-  start: "rounded-full border-2 border-text bg-surface text-text",
-  choice: "border-2 border-border-strong bg-surface text-text",
-  scene: "border border-border bg-surface-2 text-text",
-  ending: "border-2 border-ink bg-ink text-ink-text",
-};
-
 export default function ChoiceNode({ data, isConnectable = true }) {
   const { node, saves = [], mark, selected } = data;
   const done = Boolean(mark?.done);
   const hasNote = Boolean(mark?.note);
   const hidden = isConnectable ? "" : " !pointer-events-none !opacity-0";
-  const ending = node.kind === "ending";
 
   return (
     <div
       data-testid={`choice-node-${node.id}`}
       data-done={done ? "true" : "false"}
       style={{ width: CHOICE_NODE_WIDTH, height: CHOICE_NODE_HEIGHT }}
-      className={`relative flex flex-col justify-center px-3 ${KIND_CLS[node.kind] || KIND_CLS.scene} ${
-        done ? "!border-brand !border-2" : ""
+      className={`relative flex items-center justify-center gap-1.5 bg-surface px-3 text-center text-text ${
+        done ? "border-2 border-brand" : "border border-border-strong"
       } ${selected ? "ring-2 ring-brand ring-offset-2 ring-offset-surface-2" : ""}`}
     >
       <Handle
@@ -64,28 +55,17 @@ export default function ChoiceNode({ data, isConnectable = true }) {
         className="!pointer-events-none !opacity-0"
       />
 
-      <span
-        className={`font-mono text-[9px] uppercase tracking-[0.14em] ${
-          ending ? "text-ink-text/70" : "text-text-faint"
-        }`}
-      >
-        {kindLabel(node.kind)}
-        {done ? (
-          <i
-            className={`fas fa-check ml-1.5 ${ending ? "text-ink-text" : "text-brand"}`}
-            title="Done"
-            aria-label="Done"
-          ></i>
-        ) : null}
-        {hasNote ? (
-          <i
-            className="fas fa-note-sticky ml-1.5"
-            title="You have a note here"
-            aria-label="Has my note"
-          ></i>
-        ) : null}
-      </span>
+      {done ? (
+        <i className="fas fa-check shrink-0 text-xs text-brand" title="Done" aria-label="Done"></i>
+      ) : null}
       <span className="line-clamp-2 text-xs font-medium leading-tight">{node.title}</span>
+      {hasNote ? (
+        <i
+          className="fas fa-note-sticky shrink-0 text-xs text-text-faint"
+          title="You have a note here"
+          aria-label="Has my note"
+        ></i>
+      ) : null}
 
       {saves.length > 0 ? (
         <span
