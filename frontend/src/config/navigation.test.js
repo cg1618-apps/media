@@ -40,6 +40,11 @@ describe("activeSectionKey", () => {
     expect(activeItem("/anime/12").item.label).toBe("Anime");
   });
 
+  it("lights up Character on a character page and on an identity page", () => {
+    expect(activeItem("/character/7/kudo-shinichi").item.label).toBe("Character");
+    expect(activeItem("/identity/3/edogawa-conan").item.label).toBe("Character");
+  });
+
   it("keeps seasonal detail pages under Track", () => {
     expect(activeSectionKey("/seasonal")).toBe("track");
     expect(activeSectionKey("/seasonal/2024-Spring")).toBe("track");

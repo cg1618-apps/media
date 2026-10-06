@@ -158,3 +158,33 @@ it("sends identity_id null when blank and strips identity_name", async () => {
   expect(sent.map((r) => r.identity_id)).toEqual([null, null]);
   for (const r of sent) expect(r).not.toHaveProperty("identity_name");
 });
+
+// identity_row is CastEditor's own marker for a row added by "+ Identity":
+// form state, never part of the PUT.
+it("does not send the editor's identity_row marker", async () => {
+  const { result } = renderHook(() => useReplaceCasting(), { wrapper });
+  const cast = [
+    { character_id: "c1", identity_id: "i1", identity_row: true, position: 0, voices: [] },
+  ];
+  result.current.mutate({ mediaType: "anime", entryId: "e1", cast });
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  const sent = JSON.parse(fetch.mock.calls[0][1].body).cast[0];
+  expect(sent).not.toHaveProperty("identity_row");
+  expect(sent.identity_id).toBe("i1");
+});
+
+// An identity row with no identity yet would otherwise save as a second main
+// row of its character. Add and Modify refuse before the entry is saved; this
+// is the backstop for any other caller.
+it("refuses a cast holding an identity row with no identity", async () => {
+  const { result } = renderHook(() => useReplaceCasting(), { wrapper });
+  const cast = [
+    { character_id: "c1", identity_id: null, position: 0, voices: [] },
+    { character_id: "c1", identity_id: null, identity_row: true, position: 1, voices: [] },
+  ];
+  result.current.mutate({ mediaType: "anime", entryId: "e1", cast });
+  await waitFor(() => expect(result.current.isError).toBe(true));
+  expect(result.current.error.message).toMatch(/Pick or create an identity/);
+  expect(fetch).not.toHaveBeenCalled();
+});
+

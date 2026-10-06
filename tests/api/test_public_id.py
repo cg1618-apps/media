@@ -105,7 +105,15 @@ def test_migration_tables_match_models_with_a_public_id_column():
     # historic migration; and the nine detail tables it took them from no
     # longer carry the column. Everything else must still line up exactly.
     tables_with_public_id.discard("media")
-    assert set(_migration.TABLES) - MOVED_TO_MEDIA == tables_with_public_id
+    assert set(_migration.TABLES) - MOVED_TO_MEDIA == (
+        tables_with_public_id - ADDED_BY_A_LATER_REVISION
+    )
+
+
+# Given public_id by a revision of its own after this one, not by the
+# historic migration: i1d2p3ubid45 for character_identity. Its migration is
+# checked from zero by test_migrations_build_the_schema.py.
+ADDED_BY_A_LATER_REVISION = {"character_identity"}
 
 
 MOVED_TO_MEDIA = {

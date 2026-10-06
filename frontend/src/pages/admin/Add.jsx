@@ -62,6 +62,7 @@ import ContentLabelPicker, {
 import { fetchJson, jsonBody } from "../../api/client";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
 import { useReplaceCasting } from "../../hooks/useCasting";
+import { castIdentityProblem } from "../../lib/castOrder";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
 import NovelAddTab, { defaultNovel } from "../add-tabs/NovelAddTab";
 import ComicAddTab, { defaultComic } from "../add-tabs/ComicAddTab";
@@ -776,6 +777,22 @@ export default function Add() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (submitting) return;
+    // Checked before the entry is saved: an identity row with no identity
+    // would otherwise save as a second main row of its character, and the
+    // cast is only sent once the entry exists.
+    const castForm = {
+      anime: af,
+      "anime-movie": amf,
+      manga: mgf,
+      novel: nvf,
+      "h-comic": hcf,
+      hentai: htf,
+    }[activeTab];
+    const castProblem = castForm && castIdentityProblem(castForm.cast);
+    if (castProblem) {
+      showToast("warning", castProblem);
+      return;
+    }
     setSubmitting(true);
     try {
       if (activeTab === "anime") await submitAnime();

@@ -52,8 +52,10 @@ def test_identities_and_cast_identity_round_trip(db, sheets, monkeypatch, charac
     )
     db.add(casting)
     db.flush()
+    public_id = identity.public_id
     written = _backed_up(db, monkeypatch)
     assert "identity_id" in written["Character Casting"][0]
+    assert "public_id" in written["Character Identity"][0]
 
     db.delete(casting)
     db.delete(identity)
@@ -70,6 +72,8 @@ def test_identities_and_cast_identity_round_trip(db, sheets, monkeypatch, charac
     assert (restored.name_en, restored.remark, restored.character_id) == (
         "Conan", "glasses", character.system_id,
     )
+    # The identity page's URL survives the trip.
+    assert restored.public_id == public_id
     row = db.query(models.CharacterCasting).filter_by(entry_id=anime.system_id).one()
     assert row.identity_id == identity.system_id
 

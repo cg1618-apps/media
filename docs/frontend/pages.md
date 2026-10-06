@@ -51,6 +51,7 @@ are a large share of the bundle and never needed on first paint.
 | `/publisher/:system_id` | `detail/Publisher.jsx` | lazy |
 | `/person/:system_id` | `detail/Person.jsx` | lazy |
 | `/character/:system_id` | `detail/Character.jsx` | lazy |
+| `/identity/:public_id` | `detail/Identity.jsx` | lazy |
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
 | `/seasonal` | `public/SeasonalOverall.jsx` | lazy, **login required** |
 | `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy, **login required** |
@@ -87,7 +88,7 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`), Seiyuu `/library/seiyuu` · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character` and `/identity`), Seiyuu `/library/seiyuu` · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions`, Random Picker `/random` (whose `/random/<type>` pages light it too) |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme`, Resources `/resources` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
@@ -605,10 +606,15 @@ all four name columns). Sort `name (default) | casting_count` ("Appearances")
 into one card per character and one per identity in the response's nested
 `identities`, each identity emitted right after its character (the library's
 sort then decides the order shown); the count line counts cards. An identity card
-shows the identity's own `display_photo_file` and display name with an
-"identity of <character>" line (no rating stamp, no casting count), is labelled
-**Identity** where a character's is **Character**, and links to
-`/character/<public_id>/<slug>#identity-<system_id>`. It sorts by its **own**
+is drawn as one: a **dashed** border and a dashed divider between cover and
+footer, and an outlined spine reading **Identity** where a character's is a
+solid ink spine reading **Character**. Its cover is the identity's own
+`display_photo_file`, with nothing laid over it (no rating stamp); its footer
+is the identity's display name, then its character's face (an 18px circle,
+`character_photo_file` / `character_photo_focus`) beside the character's name,
+then a dashed **Identity** chip — no casting count. It links to the identity's
+own page, `/identity/<public_id>/<slug>`: the card's `public_id` is the
+identity's, with the character's beside it as `character_public_id`. It sorts by its **own**
 name, and filters by the identity's resolved gender (`display_gender`) but the
 **character's** tags, rating, role and entry types - it is the same character.
 Search matches every card of a character on the names of the character and of
@@ -684,11 +690,11 @@ detail shape — the header is a profile and the body is the entries this
 character is cast in. Two raw fetches, the profile then `.../entries` by the
 `system_id` it returns; the character call failing is the page's 404, the
 entries call failing is not. Beside the appearance count under the name, a
-character with a `mal_link` gets a **MyAnimeList** button (the MAL icon,
-opening in a new tab); one without draws none. The Profile card shows the character's own
+character with a `mal_link` gets a **MyAnimeList** button (`MalButton`, the
+MAL icon, opening in a new tab); one without draws none. The Profile card shows the character's own
 **Role** beside Gender — its own field, not derived from any casting's role —
 then **Appearance** and **Trait**, each list as a row of `Chip`s in its stored
-order ("—" when empty, like every unset row), and a **MAL** row: the `mal_link` as an external link reading
+order (`tagChips`) ("—" when empty, like every unset row), and a **MAL** row: the `mal_link` as an external link reading
 `Character #<mal_id>` (`MyAnimeList` when no id was derived), "—" without a
 link. The layout and the admin controls — Quick edit
 to `/modify?id=<system_id>&type=character`, the My rating select, the
@@ -705,23 +711,67 @@ character holds no role the way a person does — see
 also carries every seiyuu who voiced the character there (`seiyuu`, a list of
 `{display_name, system_id, public_id, remark}`), rendered beneath the entry
 card as one small link per seiyuu with its remark in brackets - "Name (child)"
-(`CastingCard`, a local component, not `MediaCard`, for the same reason
-`Person.jsx`'s `CreditCard` is local) — since knowing who played the part is
+(`components/info/CastingCard.jsx`, shared with the identity page, not
+`MediaCard`, for the same reason `Person.jsx`'s `CreditCard` is local) — since knowing who played the part is
 the point of looking a character up, unlike a person's own credits. A group
 the viewer may see no entries of still renders, with "Nothing you can see
 here" inside it, same rule the person and studio pages follow.
 
 **Identities.** A character with other identities draws an **Identities**
-section after the profile: one card per identity (`IdentityCard`) with its
+section after the profile: one card per identity
+(`components/info/IdentityCard.jsx`) with its
 photo (`display_photo_file`), display name, its other non-empty names (the four name columns but the displayed one), resolved gender and remark, each
-with the anchor `id="identity-<system_id>"`. Arriving with that hash - from a
-library identity card or a cast row - scrolls the card to the middle and
-highlights it with a brand ring; the scroll happens when the character or the
-hash changes, not when an inline rating or remark edit replaces the loaded
-character. The appearances list shows one card **per
+card a link to the identity's own page (below); an identity with no
+`public_id` in the response renders as plain markup. The appearances list shows one card **per
 cast row**, keyed by `casting_id`: an entry the character is cast in under two
 identities appears twice, a row with an identity reading "as <identity name>"
 under the title, each with that row's own seiyuu.
+
+### Identity — `/identity/:public_id`
+
+File `pages/detail/Identity.jsx`, route `/identity/:publicId/:slug?`. The
+public page for one of a character's other identities (Edogawa Conan of Kudo
+Shinichi), hand-built beside `Character.jsx` and shaped like it: an identity
+is its character under another name, so the page shows what the character
+page does. The names, photo, gender and remark are the identity's own; the
+role, the appearance and trait tags, the rating and the MAL link are the
+character's. `GET /api/character-identity/{id}` by the URL's public id comes
+first, and its failing is the page's 404 ("Identity not found."). Then two
+reads run side by side: `.../entries` by the `system_id` it returns, and
+`GET /api/character/{character_public_id}`. Neither failing is a 404 — the
+page renders from what the identity carries, with no appearances or no
+character facts. `useCanonicalPath("identity", …)` puts the slug in the
+address bar.
+
+Layout: a breadcrumb **Characters** (`/library/character`) / the character's
+name, linking to its page / the identity's name → (admin) the dashed
+**Admin** strip with **Quick edit**, linking to
+`/modify?id=<system_id>&type=identity` → left column with the photo under an
+**Identity** spine (`display_photo_file`, the identity's own photo else the
+character's displayed one, as the server resolves it; else `FALLBACK_SVG`),
+the character's `my_rating` stamp on it, read-only, and a **Naming** card
+(`NamingCard type="identity"`, all four names) → right column with the
+display name, its appearance count and the character's **MyAnimeList**
+button (`MalButton`), a "Profile" `InfoCard` — **Role**, then **Gender**
+(`display_gender`, the character's when the identity sets none), then
+**Appearance** and **Trait** (`tagChips`) and **MAL** from the character, and
+the identity's **Remark**, shown to everyone — with a faint line under it,
+"Role, tags, rating and MAL are <character>'s." Then a **Character** section:
+the character's own card, labelled **Character** and linking to its page, then
+its other identities, labelled **Identity**, this one left out — all
+`IdentityCard`s; the character's card never shows the character's remark.
+Then one section per media type the entries endpoint returned. Nothing is
+edited in place: an identity has no `PATCH` route and its rating is the
+character's, set on the character's page, so there is no rating select and no
+remarks textarea.
+
+The appearance sections are the character page's: `/entries` answers the same shape,
+narrowed to the cast rows that name this identity, a group the viewer may see
+no entries of renders "Nothing you can see here", and no group at all reads
+**No appearances**. The cards are the shared `CastingCard` with
+`hideIdentity`, which drops the "as <identity>" line — every row here is this
+identity. The nav lights **Character** on this page (`matches` includes
+`/identity`).
 
 ### Publisher — `/publisher/:system_id`
 
@@ -914,8 +964,8 @@ Top to bottom:
    shared `components/info/CastSection.jsx` and rendered only when the entry
    has a cast. Rows are sorted by role in `CHARACTER_ROLES` order — Main,
    Core, Supporting, Other, then no role (`castRoleRank`) — then by
-   `position`, and each shows a small cover-or-portrait thumbnail, a role
-   chip, a link to the character, and — on Anime/AnimeMovie, the voiced types
+   `position` (`sortCast`, `lib/castOrder.js`), and each shows a small
+   cover-or-portrait thumbnail, a role chip, a link to the character, and — on Anime/AnimeMovie, the voiced types
    — "voiced by" and every seiyuu of the casting as a link to their person
    page, separated by "·", each followed by its voice remark in brackets
    ("voiced by A · B (child)"). The slip starts collapsed to the Main
@@ -923,7 +973,18 @@ Top to bottom:
    **Show main cast only** narrows it back; **Show full cast (N)** opens a
    dialog listing every row, every role. With no Main character the collapsed
    view starts at Core, and a cast with no Main or Core character is shown
-   whole with no controls — a remark textarea (blur-saves; rendered only when
+   whole with no tier controls. A row cast as one of the character's other
+   identities is drawn as one — a dashed frame on its thumbnail and a dashed
+   **Identity** chip after the role chip — and reads "<identity> identity of
+   <character>", the identity linking to its page and the character to its
+   own. It is **hidden by
+   default** when its character also has a main row in the cast: **Show
+   identities (N)** brings those back and **Hide identities** folds them
+   again, one toggle shared by the slip and the full-cast dialog, not
+   persisted. An identity row whose character has no main row is how that
+   character appears at all, so it is always shown and never counted in N.
+   The tiers and their counts are worked out over the rows the toggle leaves
+   visible — a remark textarea (blur-saves; rendered only when
    a remark already exists, with the Notes `remark` section hidden so the
    singleton row never has two editors), then `{Type}Notes` →
    `pages/notes/NotesTemplate.jsx` — except Game, which composes

@@ -90,7 +90,7 @@ deleting a group leaves its members in place and simply ungrouped.
   `(user_id, seasonal)` - one row per user per season string.
 - **Public id.** Every entity with a detail page - the twelve media tables plus
   `collection`, `franchise`, `series`, `person`, `studio`, `publisher`,
-  `character` and `watch_order_list`, eighteen in all - also carries
+  `character`, `character_identity` and `watch_order_list` - also carries
   `public_id INTEGER NOT NULL UNIQUE`, fed by a per-table sequence
   (`<table>_public_id_seq`) declared on the model, so every insert path gets
   one for free. It is the **only id a user ever sees**: detail-page URLs are
@@ -1329,6 +1329,7 @@ never held twice.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK, indexed |
+| `public_id` | Integer | no | `nextval('character_identity_public_id_seq')` | The short id in `/identity/<public_id>/<slug>`, declared as `character.public_id` is: its own sequence, which the model names and the DEFAULT draws from, so a raw INSERT gets one too. Travels in the `Character Identity` sheet tab |
 | `character_id` | UUID | no | | FK `character.system_id` ON DELETE CASCADE, indexed. Fixed once created: no route moves an identity to another character |
 | `name_en` / `name_cn` / `name_jp` / `name_alt` | String | yes | | At least one is required |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain - the same resolution as `character.display_name_field` |
@@ -1339,10 +1340,10 @@ never held twice.
 | `position` | Integer | no | `0` (server default too) | Order on the character page and in `CharacterResponse.identities`. A create takes the character's highest position plus one |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-**No `public_id`**: an identity has no page of its own - it is shown on its
-character's, and linked as `#identity-<system_id>`. **No tags, rating, role or
-MAL fields**: those are the character's, and every identity is that one
-character. Names are not unique, matching `character`.
+An identity has a page of its own, `/identity/<public_id>/<slug>`, and its
+character's page lists it among the character's identities. **No tags,
+rating, role or MAL fields**: those are the character's, and every identity is
+that one character. Names are not unique, matching `character`.
 
 Constraints:
 
@@ -1352,6 +1353,10 @@ Constraints:
 - `uq_character_identity_owner` UNIQUE (`system_id`, `character_id`) -
   redundant as a key, since `system_id` alone is unique, but it is what
   `character_casting.fk_casting_identity` references.
+- `uq_character_identity_public_id` UNIQUE (`public_id`) **DEFERRABLE
+  INITIALLY DEFERRED**, for the reason every `public_id` constraint is (see
+  **Public id** under [Conventions](#conventions-shared-by-every-table)): a
+  Pull may permute ids across rows inside one transaction.
 
 Relationship: `Character.identities`, ordered by `position`, cascade `all,
 delete-orphan`, `passive_deletes=True`. **Visibility is the character's**: an

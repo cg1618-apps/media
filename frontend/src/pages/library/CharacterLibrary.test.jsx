@@ -274,9 +274,12 @@ describe("CharacterLibrary", () => {
       casting_count: 2,
       media_types: ["anime"],
       my_rating: "A",
+      display_photo_file: "character/c5.jpg",
+      display_photo_focus: "50% 20%",
       identities: [
         {
           system_id: "i1",
+          public_id: 3,
           name_en: "Edogawa Conan",
           display_name: "Edogawa Conan",
           display_gender: "男",
@@ -301,11 +304,41 @@ describe("CharacterLibrary", () => {
       const user = userEvent.setup();
       renderLibrary();
       const conan = (await screen.findByText("Edogawa Conan")).closest("a");
-      expect(screen.getByText(/identity of Kudo Shinichi/i)).toBeInTheDocument();
-      expect(conan).toHaveAttribute("href", expect.stringContaining("#identity-i1"));
+      expect(within(conan).getByText("Kudo Shinichi")).toBeInTheDocument();
+      expect(conan).toHaveAttribute("href", "/identity/3/edogawa-conan");
       await user.click(screen.getByRole("button", { name: "Characters" }));
       expect(screen.queryByText("Edogawa Conan")).not.toBeInTheDocument();
       expect(screen.getByText("Kudo Shinichi")).toBeInTheDocument();
+    });
+
+    // Option A: an identity card is drawn dashed - the line that means
+    // "identity" across the app - with an outlined spine, its character's
+    // face and name in the footer, and the dashed Identity tag. The cover
+    // stays the identity's own photo, with nothing over it.
+    it("draws an identity card dashed, with its character's face and name and an Identity tag", async () => {
+      renderLibrary();
+      const conan = (await screen.findByText("Edogawa Conan")).closest("a");
+      expect(conan).toHaveAttribute("data-identity-card");
+      expect(within(conan).getByText("Identity", { selector: "[data-card-spine] *" })).toBeInTheDocument();
+      expect(within(conan).getByText("Identity", { selector: "[data-identity-tag]" })).toBeInTheDocument();
+      const face = conan.querySelector("[data-character-face]");
+      expect(face).toHaveAttribute("src", "/api/covers/character/c5.jpg");
+      expect(within(conan).getByText("Kudo Shinichi")).toBeInTheDocument();
+      expect(within(conan).getByAltText("Photo")).toHaveAttribute(
+        "src",
+        "/api/covers/character-identity/i1.jpg",
+      );
+      expect(within(conan).queryByText(/identity of/i)).toBeNull();
+    });
+
+    it("leaves a character card solid, with none of the identity marks", async () => {
+      renderLibrary();
+      await screen.findByText("Edogawa Conan");
+      const shinichi = screen.getByRole("heading", { name: "Kudo Shinichi" }).closest("a");
+      expect(shinichi).not.toHaveAttribute("data-identity-card");
+      expect(within(shinichi).getByText("Character", { selector: "[data-card-spine] *" })).toBeInTheDocument();
+      expect(shinichi.querySelector("[data-identity-tag]")).toBeNull();
+      expect(shinichi.querySelector("[data-character-face]")).toBeNull();
     });
 
     it("the Identities group filters by whether the character has identities", async () => {
@@ -323,8 +356,10 @@ describe("CharacterLibrary", () => {
       renderLibrary();
       await screen.findByText("Edogawa Conan");
       await user.type(screen.getByRole("searchbox"), "Conan");
-      expect(screen.getByText("Kudo Shinichi")).toBeInTheDocument();
-      expect(screen.getByText("Edogawa Conan")).toBeInTheDocument();
+      // The character's own card, by its heading: its name is also in the
+      // identity card's footer.
+      expect(screen.getByRole("heading", { name: "Kudo Shinichi" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Edogawa Conan" })).toBeInTheDocument();
     });
   });
 });

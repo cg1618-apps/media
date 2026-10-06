@@ -2,8 +2,8 @@
 // each of its other identities is another card. The function emits each
 // identity right after its character; the library's sort decides the order
 // shown (an identity card sorts by its own name). An identity is listed,
-// searched and filtered as part of the same character, and links to the
-// character's page with that identity highlighted.
+// searched and filtered as part of the same character, and links to its own
+// identity page.
 import { PERSON_NAME_FIELDS } from "./naming";
 
 export const CARD_KIND_CHARACTER = "Characters";
@@ -44,9 +44,16 @@ export function characterCards(characters) {
         card_id: identity.system_id,
         system_id: identity.system_id,
         identity_id: identity.system_id,
-        public_id: character.public_id,
+        // The identity's own, so the card links to the identity page; the
+        // character's stays beside it.
+        public_id: identity.public_id,
+        character_public_id: character.public_id,
         display_name: identity.display_name,
         character_display_name: character.display_name,
+        // The character's face, for the card's footer. Named apart from the
+        // identity's own display_photo_* pair, which is the cover.
+        character_photo_file: character.display_photo_file ?? character.photo_file ?? null,
+        character_photo_focus: character.display_photo_focus ?? character.photo_focus ?? null,
         gender: identity.display_gender,
         display_photo_file: identity.display_photo_file,
         display_photo_focus: identity.display_photo_focus,

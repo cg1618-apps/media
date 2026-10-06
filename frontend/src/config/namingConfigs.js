@@ -79,10 +79,11 @@ export const NAMING_CONFIGS = {
     "franchise_name_en",
     "franchise_name_alt",
   ],
-  // A character, a person, a studio and a publisher carry four unprefixed
-  // name columns, in the order their forms list them (STUDIO_NAME_FIELDS in
-  // lib/naming.js).
+  // A character, an identity, a person, a studio and a publisher carry four
+  // unprefixed name columns, in the order their forms list them
+  // (STUDIO_NAME_FIELDS in lib/naming.js).
   character: ["name_en", "name_cn", "name_jp", "name_alt"],
+  identity: ["name_en", "name_cn", "name_jp", "name_alt"],
   person: ["name_en", "name_cn", "name_jp", "name_alt"],
   studio: ["name_en", "name_cn", "name_jp", "name_alt"],
   publisher: ["name_en", "name_cn", "name_jp", "name_alt"],

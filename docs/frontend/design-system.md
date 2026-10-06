@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-10-03
+Last verified: 2026-10-06
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -112,7 +112,10 @@ counts). `h1` is display by default.
 - `RatingStamp` — outlined brand square with the rank letter; `size`
   `sm`/`md`, `tilt` on covers.
 - `Chip` — mono tag on a faint fill, hairline border, 4 px radius; `tone` `ink` (default) / `brand` / `danger` /
-  `muted`.
+  `muted`. `dashed` is the identity tag: a dashed `border-border-strong`
+  outline with no fill and muted text, replacing the tone. A dashed line means
+  "identity" across the app — the cast editor's identity rows, the cast
+  slip's identity thumbnails, the library's identity cards.
 - `ProgressRule` — 4 px brand rule, `value` 0–1.
 - `Button` — `kind` `primary` / `outline` / `danger` / `ghost`, `size`
   `md`/`sm`.

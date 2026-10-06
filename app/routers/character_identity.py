@@ -1,7 +1,9 @@
 """
 routers/character_identity.py
-A character's other identities. Admin-only, reads included: the public reads
-them through GET /api/character, nested in each character.
+A character's other identities. Two reads are public - one identity, by
+public_id or UUID, and the entries it is cast on - for the identity's own
+page; listing and every write are admin-only. Every identity also reaches the
+public nested in its character, through GET /api/character.
 
 An identity is created under an existing character and stays with it - there
 is no way to move one. Visibility is the character's: an identity of a
@@ -17,17 +19,19 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
+from app.services.domain.casting_entries import casting_entry_groups
 from app.services.domain.character_identities import (
     fold_into_main,
     identity_casting_count,
     identity_response,
 )
 from app.services.domain.entity_photos import character_media
-from app.services.rbac.resolver import Viewer, require_manage_catalog
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
     require_visible_shared,
 )
+from app.utils.entity_ref import find_entity
 
 router = APIRouter(prefix="/api/character-identity", tags=["Character Identity"])
 
@@ -48,8 +52,13 @@ def _admin_response(
     )
 
 
-def _load(db: Session, viewer: Viewer, system_id: UUID) -> models.CharacterIdentity:
-    identity = db.get(models.CharacterIdentity, system_id)
+def _load(db: Session, viewer: Viewer, ref: UUID | str) -> models.CharacterIdentity:
+    """The identity `ref` names - a UUID, or as a path segment a public_id or
+    a UUID - 404 when it is missing or its character is hidden from `viewer`."""
+    if isinstance(ref, UUID):
+        identity = db.get(models.CharacterIdentity, ref)
+    else:
+        identity = find_entity(db, models.CharacterIdentity, ref)
     if identity is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, viewer, models.Character, identity.character_id, NOT_FOUND)
@@ -87,13 +96,45 @@ def list_identities(
     return out
 
 
-@router.get("/{system_id}", response_model=schemas.IdentityAdminResponse, summary="Get Identity")
-def get_identity(
-    system_id: UUID,
+@router.get("/{ref}/entries", summary="Entries This Identity Is Cast On")
+def get_identity_entries(
+    ref: str,
     db: Session = Depends(get_db),
-    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
-    return _admin_response(db, _load(db, admin, system_id), admin)
+    """
+    The entries this identity appears in, grouped by media type - the cast
+    rows naming it, and none of its character's main-identity rows. The same
+    shape and visibility rule as GET /api/character/{system_id}/entries; an
+    identity whose character is hidden from this viewer answers 404.
+    """
+    identity = _load(db, viewer, ref)
+    rows = (
+        db.query(models.CharacterCasting)
+        .filter(models.CharacterCasting.identity_id == identity.system_id)
+        .order_by(models.CharacterCasting.position)
+        .all()
+    )
+    return {"groups": casting_entry_groups(db, viewer, rows)}
+
+
+@router.get("/{ref}", response_model=schemas.IdentityDetailResponse, summary="Get Identity")
+def get_identity(
+    ref: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """One identity, by its public_id or its UUID, for the identity page."""
+    identity = _load(db, viewer, ref)
+    character = identity.character
+    # The photo fallback is resolved for THIS viewer: an entry's picture it
+    # may not see never stands in for the identity's.
+    media = character_media(db, viewer, [character])[character.system_id]
+    return schemas.IdentityDetailResponse(
+        **identity_response(identity, character, media).model_dump(),
+        character_public_id=character.public_id,
+        character_display_name=character.display_name,
+    )
 
 
 @router.post("/", response_model=schemas.IdentityAdminResponse, summary="Create Identity")

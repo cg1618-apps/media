@@ -215,8 +215,9 @@ class CharacterIdentity(Base, NameFallbackMixin):
     name. The character row itself is the MAIN identity; only the others are
     rows here, so names, photo and remark are never held twice.
 
-    Visibility is the character's. There is no public_id: an identity has no
-    page of its own, it is shown on its character's.
+    Visibility is the character's: the identity's own page answers 404
+    whenever its character's would. Its public_id is what that page's URL
+    carries, as a character's does.
 
     uq_character_identity_owner is redundant as a key - system_id alone is
     unique - but it is what character_casting's fk_casting_identity
@@ -233,6 +234,16 @@ class CharacterIdentity(Base, NameFallbackMixin):
         UniqueConstraint(
             "system_id", "character_id", name="uq_character_identity_owner"
         ),
+        UniqueConstraint(
+            "public_id",
+            name="uq_character_identity_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
 
     _name_fields = ["name_en", "name_cn", "name_jp", "name_alt"]
@@ -240,6 +251,16 @@ class CharacterIdentity(Base, NameFallbackMixin):
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    # Short, stable, per-table id shown in SPA URLs; system_id remains the
+    # join key.
+    public_id = Column(
+        Integer,
+        Sequence("character_identity_public_id_seq"),
+        # server_default as well as the Sequence: the sequence lets
+        # SQLAlchemy fill this in, the DEFAULT lets a raw INSERT do it too.
+        server_default=text("nextval('character_identity_public_id_seq'::regclass)"),
+        nullable=False,
     )
     character_id = Column(
         UUID(as_uuid=True),

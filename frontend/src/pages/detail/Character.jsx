@@ -15,15 +15,17 @@
 // through PATCH (components/info/EntityProfileControls.jsx) and the page
 // takes the response as its new state.
 import { useEffect, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
-import { releaseYear } from "../../lib/releaseDate";
-import { sourceIconUrl } from "../../lib/sourceIcons";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
+import CastingCard from "../../components/info/CastingCard";
+import IdentityCard from "../../components/info/IdentityCard";
 import InfoCard from "../../components/info/InfoCard";
+import MalButton from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
+import { tagChips } from "../../components/info/tagChips";
 import {
   AdminToolbar,
   RatingSelect,
@@ -31,14 +33,12 @@ import {
   useEntityPatch,
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
-import { Chip, Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
-import { entityPath } from "../../lib/entityPath";
 
 export default function Character() {
   const { publicId } = useParams();
-  const { hash } = useLocation();
   const [character, setCharacter] = useState(null);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,15 +84,6 @@ export default function Character() {
       cancelled = true;
     };
   }, [publicId]);
-
-  // A library identity card and a cast row link here by #identity-<id>.
-  // Keyed on the character's id, not the object: a remark or rating patch
-  // replaces the object and must not scroll the page back to the identity.
-  const characterId = character?.system_id;
-  useEffect(() => {
-    if (!characterId || !hash.startsWith("#identity-")) return;
-    document.getElementById(hash.slice(1))?.scrollIntoView({ block: "center" });
-  }, [characterId, hash]);
 
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading character..." />;
@@ -189,18 +180,7 @@ export default function Character() {
               </p>
               {/* The way out to MAL, by the name rather than only in the
                   Profile card - it is where a character is looked up. */}
-              {character.mal_link && (
-                <a
-                  href={character.mal_link}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Open on MyAnimeList"
-                  className="inline-flex items-center gap-1.5 border border-border px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:border-brand hover:text-brand"
-                >
-                  <img loading="lazy" src={sourceIconUrl("MyAnimeList")} alt="" className="w-3.5 h-3.5" />
-                  MyAnimeList
-                </a>
-              )}
+              <MalButton href={character.mal_link} />
             </div>
           </div>
 
@@ -250,11 +230,7 @@ export default function Character() {
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 {character.identities.map((identity) => (
-                  <IdentityCard
-                    key={identity.system_id}
-                    identity={identity}
-                    highlighted={hash === `#identity-${identity.system_id}`}
-                  />
+                  <IdentityCard key={identity.system_id} identity={identity} />
                 ))}
               </div>
             </section>
@@ -292,155 +268,6 @@ export default function Character() {
             ))
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// A character's appearance or trait list as a row of Chips - the primitive
-// every other short label on the site is set in. null for an empty list, so
-// the InfoRow shows its "—" (an element that renders nothing would not).
-function tagChips(values) {
-  if (!values?.length) return null;
-  return (
-    <span className="flex flex-wrap gap-1.5">
-      {values.map((value) => (
-        <Chip key={value}>{value}</Chip>
-      ))}
-    </span>
-  );
-}
-
-// A minimal cover-and-title card, plus the seiyuu who voiced the character in
-// this entry. MediaCard is deliberately not reused, same reasoning as
-// Person.jsx's CreditCard and Studio.jsx's card: the entries endpoint returns
-// a handful of flat keys, not a full media payload.
-function CastingCard({ entry, navPath }) {
-  const title = entry.display_name || "Untitled";
-  const year = releaseYear(entry.release_date);
-  const cover = (
-    <div
-      className="bg-surface-2 overflow-hidden"
-      style={{ aspectRatio: "2/3" }}
-    >
-      <img
-        loading="lazy"
-        src={getCoverUrl(entry.cover_image_file)}
-        alt=""
-        className="w-full h-full object-cover"
-        style={focusStyle(entry.cover_image_focus)}
-        onError={(e) => {
-          e.target.src = FALLBACK_SVG;
-        }}
-      />
-    </div>
-  );
-  const facts = (
-    <>
-      <h3
-        className="font-display font-semibold text-text text-sm line-clamp-2 leading-tight"
-        title={title}
-      >
-        {title}
-      </h3>
-      {entry.identity_name && (
-        <span className="text-xs text-text-muted truncate">as {entry.identity_name}</span>
-      )}
-      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
-        {year || "Undated"}
-      </span>
-    </>
-  );
-
-  // The entry cover/title link and the seiyuu links are siblings, never
-  // nested: an <a> inside an <a> is invalid HTML and would swallow the
-  // seiyuu links' clicks into the entry link's. One character may have
-  // several seiyuu in one entry, each listed with the remark that tells
-  // them apart.
-  return (
-    <div className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col">
-      {navPath ? (
-        <Link to={`${navPath}/${entry.system_id}`} className="flex flex-col">
-          {cover}
-          <div className="p-2.5 flex flex-col gap-1 border-t border-border">
-            {facts}
-          </div>
-        </Link>
-      ) : (
-        <>
-          {cover}
-          <div className="p-2.5 flex flex-col gap-1 border-t border-border">
-            {facts}
-          </div>
-        </>
-      )}
-      {entry.seiyuu?.length > 0 && (
-        <div className="px-2.5 pb-2.5 flex flex-col gap-0.5">
-          {entry.seiyuu.map((seiyuu) => (
-            <Link
-              key={seiyuu.system_id}
-              to={entityPath("person", {
-                public_id: seiyuu.public_id,
-                display_name: seiyuu.display_name,
-              })}
-              className="text-xs text-text-muted hover:text-brand transition-colors truncate"
-            >
-              {seiyuu.display_name}
-              {seiyuu.remark && <span className="text-text-faint"> ({seiyuu.remark})</span>}
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// One of the character's other identities. `highlighted` when the URL's hash
-// names it - a library identity card and a cast row both link here that way.
-function IdentityCard({ identity, highlighted }) {
-  // Every other non-empty name, so an identity known by several is not
-  // reduced to the one that happens to be displayed.
-  const otherNames = [
-    ...new Set(
-      ["name_en", "name_cn", "name_jp", "name_alt"]
-        .map((field) => identity[field])
-        .filter((name) => name && name !== identity.display_name),
-    ),
-  ];
-  return (
-    <div
-      id={`identity-${identity.system_id}`}
-      className={`bg-surface border flex flex-col ${
-        highlighted ? "border-brand ring-2 ring-brand" : "border-border"
-      }`}
-    >
-      <div className="bg-surface-2 overflow-hidden" style={{ aspectRatio: "2/3" }}>
-        <img
-          loading="lazy"
-          src={getCoverUrl(identity.display_photo_file)}
-          alt=""
-          className="w-full h-full object-cover"
-          style={focusStyle(identity.display_photo_focus)}
-          onError={(e) => {
-            e.target.src = FALLBACK_SVG;
-          }}
-        />
-      </div>
-      <div className="p-2.5 flex flex-col gap-1 border-t border-border">
-        <h3 className="font-display font-semibold text-text text-sm line-clamp-2 leading-tight">
-          {identity.display_name}
-        </h3>
-        {otherNames.map((name) => (
-          <span key={name} className="text-xs text-text-muted line-clamp-1">
-            {name}
-          </span>
-        ))}
-        {identity.display_gender && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
-            {identity.display_gender}
-          </span>
-        )}
-        {identity.remark && <p className="text-xs text-text-muted whitespace-pre-line">{identity.remark}</p>}
       </div>
     </div>
   );

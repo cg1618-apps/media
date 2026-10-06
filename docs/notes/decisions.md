@@ -3215,3 +3215,69 @@ search, tags and the role derivation agree.
 **Out of scope:** identity tags, moving an identity to another character,
 converting a character into an identity, per-identity rating or role, identities
 in the site-wide search, and a per-identity entry photo fallback.
+
+### Identity pages, identity cast rows and cast order (2026-10-06)
+
+Follows the character identities entry above and reverses its D10 ("an identity
+has no page of its own"). With identities shown only as cards on their
+character's page, an identity could not be looked up by itself, and the entry
+page's cast row "Conan (Kudo Shinichi)" read as two characters.
+
+**Decisions**
+
+- **E1. An identity has its own page at `/identity/<public_id>/<slug>`.** The
+  owner asked for an identity detail page. It is keyed on a `public_id` of its
+  own, like every other detail page, rather than on the `system_id` UUID, which
+  would have avoided the migration but made the one detail URL that is a UUID.
+  The page shows the identity's profile and only the cast rows naming it.
+- **E2. Its reads are public; its writes stay admin-only.** A public page needs
+  public reads, so `GET /api/character-identity/{ref}` and its `/entries` take
+  the viewer, with the character's visibility. This reverses the identities
+  entry's "every identity endpoint is admin-only": the reason given there - the
+  public reads identities nested in `GET /api/character` - covered the profile
+  but not a page's appearances. `casting_count` stays off the public response.
+- **E3. Every identity link opens the identity page.** The library identity
+  card, the character page's Identities cards and an entry's cast row. The
+  `#identity-<id>` anchor and its highlight are gone with nothing left to use
+  them. The character page keeps its Identities section as a summary.
+- **E4. A cast row cast as an identity is marked both in words and visually.**
+  It reads "<identity> identity of <character>", two links, the library card's
+  vocabulary; and its thumbnail has a dashed frame beside a dashed "Identity"
+  tag. Words alone were not enough for the owner. Dashed is the identity mark
+  everywhere - the editor's identity rows are dashed too (E6) - and a dashed
+  outline keeps the tag from reading as a second role chip.
+- **E5. The entry page's cast hides identity rows by default, behind a "Show
+  identities" toggle** (the owner's call). An identity whose character has no
+  main-identity row in that cast is always shown: hiding it would drop the
+  character from the cast altogether.
+- **E6. In the cast editor an ordinary row is the main identity; "+ Identity"
+  adds an identity row after it.** The owner found the per-row Identity box hard
+  to use and unclear. An identity row has a dashed border (the owner's 虛線),
+  shows its character as fixed text and inherits the source row's role, so it
+  sorts beside it. This replaces D8's two fields on every row; D8's reasoning
+  still holds, since an identity is still only ever created under a known
+  character.
+- **E7. The editor orders a loaded cast like the detail page - role rank, then
+  position - on load and after a save, not while editing.** The owner weighed
+  live re-sorting against sorting on load. Performance does not separate them (a
+  cast is tens of rows); live sorting makes a row jump away the moment its role
+  changes and fights drag-and-drop, so it was declined.
+- **E8. The identity Add tab prefills the names from the chosen character.**
+  Only fields that are empty or still hold the previous prefill, so typed text
+  is never overwritten; gender is not prefilled because NULL means "the same as
+  the character".
+- **E9. The editor's Identity box offers "Create identity named <character>
+  (same as character)"**, from the moment it opens and until that character
+  has an identity of that name. An identity is often the same name in another
+  form, and typing the character's name again was the owner's complaint. It
+  copies all four names and `display_name_field`, as E8's prefill does, and
+  never the gender.
+
+**Rejected alternatives**
+
+- **A `system_id` URL.** See E1.
+- **Matching identity names in the editor's Character box**, so typing "Conan"
+  offers "Edogawa Conan - identity of Kudo Shinichi". Offered and not chosen;
+  "+ Identity" was.
+- **A create-identity dialog in the cast editor** with all the identity's fields.
+  Offered and not chosen; the Add and Modify tabs hold the full form.

@@ -1450,7 +1450,7 @@ def parse_character_identity_from_sheet(raw: dict) -> dict:
     ready for the Database. The Character tab restores first, so character_id
     round-trips as a plain UUID.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "character_id": _uuid_or_none(raw.get("character_id")),
         "name_en": parse_from_sheet(raw.get("name_en"), str),
@@ -1466,6 +1466,8 @@ def parse_character_identity_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_character_casting_from_sheet(raw: dict) -> dict:
