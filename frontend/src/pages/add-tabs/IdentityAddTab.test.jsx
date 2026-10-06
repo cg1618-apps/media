@@ -59,3 +59,22 @@ it("posts the chosen character with the identity", async () => {
     gender: null,
   });
 });
+
+it("submits on Enter in a name field once a character is chosen", async () => {
+  mount();
+  await userEvent.type(screen.getByRole("combobox", { name: /character/i }), "kudo");
+  await userEvent.click(await screen.findByText("Kudo Shinichi"));
+  await userEvent.type(screen.getByLabelText("Name (English)"), "Conan{Enter}");
+  expect(post).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(post.mock.calls[0][1].body)).toMatchObject({ character_id: "c1", name_en: "Conan" });
+});
+
+it("does not post when Enter picks a character from the list", async () => {
+  mount();
+  await userEvent.type(screen.getByLabelText("Name (English)"), "Conan");
+  await userEvent.type(screen.getByRole("combobox", { name: /character/i }), "kudo");
+  await screen.findByText("Kudo Shinichi");
+  await userEvent.keyboard("{ArrowDown}{Enter}");
+  expect(await screen.findByRole("button", { name: "Clear character" })).toBeInTheDocument();
+  expect(post).not.toHaveBeenCalled();
+});

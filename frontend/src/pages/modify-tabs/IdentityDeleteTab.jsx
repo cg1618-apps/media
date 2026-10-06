@@ -30,7 +30,10 @@ export default function IdentityDeleteTab() {
       );
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        showToast("error", data?.detail || "Failed to delete identity.");
+        showToast(
+          "error",
+          typeof data?.detail === "string" ? data.detail : "Failed to delete identity.",
+        );
         await queryClient.invalidateQueries({ queryKey: IDENTITIES_QUERY_KEY });
         return;
       }

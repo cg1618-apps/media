@@ -1,9 +1,9 @@
 // Identity Delete tab: the confirmation names the cast-row count it will send.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { ToastProvider } from "../../hooks/useToast";
+import { ToastProvider, useToast } from "../../hooks/useToast";
 import IdentityDeleteTab from "./IdentityDeleteTab";
 
 const IDENTITIES = [
@@ -17,6 +17,27 @@ const IDENTITIES = [
 ];
 
 let del;
+
+function Toasts() {
+  const { toasts } = useToast();
+  return toasts.map((t) => (
+    <div key={t.id} role="status">
+      {t.type}: {t.message}
+    </div>
+  ));
+}
+
+function mount() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <Toasts />
+        <IdentityDeleteTab />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+}
 
 beforeEach(() => {
   del = vi.fn(() =>
@@ -48,4 +69,27 @@ it("confirms with the cast-row count and says the rows fold into the main identi
   await userEvent.click(screen.getByRole("button", { name: /delete identity/i }));
   expect(del).toHaveBeenCalled();
   expect(del.mock.calls[0][0]).toBe("/api/character-identity/i1?castings=2");
+});
+
+async function deleteConanAnswering(detail) {
+  del.mockImplementation(() =>
+    Promise.resolve({ ok: false, status: 409, json: () => Promise.resolve({ detail }) }),
+  );
+  mount();
+  await userEvent.click(await screen.findByText(/^Conan/));
+  const lists = () => fetch.mock.calls.filter(([, o]) => !o?.method).length;
+  const before = lists();
+  await userEvent.click(screen.getByRole("button", { name: /delete identity/i }));
+  return { before, lists };
+}
+
+it("shows the server's detail on a 409 and refetches the list", async () => {
+  const { before, lists } = await deleteConanAnswering("Cast rows changed; reload and confirm again.");
+  expect(await screen.findByText(/Cast rows changed; reload and confirm again\./)).toBeInTheDocument();
+  await waitFor(() => expect(lists()).toBeGreaterThan(before));
+});
+
+it("falls back to a generic message when detail is not a string", async () => {
+  await deleteConanAnswering([{ loc: ["query", "castings"], msg: "bad" }]);
+  expect(await screen.findByText(/error: Failed to delete identity\./)).toBeInTheDocument();
 });

@@ -3805,6 +3805,7 @@ export default function Add() {
             type="submit"
             disabled={
               submitting ||
+              activeTab === "identity" ||
               (activeTab === "studio" &&
                 !STUDIO_NAME_FIELDS.some(
                   ({ field }) => studioForm[field]?.trim(),

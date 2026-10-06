@@ -178,7 +178,17 @@ export default function IdentityAddTab() {
   }
 
   return (
-    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
+    <div
+      className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4"
+      onKeyDown={(e) => {
+        // Enter in a text input submits. Add.jsx's page-wide form would
+        // otherwise swallow it; the ComboBox's Enter-to-select has already
+        // called preventDefault, so picking a character does not submit.
+        if (e.key !== "Enter" || e.defaultPrevented || e.target.tagName !== "INPUT") return;
+        e.preventDefault();
+        submit();
+      }}
+    >
       <SectionHeader icon="fa-masks-theater" title="Identity" />
       <CharacterPicker value={character} onChange={setCharacter} />
       <IdentityFields form={form} update={update} characterGender={character?.gender} />
