@@ -36,14 +36,6 @@ def person(db_session):
 
 
 @pytest.fixture
-def second_character(db_session):
-    c = models.Character(system_id=uuid.uuid4(), name_en="Yuki")
-    db_session.add(c)
-    db_session.flush()
-    return c
-
-
-@pytest.fixture
 def movie(db_session, sample_franchise):
     """A real, castable-media_type-but-not-a-casting-type entry: movie is a
     known key in MEDIA_TABLES, but not one of CASTING_MEDIA_TYPES."""
