@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-05
+Last verified: 2026-10-06
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1318,6 +1318,46 @@ takes it off every character. A tag is **not** a connection in shared-record
 visibility, so a value used only by characters stays visible to everyone
 ([authorization.md](authorization.md#shared-records)).
 
+### `character_identity`
+
+One of a character's **other** identities - an alter ego, a disguise, a civilian
+name (Kudo Shinichi and Edogawa Conan are one character). Model:
+`CharacterIdentity` (`app/models/character.py`). The `character` row **is** the
+main identity; only the others are rows here, so a name, photo or remark is
+never held twice.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK, indexed |
+| `character_id` | UUID | no | | FK `character.system_id` ON DELETE CASCADE, indexed. Fixed once created: no route moves an identity to another character |
+| `name_en` / `name_cn` / `name_jp` / `name_alt` | String | yes | | At least one is required |
+| `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain - the same resolution as `character.display_name_field` |
+| `gender` | String | yes | | GENDERS, or NULL meaning **the same as the character's**. Resolved on read (`display_gender` = `gender` or the character's), never copied, so editing the character's gender moves every identity that inherits it |
+| `remark` | Text | yes | | |
+| `photo_file` | String | yes | | Storage key under `static/covers/`, `character-identity/<system_id>.jpg` (hyphenated, like the owner type). NULL shows the character's displayed picture |
+| `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset when the photo changes - see [image focal points](#image-focal-points) |
+| `position` | Integer | no | `0` (server default too) | Order on the character page and in `CharacterResponse.identities`. A create takes the character's highest position plus one |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+**No `public_id`**: an identity has no page of its own - it is shown on its
+character's, and linked as `#identity-<system_id>`. **No tags, rating, role or
+MAL fields**: those are the character's, and every identity is that one
+character. Names are not unique, matching `character`.
+
+Constraints:
+
+- `ck_character_identity_has_a_name` CHECK `num_nonnulls(name_en, name_cn,
+  name_jp, name_alt) >= 1`. Mirrored in `IdentityWrite`
+  (`app/schemas/character.py`) so a nameless identity is a 422, not a 500.
+- `uq_character_identity_owner` UNIQUE (`system_id`, `character_id`) -
+  redundant as a key, since `system_id` alone is unique, but it is what
+  `character_casting.fk_casting_identity` references.
+
+Relationship: `Character.identities`, ordered by `position`, cascade `all,
+delete-orphan`, `passive_deletes=True`. **Visibility is the character's**: an
+identity is visible exactly when its character passes shared-record visibility;
+there is no separate rule ([authorization.md](authorization.md#shared-records)).
+
 ### `character_casting`
 
 One character, in one entry. Model: `CharacterCasting`
@@ -1334,20 +1374,34 @@ the casting, because one character may have several seiyuu in one entry.
 | `system_id` | UUID | no | uuid4 | PK |
 | `character_id` | UUID | no | | FK `character.system_id` **ON DELETE CASCADE**, indexed |
 | `media_type` | String | no | | Hyphenated key: one of `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `novel`, `h-comic`, `hentai`) |
+| `identity_id` | UUID | yes | | NULL is the **main identity** (the character itself); otherwise one of *this character's* [`character_identity`](#character_identity) rows, enforced by `fk_casting_identity`. Indexed |
 | `entry_id` | UUID | no | | FK-less - see [Cross-table references](#cross-table-references-without-foreign-keys) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Fills a NULL `character.role`; never written from it |
 | `position` | Integer | no | `0` (server default too) | Display / drag-reorder order |
-| `photo_file` | String | yes | | Storage key: this character as she appears in this entry, usually a library image (`library/<checksum>.jpg`) set through the cast editor's picker. NULL falls back to `character.photo_file` at read time. Not an attachment - castings are re-inserted on every cast save, so their ids cannot own one - so the image library reads this column itself when it asks whether an image is in use. |
-| `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Written by the cast save with the photo. Falls back with the photo: a casting with no `photo_file` reads the character's `photo_focus` beside the character's photo. A forced image delete that NULLs `photo_file` NULLs this too |
+| `photo_file` | String | yes | | Storage key: this character as she appears in this entry, usually a library image (`library/<checksum>.jpg`) set through the cast editor's picker. NULL stays NULL in the row; readers display the row's identity's `photo_file` when it names one with a photo, then `character.photo_file` (the cast response's `display_photo_file`, resolved at read time). Not an attachment - castings are re-inserted on every cast save, so their ids cannot own one - so the image library reads this column itself when it asks whether an image is in use. |
+| `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Written by the cast save with the photo. Displayed with the photo: a casting with no `photo_file` is shown with the focus of the identity's or character's photo that stands in for it (`display_photo_focus`). A forced image delete that NULLs `photo_file` NULLs this too |
 | `remark` | Text | yes | | |
 | `created_at` | DateTime | yes | now | No `updated_at` |
 
 Constraints and indexes:
 
-- `uq_character_casting` UNIQUE (`character_id`, `media_type`, `entry_id`) -
-  one casting per character per entry (Decision E: casting is per-entry with
-  no default/override split, so a recast is a second row, not a resolution
-  rule). No NULLS NOT DISTINCT needed: all three columns are NOT NULL.
+- `uq_character_casting` UNIQUE (`character_id`, `identity_id`, `media_type`,
+  `entry_id`) **NULLS NOT DISTINCT** - one casting per character *per identity*
+  per entry (Decision E: casting is per-entry with no default/override split,
+  so a recast is a second row, not a resolution rule). One character may
+  therefore be cast twice in an entry, once per identity, each row with its own
+  role, photo, remark and seiyuu. `identity_id` is nullable, and without NULLS
+  NOT DISTINCT two main-identity rows (both NULL) would never collide, so the
+  main identity could be cast any number of times in one entry.
+- `fk_casting_identity` FOREIGN KEY (`identity_id`, `character_id`) ->
+  `character_identity` (`system_id`, `character_id`), backed by
+  `uq_character_identity_owner`: an identity must belong to the row's own
+  character. A NULL `identity_id` is not checked (MATCH SIMPLE). It is
+  **DEFERRABLE INITIALLY DEFERRED** with no `ON UPDATE` action and the default
+  `ON DELETE NO ACTION`, so character merge can move an identity and its cast
+  rows to the survivor in one flush and only the end state is checked, at
+  COMMIT; and deleting an identity before folding its rows fails loudly rather
+  than cascading cast history away.
 - `uq_character_casting_entry` UNIQUE (`system_id`, `media_type`,
   `entry_id`) - redundant as a key, since `system_id` alone is unique, but it
   is what `character_casting_voice`'s composite FK references.
@@ -1355,7 +1409,7 @@ Constraints and indexes:
   query.
 
 `character_id` is `ON DELETE CASCADE`: deleting the character genuinely
-removes their castings, and `POST /api/character/{id}/merge` (repoint then
+removes their castings (identity rows included), and `POST /api/character/{id}/merge` (repoint then
 delete the loser) is the fix when a delete would otherwise lose casting
 history for a duplicate. Deleting a *person* never removes a casting - see
 `character_casting_voice` below (Decision H).
@@ -1728,7 +1782,7 @@ string, not a migration. Model: `ImageAttachment`.
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `image_id` | UUID | no | | FK `image.system_id` ON DELETE CASCADE, indexed |
-| `owner_type` | String | no | | Hyphenated for media types (`anime-movie`, `tv-show`, matching `app/utils/media_resolver.py`), plain for the rest: `staff`, `character`, `publisher`, `studio`, `quote`, `meme` |
+| `owner_type` | String | no | | Hyphenated for media types (`anime-movie`, `tv-show`, matching `app/utils/media_resolver.py`), plain for the rest: `staff`, `character`, `character-identity`, `publisher`, `studio`, `quote`, `meme` |
 | `owner_id` | UUID | no | | **Not a foreign key** - there is no single table to point at, so nothing in the database stops an attachment outliving its owner; the manager page's `unused` filter is what finds those |
 | `role` | String | no | `"cover"` | What the image is for: `cover` for every media/entity owner, `quote`/`quote-image`-shaped roles for quote and meme (see `app/routers/images.py`'s `NON_COVER_ROLE_OWNERS`) |
 | `position` | Integer | no | `0` | Reserved for a future multi-image case; always 0 today |

@@ -15,6 +15,7 @@ from app.models import (
     Cartoon,
     Character,
     CharacterCasting,
+    CharacterIdentity,
     Comic,
     Game,
     HComic,
@@ -89,6 +90,7 @@ COVER_OWNER_TABLES: tuple[tuple[str | None, type, str], ...] = (
     (None, Media, "cover_image_file"),
     ("staff", Person, "photo_file"),
     ("character", Character, "photo_file"),
+    ("character-identity", CharacterIdentity, "photo_file"),
     ("publisher", Publisher, "logo_file"),
     ("studio", Studio, "logo_file"),
 )

@@ -63,3 +63,9 @@ def test_plan_next_and_seasonal_follow_users():
 
 def test_the_registry_has_no_duplicate_names():
     assert len(set(TAB_NAMES)) == len(TAB_NAMES)
+
+
+def test_character_identity_sits_between_character_and_its_castings():
+    # character_identity.character_id is a real FK, and a cast row's
+    # identity_id must find its identity.
+    assert _at("Character") < _at("Character Identity") < _at("Character Casting")

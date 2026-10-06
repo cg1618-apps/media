@@ -30,6 +30,7 @@ export const IMAGE_OWNER_TYPE_GROUPS = [
     options: [
       { value: "staff", label: "Staff" },
       { value: "character", label: "Character" },
+      { value: "character-identity", label: "Character Identity" },
       { value: "publisher", label: "Publisher" },
       { value: "studio", label: "Studio" },
       { value: "quote", label: "Quote" },

@@ -70,6 +70,7 @@ OWNER_SOURCES: tuple[OwnerSource, ...] = (
     OwnerSource("staff", models.Person, "photo_file"),
     OwnerSource("character", models.Character, "photo_file"),
     OwnerSource("character", models.CharacterCasting, "photo_file"),
+    OwnerSource("character-identity", models.CharacterIdentity, "photo_file"),
     OwnerSource("publisher", models.Publisher, "logo_file"),
     OwnerSource("studio", models.Studio, "logo_file"),
 )

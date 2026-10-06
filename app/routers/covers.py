@@ -31,6 +31,8 @@ from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.rbac.shared_visibility import (
     ENTITY_OWNER_MODELS,
+    IDENTITY_OWNER,
+    identity_visible,
     shared_record_visible,
 )
 
@@ -76,6 +78,8 @@ def _owner_hidden(
     )
     if row is not None:
         return not entry_visible(db, viewer, row.media_type, owner_id)
+    if owner_type == IDENTITY_OWNER:
+        return not identity_visible(db, viewer, owner_id)
     model = ENTITY_OWNER_MODELS.get(owner_type)
     if model is None:
         return False

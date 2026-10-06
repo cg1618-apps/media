@@ -15,7 +15,7 @@ import { Link } from "react-router-dom";
 import { cleanString, getRatingWeight } from "../../utils/media";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { endpoints } from "../../api/endpoints";
-import { STUDIO_NAME_FIELDS } from "../../lib/naming";
+import { characterCards } from "../../lib/characterCards";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import { entityPath } from "../../lib/entityPath";
 import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
@@ -32,6 +32,9 @@ export default function CharacterLibrary() {
   const [currentSort, setCurrentSort] = useState("name");
   const [showFilters, setShowFilters] = useState(true);
 
+  // Each character, then each of its identities as a card of its own.
+  const cards = useMemo(() => characterCards(allCharacters), [allCharacters]);
+
   const auth = useAuth();
   const filterDefs = useMemo(() => characterFilterDefs(auth), [auth]);
   const {
@@ -42,7 +45,7 @@ export default function CharacterLibrary() {
     isDefault,
     activeFilterCount,
     dynamicFilterOptions,
-  } = useEntityFilterState(filterDefs, allCharacters);
+  } = useEntityFilterState(filterDefs, cards);
 
   useEffect(() => {
     async function load() {
@@ -64,14 +67,13 @@ export default function CharacterLibrary() {
   const filteredAndSorted = useMemo(() => {
     const qClean = cleanString(searchQuery);
 
-    const searched = allCharacters.filter((c) => {
+    const searched = cards.filter((c) => {
       if (!qClean) return true;
       // Searches all four name fields, not just the displayed one: someone
       // looking a character up by their Japanese name must find them even
-      // when English is the configured display name.
-      return STUDIO_NAME_FIELDS.some(
-        ({ field }) => c[field] && cleanString(c[field]).includes(qClean),
-      );
+      // when English is the configured display name. A character's cards
+      // answer to the names of all its identities too.
+      return (c.search_names || []).some((n) => cleanString(n).includes(qClean));
     });
     const result = applyFilterDefs(searched, filterDefs, filters);
 
@@ -87,7 +89,7 @@ export default function CharacterLibrary() {
     });
 
     return result;
-  }, [allCharacters, searchQuery, currentSort, filterDefs, filters]);
+  }, [cards, searchQuery, currentSort, filterDefs, filters]);
 
   const narrowed = searchQuery !== "" || activeFilterCount > 0;
   // The empty state's way out: no search and no filter, not the default -
@@ -131,7 +133,7 @@ export default function CharacterLibrary() {
               </h1>
               <p className="font-mono text-[11px] text-text-faint mt-1.5">
                 {filteredAndSorted.length}{" "}
-                {filteredAndSorted.length === 1 ? "character" : "characters"}
+                {filteredAndSorted.length === 1 ? "card" : "cards"}
                 {searchQuery && ` matching "${searchQuery}"`}
                 {activeFilterCount > 0 && " (filtered)"}
               </p>
@@ -217,7 +219,7 @@ export default function CharacterLibrary() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {filteredAndSorted.map((character) => (
-              <CharacterCard key={character.system_id} character={character} />
+              <CharacterCard key={character.card_id} character={character} />
             ))}
           </div>
         )}
@@ -236,7 +238,16 @@ function CharacterCard({ character }) {
   const castingCount = character.casting_count ?? 0;
   // Empty when the row carries no public_id: there is no URL to link to, so
   // the card renders as plain markup rather than a link to nowhere.
-  const characterPath = entityPath("character", character);
+  const isIdentity = character.card_kind === "identity";
+  // An identity card opens its character's page, scrolled to that identity.
+  const basePath = entityPath(
+    "character",
+    isIdentity
+      ? { public_id: character.public_id, display_name: character.character_display_name }
+      : character,
+  );
+  const characterPath =
+    isIdentity && basePath ? `${basePath}#identity-${character.identity_id}` : basePath;
   const Wrapper = characterPath ? Link : "div";
   const wrapperProps = characterPath ? { to: characterPath } : {};
 
@@ -253,18 +264,20 @@ function CharacterCard({ character }) {
             className="font-mono text-[8px] uppercase tracking-[0.2em] whitespace-nowrap"
             style={{ writingMode: "vertical-rl" }}
           >
-            Character
+            {isIdentity ? "Identity" : "Character"}
           </span>
         </div>
         <div
           className="relative flex-1 min-w-0 bg-surface-2 overflow-hidden"
           style={{ aspectRatio: "2/3" }}
         >
-          <RatingStamp
-            rating={character.my_rating}
-            size="sm"
-            className="absolute top-1.5 right-1.5 z-10"
-          />
+          {!isIdentity && (
+            <RatingStamp
+              rating={character.my_rating}
+              size="sm"
+              className="absolute top-1.5 right-1.5 z-10"
+            />
+          )}
           <img
             loading="lazy"
             src={coverUrl}
@@ -286,9 +299,15 @@ function CharacterCard({ character }) {
         >
           {name}
         </h3>
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
-          {castingCount} casting{castingCount !== 1 ? "s" : ""}
-        </span>
+        {isIdentity ? (
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint truncate">
+            identity of {character.character_display_name}
+          </span>
+        ) : (
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+            {castingCount} casting{castingCount !== 1 ? "s" : ""}
+          </span>
+        )}
       </div>
     </Wrapper>
   );

@@ -28,6 +28,7 @@ from app.routers import (
     cartoon,
     casting,
     character,
+    character_identity,
     collection,
     comic,
     community,
@@ -291,6 +292,7 @@ app.include_router(data_control.router)
 app.include_router(system.router)
 app.include_router(person.router)
 app.include_router(character.router)
+app.include_router(character_identity.router)
 app.include_router(publisher.router)
 app.include_router(studio.router)
 app.include_router(credits.router)

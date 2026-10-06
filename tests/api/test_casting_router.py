@@ -36,14 +36,6 @@ def person(db_session):
 
 
 @pytest.fixture
-def second_character(db_session):
-    c = models.Character(system_id=uuid.uuid4(), name_en="Yuki")
-    db_session.add(c)
-    db_session.flush()
-    return c
-
-
-@pytest.fixture
 def movie(db_session, sample_franchise):
     """A real, castable-media_type-but-not-a-casting-type entry: movie is a
     known key in MEDIA_TABLES, but not one of CASTING_MEDIA_TYPES."""
@@ -136,7 +128,7 @@ def test_an_unknown_role_is_still_a_422(admin_client, db_session, anime, charact
     assert _stored_roles(db_session, anime) == []
 
 
-def test_photo_falls_back_to_the_character_portrait(admin_client, anime, character):
+def test_display_photo_falls_back_to_the_character_portrait(admin_client, anime, character):
     """
     The casting shows how she looks in THIS entry; absent that, her portrait.
     character.photo_file is a real, non-None value (see the conftest fixture)
@@ -146,8 +138,9 @@ def test_photo_falls_back_to_the_character_portrait(admin_client, anime, charact
     body = {"cast": [{"character_id": str(character.system_id)}]}
     admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
     row = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"][0]
-    assert row["photo_file"] == character.photo_file
-    assert row["photo_file"] is not None
+    assert row["photo_file"] is None
+    assert row["display_photo_file"] == character.photo_file
+    assert row["display_photo_file"] is not None
 
 
 def test_photo_prefers_the_casting_s_own_over_the_character_s(
@@ -162,7 +155,8 @@ def test_photo_prefers_the_casting_s_own_over_the_character_s(
     admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
     row = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"][0]
     assert row["photo_file"] == "castings/ichika-this-anime.jpg"
-    assert row["photo_file"] != character.photo_file
+    assert row["display_photo_file"] == "castings/ichika-this-anime.jpg"
+    assert row["display_photo_file"] != character.photo_file
 
 
 def test_omitted_positions_default_from_payload_order(

@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-05
+Last verified: 2026-10-06
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -601,6 +601,19 @@ the cast editor's combobox uses instead; this page searches client-side over
 all four name columns). Sort `name (default) | casting_count` ("Appearances")
 `| my_rating`.
 
+**Cards.** The list is flattened by `characterCards` (`lib/characterCards.js`)
+into one card per character and one per identity in the response's nested
+`identities`, each identity emitted right after its character (the library's
+sort then decides the order shown); the count line counts cards. An identity card
+shows the identity's own `display_photo_file` and display name with an
+"identity of <character>" line (no rating stamp, no casting count), is labelled
+**Identity** where a character's is **Character**, and links to
+`/character/<public_id>/<slug>#identity-<system_id>`. It sorts by its **own**
+name, and filters by the identity's resolved gender (`display_gender`) but the
+**character's** tags, rating, role and entry types - it is the same character.
+Search matches every card of a character on the names of the character and of
+all its identities, so "Conan" finds the Shinichi card too.
+
 The **Filters** button opens a `FilterPanel` over
 `characterFilterDefs(auth)` (`lib/entityFilters.js`), the person library's
 groups without Type: **Entry type** — anime, anime movie, manga, novel, No
@@ -611,10 +624,12 @@ own `role` field and never against the roles its castings carry — then **My
 Rating** and **Gender**, then **Appearance** and **Trait** — `set-dynamic`
 groups over the values the loaded characters hold, sorted, plus Not set when a
 character's list is empty; a character matches when it holds any ticked
-value — with the same OR/AND rule. The panel is open when
+value — with the same OR/AND rule — then **Card** (Characters, Identities:
+tick one to show only that kind; empty shows both) and **Identities** (Has
+identities, No identities: an identity card always counts as having them). The panel is open when
 the page loads, on the shared default, with the same Clear all and Reset.
 
-Each `CharacterCard` shows `display_photo_file` — the photo, or the
+Each character `CharacterCard` shows `display_photo_file` — the photo, or the
 server-resolved fallback — with the `my_rating` stamp in its corner (none
 when unrated), the display name and casting count, and links to
 `/character/:system_id`.
@@ -695,6 +710,18 @@ card as one small link per seiyuu with its remark in brackets - "Name (child)"
 the point of looking a character up, unlike a person's own credits. A group
 the viewer may see no entries of still renders, with "Nothing you can see
 here" inside it, same rule the person and studio pages follow.
+
+**Identities.** A character with other identities draws an **Identities**
+section after the profile: one card per identity (`IdentityCard`) with its
+photo (`display_photo_file`), display name, its other non-empty names (the four name columns but the displayed one), resolved gender and remark, each
+with the anchor `id="identity-<system_id>"`. Arriving with that hash - from a
+library identity card or a cast row - scrolls the card to the middle and
+highlights it with a brand ring; the scroll happens when the character or the
+hash changes, not when an inline rating or remark edit replaces the loaded
+character. The appearances list shows one card **per
+cast row**, keyed by `casting_id`: an entry the character is cast in under two
+identities appears twice, a row with an identity reading "as <identity name>"
+under the title, each with that row's own seiyuu.
 
 ### Publisher — `/publisher/:system_id`
 

@@ -142,6 +142,11 @@ ENTITY_OWNER_MODELS: dict[str, type] = {
     "studio": models.Studio,
 }
 
+# A character identity is not a shared record of its own: it is seen exactly
+# when its character is. Kept out of ENTITY_OWNER_MODELS on purpose - that
+# map's contract is "the model whose own appearances decide visibility".
+IDENTITY_OWNER = "character-identity"
+
 
 @dataclass(frozen=True)
 class _Hiding:
@@ -237,6 +242,18 @@ def shared_record_visible(db: Session, viewer, model, record_id) -> bool:
         .first()
         is None
     )
+
+
+def identity_visible(db: Session, viewer, identity_id) -> bool:
+    """Whether `viewer` may see this identity - i.e. its character."""
+    character_id = (
+        db.query(models.CharacterIdentity.character_id)
+        .filter(models.CharacterIdentity.system_id == identity_id)
+        .scalar()
+    )
+    if character_id is None:
+        return False
+    return shared_record_visible(db, viewer, models.Character, character_id)
 
 
 def require_visible_shared(

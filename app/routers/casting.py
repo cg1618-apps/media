@@ -46,6 +46,9 @@ class CastVoiceIn(BaseModel):
 
 class CastRowIn(BaseModel):
     character_id: UUID
+    # NULL is the character's main identity; otherwise one of ITS identities
+    # (casting_service._validate_rows checks which).
+    identity_id: Optional[UUID] = None
     # In display order. Empty on a type nobody voices (casting.VOICED_MEDIA_TYPES).
     voices: List[CastVoiceIn] = []
     # Optional: NULL means no role recorded. One of CHARACTER_ROLES otherwise,

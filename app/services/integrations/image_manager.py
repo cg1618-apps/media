@@ -25,10 +25,10 @@ COVER_DIR = "static/covers"
 
 # Every table whose rows own an image. The media types come from
 # media_resolver so the two never drift; the rest are the entity tables that
-# have always shared this storage - staff and character portraits, publisher
-# and studio logos.
+# have always shared this storage - staff and character portraits, character
+# identity portraits, publisher and studio logos.
 COVER_OWNERS: frozenset[str] = frozenset(MEDIA_TYPE_KEYS) | frozenset(
-    {"staff", "character", "publisher", "studio"}
+    {"staff", "character", "character-identity", "publisher", "studio"}
 )
 
 

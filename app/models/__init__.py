@@ -19,6 +19,7 @@ from app.models.character import (
     Character,
     CharacterCasting,
     CharacterCastingVoice,
+    CharacterIdentity,
     CharacterTag,
 )
 from app.models.collection import Collection
@@ -96,6 +97,7 @@ __all__ = [
     "Character",
     "CharacterCasting",
     "CharacterCastingVoice",
+    "CharacterIdentity",
     "CharacterTag",
     "Manga",
     "Novel",

@@ -113,11 +113,11 @@ describe("Anime detail page — cast", () => {
     expect(seiyuuLink).toHaveAttribute("href", "/person/1/seiyuu-one");
   });
 
-  // The server resolves photo_file (the casting's own photo, falling back to
-  // the character's portrait) before it ever reaches the frontend — this
-  // asserts the component renders whatever photo_file the server sent, not
+  // The server resolves display_photo_file (the casting's own photo, falling
+  // back to the character's portrait) before it ever reaches the frontend — this
+  // asserts the component renders whatever display_photo_file the server sent, not
   // that the frontend chose or computed a fallback itself.
-  it("renders whatever photo_file the server already resolved, including a character-portrait fallback", async () => {
+  it("renders whatever display_photo_file the server already resolved, including a character-portrait fallback", async () => {
     mockFetch(BASE_ANIME, [
       {
         system_id: "cc1",
@@ -130,7 +130,7 @@ describe("Anime detail page — cast", () => {
         // No casting-specific photo was set — this is the server's resolved
         // fallback value (the character's own portrait file), not something
         // the frontend derives.
-        photo_file: "character-portrait.jpg",
+        display_photo_file: "character-portrait.jpg",
         remark: null,
       },
     ]);

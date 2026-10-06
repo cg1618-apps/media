@@ -2,7 +2,7 @@
 Read and wholesale-replace one media entry's cast.
 
 Owns the two operations app/routers/casting.py needs: `casting_rows` (bulk
-read, positioned, with photo_file already resolved) and `replace_casting`
+read, positioned, with the display photo already resolved) and `replace_casting`
 (delete-then-insert the whole set in payload order, each casting with its
 voices), plus `fill_character_roles`, which gives a character with no role
 of its own the role its castings give it. Validation that would otherwise surface as a raw IntegrityError from
@@ -41,9 +41,11 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
     One entry's cast, ordered by position, each row with its voices in order.
 
     Bulk-loads the voices, characters and people in a fixed number of queries,
-    regardless of cast size - not one per row - then resolves photo_file here
-    (the casting's own value, falling back to the character's) so every
-    reader gets the same answer without repeating the fallback.
+    regardless of cast size - not one per row - then resolves display_photo_file
+    here (the casting's own value, falling back to the identity's, then the
+    character's) so every reader gets the same answer without repeating the
+    fallback. photo_file stays the row's own value so an editor round trip
+    never freezes the resolved picture into the row.
     """
     castings = (
         db.query(models.CharacterCasting)
@@ -64,6 +66,18 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
             models.Character.system_id.in_(character_ids)
         )
     }
+
+    identity_ids = {c.identity_id for c in castings if c.identity_id}
+    identities = (
+        {
+            i.system_id: i
+            for i in db.query(models.CharacterIdentity).filter(
+                models.CharacterIdentity.system_id.in_(identity_ids)
+            )
+        }
+        if identity_ids
+        else {}
+    )
 
     voices = (
         db.query(models.CharacterCastingVoice)
@@ -100,6 +114,17 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
     rows = []
     for casting in castings:
         character = characters.get(casting.character_id)
+        identity = identities.get(casting.identity_id) if casting.identity_id else None
+        # The display photo: the row's own, then the identity's, then the
+        # character's; the focus travels with whichever photo won.
+        if casting.photo_file:
+            display_file, display_focus = casting.photo_file, casting.photo_focus
+        elif identity is not None and identity.photo_file:
+            display_file, display_focus = identity.photo_file, identity.photo_focus
+        elif character is not None:
+            display_file, display_focus = character.photo_file, character.photo_focus
+        else:
+            display_file = display_focus = None
         rows.append(
             {
                 "system_id": str(casting.system_id),
@@ -109,16 +134,18 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
                 # built - from a public_id, not the UUID.
                 "character_public_id": character.public_id if character else None,
                 "character_name": character.display_name if character else None,
+                "identity_id": str(casting.identity_id) if casting.identity_id else None,
+                "identity_name": identity.display_name if identity else None,
                 "voices": voices_by_casting.get(casting.system_id, []),
                 "role": casting.role,
                 "position": casting.position,
-                "photo_file": casting.photo_file
-                or (character.photo_file if character else None),
-                # The focus travels with the photo it was set on: the
-                # casting's own when it has a photo, else the character's.
-                "photo_focus": casting.photo_focus
-                if casting.photo_file
-                else (character.photo_focus if character else None),
+                # The row's OWN photo (null when it has none) - what the cast
+                # editor loads and sends back - and the resolved pair readers
+                # display.
+                "photo_file": casting.photo_file,
+                "photo_focus": casting.photo_focus,
+                "display_photo_file": display_file,
+                "display_photo_focus": display_focus,
                 "remark": casting.remark,
             }
         )
@@ -148,19 +175,24 @@ def _validate_row(media_type: str, row: dict) -> None:
 def _validate_rows(db: Session, rows: list[dict]) -> None:
     """
     Payload-wide checks _validate_row cannot do row-by-row: a repeated
-    character_id (would violate uq_character_casting), and a character_id or
-    voice person_id that does not exist (would violate a FK). Each check runs as
-    ONE query over every id the payload names, not one query per row -
-    CastEditor can hand this a cast list of any size.
+    (character_id, identity_id) (would violate uq_character_casting), and a
+    character_id, identity_id or voice person_id that does not exist (would
+    violate a FK). Each check runs as ONE query over every id the payload
+    names, not one query per row - CastEditor can hand this a cast list of any
+    size.
     """
     character_ids = [row["character_id"] for row in rows if row.get("character_id")]
     seen: set = set()
-    for character_id in character_ids:
-        if character_id in seen:
+    for row in rows:
+        if not row.get("character_id"):
+            continue
+        key = (row["character_id"], row.get("identity_id"))
+        if key in seen:
             raise CastingValidationError(
-                f"Character {character_id} is cast twice in the same payload."
+                f"Character {row['character_id']} is cast twice as the same "
+                "identity in the same payload."
             )
-        seen.add(character_id)
+        seen.add(key)
 
     if character_ids:
         found = {
@@ -174,6 +206,30 @@ def _validate_rows(db: Session, rows: list[dict]) -> None:
             raise CastingValidationError(
                 f"Unknown character id: {sorted(str(m) for m in missing)[0]}."
             )
+
+    wanted = {
+        (row["identity_id"], row["character_id"])
+        for row in rows
+        if row.get("identity_id")
+    }
+    if wanted:
+        owners = {
+            i.system_id: i.character_id
+            for i in db.query(
+                models.CharacterIdentity.system_id,
+                models.CharacterIdentity.character_id,
+            ).filter(
+                models.CharacterIdentity.system_id.in_({w[0] for w in wanted})
+            )
+        }
+        for identity_id, character_id in sorted(wanted, key=str):
+            if identity_id not in owners:
+                raise CastingValidationError(f"Unknown identity id: {identity_id}.")
+            if owners[identity_id] != character_id:
+                raise CastingValidationError(
+                    f"Identity {identity_id} does not belong to character "
+                    f"{character_id}."
+                )
 
     person_ids = {
         voice["person_id"] for row in rows for voice in row.get("voices") or []
@@ -204,7 +260,8 @@ def replace_casting(
     submit an ordered list without stamping positions themselves. Raises
     CastingValidationError - mapped to a 422 by the router - for a media type
     outside CASTING_MEDIA_TYPES, a seiyuu on a non-voiced media type, a role
-    outside CHARACTER_ROLES, a character_id repeated within the payload, or a
+    outside CHARACTER_ROLES, a (character, identity) repeated within the payload,
+    an identity that is unknown or belongs to another character, a
     character_id/person_id that does not exist, a person voicing one casting
     twice, so a CHECK or FK violation is
     never the first line of defense - and never a generic 500.
@@ -227,6 +284,7 @@ def replace_casting(
     for index, row in enumerate(rows):
         casting = models.CharacterCasting(
             character_id=row["character_id"],
+            identity_id=row.get("identity_id"),
             media_type=media_type,
             entry_id=entry_id,
             role=row.get("role"),

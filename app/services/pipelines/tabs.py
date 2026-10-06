@@ -21,6 +21,7 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
     Collection -> Franchise -> Series -> Media
     Watch Order List -> Section -> Item
     Person / Studio / Publisher / Character / Content Label -> the media tabs
+    Character -> Character Identity -> Character Casting
 
 Users is first because nothing points at it and Plan Next, Seasonal and Game
 Copy all carry a NOT NULL user_id.
@@ -226,6 +227,13 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         models.Character,
         f.parse_character_from_sheet,
         character_tags=True,
+    ),
+    # After Character (character_identity.character_id is a real FK) and
+    # before Character Casting, whose identity_id must find its identity.
+    SheetTab(
+        "Character Identity",
+        models.CharacterIdentity,
+        f.parse_character_identity_from_sheet,
     ),
     # Key/value rows (announcements, form defaults) nothing else references.
     SheetTab("System Configs", models.SystemConfigs, f.parse_system_config_from_sheet),
