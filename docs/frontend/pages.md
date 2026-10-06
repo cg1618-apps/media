@@ -602,8 +602,9 @@ all four name columns). Sort `name (default) | casting_count` ("Appearances")
 `| my_rating`.
 
 **Cards.** The list is flattened by `characterCards` (`lib/characterCards.js`)
-into one card per character, each followed by one card per identity in the
-response's nested `identities`; the count line counts cards. An identity card
+into one card per character and one per identity in the response's nested
+`identities`, each identity emitted right after its character (the library's
+sort then decides the order shown); the count line counts cards. An identity card
 shows the identity's own `display_photo_file` and display name with an
 "identity of <character>" line (no rating stamp, no casting count), is labelled
 **Identity** where a character's is **Character**, and links to
@@ -712,10 +713,12 @@ here" inside it, same rule the person and studio pages follow.
 
 **Identities.** A character with other identities draws an **Identities**
 section after the profile: one card per identity (`IdentityCard`) with its
-photo (`display_photo_file`), display name, resolved gender and remark, each
+photo (`display_photo_file`), display name, its other non-empty names (the four name columns but the displayed one), resolved gender and remark, each
 with the anchor `id="identity-<system_id>"`. Arriving with that hash - from a
 library identity card or a cast row - scrolls the card to the middle and
-highlights it with a brand ring. The appearances list shows one card **per
+highlights it with a brand ring; the scroll happens when the character or the
+hash changes, not when an inline rating or remark edit replaces the loaded
+character. The appearances list shows one card **per
 cast row**, keyed by `casting_id`: an entry the character is cast in under two
 identities appears twice, a row with an identity reading "as <identity name>"
 under the title, each with that row's own seiyuu.

@@ -1,7 +1,9 @@
 // Frontend: the character library's cards. Each character is one card, and
-// each of its other identities is another card right after it - an identity
-// is listed, searched and filtered as part of the same character, and links
-// to the character's page with that identity highlighted.
+// each of its other identities is another card. The function emits each
+// identity right after its character; the library's sort decides the order
+// shown (an identity card sorts by its own name). An identity is listed,
+// searched and filtered as part of the same character, and links to the
+// character's page with that identity highlighted.
 import { PERSON_NAME_FIELDS } from "./naming";
 
 export const CARD_KIND_CHARACTER = "Characters";

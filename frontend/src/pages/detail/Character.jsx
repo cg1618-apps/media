@@ -86,10 +86,13 @@ export default function Character() {
   }, [publicId]);
 
   // A library identity card and a cast row link here by #identity-<id>.
+  // Keyed on the character's id, not the object: a remark or rating patch
+  // replaces the object and must not scroll the page back to the identity.
+  const characterId = character?.system_id;
   useEffect(() => {
-    if (!character || !hash.startsWith("#identity-")) return;
+    if (!characterId || !hash.startsWith("#identity-")) return;
     document.getElementById(hash.slice(1))?.scrollIntoView({ block: "center" });
-  }, [character, hash]);
+  }, [characterId, hash]);
 
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading character..." />;
@@ -395,6 +398,15 @@ function CastingCard({ entry, navPath }) {
 // One of the character's other identities. `highlighted` when the URL's hash
 // names it - a library identity card and a cast row both link here that way.
 function IdentityCard({ identity, highlighted }) {
+  // Every other non-empty name, so an identity known by several is not
+  // reduced to the one that happens to be displayed.
+  const otherNames = [
+    ...new Set(
+      ["name_en", "name_cn", "name_jp", "name_alt"]
+        .map((field) => identity[field])
+        .filter((name) => name && name !== identity.display_name),
+    ),
+  ];
   return (
     <div
       id={`identity-${identity.system_id}`}
@@ -418,6 +430,11 @@ function IdentityCard({ identity, highlighted }) {
         <h3 className="font-display font-semibold text-text text-sm line-clamp-2 leading-tight">
           {identity.display_name}
         </h3>
+        {otherNames.map((name) => (
+          <span key={name} className="text-xs text-text-muted line-clamp-1">
+            {name}
+          </span>
+        ))}
         {identity.display_gender && (
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
             {identity.display_gender}

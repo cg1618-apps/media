@@ -11,7 +11,7 @@ const shinichi = {
 const ran = { system_id: "c2", public_id: 8, display_name: "Mouri Ran", name_en: "Mouri Ran", identities: [] };
 
 describe("characterCards", () => {
-  it("puts each identity card after its character", () => {
+  it("emits each identity card right after its character", () => {
     expect(characterCards([shinichi, ran]).map((c) => c.display_name)).toEqual([
       "Kudo Shinichi", "Edogawa Conan", "Mouri Ran",
     ]);

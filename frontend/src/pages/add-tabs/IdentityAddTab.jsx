@@ -9,6 +9,7 @@
 // IdentityFields is exported for IdentityModifyTab, which edits the same
 // inputs against an existing identity.
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
@@ -20,6 +21,10 @@ import { useToast } from "../../hooks/useToast";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
 
 export const IDENTITY_NAME_FIELDS = PERSON_NAME_FIELDS;
+
+// The admin identities list (Modify, Delete) is cached under this key; it
+// lives here, not beside the hook, so Add can invalidate it without a cycle.
+export const IDENTITIES_QUERY_KEY = ["identities-admin"];
 
 export function defaultIdentity() {
   return {
@@ -147,6 +152,7 @@ export function CharacterPicker({ value, onChange }) {
 
 export default function IdentityAddTab() {
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [character, setCharacter] = useState(null);
   const [form, setForm] = useState(defaultIdentity());
   const [submitting, setSubmitting] = useState(false);
@@ -168,6 +174,8 @@ export default function IdentityAddTab() {
           showToast("error", err.message || "Identity saved, but attaching the image failed.");
         }
       }
+      // Modify and Delete read this list: a just-added identity shows at once.
+      queryClient.invalidateQueries({ queryKey: IDENTITIES_QUERY_KEY });
       showToast("success", `Identity added to ${character.display_name}.`);
       setForm(defaultIdentity());
     } catch (err) {

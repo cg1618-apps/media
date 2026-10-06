@@ -963,6 +963,71 @@ describe("Identity field", () => {
     ]);
   });
 
+  it("keeps a loaded row's own (empty) photo when switched to an identity", async () => {
+    stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[
+          row({
+            system_id: "k1",
+            character_id: "c1",
+            character_name: "Shinichi",
+            photo_file: null,
+            display_photo_file: "characters/shinichi.jpg",
+          }),
+        ]}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    await userEvent.click(identityBox());
+    await userEvent.click(await screen.findByText("Conan"));
+    expect(onChangeSpy).toHaveBeenLastCalledWith([
+      expect.objectContaining({ identity_id: "i1", photo_file: null }),
+    ]);
+  });
+
+  it("takes an exact, case-insensitive name match when the box is left unpicked", async () => {
+    const spy = stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[row({ character_id: "c1", character_name: "Shinichi" })]}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith(
+        "/api/character-identity/?character_id=c1",
+        expect.anything(),
+      ),
+    );
+    await userEvent.type(identityBox(), "conan");
+    fireEvent.blur(identityBox());
+    expect(onChangeSpy).toHaveBeenLastCalledWith([
+      expect.objectContaining({ identity_id: "i1", identity_name: "Conan" }),
+    ]);
+  });
+
+  it("clears identity text that was typed, never picked and matches nothing", async () => {
+    stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[row({ character_id: "c1", character_name: "Shinichi" })]}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    await userEvent.type(identityBox(), "Nobody");
+    fireEvent.blur(identityBox());
+    expect(onChangeSpy).toHaveBeenLastCalledWith([
+      expect.objectContaining({ identity_id: null, identity_name: "" }),
+    ]);
+  });
+
   it("appends a main-identity row for a character held only as an identity row", async () => {
     stubIdentityFetch();
     const malCast = [

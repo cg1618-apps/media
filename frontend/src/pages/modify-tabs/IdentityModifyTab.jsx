@@ -14,9 +14,15 @@ import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { SectionHeader, inputCls } from "../../components/forms/FormField";
-import { IdentityFields, defaultIdentity, hasAnyIdentityName, identityPayload } from "../add-tabs/IdentityAddTab";
+import {
+  IDENTITIES_QUERY_KEY,
+  IdentityFields,
+  defaultIdentity,
+  hasAnyIdentityName,
+  identityPayload,
+} from "../add-tabs/IdentityAddTab";
 
-export const IDENTITIES_QUERY_KEY = ["identities-admin"];
+export { IDENTITIES_QUERY_KEY };
 
 function cleanString(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
@@ -110,6 +116,9 @@ export default function IdentityModifyTab({ initialId = null } = {}) {
     setForm(identityToForm(selected));
   }
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  // With no gender of its own the identity shows the character's, so that is
+  // the value "Same as character" inherits; with one set the label stays bare.
+  const characterGender = selected && !selected.gender ? selected.display_gender : null;
 
   async function save(e) {
     e.preventDefault();
@@ -158,7 +167,12 @@ export default function IdentityModifyTab({ initialId = null } = {}) {
                 Pick another
               </button>
             </div>
-            <IdentityFields form={form} update={update} ownerId={selected.system_id} />
+            <IdentityFields
+              form={form}
+              update={update}
+              ownerId={selected.system_id}
+              characterGender={characterGender}
+            />
             <div className="flex justify-end">
               <button
                 type="submit"

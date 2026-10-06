@@ -249,6 +249,29 @@ describe("Character detail page", () => {
       expect(screen.getByText("as Edogawa Conan")).toBeInTheDocument();
     });
 
+    it("lists an identity's other names under its headline", async () => {
+      mockFetch({
+        character: {
+          ...CHARACTER,
+          identities: [
+            {
+              ...IDENTITY,
+              name_en: "Edogawa Conan",
+              name_cn: "江户川柯南",
+              name_jp: "江戸川コナン",
+              name_alt: null,
+            },
+          ],
+        },
+      });
+      renderPage();
+      await screen.findByRole("heading", { name: /identities/i });
+      expect(screen.getByText("江户川柯南")).toBeInTheDocument();
+      expect(screen.getByText("江戸川コナン")).toBeInTheDocument();
+      // The displayed name is the headline only, not repeated as an extra line.
+      expect(screen.getAllByText("Edogawa Conan")).toHaveLength(1);
+    });
+
     it("highlights the identity named by the URL hash, and only that one", async () => {
       mockFetch({
         character: {

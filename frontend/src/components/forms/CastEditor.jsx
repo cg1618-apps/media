@@ -547,6 +547,27 @@ export default function CastEditor({
     }
   }
 
+  // Leaving the identity box with text that was typed and never picked: an
+  // exact (case-insensitive) display-name match among THIS character's
+  // identities is taken; anything else is cleared, because identity_id would
+  // stay null and the row would silently save as the main identity while still
+  // showing the text. Creating one is the explicit "Create new identity" item.
+  function resolveIdentity(i, e) {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    const row = latestRows.current[i];
+    const typed = (row?.identity_name || "").trim();
+    if (!row || row.identity_id || !typed) return;
+    const match = (identitiesByCharacter[row.character_id] || []).find(
+      (identity) => (identity.display_name || "").toLowerCase() === typed.toLowerCase(),
+    );
+    updateRow(
+      i,
+      match
+        ? { identity_id: match.system_id, identity_name: match.display_name }
+        : { identity_id: null, identity_name: "" },
+    );
+  }
+
   // Seiyuu find-or-create: leaving the field with typed, unresolved text
   // reuses a matching existing seiyuu, or mints one via the same
   // create-request shape ensureSourceValues.js uses for every other typed
@@ -638,7 +659,11 @@ export default function CastEditor({
                 {/* Empty is the character's main identity. Disabled until the
                     row has a character: an identity is always one of THAT
                     character's, and "Create new identity" makes it under it. */}
-                <div className={NAME_CELL} aria-label="Identity">
+                <div
+                  className={NAME_CELL}
+                  aria-label="Identity"
+                  onBlur={(e) => resolveIdentity(i, e)}
+                >
                   <ComboBox
                     items={row.character_id ? identityItems(row) : []}
                     selectedId={row.identity_id || null}

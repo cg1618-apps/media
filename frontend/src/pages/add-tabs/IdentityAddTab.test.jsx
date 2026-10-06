@@ -1,10 +1,10 @@
 // Identity Add tab: an identity needs an existing character and a name.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ToastProvider } from "../../hooks/useToast";
-import IdentityAddTab from "./IdentityAddTab";
+import IdentityAddTab, { IDENTITIES_QUERY_KEY } from "./IdentityAddTab";
 
 let post;
 
@@ -29,8 +29,10 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+let client;
+
 function mount() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -77,4 +79,16 @@ it("does not post when Enter picks a character from the list", async () => {
   await userEvent.keyboard("{ArrowDown}{Enter}");
   expect(await screen.findByRole("button", { name: "Clear character" })).toBeInTheDocument();
   expect(post).not.toHaveBeenCalled();
+});
+
+it("invalidates the identities list after a successful create", async () => {
+  mount();
+  const invalidate = vi.spyOn(client, "invalidateQueries");
+  await userEvent.type(screen.getByRole("combobox", { name: /character/i }), "kudo");
+  await userEvent.click(await screen.findByText("Kudo Shinichi"));
+  await userEvent.type(screen.getByLabelText("Name (English)"), "Conan");
+  await userEvent.click(screen.getByRole("button", { name: /add identity/i }));
+  await waitFor(() =>
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: IDENTITIES_QUERY_KEY }),
+  );
 });
