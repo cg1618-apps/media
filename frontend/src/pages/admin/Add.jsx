@@ -37,6 +37,7 @@ import AliasTab from "../../components/forms/AliasTab";
 import { categoryHasUsages } from "../../components/forms/UsagePicker";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
 import PersonAddTab, { defaultPerson } from "../add-tabs/PersonAddTab";
+import IdentityAddTab from "../add-tabs/IdentityAddTab";
 import CharacterAddTab, {
   defaultCharacter,
 } from "../add-tabs/CharacterAddTab";
@@ -3768,6 +3769,9 @@ export default function Add() {
           />
         )}
 
+        {/* ═══ IDENTITY TAB — self-contained, saves through its own button ═══ */}
+        {activeTab === "identity" && <IdentityAddTab />}
+
         {/* Content labels - one control for every media tab, and for the
             franchise tab, whose labels cascade to the entries under it.
             "game" belongs here: submitGame writes labels like every other
@@ -3790,12 +3794,12 @@ export default function Add() {
           </div>
         )}
 
-        {/* Submit button. Hidden on the Alias tab, which saves through its
-            own button: an alias is a PUT on an option that already exists, so
+        {/* Submit button. Hidden on the Identity tab, which saves through
+            its own button, and on the Alias tab, which does the same: an alias is a PUT on an option that already exists, so
             there is nothing for "Append Entry" to append. */}
         <div
           className="mt-6 flex justify-end"
-          hidden={activeTab === "alias"}
+          hidden={activeTab === "alias" || activeTab === "identity"}
         >
           <button
             type="submit"

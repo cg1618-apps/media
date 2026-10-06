@@ -60,6 +60,7 @@ import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
 import PersonModifyTab from "../modify-tabs/PersonModifyTab";
 import CharacterModifyTab from "../modify-tabs/CharacterModifyTab";
+import IdentityModifyTab from "../modify-tabs/IdentityModifyTab";
 import StudioModifyTab from "../modify-tabs/StudioModifyTab";
 import PublisherModifyTab from "../modify-tabs/PublisherModifyTab";
 import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
@@ -3969,6 +3970,14 @@ export default function Modify() {
         />
       )}
 
+      {/* ═══ IDENTITY TAB — bypasses search/edit pattern; self-contained
+          (see IdentityModifyTab.jsx). ═══ */}
+      {activeTab === "identity" && (
+        <IdentityModifyTab
+          initialId={entityDeepLink?.type === "identity" ? entityDeepLink.id : null}
+        />
+      )}
+
       {/* ═══ ALIAS TAB — bypasses search/edit pattern; an alias row has no
           record of its own to search for, so the tab picks the option that
           owns it and edits that option's list (see AliasTab.jsx). ═══ */}
@@ -3999,6 +4008,7 @@ export default function Modify() {
         activeTab !== "publisher" &&
         activeTab !== "person" &&
         activeTab !== "character" &&
+        activeTab !== "identity" &&
         activeTab !== "alias" && (
         <div className="space-y-6">
           {activeTab !== "options" ? (
@@ -4157,6 +4167,7 @@ export default function Modify() {
         activeTab !== "publisher" &&
         activeTab !== "person" &&
         activeTab !== "character" &&
+        activeTab !== "identity" &&
         activeTab !== "alias" && (
         <form onSubmit={handleSave}>
           <div className="flex items-center gap-3 mb-5">
