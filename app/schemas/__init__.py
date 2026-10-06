@@ -34,6 +34,10 @@ from app.schemas.character import (
     CharacterCreate,
     CharacterResponse,
     CharacterUpdate,
+    IdentityAdminResponse,
+    IdentityCreate,
+    IdentityResponse,
+    IdentityUpdate,
 )
 from app.schemas.collection import (
     CollectionBase,
@@ -378,6 +382,10 @@ __all__ = [
     "CharacterCreate",
     "CharacterUpdate",
     "CharacterResponse",
+    "IdentityAdminResponse",
+    "IdentityCreate",
+    "IdentityResponse",
+    "IdentityUpdate",
     "ComicBase",
     "ComicCreate",
     "ComicUpdate",

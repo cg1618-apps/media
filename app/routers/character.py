@@ -26,6 +26,10 @@ from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
 from app.services.domain.autofill import autofill_character_from_mal
+from app.services.domain.character_identities import (
+    identities_by_character,
+    identity_response,
+)
 from app.services.domain.character_tags import (
     character_tag_values,
     merge_character_tags,
@@ -78,6 +82,7 @@ def _to_response(
     viewer=None,
     media: Optional[EntityMedia] = None,
     tags: Optional[dict[str, list[str]]] = None,
+    identities: Optional[list] = None,
 ) -> schemas.CharacterResponse:
     # casting_count, the picture and the media types all count only castings
     # on entries the viewer may see, exactly as person._to_response counts
@@ -92,6 +97,8 @@ def _to_response(
     # The same arrangement for the tag lists (character_tags.character_tag_values).
     if tags is None:
         tags = character_tag_values(db, [character.system_id])[character.system_id]
+    if identities is None:
+        identities = identities_by_character(db, [character.system_id])[character.system_id]
     return schemas.CharacterResponse(
         system_id=character.system_id,
         public_id=character.public_id,
@@ -117,6 +124,7 @@ def _to_response(
         restricted=media.restricted,
         appearance=tags["appearance"],
         trait=tags["trait"],
+        identities=[identity_response(i, character, media) for i in identities],
     )
 
 
@@ -169,9 +177,15 @@ def get_all_characters(
     characters.sort(key=lambda c: c.display_name.casefold())
     media = character_media(db, viewer, characters)
     tags = character_tag_values(db, [c.system_id for c in characters])
+    identities = identities_by_character(db, [c.system_id for c in characters])
     return [
         _to_response(
-            db, character, viewer, media[character.system_id], tags[character.system_id]
+            db,
+            character,
+            viewer,
+            media[character.system_id],
+            tags[character.system_id],
+            identities[character.system_id],
         )
         for character in characters
     ]
