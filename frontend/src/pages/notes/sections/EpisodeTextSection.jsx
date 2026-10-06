@@ -25,6 +25,7 @@ import {
   useEntryCap,
   useRowReorder,
 } from "./ui";
+import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
 
 const empty = () => ({ locator: "", kind: "", content: "", links: [""] });
 
@@ -73,10 +74,9 @@ function EpisodeTextForm({ val, setVal, section }) {
           </select>
         )}
       </div>
-      <textarea
+      <AutoGrowTextarea
         value={val.content}
         onChange={(e) => setVal({ ...val, content: e.target.value })}
-        rows={2}
         placeholder={
           section.desc_required ? "Description (required)" : "Description"
         }

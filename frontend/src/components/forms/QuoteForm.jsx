@@ -2,6 +2,7 @@
 // admin Quote tab, and the inline editor on the Quote page.
 import { inputCls } from "./FormField";
 import ImagePicker from "./ImagePicker";
+import AutoGrowTextarea from "../ui/AutoGrowTextarea";
 
 export function emptyQuote(overrides = {}) {
   return {
@@ -91,7 +92,7 @@ export default function QuoteForm({ val, setVal, showReview = true }) {
       </Row>
 
       <Row label="Text">
-        <textarea
+        <AutoGrowTextarea
           value={val.text || ""}
           onChange={(e) => set("text", e.target.value)}
           rows={3}
@@ -101,10 +102,9 @@ export default function QuoteForm({ val, setVal, showReview = true }) {
       </Row>
 
       <Row label="Translation">
-        <textarea
+        <AutoGrowTextarea
           value={val.translation || ""}
           onChange={(e) => set("translation", e.target.value)}
-          rows={2}
           placeholder="Translated version (optional)"
           className={inputCls}
         />
