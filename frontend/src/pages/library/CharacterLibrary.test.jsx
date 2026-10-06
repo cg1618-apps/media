@@ -265,4 +265,66 @@ describe("CharacterLibrary", () => {
     await user.click(screen.getByRole("button", { name: "No entries" }));
     expect(screen.queryByText("Nickname Only")).not.toBeInTheDocument();
   });
+  describe("identities", () => {
+    const WITH_CONAN = {
+      system_id: "5",
+      public_id: "c5",
+      name_en: "Kudo Shinichi",
+      display_name: "Kudo Shinichi",
+      casting_count: 2,
+      media_types: ["anime"],
+      my_rating: "A",
+      identities: [
+        {
+          system_id: "i1",
+          name_en: "Edogawa Conan",
+          display_name: "Edogawa Conan",
+          display_gender: "男",
+          display_photo_file: "character-identity/i1.jpg",
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([...CHARACTERS, WITH_CONAN]),
+          }),
+        ),
+      );
+    });
+
+    it("shows identity cards and can hide them", async () => {
+      const user = userEvent.setup();
+      renderLibrary();
+      const conan = (await screen.findByText("Edogawa Conan")).closest("a");
+      expect(screen.getByText(/identity of Kudo Shinichi/i)).toBeInTheDocument();
+      expect(conan).toHaveAttribute("href", expect.stringContaining("#identity-i1"));
+      await user.click(screen.getByRole("button", { name: "Characters" }));
+      expect(screen.queryByText("Edogawa Conan")).not.toBeInTheDocument();
+      expect(screen.getByText("Kudo Shinichi")).toBeInTheDocument();
+    });
+
+    it("the Identities group filters by whether the character has identities", async () => {
+      const user = userEvent.setup();
+      renderLibrary();
+      await screen.findByText("Edogawa Conan");
+      await user.click(screen.getByRole("button", { name: "No identities" }));
+      expect(screen.queryByText("Edogawa Conan")).not.toBeInTheDocument();
+      expect(screen.queryByText("Kudo Shinichi")).not.toBeInTheDocument();
+      expect(screen.getByText("Yuki Nagato")).toBeInTheDocument();
+    });
+
+    it("an identity is found by its character's other names, and the character by the identity's", async () => {
+      const user = userEvent.setup();
+      renderLibrary();
+      await screen.findByText("Edogawa Conan");
+      await user.type(screen.getByRole("searchbox"), "Conan");
+      expect(screen.getByText("Kudo Shinichi")).toBeInTheDocument();
+      expect(screen.getByText("Edogawa Conan")).toBeInTheDocument();
+    });
+  });
 });
