@@ -3,7 +3,18 @@
 // owns `value` and receives every change through `onChange`. CastEditor
 // never calls the API to save a cast list — only to search/create the
 // characters and people its two comboboxes reference.
-import { useEffect, useMemo, useRef, useState } from "react";
+//
+// Two kinds of row. A main row is the character as itself: a Character box.
+// An identity row is the character cast as one of its other identities
+// (Edogawa Conan of Kudo Shinichi): drawn with a dashed border, its character
+// fixed and read as "identity of <character>", and an Identity box to pick or
+// create the identity. "+ Identity" on a row adds one right after it. A row
+// is an identity row when it holds an identity_id or carries identity_row,
+// the form-only marker "+ Identity" sets (useReplaceCasting never sends it).
+//
+// Rows are shown in the order given. Modify hands over a loaded cast in the
+// detail page's order (lib/castOrder.js); nothing here re-sorts while editing.
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import ComboBox from "./ComboBox";
 import QuickPicks from "./QuickPicks";
@@ -15,6 +26,7 @@ import { buildCreateRequest } from "../../lib/ensureSourceValues";
 import { byRatingThenAppearances } from "../../lib/peopleOrder";
 import { CHARACTER_ROLES, NEW_CAST_CHARACTER_GENDER } from "../../config/fieldOptions";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
+import { MISSING_IDENTITY_MESSAGE, isIdentityRow } from "../../lib/castOrder";
 
 // A synthetic ComboBox item id, distinguishable from every real
 // character's UUID, that stands for "mint a brand new character with this
@@ -25,6 +37,12 @@ const CREATE_CHARACTER_PREFIX = "__create_character__:";
 // character with this typed name". An identity is always created under the
 // row's character - never free-standing.
 const CREATE_IDENTITY_PREFIX = "__create_identity__:";
+
+// "Mint an identity of this row's character under the character's own
+// names" - all four and its display choice, fetched from the character when
+// picked. An identity often goes by its character's name (a disguise, a
+// stage persona), and typing it would carry only the one name the row shows.
+const CREATE_SAME_NAME_IDENTITY = "__create_identity_same_name__";
 
 // Debounced the same way useGlobalMediaSearch debounces: one request per
 // keystroke is one too many, and GET /api/character/?name= is the whole
@@ -96,6 +114,19 @@ export function importedRow(source, position, voiced) {
     photo_file: source.photo_file || null,
     photo_focus: source.photo_focus || null,
     remark: source.remark || "",
+  };
+}
+
+// The identity row "+ Identity" adds after `source`: the same character and
+// role, so it sits in the same role group, and nothing else - the identity is
+// still to be picked, and photo, remark and voices are the identity's own.
+function identityRowOf(source, position) {
+  return {
+    ...emptyRow(position),
+    character_id: source.character_id,
+    character_name: source.character_name || "",
+    role: source.role || "",
+    identity_row: true,
   };
 }
 
@@ -230,6 +261,32 @@ export default function CastEditor({
   };
 
   const addRow = () => onChange([...rows, emptyRow(rows.length)]);
+
+  // Inserts an identity row of row i's character directly after it, then
+  // focuses its Identity box once the parent has rendered it.
+  const rootRef = useRef(null);
+  const focusIdentityOf = useRef(null);
+  const addIdentityRow = (i) => {
+    const current = latestRows.current;
+    const next = [
+      ...current.slice(0, i + 1),
+      identityRowOf(current[i], i + 1),
+      ...current.slice(i + 1),
+    ].map((r, k) => ({ ...r, position: k }));
+    latestRows.current = next;
+    focusIdentityOf.current = i + 1;
+    onChange(next);
+  };
+  useLayoutEffect(() => {
+    const target = focusIdentityOf.current;
+    if (target == null) return;
+    const input = rootRef.current?.querySelector(
+      `[data-identity-cell="${target}"] input`,
+    );
+    if (!input) return;
+    focusIdentityOf.current = null;
+    input.focus();
+  });
 
   // Other entries of this franchise with a cast to import. Refetched when the
   // form's franchise changes; a form with no franchise has none.
@@ -510,29 +567,85 @@ export default function CastEditor({
         searchText: row.identity_name || "",
       });
     }
-    if (typed && !row.identity_id && !items.some((item) => item.label === typed)) {
+    const characterName = (row.character_name || "").trim();
+    // The typed create, unless what is typed is the character's own name:
+    // the same-name item below makes that one, with every name it has.
+    if (
+      typed &&
+      !row.identity_id &&
+      typed !== characterName &&
+      !items.some((item) => item.label === typed)
+    ) {
       items.push({
         id: `${CREATE_IDENTITY_PREFIX}${typed}`,
         label: `Create new identity named "${typed}"`,
         searchText: typed,
       });
     }
+    // Offered, typed text or not, while the character has no identity by
+    // its own name. searchText is the typed text, as for the create item
+    // above, so the box's filter never hides it.
+    if (
+      characterName &&
+      !row.identity_id &&
+      !items.some((item) => item.label === characterName)
+    ) {
+      items.push({
+        id: CREATE_SAME_NAME_IDENTITY,
+        label: `Create identity named "${characterName}" (same as character)`,
+        searchText: typed,
+      });
+    }
     return items;
+  }
+
+  // The POST body for an identity under the character's own names. The row
+  // carries only the displayed name, so the character is read for the rest;
+  // if that fails, the displayed name goes in as the CN name, the shape the
+  // typed create uses. Never the gender: unset means "the character's".
+  async function sameNameIdentityBody(row) {
+    try {
+      const res = await fetch(endpoints.character.detail(row.character_id), {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const character = await res.json();
+        return {
+          character_id: row.character_id,
+          name_en: character.name_en ?? null,
+          name_cn: character.name_cn ?? null,
+          name_jp: character.name_jp ?? null,
+          name_alt: character.name_alt ?? null,
+          display_name_field: character.display_name_field ?? null,
+        };
+      }
+    } catch {
+      /* fall through to the displayed name */
+    }
+    return { character_id: row.character_id, name_cn: row.character_name, display_name_field: "cn" };
   }
 
   async function handleIdentitySelect(i, id) {
     const row = latestRows.current[i];
-    if (!id.startsWith(CREATE_IDENTITY_PREFIX)) {
+    if (id !== CREATE_SAME_NAME_IDENTITY && !id.startsWith(CREATE_IDENTITY_PREFIX)) {
       const found = (identitiesByCharacter[row.character_id] || []).find((x) => x.system_id === id);
-      updateRow(i, { identity_id: id, identity_name: found?.display_name || "" });
+      updateRow(i, {
+        identity_id: id,
+        identity_name: found?.display_name || "",
+        identity_row: true,
+      });
       return;
     }
-    const name = id.slice(CREATE_IDENTITY_PREFIX.length);
+    const sameName = id === CREATE_SAME_NAME_IDENTITY;
+    const name = sameName ? row.character_name : id.slice(CREATE_IDENTITY_PREFIX.length);
     try {
+      const body = sameName
+        ? await sameNameIdentityBody(row)
+        : { character_id: row.character_id, name_cn: name, display_name_field: "cn" };
       const res = await fetch(endpoints.characterIdentity.create(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ character_id: row.character_id, name_cn: name, display_name_field: "cn" }),
+        body: JSON.stringify(body),
         credentials: "include",
       });
       if (!res.ok) return;
@@ -541,7 +654,11 @@ export default function CastEditor({
         ...prev,
         [row.character_id]: [...(prev[row.character_id] || []), created],
       }));
-      updateRow(i, { identity_id: created.system_id, identity_name: created.display_name || name });
+      updateRow(i, {
+        identity_id: created.system_id,
+        identity_name: created.display_name || name,
+        identity_row: true,
+      });
     } catch {
       /* leave the row untouched - the admin can retry */
     }
@@ -549,9 +666,10 @@ export default function CastEditor({
 
   // Leaving the identity box with text that was typed and never picked: an
   // exact (case-insensitive) display-name match among THIS character's
-  // identities is taken; anything else is cleared, because identity_id would
-  // stay null and the row would silently save as the main identity while still
-  // showing the text. Creating one is the explicit "Create new identity" item.
+  // identities is taken; anything else is cleared, so the box never shows a
+  // name the row does not hold. The row stays an identity row either way, and
+  // one with no identity blocks the save (castIdentityProblem). Creating one
+  // is the explicit "Create new identity" item.
   function resolveIdentity(i, e) {
     if (e.currentTarget.contains(e.relatedTarget)) return;
     const row = latestRows.current[i];
@@ -563,8 +681,8 @@ export default function CastEditor({
     updateRow(
       i,
       match
-        ? { identity_id: match.system_id, identity_name: match.display_name }
-        : { identity_id: null, identity_name: "" },
+        ? { identity_id: match.system_id, identity_name: match.display_name, identity_row: true }
+        : { identity_id: null, identity_name: "", identity_row: true },
     );
   }
 
@@ -610,16 +728,27 @@ export default function CastEditor({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" ref={rootRef}>
       <SortableList ids={rowIds} onMove={move}>
-        {rows.map((row, i) => (
+        {rows.map((row, i) => {
+          const asIdentity = isIdentityRow(row);
+          return (
           <SortableItem
             key={rowIds[i]}
             id={rowIds[i]}
-            className="flex gap-2 items-start border border-border rounded-lg p-2 bg-surface"
+            data-testid="cast-row"
+            // Dashed, so an identity row reads as the same character under
+            // another name rather than as one more character.
+            className={`flex gap-2 items-start border rounded-lg p-2 bg-surface ${
+              asIdentity ? "border-dashed border-border-strong" : "border-border"
+            }`}
           >
             <DragHandle
-              label={row.character_name || `cast member ${i + 1}`}
+              label={
+                (asIdentity ? row.identity_name : "") ||
+                row.character_name ||
+                `cast member ${i + 1}`
+              }
               className="pt-2"
             />
 
@@ -633,50 +762,84 @@ export default function CastEditor({
                 overflow. */}
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
               <div className="flex gap-1.5 items-center">
-                <div className={NAME_CELL} aria-label="Character">
-                  <ComboBox
-                    items={characterItems(row, i)}
-                    selectedId={row.character_id || null}
-                    inputText={row.character_name || ""}
-                    onSelect={(id) => handleCharacterSelect(i, id)}
-                    onType={(text) => {
-                      updateRow(i, { character_name: text });
-                      scheduleCharacterSearch(i, text);
-                    }}
-                    onClear={() => {
-                      updateRow(i, {
-                        character_id: null,
-                        character_name: "",
-                        identity_id: null,
-                        identity_name: "",
-                      });
-                      setCharacterResults((prev) => ({ ...prev, [i]: [] }));
-                    }}
-                    placeholder="Character name..."
-                    clearLabel="Clear character"
-                  />
-                </div>
-                {/* Empty is the character's main identity. Disabled until the
-                    row has a character: an identity is always one of THAT
-                    character's, and "Create new identity" makes it under it. */}
-                <div
-                  className={NAME_CELL}
-                  aria-label="Identity"
-                  onBlur={(e) => resolveIdentity(i, e)}
-                >
-                  <ComboBox
-                    items={row.character_id ? identityItems(row) : []}
-                    selectedId={row.identity_id || null}
-                    inputText={row.identity_name || ""}
-                    disabled={!row.character_id}
-                    onSelect={(id) => handleIdentitySelect(i, id)}
-                    onType={(text) => updateRow(i, { identity_name: text, identity_id: null })}
-                    onClear={() => updateRow(i, { identity_id: null, identity_name: "" })}
-                    placeholder="Main identity"
-                    clearLabel="Clear identity"
-                    ariaLabel="Identity"
-                  />
-                </div>
+                {asIdentity ? (
+                  <>
+                    {/* The character is fixed on an identity row: to cast
+                        someone else, remove the row. */}
+                    <span className={NAME_CELL + " text-sm text-text-muted truncate"}>
+                      identity of{" "}
+                      <span className="text-text font-medium">
+                        {row.character_name || "Unknown"}
+                      </span>
+                    </span>
+                    {/* Always one of THIS character's identities, and
+                        "Create new identity" makes it under it. */}
+                    <div
+                      className={NAME_CELL + " flex flex-col gap-0.5"}
+                      aria-label="Identity"
+                      data-identity-cell={i}
+                      onBlur={(e) => resolveIdentity(i, e)}
+                    >
+                      <ComboBox
+                        items={identityItems(row)}
+                        selectedId={row.identity_id || null}
+                        inputText={row.identity_name || ""}
+                        onSelect={(id) => handleIdentitySelect(i, id)}
+                        onType={(text) =>
+                          updateRow(i, { identity_name: text, identity_id: null, identity_row: true })
+                        }
+                        onClear={() =>
+                          updateRow(i, { identity_id: null, identity_name: "", identity_row: true })
+                        }
+                        placeholder="Identity name..."
+                        clearLabel="Clear identity"
+                        ariaLabel="Identity"
+                      />
+                      {!row.identity_id && (
+                        <span className="text-[11px] text-danger">
+                          {MISSING_IDENTITY_MESSAGE}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={NAME_CELL} aria-label="Character">
+                      <ComboBox
+                        items={characterItems(row, i)}
+                        selectedId={row.character_id || null}
+                        inputText={row.character_name || ""}
+                        onSelect={(id) => handleCharacterSelect(i, id)}
+                        onType={(text) => {
+                          updateRow(i, { character_name: text });
+                          scheduleCharacterSearch(i, text);
+                        }}
+                        onClear={() => {
+                          updateRow(i, {
+                            character_id: null,
+                            character_name: "",
+                            identity_id: null,
+                            identity_name: "",
+                          });
+                          setCharacterResults((prev) => ({ ...prev, [i]: [] }));
+                        }}
+                        placeholder="Character name..."
+                        clearLabel="Clear character"
+                      />
+                    </div>
+                    {/* A main row is the character as itself; another
+                        identity of it is a row of its own, added here. */}
+                    {row.character_id && (
+                      <button
+                        type="button"
+                        className="shrink-0 text-[11px] text-brand hover:underline"
+                        onClick={() => addIdentityRow(i)}
+                      >
+                        + Identity
+                      </button>
+                    )}
+                  </>
+                )}
                 {/* The casting's role, twice over: a select below lg, where
                     the row has no room to spare, and one chip per role from
                     lg up, where it has. Both edit the same value; clicking
@@ -798,7 +961,8 @@ export default function CastEditor({
               <i className="fas fa-times" />
             </button>
           </SortableItem>
-        ))}
+          );
+        })}
       </SortableList>
       <div className="flex flex-wrap items-center gap-3 mt-1">
         <button

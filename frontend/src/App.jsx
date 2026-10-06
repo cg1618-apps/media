@@ -43,6 +43,7 @@ const PersonLibrary = lazy(() => import("./pages/library/PersonLibrary"));
 const Person = lazy(() => import("./pages/detail/Person"));
 const CharacterLibrary = lazy(() => import("./pages/library/CharacterLibrary"));
 const Character = lazy(() => import("./pages/detail/Character"));
+const Identity = lazy(() => import("./pages/detail/Identity"));
 
 
 // Route-level code splitting: the admin pages, the relations canvas
@@ -204,6 +205,7 @@ export default function App() {
                 <Route path="/publisher/:publicId/:slug?" element={<Publisher />} />
                 <Route path="/person/:publicId/:slug?" element={<Person />} />
                 <Route path="/character/:publicId/:slug?" element={<Character />} />
+                <Route path="/identity/:publicId/:slug?" element={<Identity />} />
                 <Route path="/watch-order/:publicId/:slug?" element={<WatchOrder />} />
                 <Route path="/completions" element={<Completions />} />
                 <Route path="/quote" element={<Quotes />} />

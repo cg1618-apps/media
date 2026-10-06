@@ -48,6 +48,28 @@ export function identityPayload(form) {
   };
 }
 
+// What picking a character fills in: its four names and which one it
+// displays, as a starting point - an identity is often a variant of its
+// character's name. Never gender (empty means "the character's"), photo or
+// remark.
+const PREFILLED_FIELDS = [...PERSON_NAME_FIELDS.map(({ field }) => field), "display_name_field"];
+
+// The form after picking `character`. A field is filled only while it is
+// empty or still holds what the previous pick filled in (`prefilled`), so
+// nothing the admin typed is overwritten, and picking another character
+// re-fills the untouched ones. Returns the new form and the new `prefilled`.
+export function prefillFromCharacter(form, prefilled, character) {
+  const next = { ...form };
+  const filled = {};
+  for (const field of PREFILLED_FIELDS) {
+    const current = form[field] ?? "";
+    if (current !== "" && current !== prefilled[field]) continue;
+    next[field] = character?.[field] ?? "";
+    filled[field] = next[field];
+  }
+  return [next, filled];
+}
+
 export function hasAnyIdentityName(form) {
   return IDENTITY_NAME_FIELDS.some(({ field }) => form[field]?.trim());
 }
@@ -73,7 +95,7 @@ export function IdentityFields({ form, update, ownerId, characterGender }) {
         <p className="text-[10px] font-bold text-danger -mt-2">An identity needs at least one name.</p>
       )}
       <Field label="Display Name" hint="Which name to show. Falls back through English, Chinese, Japanese, Alternative when unset.">
-        <select className={selectCls} value={form.display_name_field ?? ""} onChange={(e) => update("display_name_field", e.target.value)}>
+        <select aria-label="Display Name" className={selectCls} value={form.display_name_field ?? ""} onChange={(e) => update("display_name_field", e.target.value)}>
           <option value="">Default (English)</option>
           {IDENTITY_NAME_FIELDS.map(({ key, label }) => (
             <option key={key} value={key}>{label}</option>
@@ -155,6 +177,9 @@ export default function IdentityAddTab() {
   const queryClient = useQueryClient();
   const [character, setCharacter] = useState(null);
   const [form, setForm] = useState(defaultIdentity());
+  // The values the last character pick filled in, per field: a field still
+  // holding its value is the admin's to keep or have re-filled.
+  const [prefilled, setPrefilled] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const ready = !!character && hasAnyIdentityName(form);
@@ -178,6 +203,7 @@ export default function IdentityAddTab() {
       queryClient.invalidateQueries({ queryKey: IDENTITIES_QUERY_KEY });
       showToast("success", `Identity added to ${character.display_name}.`);
       setForm(defaultIdentity());
+      setPrefilled({});
     } catch (err) {
       showToast("error", err.message || "Failed to create identity.");
     } finally {
@@ -198,7 +224,17 @@ export default function IdentityAddTab() {
       }}
     >
       <SectionHeader icon="fa-masks-theater" title="Identity" />
-      <CharacterPicker value={character} onChange={setCharacter} />
+      <CharacterPicker
+        value={character}
+        onChange={(picked) => {
+          setCharacter(picked);
+          // Clearing the character leaves the names as they are.
+          if (!picked) return;
+          const [next, filled] = prefillFromCharacter(form, prefilled, picked);
+          setForm(next);
+          setPrefilled(filled);
+        }}
+      />
       <IdentityFields form={form} update={update} characterGender={character?.gender} />
       <div className="flex justify-end">
         <button

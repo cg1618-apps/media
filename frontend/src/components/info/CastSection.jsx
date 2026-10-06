@@ -2,7 +2,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { castRoleRank } from "../../config/fieldOptions";
+import { sortCast } from "../../lib/castOrder";
 import { entityPath } from "../../lib/entityPath";
 import { focusStyle } from "../../lib/covers";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
@@ -10,18 +10,6 @@ import { Button, Chip, Slip } from "../ui/primitives";
 
 const castLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
-
-// Castings in CHARACTER_ROLES order (Main, Core, Supporting, Other), then
-// whatever order the server already gave; a casting with no role sorts last
-// rather than crowding the top (castRoleRank).
-function sortCast(cast) {
-  return [...cast].sort((a, b) => {
-    const ra = castRoleRank(a.role);
-    const rb = castRoleRank(b.role);
-    if (ra !== rb) return ra - rb;
-    return (a.position ?? 0) - (b.position ?? 0);
-  });
-}
 
 // The tiers the slip shows inline. Collapsed is every Main character;
 // expanded adds Core. Supporting, Other and role-less rows are only ever in
@@ -32,10 +20,43 @@ const EXPANDED_ROLES = ["Main", "Core"];
 const toggleCls =
   "text-xs text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
 
-function CastRow({ row }) {
+// The identity rows the "Show identities" toggle folds away: every row cast
+// as another identity of a character that also has a main row here. One
+// whose character has no main row is how that character appears at all
+// (only Edogawa Conan in an entry), so it is never hidden.
+function hideableIdentities(cast) {
+  const withMainRow = new Set(
+    cast.filter((row) => !row.identity_id).map((row) => row.character_id),
+  );
+  return new Set(
+    cast.filter((row) => row.identity_id && withMainRow.has(row.character_id)),
+  );
+}
+
+// "Show identities (N)" / "Hide identities", shared by the slip and the
+// full-cast dialog. Rendered only when there is something to fold.
+function IdentityToggle({ showIdentities, hideableCount, onToggle }) {
+  if (hideableCount === 0) return null;
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded">
+    <button type="button" className={toggleCls} onClick={onToggle}>
+      {showIdentities ? "Hide identities" : `Show identities (${hideableCount})`}
+    </button>
+  );
+}
+
+// An identity row is drawn as one, not only named: a dashed frame on its
+// thumbnail and a dashed "Identity" tag, the dashed line the cast editor
+// gives its identity rows. A main row stays solid.
+function CastRow({ row }) {
+  const asIdentity = Boolean(row.identity_id);
+  return (
+    <div className="flex items-center gap-3" data-cast-row>
+      <div
+        className={`w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded${
+          asIdentity ? " border border-dashed border-border-strong" : ""
+        }`}
+        data-identity-thumb={asIdentity || undefined}
+      >
         <img
           loading="lazy"
           src={getCoverUrl(row.display_photo_file)}
@@ -49,19 +70,42 @@ function CastRow({ row }) {
       </div>
       <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
         {row.role && <Chip>{row.role}</Chip>}
+        {asIdentity && <Chip dashed>Identity</Chip>}
         {/* The casting row carries the target's own public_id and
-            display name, so this is the real entity, not a stub. */}
+            display name, so this is the real entity, not a stub. A row
+            cast as an identity opens that identity's page. */}
         <Link
-          to={entityPath("character", {
-            public_id: row.character_public_id,
-            display_name: row.character_name,
-          }) + (row.identity_id ? `#identity-${row.identity_id}` : "")}
+          to={
+            row.identity_public_id != null
+              ? entityPath("identity", {
+                  public_id: row.identity_public_id,
+                  display_name: row.identity_name,
+                })
+              : entityPath("character", {
+                  public_id: row.character_public_id,
+                  display_name: row.character_name,
+                })
+          }
           className={castLinkCls}
         >
           {row.identity_name || row.character_name || "Unknown"}
         </Link>
+        {/* An identity row names its character in words, the vocabulary
+            the library's identity card uses, so it does not read as a
+            second character. A sibling link, never nested in the one above. */}
         {row.identity_name && (
-          <span className="text-text-faint text-xs">({row.character_name})</span>
+          <span className="text-text-faint text-xs">
+            identity of{" "}
+            <Link
+              to={entityPath("character", {
+                public_id: row.character_public_id,
+                display_name: row.character_name,
+              })}
+              className="hover:text-brand transition"
+            >
+              {row.character_name || "Unknown"}
+            </Link>
+          </span>
         )}
         {row.voices?.length > 0 && (
           <span className="text-text-faint text-xs">voiced by</span>
@@ -90,7 +134,7 @@ function CastRow({ row }) {
 
 // The whole cast, every role, in a dialog. Same backdrop rule as
 // RemarkModal: only a press that starts on the backdrop dismisses it.
-function FullCastModal({ cast, onClose }) {
+function FullCastModal({ cast, onClose, identityToggle }) {
   const pressedBackdrop = useRef(false);
   useEffect(() => {
     const onKey = (e) => {
@@ -133,7 +177,8 @@ function FullCastModal({ cast, onClose }) {
             <CastRow key={row.system_id} row={row} />
           ))}
         </div>
-        <div className="px-6 py-3 border-t border-border flex justify-end">
+        <div className="px-6 py-3 border-t border-border flex justify-between items-center gap-4">
+          <div>{identityToggle}</div>
           <Button kind="outline" onClick={onClose}>
             Close
           </Button>
@@ -153,12 +198,21 @@ function FullCastModal({ cast, onClose }) {
 // Main and Core, and "Show full cast" opens everything in a popup. A cast
 // with no Main and no Core character has nothing to collapse to, so it is
 // shown whole.
+//
+// Identity rows of a character that has its main row here are hidden by
+// default (hideableIdentities); "Show identities" brings them back, in the
+// slip and the dialog alike. The tiers and their counts are worked out over
+// the rows that toggle leaves visible. Not persisted: every page load starts
+// with them hidden.
 export default function CastSection({ cast }) {
   const [expanded, setExpanded] = useState(false);
   const [fullOpen, setFullOpen] = useState(false);
+  const [showIdentities, setShowIdentities] = useState(false);
   if (!cast || cast.length === 0) return null;
 
-  const sorted = sortCast(cast);
+  const all = sortCast(cast);
+  const hideable = hideableIdentities(all);
+  const sorted = showIdentities ? all : all.filter((row) => !hideable.has(row));
   const main = sorted.filter((row) => COLLAPSED_ROLES.includes(row.role));
   const mainAndCore = sorted.filter((row) => EXPANDED_ROLES.includes(row.role));
   const tiered = mainAndCore.length > 0;
@@ -167,6 +221,13 @@ export default function CastSection({ cast }) {
   const shown = !tiered ? sorted : expanded ? mainAndCore : collapsed;
   const coreCount = mainAndCore.length - collapsed.length;
   const hiddenCount = sorted.length - shown.length;
+  const identityToggle = (
+    <IdentityToggle
+      showIdentities={showIdentities}
+      hideableCount={hideable.size}
+      onToggle={() => setShowIdentities((v) => !v)}
+    />
+  );
 
   return (
     <Slip title="Cast">
@@ -175,7 +236,7 @@ export default function CastSection({ cast }) {
           <CastRow key={row.system_id} row={row} />
         ))}
       </div>
-      {tiered && (coreCount > 0 || hiddenCount > 0) && (
+      {((tiered && (coreCount > 0 || hiddenCount > 0)) || hideable.size > 0) && (
         <div className="flex gap-4 mt-3">
           {coreCount > 0 &&
             (expanded ? (
@@ -187,14 +248,21 @@ export default function CastSection({ cast }) {
                 Show core cast (+{coreCount})
               </button>
             ))}
-          {hiddenCount > 0 && (
+          {tiered && hiddenCount > 0 && (
             <button type="button" className={toggleCls} onClick={() => setFullOpen(true)}>
               Show full cast ({sorted.length})
             </button>
           )}
+          {identityToggle}
         </div>
       )}
-      {fullOpen && <FullCastModal cast={sorted} onClose={() => setFullOpen(false)} />}
+      {fullOpen && (
+        <FullCastModal
+          cast={sorted}
+          onClose={() => setFullOpen(false)}
+          identityToggle={identityToggle}
+        />
+      )}
     </Slip>
   );
 }

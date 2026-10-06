@@ -66,7 +66,7 @@ export const NAV_SECTIONS = [
             label: "Character",
             icon: "fas fa-masks-theater",
             to: "/library/character",
-            matches: ["/character"],
+            matches: ["/character", "/identity"],
           },
           {
             label: "Seiyuu",

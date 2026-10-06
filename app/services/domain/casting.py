@@ -136,6 +136,8 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
                 "character_name": character.display_name if character else None,
                 "identity_id": str(casting.identity_id) if casting.identity_id else None,
                 "identity_name": identity.display_name if identity else None,
+                # So the cast table can link to the identity's own page.
+                "identity_public_id": identity.public_id if identity else None,
                 "voices": voices_by_casting.get(casting.system_id, []),
                 "role": casting.role,
                 "position": casting.position,

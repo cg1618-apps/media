@@ -12,6 +12,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import CastEditor, { importedRow } from "./CastEditor";
+import { castIdentityProblem } from "../../lib/castOrder";
 
 // The photo cell is ImagePicker, whose upload and library calls are its own
 // tests' business. A stub stands in for it and records the props it was
@@ -838,7 +839,7 @@ it("offers the casting role as chips from lg up and a select below", async () =>
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 
-describe("Identity field", () => {
+describe("identity rows", () => {
   const CONAN = { system_id: "i1", display_name: "Conan", character_id: "c1" };
 
   // Answers the identity list/create endpoints, everything else as mockFetch.
@@ -858,57 +859,87 @@ describe("Identity field", () => {
   }
 
   const identityBox = () => screen.getByRole("combobox", { name: /identity/i });
+  const castRows = () => screen.getAllByTestId("cast-row");
 
-  it("is disabled until the row has a character", async () => {
-    render(<CastEditor mediaType="anime" value={[row()]} onChange={vi.fn()} />);
-    expect(identityBox()).toBeDisabled();
+  const SHINICHI = row({
+    character_id: "c1",
+    character_name: "Shinichi",
+    role: "Main",
+    remark: "lead",
+    photo_file: "library/shinichi.jpg",
+    voices: [{ person_id: "p1", person_name: "Yamaguchi", remark: "" }],
+  });
+
+  it("gives a main row no Identity box, only the character", async () => {
+    stubIdentityFetch();
+    render(<CastEditor mediaType="anime" value={[SHINICHI]} onChange={vi.fn()} />);
+    expect(screen.queryByRole("combobox", { name: /identity/i })).toBeNull();
+    expect(screen.getByRole("button", { name: "Clear character" })).toBeInTheDocument();
+    expect(screen.queryByText(/identity of/)).toBeNull();
     await waitFor(() => expect(fetch).toHaveBeenCalled());
   });
 
-  it("lists only the chosen character's identities", async () => {
-    const spy = stubIdentityFetch({ identities: [CONAN] });
+  it("offers + Identity only on a row that has a character", async () => {
+    stubIdentityFetch();
     render(
-      <CastEditor
+      <CastEditor mediaType="anime" value={[SHINICHI, row({ position: 1 })]} onChange={vi.fn()} />,
+    );
+    expect(screen.getAllByRole("button", { name: "+ Identity" })).toHaveLength(1);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+  });
+
+  it("+ Identity inserts a blank, dashed identity row of the same character right after it, focused", async () => {
+    stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
         mediaType="anime"
-        value={[row({ character_id: "c1", character_name: "Shinichi" })]}
-        onChange={vi.fn()}
+        initialRows={[SHINICHI, row({ character_id: "c2", character_name: "Ran", position: 1 })]}
+        onChangeSpy={onChangeSpy}
       />,
     );
+    await userEvent.click(screen.getAllByRole("button", { name: "+ Identity" })[0]);
+    const rows = onChangeSpy.mock.calls.at(-1)[0];
+    expect(rows.map((r) => [r.character_id, r.identity_row || false, r.position])).toEqual([
+      ["c1", false, 0],
+      ["c1", true, 1],
+      ["c2", false, 2],
+    ]);
+    expect(rows[1]).toMatchObject({
+      character_name: "Shinichi",
+      identity_id: null,
+      identity_name: "",
+      // The source row's role, so it lands in the same role group.
+      role: "Main",
+      remark: "",
+      photo_file: null,
+      voices: [],
+    });
+    expect(castRows()[1]).toHaveClass("border-dashed");
+    expect(castRows()[0]).not.toHaveClass("border-dashed");
+    expect(within(castRows()[1]).getByText(/identity of/)).toHaveTextContent("identity of Shinichi");
+    expect(identityBox()).toHaveFocus();
+    expect(identityBox()).toHaveAttribute("placeholder", "Identity name...");
+  });
+
+  it("picks one of the character's identities on the identity row", async () => {
+    const spy = stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(<Controlled mediaType="anime" initialRows={[SHINICHI]} onChangeSpy={onChangeSpy} />);
     await waitFor(() =>
       expect(spy).toHaveBeenCalledWith(
         "/api/character-identity/?character_id=c1",
         expect.anything(),
       ),
     );
+    await userEvent.click(screen.getByRole("button", { name: "+ Identity" }));
     await userEvent.click(identityBox());
-    expect(await screen.findByText("Conan")).toBeInTheDocument();
-  });
-
-  it("clears the identity when the character is cleared", async () => {
-    stubIdentityFetch({ identities: [CONAN] });
-    const onChange = vi.fn();
-    render(
-      <CastEditor
-        mediaType="anime"
-        value={[
-          row({
-            character_id: "c1",
-            character_name: "Shinichi",
-            identity_id: "i1",
-            identity_name: "Conan",
-          }),
-        ]}
-        onChange={onChange}
-      />,
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Clear character" }));
-    expect(onChange).toHaveBeenLastCalledWith([
-      expect.objectContaining({
-        character_id: null,
-        identity_id: null,
-        identity_name: "",
-      }),
-    ]);
+    await userEvent.click(await screen.findByText("Conan"));
+    expect(onChangeSpy.mock.calls.at(-1)[0][1]).toMatchObject({
+      character_id: "c1",
+      identity_id: "i1",
+      identity_name: "Conan",
+    });
   });
 
   it("creates a new identity under the row's character", async () => {
@@ -920,6 +951,7 @@ describe("Identity field", () => {
         onChangeSpy={vi.fn()}
       />,
     );
+    await userEvent.click(screen.getByRole("button", { name: "+ Identity" }));
     await userEvent.type(identityBox(), "Kid");
     await userEvent.click(await screen.findByText('Create new identity named "Kid"'));
     const post = spy.mock.calls.find(([, init]) => init?.method === "POST");
@@ -932,6 +964,59 @@ describe("Identity field", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Clear identity" })).toBeInTheDocument(),
     );
+  });
+
+  it("renders a loaded row with an identity as an identity row", async () => {
+    stubIdentityFetch({ identities: [CONAN] });
+    render(
+      <CastEditor
+        mediaType="anime"
+        value={[
+          SHINICHI,
+          row({
+            system_id: "k2",
+            character_id: "c1",
+            character_name: "Shinichi",
+            identity_id: "i1",
+            identity_name: "Conan",
+            position: 1,
+          }),
+        ]}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(castRows()[1]).toHaveClass("border-dashed");
+    expect(within(castRows()[1]).getByText(/identity of/)).toHaveTextContent("identity of Shinichi");
+    // Its character is fixed: only the main row has a character box.
+    expect(screen.getAllByRole("button", { name: "Clear character" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Clear identity" })).toBeInTheDocument();
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+  });
+
+  it("keeps the identity row when its character's main row is removed", async () => {
+    stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[
+          SHINICHI,
+          row({
+            character_id: "c1",
+            character_name: "Shinichi",
+            identity_id: "i1",
+            identity_name: "Conan",
+            position: 1,
+          }),
+        ]}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    await userEvent.click(screen.getAllByRole("button", { name: "Remove" })[0]);
+    const rows = onChangeSpy.mock.calls.at(-1)[0];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ character_id: "c1", identity_id: "i1", position: 0 });
+    expect(castRows()[0]).toHaveClass("border-dashed");
   });
 
   it("keeps a loaded identity through an edit of another field", async () => {
@@ -963,69 +1048,59 @@ describe("Identity field", () => {
     ]);
   });
 
-  it("keeps a loaded row's own (empty) photo when switched to an identity", async () => {
-    stubIdentityFetch({ identities: [CONAN] });
-    const onChangeSpy = vi.fn();
-    render(
-      <Controlled
-        mediaType="anime"
-        initialRows={[
-          row({
-            system_id: "k1",
-            character_id: "c1",
-            character_name: "Shinichi",
-            photo_file: null,
-            display_photo_file: "characters/shinichi.jpg",
-          }),
-        ]}
-        onChangeSpy={onChangeSpy}
-      />,
-    );
-    await userEvent.click(identityBox());
-    await userEvent.click(await screen.findByText("Conan"));
-    expect(onChangeSpy).toHaveBeenLastCalledWith([
-      expect.objectContaining({ identity_id: "i1", photo_file: null }),
-    ]);
-  });
-
   it("takes an exact, case-insensitive name match when the box is left unpicked", async () => {
     const spy = stubIdentityFetch({ identities: [CONAN] });
     const onChangeSpy = vi.fn();
-    render(
-      <Controlled
-        mediaType="anime"
-        initialRows={[row({ character_id: "c1", character_name: "Shinichi" })]}
-        onChangeSpy={onChangeSpy}
-      />,
-    );
+    render(<Controlled mediaType="anime" initialRows={[SHINICHI]} onChangeSpy={onChangeSpy} />);
     await waitFor(() =>
       expect(spy).toHaveBeenCalledWith(
         "/api/character-identity/?character_id=c1",
         expect.anything(),
       ),
     );
+    await userEvent.click(screen.getByRole("button", { name: "+ Identity" }));
     await userEvent.type(identityBox(), "conan");
     fireEvent.blur(identityBox());
-    expect(onChangeSpy).toHaveBeenLastCalledWith([
-      expect.objectContaining({ identity_id: "i1", identity_name: "Conan" }),
-    ]);
+    expect(onChangeSpy.mock.calls.at(-1)[0][1]).toMatchObject({
+      identity_id: "i1",
+      identity_name: "Conan",
+    });
   });
 
-  it("clears identity text that was typed, never picked and matches nothing", async () => {
+  it("clears unmatched typed text but stays an identity row, flagged until one is picked", async () => {
+    stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(<Controlled mediaType="anime" initialRows={[SHINICHI]} onChangeSpy={onChangeSpy} />);
+    await userEvent.click(screen.getByRole("button", { name: "+ Identity" }));
+    await userEvent.type(identityBox(), "Nobody");
+    fireEvent.blur(identityBox());
+    expect(onChangeSpy.mock.calls.at(-1)[0][1]).toMatchObject({
+      identity_id: null,
+      identity_name: "",
+      identity_row: true,
+    });
+    expect(castRows()[1]).toHaveClass("border-dashed");
+    expect(within(castRows()[1]).getByText("Pick or create an identity")).toBeInTheDocument();
+  });
+
+  it("keeps a cleared loaded identity row an identity row", async () => {
     stubIdentityFetch({ identities: [CONAN] });
     const onChangeSpy = vi.fn();
     render(
       <Controlled
         mediaType="anime"
-        initialRows={[row({ character_id: "c1", character_name: "Shinichi" })]}
+        initialRows={[
+          row({ character_id: "c1", character_name: "Shinichi", identity_id: "i1", identity_name: "Conan" }),
+        ]}
         onChangeSpy={onChangeSpy}
       />,
     );
-    await userEvent.type(identityBox(), "Nobody");
-    fireEvent.blur(identityBox());
-    expect(onChangeSpy).toHaveBeenLastCalledWith([
-      expect.objectContaining({ identity_id: null, identity_name: "" }),
-    ]);
+    await userEvent.click(screen.getByRole("button", { name: "Clear identity" }));
+    expect(onChangeSpy.mock.calls.at(-1)[0][0]).toMatchObject({
+      identity_id: null,
+      identity_row: true,
+    });
+    expect(castRows()[0]).toHaveClass("border-dashed");
   });
 
   it("appends a main-identity row for a character held only as an identity row", async () => {
@@ -1072,5 +1147,202 @@ describe("Identity field", () => {
     await waitFor(() => expect(onChangeSpy).toHaveBeenCalled());
     const rows = onChangeSpy.mock.calls.at(-1)[0];
     expect(rows.map((r) => r.identity_id)).toEqual(["i1", null]);
+  });
+});
+
+describe("castIdentityProblem", () => {
+  it("names an identity row with no identity, and nothing else", () => {
+    expect(castIdentityProblem([{ character_id: "c1", identity_id: null }])).toBeNull();
+    expect(
+      castIdentityProblem([{ character_id: "c1", identity_id: "i1", identity_row: true }]),
+    ).toBeNull();
+    expect(
+      castIdentityProblem([{ character_id: "c1", identity_id: null, identity_row: true }]),
+    ).toMatch(/Pick or create an identity/);
+    expect(castIdentityProblem(undefined)).toBeNull();
+  });
+});
+
+// The editor takes the cast in the order it is given - Modify hands it the
+// loaded cast already role-sorted (lib/castOrder.js) - and never re-sorts it
+// while it is being edited: a role change or a drag leaves rows where they are.
+describe("cast order", () => {
+  const names = () =>
+    screen
+      .getAllByRole("button", { name: /^Reorder / })
+      .map((handle) => handle.getAttribute("aria-label").replace("Reorder ", ""));
+  const cast = (specs) =>
+    specs.map(([name, role], k) =>
+      row({ system_id: `k-${name}`, character_id: `c-${name}`, character_name: name, role, position: k }),
+    );
+
+  it("does not move a row when its role changes", async () => {
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="manga"
+        initialRows={cast([
+          ["A", "Main"],
+          ["B", "Supporting"],
+          ["C", "Other"],
+        ])}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    fireEvent.change(screen.getAllByLabelText("Role")[2], { target: { value: "Main" } });
+    expect(names()).toEqual(["A", "B", "C"]);
+    expect(
+      onChangeSpy.mock.calls.at(-1)[0].map((r) => [r.character_name, r.role, r.position]),
+    ).toEqual([
+      ["A", "Main", 0],
+      ["B", "Supporting", 1],
+      ["C", "Main", 2],
+    ]);
+  });
+
+  it("puts a + Identity row directly after its source row, with the source's role", async () => {
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="manga"
+        initialRows={cast([
+          ["A", "Main"],
+          ["B", "Supporting"],
+          ["C", "Supporting"],
+          ["D", "Other"],
+        ])}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    await userEvent.click(screen.getAllByRole("button", { name: "+ Identity" })[1]);
+    const rows = onChangeSpy.mock.calls.at(-1)[0];
+    expect(rows.map((r) => [r.character_name, r.role, Boolean(r.identity_row), r.position])).toEqual([
+      ["A", "Main", false, 0],
+      ["B", "Supporting", false, 1],
+      ["B", "Supporting", true, 2],
+      ["C", "Supporting", false, 3],
+      ["D", "Other", false, 4],
+    ]);
+  });
+});
+
+// An identity often goes by its character's own name (a disguise, a stage
+// persona). The Identity box offers that in one pick, with every name the
+// character has - not just the one the row shows.
+describe("create an identity with the character's name", () => {
+  const SHINICHI_DETAIL = {
+    system_id: "c1",
+    name_en: "Kudo Shinichi",
+    name_cn: "工藤新一",
+    name_jp: "工藤 新一",
+    name_alt: null,
+    display_name_field: "en",
+    display_name: "Kudo Shinichi",
+    gender: "男",
+  };
+  const SAME_NAME = 'Create identity named "Kudo Shinichi" (same as character)';
+
+  function stub({ identities = [], detailOk = true } = {}) {
+    const base = mockFetch();
+    const spy = vi.fn((url, init) => {
+      if (url.startsWith("/api/character-identity/")) {
+        if (init?.method === "POST") {
+          const body = JSON.parse(init.body);
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                system_id: "i9",
+                display_name: body.name_en || body.name_cn,
+                character_id: "c1",
+              }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(identities) });
+      }
+      if (url === "/api/character/c1") {
+        return Promise.resolve({
+          ok: detailOk,
+          status: detailOk ? 200 : 500,
+          json: () => Promise.resolve(SHINICHI_DETAIL),
+        });
+      }
+      return base(url, init);
+    });
+    vi.stubGlobal("fetch", spy);
+    return spy;
+  }
+
+  const SHINICHI_ROW = row({ character_id: "c1", character_name: "Kudo Shinichi", role: "Main" });
+  const identityBox = () => screen.getByRole("combobox", { name: /identity/i });
+  const posted = (spy) =>
+    JSON.parse(spy.mock.calls.find(([, init]) => init?.method === "POST")[1].body);
+
+  async function openNewIdentityRow(spy) {
+    render(<Controlled mediaType="anime" initialRows={[SHINICHI_ROW]} onChangeSpy={vi.fn()} />);
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith(
+        "/api/character-identity/?character_id=c1",
+        expect.anything(),
+      ),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "+ Identity" }));
+    await userEvent.click(identityBox());
+  }
+
+  it("is offered on an empty identity row, before anything is typed", async () => {
+    const spy = stub();
+    await openNewIdentityRow(spy);
+    expect(await screen.findByText(SAME_NAME)).toBeInTheDocument();
+  });
+
+  it("stays offered beside the typed create while typing something else", async () => {
+    const spy = stub();
+    await openNewIdentityRow(spy);
+    await userEvent.type(identityBox(), "Conan");
+    expect(await screen.findByText('Create new identity named "Conan"')).toBeInTheDocument();
+    expect(screen.getByText(SAME_NAME)).toBeInTheDocument();
+  });
+
+  it("is not offered when the character already has an identity by that name", async () => {
+    const spy = stub({
+      identities: [{ system_id: "i1", display_name: "Kudo Shinichi", character_id: "c1" }],
+    });
+    await openNewIdentityRow(spy);
+    expect(await screen.findByRole("option", { name: "Kudo Shinichi" })).toBeInTheDocument();
+    expect(screen.queryByText(SAME_NAME)).toBeNull();
+  });
+
+  it("creates it with all four of the character's names and its display name, never its gender", async () => {
+    const spy = stub();
+    await openNewIdentityRow(spy);
+    await userEvent.click(await screen.findByText(SAME_NAME));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Clear identity" })).toBeInTheDocument(),
+    );
+    expect(spy).toHaveBeenCalledWith("/api/character/c1", expect.anything());
+    expect(posted(spy)).toEqual({
+      character_id: "c1",
+      name_en: "Kudo Shinichi",
+      name_cn: "工藤新一",
+      name_jp: "工藤 新一",
+      name_alt: null,
+      display_name_field: "en",
+    });
+    expect(screen.queryByText("Pick or create an identity")).toBeNull();
+  });
+
+  it("falls back to the row's character name when the character cannot be fetched", async () => {
+    const spy = stub({ detailOk: false });
+    await openNewIdentityRow(spy);
+    await userEvent.click(await screen.findByText(SAME_NAME));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Clear identity" })).toBeInTheDocument(),
+    );
+    expect(posted(spy)).toEqual({
+      character_id: "c1",
+      name_cn: "Kudo Shinichi",
+      display_name_field: "cn",
+    });
   });
 });

@@ -5,7 +5,7 @@ const shinichi = {
   system_id: "c1", public_id: 7, display_name: "Kudo Shinichi", name_en: "Kudo Shinichi",
   gender: "男", my_rating: "A", role: "Main", media_types: ["anime"], appearance: ["glasses"], trait: [],
   casting_count: 3, display_photo_file: "character/c1.jpg",
-  identities: [{ system_id: "i1", display_name: "Edogawa Conan", name_en: "Edogawa Conan", name_jp: "江戸川コナン",
+  identities: [{ system_id: "i1", public_id: 3, display_name: "Edogawa Conan", name_en: "Edogawa Conan", name_jp: "江戸川コナン",
     display_gender: "男", display_photo_file: "character-identity/i1.jpg", display_photo_focus: null }],
 };
 const ran = { system_id: "c2", public_id: 8, display_name: "Mouri Ran", name_en: "Mouri Ran", identities: [] };
@@ -17,11 +17,21 @@ describe("characterCards", () => {
     ]);
   });
 
-  it("an identity card links to its character and inherits its filterable fields", () => {
+  it("an identity card carries its own public_id and inherits its character's filterable fields", () => {
     const card = characterCards([shinichi])[1];
     expect(card).toMatchObject({
-      card_kind: "identity", public_id: 7, identity_id: "i1", character_display_name: "Kudo Shinichi",
+      card_kind: "identity", public_id: 3, character_public_id: 7, identity_id: "i1", character_display_name: "Kudo Shinichi",
       display_photo_file: "character-identity/i1.jpg", appearance: ["glasses"], my_rating: "A",
+    });
+  });
+
+  it("an identity card carries its character's face beside its own photo", () => {
+    const card = characterCards([{ ...shinichi, display_photo_focus: "50% 20%" }])[1];
+    expect(card).toMatchObject({
+      display_photo_file: "character-identity/i1.jpg",
+      display_photo_focus: null,
+      character_photo_file: "character/c1.jpg",
+      character_photo_focus: "50% 20%",
     });
   });
 

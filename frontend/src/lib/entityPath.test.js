@@ -131,3 +131,25 @@ describe("display_name fallback", () => {
     ).toBe("/studio/3/studio-ghibli");
   });
 });
+
+describe("identity", () => {
+  it("slugs an identity by its unprefixed English name", () => {
+    expect(
+      entityPath("identity", {
+        public_id: 3,
+        name_en: "Edogawa Conan",
+        name_cn: "江户川柯南",
+        display_name: "江户川柯南",
+      }),
+    ).toBe("/identity/3/edogawa-conan");
+  });
+
+  it("falls back to name_alt, then a Latin display_name", () => {
+    expect(entityPath("identity", { public_id: 3, name_alt: "Conan" })).toBe(
+      "/identity/3/conan",
+    );
+    expect(entityPath("identity", { public_id: 3, display_name: "Edogawa Conan" })).toBe(
+      "/identity/3/edogawa-conan",
+    );
+  });
+});

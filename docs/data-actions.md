@@ -318,9 +318,13 @@ cells land on the restored vocabulary.
 `Character Identity` sits immediately after `Character` and before the media
 tabs: `character_id` is a real FK, and `Character Casting`'s `identity_id` must
 find its identity when it restores. It carries every column of
-`character_identity` (names, `display_name_field`, `gender`, `remark`,
-`photo_file`, `photo_focus`, `position`, timestamps), and `character_id`
-round-trips as a plain uuid (`formatter.parse_character_identity_from_sheet`).
+`character_identity` (`public_id`, names, `display_name_field`, `gender`,
+`remark`, `photo_file`, `photo_focus`, `position`, timestamps), and
+`character_id` round-trips as a plain uuid
+(`formatter.parse_character_identity_from_sheet`). `public_id` restores
+unchanged, so the identity page's URL is the same on both machines, and Pull
+then moves `character_identity_public_id_seq` past the restored ids
+(`resync_public_id_sequence`), as on every entity tab.
 `gender` is restored as the sheet has it, so an empty cell stays "the same as
 the character's". An empty table is legitimate here, as `Character` is.
 

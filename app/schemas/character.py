@@ -158,6 +158,8 @@ class IdentityUpdate(IdentityWrite):
 
 class IdentityResponse(IdentityBase):
     system_id: UUID
+    # The id the identity page's URL carries, as CharacterResponse.public_id.
+    public_id: int
     character_id: UUID
     display_name: str = ""
     display_gender: Optional[str] = None
@@ -165,6 +167,14 @@ class IdentityResponse(IdentityBase):
     display_photo_file: Optional[str] = None
     display_photo_focus: Optional[str] = None
     position: int = 0
+
+
+class IdentityDetailResponse(IdentityResponse):
+    """The identity page: the identity, and the character it belongs to -
+    enough to name and link it. Public, so no casting_count."""
+
+    character_public_id: int
+    character_display_name: str = ""
 
 
 class IdentityAdminResponse(IdentityResponse):

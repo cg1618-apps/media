@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { endpoints } from "../api/endpoints";
 import { fetchJson } from "./queryUtils";
+import { castIdentityProblem } from "../lib/castOrder";
 
 export function castingQueryKey(mediaType, entryId) {
   return ["casting", mediaType, String(entryId)];
@@ -35,12 +36,20 @@ export function useReplaceCasting() {
     // save."). Filtering here, in the one place both callers share, means
     // neither has to remember to do it itself.
     //
+    // An identity row (CastEditor's identity_row marker, or any row with an
+    // identity_id) with no identity picked would save as a second main row
+    // of its character, so the whole cast is refused instead. Add and Modify
+    // check castIdentityProblem before the entry is saved; this is the
+    // backstop. identity_row itself is form state and is not sent.
+    //
     // A row's role is optional: CastEditor's "—" choice (and a new row) holds
     // role "", which is sent as null - "" is not a role. Likewise a seiyuu
     // line nobody filled in is not a voice: only voices naming a person are
     // sent, and a blank voice remark is sent as null.
-    mutationFn: ({ mediaType, entryId, cast }) =>
-      fetchJson(endpoints.casting.replace(mediaType, entryId), {
+    mutationFn: ({ mediaType, entryId, cast }) => {
+      const problem = castIdentityProblem(cast);
+      if (problem) return Promise.reject(new Error(problem));
+      return fetchJson(endpoints.casting.replace(mediaType, entryId), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -50,6 +59,7 @@ export function useReplaceCasting() {
             // the resolved photo are display data, never part of the row.
             .map(({
               identity_name: _identityName,
+              identity_row: _identityRow,
               display_photo_file: _displayPhotoFile,
               display_photo_focus: _displayPhotoFocus,
               ...row
@@ -65,11 +75,13 @@ export function useReplaceCasting() {
                 })),
             })),
         }),
-      }),
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: castingQueryKey(variables.mediaType, variables.entryId),
       });
     },
+    // Returned, so mutateAsync resolves only once the cast has been
+    // refetched: Modify reloads the form's rows from it right after a save.
+    onSuccess: (data, variables) =>
+      queryClient.invalidateQueries({
+        queryKey: castingQueryKey(variables.mediaType, variables.entryId),
+      }),
   });
 }

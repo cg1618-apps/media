@@ -93,6 +93,7 @@ import ContentLabelPicker, {
   saveFranchiseLabels,
 } from "../../components/forms/ContentLabelPicker";
 import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
+import { castIdentityProblem, orderLoadedCast } from "../../lib/castOrder";
 import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
 
 // The media types whose editor carries a cast (CASTING_MEDIA_TYPES on the
@@ -499,7 +500,10 @@ export default function Modify() {
     const key = `${castMediaType}:${editingItem.system_id}`;
     if (castLoadedForRef.current === key) return;
     castLoadedForRef.current = key;
-    const rows = castData.cast || [];
+    // In the detail page's order (role, then position). This also runs
+    // after a save: the save replaces editingItem, which re-arms the guard,
+    // and the refetched cast lands here sorted again.
+    const rows = orderLoadedCast(castData.cast);
     if (castMediaType === "anime") setAf((p) => ({ ...p, cast: rows }));
     else if (castMediaType === "anime-movie")
       setAmf((p) => ({ ...p, cast: rows }));
@@ -1140,6 +1144,22 @@ export default function Modify() {
   async function handleSave(e) {
     e.preventDefault();
     if (submitting || !editingItem) return;
+    // Checked before the entry is saved: an identity row with no identity
+    // would otherwise save as a second main row of its character, and the
+    // cast is only sent once the entry has been updated.
+    const castForm = {
+      anime: af,
+      "anime-movie": amf,
+      manga: cmgf,
+      novel: cnvf,
+      "h-comic": chcf,
+      hentai: chtf,
+    }[editingType];
+    const castProblem = castForm && castIdentityProblem(castForm.cast);
+    if (castProblem) {
+      showToast("warning", castProblem);
+      return;
+    }
     setSubmitting(true);
     try {
       if (editingType === "anime") await saveAnime();

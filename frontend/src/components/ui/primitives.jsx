@@ -80,10 +80,17 @@ const CHIP_TONES = {
   danger: "border-danger/40 bg-danger/10 text-danger",
   muted: "border-border bg-surface-2/40 text-text-faint",
 };
-export function Chip({ tone = "ink", className = "", children, ...rest }) {
+// `dashed` is the identity tag. A dashed line means "identity" across the
+// app (the cast editor's identity rows, the cast slip's thumbnails), so this
+// chip is a dashed outline with no fill, set apart from the filled role chip
+// it sits beside. It replaces the tone rather than adding to it: two border
+// colours on one element resolve by stylesheet order, not class order.
+const CHIP_DASHED = "border-dashed border-border-strong bg-transparent text-text-muted";
+export function Chip({ tone = "ink", dashed = false, className = "", children, ...rest }) {
+  const look = dashed ? CHIP_DASHED : CHIP_TONES[tone] || CHIP_TONES.ink;
   return (
     <span
-      className={`inline-flex items-center gap-1 border rounded-[4px] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none whitespace-nowrap ${CHIP_TONES[tone] || CHIP_TONES.ink} ${className}`}
+      className={`inline-flex items-center gap-1 border rounded-[4px] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none whitespace-nowrap ${look} ${className}`}
       {...rest}
     >
       {children}
