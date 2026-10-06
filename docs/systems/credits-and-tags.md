@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-04
+Last verified: 2026-10-06
 
 ## What this is for
 
@@ -37,7 +37,8 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 | `media_tag` | One vocabulary value on one entry: `media_id` FK → `media.system_id` (cascade), `field` (one of `TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. Column is `field`, not `category`: one category can back several fields, one field maps to exactly one category. | `uq_media_tag_row (media_id, field, option_id)`; index on `media_id` |
 | `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `photo_fallback_entry_id`, `role` (overall, `CHARACTER_ROLES`; a NULL one is filled from the castings' highest-ranked role), `remark`, timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
 | `character_tag` | One vocabulary value on one character, `media_tag`'s twin: `character_id` FK → `character.system_id` (cascade), `field` (`appearance` or `trait`, one of `CHARACTER_TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. See [Character tags](#character-tags). | `uq_character_tag_row (character_id, field, option_id)`; index on `character_id` |
-| `character_casting` | THE cast record for one character, in one entry: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `role` (optional; `CHARACTER_ROLES` or NULL), `position`, `photo_file`, `remark`. Its seiyuu are `character_casting_voice` rows. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, media_type, entry_id)`; `uq_character_casting_entry (system_id, media_type, entry_id)`, the composite FK's target; index on `(media_type, entry_id)` |
+| `character_identity` | One of a character's other identities (the `character` row is the main one): `character_id` (FK, cascade), four optional names, `display_name_field`, `gender` (NULL inherits the character's), `remark`, `photo_file`, `position`. No `public_id`, tags, rating, role or MAL fields. | `ck_character_identity_has_a_name`; `uq_character_identity_owner (system_id, character_id)`, the composite FK's target |
+| `character_casting` | THE cast record for one character, in one entry: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `identity_id` (NULL = main identity), `role` (optional; `CHARACTER_ROLES` or NULL), `position`, `photo_file`, `remark`. Its seiyuu are `character_casting_voice` rows. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, identity_id, media_type, entry_id)` **NULLS NOT DISTINCT**; `fk_casting_identity (identity_id, character_id)` -> `character_identity`, deferred; `uq_character_casting_entry (system_id, media_type, entry_id)`, the composite FK's target; index on `(media_type, entry_id)` |
 | `character_casting_voice` | One seiyuu voicing one casting: `casting_id`, the casting's `media_type` and `entry_id` repeated, `person_id` (FK, **cascade**), `position`, `remark` (free text: `child`, `ep 13-`). A casting has zero or more. | `fk_casting_voice_casting (casting_id, media_type, entry_id)` → `character_casting (system_id, media_type, entry_id)`, cascade on delete and update; `uq_casting_voice (casting_id, person_id)`; `ck_casting_voice_scope` (only on `anime`/`anime-movie`/`hentai`); index on `(media_type, entry_id)` |
 
 **Why NULLS NOT DISTINCT everywhere.** Postgres treats two NULLs as distinct
@@ -383,7 +384,7 @@ Role` tab carries empty scopes and retired role names. The route back is
 
 ## Character and character_casting
 
-Three tables, and the shape is deliberate on the points recorded below.
+Four tables, and the shape is deliberate on the points recorded below.
 
 - `character` — one fictional character, shaped like `person`: four optional
   names, `display_name_field`, `gender`, `my_rating`, `photo_file`,
@@ -399,11 +400,31 @@ Three tables, and the shape is deliberate on the points recorded below.
   fill while a casting still names a role; nothing flows from it to a casting. `ck_character_has_a_name` requires at
   least one name. `gender` and `my_rating` are the same closed vocabularies
   as on `person` ([options.md](../options.md)); a write outside them is a 422.
+- `character_identity` — one of a character's **other** identities (an alter
+  ego, a disguise, a civilian name): four optional names (at least one),
+  `display_name_field`, `gender`, `remark`, `photo_file`, `position`. The
+  `character` row **is** the main identity, so names, photo and remark are held
+  once, and every identity is one character: search, tags, rating and the role
+  derivation all stay the character's, and an identity has no tags, rating,
+  role or MAL fields of its own. A NULL `gender` means *the same as the
+  character's*, resolved on read (`display_gender`). Visibility is the
+  character's. An identity's own picture is its `photo_file`, else the
+  character's displayed one (`display_photo_file`); there is no per-identity
+  entry fallback. Admin tabs create, edit and delete identities, always under an
+  existing character.
 - `character_casting` — THE cast record: one character, in one entry, with
   its own optional `role` (`CHARACTER_ROLES`, or NULL - a blank role from the
   cast editor or a Sheets cell is stored as NULL), `position`, `photo_file`
   and `remark`. No `media_credit` row with `role="seiyuu"` exists anywhere;
   an entry's seiyuu list is derived entirely by walking its castings' voices.
+  A cast row may name one of its character's identities (`identity_id`; NULL is
+  the main identity), and **one character may be cast once per identity per
+  entry**: Shinichi and Conan are two rows in one entry, each with its own role,
+  photo, remark and seiyuu list. The identity must be the row's character's own
+  (`fk_casting_identity`, and a 422 before the database). A row's displayed
+  photo falls back **row, then its identity, then `character.photo_file`**, the
+  focus travelling with whichever won. `fill_character_roles` still reads every
+  casting of the character, identity rows included - they are one character.
 - `character_casting_voice` — one seiyuu voicing one casting, with a
   `position` and a free-text `remark` saying which voice it is (`child`,
   `ep 13-`). A character may have several seiyuu in one entry, and one seiyuu
@@ -502,6 +523,28 @@ Deferred, deliberately, past this shape: a `language` column / dub casts, a
 `field_group` gating cast per role, and characters on the four non-ACG media
 types.
 
+### Identities
+
+- **Deleting an identity folds its cast rows into the main identity**; it never
+  deletes cast history (`fold_into_main`, `app/services/domain/character_identities.py`).
+  A row in an entry where the main identity has no row keeps everything and its
+  `identity_id` becomes NULL. Where the main identity already has a row there,
+  the identity's row is absorbed into it - the main row's blanks filled from it
+  and the seiyuu it lacked appended (`absorb_casting`, the same helper merge
+  uses) - and then deleted. The delete takes the cast-row count the confirmation
+  showed and answers 409 when it has moved.
+- **Character merge carries identities.** The loser's identities are re-parented
+  onto the survivor, after the survivor's own, and their cast rows move with
+  them. Castings are matched per identity: only two rows of the *same* identity
+  in one entry are folded together, so a main row meets a main row and an
+  identity row is never matched against the survivor's.
+- **MAL never writes an identity.** The cast import matches and creates
+  characters only and writes `identity_id = NULL`; a MAL character already cast
+  under its main identity is "already held", and identity rows are never touched.
+- **Copying a cast from a franchise sibling** carries `identity_id` verbatim - an
+  identity belongs to the global character, so its id is valid in any entry. The
+  editor's "already held" check keys on `(character_id, identity_id)`.
+
 ### MAL: a character's link, and a cast import
 
 **A character's MAL link.** `character.mal_link` is the character's
@@ -533,8 +576,9 @@ chose to keep - and the ids and timestamps are never copied.
   An upload (`library/...`) belongs to no owner and is simply shared. The
   loser's image attachments move to the survivor.
 - **A casting both hold fills too.** When both characters are cast in one
-  entry, the survivor's casting keeps its own values and fills a blank role,
-  remark, or photo with its focus, from the loser's.
+  entry under the same identity, the survivor's casting keeps its own values and
+  fills a blank role, remark, or photo with its focus, from the loser's (see
+  [Identities](#identities)).
 - **The loser goes before the fill.** Person, studio and publisher are unique
   on their four names together, and filling can give the survivor exactly the
   loser's names; deleting and flushing the loser first keeps that from
@@ -619,6 +663,12 @@ in that entry, so it beats the entry's cover at every step:
 4. The newest visible casting `photo_file` of this character.
 5. The newest visible cast entry that has a cover.
 6. `null`; the SPA draws its placeholder.
+
+An **identity's** displayed photo is simpler: its own `photo_file`, else the
+character's `display_photo_file` as resolved above (`display_photo_focus` with
+it). A **cast row's** photo is not this chain at all - it resolves at read time
+as the row's own `photo_file`, then its identity's `photo_file`, then the
+character's own `photo_file`, and is never run through the entry fallbacks.
 
 Person - a casting photo is the character's picture, not the seiyuu's, so
 there are no casting steps:

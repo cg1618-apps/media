@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-05
+Last verified: 2026-10-06
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -67,6 +67,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Publisher — `/api/publisher`](#publisher--apipublisher)
 - [Credits — `/api/credits`](#credits--apicredits)
 - [Character — `/api/character`](#character--apicharacter)
+- [Character Identity — `/api/character-identity`](#character-identity--apicharacter-identity)
 - [Casting — `/api/casting`](#casting--apicasting)
 - [Announcements — `/api/announcements`](#announcements--apiannouncements)
 - [Form Defaults — `/api/form-defaults`](#form-defaults--apiform-defaults)
@@ -923,7 +924,9 @@ request under the wrong `media_type.<key>` permission — the trap
 entity owner (`staff`, `character`, `publisher`, `studio`) — a shared record,
 hidden when every connection it has is hidden (see
 [authorization.md](authorization.md#shared-records)) — and its photo or logo
-answers 404 to exactly the viewers its own page does. For those the owner type
+answers 404 to exactly the viewers its own page does. A `character-identity`
+owner is answered as its character is: the identity is visible exactly when its
+character is. For those the owner type
 is read from the path, which is safe: the file opened is
 `<owner_type>/<id>.jpg`, so naming another folder names another file.
 
@@ -967,7 +970,11 @@ runs `entry_visible` — the same content-label check a detail read applies —
 and answers **404 "Entry not found."** exactly as a genuinely missing entry
 would, rather than a 403 that would confirm the entry exists. An entity owner
 (`staff`, `character`, `publisher`, `studio`) is a shared record and is asked
-the same way through `shared_record_visible`, with the same 404.
+the same way through `shared_record_visible`, with the same 404; a
+`character-identity` owner is asked through its character
+(`identity_visible`), with the same 404. `character-identity` is in
+`ATTACHABLE_OWNERS` and `COVER_OWNERS`, mirrors to `photo_file` and
+`photo_focus`, and its covers live under `static/covers/character-identity/`.
 `quote`/`meme` carry no content label and skip the check.
 
 **Cast photos.** A cast row's `photo_file` holds an image's storage key
@@ -1772,18 +1779,18 @@ line for line, plus one deliberate departure — see the `POST` row.
 | `GET`    | `/`                    | Public | List characters, sorted by resolved `display_name`. `?name=` does a case-insensitive substring match against all four name columns, so the cast editor's character combobox can offer suggestions without downloading the whole table. |
 | `GET`    | `/search-mal`      | `manage.catalog` | `?q=`, `limit`. Searches MAL characters. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/{system_id}`         | Public | Get one character by UUID. 404 if absent or hidden. |
-| `GET`    | `/{system_id}/entries` | Public | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry carries `seiyuu`: everyone who voiced the character there, in voice order, as `[{display_name, system_id, public_id, remark}]` — empty when nobody did. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
+| `GET`    | `/{system_id}/entries` | Public | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry carries `seiyuu`: everyone who voiced the character there, in voice order, as `[{display_name, system_id, public_id, remark}]` — empty when nobody did. One entry appears **once per identity** the character is cast under in it, so each row also carries `casting_id`, `identity_id` and `identity_name` (null for the main identity); `casting_id`, not the entry's `system_id`, tells two appearances apart. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
 | `POST`   | `/`                    | Admin  | Create a character. **Always a plain create, never find-or-create** — unlike `POST /api/person`, which safely resolves two spellings of one director onto one row. Character names carry no unique constraint (see `docs/data-model.md`): the "Yuki" of one anime and the "Yuki" of another are different characters, and silently returning the first match on a POST would fuse two unrelated casts under one `system_id`. Disambiguation happens in the cast editor's combobox instead, which lists existing matches together with the entries they already appear in and requires an explicit "Create new character named X" choice before minting a row. Body: `CharacterCreate`. A body with no name at all is 422, mirroring `ck_character_has_a_name`. `mal_id` is derived from `mal_link`, and the character is then filled from MAL (see below). `appearance` and `trait` are written once the row exists (see **Tags** below). |
 | `PUT`    | `/{system_id}`         | Admin  | Fully update a character. Body: `CharacterUpdate`. A non-null `photo_fallback_entry_id` must name an entry this character is cast on and the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see. `mal_id` is derived from `mal_link`, and the character is filled from MAL after the payload is copied (see below). `appearance` and `trait` each replace their list whole; one left out or `null` is unchanged. |
 | `PATCH`  | `/{system_id}`         | Admin  | Partially update a character — the detail page's inline rating and remark edits. Body: any subset of the `CharacterBase` columns as a JSON object; only the keys sent change. The `PUT` rules are checked before anything is written: `gender`, `my_rating` and `role` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored — except `appearance` and `trait`, which replace their lists as on `PUT` (`null` is unchanged; anything but a list of strings is a 422). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `CharacterResponse`. |
 | `DELETE` | `/{system_id}?castings=N` | Admin | Delete a character. Cascades its `character_casting` rows, and their voices with them, and its `character_tag` rows. `castings` is **required**: the count the confirmation dialog showed, and a mismatch is a **409** — the same guard shape as `DELETE /api/person?credits=N`. |
-| `POST`   | `/{system_id}/merge`   | Admin  | Merge `source_id` into this character: repoints every casting, then deletes the loser. Where the survivor already holds a casting on the same entry, the loser's casting there is dropped, its voices the survivor's casting lacks are appended to the survivor's, so no seiyuu is lost, and the survivor's casting fills its blank role, remark and photo from it. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). Each tag list ends as the union of both: the survivor's values in their order, then the loser's it lacked. This — not delete — is the fix for a duplicate, since deleting cascades the castings away. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
+| `POST`   | `/{system_id}/merge`   | Admin  | Merge `source_id` into this character: repoints every casting, then deletes the loser. The loser's identities move to the survivor, after its own, with their cast rows. Castings are matched per identity: only where the survivor already holds a casting of the **same identity** on the same entry (a main row meeting a main row) is the loser's casting there dropped, its voices the survivor's casting lacks are appended to the survivor's, so no seiyuu is lost, and the survivor's casting fills its blank role, remark and photo from it. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). Each tag list ends as the union of both: the survivor's values in their order, then the loser's it lacked. This — not delete — is the fix for a duplicate, since deleting cascades the castings away. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
 
 **Response model:** `CharacterResponse` — the four name columns,
 `display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
 `photo_file`, `photo_focus`, `photo_fallback_entry_id`, `role`, `remark`, `mal_id`, `mal_link`, `system_id`, the tag
 lists `appearance` and `trait` (`string[]`, in stored order, `[]` when none —
-always present), and five
+always present), `identities` (the character's other identities, below), and five
 fields resolved **for the viewer** from the entries they may see
 (`filter_visible_pairs`), none of them stored — the same reasoning as
 `person.credit_count`:
@@ -1834,10 +1841,47 @@ There is no name-collision check, unlike a person: character names are not
 unique. A Tenrai failure is logged and swallowed, so it never fails the save
 ([external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data)).
 
+**`identities`** — `IdentityResponse[]` in `position` order, `[]` when the
+character has none, always present; the character itself is the main identity
+and is not repeated. Each carries the identity's own `system_id`, `character_id`,
+four names, `display_name_field`, resolved `display_name`, `gender` (raw, null
+when it inherits), `display_gender` (the identity's, else the character's),
+`remark`, `photo_file` / `photo_focus`, `display_photo_file` /
+`display_photo_focus` (the identity's own photo with its focus, else the
+character's displayed ones) and `position`. This is how the public reads
+identities: the library builds its identity cards from the one list response.
+`GET /api/character/?name=` still matches characters only.
+
 A character is a shared record
 ([authorization.md](authorization.md#shared-records)) whose connections are
 its castings: one cast only on label-hidden entries is absent from the list
 and answers 404 on `/{system_id}`, `/entries`, `PUT`, `DELETE` and `merge`.
+
+---
+
+## Character Identity — `/api/character-identity`
+
+A character's other identities — an alter ego, a disguise, a civilian name. The
+`character` row is the main identity; these rows are the rest
+([data-model.md](data-model.md#character_identity)). **Admin-only, reads
+included** (`require_manage_catalog`): the public reads identities nested in
+`GET /api/character`, so this router serves the admin tabs and the cast
+editor's Identity field. There is no `PATCH`.
+
+| Method   | Path             | Auth             | Description |
+| -------- | ---------------- | ---------------- | ----------- |
+| `GET`    | `/`              | `manage.catalog` | List identities, ordered by their character's `display_name` then `position`. `?character_id=` keeps one character's; `?name=` is a case-insensitive substring match on any of the four name columns. Only identities of characters the caller can see. |
+| `GET`    | `/{system_id}`   | `manage.catalog` | One identity. 404 "Identity not found." when absent, or when its character is hidden from the caller. |
+| `POST`   | `/`              | `manage.catalog` | Create an identity under an existing character. Body: `IdentityCreate` — the identity's fields plus a **required** `character_id`. A plain create (no find-or-create); `position` is the character's highest plus one. 404 "Character not found." for an unknown or hidden `character_id`; 422 with no name, an unknown `display_name_field` or an unknown `gender`. |
+| `PUT`    | `/{system_id}`   | `manage.catalog` | Replace the identity's fields. Body: `IdentityUpdate`; a null `position` keeps the current one, and a `character_id` in the body is ignored — an identity never changes character. 404 and 422 as above. |
+| `DELETE` | `/{system_id}?castings=N` | `manage.catalog` | Delete an identity. Its cast rows are **folded into the main identity**, not deleted: where the character's main identity has no row in that entry the row's `identity_id` becomes null and it keeps its role, photo, remark and seiyuu; where it has one, the identity's row is absorbed into it (its blanks filled from the identity's, the seiyuu it lacked appended) and deleted. `castings` is **required**: the cast-row count the confirmation showed, and a mismatch is **409**. Returns `{status, castings_folded}`. |
+
+**Response model:** `IdentityAdminResponse` — `IdentityResponse` (above) plus
+`character_display_name`, `character_public_id` and `casting_count`, the number
+of cast rows a delete would fold: the count `DELETE` checks `?castings=` against.
+
+The check that an identity belongs to the character it is cast under lives in
+the casting payload's validation (see [Casting](#casting--apicasting)).
 
 ---
 
@@ -1860,20 +1904,27 @@ hentai (`VOICED_MEDIA_TYPES`).
 | `GET`  | `/sources?franchise_id=&exclude=` | `manage.catalog` | What the cast editor can import a cast from: `{sources: [{media_type, entry_id, public_id, display_name, cast_count}]}`, every entry of `franchise_id`, of any castable type, that has at least one casting and that the caller can see (`filter_visible_pairs`), newest-created first. `exclude` leaves out the entry being edited. Keyed on the franchise rather than an entry because the Add form has a franchise before its entry exists. |
 | `POST` | `/mal` | `manage.catalog` | Builds a cast from MyAnimeList, for the cast editor to append. Body: `{media_type, mal_link, character_ids}`, where `mal_link` is the entry's own MAL page: `/anime/<id>` for anime, anime-movie and hentai (Tenrai `GET /anime/{id}/characters`), `/manga/<id>` for manga, novel and h-comic (`GET /manga/{id}/characters`). Returns `{cast, created_characters, created_people, warnings}`: `cast` rows have the shape of `GET /{media_type}/{entry_id}` rows (no casting photo or remark), in MAL's order. `character_ids` (optional, default `[]`) is every character the editor's form holds. A character is matched by `character.mal_id` among the characters the caller can see, never by name across the database; failing that, by name (`normalize_name`, any name column, either name order) among the visible `character_ids` characters that have no `mal_id` — exactly one match is reused and takes MAL's `mal_id` (and `mal_link` when blank), two or more drop the row with a `warnings` entry. Otherwise it is created with `name_en`, `mal_id` and `mal_link`, and only those count in `created_characters`. Only Japanese voice actors are taken: each is matched by `person.mal_id`, then by name through `resolve_person` (find-or-create), and given the `seiyuu` role for `media_type`; a name-matched person without a `mal_id` takes MAL's. A name that matches more than one person is a `warnings` entry and is skipped. Manga, novel and h-comic rows carry no voices. The created characters and people are committed; **the cast is not written** — the editor's `PUT` saves it. A created character's portrait downloads after the response, its `photo_file` already set to the key the download writes. 422 for an unknown `media_type` or a link of the wrong kind; 502 when Tenrai answers with no cast. Keyed on the link rather than an entry, like `/sources`, so Add can use it. See [systems/credits-and-tags.md](systems/credits-and-tags.md). |
 | `GET`  | `/{media_type}/{entry_id}` | Public | The entry's cast, ordered by `position`. 400 for an unknown `media_type`; missing **or hidden** entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
-| `PUT`  | `/{media_type}/{entry_id}` | Admin  | Replaces the whole cast in the submitted order. Body: `{cast: [{character_id, voices?: [{person_id, remark?}], role?, position?, photo_file?, photo_focus?, remark?}]}`. `voices` are the row's seiyuu in display order (default `[]`); a voice `remark` says which voice it is (`child`, `ep 13-`). `photo_focus` is the cast photo's focal point (`"X% Y%"`, 422 otherwise, `""` stored as null). `position` defaults to list index when omitted. `role` is optional: null, `""` and whitespace all store no role. Every character in the cast whose own `role` is null then takes the highest-ranked role its castings carry (see `character.role` above). Rejects (422), in Python, voices on a media type outside `anime`/`anime-movie`/`hentai`, the same `person_id` twice within one row's voices, an unknown `character_id` or `person_id`, or a non-blank `role` outside `CHARACTER_ROLES` — before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice` in the database. |
+| `PUT`  | `/{media_type}/{entry_id}` | Admin  | Replaces the whole cast in the submitted order. Body: `{cast: [{character_id, identity_id?, voices?: [{person_id, remark?}], role?, position?, photo_file?, photo_focus?, remark?}]}`. `voices` are the row's seiyuu in display order (default `[]`); a voice `remark` says which voice it is (`child`, `ep 13-`). `photo_focus` is the cast photo's focal point (`"X% Y%"`, 422 otherwise, `""` stored as null). `position` defaults to list index when omitted. `role` is optional: null, `""` and whitespace all store no role. Every character in the cast whose own `role` is null then takes the highest-ranked role its castings carry (see `character.role` above). Rejects (422), in Python, voices on a media type outside `anime`/`anime-movie`/`hentai`, the same `person_id` twice within one row's voices, an unknown `character_id` or `person_id`, an unknown `identity_id`, an `identity_id` that belongs to another character, the same `(character_id, identity_id)` twice in one payload, or a non-blank `role` outside `CHARACTER_ROLES` — before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice` in the database. |
+
+`identity_id` is null for the character's main identity. The main identity
+and each of the character's other identities may each have one row in an entry,
+so one character may appear several times in a cast, each row with its own
+role, photo, remark and seiyuu.
 
 A character may have several seiyuu in one entry, and one seiyuu may voice
 several characters: that is one `person_id` in several rows' `voices`, which
 is allowed.
 
 Each cast row in the response carries `character_name` (resolved
-`display_name`) alongside the raw ids, `voices` — `[{person_id,
+`display_name`) and `identity_id` / `identity_name` (null for the main
+identity) alongside the raw ids, `voices` — `[{person_id,
 person_public_id, person_name, remark}]` in voice order, empty on an unvoiced
 row or type — and `photo_file` already
-resolved — the casting's own value if set, otherwise the character's
+resolved — the casting's own value if set, otherwise the row's identity's
+`photo_file` when it names an identity with one, otherwise the character's
 canonical `photo_file` — so every reader gets the same answer without
-repeating the fallback. `photo_focus` follows the same fallback: the casting's
-own when it has its own `photo_file`, otherwise the character's.
+repeating the fallback. `photo_focus` follows the same fallback: it is the focus
+of whichever photo won.
 Being a credit field it is gated with `studio` in the Credits field group
 (`app/services/rbac/field_groups.py`): a viewer without that permission gets
 neither, and the pages fall back to the plain string when `studio_refs` is

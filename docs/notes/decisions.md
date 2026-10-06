@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-05
+Last verified: 2026-10-06
 
 ## What this is for
 
@@ -3095,3 +3095,102 @@ day, into blocks and branches:
   branch that leads nowhere or back to its own block at all. The platform's
   rollback therefore must not run it; run by hand it refuses, changing
   nothing, while either kind of branch exists.
+
+### Character identities (2026-10-06)
+
+A character can go by more than one identity - Kudo Shinichi and Edogawa
+Conan, a hero and a civilian name, a disguise. Before this the only records
+were two unrelated `character` rows or a free-text `voice.remark` such as
+"child". Identities make the extra ones first-class, each with its own names,
+gender, remark and cover image, and let an entry's cast say which identity
+appeared, with that identity's own photo, remark and seiyuu. Every identity is
+**one character**: MAL has one character rather than one per identity, and
+search, tags and the role derivation agree.
+
+**Decisions**
+
+- **D1. The `character` row is the main identity; only the others get a table.**
+  Putting every identity, the main one included, in `character_identity` would
+  hold the main names twice or force every character read through a join, and
+  would leave `character.photo_file`, MAL's fields and the merge, which are all
+  keyed on the character, with two homes.
+- **D2. An identity carries names, `display_name_field`, gender, remark, cover
+  image and position - no tags, rating, role or MAL fields.** Those describe the
+  character, who is one person whichever identity is showing; per-identity
+  copies could only disagree.
+- **D3. `gender` NULL on an identity means "the same as the character", resolved
+  on read.** A copied value goes stale the moment the character's is edited;
+  resolving it (`display_gender`) cannot.
+- **D4. A cast row may name an identity; NULL is the main identity, and one
+  character may have one row per identity in one entry.** Each row keeps its own
+  role, photo, remark and seiyuu list, which is what makes "Shinichi voiced by A,
+  Conan voiced by B" expressible. `character_casting_voice` is unchanged: it hangs
+  off the casting row.
+- **D5. MAL import touches characters only.** MAL has one record per character,
+  so an identity can neither be matched nor created from it; every imported row is
+  the main identity.
+- **D6. Identities have their own Add / Modify / Delete tabs, and Add requires an
+  existing parent character.** An identity with no character has nothing to be an
+  identity of, and moving one between characters is out of scope.
+- **D7. Deleting an identity folds its cast rows into the main identity.** Cast
+  history must not vanish with a vocabulary-sized edit: a row is re-pointed at
+  the main identity, or - where the main identity is already cast in that entry -
+  absorbed into that row with the same helper merge uses, so no seiyuu is lost.
+- **D8. The cast editor has two fields: Character (characters only) and Identity
+  (that character's identities only).** The two pick different things with
+  different create semantics, so they stay two controls.
+- **D9. Character searches outside the admin tabs and the editor's Character
+  field match identity names, and a hit resolves to the owning character.** The
+  library gets the names from the identities nested in the character response.
+- **D10. The library shows each identity as its own card, labelled with its
+  character; it opens the character's page with that identity highlighted.** An
+  identity has no page of its own, hence no `public_id`.
+- **D11. Library filters: show or hide identity cards, and characters with or
+  without identities; identity cards are filtered by their character's tags.**
+
+**Rejected alternatives**
+
+- **All identities in the table with an is-main flag.** See D1: it duplicates the
+  names the character already holds and turns every character read, merge and MAL
+  fill into a lookup of "which row is the main one".
+- **The identity on the voice row.** The identity changes the role, photo and
+  remark of an appearance, not only who voiced it, and two identities in one entry
+  would otherwise collide on `uq_character_casting`.
+- **A combined character/identity picker with a kind badge.** One box that
+  searches and creates two different things makes "create new X" ambiguous: a new
+  character, or a new identity of which one? Two fields (D8) make each create
+  unambiguous.
+- **Identity tags this round.** Tags are the character's (D2); per-identity tags
+  would need their own vocabulary rules and filters for no present need.
+- **Converting an existing character into an identity.** It would have to move the
+  character's castings, tags and MAL link to another row; two characters that
+  should be one are fixed by merge, and the identity is then added by hand.
+
+**As built, where the plan diverged from the design**
+
+- **The owner type and cover folder are `character-identity`**, hyphenated, like
+  the media types' owner types (`anime-movie`, `tv-show`), not `character_identity`.
+- **`fk_casting_identity` is `DEFERRABLE INITIALLY DEFERRED` with no `ON UPDATE`
+  action**, rather than `ON UPDATE CASCADE`. Merge re-parents an identity and its
+  cast rows in one flush; a deferred constraint checks only the end state at
+  COMMIT, and avoids a cascade rewriting cast rows as a side effect of an update to
+  the identity.
+- **There is no `PATCH` route.** The only inline edits on the character page are
+  the character's own rating and remark; an identity is edited in full by its
+  Modify tab.
+- **Every identity endpoint is admin-only, reads included.** The public reads
+  identities nested in `GET /api/character`, so a public identity read route would
+  only duplicate it.
+- **A cast row's photo falls back row, then identity, then `character.photo_file`.**
+  The row's focus travels with whichever photo won.
+- **A create takes position `max + 1`** under its character.
+- **Library identity cards sort by their own name and filter by the identity's
+  resolved gender, but by the character's tags, rating, role and entry types** (D11
+  generalised: every filterable fact other than gender and name is the character's).
+- **`ComboBox` gained `disabled`, `ariaLabel` and `clearLabel`** for the Identity
+  field, which is inert until the row has a character and needs a name distinct
+  from the Character field's.
+
+**Out of scope:** identity tags, moving an identity to another character,
+converting a character into an identity, per-identity rating or role, identities
+in the site-wide search, and a per-identity entry photo fallback.

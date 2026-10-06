@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-10-04
+Last verified: 2026-10-06
 
 ## What this is for
 
@@ -282,6 +282,8 @@ The MAL cast import (`POST /api/casting/mal`, `app/services/domain/mal_cast.py`)
 | `voice_actors[]` where `language` is `Japanese` | the casting's voices | each `person.mal_id` matched against `person.mal_id`, then `person.name` (western order) through `resolve_person`; other languages are dropped. A manga, novel or h-comic row carries no voices. |
 
 The cast itself is not written by the import: it returns rows for the editor, which the ordinary cast `PUT` saves.
+
+MAL imports characters only. A MAL character is one character, not one per identity, so an identity is never matched, created or filled from MAL: every imported row has `identity_id = NULL`, and a character already cast under its main identity is skipped as already held.
 
 ## AniList
 
@@ -1075,7 +1077,7 @@ What goes in which tab, the tab order, and the credit/tag columns are described 
 
 ## Cover images (local disk)
 
-Images are stored one per row at `"{owner_type}/{system_id}.jpg"` under `COVER_DIR = "static/covers"`, and the column that references one (`cover_image_file`, `photo_file`, `logo_file`) holds that whole key, folder included. The owner type is the table the id belongs to - each table has its own id space, so a bare id does not identify a file. `image_manager.cover_key()` is the only place the layout is spelled out, and `COVER_OWNERS` lists the fourteen folders: the ten media types plus `staff`, `character`, `publisher` and `studio`.
+Images are stored one per row at `"{owner_type}/{system_id}.jpg"` under `COVER_DIR = "static/covers"`, and the column that references one (`cover_image_file`, `photo_file`, `logo_file`) holds that whole key, folder included. The owner type is the table the id belongs to - each table has its own id space, so a bare id does not identify a file. `image_manager.cover_key()` is the only place the layout is spelled out, and `COVER_OWNERS` lists the seventeen folders: the twelve media types plus `staff`, `character`, `character-identity`, `publisher` and `studio`.
 
 Local disk is the only storage path. `app/services/integrations/image_manager.py` is plain local-disk cover storage and is the only module that knows where the files live. In production that directory is a bind mount into the container, so the files sit on the box's disk as ordinary files - see [deployment-selfhost.md](deployment-selfhost.md#a-volume-for-the-database-bind-mounts-for-the-images).
 

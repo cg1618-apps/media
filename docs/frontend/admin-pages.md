@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-04
+Last verified: 2026-10-06
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -449,6 +449,8 @@ rejects. Submit is blocked until at least one name is filled, matching
 `ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
 `PersonFields` is exported so the Modify tab renders the same inputs.
 
+**Identity tab (Entity).** `IdentityAddTab.jsx`, self-contained: it saves through its own button, and `Add.jsx`'s page-wide submit is hidden on it. An identity is always created under an existing character, so the tab opens with a required **Character** picker (a `ComboBox` over `GET /api/character/?name=`; the character is fixed once the identity is saved), then `IdentityFields`: the four names, **Display Name**, **Gender** (an empty choice means the same as the character), **Photo** and **Remark**. At least one name is required. The photo is attached after the create, as for characters, and Enter in a text input submits. `IdentityFields` is exported for the Modify tab. It has no `/defaults` tab (`identity` is outside `FORM_TABS`). Saves `POST /api/character-identity/`.
+
 **Character tab (Entity).** `CharacterAddTab.jsx`. Its only search box is the
 MAL `ExternalSearchBox`, over the form. `CharacterFields` is the
 person form without the role × scope matrix: the four name fields, the
@@ -636,7 +638,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   fall back to searching anime, collection, franchise, series and anime movie
   in that order. A link naming `type=character`, `type=person`,
   `type=studio` or `type=publisher` — the four entity detail pages' Quick
-  edit — (`ENTITY_DEEP_LINK_TYPES` in `config/adminEntryLists.js`) fetches no
+  edit — (`ENTITY_DEEP_LINK_TYPES` in `config/adminEntryLists.js`, which also lists
+  `identity`, opened by the Identity tab's own links) fetches no
   list:
   the page opens on that tab from the first paint and hands the id to it as
   `initialId`, and the tab loads that record's editor itself. The id is handed
@@ -746,6 +749,7 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   `GET /api/person/{id}/entries`, listed once each as `name (year) [type]`;
   the pick is `photo_fallback_entry_id` on the `PUT`, and the public pages
   show that entry's cover when the person has no photo.
+- **Identity tab (Entity).** `IdentityModifyTab.jsx`, self-contained over `GET /api/character-identity/` (query key `["identities-admin"]`): `IdentityPicker`, a search box over every name of the identity and its character plus a grid of every identity showing "identity of <character>", then the `IdentityFields` form with the owning character shown read-only. Save is `PUT /api/character-identity/{id}`. A deep link `type=identity` hands the id to it as `initialId`.
 - **Character tab (Entity).** `CharacterModifyTab.jsx`, self-contained the
   same way over `/api/character/` (query key `["characters-admin"]`) and
   picked the way people are: a `SubTabBar` of **All** then one tab per
@@ -763,6 +767,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   `refreshSources` so a value the save created is offered at once.
 
 ## /delete (`Delete.jsx`)
+
+**Identity tab.** `IdentityDeleteTab.jsx` bypasses the per-type search/confirm pattern: it picks an identity with `IdentityPicker`, then confirms with the number of cast rows that will move to the character's main identity (`casting_count`). That count travels as `DELETE /api/character-identity/{id}?castings=N`; a 409 means it moved, and the tab shows the server's message. Deleting never deletes cast history - the rows fold into the main identity ([api.md](../api.md#character-identity--apicharacter-identity)).
 
 Loads the five entity lists (options, studios, publishers, people,
 characters) and the three group lists (collection, franchise, series) on

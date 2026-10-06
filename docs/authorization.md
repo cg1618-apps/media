@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-10-05
+Last verified: 2026-10-06
 
 ## What this is for
 
@@ -685,7 +685,7 @@ carries a content label. They are hidden by what they are connected to, in
 | Record | Connections (`CONNECTIONS`) |
 |---|---|
 | person | `media_credit` rows, `character_casting_voice` rows (a seiyuu is credited through the castings they voice), `person_role` scopes |
-| character | `character_casting` rows |
+| character | `character_casting` rows. Its identities (`character_identity`) are not records of their own: an identity is visible exactly when its character is |
 | studio | `media_credit` rows |
 | publisher | `media_credit` rows, `publisher_scope` scopes |
 | vocabulary value | `media_tag` rows, `media_source` rows (a main or reference source naming the value), `system_option_scope` scopes |
@@ -865,7 +865,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | relations `for-entry`, `scope`, `graph` | `routers/media_relation.py` — hidden anchor → 404; an edge naming a hidden entry is dropped whole; graph is viewer-filtered |
 | a game's choice graph and its marks | `routers/game_choice.py` (`require_visible_media`) — a hidden game → 404 "Game not found." on the read and on every write; graph writes are `require_manage_catalog`, marks need `self.personal_notes` and the read returns only the viewer's own |
 | attaching an image to a media entry or an entity | `routers/images.py` → 404 "Entry not found." An entity owner is asked through `shared_record_visible`; quote/meme owners carry no label and are not checked |
-| serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404. The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible`; its folder is read from the path, which is safe because the folder names the file |
+| serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404. The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible` (a `character-identity` owner is asked through its character, `identity_visible`); its folder is read from the path, which is safe because the folder names the file |
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
 | search | `routers/search.py` — entries, franchises, series and the person/studio/publisher buckets |
 | a public profile (`/api/profile/{username}`) | `routers/profile.py` (`apply_media_visibility`) - filtered by the **reader's** permissions, never the list owner's |
@@ -897,7 +897,9 @@ holder of `manage.catalog` who lacks an entry's restriction label would
 otherwise be able to attach a cover to (and so overwrite the cover of) an
 entry it cannot even read; the same trap `casting.py`'s `_resolve_entry`
 documents. An entity owner (`staff`, `character`, `publisher`, `studio`) is a
-shared record and is asked through `shared_record_visible`, with the same 404.
+shared record and is asked through `shared_record_visible`, with the same 404;
+a `character-identity` owner is visible exactly when its character is
+(`identity_visible`).
 `quote`/`meme` carry no content label, so attach skips the check for them —
 there is nothing for it to test.
 

@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-05
+Last verified: 2026-10-06
 
 ## What this is for
 
@@ -31,14 +31,14 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (51 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (52 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
 1. `db.query(tab.model).all()` — every row of the table.
 2. Headers are the model's column names (`tab.model.__table__.columns`); each row is formatted with `format_model_for_sheet`.
 3. If the tab has a `media_type` (the twelve entry tabs), the credit and tag link columns are appended **after** the plain columns: `sheet_link_headers(media_type)` gives the legacy header names (studio, director, genre_main, ...) and `sheet_link_rows(db, media_type, rows)` fills them as comma-joined names in a fixed number of queries. Pull matches these by header name, never by position, so appending them is safe.
-4. `bulk_overwrite_sheet(tab.name, [headers] + matrix)` (`app/services/integrations/sheets.py`): **write first, trim after**. It updates from `A1` with `USER_ENTERED`, then `batch_clear`s only the cells beyond the new data (rows below, columns to the right). A failed write therefore leaves the previous backup intact rather than a blank tab. **Two refusals.** An empty matrix raises `ValueError`, and a **header-only** write over a tab that already has data raises too. The second exists because the first could not fire: Backup always calls this as `[headers] + matrix`, which is never falsy, so an **empty table** produced a header-only write that was written and then trimmed. That is what erased the backup sheet on 2026-09-12 — 16,774 rows across 40 tabs, from a Backup run against a database that was not the one being backed up (the empty-worktree-database hazard in CLAUDE.md). An empty *table* is not by itself wrong — `Character`, `Character Casting` and `Media Content Label` are legitimately empty here — so the rule is not “refuse every header-only write” but **“refuse to blank a tab that currently has data”**, probed with one small read and only when the matrix has no data rows. The probe asks whether any **cell** in the first data row holds a value, not merely whether the API returned something: gspread answers an empty cell with `[[]]`, which is truthy, so a bare truthiness check refuses every legitimately empty tab and so blocks every Backup on this installation.
+4. `bulk_overwrite_sheet(tab.name, [headers] + matrix)` (`app/services/integrations/sheets.py`): **write first, trim after**. It updates from `A1` with `USER_ENTERED`, then `batch_clear`s only the cells beyond the new data (rows below, columns to the right). A failed write therefore leaves the previous backup intact rather than a blank tab. **Two refusals.** An empty matrix raises `ValueError`, and a **header-only** write over a tab that already has data raises too. The second exists because the first could not fire: Backup always calls this as `[headers] + matrix`, which is never falsy, so an **empty table** produced a header-only write that was written and then trimmed. That is what erased the backup sheet on 2026-09-12 — 16,774 rows across 40 tabs, from a Backup run against a database that was not the one being backed up (the empty-worktree-database hazard in CLAUDE.md). An empty *table* is not by itself wrong — `Character`, `Character Identity`, `Character Casting` and `Media Content Label` are legitimately empty here — so the rule is not “refuse every header-only write” but **“refuse to blank a tab that currently has data”**, probed with one small read and only when the matrix has no data rows. The probe asks whether any **cell** in the first data row holds a value, not merely whether the API returned something: gspread answers an empty cell with `[[]]`, which is truthy, so a bare truthiness check refuses every legitimately empty tab and so blocks every Backup on this installation.
 
 Outcome:
 
@@ -90,6 +90,7 @@ Media            ->  before  the twelve media tabs (detail.system_id -> media)
 Collection -> Franchise -> Series -> Media
 Watch Order List -> Watch Order Section -> Watch Order Item
 Person / Studio / Publisher / Character / Content Label -> the media tabs
+Character -> Character Identity -> Character Casting
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
@@ -114,44 +115,45 @@ test.
 | 11 | `Publisher` | `Publisher` |  |
 | 12 | `Publisher Scope` | `PublisherScope` |  |
 | 13 | `Character` | `Character` |  |
-| 14 | `System Configs` | `SystemConfigs` |  |
-| 15 | `Collection` | `Collection` |  |
-| 16 | `Franchise` | `Franchise` |  |
-| 17 | `Series` | `Series` |  |
-| 18 | `Media` | `Media` |  |
-| 19 | `Anime` | `Anime` | `anime` |
-| 20 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
-| 21 | `Movies` | `Movies` | `movie` |
-| 22 | `TV Shows` | `TVShows` | `tv-show` |
-| 23 | `Cartoons` | `Cartoon` | `cartoon` |
-| 24 | `Manga` | `Manga` | `manga` |
-| 25 | `Novel` | `Novel` | `novel` |
-| 26 | `Novel Unit` | `NovelUnit` |  |
-| 27 | `Comic` | `Comic` | `comic` |
-| 28 | `Game` | `Game` | `game` |
-| 29 | `Game Copy` | `GameCopy` |  |
-| 30 | `Game Choice Node` | `GameChoiceNode` |  |
-| 31 | `Game Choice Edge` | `GameChoiceEdge` |  |
-| 32 | `Game Choice Mark` | `GameChoiceMark` |  |
-| 33 | `H-Comic` | `HComic` | `h-comic` |
-| 34 | `Hentai` | `Hentai` | `hentai` |
-| 35 | `H-Game` | `HGame` | `h-game` |
-| 36 | `User Media List` | `UserMediaList` |  |
-| 37 | `Watch Order List` | `WatchOrderList` |  |
-| 38 | `Watch Order Section` | `WatchOrderSection` |  |
-| 39 | `Watch Order Item` | `WatchOrderItem` |  |
-| 40 | `Media Relation` | `MediaRelation` |  |
-| 41 | `Plan Next` | `PlanNext` |  |
-| 42 | `Quote` | `Quote` |  |
-| 43 | `Character Casting` | `CharacterCasting` |  |
-| 44 | `Character Casting Voice` | `CharacterCastingVoice` |  |
-| 45 | `Meme` | `Meme` |  |
-| 46 | `Note` | `Note` |  |
-| 47 | `Resources` | `ResourceNode` |  |
-| 48 | `Media Source` | `MediaSource` |  |
-| 49 | `Media Content Label` | `MediaContentLabel` |  |
-| 50 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 51 | `Seasonal` | `Seasonal` |  |
+| 14 | `Character Identity` | `CharacterIdentity` |  |
+| 15 | `System Configs` | `SystemConfigs` |  |
+| 16 | `Collection` | `Collection` |  |
+| 17 | `Franchise` | `Franchise` |  |
+| 18 | `Series` | `Series` |  |
+| 19 | `Media` | `Media` |  |
+| 20 | `Anime` | `Anime` | `anime` |
+| 21 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
+| 22 | `Movies` | `Movies` | `movie` |
+| 23 | `TV Shows` | `TVShows` | `tv-show` |
+| 24 | `Cartoons` | `Cartoon` | `cartoon` |
+| 25 | `Manga` | `Manga` | `manga` |
+| 26 | `Novel` | `Novel` | `novel` |
+| 27 | `Novel Unit` | `NovelUnit` |  |
+| 28 | `Comic` | `Comic` | `comic` |
+| 29 | `Game` | `Game` | `game` |
+| 30 | `Game Copy` | `GameCopy` |  |
+| 31 | `Game Choice Node` | `GameChoiceNode` |  |
+| 32 | `Game Choice Edge` | `GameChoiceEdge` |  |
+| 33 | `Game Choice Mark` | `GameChoiceMark` |  |
+| 34 | `H-Comic` | `HComic` | `h-comic` |
+| 35 | `Hentai` | `Hentai` | `hentai` |
+| 36 | `H-Game` | `HGame` | `h-game` |
+| 37 | `User Media List` | `UserMediaList` |  |
+| 38 | `Watch Order List` | `WatchOrderList` |  |
+| 39 | `Watch Order Section` | `WatchOrderSection` |  |
+| 40 | `Watch Order Item` | `WatchOrderItem` |  |
+| 41 | `Media Relation` | `MediaRelation` |  |
+| 42 | `Plan Next` | `PlanNext` |  |
+| 43 | `Quote` | `Quote` |  |
+| 44 | `Character Casting` | `CharacterCasting` |  |
+| 45 | `Character Casting Voice` | `CharacterCastingVoice` |  |
+| 46 | `Meme` | `Meme` |  |
+| 47 | `Note` | `Note` |  |
+| 48 | `Resources` | `ResourceNode` |  |
+| 49 | `Media Source` | `MediaSource` |  |
+| 50 | `Media Content Label` | `MediaContentLabel` |  |
+| 51 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 52 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -313,9 +315,18 @@ sheet without the header leaves the list as it is, and neither header is
 reported as unexpected. `System Options` restores before `Character`, so the
 cells land on the restored vocabulary.
 
+`Character Identity` sits immediately after `Character` and before the media
+tabs: `character_id` is a real FK, and `Character Casting`'s `identity_id` must
+find its identity when it restores. It carries every column of
+`character_identity` (names, `display_name_field`, `gender`, `remark`,
+`photo_file`, `photo_focus`, `position`, timestamps), and `character_id`
+round-trips as a plain uuid (`formatter.parse_character_identity_from_sheet`).
+`gender` is restored as the sheet has it, so an empty cell stays "the same as
+the character's". An empty table is legitimate here, as `Character` is.
+
 `Character Casting` sits after every media tab, because a casting reaches its
 entry by the FK-less `(media_type, entry_id)` pair, and carries no seiyuu
-column. A casting's seiyuu are the `Character Casting Voice` tab, restored
+column. It carries `identity_id`, a plain uuid, blank for the main identity; a sheet written before the column existed has no such header, and Pull restores every row of it as a main-identity row (`identity_id` NULL). A casting's seiyuu are the `Character Casting Voice` tab, restored
 immediately after it because each voice cites its casting by `casting_id`:
 one row per voice, with `casting_id`, the casting's `media_type` and
 `entry_id`, `person_id`, `position` and `remark`
