@@ -1444,6 +1444,30 @@ def parse_character_from_sheet(raw: dict) -> dict:
     return parsed
 
 
+def parse_character_identity_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Character Identity sheet into typed data
+    ready for the Database. The Character tab restores first, so character_id
+    round-trips as a plain UUID.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "character_id": _uuid_or_none(raw.get("character_id")),
+        "name_en": parse_from_sheet(raw.get("name_en"), str),
+        "name_cn": parse_from_sheet(raw.get("name_cn"), str),
+        "name_jp": parse_from_sheet(raw.get("name_jp"), str),
+        "name_alt": parse_from_sheet(raw.get("name_alt"), str),
+        "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
+        "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "photo_file": parse_from_sheet(raw.get("photo_file"), str),
+        "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
+        "position": parse_from_sheet(raw.get("position"), int) or 0,
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_character_casting_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Character Casting sheet into typed data
@@ -1455,6 +1479,8 @@ def parse_character_casting_from_sheet(raw: dict) -> dict:
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "character_id": _uuid_or_none(raw.get("character_id")),
+        # Blank on a sheet from before identities existed: the main identity.
+        "identity_id": _uuid_or_none(raw.get("identity_id")),
         "media_type": parse_from_sheet(raw.get("media_type"), str),
         "entry_id": _uuid_or_none(raw.get("entry_id")),
         "role": parse_from_sheet(raw.get("role"), str),
