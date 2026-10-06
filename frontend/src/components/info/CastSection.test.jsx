@@ -20,6 +20,19 @@ function casting(name, role, position, voices = []) {
   };
 }
 
+it("shows the resolved display photo, not the row's own", () => {
+  mount([
+    {
+      ...casting("Hero", "Main", 0),
+      photo_file: null,
+      display_photo_file: "characters/hero.jpg",
+    },
+  ]);
+  expect(document.querySelector("img").getAttribute("src")).toContain(
+    "characters/hero.jpg",
+  );
+});
+
 const CAST = [
   casting("Hero", "Main", 0),
   casting("Heroine", "Main", 1),

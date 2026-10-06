@@ -1919,12 +1919,14 @@ Each cast row in the response carries `character_name` (resolved
 `display_name`) and `identity_id` / `identity_name` (null for the main
 identity) alongside the raw ids, `voices` — `[{person_id,
 person_public_id, person_name, remark}]` in voice order, empty on an unvoiced
-row or type — and `photo_file` already
-resolved — the casting's own value if set, otherwise the row's identity's
+row or type — and two photo pairs. `photo_file` / `photo_focus` are the
+row's **own** values, null when it has none: that is what the cast editor loads
+and sends back, so a save never freezes a resolved picture into the row.
+`display_photo_file` / `display_photo_focus` are the resolved pair readers
+show — the casting's own value if set, otherwise the row's identity's
 `photo_file` when it names an identity with one, otherwise the character's
 canonical `photo_file` — so every reader gets the same answer without
-repeating the fallback. `photo_focus` follows the same fallback: it is the focus
-of whichever photo won.
+repeating the fallback. The focus is the focus of whichever photo won.
 Being a credit field it is gated with `studio` in the Credits field group
 (`app/services/rbac/field_groups.py`): a viewer without that permission gets
 neither, and the pages fall back to the plain string when `studio_refs` is

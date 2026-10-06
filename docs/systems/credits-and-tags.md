@@ -422,8 +422,9 @@ Four tables, and the shape is deliberate on the points recorded below.
   entry**: Shinichi and Conan are two rows in one entry, each with its own role,
   photo, remark and seiyuu list. The identity must be the row's character's own
   (`fk_casting_identity`, and a 422 before the database). A row's displayed
-  photo falls back **row, then its identity, then `character.photo_file`**, the
-  focus travelling with whichever won. `fill_character_roles` still reads every
+  photo (`display_photo_file`) falls back **row, then its identity, then
+  `character.photo_file`**, the focus travelling with whichever won; the row's
+  own `photo_file` stays what was saved, null when it has none. `fill_character_roles` still reads every
   casting of the character, identity rows included - they are one character.
 - `character_casting_voice` — one seiyuu voicing one casting, with a
   `position` and a free-text `remark` saying which voice it is (`child`,
@@ -666,9 +667,11 @@ in that entry, so it beats the entry's cover at every step:
 
 An **identity's** displayed photo is simpler: its own `photo_file`, else the
 character's `display_photo_file` as resolved above (`display_photo_focus` with
-it). A **cast row's** photo is not this chain at all - it resolves at read time
-as the row's own `photo_file`, then its identity's `photo_file`, then the
-character's own `photo_file`, and is never run through the entry fallbacks.
+it). A **cast row's** displayed photo is not this chain at all - it resolves at
+read time as `display_photo_file`: the row's own `photo_file`, then its
+identity's `photo_file`, then the character's own `photo_file`, and is never run
+through the entry fallbacks. The row's own `photo_file` is returned beside it
+unresolved, so the cast editor round-trips only what was chosen for the row.
 
 Person - a casting photo is the character's picture, not the seiyuu's, so
 there are no casting steps:

@@ -109,3 +109,52 @@ it("sends only the voices that name a person", async () => {
     { person_id: "p2", remark: "ep 13-" },
   ]);
 });
+
+// The cast editor loads rows with the row's OWN photo (null when it has none)
+// and the resolved display pair beside it. Saving must send the own photo only,
+// so a row that was showing its character's face does not freeze it.
+it("sends a loaded main row switched to an identity with no photo_file", async () => {
+  const { result } = renderHook(() => useReplaceCasting(), { wrapper });
+
+  const cast = [
+    {
+      system_id: "k1",
+      character_id: "c1",
+      identity_id: "i1",
+      identity_name: "Conan",
+      role: "Main",
+      position: 0,
+      photo_file: null,
+      photo_focus: null,
+      display_photo_file: "characters/shinichi.jpg",
+      display_photo_focus: "10% 10%",
+    },
+  ];
+
+  result.current.mutate({ mediaType: "anime", entryId: "e1", cast });
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+  const sent = JSON.parse(fetch.mock.calls[0][1].body).cast[0];
+  expect(sent.photo_file).toBeNull();
+  expect(sent).not.toHaveProperty("display_photo_file");
+  expect(sent).not.toHaveProperty("display_photo_focus");
+  expect(sent.identity_id).toBe("i1");
+});
+
+it("sends identity_id null when blank and strips identity_name", async () => {
+  const { result } = renderHook(() => useReplaceCasting(), { wrapper });
+
+  const cast = [
+    { character_id: "c1", identity_id: "", identity_name: "typed", position: 0 },
+    { character_id: "c2", position: 1 },
+  ];
+
+  result.current.mutate({ mediaType: "anime", entryId: "e1", cast });
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+  const sent = JSON.parse(fetch.mock.calls[0][1].body).cast;
+  expect(sent.map((r) => r.identity_id)).toEqual([null, null]);
+  for (const r of sent) expect(r).not.toHaveProperty("identity_name");
+});

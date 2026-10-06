@@ -38,10 +38,10 @@ function CastRow({ row }) {
       <div className="w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded">
         <img
           loading="lazy"
-          src={getCoverUrl(row.photo_file)}
+          src={getCoverUrl(row.display_photo_file)}
           alt=""
           className="w-full h-full object-cover"
-          style={focusStyle(row.photo_focus)}
+          style={focusStyle(row.display_photo_focus)}
           onError={(e) => {
             e.target.src = FALLBACK_SVG;
           }}

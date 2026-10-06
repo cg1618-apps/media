@@ -336,7 +336,7 @@ def test_cast_save_and_read_carry_photo_focus(admin_client, sample_anime, charac
     assert row["photo_focus"] == "50% 10%"
 
 
-def test_cast_read_falls_back_to_the_characters_focus_with_its_photo(
+def test_cast_read_displays_the_characters_focus_with_its_photo(
     admin_client, db_session, sample_anime, character
 ):
     character.photo_focus = "70% 30%"
@@ -346,8 +346,10 @@ def test_cast_read_falls_back_to_the_characters_focus_with_its_photo(
     admin_client.put(f"/api/casting/anime/{sample_anime.system_id}", json=body)
     row = admin_client.get(f"/api/casting/anime/{sample_anime.system_id}").json()["cast"][0]
 
-    assert row["photo_file"] == character.photo_file
-    assert row["photo_focus"] == "70% 30%"
+    assert row["display_photo_file"] == character.photo_file
+    assert row["display_photo_focus"] == "70% 30%"
+    assert row["photo_file"] is None
+    assert row["photo_focus"] is None
 
 
 def test_cast_save_refuses_a_malformed_focus(admin_client, sample_anime, character):

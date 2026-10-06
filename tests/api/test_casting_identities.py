@@ -58,8 +58,11 @@ def test_put_still_rejects_the_main_identity_twice(admin_client, anime, characte
     assert _put(admin_client, anime, [_row(character), _row(character)]).status_code == 422
 
 
-def test_photo_falls_back_row_then_identity_then_character(admin_client, db_session, anime, character, identity):
+def test_photo_file_is_the_rows_own_and_display_photo_is_resolved(
+    admin_client, db_session, anime, character, identity
+):
     identity.photo_file = "character-identity/conan.jpg"
+    identity.photo_focus = "10% 20%"
     db_session.flush()
     rows = [
         _row(character),
@@ -67,12 +70,21 @@ def test_photo_falls_back_row_then_identity_then_character(admin_client, db_sess
     ]
     assert _put(admin_client, anime, rows).status_code == 200
     cast = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
-    assert cast[0]["photo_file"] == "characters/ichika.jpg"
-    assert cast[1]["photo_file"] == "character-identity/conan.jpg"
+    # No own photo: photo_file stays empty, display is identity's, else character's.
+    assert cast[0]["photo_file"] is None
+    assert cast[0]["photo_focus"] is None
+    assert cast[0]["display_photo_file"] == "characters/ichika.jpg"
+    assert cast[1]["photo_file"] is None
+    assert cast[1]["display_photo_file"] == "character-identity/conan.jpg"
+    assert cast[1]["display_photo_focus"] == "10% 20%"
     rows[1]["photo_file"] = "character/own.jpg"
+    rows[1]["photo_focus"] = "1% 2%"
     assert _put(admin_client, anime, rows).status_code == 200
     cast = admin_client.get(f"/api/casting/anime/{anime.system_id}").json()["cast"]
     assert cast[1]["photo_file"] == "character/own.jpg"
+    assert cast[1]["photo_focus"] == "1% 2%"
+    assert cast[1]["display_photo_file"] == "character/own.jpg"
+    assert cast[1]["display_photo_focus"] == "1% 2%"
 
 
 def test_entries_lists_each_identity_appearance(admin_client, client, anime, character, identity):
