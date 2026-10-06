@@ -168,10 +168,11 @@ def _validate_row(media_type: str, row: dict) -> None:
 def _validate_rows(db: Session, rows: list[dict]) -> None:
     """
     Payload-wide checks _validate_row cannot do row-by-row: a repeated
-    (character_id, identity_id) (would violate uq_character_casting), and a character_id or
-    voice person_id that does not exist (would violate a FK). Each check runs as
-    ONE query over every id the payload names, not one query per row -
-    CastEditor can hand this a cast list of any size.
+    (character_id, identity_id) (would violate uq_character_casting), and a
+    character_id, identity_id or voice person_id that does not exist (would
+    violate a FK). Each check runs as ONE query over every id the payload
+    names, not one query per row - CastEditor can hand this a cast list of any
+    size.
     """
     character_ids = [row["character_id"] for row in rows if row.get("character_id")]
     seen: set = set()
@@ -181,7 +182,8 @@ def _validate_rows(db: Session, rows: list[dict]) -> None:
         key = (row["character_id"], row.get("identity_id"))
         if key in seen:
             raise CastingValidationError(
-                f"Character {row['character_id']} is cast twice as the same identity in the same payload."
+                f"Character {row['character_id']} is cast twice as the same "
+                "identity in the same payload."
             )
         seen.add(key)
 
@@ -199,7 +201,7 @@ def _validate_rows(db: Session, rows: list[dict]) -> None:
             )
 
     wanted = {
-        row["identity_id"]: row["character_id"]
+        (row["identity_id"], row["character_id"])
         for row in rows
         if row.get("identity_id")
     }
@@ -207,15 +209,19 @@ def _validate_rows(db: Session, rows: list[dict]) -> None:
         owners = {
             i.system_id: i.character_id
             for i in db.query(
-                models.CharacterIdentity.system_id, models.CharacterIdentity.character_id
-            ).filter(models.CharacterIdentity.system_id.in_(set(wanted)))
+                models.CharacterIdentity.system_id,
+                models.CharacterIdentity.character_id,
+            ).filter(
+                models.CharacterIdentity.system_id.in_({w[0] for w in wanted})
+            )
         }
-        for identity_id, character_id in wanted.items():
+        for identity_id, character_id in sorted(wanted, key=str):
             if identity_id not in owners:
                 raise CastingValidationError(f"Unknown identity id: {identity_id}.")
             if owners[identity_id] != character_id:
                 raise CastingValidationError(
-                    f"Identity {identity_id} does not belong to character {character_id}."
+                    f"Identity {identity_id} does not belong to character "
+                    f"{character_id}."
                 )
 
     person_ids = {

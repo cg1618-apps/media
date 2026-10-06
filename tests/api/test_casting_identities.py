@@ -82,3 +82,11 @@ def test_entries_lists_each_identity_appearance(admin_client, client, anime, cha
     assert len(entries) == 2
     assert len({e["casting_id"] for e in entries}) == 2
     assert sorted(str(e["identity_name"]) for e in entries) == ["Conan", "None"]
+
+
+def test_put_rejects_an_identity_paired_with_two_characters(admin_client, anime, character, second_character, identity):
+    # The identity belongs to `character`; one row pairs it with the other
+    # character first, so only checking the last pairing would let it through.
+    r = _put(admin_client, anime, [_row(second_character, identity), _row(character, identity)])
+    assert r.status_code == 422
+    assert "does not belong" in r.json()["detail"]
