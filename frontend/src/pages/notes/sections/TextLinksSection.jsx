@@ -21,6 +21,7 @@ import {
   useEntryCap,
   useRowReorder,
 } from "./ui";
+import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
 
 const empty = () => ({ locator: "", content: "", links: [""] });
 
@@ -49,10 +50,9 @@ function TextLinksForm({ val, setVal, section }) {
           className={inputCls}
         />
       )}
-      <textarea
+      <AutoGrowTextarea
         value={val.content}
         onChange={(e) => setVal({ ...val, content: e.target.value })}
-        rows={2}
         placeholder={
           section.desc_required
             ? "Description (required)"

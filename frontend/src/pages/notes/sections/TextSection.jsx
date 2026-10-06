@@ -20,6 +20,7 @@ import {
   useEntryCap,
   useRowReorder,
 } from "./ui";
+import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
 
 // ─── Singleton (Remark) ──────────────────────────────────────────────────────
 
@@ -180,10 +181,9 @@ function TextList({
           <ReorderRow key={n.system_id} reorder={reorder} id={n.system_id}>
             {editId === n.system_id ? (
               <div>
-                <textarea
+                <AutoGrowTextarea
                   value={editVal}
                   onChange={(e) => setEditVal(e.target.value)}
-                  rows={2}
                   className={inputCls}
                   autoFocus
                 />
@@ -210,10 +210,9 @@ function TextList({
       <ShowAllToggle {...cap.toggle} />
       {adding && (
         <div>
-          <textarea
+          <AutoGrowTextarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            rows={2}
             className={inputCls}
             autoFocus
             placeholder="Add item..."

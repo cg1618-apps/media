@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-10-05
+Last verified: 2026-10-06
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -441,6 +441,13 @@ not drawn. The character, person and studio libraries use it for
   build on dnd-kit's `useDraggable` / `useDroppable` with `useDragSensors` and
   the same ArrowUp / ArrowDown keys - the first two with the same grip and
   label, the ranked list by its whole row, which holds no inputs.
+  `AutoGrowTextarea` is the textarea for a note's short free text - every
+  notes section's description, remark and list-item field, and the text
+  fields of `QuoteForm` and `MemeForm`. It opens `rows` high (2 by default),
+  fits its height to the text on every change, and stops at `max-h-80`, past
+  which it scrolls; manual resize is off. The height comes from `scrollHeight`
+  rather than CSS `field-sizing: content`, which Firefox lacks. The Remark
+  section's large box keeps its fixed 10 rows and drag handle.
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
   `MarkAiringModal`, `ReleaseDetailsModal` (the optional release date /
   broadcast slot / watch day prompt the detail pages' release button opens -

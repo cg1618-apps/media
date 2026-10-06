@@ -71,6 +71,7 @@ import {
   tagCls,
   useEntryCap,
 } from "./ui";
+import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
 
 // The owner's id, for a `choice_node` field: the game whose points it offers.
 const OwnerIdContext = createContext(null);
@@ -266,11 +267,10 @@ function ScalarInput({ field, value, onChange, ariaLabel }) {
   }
   if (field.type === "textarea") {
     return (
-      <textarea
+      <AutoGrowTextarea
         value={value}
         aria-label={label}
         onChange={(e) => onChange(e.target.value)}
-        rows={2}
         placeholder={field.placeholder || field.label}
         className={inputCls}
       />
