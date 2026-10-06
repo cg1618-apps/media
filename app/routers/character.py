@@ -16,7 +16,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -577,7 +577,14 @@ def merge_character(
     # cast rows move with them below, unmatched: no survivor row names a
     # loser's identity. fk_casting_identity is deferred, so the identity and
     # its rows may change in either order inside this flush.
-    offset = len(keep.identities)
+    # Past the survivor's highest position, not its count: positions may have
+    # gaps (a deleted identity), and 0 when it has none.
+    highest = (
+        db.query(func.max(models.CharacterIdentity.position))
+        .filter_by(character_id=system_id)
+        .scalar()
+    )
+    offset = 0 if highest is None else highest + 1
     for identity in (
         db.query(models.CharacterIdentity)
         .filter_by(character_id=payload.source_id)
@@ -609,5 +616,8 @@ def merge_character(
 
     merge_character_tags(db, system_id, payload.source_id)
 
+    # drop.identities may be loaded and still list the moved identities; the
+    # delete-orphan cascade would delete them with drop. Reload it from the rows.
+    db.expire(drop, ["identities"])
     finish_merge(db, "character", keep, drop)
     return {"status": "success", "castings_moved": moved}

@@ -98,6 +98,24 @@ def test_merge_moves_identities_to_the_survivor(admin_client, db_session, charac
     assert row.character_id == character.system_id
 
 
+def test_merge_places_moved_identities_after_the_survivors_highest_position(
+    admin_client, db_session, character, second_character
+):
+    # Survivor positions have a gap (0 and 2), so counting identities (2) would
+    # put the moved one on position 2, beside the survivor's own.
+    for position in (0, 2):
+        db_session.add(models.CharacterIdentity(
+            system_id=uuid.uuid4(), character_id=character.system_id, name_en=f"Own{position}", position=position,
+        ))
+    stray = models.CharacterIdentity(system_id=uuid.uuid4(), character_id=second_character.system_id, name_en="Kid")
+    db_session.add(stray)
+    db_session.flush()
+    r = admin_client.post(f"/api/character/{character.system_id}/merge", json={"source_id": str(second_character.system_id)})
+    assert r.status_code == 200
+    db_session.expire_all()
+    assert db_session.get(models.CharacterIdentity, stray.system_id).position > 2
+
+
 def test_merge_matches_castings_per_identity(admin_client, db_session, character, second_character, anime, identity):
     # The survivor's identity row and the loser's MAIN row share the entry but
     # not the identity, so they are different appearances and both survive.
