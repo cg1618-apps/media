@@ -12,6 +12,7 @@ import ImagePicker from "./ImagePicker";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useApiQuery } from "../../hooks/useApiQuery";
+import AutoGrowTextarea from "../ui/AutoGrowTextarea";
 
 export function emptyMeme(overrides = {}) {
   return {
@@ -102,10 +103,9 @@ export default function MemeForm({ val, setVal, ownerType, ownerId }) {
   return (
     <div className="space-y-3">
       <Row label="Text" hint="The meme itself — can be a single word">
-        <textarea
+        <AutoGrowTextarea
           value={val.text || ""}
           onChange={(e) => set("text", e.target.value)}
-          rows={2}
           placeholder="Leave blank for an image-only meme"
           className={inputCls}
         />

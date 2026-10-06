@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.utils.media_resolver import OWNER_TABLES
 from app.utils.note_sections import (
+    FIELD_CHOICE_NODE,
     FIELD_LINKS,
     FIELD_LIST,
     FIELD_NAMES,
@@ -339,6 +340,17 @@ def _check_field(field: NoteField, value, where: str) -> None:
             isinstance(v, str) and v.strip() for v in value
         ):
             raise ValueError(f"{where} must be a list of non-empty names.")
+        return
+
+    if field.type == FIELD_CHOICE_NODE:
+        # Only the shape is checked here. Whether the uuid names a node of the
+        # note's own game needs a query, so the note router owns that half.
+        if not isinstance(value, str):
+            raise ValueError(f"{where} must be the id of a choice node.")
+        try:
+            UUID(value.strip())
+        except ValueError:
+            raise ValueError(f"{where} must be the id of a choice node.")
         return
 
     if field.type == FIELD_LIST:

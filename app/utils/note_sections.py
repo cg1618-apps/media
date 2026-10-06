@@ -149,6 +149,12 @@ FIELD_LIST = "list"  # a repeatable row of `item_fields`
 # but any non-empty string is accepted - these are names, not character ids,
 # so renaming a character does not rewrite a row that named it.
 FIELD_NAMES = "names"
+# One node of the owner game's choice graph (game_choice_node), by uuid.
+# Always stored in `fields`. The editor offers this game's nodes; the schema
+# checks the value is a uuid, and the note router that it names a node of the
+# note's own game, since that needs a query. Deleting the node removes the key
+# from every note naming it.
+FIELD_CHOICE_NODE = "choice_node"
 
 # The `note` columns a structured field may claim. Anything else a section
 # declares is stored under its own key in the `fields` JSONB blob.
@@ -1741,6 +1747,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 label="Based on slot",
                 placeholder="Slot number it was copied from",
             ),
+            # Where in the choice graph this save sits. In `fields`, like
+            # based_on; many saves may sit on one node.
+            NoteField(key="choice_node", label="At node", type=FIELD_CHOICE_NODE),
         ),
     ),
     # --- 音樂 Music -------------------------------------------------------

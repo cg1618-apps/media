@@ -880,6 +880,14 @@ def character(db_session):
 
 
 @pytest.fixture
+def second_character(db_session):
+    c = models.Character(system_id=uuid.uuid4(), name_en="Yuki")
+    db_session.add(c)
+    db_session.flush()
+    return c
+
+
+@pytest.fixture
 def duplicate_character(db_session, anime):
     """A second character row, cast on the same anime, standing in for a
     duplicate the merge endpoint should fold into `character`."""

@@ -16,7 +16,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -26,6 +26,10 @@ from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
 from app.services.domain.autofill import autofill_character_from_mal
+from app.services.domain.character_identities import (
+    identities_by_character,
+    identity_response,
+)
 from app.services.domain.character_tags import (
     character_tag_values,
     merge_character_tags,
@@ -35,7 +39,7 @@ from app.services.domain.character_tags import (
 )
 from app.services.domain.derivation import apply_extract_mal_id_character
 from app.services.domain.entity_photos import EntityMedia, character_media
-from app.services.domain.merge_fill import fill_blank_casting, finish_merge
+from app.services.domain.merge_fill import absorb_casting, finish_merge
 from app.services.integrations.tenrai import search_mal_characters
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
@@ -78,6 +82,7 @@ def _to_response(
     viewer=None,
     media: Optional[EntityMedia] = None,
     tags: Optional[dict[str, list[str]]] = None,
+    identities: Optional[list] = None,
 ) -> schemas.CharacterResponse:
     # casting_count, the picture and the media types all count only castings
     # on entries the viewer may see, exactly as person._to_response counts
@@ -92,6 +97,8 @@ def _to_response(
     # The same arrangement for the tag lists (character_tags.character_tag_values).
     if tags is None:
         tags = character_tag_values(db, [character.system_id])[character.system_id]
+    if identities is None:
+        identities = identities_by_character(db, [character.system_id])[character.system_id]
     return schemas.CharacterResponse(
         system_id=character.system_id,
         public_id=character.public_id,
@@ -117,6 +124,7 @@ def _to_response(
         restricted=media.restricted,
         appearance=tags["appearance"],
         trait=tags["trait"],
+        identities=[identity_response(i, character, media) for i in identities],
     )
 
 
@@ -169,9 +177,15 @@ def get_all_characters(
     characters.sort(key=lambda c: c.display_name.casefold())
     media = character_media(db, viewer, characters)
     tags = character_tag_values(db, [c.system_id for c in characters])
+    identities = identities_by_character(db, [c.system_id for c in characters])
     return [
         _to_response(
-            db, character, viewer, media[character.system_id], tags[character.system_id]
+            db,
+            character,
+            viewer,
+            media[character.system_id],
+            tags[character.system_id],
+            identities[character.system_id],
         )
         for character in characters
     ]
@@ -262,6 +276,14 @@ def get_character_entries(
         for p in db.query(models.Person).filter(models.Person.system_id.in_(person_ids))
     } if person_ids else {}
 
+    identity_ids = {r.identity_id for r in rows if r.identity_id}
+    identities = {
+        i.system_id: i
+        for i in db.query(models.CharacterIdentity).filter(
+            models.CharacterIdentity.system_id.in_(identity_ids)
+        )
+    } if identity_ids else {}
+
     groups: dict[str, list] = {}
     for row in rows:
         if row.media_type not in MEDIA_TABLES:
@@ -281,6 +303,15 @@ def get_character_entries(
         payload.append(
             {
                 "system_id": str(entry.system_id),
+                # One entry appears once per identity cast in it, so the
+                # casting - not the entry - is what tells two cards apart.
+                "casting_id": str(row.system_id),
+                "identity_id": str(row.identity_id) if row.identity_id else None,
+                "identity_name": (
+                    identities[row.identity_id].display_name
+                    if row.identity_id in identities
+                    else None
+                ),
                 "display_name": entry.display_name,
                 "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
@@ -525,7 +556,9 @@ def merge_character(
 
     Every column this character leaves blank is filled from the source's,
     and an entry both are cast in keeps this character's casting, its blanks
-    filled from the source's (`merge_fill`). Each tag list ends as the union
+    filled from the source's (`merge_fill`). Castings match per identity: the
+    source's identities move to this character, after its own, with their
+    cast rows, and only a main row meets a main row. Each tag list ends as the union
     of both: this character's values first, then the source's it lacked.
     """
     if system_id == payload.source_id:
@@ -540,8 +573,29 @@ def merge_character(
     for character_id in (system_id, payload.source_id):
         require_visible_shared(db, admin, models.Character, character_id, NOT_FOUND)
 
+    # The loser's identities move to the survivor first, after its own. Their
+    # cast rows move with them below, unmatched: no survivor row names a
+    # loser's identity. fk_casting_identity is deferred, so the identity and
+    # its rows may change in either order inside this flush.
+    # Past the survivor's highest position, not its count: positions may have
+    # gaps (a deleted identity), and 0 when it has none.
+    highest = (
+        db.query(func.max(models.CharacterIdentity.position))
+        .filter_by(character_id=system_id)
+        .scalar()
+    )
+    offset = 0 if highest is None else highest + 1
+    for identity in (
+        db.query(models.CharacterIdentity)
+        .filter_by(character_id=payload.source_id)
+        .order_by(models.CharacterIdentity.position)
+        .all()
+    ):
+        identity.character_id = system_id
+        identity.position += offset
+
     held = {
-        (c.media_type, c.entry_id): c
+        (c.identity_id, c.media_type, c.entry_id): c
         for c in db.query(models.CharacterCasting)
         .filter_by(character_id=system_id)
         .all()
@@ -552,21 +606,9 @@ def merge_character(
         .filter_by(character_id=payload.source_id)
         .all()
     ):
-        kept = held.get((casting.media_type, casting.entry_id))
+        kept = held.get((casting.identity_id, casting.media_type, casting.entry_id))
         if kept is not None:
-            fill_blank_casting(kept, casting)
-            voiced = {v.person_id for v in kept.voices}
-            for voice in list(casting.voices):
-                if voice.person_id not in voiced:
-                    kept.voices.append(
-                        models.CharacterCastingVoice(
-                            media_type=kept.media_type,
-                            entry_id=kept.entry_id,
-                            person_id=voice.person_id,
-                            position=len(kept.voices),
-                            remark=voice.remark,
-                        )
-                    )
+            absorb_casting(kept, casting)
             db.delete(casting)
             continue
         casting.character_id = system_id
@@ -574,5 +616,8 @@ def merge_character(
 
     merge_character_tags(db, system_id, payload.source_id)
 
+    # drop.identities may be loaded and still list the moved identities; the
+    # delete-orphan cascade would delete them with drop. Reload it from the rows.
+    db.expire(drop, ["identities"])
     finish_merge(db, "character", keep, drop)
     return {"status": "success", "castings_moved": moved}

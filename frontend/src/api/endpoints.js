@@ -165,6 +165,24 @@ export const endpoints = {
     graph: () => "/api/media-relation/graph",
   },
 
+  // One game's choice graph: its blocks (nodes), the branches and links out
+  // of them (edges), and the viewer's own done/note marks on either. The graph
+  // read takes `?game_id=`; node and edge writes need manage.catalog, a mark
+  // needs self.personal_notes. `nextPart` creates a branch's next block and
+  // points the branch at it in one write.
+  gameChoice: {
+    graph: () => "/api/game-choice/graph",
+    createNode: () => "/api/game-choice/nodes",
+    patchNode: (id) => `/api/game-choice/nodes/${id}`,
+    removeNode: (id) => `/api/game-choice/nodes/${id}`,
+    markNode: (id) => `/api/game-choice/nodes/${id}/mark`,
+    createEdge: () => "/api/game-choice/edges",
+    patchEdge: (id) => `/api/game-choice/edges/${id}`,
+    removeEdge: (id) => `/api/game-choice/edges/${id}`,
+    nextPart: (id) => `/api/game-choice/edges/${id}/next`,
+    markEdge: (id) => `/api/game-choice/edges/${id}/mark`,
+  },
+
   formDefaults: {
     list: () => "/api/form-defaults/",
     detail: (type) => `/api/form-defaults/${type}`,
@@ -207,6 +225,16 @@ export const endpoints = {
     update: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
   },
 
+  // A character's other identities (admin-only). `list` takes
+  // character_id= and/or name=.
+  characterIdentity: {
+    list: (qs = "") => `/api/character-identity/${qs ? `?${qs}` : ""}`,
+    detail: (id) => `/api/character-identity/${id}`,
+    create: () => "/api/character-identity/",
+    update: (id) => `/api/character-identity/${id}`,
+    // The cast-row count the admin confirmed; 409 if it moved.
+    remove: (id, castings) => `/api/character-identity/${id}?castings=${castings}`,
+  },
   character: {
     list: (qs = "") => `/api/character/${qs ? `?${qs}` : ""}`,
     detail: (id) => `/api/character/${id}`,

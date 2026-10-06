@@ -8,7 +8,14 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models import Collection, DataControlLog, DeletedRecord, Franchise, Series
+from app.models import (
+    Collection,
+    DataControlLog,
+    DeletedRecord,
+    Franchise,
+    GameChoiceNode,
+    Series,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +178,24 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
             ).strip()
             name_cn = (body[:80] + "...") if len(body) > 80 else (body or None)
             category = getattr(entry, "kind", None)
+
+        elif entry_type == "Game Choice Node":
+            # A block of a game's choice graph is named by its title.
+            name_cn = getattr(entry, "title", None)
+            category = getattr(entry, "kind", None)
+
+        elif entry_type == "Game Choice Edge":
+            # A branch is named by its title. A link has none, so the two
+            # blocks it joins stand in for one.
+            category = getattr(entry, "kind", None)
+            name_cn = (getattr(entry, "title", None) or "").strip() or None
+            if name_cn is None and entry.to_node_id is not None:
+                ends = [
+                    db.get(GameChoiceNode, node_id)
+                    for node_id in (entry.from_node_id, entry.to_node_id)
+                ]
+                if all(ends):
+                    name_cn = f"{ends[0].title} → {ends[1].title}"
 
         elif entry_type == "Note":
             # A note has no name of its own, so its content stands in for one.

@@ -20,6 +20,12 @@ import { PERSON_SUB_TABS } from "../components/forms/PersonSubTabBar";
 import { PUBLISHER_SCOPES } from "../components/forms/PublisherScopePills";
 import { canSeeGatedType, visibleByType } from "./gatedTypes";
 import { initialFilters } from "./libraryFilters";
+import {
+  CARD_KIND_CHARACTER,
+  CARD_KIND_IDENTITY,
+  HAS_IDENTITIES,
+  NO_IDENTITIES,
+} from "./characterCards";
 
 export const UNRATED = "Unrated";
 export const GENDER_NOT_SET = "Not set";
@@ -152,7 +158,31 @@ function tagListDef(key, label) {
   };
 }
 
-/** The character library's defs: entry type, role, rating, gender, appearance, trait. */
+// Character cards and identity cards, so either can be shown alone. Empty
+// (the default) shows both.
+const cardKindDef = {
+  key: "cardKind",
+  label: "Card",
+  type: "set",
+  options: [CARD_KIND_CHARACTER, CARD_KIND_IDENTITY],
+  match: (item, active) =>
+    active.has(item.card_kind === "identity" ? CARD_KIND_IDENTITY : CARD_KIND_CHARACTER),
+};
+
+// Whether the character has other identities. An identity card always does.
+const hasIdentitiesDef = {
+  key: "hasIdentities",
+  label: "Identities",
+  type: "set",
+  options: [HAS_IDENTITIES, NO_IDENTITIES],
+  match: (item, active) => active.has(item.has_identities ? HAS_IDENTITIES : NO_IDENTITIES),
+};
+
+/**
+ * The character library's defs: entry type, role, rating, gender, appearance,
+ * trait, and the card kind and identities groups over its character and
+ * identity cards.
+ */
 export function characterFilterDefs(auth) {
   return [
     mediaTypeDef(auth, CHARACTER_MEDIA_TYPES, CHARACTER_RESTRICTED_TYPES),
@@ -161,6 +191,8 @@ export function characterFilterDefs(auth) {
     genderDef(),
     tagListDef("appearance", "Appearance"),
     tagListDef("trait", "Trait"),
+    cardKindDef,
+    hasIdentitiesDef,
   ];
 }
 

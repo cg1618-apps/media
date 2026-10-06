@@ -338,7 +338,7 @@ out. What the three gated types keep is in
 | `todo_next` | text_links | 接下來 To do next | game, h-game | todo | personal scope |
 | `todo_later` | text_links | 未來 To do in the future | game, h-game | todo | personal scope |
 | `todo_maybe` | text_links | 可能 Might do | game, h-game | todo | personal scope |
-| `saves` | structured | 存檔 Saves | game, h-game | todo | personal scope; number, name, checkpoint (`regular` / `main`, default `regular`), note, based on slot |
+| `saves` | structured | 存檔 Saves | game, h-game | todo | personal scope; number, name, checkpoint (`regular` / `main`, default `regular`), note, based on slot, at node (a block of the game's choice graph, [systems/game-choices.md](systems/game-choices.md)) |
 | `music_status` | music_status | 音樂狀態 Music Status | anime | music (hidden) | kinds `MUSIC_TYPE_KEYS` (`op`, `ed`, `insert_songs`, `ost`), one row each; statuses `MUSIC_TYPE_STATUSES`, default `Not Done` |
 | `op` | music_track | OP | anime | music | Song Type free text from category `Song Type`, default `normal`; statuses `MUSIC_STATUSES`; link text from category `Song Source` |
 | `ed` | music_track | ED | anime | music | same as `op` |

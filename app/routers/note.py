@@ -27,6 +27,7 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.schemas.note import sections_out, validate_note_payload
+from app.services.domain.game_choice import node_of_game, parse_node_id
 from app.services.rbac.enforcement import (
     entry_visible,
     require_visible_owner,
@@ -42,9 +43,11 @@ from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES, OWNER_TABLES, TIER_TABLES
 from app.utils.note_sections import (
+    FIELD_CHOICE_NODE,
     NOTE_SECTIONS,
     PERSONAL_SECTIONS,
     SCOPE_PERSONAL,
+    field_by_key,
     section_by_key,
 )
 
@@ -170,6 +173,70 @@ def _require_owner_where(db: Session, payload: schemas.NoteBase) -> None:
                     f"Section '{section.key}' applies only where {column} is "
                     f"{' or '.join(allowed)}."
                 ),
+            )
+
+
+def _choice_node_keys(section_key: Optional[str]) -> list[str]:
+    """The keys of a section's `choice_node` fields; none for most sections."""
+    section = section_by_key(section_key or "")
+    if section is None:
+        return []
+    return [f.key for f in section.fields if f.type == FIELD_CHOICE_NODE]
+
+
+def _canonical_fields(section_key: Optional[str], fields: Optional[dict]):
+    """
+    `fields` with every choice_node value in canonical form - the lowercase
+    hyphenated uuid, no whitespace - and a blank one removed.
+
+    Canonical because a node's delete clears links by exact match on
+    `fields->>'choice_node'`, and the page compares ids as strings: an
+    uppercase or padded copy of a real id would survive the one and miss the
+    other. Runs after the schema has refused anything that is not a uuid.
+    """
+    keys = _choice_node_keys(section_key)
+    if not keys or fields is None:
+        return fields
+    out = dict(fields)
+    for key in keys:
+        if key not in out:
+            continue
+        node_id = parse_node_id(out[key])
+        if node_id is None:
+            out.pop(key)
+        else:
+            out[key] = str(node_id)
+    return out
+
+
+def _require_choice_nodes(
+    db: Session,
+    payload: schemas.NoteBase,
+    previous: Optional[dict] = None,
+) -> None:
+    """
+    A `choice_node` field must name a node of the note's OWN game's choice
+    graph - a save cannot sit on another game's point. The schema has already
+    checked the value is a uuid; this is the half that needs a query. A blank
+    value clears the link and is not checked.
+
+    `previous` is the stored row's canonical fields, on a PATCH. A value equal
+    to it is not a change and is not re-checked: a save brought by Pull may
+    name a node this machine does not hold, and renaming that save must not
+    fail over a link nobody touched.
+    """
+    fields = payload.fields or {}
+    for key in _choice_node_keys(payload.section):
+        value = fields.get(key)
+        if value is None:
+            continue
+        if previous is not None and previous.get(key) == value:
+            continue
+        if node_of_game(db, parse_node_id(value), payload.owner_id) is None:
+            field = field_by_key(section_by_key(payload.section), key)
+            raise HTTPException(
+                status_code=422,
+                detail=f"{field.label} must be a node of this game's choice graph.",
             )
 
 
@@ -465,6 +532,9 @@ def create_note(
     _validate_or_422(payload)
     _require_visible_owner(db, viewer, payload.owner_id)
     _require_owner_where(db, payload)
+    if payload.fields is not None:
+        payload.fields = _canonical_fields(payload.section, payload.fields)
+    _require_choice_nodes(db, payload)
     _reject_second_singleton(db, payload, author_id=viewer.user_id)
     _validate_parent(db, payload)
 
@@ -571,6 +641,22 @@ def update_note(
     _authorize_write(viewer, merged.section)
     _require_visible_owner(db, viewer, merged.owner_id)
     _require_owner_where(db, merged)
+    # Only a PATCH that sends `fields` can change a link, and only a value
+    # that differs from the stored one is checked - unless the owner moved,
+    # when every link has to name a node of the new game.
+    if "fields" in data:
+        data["fields"] = _canonical_fields(merged.section, data["fields"])
+        merged.fields = data["fields"]
+        owner_moved = merged.owner_id != db_note.owner_id
+        _require_choice_nodes(
+            db,
+            merged,
+            previous=None
+            if owner_moved
+            else _canonical_fields(db_note.section, db_note.fields) or {},
+        )
+    elif merged.owner_id != db_note.owner_id:
+        _require_choice_nodes(db, merged)
     _reject_second_singleton(
         db, merged, exclude_id=note_id, author_id=db_note.author_id
     )

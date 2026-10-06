@@ -21,6 +21,7 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
     Collection -> Franchise -> Series -> Media
     Watch Order List -> Section -> Item
     Person / Studio / Publisher / Character / Content Label -> the media tabs
+    Character -> Character Identity -> Character Casting
 
 Users is first because nothing points at it and Plan Next, Seasonal and Game
 Copy all carry a NOT NULL user_id.
@@ -227,6 +228,13 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_character_from_sheet,
         character_tags=True,
     ),
+    # After Character (character_identity.character_id is a real FK) and
+    # before Character Casting, whose identity_id must find its identity.
+    SheetTab(
+        "Character Identity",
+        models.CharacterIdentity,
+        f.parse_character_identity_from_sheet,
+    ),
     # Key/value rows (announcements, form defaults) nothing else references.
     SheetTab("System Configs", models.SystemConfigs, f.parse_system_config_from_sheet),
     # Grouping tiers, parent first.
@@ -255,6 +263,14 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # game or an h-game - so the Media tab is what must exist first; the
     # entry tab only has to have landed for a copy to name a restored entry.
     SheetTab("Game Copy", models.GameCopy, f.parse_game_copy_from_sheet),
+    # The choice graph, right after Game Copy for the same reason: game_id is
+    # a real FK onto `media`. Nodes before edges, which name two of them, and
+    # marks last, which name one of either. Nodes and edges travel with their
+    # uuid; marks are personal and Pull files them under the installation
+    # owner, as it does Game Copy (see pull.py).
+    SheetTab("Game Choice Node", models.GameChoiceNode, f.parse_game_choice_node_from_sheet),
+    SheetTab("Game Choice Edge", models.GameChoiceEdge, f.parse_game_choice_edge_from_sheet),
+    SheetTab("Game Choice Mark", models.GameChoiceMark, f.parse_game_choice_mark_from_sheet),
     # The gated type. Its rows travel like every entry tab - the sheet is
     # private - and Pull re-attaches the h-comic label after the tab lands.
     SheetTab("H-Comic", models.HComic, f.parse_h_comic_from_sheet, "h-comic", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),

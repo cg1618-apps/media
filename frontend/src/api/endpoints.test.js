@@ -183,6 +183,19 @@ describe("named endpoint groups", () => {
     expect(endpoints.resources.reorder()).toBe("/api/resources/reorder");
   });
 
+  it("gameChoice", () => {
+    expect(endpoints.gameChoice.graph()).toBe("/api/game-choice/graph");
+    expect(endpoints.gameChoice.createNode()).toBe("/api/game-choice/nodes");
+    expect(endpoints.gameChoice.patchNode("X")).toBe("/api/game-choice/nodes/X");
+    expect(endpoints.gameChoice.removeNode("X")).toBe("/api/game-choice/nodes/X");
+    expect(endpoints.gameChoice.markNode("X")).toBe("/api/game-choice/nodes/X/mark");
+    expect(endpoints.gameChoice.createEdge()).toBe("/api/game-choice/edges");
+    expect(endpoints.gameChoice.patchEdge("X")).toBe("/api/game-choice/edges/X");
+    expect(endpoints.gameChoice.removeEdge("X")).toBe("/api/game-choice/edges/X");
+    expect(endpoints.gameChoice.nextPart("X")).toBe("/api/game-choice/edges/X/next");
+    expect(endpoints.gameChoice.markEdge("X")).toBe("/api/game-choice/edges/X/mark");
+  });
+
   it("studio and publisher take a partial PATCH, like person and character", () => {
     expect(endpoints.studio.patch("X")).toBe("/api/studio/X");
     expect(endpoints.publisher.patch("X")).toBe("/api/publisher/X");

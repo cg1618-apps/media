@@ -112,6 +112,70 @@ class CharacterUpdate(CharacterWrite):
         return self
 
 
+class IdentityBase(BaseModel):
+    name_en: Optional[str] = None
+    name_cn: Optional[str] = None
+    name_jp: Optional[str] = None
+    name_alt: Optional[str] = None
+    display_name_field: Optional[str] = None
+    # None is "the same as the character's" - resolved into display_gender
+    # on read, never copied.
+    gender: Optional[str] = None
+    remark: Optional[str] = None
+    photo_file: Optional[str] = None
+    photo_focus: ImageFocus = None
+
+    @model_validator(mode="after")
+    def _display_field_is_known(self):
+        if self.display_name_field not in (None, "en", "cn", "jp", "alt"):
+            raise ValueError("display_name_field must be en, cn, jp or alt.")
+        return self
+
+
+class IdentityWrite(IdentityBase):
+    @field_validator("gender")
+    @classmethod
+    def _known_gender(cls, v):
+        return check_gender(v)
+
+    @model_validator(mode="after")
+    def _at_least_one_name(self):
+        """Mirrors ck_character_identity_has_a_name."""
+        if not _has_a_name(self):
+            raise ValueError("An identity needs at least one name.")
+        return self
+
+
+class IdentityCreate(IdentityWrite):
+    # Required: an identity never exists without its character. Fixed once
+    # created - IdentityUpdate has no character_id.
+    character_id: UUID
+
+
+class IdentityUpdate(IdentityWrite):
+    position: Optional[int] = None
+
+
+class IdentityResponse(IdentityBase):
+    system_id: UUID
+    character_id: UUID
+    display_name: str = ""
+    display_gender: Optional[str] = None
+    # The identity's own photo, else the character's displayed one.
+    display_photo_file: Optional[str] = None
+    display_photo_focus: Optional[str] = None
+    position: int = 0
+
+
+class IdentityAdminResponse(IdentityResponse):
+    """What the admin tabs read: which character it belongs to, and the cast
+    rows a delete would fold - the count DELETE checks its ?castings= against."""
+
+    character_display_name: str = ""
+    character_public_id: int
+    casting_count: int = 0
+
+
 class CharacterResponse(CharacterBase):
     system_id: UUID
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
@@ -135,5 +199,8 @@ class CharacterResponse(CharacterBase):
     # The tag lists, in stored order; empty when the character has none.
     appearance: List[str] = []
     trait: List[str] = []
+    # The character's other identities, in position order. The character
+    # itself is the main identity and is not repeated here.
+    identities: List[IdentityResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

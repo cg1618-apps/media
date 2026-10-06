@@ -35,6 +35,7 @@ import {
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
+import IdentityDeleteTab from "../modify-tabs/IdentityDeleteTab";
 import { focusStyle } from "../../lib/covers";
 
 
@@ -1234,6 +1235,9 @@ export default function Delete() {
 
       {/* MEME TAB — bypasses the per-type search/confirm pattern */}
       {tab === "meme" && <MemeManageTab mode="delete" />}
+
+      {/* IDENTITY TAB — bypasses the per-type search/confirm pattern */}
+      {tab === "identity" && <IdentityDeleteTab />}
 
       {/* ANIME TAB */}
       {tab === "anime" && (

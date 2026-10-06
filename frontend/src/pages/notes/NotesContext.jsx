@@ -109,6 +109,14 @@ export function ownerMatches(section, owner) {
   );
 }
 
+// The provider's value, or null outside one. For a component that can sit on
+// a notes page or off it - the choice graph reads the viewer's saves from the
+// page's notes when there are any, and draws no save badges when there are
+// none.
+export function useOptionalNotes() {
+  return useContext(NotesContext);
+}
+
 export function useNotes() {
   const value = useContext(NotesContext);
   if (!value) {
@@ -403,6 +411,7 @@ export function NotesProvider({
         optionValues={optionValues}
         typeStatusNote={typeStatusNote}
         isAdmin={isAdmin}
+        ownerId={ownerId}
         nameSuggestions={nameSuggestions}
         groupOrder={groupOrder}
         onGroupOrderChange={onGroupOrderChange}
@@ -450,12 +459,20 @@ export function NotesProvider({
     return total;
   };
 
+  // `notes`, the owner and `reloadNotes` are for a card outside the notes
+  // layout that reads this page's rows: the game's choice graph badges each
+  // point with the viewer's `saves` linked to it, and reloads after deleting a
+  // point, which clears those links server-side.
   const value = {
     sections,
     loading,
     error,
     renderSection,
     blockCount,
+    notes,
+    ownerType,
+    ownerId,
+    reloadNotes,
   };
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;
 }

@@ -120,6 +120,13 @@ class Character(Base, NameFallbackMixin):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    identities = relationship(
+        "CharacterIdentity",
+        back_populates="character",
+        order_by="CharacterIdentity.position",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     _DISPLAY_FIELDS = {
         "en": "name_en", "cn": "name_cn", "jp": "name_jp", "alt": "name_alt",
@@ -202,6 +209,70 @@ class CharacterTag(Base):
     character = relationship("Character", back_populates="tags")
 
 
+class CharacterIdentity(Base, NameFallbackMixin):
+    """
+    One more identity of a character - an alter ego, a disguise, a civilian
+    name. The character row itself is the MAIN identity; only the others are
+    rows here, so names, photo and remark are never held twice.
+
+    Visibility is the character's. There is no public_id: an identity has no
+    page of its own, it is shown on its character's.
+
+    uq_character_identity_owner is redundant as a key - system_id alone is
+    unique - but it is what character_casting's fk_casting_identity
+    references, so a cast row's identity always belongs to that row's
+    character.
+    """
+
+    __tablename__ = "character_identity"
+    __table_args__ = (
+        CheckConstraint(
+            "num_nonnulls(name_en, name_cn, name_jp, name_alt) >= 1",
+            name="ck_character_identity_has_a_name",
+        ),
+        UniqueConstraint(
+            "system_id", "character_id", name="uq_character_identity_owner"
+        ),
+    )
+
+    _name_fields = ["name_en", "name_cn", "name_jp", "name_alt"]
+    _DISPLAY_FIELDS = Character._DISPLAY_FIELDS
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    character_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("character.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name_en = Column(String, nullable=True)
+    name_cn = Column(String, nullable=True)
+    name_jp = Column(String, nullable=True)
+    name_alt = Column(String, nullable=True)
+    # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
+    display_name_field = Column(String, nullable=True)
+    # One of constants.GENDERS, or NULL: the same as the character's,
+    # resolved on read (services/domain/character_identities.py), never copied.
+    gender = Column(String, nullable=True)
+    remark = Column(Text, nullable=True)
+    # Storage key under static/covers/character-identity/. NULL shows the
+    # character's picture.
+    photo_file = Column(String, nullable=True)
+    photo_focus = Column(String, nullable=True)
+    position = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    character = relationship("Character", back_populates="identities")
+
+    # The same rule as the character's own name: display_name_field names the
+    # winner, the EN -> CN -> JP -> Alt chain is the fallback.
+    names_dict = Character.names_dict
+    display_name = Character.display_name
+
+
 class CharacterCasting(Base):
     """
     One character, in one entry.
@@ -222,12 +293,27 @@ class CharacterCasting(Base):
 
     __tablename__ = "character_casting"
     __table_args__ = (
-        # One casting per character per entry - the whole point of recording
-        # casting per appearance rather than per character. No NULLS NOT
-        # DISTINCT needed here, unlike uq_person_name: all three columns are
-        # NOT NULL, so Postgres has no NULL to treat as distinct from itself.
+        # One casting per character per IDENTITY per entry: identity_id NULL is
+        # the main identity, and NULLS NOT DISTINCT makes two NULLs collide,
+        # so the main identity is still cast at most once per entry.
         UniqueConstraint(
-            "character_id", "media_type", "entry_id", name="uq_character_casting"
+            "character_id",
+            "identity_id",
+            "media_type",
+            "entry_id",
+            name="uq_character_casting",
+            postgresql_nulls_not_distinct=True,
+        ),
+        # The identity must be one of THIS row's character's. A NULL
+        # identity_id is not checked (MATCH SIMPLE). Deferred, so character
+        # merge can move an identity and its cast rows to the survivor in one
+        # flush and only the end state is checked, at COMMIT.
+        ForeignKeyConstraint(
+            ["identity_id", "character_id"],
+            ["character_identity.system_id", "character_identity.character_id"],
+            name="fk_casting_identity",
+            deferrable=True,
+            initially="DEFERRED",
         ),
         # Redundant as a key - system_id alone is unique - but it is what
         # character_casting_voice's composite FK references, so a voice row's
@@ -247,6 +333,9 @@ class CharacterCasting(Base):
         nullable=False,
         index=True,
     )
+    # NULL is the main identity (the character row itself); otherwise one of
+    # the character's character_identity rows - see fk_casting_identity.
+    identity_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     # One of casting.CASTING_MEDIA_TYPES (hyphenated keys).
     media_type = Column(String, nullable=False)
     entry_id = Column(UUID(as_uuid=True), nullable=False)

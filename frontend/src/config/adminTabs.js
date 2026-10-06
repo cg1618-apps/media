@@ -126,6 +126,15 @@ export const ADMIN_TABS = [
     icon: "fa-user-ninja",
     label: "Character",
   },
+  // A character's other identities. Self-contained tabs (IdentityAddTab,
+  // IdentityModifyTab, IdentityDeleteTab); an identity always belongs to an
+  // existing character.
+  {
+    key: "identity",
+    group: "entity",
+    icon: "fa-masks-theater",
+    label: "Identity",
+  },
   {
     key: "options",
     group: "system",
@@ -144,14 +153,14 @@ export const ADMIN_TABS = [
 ];
 
 /**
- * Tabs backed by a form factory — everything but System Option, Alias, Quote
- * and Meme. The Entity tabs are here too: a studio, person or character is not a
+ * Tabs backed by a form factory — everything but System Option, Alias, Quote,
+ * Meme and Identity. The Entity tabs are here too: a studio, person or character is not a
  * media entry, but each has an Add form whose starting values are configurable
- * on /defaults. The four excluded tabs have no factory in
+ * on /defaults. The five excluded tabs have no factory in
  * config/formFactories.js and so nothing to default.
  */
 export const FORM_TABS = ADMIN_TABS.filter(
-  (t) => !["options", "alias", "quote", "meme"].includes(t.key),
+  (t) => !["options", "alias", "quote", "meme", "identity"].includes(t.key),
 );
 
 /** The Fav 3x3 grid editor — only the Modify page offers it. */

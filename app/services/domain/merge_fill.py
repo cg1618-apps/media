@@ -69,12 +69,36 @@ def fill_blank_casting(keep, drop) -> None:
     fill_blank_columns(
         keep,
         drop,
-        skip=("character_id", "media_type", "entry_id", "position", *CASTING_IMAGE_COLUMNS),
+        skip=(
+            "character_id", "identity_id", "media_type", "entry_id", "position",
+            *CASTING_IMAGE_COLUMNS,
+        ),
     )
     file_column, focus_column = CASTING_IMAGE_COLUMNS
     if is_blank(getattr(keep, file_column)) and not is_blank(getattr(drop, file_column)):
         setattr(keep, file_column, getattr(drop, file_column))
         setattr(keep, focus_column, getattr(drop, focus_column))
+
+
+def absorb_casting(keep, drop) -> None:
+    """
+    One appearance folded into another of the same entry: `keep`'s blanks
+    filled from `drop`'s (fill_blank_casting), and every seiyuu `drop` has
+    that `keep` lacks appended after `keep`'s own. The caller deletes `drop`.
+    """
+    fill_blank_casting(keep, drop)
+    voiced = {v.person_id for v in keep.voices}
+    for voice in list(drop.voices):
+        if voice.person_id not in voiced:
+            keep.voices.append(
+                models.CharacterCastingVoice(
+                    media_type=keep.media_type,
+                    entry_id=keep.entry_id,
+                    person_id=voice.person_id,
+                    position=len(keep.voices),
+                    remark=voice.remark,
+                )
+            )
 
 
 def merge_fill(db: Session, owner_type: str, keep, drop) -> Optional[tuple[str, str]]:

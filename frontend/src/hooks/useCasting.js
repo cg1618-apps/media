@@ -46,8 +46,16 @@ export function useReplaceCasting() {
         body: JSON.stringify({
           cast: (cast || [])
             .filter((row) => row && row.character_id)
-            .map((row) => ({
+            // identity_name and the display_* pair are read-only: names and
+            // the resolved photo are display data, never part of the row.
+            .map(({
+              identity_name: _identityName,
+              display_photo_file: _displayPhotoFile,
+              display_photo_focus: _displayPhotoFocus,
+              ...row
+            }) => ({
               ...row,
+              identity_id: row.identity_id || null,
               role: row.role || null,
               voices: (row.voices || [])
                 .filter((voice) => voice && voice.person_id)

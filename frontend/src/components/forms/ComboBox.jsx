@@ -15,6 +15,9 @@ import { SuggestItem, SuggestList, SuggestNote, stepActive } from "./SuggestList
 //   placeholder: string
 //   allowNew: bool            — if true, typed unmatched text shows "Will create new" hint
 //   required: bool
+//   disabled: bool            — the input is inert and no list opens
+//   ariaLabel: string         — accessible name of the input
+//   clearLabel: string        — accessible name of the clear button(s)
 //   rankMatches: bool         — order what the typed text matches as exact,
 //                               then prefix, then contains, each tier in the
 //                               order `items` came in; otherwise matches keep
@@ -33,6 +36,9 @@ export default function ComboBox({
   placeholder = "Search...",
   allowNew = false,
   required = false,
+  disabled = false,
+  ariaLabel,
+  clearLabel = "Clear",
   rankMatches = false,
 }) {
   const [query, setQuery] = useState("");
@@ -80,6 +86,7 @@ export default function ComboBox({
 
   function handleInputChange(e) {
     const val = e.target.value;
+    if (disabled) return;
     setQuery(val);
     setOpen(true);
     setActive(-1);
@@ -136,6 +143,7 @@ export default function ComboBox({
           <button
             type="button"
             onClick={handleClear}
+            aria-label={clearLabel}
             className="text-text-faint hover:text-danger transition shrink-0"
           >
             <i className="fas fa-times text-xs"></i>
@@ -148,7 +156,9 @@ export default function ComboBox({
             type="text"
             value={query || inputText}
             onChange={handleInputChange}
-            onFocus={() => setOpen(true)}
+            disabled={disabled}
+            aria-label={ariaLabel}
+            onFocus={() => !disabled && setOpen(true)}
             onKeyDown={handleKeyDown}
             role="combobox"
             aria-expanded={open}
@@ -160,10 +170,11 @@ export default function ComboBox({
             className="w-full border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
             autoComplete="off"
           />
-          {(query || inputText) && (
+          {!disabled && (query || inputText) && (
             <button
               type="button"
               onClick={handleClear}
+              aria-label={clearLabel}
               className="absolute right-2.5 top-2.5 text-text-faint hover:text-text-muted"
             >
               <i className="fas fa-times text-xs"></i>

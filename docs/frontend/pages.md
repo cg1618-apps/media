@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-04
+Last verified: 2026-10-06
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -601,6 +601,19 @@ the cast editor's combobox uses instead; this page searches client-side over
 all four name columns). Sort `name (default) | casting_count` ("Appearances")
 `| my_rating`.
 
+**Cards.** The list is flattened by `characterCards` (`lib/characterCards.js`)
+into one card per character and one per identity in the response's nested
+`identities`, each identity emitted right after its character (the library's
+sort then decides the order shown); the count line counts cards. An identity card
+shows the identity's own `display_photo_file` and display name with an
+"identity of <character>" line (no rating stamp, no casting count), is labelled
+**Identity** where a character's is **Character**, and links to
+`/character/<public_id>/<slug>#identity-<system_id>`. It sorts by its **own**
+name, and filters by the identity's resolved gender (`display_gender`) but the
+**character's** tags, rating, role and entry types - it is the same character.
+Search matches every card of a character on the names of the character and of
+all its identities, so "Conan" finds the Shinichi card too.
+
 The **Filters** button opens a `FilterPanel` over
 `characterFilterDefs(auth)` (`lib/entityFilters.js`), the person library's
 groups without Type: **Entry type** — anime, anime movie, manga, novel, No
@@ -611,10 +624,12 @@ own `role` field and never against the roles its castings carry — then **My
 Rating** and **Gender**, then **Appearance** and **Trait** — `set-dynamic`
 groups over the values the loaded characters hold, sorted, plus Not set when a
 character's list is empty; a character matches when it holds any ticked
-value — with the same OR/AND rule. The panel is open when
+value — with the same OR/AND rule — then **Card** (Characters, Identities:
+tick one to show only that kind; empty shows both) and **Identities** (Has
+identities, No identities: an identity card always counts as having them). The panel is open when
 the page loads, on the shared default, with the same Clear all and Reset.
 
-Each `CharacterCard` shows `display_photo_file` — the photo, or the
+Each character `CharacterCard` shows `display_photo_file` — the photo, or the
 server-resolved fallback — with the `my_rating` stamp in its corner (none
 when unrated), the display name and casting count, and links to
 `/character/:system_id`.
@@ -695,6 +710,18 @@ card as one small link per seiyuu with its remark in brackets - "Name (child)"
 the point of looking a character up, unlike a person's own credits. A group
 the viewer may see no entries of still renders, with "Nothing you can see
 here" inside it, same rule the person and studio pages follow.
+
+**Identities.** A character with other identities draws an **Identities**
+section after the profile: one card per identity (`IdentityCard`) with its
+photo (`display_photo_file`), display name, its other non-empty names (the four name columns but the displayed one), resolved gender and remark, each
+with the anchor `id="identity-<system_id>"`. Arriving with that hash - from a
+library identity card or a cast row - scrolls the card to the middle and
+highlights it with a brand ring; the scroll happens when the character or the
+hash changes, not when an inline rating or remark edit replaces the loaded
+character. The appearances list shows one card **per
+cast row**, keyed by `casting_id`: an entry the character is cast in under two
+identities appears twice, a row with an identity reading "as <identity name>"
+under the title, each with that row's own seiyuu.
 
 ### Publisher — `/publisher/:system_id`
 
@@ -932,7 +959,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | |
 | Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with drag-to-reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Main Line, Serialization/Reading Status, Release Year, Issue Total | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
-| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Steam Progress Sync (the one flag left here: it governs whether Steam may write this entry's progress, so it is a fact about the source rather than an answer about a playthrough — playing status and the four completion axes are editable in the tracker and Completion blocks instead), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Info card's count is no longer their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
+| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Steam Progress Sync (the one flag left here: it governs whether Steam may write this entry's progress, so it is a fact about the source rather than an answer about a playthrough — playing status and the four completion axes are editable in the tracker and Completion blocks instead), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Info card's count is no longer their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
 
 **H-Comic** (`pages/detail/HComic.jsx`) is a gated type's page: App.jsx
 routes to it only for a session that can see h-comic
@@ -980,7 +1007,7 @@ group are not movable
 **H-Game** (`pages/detail/HGame.jsx`) is the second gated type's page, routed
 the same way. It is Game's page for what `h_game` holds: one `NotesProvider`
 around the page, `MyTrackerCard` (playing status, rating, To Replay), a
-Progress and Todo slip, the Prices card, the read-only Copies slip
+Progress and Todo slip, the 分歧 Choices card (`ChoiceGraphCard`), the Prices card, the read-only Copies slip
 (`GameCopiesSection`, imported from `Game.jsx`) and an Autofill button (Game's
 IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
 
@@ -1058,6 +1085,21 @@ that 待辦 Todo renders inside its Progress slip (`NotesGroup groupKey="todo"`)
 while everything else renders at the bottom (`NotesBlocks hideGroups={["todo"]}`),
 from one provider and one fetch. `hideSections` and `hideGroups` are the only
 places the frontend names a registry key; see systems/notes.md.
+
+**The 分歧 Choices card** (`components/game-choices/ChoiceGraphCard.jsx`)
+sits right after the Progress and Todo slip on both pages, inside the same
+provider, because it reads the viewer's 存檔 Saves from it. It is a still
+preview of the game's choice graph - fixed height, fitted to view, no pan,
+zoom or clicks - headed by the counts, "n parts · n choices · n endings"
+(parts counts every block, choices both kinds of branch; and, for a viewer
+who can mark, "x / y endings done"), and a **View all** button opening
+`ChoiceGraphModal`, where the graph is browsed, marked and edited: the canvas
+in the middle, a left drawer for the selected block, branch or link, and a
+right rail listing the story's starts and endings, each with **Show in
+graph**. An empty graph reads "No story parts yet." and, for a manage.catalog
+holder, offers **Add the first block**, which opens the modal on the
+new-block form.
+The rules are in [systems/game-choices.md](../systems/game-choices.md).
 
 ### WatchOrderPage — `/watch-order/:system_id`
 

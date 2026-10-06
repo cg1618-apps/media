@@ -36,6 +36,7 @@ import {
   useEntryCap,
   useRowReorder,
 } from "./ui";
+import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
 
 const empty = (section) => ({
   title: "",
@@ -165,10 +166,9 @@ function MusicTrackForm({ val, setVal, section, optionValues }) {
         onChange={(links) => setVal({ ...val, links })}
         textOptions={textOptions}
       />
-      <textarea
+      <AutoGrowTextarea
         value={val.content}
         onChange={(e) => setVal({ ...val, content: e.target.value })}
-        rows={2}
         placeholder="Remark (optional)"
         className={inputCls}
       />

@@ -26,6 +26,24 @@ describe("availablePlatforms", () => {
     ]).map(({ row }) => row.name);
     expect(names).toEqual(["Netflix", "動畫瘋"]);
   });
+
+  it("draws regional variants that share an icon once", () => {
+    const platforms = availablePlatforms([
+      main("Toptoon TW"),
+      main("Lezhin KR"),
+      main("Toptoon KR"),
+    ]);
+    expect(platforms.map(({ row }) => row.name)).toEqual(["Toptoon TW", "Lezhin KR"]);
+    expect(platforms[0].names).toEqual(["Toptoon TW", "Toptoon KR"]);
+  });
+
+  it("keeps the variant that carries a url when only a later one does", () => {
+    const [toptoon] = availablePlatforms([
+      main("Toptoon TW"),
+      main("Toptoon KR", { url: "https://kr.test" }),
+    ]);
+    expect(toptoon.row.name).toBe("Toptoon KR");
+  });
 });
 
 describe("PlatformIcons", () => {
@@ -45,6 +63,16 @@ describe("PlatformIcons", () => {
       />,
     );
     expect(screen.getByAltText("Netflix").closest("a")).toBeNull();
+  });
+
+  it("draws Toptoon once when an entry has both TW and KR", () => {
+    render(<PlatformIcons sources={[main("Toptoon TW"), main("Toptoon KR")]} />);
+    const icons = screen.getAllByRole("img");
+    expect(icons).toHaveLength(1);
+    expect(icons[0].closest("[title]")).toHaveAttribute(
+      "title",
+      "Toptoon TW / Toptoon KR (no link)",
+    );
   });
 
   it("renders nothing when no platform is available", () => {

@@ -15,7 +15,7 @@
 // through PATCH (components/info/EntityProfileControls.jsx) and the page
 // takes the response as its new state.
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
@@ -38,6 +38,7 @@ import { entityPath } from "../../lib/entityPath";
 
 export default function Character() {
   const { publicId } = useParams();
+  const { hash } = useLocation();
   const [character, setCharacter] = useState(null);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +84,15 @@ export default function Character() {
       cancelled = true;
     };
   }, [publicId]);
+
+  // A library identity card and a cast row link here by #identity-<id>.
+  // Keyed on the character's id, not the object: a remark or rating patch
+  // replaces the object and must not scroll the page back to the identity.
+  const characterId = character?.system_id;
+  useEffect(() => {
+    if (!characterId || !hash.startsWith("#identity-")) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView({ block: "center" });
+  }, [characterId, hash]);
 
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading character..." />;
@@ -231,6 +241,25 @@ export default function Character() {
             />
           )}
 
+          {character.identities?.length > 0 && (
+            <section>
+              <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                Identities
+                <span className="text-text-faint">{character.identities.length}</span>
+                <span className="flex-1 border-t border-dotted border-border-strong/60" />
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {character.identities.map((identity) => (
+                  <IdentityCard
+                    key={identity.system_id}
+                    identity={identity}
+                    highlighted={hash === `#identity-${identity.system_id}`}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
           {groups.length === 0 ? (
             <section className="border border-dashed border-border-strong px-4 py-10 text-center">
               <Eyebrow className="mb-1">Empty</Eyebrow>
@@ -252,7 +281,7 @@ export default function Character() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                     {group.entries.map((entry) => (
                       <CastingCard
-                        key={entry.system_id}
+                        key={entry.casting_id ?? entry.system_id}
                         entry={entry}
                         navPath={group.nav_path}
                       />
@@ -314,6 +343,9 @@ function CastingCard({ entry, navPath }) {
       >
         {title}
       </h3>
+      {entry.identity_name && (
+        <span className="text-xs text-text-muted truncate">as {entry.identity_name}</span>
+      )}
       <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
         {year || "Undated"}
       </span>
@@ -359,6 +391,57 @@ function CastingCard({ entry, navPath }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// One of the character's other identities. `highlighted` when the URL's hash
+// names it - a library identity card and a cast row both link here that way.
+function IdentityCard({ identity, highlighted }) {
+  // Every other non-empty name, so an identity known by several is not
+  // reduced to the one that happens to be displayed.
+  const otherNames = [
+    ...new Set(
+      ["name_en", "name_cn", "name_jp", "name_alt"]
+        .map((field) => identity[field])
+        .filter((name) => name && name !== identity.display_name),
+    ),
+  ];
+  return (
+    <div
+      id={`identity-${identity.system_id}`}
+      className={`bg-surface border flex flex-col ${
+        highlighted ? "border-brand ring-2 ring-brand" : "border-border"
+      }`}
+    >
+      <div className="bg-surface-2 overflow-hidden" style={{ aspectRatio: "2/3" }}>
+        <img
+          loading="lazy"
+          src={getCoverUrl(identity.display_photo_file)}
+          alt=""
+          className="w-full h-full object-cover"
+          style={focusStyle(identity.display_photo_focus)}
+          onError={(e) => {
+            e.target.src = FALLBACK_SVG;
+          }}
+        />
+      </div>
+      <div className="p-2.5 flex flex-col gap-1 border-t border-border">
+        <h3 className="font-display font-semibold text-text text-sm line-clamp-2 leading-tight">
+          {identity.display_name}
+        </h3>
+        {otherNames.map((name) => (
+          <span key={name} className="text-xs text-text-muted line-clamp-1">
+            {name}
+          </span>
+        ))}
+        {identity.display_gender && (
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+            {identity.display_gender}
+          </span>
+        )}
+        {identity.remark && <p className="text-xs text-text-muted whitespace-pre-line">{identity.remark}</p>}
+      </div>
     </div>
   );
 }

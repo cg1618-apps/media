@@ -30,6 +30,7 @@ import {
   useEntryCap,
   useRowReorder,
 } from "./ui";
+import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
 
 const emptyItem = () => ({ type: "text", value: "", label: "" });
 
@@ -114,12 +115,11 @@ function EntriesEditor({ entries, onChange }) {
                   />
                 </>
               ) : (
-                <textarea
+                <AutoGrowTextarea
                   value={item.value}
                   onChange={(e) => setItem(i, { value: e.target.value })}
                   placeholder="Note…"
                   aria-label={`Entry ${i + 1} text`}
-                  rows={2}
                   className={inputCls}
                 />
               )}

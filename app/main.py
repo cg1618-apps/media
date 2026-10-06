@@ -28,6 +28,7 @@ from app.routers import (
     cartoon,
     casting,
     character,
+    character_identity,
     collection,
     comic,
     community,
@@ -40,6 +41,7 @@ from app.routers import (
     franchise,
     fx_rates,
     game,
+    game_choice,
     h_comic,
     h_game,
     health,
@@ -272,6 +274,7 @@ app.include_router(hentai.router)
 app.include_router(h_game.router)
 app.include_router(watch_order.router)
 app.include_router(media_relation.router)
+app.include_router(game_choice.router)
 app.include_router(plan_next.router)
 app.include_router(quote.router)
 app.include_router(meme.router)
@@ -289,6 +292,7 @@ app.include_router(data_control.router)
 app.include_router(system.router)
 app.include_router(person.router)
 app.include_router(character.router)
+app.include_router(character_identity.router)
 app.include_router(publisher.router)
 app.include_router(studio.router)
 app.include_router(credits.router)

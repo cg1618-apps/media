@@ -607,6 +607,8 @@ it("imports another franchise entry's cast after the rows already here", async (
     system_id: undefined,
     character_id: "c2",
     character_name: "Newcomer",
+    identity_id: null,
+    identity_name: "",
     voices: [{ person_id: "p1", person_name: "Voice A", remark: "child" }],
     role: "Core",
     position: 1,
@@ -834,4 +836,241 @@ it("offers the casting role as chips from lg up and a select below", async () =>
   await userEvent.click(within(picks).getByRole("button", { name: "Main" }));
   expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ role: "" })]);
   await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
+describe("Identity field", () => {
+  const CONAN = { system_id: "i1", display_name: "Conan", character_id: "c1" };
+
+  // Answers the identity list/create endpoints, everything else as mockFetch.
+  function stubIdentityFetch({ identities = [], created } = {}) {
+    const base = mockFetch();
+    const spy = vi.fn((url, init) => {
+      if (url.startsWith("/api/character-identity/")) {
+        if (init?.method === "POST") {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(created) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(identities) });
+      }
+      return base(url, init);
+    });
+    vi.stubGlobal("fetch", spy);
+    return spy;
+  }
+
+  const identityBox = () => screen.getByRole("combobox", { name: /identity/i });
+
+  it("is disabled until the row has a character", async () => {
+    render(<CastEditor mediaType="anime" value={[row()]} onChange={vi.fn()} />);
+    expect(identityBox()).toBeDisabled();
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+  });
+
+  it("lists only the chosen character's identities", async () => {
+    const spy = stubIdentityFetch({ identities: [CONAN] });
+    render(
+      <CastEditor
+        mediaType="anime"
+        value={[row({ character_id: "c1", character_name: "Shinichi" })]}
+        onChange={vi.fn()}
+      />,
+    );
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith(
+        "/api/character-identity/?character_id=c1",
+        expect.anything(),
+      ),
+    );
+    await userEvent.click(identityBox());
+    expect(await screen.findByText("Conan")).toBeInTheDocument();
+  });
+
+  it("clears the identity when the character is cleared", async () => {
+    stubIdentityFetch({ identities: [CONAN] });
+    const onChange = vi.fn();
+    render(
+      <CastEditor
+        mediaType="anime"
+        value={[
+          row({
+            character_id: "c1",
+            character_name: "Shinichi",
+            identity_id: "i1",
+            identity_name: "Conan",
+          }),
+        ]}
+        onChange={onChange}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Clear character" }));
+    expect(onChange).toHaveBeenLastCalledWith([
+      expect.objectContaining({
+        character_id: null,
+        identity_id: null,
+        identity_name: "",
+      }),
+    ]);
+  });
+
+  it("creates a new identity under the row's character", async () => {
+    const spy = stubIdentityFetch({ created: { system_id: "i9", display_name: "Kid" } });
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[row({ character_id: "c1", character_name: "Kaito" })]}
+        onChangeSpy={vi.fn()}
+      />,
+    );
+    await userEvent.type(identityBox(), "Kid");
+    await userEvent.click(await screen.findByText('Create new identity named "Kid"'));
+    const post = spy.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(post[0]).toBe("/api/character-identity/");
+    expect(JSON.parse(post[1].body)).toEqual({
+      character_id: "c1",
+      name_cn: "Kid",
+      display_name_field: "cn",
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Clear identity" })).toBeInTheDocument(),
+    );
+  });
+
+  it("keeps a loaded identity through an edit of another field", async () => {
+    stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[
+          row({
+            system_id: "k1",
+            character_id: "c1",
+            character_name: "Shinichi",
+            identity_id: "i1",
+            identity_name: "Conan",
+          }),
+        ]}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Remark"), { target: { value: "cameo" } });
+    expect(onChangeSpy).toHaveBeenLastCalledWith([
+      expect.objectContaining({
+        system_id: "k1",
+        identity_id: "i1",
+        identity_name: "Conan",
+        remark: "cameo",
+      }),
+    ]);
+  });
+
+  it("keeps a loaded row's own (empty) photo when switched to an identity", async () => {
+    stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[
+          row({
+            system_id: "k1",
+            character_id: "c1",
+            character_name: "Shinichi",
+            photo_file: null,
+            display_photo_file: "characters/shinichi.jpg",
+          }),
+        ]}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    await userEvent.click(identityBox());
+    await userEvent.click(await screen.findByText("Conan"));
+    expect(onChangeSpy).toHaveBeenLastCalledWith([
+      expect.objectContaining({ identity_id: "i1", photo_file: null }),
+    ]);
+  });
+
+  it("takes an exact, case-insensitive name match when the box is left unpicked", async () => {
+    const spy = stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[row({ character_id: "c1", character_name: "Shinichi" })]}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith(
+        "/api/character-identity/?character_id=c1",
+        expect.anything(),
+      ),
+    );
+    await userEvent.type(identityBox(), "conan");
+    fireEvent.blur(identityBox());
+    expect(onChangeSpy).toHaveBeenLastCalledWith([
+      expect.objectContaining({ identity_id: "i1", identity_name: "Conan" }),
+    ]);
+  });
+
+  it("clears identity text that was typed, never picked and matches nothing", async () => {
+    stubIdentityFetch({ identities: [CONAN] });
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[row({ character_id: "c1", character_name: "Shinichi" })]}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    await userEvent.type(identityBox(), "Nobody");
+    fireEvent.blur(identityBox());
+    expect(onChangeSpy).toHaveBeenLastCalledWith([
+      expect.objectContaining({ identity_id: null, identity_name: "" }),
+    ]);
+  });
+
+  it("appends a main-identity row for a character held only as an identity row", async () => {
+    stubIdentityFetch();
+    const malCast = [
+      {
+        character_id: "c1",
+        character_name: "Shinichi",
+        identity_id: null,
+        role: "Main",
+        position: 0,
+        voices: [],
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (url === "/api/casting/mal") {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ cast: malCast, warnings: [] }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      }),
+    );
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[
+          row({
+            character_id: "c1",
+            character_name: "Shinichi",
+            identity_id: "i1",
+            identity_name: "Conan",
+          }),
+        ]}
+        onChangeSpy={onChangeSpy}
+        malLink="https://myanimelist.net/anime/1"
+      />,
+    );
+    fireEvent.click(screen.getByText("Import from MAL"));
+    await waitFor(() => expect(onChangeSpy).toHaveBeenCalled());
+    const rows = onChangeSpy.mock.calls.at(-1)[0];
+    expect(rows.map((r) => r.identity_id)).toEqual(["i1", null]);
+  });
 });
