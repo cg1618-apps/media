@@ -286,10 +286,18 @@ it("shows the status as a tag to a reader who cannot edit", () => {
   expect(screen.getByText("Pending")).toBeInTheDocument();
 });
 
-it("shows the status even while the empty list is collapsed", () => {
-  // An empty section opens collapsed; the status is in the header, so a new
-  // anime's four "Not Done" lists still say so.
+it("opens an empty list, because it carries a status", () => {
+  // Other empty sections open collapsed; a song list has its own status, so a
+  // new anime's four "Not Done" lists open and say so.
   renderSection({ isAdmin: false });
-  expect(screen.queryByText("No entries.")).not.toBeInTheDocument();
+  expect(screen.getByText("No entries.")).toBeInTheDocument();
   expect(screen.getByText("Not Done")).toBeInTheDocument();
+});
+
+it("still collapses an empty list that carries no status", () => {
+  // The mirror case: the same empty list without type_status_section keeps
+  // the ordinary collapse-when-empty default, so the test above is the status
+  // doing the opening.
+  renderSection({ isAdmin: false, section: songList("op", { type_status_section: null }) });
+  expect(screen.queryByText("No entries.")).not.toBeInTheDocument();
 });

@@ -164,6 +164,9 @@ export function NotesBlocks({ hideSections = [], hideGroups = [] }) {
             key={group.key}
             label={group.label}
             count={blockCount(group.sections)}
+            // A group holding a list with its own status (音樂 Music) opens
+            // when empty too, or the statuses its lists open for stay hidden.
+            openWhenEmpty={group.sections.some((s) => s.type_status_section)}
           >
             {group.sections.map(renderSection)}
           </GroupCard>

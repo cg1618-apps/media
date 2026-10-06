@@ -518,8 +518,9 @@ not drawn. The character, person and studio libraries use it for
   per-song status as a closed select; the episode; link pairs; and a remark.
   Save stays inert on a row carrying nothing but its prefilled type, and on a
   link label with no URL - the server's rules, mirrored. The **list status**
-  sits in the card header (`SectionCard`'s `actions`), so it shows even while
-  an empty list is collapsed: a compact mono `<select>` over
+  sits in the card header (`SectionCard`'s `actions`), and a list carrying one
+  opens even with no songs (`openWhenEmpty`), as does the 音樂 Music group card
+  around it: a compact mono `<select>` over
   `type_statuses` for an admin, a `brandTagCls` tag for anyone else. Its value
   is the `music_status` row whose `kind` is the section's key, which the
   provider hands in as `typeStatusNote`; with no row it reads

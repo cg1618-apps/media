@@ -326,14 +326,27 @@ describe("NotesTemplate hidden sections and list statuses", () => {
     );
   });
 
-  it("does not count a hidden section's rows, so an empty music card collapses", async () => {
+  it("keeps an empty music card open, so every list shows its status", async () => {
     vi.mocked(api.fetchNotes).mockResolvedValue(STATUS_ROWS);
     renderTemplate();
     await waitFor(() => expect(screen.getByText("音樂 Music")).toBeInTheDocument());
     const groupCard = screen.getByText("音樂 Music").closest("div.bg-surface");
-    // Two status rows and no songs: the card counts nothing and stays shut.
-    expect(groupCard.textContent).not.toContain("OP");
+    // Two status rows and no songs: nothing to count, but the lists carry a
+    // status each, so the card and both lists are open.
     expect(groupCard.textContent).not.toContain("2");
+    expect(screen.getByLabelText("OP status")).toHaveValue("All Done");
+    expect(screen.getByLabelText("ED status")).toHaveValue("Need");
+    expect(within(groupCard).getAllByText("No entries.")).toHaveLength(2);
+  });
+
+  it("keeps a music card open with no status rows at all", async () => {
+    // A new anime: no songs and no status row yet - each list reads its
+    // default, which is still worth seeing.
+    vi.mocked(api.fetchNotes).mockResolvedValue([]);
+    renderTemplate();
+    await waitFor(() => expect(screen.getByText("音樂 Music")).toBeInTheDocument());
+    expect(screen.getByLabelText("OP status")).toHaveValue("Not Done");
+    expect(screen.getByLabelText("ED status")).toHaveValue("Not Done");
   });
 
   it("renders no card for the hidden section and gives each list its own status", async () => {

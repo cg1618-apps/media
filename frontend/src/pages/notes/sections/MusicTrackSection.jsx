@@ -218,6 +218,9 @@ export default function MusicTrackSection({
       count={notes.length}
       isAdmin={isAdmin}
       onAdd={() => setAdding(true)}
+      // A list with a status of its own opens even with no songs: the status
+      // is the point of looking at it.
+      openWhenEmpty={Boolean(section.type_status_section)}
       actions={
         section.type_status_section && (
           <TypeStatus
