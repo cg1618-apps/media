@@ -79,3 +79,19 @@ def test_character_response_nests_its_identities(admin_client, client, character
     listed = next(c for c in client.get("/api/character/").json() if c["system_id"] == str(character.system_id))
     assert len(listed["identities"]) == 2
     assert "casting_count" not in listed["identities"][0]
+
+
+def test_a_new_identity_is_placed_after_the_last_even_after_a_delete(admin_client, character):
+    def create(name):
+        r = admin_client.post(
+            "/api/character-identity/",
+            json={"character_id": str(character.system_id), "name_en": name},
+        )
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    a = create("A")
+    b = create("B")
+    assert admin_client.delete(f"/api/character-identity/{a['system_id']}?castings=0").status_code == 200
+    c = create("C")
+    assert c["position"] > b["position"]

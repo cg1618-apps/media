@@ -12,12 +12,13 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
 from app.services.domain.character_identities import (
+    fold_into_main,
     identity_casting_count,
     identity_response,
 )
@@ -106,11 +107,12 @@ def create_identity(
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found.")
     require_visible_shared(db, admin, models.Character, character.system_id, "Character not found.")
-    position = (
-        db.query(models.CharacterIdentity)
+    last = (
+        db.query(func.max(models.CharacterIdentity.position))
         .filter(models.CharacterIdentity.character_id == character.system_id)
-        .count()
+        .scalar()
     )
+    position = 0 if last is None else last + 1
     identity = models.CharacterIdentity(**payload.model_dump(), position=position)
     db.add(identity)
     db.commit()
@@ -136,3 +138,30 @@ def update_identity(
     db.commit()
     db.refresh(identity)
     return _admin_response(db, identity, admin)
+
+
+@router.delete("/{system_id}", summary="Delete Identity")
+def delete_identity(
+    system_id: UUID,
+    castings: int = Query(..., description="Cast-row count the admin confirmed"),
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Deletes an identity. Its cast rows are not deleted: they fold into the
+    main identity (character_identities.fold_into_main).
+
+    `castings` is the count the confirmation showed and is required, as on
+    character delete: a count that moved underneath the dialog is 409.
+    """
+    identity = _load(db, admin, system_id)
+    actual = identity_casting_count(db, system_id)
+    if actual != castings:
+        raise HTTPException(
+            status_code=409,
+            detail=f"This identity now has {actual} cast rows, not {castings}. Reload and confirm again.",
+        )
+    fold_into_main(db, identity)
+    db.delete(identity)
+    db.commit()
+    return {"status": "success", "castings_folded": actual}

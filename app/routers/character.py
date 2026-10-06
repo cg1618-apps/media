@@ -39,7 +39,7 @@ from app.services.domain.character_tags import (
 )
 from app.services.domain.derivation import apply_extract_mal_id_character
 from app.services.domain.entity_photos import EntityMedia, character_media
-from app.services.domain.merge_fill import fill_blank_casting, finish_merge
+from app.services.domain.merge_fill import absorb_casting, finish_merge
 from app.services.integrations.tenrai import search_mal_characters
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
@@ -539,7 +539,9 @@ def merge_character(
 
     Every column this character leaves blank is filled from the source's,
     and an entry both are cast in keeps this character's casting, its blanks
-    filled from the source's (`merge_fill`). Each tag list ends as the union
+    filled from the source's (`merge_fill`). Castings match per identity: the
+    source's identities move to this character, after its own, with their
+    cast rows, and only a main row meets a main row. Each tag list ends as the union
     of both: this character's values first, then the source's it lacked.
     """
     if system_id == payload.source_id:
@@ -554,8 +556,22 @@ def merge_character(
     for character_id in (system_id, payload.source_id):
         require_visible_shared(db, admin, models.Character, character_id, NOT_FOUND)
 
+    # The loser's identities move to the survivor first, after its own. Their
+    # cast rows move with them below, unmatched: no survivor row names a
+    # loser's identity. fk_casting_identity is deferred, so the identity and
+    # its rows may change in either order inside this flush.
+    offset = len(keep.identities)
+    for identity in (
+        db.query(models.CharacterIdentity)
+        .filter_by(character_id=payload.source_id)
+        .order_by(models.CharacterIdentity.position)
+        .all()
+    ):
+        identity.character_id = system_id
+        identity.position += offset
+
     held = {
-        (c.media_type, c.entry_id): c
+        (c.identity_id, c.media_type, c.entry_id): c
         for c in db.query(models.CharacterCasting)
         .filter_by(character_id=system_id)
         .all()
@@ -566,21 +582,9 @@ def merge_character(
         .filter_by(character_id=payload.source_id)
         .all()
     ):
-        kept = held.get((casting.media_type, casting.entry_id))
+        kept = held.get((casting.identity_id, casting.media_type, casting.entry_id))
         if kept is not None:
-            fill_blank_casting(kept, casting)
-            voiced = {v.person_id for v in kept.voices}
-            for voice in list(casting.voices):
-                if voice.person_id not in voiced:
-                    kept.voices.append(
-                        models.CharacterCastingVoice(
-                            media_type=kept.media_type,
-                            entry_id=kept.entry_id,
-                            person_id=voice.person_id,
-                            position=len(kept.voices),
-                            remark=voice.remark,
-                        )
-                    )
+            absorb_casting(kept, casting)
             db.delete(casting)
             continue
         casting.character_id = system_id

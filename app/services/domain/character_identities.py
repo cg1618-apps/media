@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.services.domain.entity_photos import EntityMedia
+from app.services.domain.merge_fill import absorb_casting
 
 
 def identities_by_character(
@@ -65,3 +66,34 @@ def identity_casting_count(db: Session, identity_id: UUID) -> int:
         .filter(models.CharacterCasting.identity_id == identity_id)
         .count()
     )
+
+
+def fold_into_main(db: Session, identity: models.CharacterIdentity) -> int:
+    """
+    Hand every cast row of `identity` to its character's main identity: the
+    row itself when the main identity is not cast in that entry, otherwise
+    absorbed into the main identity's row there. Returns the rows handled.
+    """
+    rows = (
+        db.query(models.CharacterCasting)
+        .filter(models.CharacterCasting.identity_id == identity.system_id)
+        .all()
+    )
+    for row in rows:
+        main = (
+            db.query(models.CharacterCasting)
+            .filter(
+                models.CharacterCasting.character_id == identity.character_id,
+                models.CharacterCasting.identity_id.is_(None),
+                models.CharacterCasting.media_type == row.media_type,
+                models.CharacterCasting.entry_id == row.entry_id,
+            )
+            .first()
+        )
+        if main is None:
+            row.identity_id = None
+        else:
+            absorb_casting(main, row)
+            db.delete(row)
+        db.flush()
+    return len(rows)
