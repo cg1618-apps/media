@@ -27,6 +27,8 @@ from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, require_manage_catalog, viewer_user_id
 from app.services.rbac.shared_visibility import (
     ENTITY_OWNER_MODELS,
+    IDENTITY_OWNER,
+    identity_visible,
     shared_record_visible,
 )
 from app.utils.media_resolver import MEDIA_TABLES
@@ -44,7 +46,7 @@ CHUNK_SIZE = 1024 * 1024
 # named explicitly. Note this is NOT the same set as image_manager.COVER_OWNERS,
 # which has no `quote` - the shape reads uniform and is not.
 ATTACHABLE_OWNERS: frozenset[str] = frozenset(MEDIA_TABLES) | frozenset(
-    {"staff", "character", "publisher", "studio", "quote", "meme"}
+    {"staff", "character", "character-identity", "publisher", "studio", "quote", "meme"}
 )
 
 # The owner tables that carry a mirror column, and what that column is called.
@@ -57,6 +59,7 @@ ATTACHABLE_OWNERS: frozenset[str] = frozenset(MEDIA_TABLES) | frozenset(
 MIRROR_COLUMNS = {
     "staff": "photo_file",
     "character": "photo_file",
+    "character-identity": "photo_file",
     "publisher": "logo_file",
     "studio": "logo_file",
     "quote": "image_file",
@@ -69,6 +72,7 @@ MIRROR_COLUMNS = {
 FOCUS_COLUMNS = {
     "staff": "photo_focus",
     "character": "photo_focus",
+    "character-identity": "photo_focus",
     "publisher": "logo_focus",
     "studio": "logo_focus",
 }
@@ -78,6 +82,7 @@ FOCUS_COLUMNS = {
 _ENTITY_MODELS = {
     "staff": models.Person,
     "character": models.Character,
+    "character-identity": models.CharacterIdentity,
     "publisher": models.Publisher,
     "studio": models.Studio,
     "quote": models.Quote,
@@ -164,6 +169,9 @@ def _require_reachable_owner(db, viewer, owner_type, owner_id) -> None:
         )
     if owner_type in MEDIA_TABLES:
         if not entry_visible(db, viewer, owner_type, owner_id):
+            raise HTTPException(status_code=404, detail="Entry not found.")
+    elif owner_type == IDENTITY_OWNER:
+        if not identity_visible(db, viewer, owner_id):
             raise HTTPException(status_code=404, detail="Entry not found.")
     elif owner_type in ENTITY_OWNER_MODELS:
         model = ENTITY_OWNER_MODELS[owner_type]
