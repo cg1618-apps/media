@@ -276,6 +276,14 @@ def get_character_entries(
         for p in db.query(models.Person).filter(models.Person.system_id.in_(person_ids))
     } if person_ids else {}
 
+    identity_ids = {r.identity_id for r in rows if r.identity_id}
+    identities = {
+        i.system_id: i
+        for i in db.query(models.CharacterIdentity).filter(
+            models.CharacterIdentity.system_id.in_(identity_ids)
+        )
+    } if identity_ids else {}
+
     groups: dict[str, list] = {}
     for row in rows:
         if row.media_type not in MEDIA_TABLES:
@@ -295,6 +303,15 @@ def get_character_entries(
         payload.append(
             {
                 "system_id": str(entry.system_id),
+                # One entry appears once per identity cast in it, so the
+                # casting - not the entry - is what tells two cards apart.
+                "casting_id": str(row.system_id),
+                "identity_id": str(row.identity_id) if row.identity_id else None,
+                "identity_name": (
+                    identities[row.identity_id].display_name
+                    if row.identity_id in identities
+                    else None
+                ),
                 "display_name": entry.display_name,
                 "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
