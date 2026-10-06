@@ -21,6 +21,11 @@ import { mediaTypeLabel } from "../../config/mediaRegistry";
 // typed name" rather than "select this existing character".
 const CREATE_CHARACTER_PREFIX = "__create_character__:";
 
+// The same idea for an identity: "mint a new identity of this row's
+// character with this typed name". An identity is always created under the
+// row's character - never free-standing.
+const CREATE_IDENTITY_PREFIX = "__create_identity__:";
+
 // Debounced the same way useGlobalMediaSearch debounces: one request per
 // keystroke is one too many, and GET /api/character/?name= is the whole
 // reason this component no longer has to download every character just to
@@ -77,6 +82,8 @@ export function importedRow(source, position, voiced) {
     system_id: undefined,
     character_id: source.character_id,
     character_name: source.character_name || "",
+    identity_id: source.identity_id || null,
+    identity_name: source.identity_name || "",
     voices: voiced
       ? (source.voices || []).map((voice) => ({
           person_id: voice.person_id,
@@ -97,6 +104,8 @@ function emptyRow(position) {
     system_id: undefined,
     character_id: null,
     character_name: "",
+    identity_id: null,
+    identity_name: "",
     voices: [],
     role: "",
     position,
@@ -142,6 +151,30 @@ export default function CastEditor({
     },
     [],
   );
+
+  // character_id -> that character's identities, fetched once per character
+  // the first time a row with it is shown.
+  const [identitiesByCharacter, setIdentitiesByCharacter] = useState({});
+  const characterIdsKey = rows.map((r) => r.character_id).filter(Boolean).join(",");
+  useEffect(() => {
+    const missing = [...new Set(characterIdsKey.split(",").filter(Boolean))].filter(
+      (id) => !(id in identitiesByCharacter),
+    );
+    missing.forEach((id) => {
+      const qs = new URLSearchParams({ character_id: id }).toString();
+      fetch(endpoints.characterIdentity.list(qs), { credentials: "include" })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((list) =>
+          setIdentitiesByCharacter((prev) => ({ ...prev, [id]: Array.isArray(list) ? list : [] })),
+        )
+        .catch(() => {
+          /* best effort - the identity box offers only "create" */
+        });
+    });
+    // identitiesByCharacter is read, not depended on: a fetched character is
+    // never fetched again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [characterIdsKey]);
 
   const [seiyuuList, setSeiyuuList] = useState([]);
 
@@ -230,8 +263,11 @@ export default function CastEditor({
   // the rows land in the form like typed ones, to be edited and then saved.
   function appendCast(cast, from, note = "") {
     const current = latestRows.current;
-    const held = new Set(current.map((r) => r.character_id).filter(Boolean));
-    const incoming = (cast || []).filter((r) => !held.has(r.character_id));
+    // The appearance is (character, identity): the same character may be
+    // cast twice under different identities (uq_character_casting).
+    const appearance = (r) => `${r.character_id}:${r.identity_id || ""}`;
+    const held = new Set(current.filter((r) => r.character_id).map(appearance));
+    const incoming = (cast || []).filter((r) => !held.has(appearance(r)));
     const next = [
       ...current,
       ...incoming.map((r, k) => importedRow(r, current.length + k, showSeiyuu)),
@@ -442,6 +478,8 @@ export default function CastEditor({
         updateRow(i, {
           character_id: created.system_id,
           character_name: created.display_name || name,
+          identity_id: null,
+          identity_name: "",
         });
       } catch {
         /* leave the row untouched — the admin can retry */
@@ -452,7 +490,61 @@ export default function CastEditor({
     updateRow(i, {
       character_id: id,
       character_name: found?.display_name || "",
+      identity_id: null,
+      identity_name: "",
     });
+  }
+
+  function identityItems(row) {
+    const typed = (row.identity_name || "").trim();
+    const items = (identitiesByCharacter[row.character_id] || []).map((identity) => ({
+      id: identity.system_id,
+      label: identity.display_name,
+      searchText: identity.display_name,
+    }));
+    // A row loaded with an identity shows its pill before the list arrives.
+    if (row.identity_id && !items.some((item) => item.id === row.identity_id)) {
+      items.push({
+        id: row.identity_id,
+        label: row.identity_name || "",
+        searchText: row.identity_name || "",
+      });
+    }
+    if (typed && !row.identity_id && !items.some((item) => item.label === typed)) {
+      items.push({
+        id: `${CREATE_IDENTITY_PREFIX}${typed}`,
+        label: `Create new identity named "${typed}"`,
+        searchText: typed,
+      });
+    }
+    return items;
+  }
+
+  async function handleIdentitySelect(i, id) {
+    const row = latestRows.current[i];
+    if (!id.startsWith(CREATE_IDENTITY_PREFIX)) {
+      const found = (identitiesByCharacter[row.character_id] || []).find((x) => x.system_id === id);
+      updateRow(i, { identity_id: id, identity_name: found?.display_name || "" });
+      return;
+    }
+    const name = id.slice(CREATE_IDENTITY_PREFIX.length);
+    try {
+      const res = await fetch(endpoints.characterIdentity.create(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ character_id: row.character_id, name_cn: name, display_name_field: "cn" }),
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      const created = await res.json();
+      setIdentitiesByCharacter((prev) => ({
+        ...prev,
+        [row.character_id]: [...(prev[row.character_id] || []), created],
+      }));
+      updateRow(i, { identity_id: created.system_id, identity_name: created.display_name || name });
+    } catch {
+      /* leave the row untouched - the admin can retry */
+    }
   }
 
   // Seiyuu find-or-create: leaving the field with typed, unresolved text
@@ -531,10 +623,33 @@ export default function CastEditor({
                       scheduleCharacterSearch(i, text);
                     }}
                     onClear={() => {
-                      updateRow(i, { character_id: null, character_name: "" });
+                      updateRow(i, {
+                        character_id: null,
+                        character_name: "",
+                        identity_id: null,
+                        identity_name: "",
+                      });
                       setCharacterResults((prev) => ({ ...prev, [i]: [] }));
                     }}
                     placeholder="Character name..."
+                    clearLabel="Clear character"
+                  />
+                </div>
+                {/* Empty is the character's main identity. Disabled until the
+                    row has a character: an identity is always one of THAT
+                    character's, and "Create new identity" makes it under it. */}
+                <div className={NAME_CELL} aria-label="Identity">
+                  <ComboBox
+                    items={row.character_id ? identityItems(row) : []}
+                    selectedId={row.identity_id || null}
+                    inputText={row.identity_name || ""}
+                    disabled={!row.character_id}
+                    onSelect={(id) => handleIdentitySelect(i, id)}
+                    onType={(text) => updateRow(i, { identity_name: text, identity_id: null })}
+                    onClear={() => updateRow(i, { identity_id: null, identity_name: "" })}
+                    placeholder="Main identity"
+                    clearLabel="Clear identity"
+                    ariaLabel="Identity"
                   />
                 </div>
                 {/* The casting's role, twice over: a select below lg, where

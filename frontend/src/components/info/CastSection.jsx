@@ -55,11 +55,14 @@ function CastRow({ row }) {
           to={entityPath("character", {
             public_id: row.character_public_id,
             display_name: row.character_name,
-          })}
+          }) + (row.identity_id ? `#identity-${row.identity_id}` : "")}
           className={castLinkCls}
         >
-          {row.character_name || "Unknown"}
+          {row.identity_name || row.character_name || "Unknown"}
         </Link>
+        {row.identity_name && (
+          <span className="text-text-faint text-xs">({row.character_name})</span>
+        )}
         {row.voices?.length > 0 && (
           <span className="text-text-faint text-xs">voiced by</span>
         )}

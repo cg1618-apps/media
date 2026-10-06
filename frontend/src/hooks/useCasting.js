@@ -46,8 +46,9 @@ export function useReplaceCasting() {
         body: JSON.stringify({
           cast: (cast || [])
             .filter((row) => row && row.character_id)
-            .map((row) => ({
+            .map(({ identity_name: _identityName, ...row }) => ({
               ...row,
+              identity_id: row.identity_id || null,
               role: row.role || null,
               voices: (row.voices || [])
                 .filter((voice) => voice && voice.person_id)

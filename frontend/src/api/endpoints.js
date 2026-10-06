@@ -225,6 +225,16 @@ export const endpoints = {
     update: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
   },
 
+  // A character's other identities (admin-only). `list` takes
+  // character_id= and/or name=.
+  characterIdentity: {
+    list: (qs = "") => `/api/character-identity/${qs ? `?${qs}` : ""}`,
+    detail: (id) => `/api/character-identity/${id}`,
+    create: () => "/api/character-identity/",
+    update: (id) => `/api/character-identity/${id}`,
+    // The cast-row count the admin confirmed; 409 if it moved.
+    remove: (id, castings) => `/api/character-identity/${id}?castings=${castings}`,
+  },
   character: {
     list: (qs = "") => `/api/character/${qs ? `?${qs}` : ""}`,
     detail: (id) => `/api/character/${id}`,
