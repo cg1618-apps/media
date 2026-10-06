@@ -11,6 +11,7 @@ something to fill.
 import uuid
 
 import pytest
+from sqlalchemy import text
 
 from app import models
 
@@ -58,6 +59,7 @@ def test_a_lone_identity_row_becomes_the_main_row(admin_client, db_session, char
     takayama = _person(db_session, "高山みなみ")
     row_id = _row(db_session, character, anime, identity, takayama, remark="glasses").system_id
     assert _delete(admin_client, identity, 1).status_code == 200
+    db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))  # check the deferred composite FK
     db_session.expire_all()
     row = db_session.get(models.CharacterCasting, row_id)
     assert row.identity_id is None
@@ -72,6 +74,7 @@ def test_fold_keeps_the_main_row_main(admin_client, db_session, character, anime
     main_id = _row(db_session, character, anime, None, yamaguchi).system_id
     _row(db_session, character, anime, identity, takayama, remark="as Conan")
     assert _delete(admin_client, identity, 1).status_code == 200
+    db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))  # check the deferred composite FK
     db_session.expire_all()
     rows = db_session.query(models.CharacterCasting).filter_by(character_id=character.system_id).all()
     assert [r.system_id for r in rows] == [main_id]
@@ -87,6 +90,7 @@ def test_merge_moves_identities_to_the_survivor(admin_client, db_session, charac
     _row(db_session, second_character, anime, stray)
     r = admin_client.post(f"/api/character/{character.system_id}/merge", json={"source_id": str(second_character.system_id)})
     assert r.status_code == 200
+    db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))  # check the deferred composite FK
     db_session.expire_all()
     moved = db_session.get(models.CharacterIdentity, stray.system_id)
     assert moved.character_id == character.system_id
@@ -97,11 +101,19 @@ def test_merge_moves_identities_to_the_survivor(admin_client, db_session, charac
 def test_merge_matches_castings_per_identity(admin_client, db_session, character, second_character, anime, identity):
     # The survivor's identity row and the loser's MAIN row share the entry but
     # not the identity, so they are different appearances and both survive.
-    _row(db_session, character, anime, identity)
-    _row(db_session, second_character, anime)
-    _row(db_session, character, anime)  # survivor's main row - absorbs the loser's main row
+    # The survivor's main row is created first so that matching on
+    # (media_type, entry_id) alone would pick the identity row instead.
+    a, b, c = (_person(db_session, n) for n in ("A", "B", "C"))
+    main_id = _row(db_session, character, anime, None, a).system_id
+    identity_row_id = _row(db_session, character, anime, identity, b).system_id
+    _row(db_session, second_character, anime, None, c)
     r = admin_client.post(f"/api/character/{character.system_id}/merge", json={"source_id": str(second_character.system_id)})
     assert r.status_code == 200
+    db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
     db_session.expire_all()
     rows = db_session.query(models.CharacterCasting).filter_by(character_id=character.system_id).all()
     assert sorted(str(r.identity_id) for r in rows) == sorted([str(identity.system_id), "None"])
+    main = db_session.get(models.CharacterCasting, main_id)
+    assert {v.person_id for v in main.voices} == {a.system_id, c.system_id}
+    identity_row = db_session.get(models.CharacterCasting, identity_row_id)
+    assert {v.person_id for v in identity_row.voices} == {b.system_id}
