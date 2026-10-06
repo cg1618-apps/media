@@ -77,10 +77,10 @@ function WhereAmI() {
   return <p>at {location.pathname + location.search}</p>;
 }
 
-function renderPage() {
+function renderPage(path = "/character/c1") {
   return render(
     <ToastProvider>
-      <MemoryRouter initialEntries={["/character/c1"]}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/character/:publicId/:slug?" element={<Character />} />
           <Route path="/modify" element={<WhereAmI />} />
@@ -214,6 +214,61 @@ describe("Character detail page", () => {
       expect(within(naming).getByText(label)).toBeInTheDocument();
     }
     expect(within(naming).getByText("長門有希")).toBeInTheDocument();
+  });
+
+  describe("identities", () => {
+    const IDENTITY = {
+      system_id: "i1",
+      display_name: "Edogawa Conan",
+      display_gender: "男",
+      remark: "glasses",
+      display_photo_file: null,
+    };
+    const IDENTITY_ENTRIES = {
+      groups: [
+        {
+          media_type: "anime",
+          nav_path: "/anime",
+          entries: [
+            { system_id: "e1", casting_id: "k1", display_name: "Detective Conan", identity_name: null, seiyuu: [] },
+            { system_id: "e1", casting_id: "k2", display_name: "Detective Conan", identity_name: "Edogawa Conan", seiyuu: [] },
+          ],
+        },
+      ],
+    };
+
+    it("lists identities and one appearance card per cast row", async () => {
+      mockFetch({
+        character: { ...CHARACTER, identities: [IDENTITY] },
+        entries: IDENTITY_ENTRIES,
+      });
+      renderPage();
+      expect(await screen.findByRole("heading", { name: /identities/i })).toBeInTheDocument();
+      expect(screen.getByText("glasses")).toBeInTheDocument();
+      expect(screen.getAllByText("Detective Conan")).toHaveLength(2);
+      expect(screen.getByText("as Edogawa Conan")).toBeInTheDocument();
+    });
+
+    it("highlights the identity named by the URL hash, and only that one", async () => {
+      mockFetch({
+        character: {
+          ...CHARACTER,
+          identities: [IDENTITY, { ...IDENTITY, system_id: "i2", display_name: "Other" }],
+        },
+      });
+      Element.prototype.scrollIntoView = vi.fn();
+      renderPage("/character/c1#identity-i1");
+      await screen.findByRole("heading", { name: /identities/i });
+      expect(document.getElementById("identity-i1")).toHaveClass("ring-2");
+      expect(document.getElementById("identity-i2")).not.toHaveClass("ring-2");
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    });
+
+    it("draws no Identities section for a character without any", async () => {
+      renderPage();
+      await screen.findByRole("heading", { name: "Yuki Nagato" });
+      expect(screen.queryByRole("heading", { name: /identities/i })).toBeNull();
+    });
   });
 
   describe("as a guest", () => {
