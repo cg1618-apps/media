@@ -550,6 +550,12 @@ it with a generic error. The row is red so the gap is visible on the admin
 page, which otherwise shows only a generic toast. Every `execute_pull_all`
 return carries the key, empty when there was nothing to report.
 
+**A Pull after a merge done on the other machine rolls tabs back.** When one
+machine merges characters that have identities, a Pull on the other machine
+rolls back the `Character Identity` and `Character Casting` tabs: the deferred
+`fk_casting_identity` fails at commit while the local cast rows still name the
+old character. Repeat the merge locally before running Pull.
+
 ---
 
 ## 4. Fill (fetch what is missing)

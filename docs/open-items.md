@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-10-01
+Last verified: 2026-10-06
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -165,6 +165,7 @@ docker exec cg1618-dev-db psql -U postgres -d media -tAc   "SELECT cl.key, count
 | Shutdown dies when stdout is not UTF-8 — one `print()` of an emoji, with nothing catching it. The startup half of this is closed: the seeding handler logs with `%s` through `logging`, which never lets an emit failure propagate | `app/main.py`, the `print` after `yield` in `lifespan` |
 | `delete_studio` never calls `delete_cover_image`, so a studio logo leaks; publisher does it correctly | `app/routers/studio.py` |
 | `_STRIPPED` holds a stray backslash. `"\/"` is not an escape in Python, so the backslash survives and `clean_string` strips a character the JS `cleanString` it is kept "character-for-character in step with" does not. Warns today, and is a `SyntaxError` in a future Python | `app/services/domain/search.py:39` |
+| A Pull after a character merge done on the other machine rolls back the `Character Identity` and `Character Casting` tabs: the deferred `fk_casting_identity` fails at commit while the local cast rows still name the old character. Repeat the merge locally before running Pull | `docs/data-actions.md`, Pull All; `app/routers/character.py` merge |
 | Entry tabs may still mint entities. `credits.resolve_*` is find-or-create for the Add form too, and whether entry tabs should refuse instead is a policy call | `app/services/domain/credits.py` |
 
 ## Tooling
