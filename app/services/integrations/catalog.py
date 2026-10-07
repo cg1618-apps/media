@@ -337,6 +337,13 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     ),
                     Write("ep_total", "column", "fill-only"),
                     *_TENRAI_LINKS,
+                    Write(
+                        "studio",
+                        "credit",
+                        "if-absent",
+                        "MAL's studios, matched by MAL id then name, created with "
+                        "MAL's id and link when new",
+                    ),
                     Write("mal_rating", "column", "overwrite"),
                     Write("mal_rank", "column", "overwrite"),
                     Write("cover_image_file", "image", "if-empty"),
@@ -358,6 +365,13 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     Write("airing_status", "column", "fill-only"),
                     Write("release_date_jp", "column", "fill-only"),
                     *_TENRAI_LINKS,
+                    Write(
+                        "studio",
+                        "credit",
+                        "if-absent",
+                        "MAL's studios, matched by MAL id then name, created with "
+                        "MAL's id and link when new",
+                    ),
                     Write("mal_rating", "column", "overwrite"),
                     Write("mal_rank", "column", "overwrite"),
                     Write("cover_image_file", "image", "if-empty"),
@@ -540,6 +554,19 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "conditional",
                         "only once serialization_status is 完結",
                     ),
+                    Write(
+                        "author",
+                        "credit",
+                        "if-absent",
+                        "MAL's Story and Story & Art people, matched by MAL id "
+                        "then name, created with MAL's id and link when new",
+                    ),
+                    Write(
+                        "illustrator",
+                        "credit",
+                        "if-absent",
+                        "MAL's Art and Story & Art people",
+                    ),
                     Write("mal_rating", "column", "overwrite"),
                     Write("mal_rank", "column", "overwrite"),
                     Write("cover_image_file", "image", "if-empty"),
@@ -589,6 +616,19 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "column",
                         "conditional",
                         "only once serialization_status is 完結",
+                    ),
+                    Write(
+                        "author",
+                        "credit",
+                        "if-absent",
+                        "MAL's Story and Story & Art people, matched by MAL id "
+                        "then name, created with MAL's id and link when new",
+                    ),
+                    Write(
+                        "illustrator",
+                        "credit",
+                        "if-absent",
+                        "MAL's Art and Story & Art people",
                     ),
                     Write("mal_rating", "column", "overwrite"),
                     Write("mal_rank", "column", "overwrite"),

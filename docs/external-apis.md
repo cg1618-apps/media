@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-10-06
+Last verified: 2026-10-07
 
 ## What this is for
 
@@ -74,10 +74,10 @@ this section is how the searches call out.
 
 | Tab | Source | Search function | Request | Writes on pick |
 | --- | --- | --- | --- | --- |
-| anime | Tenrai | `search_mal_anime` | `GET /anime?q=&sfw=true` | `mal_id`, `mal_link` |
-| anime movie | Tenrai | `search_mal_anime(..., media_type="movie")` | `GET /anime?q=&type=movie&sfw=true` | `mal_id`, `mal_link` |
-| manga | Tenrai | `search_mal_manga` | `GET /manga?q=&sfw=true`, over-fetched, light novels and novels dropped | `mal_id`, `mal_link` |
-| novel | Tenrai | `search_mal_novel` | `GET /manga?q=&type=lightnovel` and `&type=novel`, interleaved, duplicates dropped | `mal_id`, `mal_link` |
+| anime | Tenrai | `search_mal_anime` | `GET /anime?q=&sfw=true` | `mal_id`, `mal_link`, then the [MAL prefill](#mal-prefill) |
+| anime movie | Tenrai | `search_mal_anime(..., media_type="movie")` | `GET /anime?q=&type=movie&sfw=true` | `mal_id`, `mal_link`, then the [MAL prefill](#mal-prefill) |
+| manga | Tenrai | `search_mal_manga` | `GET /manga?q=&sfw=true`, over-fetched, light novels and novels dropped | `mal_id`, `mal_link`, then the [MAL prefill](#mal-prefill) |
+| novel | Tenrai | `search_mal_novel` | `GET /manga?q=&type=lightnovel` and `&type=novel`, interleaved, duplicates dropped | `mal_id`, `mal_link`, then the [MAL prefill](#mal-prefill) |
 | novel | Open Library | `search_openlibrary_works` | `GET /search.json?q=&fields=key,title,subtitle,first_publish_year,author_name,cover_i` | `openlibrary_id`, `openlibrary_link` |
 | person | Tenrai | `search_mal_people` | `GET /people?q=` | `mal_link` |
 | character | Tenrai | `search_mal_characters` | `GET /characters?q=` | `mal_link` |
@@ -113,6 +113,8 @@ Per source:
   crowds the other out at a small limit. Each `link` is the record's
   `myanimelist.net` page, which the `MAL_*_ID_PATTERN`s parse back into
   `mal_id`.
+- **Tenrai** also answers the [MAL prefill](#mal-prefill) for the picked
+  record, under the same one-attempt rules.
 - **TMDB** search results carry a TMDB id, not the IMDb id these rows are
   keyed by. Fetching `external_ids` for every result would cost ten requests
   per search against a 40-per-10-second budget, so `external_id` is a ref
@@ -137,11 +139,45 @@ Tenrai v1 is a public read-only mirror of MyAnimeList. No key is needed.
 
 | Item | Value |
 |---|---|
-| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime, anime movies **and** hentai - it serves Rx titles like any other), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga, novels **and** h-comics) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios) `GET /people/{mal_id}/full` (`fetch_tenrai_person_data`, used for seiyuu), `GET /characters/{mal_id}/full` (`fetch_tenrai_character_data`, used for characters), and `GET /anime/{mal_id}/characters` and `GET /manga/{mal_id}/characters` (`fetch_tenrai_cast(resource, mal_id)`, used by the MAL cast import - `anime` for anime, anime movies and hentai, `manga` for manga, novels and h-comics). The last two fetchers share `_get_tenrai_data`, one throttled GET with the same status handling as the others. The response's `data` object is returned. All six fetchers share one `TenraiRateLimiter` budget. |
+| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime, anime movies **and** hentai - it serves Rx titles like any other), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga, novels **and** h-comics) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios) `GET /people/{mal_id}/full` (`fetch_tenrai_person_data`, used for seiyuu), `GET /characters/{mal_id}/full` (`fetch_tenrai_character_data`, used for characters), and `GET /anime/{mal_id}/characters` and `GET /manga/{mal_id}/characters` (`fetch_tenrai_cast(resource, mal_id)`, used by the MAL cast import - `anime` for anime, anime movies and hentai, `manga` for manga, novels and h-comics). The last two fetchers share `_get_tenrai_data`, one throttled GET with the same status handling as the others. The response's `data` object is returned. All six fetchers share one `TenraiRateLimiter` budget, as do the picker searches and the two prefill lookups, `lookup_mal_anime` and `lookup_mal_manga`, which read the same `/anime` and `/manga` records in one attempt (see [MAL prefill](#mal-prefill)). |
 | User-Agent | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0` — MAL's CDN rejects the default `python-requests` agent. |
 | Rate limiter | `TenraiRateLimiter`, two windows checked together: `DEFAULT_LIMITS = ((4, 1), (120, 60))` — 4 requests per second **and** 120 per minute. It loops until every window has room. |
 | Pipeline pacing | On top of the limiter, `specs.py` sleeps `MAL_PAUSE = 1` second between entries in Fill and Replace. |
 | MAL ID source | `mal_id` on the row; `extract_mal_id` / `extract_mal_id_manga_novel` in `app/utils/utils.py` pull it out of `mal_link` with `myanimelist\.net/anime/(\d+)` and `myanimelist\.net/manga/(\d+)`. A studio's URL is `myanimelist.net/anime/producer/<id>/<slug>`, so it needs its own `MAL_PRODUCER_ID_PATTERN` = `myanimelist\.net/anime/producer/(\d+)`, read by `extract_mal_id_producer`. The two patterns cannot poach each other's links: the anime one needs digits straight after `/anime/` and finds the word `producer` instead, and the producer one needs the literal segment. A person's URL is `myanimelist.net/people/<id>/<slug>`, read by `extract_mal_id_person` with `MAL_PERSON_ID_PATTERN` = `myanimelist\.net/people/(\d+)`. A character's is `myanimelist.net/character/<id>/<slug>`, read by `extract_mal_id_character` with `MAL_CHARACTER_ID_PATTERN` = `myanimelist\.net/character/(\d+)`. |
+
+### MAL prefill
+
+A MAL pick on the anime, anime movie, manga or novel tab then asks
+`GET /api/<type>/mal-prefill/{mal_id}` for the rest of the record
+(`app/services/domain/mal_prefill.py`; the field list per type is in
+[api.md](api.md#mal-prefill)), and the SPA fills only the fields the admin has not
+filled - blank, or still at the form's starting value.
+The record comes from `lookup_mal_anime` (`GET /anime/{id}/full`, anime and
+anime movie) or `lookup_mal_manga` (`GET /manga/{id}/full`, manga and novel):
+the picker searches' rules rather than the Fill fetchers' — one attempt with
+`SEARCH_TIMEOUT`, through the shared `TenraiRateLimiter`, `None` for a 404
+(the route's 404) and `ExternalSearchError` for anything else (its 502). Not
+cached.
+
+Its values are the type's mapper output filtered to exactly what that type's
+autofill writes — anime movie's `airing_type` and `ep_total`, which its
+autofill never writes, are left out, and the manga and novel totals only come
+when the status maps to `完結` — plus `map_tenrai_titles` and the credits
+below. The cover and the Official/Twitter links are not in it.
+
+### Mapping for titles and credits — `map_tenrai_titles`, `map_tenrai_credits`
+
+Read by the MAL prefill and, for the credits, by the four MAL autofills.
+
+| Tenrai field | Becomes | Rule |
+|---|---|---|
+| `title_english` | `<type>_name_en` (prefill only) | stripped; blank is `None`. The romaji `title` is the picker's, written by the pick itself. |
+| `title_japanese` | `<type>_name_jp` (prefill only) | stripped; blank is `None`. |
+| `studios[]` (anime) | `studio` credits on anime and anime movie | `map_tenrai_studios`: `{mal_id, name, url}` each; a nameless one is dropped. |
+| `authors[]` (manga) | `author` / `illustrator` credits on manga and novel | `map_tenrai_authors`: `role` `Story` → `author`, `Art` → `illustrator`, `Story & Art` → both; any other role, or no name, is dropped. `name` is `_western_order` (`"Oda, Eiichiro"` → `"Eiichiro Oda"`), `name_mal` keeps MAL's order. |
+
+How a MAL studio or author is matched to a row, and when it is credited, is in
+[business-rules.md](business-rules.md#mal-credits).
 
 ### Mapping for `anime` — `map_tenrai_to_anime_data`
 
@@ -219,6 +255,7 @@ Tenrai is the h-comic's **first** source, not its only one: [E-Hentai](#e-hentai
 | `vol_total` / `vol_total_original`, `ch_total` | Fill-only, and **only when `serialization_status == "完結"`** — a running series' totals stay blank. |
 | `mal_rating`, `mal_rank` | **Overwritten** when `force_replace_ratings=True` (the default, and what every pipeline passes) and the fetched value is truthy; otherwise fill-only. |
 | `cover_image_file` | Downloaded only when the column is empty and the mapper found a URL; see [Cover images](#cover-images-local-disk). |
+| `studio` credits (anime, anime movie); `author` and `illustrator` credits (manga, novel) | **Fill-only per role**, and only with a session (`db`): a role with no credits gets MAL's, found or created by `fill_mal_credits`; a role that has credits is kept as it is, and a credited row MAL names by name with no `mal_id` is given MAL's. See [business-rules.md](business-rules.md#mal-credits). |
 
 ### Mapping for `studio` — `map_tenrai_to_studio_data`
 

@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-10-05
+Last verified: 2026-10-07
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -76,14 +76,14 @@ for the catch-all, which is last).
 | `collection` | `/api/collection` | |
 | `franchise` | `/api/franchise` | |
 | `series` | `/api/series` | |
-| `anime` | `/api/anime` | factory router nested in a prefix-less router that adds `GET /api/anime/search-mal` |
-| `anime_movie` | `/api/anime-movie` | factory, no series; adds `GET /api/anime-movie/search-mal` |
+| `anime` | `/api/anime` | factory router nested in a prefix-less router that adds `GET /api/anime/search-mal` and `/mal-prefill/{mal_id}` |
+| `anime_movie` | `/api/anime-movie` | factory, no series; adds `GET /api/anime-movie/search-mal` and `/mal-prefill/{mal_id}` |
 | `cartoon` | `/api/cartoon` | factory; adds `GET /api/cartoon/search-tmdb` and `/tmdb-imdb-id` |
 | `movie` | `/api/movies` | factory; adds `GET /api/movies/search-tmdb` and `/tmdb-imdb-id` |
 | `tv_show` | `/api/tv-shows` | factory; adds `GET /api/tv-shows/search-tmdb` and `/tmdb-imdb-id` |
-| `manga` | `/api/manga` | factory; adds `GET /api/manga/search-mal` |
+| `manga` | `/api/manga` | factory; adds `GET /api/manga/search-mal` and `/mal-prefill/{mal_id}` |
 | `note` | `/api/notes` | |
-| `novel` | `/api/novel` | factory; adds `GET /api/novel/search-mal` and `/search-openlibrary` |
+| `novel` | `/api/novel` | factory; adds `GET /api/novel/search-mal`, `/mal-prefill/{mal_id}` and `/search-openlibrary` |
 | `comic` | `/api/comic` | factory router nested in a prefix-less router that adds `GET /api/comic/search-comicvine` |
 | `game` | `/api/game` | factory router nested in a prefix-less router that adds `GET /api/game/search-igdb` |
 | `h_comic` | `/api/h-comic` | factory; a gated type |

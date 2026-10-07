@@ -170,6 +170,7 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/`            | Public | List anime. Optional params: `franchise_id`, `series_id`, `search_query`, `airing_season` (e.g. `"WIN 2026"`), `limit`, `offset`. |
 | `GET`    | `/search-mal`  | `manage.catalog` | `?q=` (required), `limit` (1-50, default 10). Searches MAL anime of every type. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
+| `GET`    | `/mal-prefill/{mal_id}` | `manage.catalog` | The Add form's fields from one MAL anime record — see [MAL prefill](#mal-prefill). 404 for an id MAL does not have, 502 when Tenrai fails. Read-only. |
 | `GET`    | `/{entry_id}` | Public | Get a single anime entry by UUID.                                                                              |
 | `POST`   | `/`            | Admin  | Create an anime entry. Runs episode math and domain rules. Body: `AnimeCreate`.                                |
 | `PUT`    | `/{entry_id}` | Admin  | Full update. Runs episode math and domain rules. Body: `AnimeUpdate`.                                          |
@@ -187,6 +188,7 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 | -------- | -------------- | ------ | ------------------------------------------------------------------------------------------ |
 | `GET`    | `/`            | Public | List all anime movies. Optional params: `franchise_id`, `watching_status`, `search_query`, `limit`, `offset`. |
 | `GET`    | `/search-mal`  | `manage.catalog` | `?q=`, `limit`. Searches MAL anime of type Movie. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
+| `GET`    | `/mal-prefill/{mal_id}` | `manage.catalog` | The Add form's fields from one MAL anime record — see [MAL prefill](#mal-prefill). 404 / 502 as anime's. Read-only. |
 | `GET`    | `/{entry_id}` | Public | Get a single anime movie entry by UUID.                                                    |
 | `POST`   | `/`            | Admin  | Create an anime movie entry. Body: `AnimeMovieCreate`.                                     |
 | `PUT`    | `/{entry_id}` | Admin  | Full update. Body: `AnimeMovieUpdate`.                                                     |
@@ -260,6 +262,7 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `GET`    | `/`                    | Public | List all manga. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `search_query`. No `to_reread` filter — dropped along with the column; passing it is silently ignored like any unknown filter. |
 | `GET`    | `/search-mal`          | `manage.catalog` | `?q=`, `limit`. Searches MAL manga, excluding light novels and novels. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
+| `GET`    | `/mal-prefill/{mal_id}` | `manage.catalog` | The Add form's fields from one MAL manga record — see [MAL prefill](#mal-prefill). 404 / 502 as anime's. Read-only. |
 | `GET`    | `/{entry_id}`          | Public | Get a single manga entry by UUID.                                                                                                    |
 | `POST`   | `/`                    | Admin  | Create a manga entry. Auto-runs `execute_replace_single_manga` after creation. Body: `MangaCreate`.                                  |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a manga entry. Auto-runs `execute_replace_single_manga` after update. Body: `MangaUpdate`.                            |
@@ -277,6 +280,7 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/`                    | Public | List all novels. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `search_query`. No `to_reread` filter — dropped along with the column; passing it is silently ignored like any unknown filter. `units` are eagerly loaded (`selectinload`) on every row. |
 | `GET`    | `/search-mal`          | `manage.catalog` | `?q=`, `limit`. Searches MAL light novels and novels. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
+| `GET`    | `/mal-prefill/{mal_id}` | `manage.catalog` | The Add form's fields from one MAL manga record (MAL files novels as manga) — see [MAL prefill](#mal-prefill). 404 / 502 as anime's. Read-only. |
 | `GET`    | `/search-openlibrary`  | `manage.catalog` | `?q=`, `limit`. Searches Open Library works; `external_id` is the `OL…W` id. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/{entry_id}`          | Public | Get a single novel entry by UUID.                                                                                                     |
 | `POST`   | `/`                    | Admin  | Create a novel entry. Auto-runs `execute_replace_single_novel` after creation. Body: `NovelCreate`.                                   |
@@ -1129,6 +1133,33 @@ result does not carry. So the SPA resolves only the result the admin picks,
 with `GET /api/<type>/tmdb-imdb-id?ref=<external_id>` →
 `{imdb_id, imdb_link}`: 422 on a malformed ref, 404 when TMDB knows no IMDb
 id for the title, 502 when TMDB fails.
+
+### MAL prefill
+
+A MAL pick on the anime, anime movie, manga or novel tab goes one step
+further: `GET /api/<type>/mal-prefill/{mal_id}` (`anime`, `anime-movie`,
+`manga`, `novel`; `manage.catalog`) answers a flat object of **form field
+names** to values, with every null left out, and the SPA fills only the
+fields the admin left blank. It carries exactly what that type's MAL autofill
+writes on save and on Fill, under the same conditions, plus MAL's English and
+Japanese titles and the credits:
+
+| Type | Fields |
+| --- | --- |
+| `anime` | `anime_name_en`, `anime_name_jp`, `airing_type`, `airing_status`, `release_season`, `release_date`, `ep_total`, `mal_rating`, `mal_rank`, `studio` |
+| `anime-movie` | `anime_movie_name_en`, `anime_movie_name_jp`, `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `studio` |
+| `manga` | `manga_name_en`, `manga_name_jp`, `serialization_status`, `release_date`, `end_date`, `vol_total` and `ch_total` (only when the status is `完結`), `mal_rating`, `mal_rank`, `author_plot` (MAL's Story), `author_draw` (Art) |
+| `novel` | `novel_name_en`, `novel_name_jp`, `serialization_status`, `release_date`, `end_date`, `vol_total_original` and `ch_total` (only when `完結`), `mal_rating`, `mal_rank`, `author` (Story), `illustrator` (Art) |
+
+`mal_rank` is a string, as the column is; the credit fields are comma-joined
+names, as the form holds them. A credited studio or person is matched the way
+the MAL autofill matches it ([business-rules.md](business-rules.md#mal-credits)):
+a match is named by one of its own names that the save path resolves back to
+it — its display name when that does — and anything else by MAL's name, a
+person's in western order. The cover and the Official/Twitter reference rows
+are not in it; the save path fetches those. The route never creates or links
+a row. One attempt, no retry: 404 when MAL has no such id, 502 with a
+`detail` when Tenrai fails.
 
 A search that cannot be answered — the source is down, refuses the request,
 or its key is not configured — is a **502** whose `detail` says which, never

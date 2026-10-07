@@ -166,7 +166,7 @@ def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) ->
     signature parity with the other media types.
     """
     apply_extract_mal_id_manga_novel(manga)
-    autofill_manga_from_mal(manga, force_replace_ratings=True)
+    autofill_manga_from_mal(manga, force_replace_ratings=True, db=db)
     autofill_from_anilist(manga, MANGA, db)
     manga_post_processing(manga, db)
 
@@ -182,7 +182,7 @@ def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) ->
     in step with its link, so the next Fill has something to key off.
     """
     apply_extract_novel_ids(novel)
-    autofill_novel_from_mal(novel, force_replace_ratings=True)
+    autofill_novel_from_mal(novel, force_replace_ratings=True, db=db)
     autofill_from_anilist(novel, MANGA, db)
 
 

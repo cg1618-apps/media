@@ -36,6 +36,7 @@ from app.utils.name_normalize import (
     normalize_name,
     split_names,
 )
+from app.utils.tenrai_utils import _western_order
 
 logger = logging.getLogger(__name__)
 
@@ -122,18 +123,20 @@ def find_publisher(db: Session, name: str):
     return _find_by_name(db, models.Publisher, name)
 
 
-def resolve_person(
-    db: Session, name: str, *, role: str, scope: Optional[str] = None
-) -> models.Person:
-    """Find or create the person, and make sure they hold the given role."""
-    person = _find_by_name(db, models.Person, name)
-    if person is None:
-        stripped = name.strip()
-        slot = name_slot_for(stripped, role=role, scope=scope or "")
-        person = models.Person(**{f"name_{slot}": stripped})
-        db.add(person)
-        db.flush()
+def _new_person(db: Session, name: str, *, role: str, scope: Optional[str], **columns):
+    """A new person under `name`, in the column name_slot_for picks."""
+    stripped = name.strip()
+    slot = name_slot_for(stripped, role=role, scope=scope or "")
+    person = models.Person(**{f"name_{slot}": stripped}, **columns)
+    db.add(person)
+    db.flush()
+    return person
 
+
+def _ensure_person_role(
+    db: Session, person: models.Person, role: str, scope: Optional[str]
+) -> None:
+    """Additive: give the person the role on this scope if they lack it."""
     held = {(r.role, r.scope) for r in person.roles}
     if (role, scope) not in held:
         db.add(
@@ -141,6 +144,16 @@ def resolve_person(
         )
         db.flush()
         db.refresh(person)
+
+
+def resolve_person(
+    db: Session, name: str, *, role: str, scope: Optional[str] = None
+) -> models.Person:
+    """Find or create the person, and make sure they hold the given role."""
+    person = _find_by_name(db, models.Person, name)
+    if person is None:
+        person = _new_person(db, name, role=role, scope=scope)
+    _ensure_person_role(db, person, role, scope)
     return person
 
 
@@ -152,6 +165,140 @@ def resolve_studio(db: Session, name: str) -> models.Studio:
         db.add(studio)
         db.flush()
     return studio
+
+
+# ---------------------------------------------------------------------------
+# MAL-aware matching: a studio or author named by a MyAnimeList record.
+#
+# The MAL id decides first - it is the one key that cannot collide - and only
+# then the name, through _find_by_name like every other credit. A person is
+# also tried in western order, because MAL writes "Oda, Eiichiro" and this
+# collection writes "Eiichiro Oda". The find_* half never writes and serves
+# the Add page's prefill; the resolve_* half is find-or-create for the MAL
+# autofills.
+# ---------------------------------------------------------------------------
+
+
+def _by_mal_id(db: Session, model, mal_id: Optional[int]):
+    """The one row holding this MAL id; several are reported as ambiguous."""
+    if not mal_id:
+        return None
+    rows = (
+        db.query(model)
+        .filter(model.mal_id == mal_id)
+        .order_by(model.public_id)
+        .all()
+    )
+    if len(rows) > 1:
+        raise AmbiguousNameError(model.__name__, f"MAL id {mal_id}", rows)
+    return rows[0] if rows else None
+
+
+def _mal_person_names(name: str) -> list[str]:
+    """MAL's name in western order first, then as MAL writes it."""
+    western = _western_order(name)
+    return [n for n in dict.fromkeys([western, (name or "").strip()]) if n]
+
+
+def find_studio_for_mal(
+    db: Session, mal_id: Optional[int], name: str
+) -> Optional[models.Studio]:
+    """
+    The studio a MAL producer names: by MAL id, else by name, else None.
+    Raises AmbiguousNameError when the name matches several studios.
+    """
+    return _by_mal_id(db, models.Studio, mal_id) or _find_by_name(
+        db, models.Studio, name
+    )
+
+
+def find_person_for_mal(
+    db: Session, mal_id: Optional[int], name: str
+) -> Optional[models.Person]:
+    """
+    The person a MAL people record names: by MAL id, else by `name` (as MAL
+    writes it, "Family, Given") in western order, else as written, else None.
+    Raises AmbiguousNameError when a name matches several people.
+    """
+    person = _by_mal_id(db, models.Person, mal_id)
+    if person is not None:
+        return person
+    for candidate in _mal_person_names(name):
+        person = _find_by_name(db, models.Person, candidate)
+        if person is not None:
+            return person
+    return None
+
+
+def _link_mal(db: Session, row, mal_id: Optional[int], mal_link: Optional[str]) -> None:
+    """
+    Give a row with no MAL id the one MAL names, and its link when it has
+    none. Fill-only: a different MAL id is never overwritten, and an id
+    another row already holds is not copied, so the id stays a unique key.
+    """
+    if not mal_id or row.mal_id:
+        return
+    model = type(row)
+    if db.query(model.system_id).filter(model.mal_id == mal_id).first():
+        return
+    row.mal_id = mal_id
+    if not row.mal_link and mal_link:
+        row.mal_link = mal_link
+    db.flush()
+
+
+def resolve_studio_for_mal(
+    db: Session, mal_id: Optional[int], name: str, mal_link: Optional[str]
+) -> Optional[models.Studio]:
+    """
+    Find or create the studio a MAL producer names. A new one carries MAL's
+    name in name_en, its id and its link; a name-matched one is linked.
+    None, with a warning, when the name is ambiguous - nothing is created.
+    """
+    try:
+        studio = find_studio_for_mal(db, mal_id, name)
+    except AmbiguousNameError as e:
+        logger.warning("MAL studio skipped: %s", e)
+        return None
+    if studio is None:
+        studio = models.Studio(name_en=name.strip(), mal_id=mal_id, mal_link=mal_link)
+        db.add(studio)
+        db.flush()
+    else:
+        _link_mal(db, studio, mal_id, mal_link)
+    return studio
+
+
+def resolve_person_for_mal(
+    db: Session,
+    mal_id: Optional[int],
+    name: str,
+    mal_link: Optional[str],
+    *,
+    role: str,
+    scope: Optional[str],
+) -> Optional[models.Person]:
+    """
+    Find or create the person a MAL people record names (`name` as MAL
+    writes it), and make sure they hold the role on this scope - as
+    resolve_person does. A new one is created under the western-order name,
+    in the column name_slot_for picks, with MAL's id and link; a name-matched
+    one is linked. None, with a warning, when a name is ambiguous.
+    """
+    try:
+        person = find_person_for_mal(db, mal_id, name)
+    except AmbiguousNameError as e:
+        logger.warning("MAL person skipped: %s", e)
+        return None
+    if person is None:
+        person = _new_person(
+            db, _mal_person_names(name)[0], role=role, scope=scope,
+            mal_id=mal_id, mal_link=mal_link,
+        )
+    else:
+        _link_mal(db, person, mal_id, mal_link)
+    _ensure_person_role(db, person, role, scope)
+    return person
 
 
 def resolve_publisher(
@@ -243,30 +390,119 @@ def replace_credits(
     """
     spec = CREDIT_ROLES[role]
 
-    db.query(models.MediaCredit).filter_by(
-        media_id=media_id, role=role
-    ).delete(synchronize_session=False)
-
-    for position, name in enumerate(names):
+    targets = []
+    for name in names:
         if spec.target == "person":
             # The scope is the media type - nothing left to derive. Before the
             # collapse, director alone was scoped, anime/non_anime, by
             # director_scope_for().
-            target = resolve_person(db, name, role=role, scope=media_type)
+            targets.append(resolve_person(db, name, role=role, scope=media_type))
         elif spec.target == "publisher":
             # Same rule, same reason: a publisher is offered where it is used.
-            target = resolve_publisher(db, name, scope=media_type)
+            targets.append(resolve_publisher(db, name, scope=media_type))
         else:
-            target = _RESOLVERS[spec.target](db, name)
+            targets.append(_RESOLVERS[spec.target](db, name))
+    replace_credit_targets(db, media_id, role, targets)
+
+
+def replace_credit_targets(
+    db: Session, media_id: UUID, role: str, targets: Sequence
+) -> None:
+    """
+    Make the entry's credits for one role exactly `targets`, in that order -
+    rows already resolved to their entity (a Person, Studio or Publisher, as
+    the role's target says). replace_credits resolves names and lands here;
+    the MAL autofills resolve by MAL id first and land here too.
+    """
+    column = _TARGET_COLUMNS[CREDIT_ROLES[role].target]
+
+    db.query(models.MediaCredit).filter_by(
+        media_id=media_id, role=role
+    ).delete(synchronize_session=False)
+
+    for position, target in enumerate(targets):
         db.add(
             models.MediaCredit(
                 media_id=media_id,
                 role=role,
                 position=position,
-                **{_TARGET_COLUMNS[spec.target]: target.system_id},
+                **{column: target.system_id},
             )
         )
     db.flush()
+
+
+def _credited_entities(db: Session, media_id: UUID, role: str) -> list:
+    """The entities credited on the entry for one role, in stored order."""
+    rows = (
+        db.query(models.MediaCredit)
+        .filter_by(media_id=media_id, role=role)
+        .order_by(models.MediaCredit.position)
+        .all()
+    )
+    out = []
+    for row in rows:
+        if row.person_id:
+            entity = db.get(models.Person, row.person_id)
+        elif row.studio_id:
+            entity = db.get(models.Studio, row.studio_id)
+        else:
+            entity = db.get(models.Publisher, row.publisher_id)
+        if entity is not None:
+            out.append(entity)
+    return out
+
+
+def _mal_item_names(item: dict) -> list[str]:
+    """Every spelling a MAL studio or author item carries."""
+    return [n for n in (item.get("name"), item.get("name_mal")) if n]
+
+
+def fill_mal_credits(
+    db: Session, media_type: str, media_id: UUID, role: str, items: list[dict]
+) -> None:
+    """
+    Credit MAL's studios or authors (tenrai_utils.map_tenrai_credits items)
+    on an entry, for one role.
+
+    Only a role with no credits is written: each item is found by MAL id,
+    then by name, or created carrying MAL's id and link; an ambiguous name is
+    skipped with a warning and the rest still land. A role that already has
+    credits keeps them exactly - but a credited row MAL names by name, and
+    which has no MAL id, is given MAL's.
+    """
+    if not items:
+        return
+    target = CREDIT_ROLES[role].target
+    existing = _credited_entities(db, media_id, role)
+
+    if not existing:
+        resolved = {}
+        for item in items:
+            if target == "studio":
+                row = resolve_studio_for_mal(db, item.get("mal_id"), item["name"], item.get("url"))
+            else:
+                row = resolve_person_for_mal(
+                    db, item.get("mal_id"), item.get("name_mal") or item["name"],
+                    item.get("url"), role=role, scope=media_type,
+                )
+            if row is not None:
+                resolved.setdefault(row.system_id, row)
+        if resolved:
+            replace_credit_targets(db, media_id, role, list(resolved.values()))
+        return
+
+    for item in items:
+        keys = {normalize_name(n) for n in _mal_item_names(item)}
+        if target == "person":
+            keys |= {normalize_name(n) for n in _mal_person_names(item.get("name_mal") or "")}
+        matches = [
+            row
+            for row in existing
+            if any(normalize_name(n) in keys for n in names_of(row, row._name_fields))
+        ]
+        if len(matches) == 1:
+            _link_mal(db, matches[0], item.get("mal_id"), item.get("url"))
 
 
 def replace_tags(
@@ -309,26 +545,10 @@ def replace_tags(
 
 def credit_names(db: Session, media_id: UUID, role: str) -> list[str]:
     """The entry's credited names for one role, in stored order."""
-    rows = (
-        db.query(models.MediaCredit)
-        .filter_by(media_id=media_id, role=role)
-        .order_by(models.MediaCredit.position)
-        .all()
-    )
-    out = []
-    for row in rows:
-        if row.person_id:
-            entity = db.get(models.Person, row.person_id)
-        elif row.studio_id:
-            entity = db.get(models.Studio, row.studio_id)
-        else:
-            entity = db.get(models.Publisher, row.publisher_id)
-        if entity is not None:
-            # People and studios both choose their own shown name. This value
-            # reaches the anime payload, the admin form and the Sheets column -
-            # all three read the same string.
-            out.append(entity.display_name)
-    return out
+    # People and studios both choose their own shown name. This value reaches
+    # the anime payload, the admin form and the Sheets column - all three
+    # read the same string.
+    return [entity.display_name for entity in _credited_entities(db, media_id, role)]
 
 
 def tag_values(db: Session, media_id: UUID, field: str) -> list[str]:

@@ -708,7 +708,7 @@ contributes its stripped value. Every name match reads names through it:
 
 | Match | Where | Compared as |
 | --- | --- | --- |
-| person / studio / publisher credit resolution (`_find_by_name`, `resolve_*`, `find_*`) | `app/services/domain/credits.py` | `normalize_name` |
+| person / studio / publisher credit resolution (`_find_by_name`, `resolve_*`, `find_*`, and the name step of the MAL credit match below) | `app/services/domain/credits.py` | `normalize_name` |
 | `POST /api/person`, `/api/studio`, `/api/publisher` find-or-create - the lookup name is the body's first name, so a body carrying only `name_alt` is looked up by its first fragment | the three routers | `normalize_name` |
 | the entity duplicate check (`find_duplicate_entities`) | `app/services/domain/checking.py` | `normalize_name` |
 | every entry, franchise and series duplicate finder (`get_all_names`, section 9) | `app/models/base.py` | stripped, lowercased |
@@ -718,6 +718,40 @@ A MAL cast row is compared with a held character the same way
 (`_character_keys`, `app/services/domain/mal_cast.py`, splitting `name_alt`
 with `split_names`). Free-text search is not a name match and does not split:
 a substring search over an alt column already finds any one of its fragments.
+
+### MAL credits
+
+A studio or an author named by a MyAnimeList record (`map_tenrai_credits`,
+[external-apis.md](external-apis.md#mapping-for-titles-and-credits--map_tenrai_titles-map_tenrai_credits))
+is matched to a row in this order (`find_studio_for_mal`,
+`find_person_for_mal` in `app/services/domain/credits.py`):
+
+1. **MAL id** — the one row whose `mal_id` is MAL's. It wins over a
+   different row that merely holds MAL's name.
+2. **Name**, through `_find_by_name` like every other credit, so a fragment of
+   a `name_alt` list matches. A person is tried in western order first
+   (`"Eiichiro Oda"`) and then as MAL writes it (`"Oda, Eiichiro"`).
+3. Otherwise no match.
+
+A name that matches several rows is ambiguous: the Add page's prefill then
+offers MAL's name and the save reports the ambiguity as it does for a typed
+name; the MAL autofill skips that one credit with a warning and writes the
+rest.
+
+The four MAL autofills (anime and anime movie `studio`; manga and novel
+`author` and `illustrator`, from MAL's Story / Art roles) credit MAL's list
+**only into a role the entry has no credits for** (`fill_mal_credits`). A
+match is reused; no match creates the row — a studio under its MAL name in
+`name_en`, a person under the western-order name in the column
+`name_slot_for` picks — carrying MAL's `mal_id` and `mal_link`. A reused or
+created person is given the role on the media type, as `resolve_person` does.
+A role that already has credits keeps them exactly; a credited row whose name
+matches a MAL studio or author is only given MAL's id.
+
+Linking is fill-only: a row's `mal_id` is set only when it has none and no
+other row already holds that id, and its `mal_link` only when it is blank. A
+different `mal_id` is never overwritten. The autofills run only with a session,
+so the pure-mapping callers credit nothing.
 
 ---
 

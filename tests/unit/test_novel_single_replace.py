@@ -69,7 +69,7 @@ class TestApplySingleReplaceNovel:
         monkeypatch.setattr(
             post_processing,
             "autofill_novel_from_mal",
-            lambda novel, force_replace_ratings=True: calls.append("mal"),
+            lambda novel, force_replace_ratings=True, db=None: calls.append("mal"),
         )
         post_processing.apply_single_replace_novel(None, make_novel())
         assert calls == ["mal"]
