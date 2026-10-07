@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-05
+Last verified: 2026-10-07
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -634,7 +634,8 @@ pairs within a bucket are compared with `match`, and clusters of two or more
 are returned in first-member order.
 
 The default `match` is "share at least one name": `a.get_all_names() &
-b.get_all_names()` is non-empty (case-insensitive, every name column).
+b.get_all_names()` is non-empty (case-insensitive, every name column, each
+fragment of an `*_alt` list a name of its own - section 10).
 
 | Report key        | Rows considered                        | Exact key                                                                   | Match                                                                                                   |
 | ----------------- | -------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -653,7 +654,7 @@ b.get_all_names()` is non-empty (case-insensitive, every name column).
 | `h_game`          | with a franchise                       | `(franchise_id, series_id, game_type, is_main, series_number)` | shared name |
 | `hentai`          | with a franchise                       | `(franchise_id, series_id, series_number)` - the numbered entries of a series share its name | shared name |
 | `system_options`  | all options                            | `(category lower, value lower)`                                             | always — catches `Netflix` vs `netflix`, which the exact UNIQUE cannot                                  |
-| `entities`        | persons, studios, publishers (scanned separately) | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: all four of `name_en` / `name_cn` / `name_jp` / `name_alt`, for a person as for a studio |
+| `entities`        | persons, studios, publishers (scanned separately) | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: all four of `name_en` / `name_cn` / `name_jp` / `name_alt`, for a person as for a studio, with `name_alt` split into its fragments |
 
 Entries with no franchise are ignored by every per-type finder except anime.
 Results are returned as `find_all_duplicates(db)` from `GET
@@ -696,6 +697,62 @@ duplicate check.
 `split_names(raw)` splits a comma-joined name column, drops empty fragments,
 and de-duplicates on the normalised key, keeping the **first** spelling seen.
 
+**Every `*_alt` name column is a comma-separated list of names**, on every
+entity and every entry type: `name_alt = "S1, Studio One"` holds two names,
+`S1` and `Studio One`, and the whole value is not a name at all. Every other
+name column (`*_en`, `*_cn`, `*_jp`, `*_roman`) holds **one** name, commas
+included. `names_of(row, fields)` is the one place this rule lives: an alt
+field (`is_alt_field` - a column ending in `_alt`, or the bare `alt` key of a
+names dict) contributes each fragment through `split_names`; any other field
+contributes its stripped value. Every name match reads names through it:
+
+| Match | Where | Compared as |
+| --- | --- | --- |
+| person / studio / publisher credit resolution (`_find_by_name`, `resolve_*`, `find_*`, and the name step of the MAL credit match below) | `app/services/domain/credits.py` | `normalize_name` |
+| `POST /api/person`, `/api/studio`, `/api/publisher` find-or-create - the lookup name is the body's first name, so a body carrying only `name_alt` is looked up by its first fragment | the three routers | `normalize_name` |
+| the entity duplicate check (`find_duplicate_entities`) | `app/services/domain/checking.py` | `normalize_name` |
+| every entry, franchise and series duplicate finder (`get_all_names`, section 9) | `app/models/base.py` | stripped, lowercased |
+| franchise, series and collection lookup on save and on Pull (`find_by_names`, section 12) | `app/services/domain/hierarchy.py` | stripped, lowercased, exact |
+
+A MAL cast row is compared with a held character the same way
+(`_character_keys`, `app/services/domain/mal_cast.py`, splitting `name_alt`
+with `split_names`). Free-text search is not a name match and does not split:
+a substring search over an alt column already finds any one of its fragments.
+
+### MAL credits
+
+A studio or an author named by a MyAnimeList record (`map_tenrai_credits`,
+[external-apis.md](external-apis.md#mapping-for-titles-and-credits--map_tenrai_titles-map_tenrai_credits))
+is matched to a row in this order (`find_studio_for_mal`,
+`find_person_for_mal` in `app/services/domain/credits.py`):
+
+1. **MAL id** — the one row whose `mal_id` is MAL's. It wins over a
+   different row that merely holds MAL's name.
+2. **Name**, through `_find_by_name` like every other credit, so a fragment of
+   a `name_alt` list matches. A person is tried in western order first
+   (`"Eiichiro Oda"`) and then as MAL writes it (`"Oda, Eiichiro"`).
+3. Otherwise no match.
+
+A name that matches several rows is ambiguous: the Add page's prefill then
+offers MAL's name and the save reports the ambiguity as it does for a typed
+name; the MAL autofill skips that one credit with a warning and writes the
+rest.
+
+The four MAL autofills (anime and anime movie `studio`; manga and novel
+`author` and `illustrator`, from MAL's Story / Art roles) credit MAL's list
+**only into a role the entry has no credits for** (`fill_mal_credits`). A
+match is reused; no match creates the row — a studio under its MAL name in
+`name_en`, a person under the western-order name in the column
+`name_slot_for` picks — carrying MAL's `mal_id` and `mal_link`. A reused or
+created person is given the role on the media type, as `resolve_person` does.
+A role that already has credits keeps them exactly; a credited row whose name
+matches a MAL studio or author is only given MAL's id.
+
+Linking is fill-only: a row's `mal_id` is set only when it has none and no
+other row already holds that id, and its `mal_link` only when it is blank. A
+different `mal_id` is never overwritten. The autofills run only with a session,
+so the pure-mapping callers credit nothing.
+
 ---
 
 ## 10a. Entity display names (`models/staff.py`, `models/character.py`, `lib/naming.js`)
@@ -727,7 +784,7 @@ Two consequences worth knowing:
   resolved `display_name`, case-insensitively **in Python**, so the list order
   changes when an admin changes a display choice.
 - The duplicate check and credit resolution do NOT use `display_name`. They
-  compare **every** name a row has (`get_all_names()`, section 10), so two
+  compare **every** name a row has (`names_of()`, section 10), so two
   studios cannot hide a collision behind different display choices. For
   `person` and `publisher` an ambiguous name **raises** rather than picking a
   winner, since `resolve_person` is find-or-create and a wrong match would
@@ -811,11 +868,15 @@ cells.
 **Franchise** (`resolve_franchise(db, franchise_id, names, media_type)`):
 
 1. A UUID (anything non-string and truthy) passes through.
-2. A non-empty string names the franchise: looked up case-insensitively
-   (`ilike`) across all five franchise name columns, **among the franchises of
-   the entry's own family** (below).
-3. A blank cell falls back to the entry's own titles (`en, cn, roman, jp, alt`,
-   stripped), looked up the same way.
+2. A non-empty string names the franchise: looked up across all five
+   franchise name columns, **among the franchises of the entry's own family**
+   (below). The match is exact and case-insensitive (`find_by_names`) - a
+   name is never a pattern, so `%` and `_` in it are literal - and
+   `franchise_name_alt` matches when the name is any one of its
+   comma-separated fragments (section 10).
+3. A blank cell falls back to the entry's own titles (`en, cn, roman, jp,
+   alt`, stripped, the entry's own alt list split into its names), looked up
+   the same way.
 4. Nothing found and at least one name available → a franchise is **created**
    with those names and a type from `FRANCHISE_TYPE_FOR`. Nothing found and no
    names → `None`.
@@ -868,7 +929,8 @@ first `ACG` rather than listing it twice - `"Game, Anime"` becomes
 and is left alone.
 
 **Series** (`resolve_series`): a UUID passes through; a non-empty string is
-looked up case-insensitively across `series_name_en/cn/alt`; not found →
+looked up the same way across `series_name_en/cn/alt`, each fragment of
+`series_name_alt` a name of its own; not found →
 `None` with a warning. **A series is never auto-created.**
 
 `resolve_<type>_parent_hierarchy(db, franchise_id, series_id, names)` bundles

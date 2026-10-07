@@ -21,6 +21,7 @@ from app.models import (
 from app.services.domain.credits import (
     AmbiguousNameError,
     credit_names,
+    fill_mal_credits,
     find_person,
     replace_credits,
     replace_tags,
@@ -74,6 +75,7 @@ from app.utils.steam_utils import (
     steam_header_image_url,
 )
 from app.utils.tenrai_utils import (
+    map_tenrai_credits,
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
     map_tenrai_to_character_data,
@@ -106,6 +108,19 @@ def _write_tenrai_reference_rows(db, media_type: str, entry, j_data) -> None:
         upsert_main_source(
             db, entry.system_id, "reference", value, j_data.get(key)
         )
+
+
+def _write_mal_credits(db, media_type: str, entry, raw_data) -> None:
+    """
+    MAL's studios (anime, anime movie) or authors and illustrators (manga,
+    novel), credited into each role the entry has no credits for; a credited
+    row MAL names by name is given MAL's id. See credits.fill_mal_credits.
+    Skipped without a session, like the reference rows.
+    """
+    if db is None:
+        return
+    for role, items in map_tenrai_credits(media_type, raw_data).items():
+        fill_mal_credits(db, media_type, entry.system_id, role, items)
 
 
 # The three AniList columns, identical on anime, anime_movies, manga and
@@ -195,6 +210,7 @@ def autofill_anime_from_mal(
         if anime.ep_total is None:
             anime.ep_total = j_data.get("ep_total")
         _write_tenrai_reference_rows(db, "anime", anime, j_data)
+        _write_mal_credits(db, "anime", anime, raw_data)
 
         # Overwrite Ratings
         if force_replace_ratings or anime.mal_rating is None:
@@ -487,6 +503,7 @@ def autofill_anime_movie_from_mal(
         if anime_movie.release_date_jp is None:
             anime_movie.release_date_jp = j_data.get("release_date_jp")
         _write_tenrai_reference_rows(db, "anime-movie", anime_movie, j_data)
+        _write_mal_credits(db, "anime-movie", anime_movie, raw_data)
 
         if force_replace_ratings or anime_movie.mal_rating is None:
             anime_movie.mal_rating = j_data.get("mal_rating") or anime_movie.mal_rating
@@ -516,12 +533,16 @@ def autofill_anime_movie_from_mal(
         )
 
 
-def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) -> None:
+def autofill_manga_from_mal(
+    manga: Manga, force_replace_ratings: bool = True, db: Session = None
+) -> None:
     """
     Enriches a single Manga entry with Tenrai API data. Does not commit — caller is responsible.
     Fill-only: serialization_status, release_date, end_date.
     vol_total and ch_total are filled only when serialization_status == "完結".
     Ratings always replaced when force_replace_ratings=True.
+    With a session, MAL's authors are credited into an empty author or
+    illustrator role (_write_mal_credits).
     """
     mal_id = manga.mal_id
     if not mal_id:
@@ -540,6 +561,7 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
             manga.release_date = j_data.get("release_date")
         if manga.end_date is None:
             manga.end_date = j_data.get("end_date")
+        _write_mal_credits(db, "manga", manga, raw_data)
 
         if manga.serialization_status == "完結":
             if manga.vol_total is None:
@@ -570,12 +592,16 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
         logger.error("MAL Autofill failed for Manga ID %s (MAL %s): %s", manga.system_id, mal_id, e)
 
 
-def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) -> None:
+def autofill_novel_from_mal(
+    novel: Novel, force_replace_ratings: bool = True, db: Session = None
+) -> None:
     """
     Enriches a single Novel entry with Tenrai API data. Does not commit — caller is responsible.
     Fill-only: serialization_status, release_date, end_date.
     vol_total_original and ch_total are filled only when serialization_status == "完結".
     Ratings always replaced when force_replace_ratings=True.
+    With a session, MAL's authors are credited into an empty author or
+    illustrator role (_write_mal_credits).
     """
     mal_id = novel.mal_id
     if not mal_id:
@@ -594,6 +620,7 @@ def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) ->
             novel.release_date = j_data.get("release_date")
         if novel.end_date is None:
             novel.end_date = j_data.get("end_date")
+        _write_mal_credits(db, "novel", novel, raw_data)
 
         if novel.serialization_status == "完結":
             if novel.vol_total_original is None:

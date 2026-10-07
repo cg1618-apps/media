@@ -418,6 +418,91 @@ def _western_order(name: Optional[str]) -> Optional[str]:
     return name or None
 
 
+# ==========================================
+# TITLES AND CREDITS (the Add page's MAL prefill, and the MAL credit fill)
+# ==========================================
+
+# MAL's author `role` -> the credit roles it stands for. A role not listed
+# here is dropped rather than guessed at.
+MAL_AUTHOR_ROLES = {
+    "Story": ("author",),
+    "Art": ("illustrator",),
+    "Story & Art": ("author", "illustrator"),
+}
+
+
+def _clean(value: Any) -> Optional[str]:
+    """A stripped string, or None for a blank or a non-string."""
+    if not isinstance(value, str):
+        return None
+    return value.strip() or None
+
+
+def map_tenrai_titles(raw_data: Dict[str, Any]) -> Dict[str, Optional[str]]:
+    """MAL's English and Japanese titles. The romaji `title` is the picker's."""
+    return {
+        "name_en": _clean(raw_data.get("title_english")),
+        "name_jp": _clean(raw_data.get("title_japanese")),
+    }
+
+
+def map_tenrai_studios(raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """An anime's `studios`, as {mal_id, name, url}; a nameless one is dropped."""
+    out = []
+    for studio in raw_data.get("studios") or []:
+        name = _clean(studio.get("name"))
+        if name:
+            out.append(
+                {"mal_id": studio.get("mal_id"), "name": name, "url": studio.get("url")}
+            )
+    return out
+
+
+def map_tenrai_authors(raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    A manga's or novel's `authors`, as {mal_id, name, name_mal, url, roles}.
+
+    `name` is western order ("Eiichiro Oda"), the form a new person is
+    created under; `name_mal` keeps MAL's "Oda, Eiichiro", which a hand-made
+    row may hold instead. `roles` are credit roles: Story is the author,
+    Art the illustrator, Story & Art both. An author whose role is none of
+    those, or who has no name, is dropped.
+    """
+    out = []
+    for author in raw_data.get("authors") or []:
+        name_mal = _clean(author.get("name"))
+        roles = MAL_AUTHOR_ROLES.get(_clean(author.get("role")) or "")
+        if not name_mal or not roles:
+            continue
+        out.append(
+            {
+                "mal_id": author.get("mal_id"),
+                "name": _western_order(name_mal),
+                "name_mal": name_mal,
+                "url": author.get("url"),
+                "roles": list(roles),
+            }
+        )
+    return out
+
+
+def map_tenrai_credits(media_type: str, raw_data: Dict[str, Any]) -> Dict[str, list]:
+    """
+    {credit role: [MAL studio or author, ...]} for one media type, in MAL's
+    order: studios for anime and anime movie, authors split by role for
+    manga and novel. Any other type credits nothing from MAL.
+    """
+    if media_type in ("anime", "anime-movie"):
+        return {"studio": map_tenrai_studios(raw_data)}
+    if media_type in ("manga", "novel"):
+        authors = map_tenrai_authors(raw_data)
+        return {
+            role: [a for a in authors if role in a["roles"]]
+            for role in ("author", "illustrator")
+        }
+    return {}
+
+
 def map_tenrai_to_person_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Transforms a raw Tenrai people payload into the flat dict the seiyuu

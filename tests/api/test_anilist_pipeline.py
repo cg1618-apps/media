@@ -84,7 +84,7 @@ def test_manga_fill_gives_anilist_the_session(monkeypatch, db_session, sample_ma
     seen = {}
     monkeypatch.setattr(
         specs_module, "autofill_manga_from_mal",
-        lambda e, force_replace_ratings=True: None,
+        lambda e, force_replace_ratings=True, db=None: None,
     )
     monkeypatch.setattr(
         specs_module, "autofill_from_anilist",
@@ -126,7 +126,7 @@ def test_novel_with_no_mal_link_uses_openlibrary_not_anilist(
     )
     monkeypatch.setattr(
         specs_module, "autofill_novel_from_mal",
-        lambda e, force_replace_ratings=True: called.append("mal"),
+        lambda e, force_replace_ratings=True, db=None: called.append("mal"),
     )
     monkeypatch.setattr(
         specs_module, "autofill_from_anilist",

@@ -2,8 +2,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  blankOnlyPatch,
   externalPickPatch,
   makeExternalPick,
+  makeMalPick,
   makeTmdbPick,
   toIntId,
   toStringId,
@@ -170,6 +172,155 @@ describe("makeTmdbPick", () => {
     expect(showToast).toHaveBeenCalledWith(
       "error",
       "TMDB is unreachable. Enter the IMDb link by hand.",
+    );
+  });
+});
+
+describe("blankOnlyPatch", () => {
+  it("fills null, undefined, empty and whitespace fields, and nothing else", () => {
+    const form = {
+      a: null,
+      b: undefined,
+      c: "",
+      d: "  ",
+      typed: "Mine",
+      zero: 0,
+      status: "Not Yet Aired",
+    };
+    const prefill = {
+      a: 1,
+      b: 2,
+      c: 3,
+      d: 4,
+      e: 5,
+      typed: "MAL's",
+      zero: 12,
+      status: "Finished Airing",
+    };
+    expect(blankOnlyPatch(form, prefill)).toEqual({ a: 1, b: 2, c: 3, d: 4, e: 5 });
+  });
+
+  it("never writes a blank prefill value", () => {
+    expect(blankOnlyPatch({ a: "" }, { a: "  ", b: null })).toEqual({});
+  });
+
+  it("treats a field still at its default as unfilled, and a changed one as typed", () => {
+    const defaults = { status: "Not Yet Aired", ep: 0, kept: "Default" };
+    const form = { status: "Not Yet Aired", ep: 0, kept: "Changed" };
+    const prefill = { status: "Finished Airing", ep: 28, kept: "MAL's" };
+    expect(blankOnlyPatch(form, prefill, defaults)).toEqual({
+      status: "Finished Airing",
+      ep: 28,
+    });
+  });
+});
+
+describe("makeMalPick", () => {
+  const prefillUrl = (id) => `/api/anime/mal-prefill/${id}`;
+  const PREFILL = {
+    anime_name_en: "Frieren: Beyond Journey's End",
+    anime_name_jp: "葬送のフリーレン",
+    ep_total: 28,
+    studio: "Madhouse",
+  };
+  const blank = () => ({
+    mal_id: "",
+    mal_link: "",
+    anime_name_roman: "",
+    anime_name_en: "",
+    anime_name_jp: "",
+    ep_total: "",
+    studio: "",
+  });
+
+  function answer(body, { ok = true, status = 200 } = {}) {
+    global.fetch.mockResolvedValue({ ok, status, json: () => Promise.resolve(body) });
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("links at once, then fills only the fields still blank", async () => {
+    answer(PREFILL);
+    const showToast = vi.fn();
+    const { setter, read } = applyTo({ ...blank(), studio: "Typed Studio" });
+
+    await makeMalPick(setter, showToast, { nameField: "anime_name_roman", prefillUrl })(FRIEREN);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/anime/mal-prefill/52991",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(read()).toEqual({
+      mal_id: 52991,
+      mal_link: FRIEREN.link,
+      anime_name_roman: "Sousou no Frieren",
+      anime_name_en: "Frieren: Beyond Journey's End",
+      anime_name_jp: "葬送のフリーレン",
+      ep_total: 28,
+      studio: "Typed Studio",
+    });
+    expect(showToast).toHaveBeenCalledWith(
+      "success",
+      "Linked to MAL: Sousou no Frieren (3 fields filled)",
+    );
+  });
+
+  it("drops a response that arrives after the admin picked again", async () => {
+    let resolveFetch;
+    global.fetch.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+    const showToast = vi.fn();
+    const { setter, read } = applyTo(blank());
+
+    const pending = makeMalPick(setter, showToast, {
+      nameField: "anime_name_roman",
+      prefillUrl,
+    })(FRIEREN);
+    // A second pick lands before the first one's details come back.
+    setter((form) => ({ ...form, mal_id: 1, mal_link: "https://myanimelist.net/anime/1" }));
+    resolveFetch({ ok: true, status: 200, json: () => Promise.resolve(PREFILL) });
+    await pending;
+
+    expect(read().mal_id).toBe(1);
+    expect(read().anime_name_en).toBe("");
+    expect(read().studio).toBe("");
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it("keeps the id and link when the details fail to load", async () => {
+    answer({ detail: "MyAnimeList (Tenrai) is unreachable." }, { ok: false, status: 502 });
+    const showToast = vi.fn();
+    const { setter, read } = applyTo(blank());
+
+    await makeMalPick(setter, showToast, { nameField: "anime_name_roman", prefillUrl })(FRIEREN);
+
+    expect(read()).toEqual({
+      ...blank(),
+      mal_id: 52991,
+      mal_link: FRIEREN.link,
+      anime_name_roman: "Sousou no Frieren",
+    });
+    expect(showToast).toHaveBeenCalledWith(
+      "error",
+      "Linked to MAL: Sousou no Frieren, but its details could not be loaded. MyAnimeList (Tenrai) is unreachable.",
+    );
+  });
+
+  it("says so when every field was already filled", async () => {
+    answer({ studio: "Madhouse" });
+    const showToast = vi.fn();
+    const { setter } = applyTo({ ...blank(), studio: "Typed Studio" });
+
+    await makeMalPick(setter, showToast, { nameField: "anime_name_roman", prefillUrl })(FRIEREN);
+
+    expect(showToast).toHaveBeenCalledWith(
+      "success",
+      "Linked to MAL: Sousou no Frieren (no blank field to fill)",
     );
   });
 });

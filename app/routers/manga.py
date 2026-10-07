@@ -2,16 +2,20 @@
 Per-type config lives in app/registry.py; endpoint logic in app/routers/_factory.py.
 
 Manga additionally exposes a MyAnimeList search, without novels and light
-novels, for the Add-tab picker, which writes the pick's `mal_link`.
+novels, for the Add-tab picker, which writes the pick's `mal_link`, and the
+picked record's form prefill (app/routers/_mal_prefill.py).
 """
 
-from typing import List
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
+from app.dependencies import get_db
 from app.registry import MEDIA_REGISTRY
 from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._factory import make_media_router
+from app.routers._mal_prefill import MAL_ID, run_mal_prefill
 from app.schemas.external_search import ExternalSearchResult
 from app.services.integrations.tenrai import search_mal_manga
 from app.services.rbac.resolver import Viewer, require_manage_catalog
@@ -29,6 +33,16 @@ def search_mal(
 ):
     """Searches MAL manga by title, leaving out novels and light novels."""
     return run_search(search_mal_manga, q, limit)
+
+
+@router.get("/api/manga/mal-prefill/{mal_id}", response_model=Dict[str, Any])
+def mal_prefill(
+    mal_id: int = MAL_ID,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """The Add form's fields from one MAL record; see app/services/domain/mal_prefill.py."""
+    return run_mal_prefill(db, "manga", mal_id)
 
 
 router.include_router(make_media_router(MEDIA_REGISTRY["manga"]))

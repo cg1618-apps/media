@@ -447,7 +447,7 @@ def bulk_download_missing_covers(
     for manga in _collect(manga_query, Manga, "manga"):
         total += 1
         manga.cover_image_file = None
-        autofill_manga_from_mal(manga, force_replace_ratings=False)
+        autofill_manga_from_mal(manga, force_replace_ratings=False, db=db)
         if manga.cover_image_file:
             downloaded += 1
 
@@ -456,7 +456,7 @@ def bulk_download_missing_covers(
         total += 1
         if novel.mal_link:
             novel.cover_image_file = None
-            autofill_novel_from_mal(novel, force_replace_ratings=False)
+            autofill_novel_from_mal(novel, force_replace_ratings=False, db=db)
             if novel.cover_image_file:
                 downloaded += 1
         else:

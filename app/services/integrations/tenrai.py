@@ -456,6 +456,55 @@ def _search_tenrai(resource: str, params: Dict[str, Any]) -> list:
     return data
 
 
+def _lookup_tenrai(resource: str, mal_id: int) -> Optional[Dict[str, Any]]:
+    """
+    One throttled, unretried GET of `/{resource}/{mal_id}/full` for the Add
+    page's MAL prefill: the record's `data`, None when MAL has no such id, an
+    ExternalSearchError on any other failure - the picker searches' rules, not
+    the Fill fetchers' retries.
+    """
+    tenrai_rate_limiter.wait_if_needed()
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0"}
+    try:
+        response = requests.get(
+            f"{TENRAI_BASE_URL}/{resource}/{mal_id}/full",
+            headers=headers,
+            timeout=SEARCH_TIMEOUT,
+        )
+    except requests.exceptions.RequestException as exc:
+        logger.warning("Tenrai %s %s lookup unreachable: %s", resource, mal_id, exc)
+        raise ExternalSearchError("MyAnimeList (Tenrai) is unreachable.") from exc
+
+    if response.status_code == 404:
+        return None
+    if response.status_code == 429:
+        raise ExternalSearchError(
+            "MyAnimeList (Tenrai) is rate-limited; try again in a moment."
+        )
+    if not 200 <= response.status_code < 300:
+        logger.warning("Tenrai %s %s lookup answered %s", resource, mal_id, response.status_code)
+        raise ExternalSearchError(
+            f"MyAnimeList (Tenrai) failed with HTTP {response.status_code}."
+        )
+    try:
+        data = response.json().get("data")
+    except (ValueError, AttributeError) as exc:
+        raise ExternalSearchError("MyAnimeList (Tenrai) returned an unreadable response.") from exc
+    if not isinstance(data, dict):
+        raise ExternalSearchError("MyAnimeList (Tenrai) returned an unreadable response.")
+    return data
+
+
+def lookup_mal_anime(mal_id: int) -> Optional[Dict[str, Any]]:
+    """One MAL anime record (anime and anime movie), for the Add page's prefill."""
+    return _lookup_tenrai("anime", mal_id)
+
+
+def lookup_mal_manga(mal_id: int) -> Optional[Dict[str, Any]]:
+    """One MAL manga record (manga and novel), for the Add page's prefill."""
+    return _lookup_tenrai("manga", mal_id)
+
+
 def _cover_url(item: Dict[str, Any]) -> Optional[str]:
     images = item.get("images") or {}
     for fmt in ("jpg", "webp"):

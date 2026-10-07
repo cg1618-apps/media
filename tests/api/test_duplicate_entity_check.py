@@ -92,3 +92,30 @@ def test_transitive_closure_across_fields_forms_one_cluster(db_session):
     found = find_duplicate_entities(db_session)
     assert len(found) == 1
     assert len(found[0]["ids"]) == 3
+
+
+def test_studios_sharing_one_alt_fragment_are_flagged(db_session):
+    db_session.add_all(
+        [
+            models.Studio(name_en="Studio 1", name_alt="S1, Studio One"),
+            models.Studio(name_en="First Studio", name_alt="Studio One, FS"),
+        ]
+    )
+    db_session.commit()
+    found = find_duplicate_entities(db_session)
+    assert len(found) == 1
+    assert sorted(found[0]["names"]) == sorted(["Studio 1", "First Studio"])
+
+
+def test_studios_whose_alt_lists_share_no_fragment_are_not_flagged(db_session):
+    # Both alt lists are non-empty and overlap as text ("Studio One" is a
+    # substring of "Studio One Plus"), so a whole-value or substring compare
+    # would have something to get wrong.
+    db_session.add_all(
+        [
+            models.Studio(name_en="Studio 1", name_alt="S1, Studio One"),
+            models.Studio(name_en="Studio 2", name_alt="S2, Studio One Plus"),
+        ]
+    )
+    db_session.commit()
+    assert find_duplicate_entities(db_session) == []
