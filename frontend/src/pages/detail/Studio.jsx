@@ -16,6 +16,7 @@ import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
 import InfoCard from "../../components/info/InfoCard";
+import MalButton from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
 import {
   AdminToolbar,
@@ -173,9 +174,13 @@ export default function Studio() {
             <h1 className="font-display text-4xl font-semibold text-text leading-tight">
               {name}
             </h1>
-            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint mt-2">
-              {creditTotal} credited entr{creditTotal === 1 ? "y" : "ies"}
-            </p>
+            <div className="flex flex-wrap items-center gap-3 mt-2">
+              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint">
+                {creditTotal} credited entr{creditTotal === 1 ? "y" : "ies"}
+              </p>
+              {/* The way out to MAL, by the name as on the character page. */}
+              <MalButton href={studio.mal_link} />
+            </div>
           </div>
 
           <InfoCard

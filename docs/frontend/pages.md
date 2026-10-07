@@ -818,7 +818,9 @@ Layout:
    select, then the **Naming** card (`NamingCard`, all four names —
    English, Chinese, Japanese, Alternative — the displayed one included, as
    on the person and character pages).
-4. **Right column** — the display name, a credited-entry count, a "Profile"
+4. **Right column** — the display name, a credited-entry count and, for a
+   studio with a `mal_link`, a **MyAnimeList** button beside it (`MalButton`,
+   as on the person and character pages; none without one), a "Profile"
    `InfoCard` (country; `founded – defunct`, or `Since founded` while the
    studio is still working, and no invented span when both are empty;
    website and MAL — `Producer #<mal_id>` — as external links; the remark
