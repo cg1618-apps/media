@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-10-05
+Last verified: 2026-10-07
 
 ## What this is for
 
@@ -80,7 +80,7 @@ kept apart in both directions:
 | `"h-game"` | `FranchiseType.H_GAME` (`"H-Game"`), labelled `h-game` on creation |
 | `"hentai"` | `FranchiseType.HENTAI` (`"Hentai"`), labelled `hentai` on creation |
 
-Resolution rule (module docstring): a UUID passes through; a non-empty string is looked up case-insensitively across all five franchise name columns; a blank cell falls back to the entry's own titles; nothing found creates a franchise with the type above and whatever names were available.
+Resolution rule (module docstring): a UUID passes through; a non-empty string is looked up case-insensitively across all five franchise name columns, a fragment of the comma-separated `franchise_name_alt` matching on its own; a blank cell falls back to the entry's own titles; nothing found creates a franchise with the type above and whatever names were available.
 
 ## The twelve media types
 
@@ -360,7 +360,7 @@ End-to-end pipeline behaviour: [data-actions.md](data-actions.md); the external 
 
 ### Duplicate rule key (`app/services/domain/duplicates.py`)
 
-Every finder is the same rule: rows that agree exactly on the key **and** share at least one name (case-insensitive, via `get_all_names`) are duplicates, transitively.
+Every finder is the same rule: rows that agree exactly on the key **and** share at least one name (case-insensitive, via `get_all_names`, each fragment of an `*_alt` list a name of its own) are duplicates, transitively.
 
 | Finder | Key | Extra match |
 |---|---|---|

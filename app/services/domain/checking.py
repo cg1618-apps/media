@@ -426,7 +426,9 @@ def find_duplicate_entities(db: Session) -> list[dict]:
     resolve_person/resolve_studio look a new credit up by whichever of those
     fields matches, so two rows that collide on any one of them are
     just as ambiguous to future credit resolution as two that collide on the
-    "primary" field. Union-find gives the transitive closure across all of a
+    "primary" field. name_alt is a comma-separated list, so two rows sharing
+    one of its fragments collide just as they would for _find_by_name.
+    Union-find gives the transitive closure across all of a
     model's fields (A's name_en == B's name_jp, B's name_jp == C's name_alt,
     etc. all collapse into one cluster). A person and a studio sharing a name
     are never grouped together - each table is scanned independently.
@@ -437,15 +439,11 @@ def find_duplicate_entities(db: Session) -> list[dict]:
     of its rows.
     """
     from app.utils.clustering import cluster
-    from app.utils.name_normalize import normalize_name
+    from app.utils.name_normalize import names_of, normalize_name
 
     def keys(row) -> set[str]:
         fields = getattr(row, "_name_fields", None) or ["name_en"]
-        return {
-            normalize_name(getattr(row, field))
-            for field in fields
-            if getattr(row, field, None)
-        }
+        return {normalize_name(name) for name in names_of(row, fields)}
 
     def label(row) -> str:
         return row.display_name

@@ -347,24 +347,30 @@ export const endpoints = {
   // resource(type); these groups hold the endpoints that are not CRUD. Every
   // search answers ExternalSearchResult rows (external_id, link, title,
   // title_alt, year, detail, cover_url), or a 502 whose detail says why.
+  // malPrefill(id) answers the form fields a picked MAL record fills
+  // (lib/externalPick.js makeMalPick), a 404 for an unknown id, or a 502.
   anime: {
     searchMal: (q, limit = 10) =>
       `/api/anime/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+    malPrefill: (id) => `/api/anime/mal-prefill/${encodeURIComponent(id)}`,
   },
 
   animeMovie: {
     searchMal: (q, limit = 10) =>
       `/api/anime-movie/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+    malPrefill: (id) => `/api/anime-movie/mal-prefill/${encodeURIComponent(id)}`,
   },
 
   manga: {
     searchMal: (q, limit = 10) =>
       `/api/manga/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+    malPrefill: (id) => `/api/manga/mal-prefill/${encodeURIComponent(id)}`,
   },
 
   novel: {
     searchMal: (q, limit = 10) =>
       `/api/novel/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+    malPrefill: (id) => `/api/novel/mal-prefill/${encodeURIComponent(id)}`,
     searchOpenLibrary: (q, limit = 10) =>
       `/api/novel/search-openlibrary?q=${encodeURIComponent(q)}&limit=${limit}`,
   },

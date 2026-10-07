@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-06
+Last verified: 2026-10-07
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -170,6 +170,7 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/`            | Public | List anime. Optional params: `franchise_id`, `series_id`, `search_query`, `airing_season` (e.g. `"WIN 2026"`), `limit`, `offset`. |
 | `GET`    | `/search-mal`  | `manage.catalog` | `?q=` (required), `limit` (1-50, default 10). Searches MAL anime of every type. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
+| `GET`    | `/mal-prefill/{mal_id}` | `manage.catalog` | The Add form's fields from one MAL anime record — see [MAL prefill](#mal-prefill). 404 for an id MAL does not have, 502 when Tenrai fails. Read-only. |
 | `GET`    | `/{entry_id}` | Public | Get a single anime entry by UUID.                                                                              |
 | `POST`   | `/`            | Admin  | Create an anime entry. Runs episode math and domain rules. Body: `AnimeCreate`.                                |
 | `PUT`    | `/{entry_id}` | Admin  | Full update. Runs episode math and domain rules. Body: `AnimeUpdate`.                                          |
@@ -187,6 +188,7 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 | -------- | -------------- | ------ | ------------------------------------------------------------------------------------------ |
 | `GET`    | `/`            | Public | List all anime movies. Optional params: `franchise_id`, `watching_status`, `search_query`, `limit`, `offset`. |
 | `GET`    | `/search-mal`  | `manage.catalog` | `?q=`, `limit`. Searches MAL anime of type Movie. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
+| `GET`    | `/mal-prefill/{mal_id}` | `manage.catalog` | The Add form's fields from one MAL anime record — see [MAL prefill](#mal-prefill). 404 / 502 as anime's. Read-only. |
 | `GET`    | `/{entry_id}` | Public | Get a single anime movie entry by UUID.                                                    |
 | `POST`   | `/`            | Admin  | Create an anime movie entry. Body: `AnimeMovieCreate`.                                     |
 | `PUT`    | `/{entry_id}` | Admin  | Full update. Body: `AnimeMovieUpdate`.                                                     |
@@ -260,6 +262,7 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `GET`    | `/`                    | Public | List all manga. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `search_query`. No `to_reread` filter — dropped along with the column; passing it is silently ignored like any unknown filter. |
 | `GET`    | `/search-mal`          | `manage.catalog` | `?q=`, `limit`. Searches MAL manga, excluding light novels and novels. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
+| `GET`    | `/mal-prefill/{mal_id}` | `manage.catalog` | The Add form's fields from one MAL manga record — see [MAL prefill](#mal-prefill). 404 / 502 as anime's. Read-only. |
 | `GET`    | `/{entry_id}`          | Public | Get a single manga entry by UUID.                                                                                                    |
 | `POST`   | `/`                    | Admin  | Create a manga entry. Auto-runs `execute_replace_single_manga` after creation. Body: `MangaCreate`.                                  |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a manga entry. Auto-runs `execute_replace_single_manga` after update. Body: `MangaUpdate`.                            |
@@ -277,6 +280,7 @@ join is read-time through `series.franchise_id`, the same cascade entries get.
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/`                    | Public | List all novels. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `search_query`. No `to_reread` filter — dropped along with the column; passing it is silently ignored like any unknown filter. `units` are eagerly loaded (`selectinload`) on every row. |
 | `GET`    | `/search-mal`          | `manage.catalog` | `?q=`, `limit`. Searches MAL light novels and novels. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
+| `GET`    | `/mal-prefill/{mal_id}` | `manage.catalog` | The Add form's fields from one MAL manga record (MAL files novels as manga) — see [MAL prefill](#mal-prefill). 404 / 502 as anime's. Read-only. |
 | `GET`    | `/search-openlibrary`  | `manage.catalog` | `?q=`, `limit`. Searches Open Library works; `external_id` is the `OL…W` id. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/{entry_id}`          | Public | Get a single novel entry by UUID.                                                                                                     |
 | `POST`   | `/`                    | Admin  | Create a novel entry. Auto-runs `execute_replace_single_novel` after creation. Body: `NovelCreate`.                                   |
@@ -1130,6 +1134,33 @@ with `GET /api/<type>/tmdb-imdb-id?ref=<external_id>` →
 `{imdb_id, imdb_link}`: 422 on a malformed ref, 404 when TMDB knows no IMDb
 id for the title, 502 when TMDB fails.
 
+### MAL prefill
+
+A MAL pick on the anime, anime movie, manga or novel tab goes one step
+further: `GET /api/<type>/mal-prefill/{mal_id}` (`anime`, `anime-movie`,
+`manga`, `novel`; `manage.catalog`) answers a flat object of **form field
+names** to values, with every null left out, and the SPA fills only the
+fields the admin left blank. It carries exactly what that type's MAL autofill
+writes on save and on Fill, under the same conditions, plus MAL's English and
+Japanese titles and the credits:
+
+| Type | Fields |
+| --- | --- |
+| `anime` | `anime_name_en`, `anime_name_jp`, `airing_type`, `airing_status`, `release_season`, `release_date`, `ep_total`, `mal_rating`, `mal_rank`, `studio` |
+| `anime-movie` | `anime_movie_name_en`, `anime_movie_name_jp`, `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `studio` |
+| `manga` | `manga_name_en`, `manga_name_jp`, `serialization_status`, `release_date`, `end_date`, `vol_total` and `ch_total` (only when the status is `完結`), `mal_rating`, `mal_rank`, `author_plot` (MAL's Story), `author_draw` (Art) |
+| `novel` | `novel_name_en`, `novel_name_jp`, `serialization_status`, `release_date`, `end_date`, `vol_total_original` and `ch_total` (only when `完結`), `mal_rating`, `mal_rank`, `author` (Story), `illustrator` (Art) |
+
+`mal_rank` is a string, as the column is; the credit fields are comma-joined
+names, as the form holds them. A credited studio or person is matched the way
+the MAL autofill matches it ([business-rules.md](business-rules.md#mal-credits)):
+a match is named by one of its own names that the save path resolves back to
+it — its display name when that does — and anything else by MAL's name, a
+person's in western order. The cover and the Official/Twitter reference rows
+are not in it; the save path fetches those. The route never creates or links
+a row. One attempt, no retry: 404 when MAL has no such id, 502 with a
+`detail` when Tenrai fails.
+
 A search that cannot be answered — the source is down, refuses the request,
 or its key is not configured — is a **502** whose `detail` says which, never
 an empty list, so the picker can tell "no such title" from "Comic Vine is
@@ -1414,7 +1445,7 @@ derived from `(role, media_type)`, never stored.
 | `GET`    | `/role-scopes`     | Public | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form cannot offer a pair the API rejects. Declared before `/{system_id}` for the same reason `role-counts` is. |
 | `GET`    | `/{system_id}`     | Public | Get one person by UUID. 404 if absent or hidden.                                     |
 | `GET`    | `/{system_id}/entries` | Public | The entries this person is credited on, grouped by `(media_type, role)`. 404 if the person is absent or hidden. |
-| `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. A body with no name at all is 422, mirroring `ck_person_has_a_name`. Only on the create branch, `mal_id` is derived from `mal_link` and a seiyuu is enriched from MAL (see below). |
+| `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. The lookup is by `name`, else the first of the labelled names - the first fragment of `name_alt` when that is all the body carries, since `name_alt` is a comma-separated list. A body with no name at all is 422, mirroring `ck_person_has_a_name`. Only on the create branch, `mal_id` is derived from `mal_link` and a seiyuu is enriched from MAL (see below). |
 | `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. A non-null `photo_fallback_entry_id` must name an entry this person is credited on or voices a character in, and that the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see, as the role rows are kept. `mal_id` is derived from `mal_link`, and a seiyuu is enriched from MAL after the payload is copied (see below). |
 | `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline rating and remark edits. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The `PUT` rules are checked before anything is written: `gender` and `my_rating` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `PersonResponse`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit`, `character_casting_voice` and `person_role` rows — no `deleted_record` entry is logged. The castings they voiced stay, un-voiced by them (Decision H). `credits` is **required**: it is the count the confirmation dialog showed — `media_credit` rows plus voice rows — and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
@@ -1523,7 +1554,7 @@ role/scope filter — studios have no `person_role` concept.
 | `GET`    | `/`                   | Public | List all studios, sorted by `display_name` case-insensitively.                   |
 | `GET`    | `/{system_id}`        | Public | Get one studio by UUID. 404 if absent or hidden.                                 |
 | `GET`    | `/{system_id}/entries`| Public | The entries this studio is credited on, grouped by media type. 404 if the studio is absent or hidden. |
-| `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`); metadata on an existing row is left untouched. Body: `StudioCreate`. Only on the create branch, a payload carrying `mal_id` is enriched from MAL first (see below). |
+| `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries, since `name_alt` is a comma-separated list; metadata on an existing row is left untouched. Body: `StudioCreate`. Only on the create branch, a payload carrying `mal_id` is enriched from MAL first (see below). |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Every credit points at the row by id, so a rename here changes what every credited entry shows — there is no propagation step. Body: `StudioUpdate`. The MAL enrichment runs after the payload is copied, so your values win. |
 | `PATCH`  | `/{system_id}`        | Admin  | Partially update a studio's own columns — the detail page's inline rating and remark edits. Body: any subset of the `StudioBase` columns as a JSON object. Only the keys sent change. The `PUT` rules are checked before anything is written: `my_rating` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `StudioResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. |
@@ -1638,7 +1669,7 @@ uses. `app/routers/publisher.py` mirrors `/api/studio` endpoint for endpoint,
 | `GET`    | `/?scope=`            | Public | List publishers, sorted by `display_name` case-insensitively (in Python — the display name is a per-row choice among four nullable columns). `scope` is a hyphenated media-type key and narrows the list to publishers offered on that type; omitted, it returns **everything, including publishers holding no scope at all** — the admin list page must be able to see a publisher in order to give it one. There is no `/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
 | `GET`    | `/{system_id}`        | Public | Get one publisher by UUID. 404 if absent or hidden.                              |
 | `GET`    | `/{system_id}/entries`| Public | The entries this publisher is credited on, grouped by media type. 404 if the publisher is absent or hidden. |
-| `POST`   | `/`                   | Admin  | Create a publisher, **or return the existing one** under that name — find-or-create for the same reason as studio: the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list, so a second row would split the credits. Matching is on the normalized name (`find_publisher`); metadata on an existing row is left untouched. Body: `PublisherCreate`. |
+| `POST`   | `/`                   | Admin  | Create a publisher, **or return the existing one** under that name — find-or-create for the same reason as studio: the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list, so a second row would split the credits. Matching is on the normalized name (`find_publisher`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries; metadata on an existing row is left untouched. Body: `PublisherCreate`. |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a publisher. Every credit points at the row by id, so a rename here changes what every credited entry shows — no propagation step. Body: `PublisherUpdate`. |
 | `PATCH`  | `/{system_id}`        | Admin  | Partially update a publisher's own columns — the detail page's inline rating and remark edits. Body: any subset of the `PublisherBase` columns as a JSON object; `scopes` is not a column (edit it through `PUT`). Only the keys sent change. The `PUT` rules are checked before anything is written: `my_rating` is its vocabulary (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). Returns the full `PublisherResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a publisher. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. **Also deletes the publisher's logo object** (see below). |

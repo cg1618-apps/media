@@ -10,8 +10,11 @@ cell):
 Franchise
   * a UUID passes through;
   * a non-empty string names the franchise itself and is looked up
-    case-insensitively across every franchise name column;
-  * a blank cell falls back to the entry's own titles, looked up the same way;
+    case-insensitively across every franchise name column, where
+    franchise_name_alt is a comma-separated list and each of its fragments
+    is a name of its own (find_by_names);
+  * a blank cell falls back to the entry's own titles, looked up the same
+    way - the entry's own alt column is split into its names too;
   * nothing found -> a franchise is created, typed for the media
     (see FRANCHISE_TYPE_FOR), carrying whatever names were available.
 
@@ -25,7 +28,8 @@ Families
 
 Series
   * a UUID passes through;
-  * a non-empty string is looked up case-insensitively by name;
+  * a non-empty string is looked up case-insensitively by name, each
+    fragment of series_name_alt counting as one;
   * not found -> None. A series is never auto-created: a series is a
     deliberate grouping, a franchise is just the top of the tree.
 """
@@ -44,6 +48,7 @@ from app.utils.constants import (
     MAINSTREAM_FAMILY,
     FranchiseType,
 )
+from app.utils.name_normalize import names_of
 
 logger = logging.getLogger(__name__)
 
@@ -194,15 +199,28 @@ def _clean_names(names: Dict[str, Any]) -> Dict[str, Optional[str]]:
     return out
 
 
-def _find_by_names(db: Session, model, columns, values, *criteria) -> Optional[Any]:
-    values = [v for v in values if v]
-    if not values:
+def find_by_names(db: Session, model, columns, values, *criteria) -> Optional[Any]:
+    """
+    The first `model` row passing `criteria` that holds one of `values` as a
+    name in one of `columns`, compared case-insensitively and exactly - a
+    name is never a pattern, so `%` and `_` in it are literal.
+
+    An `*_alt` column is a comma-separated list, and a name matches when it
+    is any one of its fragments (names_of); the column's whole value is not
+    one of its names. The SQL only narrows to rows where some column
+    CONTAINS a wanted name - a superset, so a Pull resolving a franchise per
+    row does not load every franchise into Python each time; names_of
+    decides.
+    """
+    wanted = {str(v).strip().lower() for v in values if v and str(v).strip()}
+    if not wanted:
         return None
-    return (
-        db.query(model)
-        .filter(or_(*[c.ilike(v) for c in columns for v in values]), *criteria)
-        .first()
-    )
+    fields = [column.key for column in columns]
+    contains = or_(*[c.icontains(v, autoescape=True) for c in columns for v in wanted])
+    for row in db.query(model).filter(contains, *criteria):
+        if any(name.lower() in wanted for name in names_of(row, fields)):
+            return row
+    return None
 
 
 def _has_type(franchise_type: str):
@@ -242,8 +260,8 @@ def resolve_franchise(db: Session, franchise_id: Any, names: Dict[str, Any], med
     cell = franchise_id.strip() if isinstance(franchise_id, str) else ""
     names = {"en": cell} if cell else _clean_names(names)
 
-    existing = _find_by_names(
-        db, Franchise, FRANCHISE_NAME_COLUMNS, names.values(), _segregation(media_type)
+    existing = find_by_names(
+        db, Franchise, FRANCHISE_NAME_COLUMNS, names_of(names, NAME_KEYS), _segregation(media_type)
     )
     if existing:
         logger.info("Auto-resolved existing Franchise for %s: %s", label, existing.system_id)
@@ -282,7 +300,7 @@ def resolve_series(db: Session, series_id: Any, media_type: str) -> Any:
     name = series_id.strip()
     if not name:
         return None
-    existing = _find_by_names(db, Series, SERIES_NAME_COLUMNS, [name])
+    existing = find_by_names(db, Series, SERIES_NAME_COLUMNS, [name])
     if existing:
         return existing.system_id
     logger.warning("Could not resolve Series by name %r for %s; setting to null.", name, media_type)

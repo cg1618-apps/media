@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-06
+Last verified: 2026-10-07
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -222,10 +222,10 @@ searches, and what a pick writes:
 
 | Tab | Source | Endpoint (`api/endpoints.js`) | Writes |
 | --- | --- | --- | --- |
-| Anime | MAL | `anime.searchMal` | `mal_id`, `mal_link`, blank `anime_name_roman` |
-| Anime Movie | MAL (movies) | `animeMovie.searchMal` | `mal_id`, `mal_link`, blank `anime_movie_name_roman` |
-| Manga | MAL (no novels) | `manga.searchMal` | `mal_id`, `mal_link`, blank `manga_name_roman` |
-| Novel | MAL (novels) **and** Open Library, two boxes | `novel.searchMal`, `novel.searchOpenLibrary` | MAL: `mal_id`, `mal_link`, blank `novel_name_roman`; Open Library: `openlibrary_id` (a string), `openlibrary_link`, blank `novel_name_en` |
+| Anime | MAL | `anime.searchMal` | `mal_id`, `mal_link`, blank `anime_name_roman`, then the MAL prefill (below) |
+| Anime Movie | MAL (movies) | `animeMovie.searchMal` | `mal_id`, `mal_link`, blank `anime_movie_name_roman`, then the MAL prefill |
+| Manga | MAL (no novels) | `manga.searchMal` | `mal_id`, `mal_link`, blank `manga_name_roman`, then the MAL prefill |
+| Novel | MAL (novels) **and** Open Library, two boxes | `novel.searchMal`, `novel.searchOpenLibrary` | MAL: `mal_id`, `mal_link`, blank `novel_name_roman`, then the MAL prefill; Open Library: `openlibrary_id` (a string), `openlibrary_link`, blank `novel_name_en` |
 | Movie / TV Show / Cartoon | TMDB | `movie` / `tvShow` / `cartoon` `.searchTmdb` | `imdb_id`, `imdb_link`, blank `*_name_en`, after a resolve (below) |
 | Comic | Comic Vine, **on Enter** | `comic.searchComicVine` | `comicvine_id`, `comicvine_link`, blank `comic_name_en` |
 | Game / H-Game | IGDB | `game.searchIgdb` / `hGame.searchIgdb` | `igdb_id`, `igdb_link`, blank `game_name_en` / `h_game_name_en` |
@@ -246,10 +246,8 @@ The box never touches form state; a pick goes to a handler built in `Add.jsx`
 from `lib/externalPick.js`. `makeExternalPick` always overwrites the id (an
 integer for MAL, IGDB and Comic Vine, a string for Open Library and IMDb) and
 the link, writes the one name column the table names **only when it is
-blank**, and toasts "Linked to <source>: <title>". Nothing else is copied:
-the rest is Fill's job, or the create path's. The name column is the column
-the source's title actually is. MAL's `title` is the romaji one, and the
-create-time MAL autofill on anime never writes names, so nothing else would.
+blank**, and toasts "Linked to <source>: <title>". The name column is the
+column the source's title actually is: MAL's `title` is the romaji one.
 Person and character get MAL's native name in `name_jp`, which is exactly
 what their create-time MAL autofill writes; MAL's `title` for them is
 family-name-first ("Hanazawa, Kana"), not the western-order `name_en` that
@@ -257,6 +255,23 @@ autofill derives, so it is not written. Person and character forms carry
 only `mal_link`; the server derives `mal_id` from it on save and fills names
 and photo from MAL then, for a person only when it holds the seiyuu role,
 which the person box's hint says.
+
+**A MAL pick on anime, anime movie, manga and novel prefills the form.**
+`makeMalPick` writes the id, link and romaji name at once, as above, then
+fetches `GET /api/<type>/mal-prefill/{mal_id}` (`endpoints.<type>.malPrefill`)
+and merges the answer into **only the fields the admin has not filled**: a
+field that is `null`, empty or whitespace, or that still holds the type's
+starting value (`freshForm`, so a `/defaults` value or anime's `airing_status`
+"Not Yet Aired"). A value the admin typed or changed is never replaced. The answer carries what
+the save's MAL autofill would write (dates, status, totals, ratings, airing
+type and season), MAL's English and Japanese titles, and the studio or author
+credits as comma-joined names; the field list per type is in
+[api.md](../api.md#mal-prefill). An answer that arrives after the admin picked
+another result - the form's `mal_id` has moved on - is dropped. On success the
+toast says how many fields were filled; when the prefill fails, the id and
+link stay and an error toast says the details could not be loaded. Every other
+source's pick copies nothing beyond its id, link and name: the rest is Fill's
+job, or the create path's.
 
 **TMDB picks resolve before they write.** Movie, TV show and cartoon rows are
 keyed by IMDb, and a TMDB result's `external_id` is a TMDB ref (`movie/603`,

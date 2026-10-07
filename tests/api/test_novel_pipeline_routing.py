@@ -85,7 +85,7 @@ class TestFillEligible:
         )
         monkeypatch.setattr(
             "app.services.pipelines.specs.autofill_novel_from_mal",
-            lambda e, force_replace_ratings=True: called.append("mal"),
+            lambda e, force_replace_ratings=True, db=None: called.append("mal"),
         )
         novel = make_novel(db_session, mal_link="", openlibrary_id="OL5738148W")
         assert SPEC.fill_eligible(db_session, novel) is True
@@ -104,7 +104,7 @@ class TestFillRouting:
         )
         monkeypatch.setattr(
             "app.services.pipelines.specs.autofill_novel_from_mal",
-            lambda e, force_replace_ratings=True: called.append("mal"),
+            lambda e, force_replace_ratings=True, db=None: called.append("mal"),
         )
         novel = make_novel(db_session, openlibrary_id="OL5738148W")
         PIPELINES["novel"].fill(db_session, novel)
@@ -118,7 +118,7 @@ class TestFillRouting:
         )
         monkeypatch.setattr(
             "app.services.pipelines.specs.autofill_novel_from_mal",
-            lambda e, force_replace_ratings=True: called.append("mal"),
+            lambda e, force_replace_ratings=True, db=None: called.append("mal"),
         )
         novel = make_novel(
             db_session,

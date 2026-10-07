@@ -161,9 +161,7 @@ def _fill_anime_movie(db, entry) -> None:
 
 
 def _fill_manga(db, entry) -> None:
-    # The Tenrai autofill takes no session - unchanged. AniList's half needs
-    # one for its media_source row, and gets it here.
-    autofill_manga_from_mal(entry, force_replace_ratings=True)
+    autofill_manga_from_mal(entry, force_replace_ratings=True, db=db)
     autofill_from_anilist(entry, MANGA, db)
 
 
@@ -172,7 +170,7 @@ def _fill_novel(db, entry) -> None:
     # Open Library. AniList applies to the Tenrai branch only - an entry with
     # no mal_id has nothing for AniList to key on either.
     if entry.mal_link:
-        autofill_novel_from_mal(entry, force_replace_ratings=True)
+        autofill_novel_from_mal(entry, force_replace_ratings=True, db=db)
         autofill_from_anilist(entry, MANGA, db)
     else:
         autofill_novel_from_openlibrary(entry, db)

@@ -96,6 +96,7 @@ import {
 import { buildAutofillPatch } from "../../lib/autofill";
 import {
   makeExternalPick,
+  makeMalPick,
   makeTmdbPick,
   toIntId,
   toStringId,
@@ -697,25 +698,36 @@ export default function Add() {
   // name only where the admin left it blank, and only into the column that
   // name actually is:
   //   - MAL's title is the romaji one, so anime, anime movie, manga and novel
-  //     get it in their Romaji column; the create path's MAL autofill never
-  //     writes names, so nothing else would.
+  //     get it in their Romaji column. Their pick then fetches the type's
+  //     mal-prefill (makeMalPick) and fills every field still blank with what
+  //     the save's MAL autofill would write - plus the English and Japanese
+  //     titles and the studio or author credits, which the autofill never
+  //     puts on the form - so the admin sees MAL's values before saving.
   //   - Person and character get MAL's native name in name_jp, which is
   //     exactly what their create-time MAL autofill writes. MAL's `title` is
   //     family-name-first ("Hanazawa, Kana"), not the western-order name_en
   //     that autofill derives, so it is not written.
   //   - TMDB, Open Library, Comic Vine and IGDB titles are the English ones.
-  const malPick = (setter, nameField) =>
-    makeExternalPick(setter, showToast, {
-      source: "MAL",
-      idField: "mal_id",
-      cast: toIntId,
-      linkField: "mal_link",
-      nameField,
-    });
-  const applyAnimeMalPick = malPick(setAf, "anime_name_roman");
-  const applyAnimeMovieMalPick = malPick(setAmf, "anime_movie_name_roman");
-  const applyMangaMalPick = malPick(setMgf, "manga_name_roman");
-  const applyNovelMalPick = malPick(setNvf, "novel_name_roman");
+  const applyAnimeMalPick = makeMalPick(setAf, showToast, {
+    nameField: "anime_name_roman",
+    prefillUrl: endpoints.anime.malPrefill,
+    defaults: freshForm("anime"),
+  });
+  const applyAnimeMovieMalPick = makeMalPick(setAmf, showToast, {
+    nameField: "anime_movie_name_roman",
+    prefillUrl: endpoints.animeMovie.malPrefill,
+    defaults: freshForm("anime-movie"),
+  });
+  const applyMangaMalPick = makeMalPick(setMgf, showToast, {
+    nameField: "manga_name_roman",
+    prefillUrl: endpoints.manga.malPrefill,
+    defaults: freshForm("manga"),
+  });
+  const applyNovelMalPick = makeMalPick(setNvf, showToast, {
+    nameField: "novel_name_roman",
+    prefillUrl: endpoints.novel.malPrefill,
+    defaults: freshForm("novel"),
+  });
   const applyNovelOpenLibraryPick = makeExternalPick(setNvf, showToast, {
     source: "Open Library",
     idField: "openlibrary_id",

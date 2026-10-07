@@ -61,6 +61,7 @@ from app.services.domain.credits import (
 )
 from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import enforce_h_comic_invariants
+from app.services.domain.hierarchy import find_by_names
 from app.services.domain.user_list import installation_owner_id
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
@@ -1290,17 +1291,16 @@ def execute_pull_specific(
         ):
             fname = clean_header_dict["franchise_id"]
             if fname.strip():
-                fran = (
-                    db.query(Franchise)
-                    .filter(
-                        or_(
-                            Franchise.franchise_name_en == fname,
-                            Franchise.franchise_name_cn == fname,
-                            Franchise.franchise_name_jp == fname,
-                            Franchise.franchise_name_alt == fname,
-                        )
-                    )
-                    .first()
+                fran = find_by_names(
+                    db,
+                    Franchise,
+                    (
+                        Franchise.franchise_name_en,
+                        Franchise.franchise_name_cn,
+                        Franchise.franchise_name_jp,
+                        Franchise.franchise_name_alt,
+                    ),
+                    [fname],
                 )
                 if fran:
                     clean_header_dict["franchise_id"] = fran.system_id
@@ -1314,18 +1314,17 @@ def execute_pull_specific(
             cname = clean_header_dict["collection_id"].strip()
             resolved = None
             if cname:
-                resolved = (
-                    db.query(Collection)
-                    .filter(
-                        or_(
-                            Collection.collection_name_en == cname,
-                            Collection.collection_name_cn == cname,
-                            Collection.collection_name_roman == cname,
-                            Collection.collection_name_jp == cname,
-                            Collection.collection_name_alt == cname,
-                        )
-                    )
-                    .first()
+                resolved = find_by_names(
+                    db,
+                    Collection,
+                    (
+                        Collection.collection_name_en,
+                        Collection.collection_name_cn,
+                        Collection.collection_name_roman,
+                        Collection.collection_name_jp,
+                        Collection.collection_name_alt,
+                    ),
+                    [cname],
                 )
                 if not resolved:
                     logger.warning(
@@ -1341,16 +1340,11 @@ def execute_pull_specific(
         ):
             sname = clean_header_dict["series_id"]
             if sname.strip():
-                series = (
-                    db.query(Series)
-                    .filter(
-                        or_(
-                            Series.series_name_en == sname,
-                            Series.series_name_cn == sname,
-                            Series.series_name_alt == sname,
-                        )
-                    )
-                    .first()
+                series = find_by_names(
+                    db,
+                    Series,
+                    (Series.series_name_en, Series.series_name_cn, Series.series_name_alt),
+                    [sname],
                 )
                 if series:
                     clean_header_dict["series_id"] = series.system_id
