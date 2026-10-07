@@ -3281,3 +3281,29 @@ page's cast row "Conan (Kudo Shinichi)" read as two characters.
   "+ Identity" was.
 - **A create-identity dialog in the cast editor** with all the identity's fields.
   Offered and not chosen; the Add and Modify tabs hold the full form.
+
+### A cast row syncs with its original; the seiyuu are read, not stored (2026-10-07)
+
+- **Owner's request: "Sync from original" on a cast row and on the whole cast,
+  "Sync from cast" on the character page, and a fill-only both-ways version on
+  the System page that Calculate All runs.** The four fields are seiyuu,
+  remark, role and photo.
+- **The original is the record the row casts** - the identity it names, else
+  the character. Remark, role and photo already exist there (an identity has
+  no role, so the character's stands in).
+- **Seiyuu stay on cast rows only.** A character and an identity hold none,
+  and adding a default-seiyuu list to them was offered and declined: a seiyuu
+  belongs to a performance, and a second list would be a second answer to "who
+  voices whom". The original seiyuu are therefore read from the same character
+  and identity's other voiced cast rows - the list used most often, ties to the
+  oldest row, so a season 2 takes season 1's voices. "The earliest entry by
+  release date" was the other reading; it needs a date every entry has, and a
+  recast in one season would win by age alone.
+- **The photo is cleared, not copied.** A cast row with no photo of its own
+  already shows the original's, so copying the key would freeze a picture the
+  original may later change. Syncing a row therefore clears its photo, and the
+  fill leaves cast photos alone.
+- **The fill runs originals first, then cast rows**, so a character with no
+  remark takes one from its highest-ranked row and the rest of its rows take it
+  in the same run; the reverse order needed two runs to settle. It replaces
+  `run_sync_character_roles`, whose role fill is now its first step.

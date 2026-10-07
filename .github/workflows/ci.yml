@@ -46,9 +46,9 @@ jobs:
       JWT_SECRET_KEY: ci-not-a-real-secret
       ADMIN_PASSWORD: ci-not-a-real-password
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           # Same interpreter as the runtime image (dockerfile: python:3.13-slim).
           python-version: "3.13"
@@ -69,7 +69,7 @@ jobs:
       - name: Backend tests
         run: pytest -q -p no:cacheprovider
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm

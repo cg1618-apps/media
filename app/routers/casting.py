@@ -30,6 +30,7 @@ from app import models
 from app.dependencies import get_db
 from app.schemas.image_focus import ImageFocus
 from app.services.domain import casting as casting_service
+from app.services.domain import casting_sync
 from app.services.domain import mal_cast as mal_cast_service
 from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
@@ -192,6 +193,59 @@ def import_mal_cast(
     db.commit()
     background_tasks.add_task(mal_cast_service.download_portraits, portraits)
     return result
+
+
+class OriginalRowIn(BaseModel):
+    character_id: UUID
+    identity_id: Optional[UUID] = None
+
+
+class OriginalsIn(BaseModel):
+    media_type: str
+    # The entry being edited, whose own cast rows must not vote for its seiyuu.
+    # None on the Add form, before the entry exists.
+    entry_id: Optional[UUID] = None
+    rows: List[OriginalRowIn] = []
+
+
+@router.post("/originals", summary="What each cast row would sync to")
+def get_cast_originals(
+    payload: OriginalsIn,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Each row's original - the identity it names, else the character - as the
+    role, remark and seiyuu the cast editor's "Sync from original" writes into
+    the row (casting_sync.cast_originals). Read-only; the editor's Save is what
+    persists it. A POST because the question is a list of pairs. Keyed on the
+    media type rather than an entry, like /mal, so Add can use it.
+
+    The seiyuu come from the pair's cast rows on other entries this caller may
+    see; a row on an entry hidden from them does not vote.
+    """
+    if payload.media_type not in casting_service.CASTING_MEDIA_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown casting media type: {payload.media_type}",
+        )
+    pairs = [(row.character_id, row.identity_id) for row in payload.rows]
+    candidates = (
+        db.query(models.CharacterCasting.media_type, models.CharacterCasting.entry_id)
+        .filter(
+            models.CharacterCasting.character_id.in_({c for c, _ in pairs}),
+            models.CharacterCasting.media_type.in_(casting_service.VOICED_MEDIA_TYPES),
+        )
+        .all()
+        if pairs
+        else []
+    )
+    visible = filter_visible_pairs(db, admin, [(t, e) for t, e in candidates])
+    return {
+        "originals": casting_sync.cast_originals(
+            db, payload.media_type, payload.entry_id, pairs, visible
+        )
+    }
 
 
 @router.get("/{media_type}/{entry_id}", summary="Get an entry's cast")

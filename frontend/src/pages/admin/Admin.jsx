@@ -1322,6 +1322,23 @@ export default function Admin() {
               "Calculate All"
             )}
           </button>
+          {/* Calculate All's cast step on its own. */}
+          <button
+            onClick={() => runCalc("synccast", endpoints.dataControl.syncCast())}
+            disabled={!!calcLoading.synccast}
+            className="flex flex-col items-center gap-2 p-3 bg-surface-2 hover:bg-brand-soft border border-border hover:border-brand/30 rounded-xl text-xs font-bold text-text-muted hover:text-brand transition disabled:opacity-60"
+          >
+            <i className="fas fa-people-arrows text-lg"></i>
+            {calcLoading.synccast ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "Sync Cast"
+            )}
+            <span className="text-[10px] font-medium text-text-faint text-center">
+              Fill empty cast and character fields from each other — never
+              overwrites.
+            </span>
+          </button>
           <button
             onClick={runFindDuplicates}
             disabled={!!calcLoading.duplicates}

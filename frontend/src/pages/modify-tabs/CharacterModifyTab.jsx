@@ -29,10 +29,12 @@ import {
   toggleIn,
 } from "../../lib/entityScopes";
 import { CharacterFields, CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
+import { Field, selectCls } from "../../components/forms/FormField";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { characterTagsPayload, characterTagsToForm } from "../../lib/characterForm";
+import { releaseYear } from "../../lib/releaseDate";
 
 function cleanString(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
@@ -70,6 +72,9 @@ export default function CharacterModifyTab({
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [characterForm, setCharacterForm] = useState(null);
+  // The form as last loaded or saved: what "unsaved edits" is measured
+  // against, so Sync from cast never overwrites them unseen.
+  const [loadedForm, setLoadedForm] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   const { data: characters = [], isLoading } = useQuery({
@@ -109,9 +114,15 @@ export default function CharacterModifyTab({
     return fetchJson(endpoints.character.detail(systemId))
       .then((fresh) => {
         setSelectedId(fresh.system_id);
-        setCharacterForm(characterToForm(fresh));
+        showCharacter(fresh);
       })
       .catch(() => showToast("error", "Failed to load character."));
+  }
+
+  function showCharacter(character) {
+    const form = characterToForm(character);
+    setCharacterForm(form);
+    setLoadedForm(form);
   }
 
   function selectCharacter(character) {
@@ -127,7 +138,11 @@ export default function CharacterModifyTab({
   function closeEditor() {
     setSelectedId(null);
     setCharacterForm(null);
+    setLoadedForm(null);
   }
+
+  const dirty =
+    !!characterForm && JSON.stringify(characterForm) !== JSON.stringify(loadedForm);
 
   const hasAnyName = characterForm
     ? CHARACTER_NAME_FIELDS.some(({ field }) => characterForm[field]?.trim())
@@ -161,7 +176,7 @@ export default function CharacterModifyTab({
         },
       );
       await queryClient.invalidateQueries({ queryKey: ["characters-admin"] });
-      setCharacterForm(characterToForm(updated));
+      showCharacter(updated);
       // Not awaited: the save already succeeded, and stale suggestions are
       // no reason to report it as failed.
       Promise.resolve(refreshSources?.()).catch(() => {});
@@ -262,6 +277,15 @@ export default function CharacterModifyTab({
             />
           </div>
 
+          <SyncFromCast
+            characterId={selectedId}
+            dirty={dirty}
+            onSynced={async (updated) => {
+              showCharacter(updated);
+              await queryClient.invalidateQueries({ queryKey: ["characters-admin"] });
+            }}
+          />
+
           <div className="flex justify-end">
             <button
               type="submit"
@@ -278,6 +302,103 @@ export default function CharacterModifyTab({
           </div>
         </form>
       )}
+    </div>
+  );
+}
+
+// A cast row's label: the entry, the identity it casts, if any, and the type.
+function castRowLabel(entry) {
+  const yr = releaseYear(entry.release_date);
+  const as = entry.identity_name ? ` as ${entry.identity_name}` : "";
+  return `${entry.display_name || "Untitled"}${yr ? ` (${yr})` : ""}${as} [${entry.media_type}]`;
+}
+
+/**
+ * "Sync from cast": one of this character's cast rows replaces the role,
+ * remark and photo of the record it casts - the character, or the identity
+ * the row names (the server keeps the character's role then). A value the row
+ * does not hold leaves the record's alone. It writes straight to the server,
+ * so it is offered only while the form holds no unsaved edits, which the
+ * reload would otherwise discard. The rows come from the /entries query the
+ * Photo fallback picker shares.
+ */
+function SyncFromCast({ characterId, dirty, onSynced }) {
+  const { showToast } = useToast();
+  const [castingId, setCastingId] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const { data } = useQuery({
+    queryKey: ["character-entries", characterId],
+    queryFn: () => fetchJson(endpoints.character.entries(characterId)),
+    enabled: !!characterId,
+    staleTime: 10_000,
+  });
+  const castRows = (data?.groups || []).flatMap((group) =>
+    (group.entries || [])
+      .filter((entry) => entry.casting_id)
+      .map((entry) => ({ ...entry, media_type: group.media_type })),
+  );
+  if (!castRows.length) return null;
+
+  async function sync() {
+    if (!castingId || dirty || syncing) return;
+    setSyncing(true);
+    try {
+      const updated = await fetchJson(endpoints.character.syncFromCast(characterId), {
+        method: "POST",
+        ...jsonBody({ casting_id: castingId }),
+      });
+      await onSynced(updated);
+      setCastingId("");
+      showToast("success", "Synced from the cast row.");
+    } catch (err) {
+      showToast("error", err.message || "Sync from cast failed.");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  return (
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+      <Field
+        label="Sync from cast"
+        hint={
+          dirty
+            ? "Save or discard your edits first - syncing reloads the form."
+            : "Replace the role, remark and photo with this cast row's (an identity's row updates that identity). What the row leaves blank is kept."
+        }
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <select
+              aria-label="Sync from cast"
+              className={selectCls}
+              value={castingId}
+              onChange={(e) => setCastingId(e.target.value)}
+              disabled={dirty || syncing}
+            >
+              <option value="">— Pick a cast row —</option>
+              {castRows.map((entry) => (
+                <option key={entry.casting_id} value={entry.casting_id}>
+                  {castRowLabel(entry)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={sync}
+            disabled={!castingId || dirty || syncing}
+            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg text-sm font-bold text-text-muted hover:bg-surface-2 transition shrink-0 disabled:opacity-50"
+          >
+            {syncing ? (
+              <i className="fas fa-spinner fa-spin text-xs"></i>
+            ) : (
+              <i className="fas fa-sync text-xs"></i>
+            )}
+            {syncing ? "Syncing..." : "Sync"}
+          </button>
+        </div>
+      </Field>
     </div>
   );
 }

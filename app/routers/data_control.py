@@ -32,6 +32,7 @@ from app.services.calculation import (
     bulk_download_missing_covers,
     bulk_set_cover_image_fields,
     run_calculate_all,
+    run_sync_cast,
 )
 from app.services.domain import find_all_duplicates, find_all_remarks
 from app.services.domain.alone_groups import (
@@ -49,6 +50,7 @@ from app.services.pipelines.specs import PIPELINES
 from app.services.pipelines.tabs import MEDIA_TYPE_FOR_TAB
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, require_manage_pipelines
+from app.utils.data_control_utils import log_data_control
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +333,20 @@ def clean_apply(body: CleanApplyBody, db: Session = Depends(get_db)):
 @router.post("/calculate/all")
 def trigger_calculate_all(db: Session = Depends(get_db)):
     return JSONResponse(content=run_calculate_all(db))
+
+
+@router.post("/calculate/sync-cast")
+def trigger_sync_cast(db: Session = Depends(get_db)):
+    """Calculate All's cast step on its own - see calculation.run_sync_cast."""
+    try:
+        result = run_sync_cast(db)
+    except Exception as exc:
+        log_data_control(
+            db, "Calculate", "Sync Cast", "Manual", "Failed", error_message=str(exc)
+        )
+        raise
+    log_data_control(db, "Calculate", "Sync Cast", "Manual", "Success")
+    return JSONResponse(content=result)
 
 
 @router.get("/calculate/check-cover-image")

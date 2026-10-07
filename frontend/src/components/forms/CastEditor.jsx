@@ -2,7 +2,8 @@
 // role + position + photo + remark). Controlled, like NovelUnitsEditor: the parent
 // owns `value` and receives every change through `onChange`. CastEditor
 // never calls the API to save a cast list — only to search/create the
-// characters and people its two comboboxes reference.
+// characters and people its two comboboxes reference, and to read what
+// "Sync from original" writes into the form.
 //
 // Two kinds of row. A main row is the character as itself: a Character box.
 // An identity row is the character cast as one of its other identities
@@ -115,6 +116,30 @@ export function importedRow(source, position, voiced) {
     photo_focus: source.photo_focus || null,
     remark: source.remark || "",
   };
+}
+
+// A row after "Sync from original": the original's role, remark and seiyuu
+// replace the row's - each only when the original has one, so a blank there
+// leaves the row's value - and the row's own photo is always cleared, so it
+// shows the original's picture. Voices only on a voiced type.
+export function syncedRow(row, original, voiced) {
+  const patch = { photo_file: null, photo_focus: null };
+  if (original.role && original.role.trim()) patch.role = original.role;
+  if (original.remark && original.remark.trim()) patch.remark = original.remark;
+  if (voiced && original.voices?.length) {
+    patch.voices = original.voices.map((voice) => ({
+      person_id: voice.person_id,
+      person_name: voice.person_name || "",
+      remark: voice.remark || "",
+    }));
+  }
+  return { ...row, ...patch };
+}
+
+// Whether a row has an original to sync from: a character, and on an
+// identity row the identity too - an unpicked identity has no original yet.
+function hasOriginal(row) {
+  return !!row.character_id && (!isIdentityRow(row) || !!row.identity_id);
 }
 
 // The identity row "+ Identity" adds after `source`: the same character and
@@ -393,6 +418,65 @@ export default function CastEditor({
       setImportMessage("MyAnimeList import failed.");
     } finally {
       setMalImporting(false);
+    }
+  }
+
+  // "Sync from original" (one row) and "Sync all from original": one
+  // POST /api/casting/originals for the rows named, whose answers replace
+  // those rows' values in the form (syncedRow). Nothing is saved. `syncing`
+  // is the row index being synced, or "all", while the request is out.
+  const [syncing, setSyncing] = useState(null);
+  async function syncFromOriginal(indices, key) {
+    const targets = indices.filter((i) => hasOriginal(latestRows.current[i] || {}));
+    if (!targets.length) return;
+    const asked = targets.map((i) => latestRows.current[i]);
+    setSyncing(key);
+    try {
+      const res = await fetch(endpoints.casting.originals(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          media_type: mediaType,
+          entry_id: entryId || null,
+          rows: asked.map((r) => ({
+            character_id: r.character_id,
+            identity_id: r.identity_id || null,
+          })),
+        }),
+        credentials: "include",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setImportMessage(payload?.detail || "Sync from original failed.");
+        return;
+      }
+      const originals = payload?.originals || [];
+      // The rows as they are now: one edited while the request was out to
+      // another character or identity is left alone.
+      const byIndex = new Map(targets.map((i, k) => [i, k]));
+      let synced = 0;
+      const next = latestRows.current.map((r, i) => {
+        const k = byIndex.get(i);
+        const original = k === undefined ? null : originals[k];
+        if (
+          !original ||
+          r.character_id !== asked[k].character_id ||
+          (r.identity_id || null) !== (asked[k].identity_id || null)
+        ) {
+          return r;
+        }
+        synced += 1;
+        return syncedRow(r, original, showSeiyuu);
+      });
+      latestRows.current = next;
+      onChange(next);
+      setImportMessage(
+        `Synced ${synced} ${synced === 1 ? "row" : "rows"} from the original. Save to keep them.`,
+      );
+    } catch {
+      setImportMessage("Sync from original failed.");
+    } finally {
+      setSyncing(null);
     }
   }
 
@@ -949,6 +1033,18 @@ export default function CastEditor({
                   onChange={(e) => updateRow(i, { remark: e.target.value })}
                   aria-label="Remark"
                 />
+                {/* The original's role, remark and seiyuu replace this
+                    row's, and its photo falls back to the original's. */}
+                {hasOriginal(row) && (
+                  <button
+                    type="button"
+                    className="shrink-0 self-center text-[11px] text-brand hover:underline disabled:opacity-50"
+                    onClick={() => syncFromOriginal([i], i)}
+                    disabled={syncing !== null}
+                  >
+                    {syncing === i ? "Syncing…" : "Sync from original"}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -980,6 +1076,16 @@ export default function CastEditor({
             disabled={malImporting}
           >
             {malImporting ? "Importing from MAL…" : "Import from MAL"}
+          </button>
+        )}
+        {rows.some(hasOriginal) && (
+          <button
+            type="button"
+            className="text-xs text-brand hover:underline disabled:opacity-50"
+            onClick={() => syncFromOriginal(rows.map((_, i) => i), "all")}
+            disabled={syncing !== null}
+          >
+            {syncing === "all" ? "Syncing from originals…" : "Sync all from original"}
           </button>
         )}
         {importSources.length > 0 && (

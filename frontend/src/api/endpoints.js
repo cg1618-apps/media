@@ -249,6 +249,9 @@ export const endpoints = {
     remove: (id, castings) => `/api/character/${id}?castings=${castings}`,
     merge: (id) => `/api/character/${id}/merge`,
     entries: (id) => `/api/character/${id}/entries`,
+    // POST {casting_id}: that cast row's role, remark and photo replace the
+    // character's (or its identity's). Answers the updated character.
+    syncFromCast: (id) => `/api/character/${id}/sync-from-cast`,
     // The Add tab's MyAnimeList picker (ExternalSearchResult rows).
     searchMal: (q, limit = 10) =>
       `/api/character/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
@@ -261,6 +264,9 @@ export const endpoints = {
     sources: (qs) => `/api/casting/sources?${qs}`,
     // POST {media_type, mal_link}: the MAL entry's cast as cast rows.
     fromMal: () => "/api/casting/mal",
+    // POST {media_type, entry_id, rows: [{character_id, identity_id}]}: each
+    // row's original (role, remark, voices), for "Sync from original".
+    originals: () => "/api/casting/originals",
   },
 
   publisher: {
@@ -424,6 +430,7 @@ export const endpoints = {
     pullAll: () => "/api/data-control/pull",
     backup: () => "/api/data-control/backup",
     calculateAll: () => "/api/data-control/calculate/all",
+    syncCast: () => "/api/data-control/calculate/sync-cast",
     cleanScan: () => "/api/data-control/clean/scan",
     cleanApply: () => "/api/data-control/clean/apply",
     checkDuplicates: () => "/api/data-control/check/duplicates",

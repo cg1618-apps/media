@@ -400,9 +400,10 @@ Four tables, and the shape is deliberate on the points recorded below.
   (`app/services/domain/casting.py`) fills it with the highest-ranked
   `character_casting.role` (`CHARACTER_ROLES` order, Main first): for the
   cast's characters on every cast save, and for every character in Calculate
-  All's `run_sync_character_roles`, the net under Pull and a sheet restore.
+  All's cast sync, the net under Pull and a sheet restore.
   A set role is never overwritten, so clearing one only lasts until the next
-  fill while a casting still names a role; nothing flows from it to a casting. `ck_character_has_a_name` requires at
+  fill while a casting still names a role. The same sync fills a casting's
+  empty role from it - see [A cast row and its original](#a-cast-row-and-its-original). `ck_character_has_a_name` requires at
   least one name. `gender` and `my_rating` are the same closed vocabularies
   as on `person` ([options.md](../options.md)); a write outside them is a 422.
 - `character_identity` — one of a character's **other** identities (an alter
@@ -646,6 +647,40 @@ form holds, saved or not.
 - Errors: 422 for an unknown media type or a link of the wrong kind, 502 when
   Tenrai answers with no cast. The calls share the one Tenrai rate-limit
   budget ([external-apis.md](../external-apis.md#tenrai-myanimelist)).
+
+## A cast row and its original
+
+A cast row's **original** is the record it casts: the identity it names, else
+the character. The original's remark is the identity's or the character's;
+its role is always the character's, since an identity has none. Seiyuu are not
+held on a character or an identity - a seiyuu belongs to a performance - so the
+**original seiyuu** are read from the same character and identity's cast rows
+on other voiced entries: the voice list used most often, ties to the oldest
+row. A row with no voices does not vote. The original's photo is never copied
+into a cast row, because a row with no photo of its own already shows it
+(`display_photo_file`). All of it lives in `app/services/domain/casting_sync.py`.
+
+Three ways the two are brought together:
+
+- **Sync from original** (cast editor, one row or **Sync all from original**)
+  replaces the row's role, remark and seiyuu with the original's, through
+  `POST /api/casting/originals`, and clears the row's own photo. A value the
+  original does not have leaves the row's alone. It changes the form; Save
+  writes it. The entry being edited never votes for its own seiyuu.
+- **Sync from cast** (character page) replaces the original's role, remark and
+  photo with one chosen cast row's, through
+  `POST /api/character/{system_id}/sync-from-cast`. A value the row does not
+  hold leaves the original's alone.
+- **Sync Cast** (System page, and a step of Calculate All's `run_sync`) is
+  fill-only, both ways, and never overwrites. First the originals: an empty
+  character role takes the highest-ranked role of its rows
+  (`fill_character_roles`), and an empty remark or photo on a character or an
+  identity takes the value of its own rows' highest-ranked one that has it
+  (`CHARACTER_ROLES` order, then oldest) - an identity's rows fill the
+  identity, the main identity's fill the character. Then the cast rows: an
+  empty role or remark takes the original's, and a voiced row with no seiyuu
+  takes the original seiyuu. Cast photos are not filled. Because the
+  originals fill first, one run converges and a second changes nothing.
 
 ## Photo fallback
 
