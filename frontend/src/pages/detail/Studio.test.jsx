@@ -181,6 +181,20 @@ describe("Studio detail page", () => {
     expect(screen.getByText(STUDIO.remark)).toBeInTheDocument();
   });
 
+  it("links MyAnimeList beside the name when the studio has a MAL link", async () => {
+    renderPage();
+    const button = await screen.findByRole("link", { name: "Open on MyAnimeList" });
+    expect(button).toHaveAttribute("href", STUDIO.mal_link);
+    expect(button).toHaveAttribute("target", "_blank");
+  });
+
+  it("draws no MyAnimeList button for a studio without a MAL link", async () => {
+    mockFetch({ studio: { ...STUDIO, mal_id: null, mal_link: null } });
+    renderPage();
+    await screen.findByRole("heading", { name: STUDIO.display_name });
+    expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
+  });
+
   it("shows a guest the remark and rating as text, with no admin controls", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "KyoAni" });
