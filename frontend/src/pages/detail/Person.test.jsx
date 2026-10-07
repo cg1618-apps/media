@@ -104,6 +104,21 @@ describe("Person detail page", () => {
     );
   });
 
+  it("links MyAnimeList beside the name when the person has a MAL link", async () => {
+    const link = "https://myanimelist.net/people/1870/Hayao_Miyazaki";
+    mockFetch({ ...PERSON, mal_id: 1870, mal_link: link });
+    renderPage();
+    const button = await screen.findByRole("link", { name: "Open on MyAnimeList" });
+    expect(button).toHaveAttribute("href", link);
+    expect(button).toHaveAttribute("target", "_blank");
+  });
+
+  it("draws no MyAnimeList button for a person without a MAL link", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: "Hayao Miyazaki" });
+    expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
+  });
+
   it("names the person's types by their labels, not their keys", async () => {
     mockFetch({
       ...PERSON,

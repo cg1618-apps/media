@@ -653,7 +653,9 @@ linking to `/modify?id=<system_id>&type=person` → left column with the photo
 (`display_photo_file`: the photo, else the server-resolved fallback cover,
 else `FALLBACK_SVG`) and rating stamp, (admin) a **My rating** select, and a
 **Naming** card (`NamingCard`, all four names) → right column with the
-display name, credited-entry count, a "Profile" `InfoCard` (gender; the types
+display name, credited-entry count and, for a person with a `mal_link`, a
+**MyAnimeList** button beside it (`MalButton`, as on the character page; none
+without one), a "Profile" `InfoCard` (gender; the types
 they are offered under, by their `PERSON_SUB_TABS` labels — Director, Music /
 Composer; MAL as an external link reading `Person #<mal_id>`; and for a
 non-admin the remark), (admin) a **Remarks** textarea, then one section per
@@ -816,7 +818,9 @@ Layout:
    select, then the **Naming** card (`NamingCard`, all four names —
    English, Chinese, Japanese, Alternative — the displayed one included, as
    on the person and character pages).
-4. **Right column** — the display name, a credited-entry count, a "Profile"
+4. **Right column** — the display name, a credited-entry count and, for a
+   studio with a `mal_link`, a **MyAnimeList** button beside it (`MalButton`,
+   as on the person and character pages; none without one), a "Profile"
    `InfoCard` (country; `founded – defunct`, or `Since founded` while the
    studio is still working, and no invented span when both are empty;
    website and MAL — `Producer #<mal_id>` — as external links; the remark
