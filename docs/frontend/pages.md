@@ -653,7 +653,9 @@ linking to `/modify?id=<system_id>&type=person` → left column with the photo
 (`display_photo_file`: the photo, else the server-resolved fallback cover,
 else `FALLBACK_SVG`) and rating stamp, (admin) a **My rating** select, and a
 **Naming** card (`NamingCard`, all four names) → right column with the
-display name, credited-entry count, a "Profile" `InfoCard` (gender; the types
+display name, credited-entry count and, for a person with a `mal_link`, a
+**MyAnimeList** button beside it (`MalButton`, as on the character page; none
+without one), a "Profile" `InfoCard` (gender; the types
 they are offered under, by their `PERSON_SUB_TABS` labels — Director, Music /
 Composer; MAL as an external link reading `Person #<mal_id>`; and for a
 non-admin the remark), (admin) a **Remarks** textarea, then one section per

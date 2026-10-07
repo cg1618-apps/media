@@ -1,6 +1,7 @@
-// Frontend: the way out to MyAnimeList beside a character's name - where a
-// character is looked up. Shared by the character page and the identity
-// page, which shows its character's. Renders nothing without a link.
+// Frontend: the way out to MyAnimeList beside a character's or a person's
+// name - where either is looked up. Shared by the character page, the identity
+// page (which shows its character's) and the person page. Renders nothing
+// without a link.
 import { sourceIconUrl } from "../../lib/sourceIcons";
 
 export default function MalButton({ href }) {
