@@ -57,11 +57,11 @@ from app.services.domain import (
     derive_novel_catalog,
     derive_novel_list,
     extract_system_options,
-    fill_character_roles,
     manga_post_processing,
     sync_seasonal_counts,
     tv_show_post_processing,
 )
+from app.services.domain.casting_sync import fill_cast_and_characters
 from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import enforce_h_comic_invariants
 from app.services.domain.media_relation import seed_sequel_relations
@@ -610,25 +610,37 @@ def run_sync(db: Session) -> dict:
     run_sync_hentai(db)
     run_sync_gated_labels(db)
     run_sync_size_groups(db)
-    run_sync_character_roles(db)
+    run_sync_cast(db)
     return {
         "status": "success",
         "message": "All synchronization tasks completed.",
     }
 
 
-def run_sync_character_roles(db: Session) -> dict:
+def run_sync_cast(db: Session) -> dict:
     """
-    Every character with no role of its own takes the highest-ranked role
-    its castings carry (app/services/domain/casting.py). A cast save does
-    this for the characters it touches; this is the net under the paths that
-    write castings without one - a Pull, a sheet restore.
+    The fill-only, both-ways sync between cast rows and the characters and
+    identities they cast (app/services/domain/casting_sync.py): empty
+    character and identity fields from their cast rows, then empty cast
+    fields from their originals. Nothing holding a value is overwritten. A
+    cast save fills only the character roles it touches; this is the net
+    under everything else - a Pull, a sheet restore, a hand edit.
     """
-    filled = fill_character_roles(db)
+    counts = fill_cast_and_characters(db)
     db.commit()
+    character_side = (
+        counts["character_role"] + counts["character_remark"]
+        + counts["character_photo"] + counts["identity_remark"]
+        + counts["identity_photo"]
+    )
+    cast_side = counts["cast_role"] + counts["cast_remark"] + counts["cast_seiyuu"]
     return {
         "status": "success",
-        "message": f"Character roles filled for {filled} character(s).",
+        "message": (
+            f"Cast synced: {character_side} character/identity field(s) and "
+            f"{cast_side} cast field(s) filled."
+        ),
+        "counts": counts,
     }
 
 

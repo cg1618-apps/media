@@ -29,6 +29,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 | `/options` | `pages/admin/SystemOptions.jsx` | Read-only view of the three option tiers |
 | `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source |
 | `/external-apis` | `pages/admin/ExternalApis.jsx` | Read-only view of which field each external API writes, and whether it fills or replaces it |
+| `/business-logic` | `pages/admin/BusinessLogic.jsx` + `pages/admin/businessLogicTopics.js` | Read-only account of what Calculate All changes, step by step; `manage.pipelines` only |
 | `/roles`, `/users`, `/content-labels` | `pages/admin/{Roles,Users,ContentLabels}.jsx` | RBAC administration |
 
 ---
@@ -57,6 +58,16 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   holding the seiyuu role, from MAL's people record). Fill All runs both.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
+- **Calculate & Fix.** Calculate All (`POST /api/data-control/calculate/all`),
+  Sync Cast, Find Duplicates, With Remarks and Check & Download Covers. **Sync
+  Cast** (`POST /api/data-control/calculate/sync-cast`,
+  `endpoints.dataControl.syncCast`) runs Calculate All's cast step on its own -
+  the fill-only, both-ways sync between cast rows and the characters and
+  identities they cast - through the same `runCalc` as Calculate All: a
+  spinner while it runs, the server's `message` as the toast, then the log
+  reloads. Its tile carries the one-line description "Fill empty cast and
+  character fields from each other — never overwrites." The rules are on
+  `/business-logic`.
 - **Announcements.** Create / edit / delete the dashboard board
   (`/api/announcements/`; title is the identifier — see api.md).
 - **Current season.** Reads and writes `/api/system/config/current_season`
@@ -787,6 +798,17 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   `sources` bag `Modify.jsx` already holds. Save is `PUT /api/character/{id}`,
   carrying both lists (an emptied one as `[]`, which clears it); it then calls
   `refreshSources` so a value the save created is offered at once.
+  Below the form, **Sync from cast** lists the character's cast rows from the
+  same `/entries` query (query key `["character-entries", id]`), each as
+  entry, year, "as <identity>" when the row names one, and type. Picking one
+  and pressing **Sync** `POST`s `{casting_id}` to
+  `/api/character/{id}/sync-from-cast`: the row's role, remark and photo
+  replace the character's — or, on an identity's row, that identity's remark
+  and photo — and what the row leaves blank is kept. The form then reloads
+  from the returned character and `["characters-admin"]` is invalidated;
+  outcomes are toasts. The sync writes straight to the server and reloads the
+  form, so while the form differs from what was last loaded or saved the
+  select and button are disabled and the hint asks to save first.
 
 ## /delete (`Delete.jsx`)
 
@@ -1078,6 +1100,32 @@ The four pipeline chips (`in Fill All`, `bulk Replace`, `fill only`, `stops on
 quota`) are derived server-side from `PIPELINES`, never declared in the
 catalog, so flipping `in_replace_all` on a spec lights the page up without
 anyone remembering this file.
+
+## /business-logic (`BusinessLogic.jsx`)
+
+Read-only, listed under the Note tab, but gated on `manage.pipelines` rather
+than the tab's `manage.catalog`: it explains the Control Center's actions, so
+it takes their gate - the super role holds it by grant and admin by the root
+flag. Both surfaces ask it: the row carries `requires: "manage.pipelines"` in
+`config/navigation.js`, and the route sits in `App.jsx`'s
+`<ProtectedRoute permission="manage.pipelines">` block beside `/system`.
+
+The content is data. `businessLogicTopics.js` exports `BUSINESS_LOGIC_TOPICS`,
+one topic per slip, each a list of steps (`title`, `fn` - the function behind
+it, shown small - `summary`, `points`, titled `groups`, nested `substeps`);
+`BusinessLogic.jsx` only numbers and lays them out (4, 4.1, 4.2, ...). A new
+topic is a new entry in that array.
+
+The one topic is **Calculate All**, in `run_calculate_all`'s call order:
+per-entry checks, episodes before each season, the sequel-relation seed, the
+sync run (anime seasonal rows and counts, the option-scope refreshes, novel
+totals, the h-comic region rule, restricted-type labels, size groups, then the
+cast sync with its three groups - cast rows fill the character or identity,
+the original fills its cast rows, and how the original seiyuu are chosen), the
+cover check whose result is discarded, and the log row. Each step is written
+for an admin - what it changes and why - and the page states the code as it
+is, so it changes in the same commit as `app/services/calculation.py`. The
+prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
 
 ## /roles, /users, /content-labels
 

@@ -77,6 +77,7 @@ const Relations = lazy(() => import("./pages/admin/Relations"));
 const SystemOptions = lazy(() => import("./pages/admin/SystemOptions"));
 const Aliases = lazy(() => import("./pages/admin/Aliases"));
 const ExternalApis = lazy(() => import("./pages/admin/ExternalApis"));
+const BusinessLogic = lazy(() => import("./pages/admin/BusinessLogic"));
 const Images = lazy(() => import("./pages/admin/Images"));
 const Roles = lazy(() => import("./pages/admin/Roles"));
 const Users = lazy(() => import("./pages/admin/Users"));
@@ -276,6 +277,9 @@ export default function App() {
                   <Route path="/data-history" element={<DataHistory />} />
                   <Route path="/review-queue" element={<ReviewQueue />} />
                   <Route path="/clean-orphans" element={<CleanOrphans />} />
+                  {/* Listed under Note, but it explains the pipelines, so it
+                      takes their gate: super and admin, nobody else. */}
+                  <Route path="/business-logic" element={<BusinessLogic />} />
                 </Route>
 
                 {/* Changing who may do what. Admin only. */}

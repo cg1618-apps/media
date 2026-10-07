@@ -1346,3 +1346,163 @@ describe("create an identity with the character's name", () => {
     });
   });
 });
+
+describe("sync from original", () => {
+  const ORIGINAL = {
+    character_id: "c1",
+    identity_id: null,
+    role: "Main",
+    remark: "the original's remark",
+    voices: [{ person_id: "p1", person_public_id: 1, person_name: "Kana Hanazawa", remark: null }],
+  };
+
+  function stubOriginals(originals) {
+    const bodies = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url, init) => {
+        if (url === "/api/casting/originals") {
+          bodies.push(JSON.parse(init.body));
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ originals }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      }),
+    );
+    return bodies;
+  }
+
+  const held = (overrides = {}) =>
+    row({
+      character_id: "c1",
+      character_name: "Yuki",
+      identity_id: null,
+      role: "Minor",
+      remark: "row remark",
+      photo_file: "library/own.jpg",
+      photo_focus: "10% 20%",
+      voices: [{ person_id: "p9", person_name: "Someone Else", remark: "" }],
+      ...overrides,
+    });
+
+  it("replaces one row's role, remark and seiyuu and clears its photo", async () => {
+    const bodies = stubOriginals([ORIGINAL]);
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled mediaType="anime" entryId="e1" initialRows={[held()]} onChangeSpy={onChangeSpy} />,
+    );
+
+    fireEvent.click(screen.getByText("Sync from original"));
+
+    await waitFor(() => expect(onChangeSpy).toHaveBeenCalled());
+    expect(bodies).toEqual([
+      { media_type: "anime", entry_id: "e1", rows: [{ character_id: "c1", identity_id: null }] },
+    ]);
+    const [synced] = onChangeSpy.mock.calls.at(-1)[0];
+    expect(synced).toMatchObject({
+      role: "Main",
+      remark: "the original's remark",
+      photo_file: null,
+      photo_focus: null,
+      voices: [{ person_id: "p1", person_name: "Kana Hanazawa", remark: "" }],
+    });
+    expect(
+      await screen.findByText(/^Synced 1 row from the original/, { selector: '[role="status"]' }),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves a row's value where the original has none, but still clears the photo", async () => {
+    stubOriginals([{ ...ORIGINAL, role: null, remark: "  ", voices: [] }]);
+    const onChangeSpy = vi.fn();
+    render(<Controlled mediaType="anime" initialRows={[held()]} onChangeSpy={onChangeSpy} />);
+
+    fireEvent.click(screen.getByText("Sync from original"));
+
+    await waitFor(() => expect(onChangeSpy).toHaveBeenCalled());
+    const [synced] = onChangeSpy.mock.calls.at(-1)[0];
+    expect(synced).toMatchObject({
+      role: "Minor",
+      remark: "row remark",
+      photo_file: null,
+      photo_focus: null,
+      voices: [{ person_id: "p9", person_name: "Someone Else", remark: "" }],
+    });
+  });
+
+  it("syncs every row with a character in one request, skipping a row with none", async () => {
+    const identityOriginal = {
+      character_id: "c2",
+      identity_id: "i2",
+      role: "Core",
+      remark: "as the disguise",
+      voices: [],
+    };
+    const bodies = stubOriginals([ORIGINAL, identityOriginal]);
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[
+          held(),
+          row({ position: 1 }),
+          held({
+            position: 2,
+            character_id: "c2",
+            character_name: "Shinichi",
+            identity_id: "i2",
+            identity_name: "Conan",
+          }),
+        ]}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Sync all from original"));
+
+    await waitFor(() => expect(onChangeSpy).toHaveBeenCalled());
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toEqual({
+      media_type: "anime",
+      entry_id: null,
+      rows: [
+        { character_id: "c1", identity_id: null },
+        { character_id: "c2", identity_id: "i2" },
+      ],
+    });
+    const rows = onChangeSpy.mock.calls.at(-1)[0];
+    expect(rows[0]).toMatchObject({ role: "Main", photo_file: null });
+    expect(rows[1]).toMatchObject({ character_id: null, role: "" });
+    expect(rows[2]).toMatchObject({
+      role: "Core",
+      remark: "as the disguise",
+      photo_file: null,
+      voices: [{ person_id: "p9", person_name: "Someone Else", remark: "" }],
+    });
+  });
+
+  it("shows the server's refusal and leaves the rows alone", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) =>
+        url === "/api/casting/originals"
+          ? Promise.resolve({
+              ok: false,
+              json: () => Promise.resolve({ detail: "Unknown casting media type: x" }),
+            })
+          : Promise.resolve({ ok: true, json: () => Promise.resolve([]) }),
+      ),
+    );
+    const onChange = vi.fn();
+    render(<CastEditor mediaType="anime" value={[held()]} onChange={onChange} />);
+
+    fireEvent.click(screen.getByText("Sync all from original"));
+
+    expect(await screen.findByText("Unknown casting media type: x")).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("offers no sync on a row with no character", () => {
+    render(<CastEditor mediaType="anime" value={[row()]} onChange={vi.fn()} />);
+    expect(screen.queryByText("Sync from original")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sync all from original")).not.toBeInTheDocument();
+  });
+});

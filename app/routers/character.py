@@ -16,6 +16,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
@@ -25,6 +26,7 @@ from app.routers._entity_patch import prepare_patch, resolve_fallback
 from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
+from app.services.domain import casting_sync
 from app.services.domain.autofill import autofill_character_from_mal
 from app.services.domain.casting_entries import casting_entry_groups
 from app.services.domain.character_identities import (
@@ -42,6 +44,7 @@ from app.services.domain.derivation import apply_extract_mal_id_character
 from app.services.domain.entity_photos import EntityMedia, character_media
 from app.services.domain.merge_fill import absorb_casting, finish_merge
 from app.services.integrations.tenrai import search_mal_characters
+from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
@@ -516,3 +519,45 @@ def merge_character(
     db.expire(drop, ["identities"])
     finish_merge(db, "character", keep, drop)
     return {"status": "success", "castings_moved": moved}
+
+
+class SyncFromCastIn(BaseModel):
+    casting_id: UUID
+
+
+@router.post(
+    "/{system_id}/sync-from-cast",
+    response_model=schemas.CharacterResponse,
+    summary="Replace This Character's Role, Remark and Photo From a Cast Row",
+)
+def sync_character_from_cast(
+    system_id: UUID,
+    payload: SyncFromCastIn,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    The character page's "Sync from cast": one of this character's cast rows
+    replaces the role, remark and photo of the record it casts - the
+    character, or the identity the row names (an identity has no role). A
+    value the row does not hold leaves the record's alone
+    (casting_sync.sync_character_from_cast). 404 for a cast row that is not
+    this character's, or is on an entry the caller cannot see.
+    """
+    character = db.get(models.Character, system_id)
+    if character is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, admin, models.Character, system_id, NOT_FOUND)
+
+    casting = db.get(models.CharacterCasting, payload.casting_id)
+    if (
+        casting is None
+        or casting.character_id != system_id
+        or not entry_visible(db, admin, casting.media_type, casting.entry_id)
+    ):
+        raise HTTPException(status_code=404, detail="Cast row not found.")
+
+    casting_sync.sync_character_from_cast(db, character, casting)
+    db.commit()
+    db.refresh(character)
+    return _to_response(db, character, admin)

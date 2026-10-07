@@ -333,7 +333,7 @@ def test_a_casting_with_no_role_leaves_the_character_without_one(
 def test_calculate_fills_from_the_highest_ranked_casting_role(
     db_session, anime, manga, character, second_character
 ):
-    from app.services.calculation import run_sync_character_roles
+    from app.services.calculation import run_sync_cast
 
     # Written straight to the table, as a Pull writes them - no cast save ran.
     second_character.role = "Other"
@@ -350,7 +350,7 @@ def test_calculate_fills_from_the_highest_ranked_casting_role(
             ))
     db_session.flush()
 
-    run_sync_character_roles(db_session)
+    run_sync_cast(db_session)
 
     db_session.refresh(character)
     db_session.refresh(second_character)
