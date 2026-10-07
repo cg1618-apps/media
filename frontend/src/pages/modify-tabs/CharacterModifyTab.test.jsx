@@ -367,3 +367,83 @@ it("sends an unset role as null", async () => {
   expect(JSON.parse(init.body).role).toBeNull();
 });
 
+
+describe("sync from cast", () => {
+  const CAST_ENTRIES = {
+    groups: [
+      {
+        media_type: "anime",
+        entries: [
+          {
+            system_id: "a1",
+            casting_id: "k1",
+            display_name: "Cowboy Bebop",
+            release_date: "1998-04-03",
+            identity_name: null,
+          },
+          {
+            system_id: "a1",
+            casting_id: "k2",
+            display_name: "Cowboy Bebop",
+            release_date: "1998-04-03",
+            identity_name: "Cowboy",
+          },
+        ],
+      },
+    ],
+  };
+
+  function stubSync() {
+    const posts = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url, options = {}) => {
+        const u = String(url);
+        let body;
+        if (u === "/api/character/c1/sync-from-cast" && options.method === "POST") {
+          posts.push(JSON.parse(options.body));
+          body = { ...CHARACTERS[0], role: "Main", remark: "from the cast row" };
+        } else if (u === "/api/character/c1/entries") {
+          body = CAST_ENTRIES;
+        } else {
+          body = respond(u);
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+      }),
+    );
+    return posts;
+  }
+
+  it("syncs from the picked cast row and shows the returned character", async () => {
+    const posts = stubSync();
+    const user = userEvent.setup();
+    mount({ initialId: "c1" });
+    const picker = await screen.findByLabelText("Sync from cast");
+    expect([...picker.options].map((o) => o.textContent)).toEqual([
+      "— Pick a cast row —",
+      "Cowboy Bebop (1998) [anime]",
+      "Cowboy Bebop (1998) as Cowboy [anime]",
+    ]);
+
+    await user.selectOptions(picker, "k2");
+    await user.click(screen.getByRole("button", { name: "Sync" }));
+
+    await waitFor(() => expect(posts).toEqual([{ casting_id: "k2" }]));
+    expect(await screen.findByDisplayValue("from the cast row")).toBeInTheDocument();
+  });
+
+  it("is disabled while the form holds unsaved edits", async () => {
+    const posts = stubSync();
+    const user = userEvent.setup();
+    mount({ initialId: "c1" });
+    const picker = await screen.findByLabelText("Sync from cast");
+    expect(picker).toBeEnabled();
+
+    await user.selectOptions(screen.getByLabelText("Gender"), "男");
+
+    expect(picker).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sync" })).toBeDisabled();
+    expect(screen.getByText(/Save or discard your edits first/)).toBeInTheDocument();
+    expect(posts).toEqual([]);
+  });
+});

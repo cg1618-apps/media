@@ -96,7 +96,8 @@ class Character(Base, NameFallbackMixin):
     # to their story overall. character_casting.role is what they are in one
     # entry; when this is NULL it is filled from the castings' highest-ranked
     # role (domain/casting.py fill_character_roles), never overwritten once
-    # set, and nothing flows the other way.
+    # set. Calculate All's cast sync also fills a casting's empty role from
+    # it (domain/casting_sync.py).
     role = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
     # MAL's character record, as person carries its people record: mal_link

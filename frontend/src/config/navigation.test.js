@@ -106,7 +106,7 @@ describe("NAV_SECTIONS", () => {
     ]);
   });
 
-  it("gathers the three read-only inventories under a Note tab", () => {
+  it("gathers the read-only inventories under a Note tab", () => {
     // System Options, its alias translations, and which columns each external
     // API writes: three read-only views over how the data is described.
     const note = NAV_SECTIONS.find((s) => s.key === "note");
@@ -114,8 +114,10 @@ describe("NAV_SECTIONS", () => {
       "/options",
       "/aliases",
       "/external-apis",
+      "/business-logic",
     ]);
     expect(activeSectionKey("/external-apis")).toBe("note");
+    expect(activeSectionKey("/business-logic")).toBe("note");
   });
 
   it("reads Relations and Watch Orders as Insights, gated on manage.catalog", () => {
@@ -301,6 +303,29 @@ describe("visibleSections", () => {
     expect(visibleSections(legacy, holdsEverything)).toEqual(legacy);
   });
 
+  it("shows Business Logic to a viewer holding manage.pipelines", () => {
+    const holdsCatalogAndPipelines = (p) =>
+      p === "manage.catalog" || p === "manage.pipelines";
+    const note = visibleSections(NAV_SECTIONS, holdsCatalogAndPipelines).find(
+      (s) => s.key === "note",
+    );
+    expect(sectionItems(note).map((i) => i.to)).toContain("/business-logic");
+  });
+
+  it("hides Business Logic from a catalogue editor without manage.pipelines", () => {
+    // manage.catalog is what makes this bite: it opens the Note section, so
+    // the row is dropped by its own gate and not by the section's. The
+    // section's other rows staying visible proves the section was drawn.
+    const holdsCatalog = (p) => p === "manage.catalog";
+    const note = visibleSections(NAV_SECTIONS, holdsCatalog).find(
+      (s) => s.key === "note",
+    );
+    expect(note).toBeDefined();
+    const routes = sectionItems(note).map((i) => i.to);
+    expect(routes).toContain("/external-apis");
+    expect(routes).not.toContain("/business-logic");
+  });
+
   it("asks for the exact permission the section names", () => {
     const asked = [];
     visibleSections(NAV_SECTIONS, (p) => {
@@ -334,6 +359,7 @@ describe("the two permission surfaces agree", () => {
     "/access-modes": "admin.authz",
     "/system": "manage.pipelines",
     "/clean-orphans": "manage.pipelines",
+    "/business-logic": "manage.pipelines",
   };
 
   it("asks the same permission the route gate asks", () => {

@@ -281,6 +281,17 @@ export const NAV_SECTIONS = [
         icon: "fas fa-cloud-arrow-down",
         to: "/external-apis",
       },
+      // What the pipelines change, step by step. It explains the Control
+      // Center's actions, so it takes their gate rather than the section's:
+      // super holds manage.pipelines by grant, admin by the root flag, and
+      // nobody else - a catalogue editor sees the three rows above only.
+      // App.jsx's /business-logic route asks the same.
+      {
+        label: "Business Logic",
+        icon: "fas fa-gears",
+        to: "/business-logic",
+        requires: "manage.pipelines",
+      },
     ],
   },
   {
