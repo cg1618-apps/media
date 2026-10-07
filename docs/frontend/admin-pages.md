@@ -449,7 +449,7 @@ rejects. Submit is blocked until at least one name is filled, matching
 `ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
 `PersonFields` is exported so the Modify tab renders the same inputs.
 
-**Identity tab (Entity).** `IdentityAddTab.jsx`, self-contained: it saves through its own button, and `Add.jsx`'s page-wide submit is hidden on it. An identity is always created under an existing character, so the tab opens with a required **Character** picker (a `ComboBox` over `GET /api/character/?name=`; the character is fixed once the identity is saved), then `IdentityFields`: the four names, **Display Name**, **Gender** (an empty choice means the same as the character), **Photo** and **Remark**. At least one name is required. The photo is attached after the create, as for characters, and Enter in a text input submits. `IdentityFields` is exported for the Modify tab. It has no `/defaults` tab (`identity` is outside `FORM_TABS`). Saves `POST /api/character-identity/`.
+**Identity tab (Entity).** `IdentityAddTab.jsx`, self-contained: it saves through its own button, and `Add.jsx`'s page-wide submit is hidden on it. An identity is always created under an existing character, so the tab opens with a required **Character** picker (a `ComboBox` over `GET /api/character/?name=`; the character is fixed once the identity is saved), then `IdentityFields`: the four names, **Display Name**, **Gender** (an empty choice means the same as the character), **Photo** and **Remark**. Picking a character prefills the four names and **Display Name** from it, as a starting point (`prefillFromCharacter`): a field is filled only while it is empty or still holds what the previous pick filled in, so nothing typed is overwritten and picking another character re-fills the untouched ones; clearing the character leaves the fields as they are, and gender, photo and remark are never prefilled. At least one name is required. The photo is attached after the create, as for characters, and Enter in a text input submits. `IdentityFields` is exported for the Modify tab. It has no `/defaults` tab (`identity` is outside `FORM_TABS`). Saves `POST /api/character-identity/`.
 
 **Character tab (Entity).** `CharacterAddTab.jsx`. Its only search box is the
 MAL `ExternalSearchBox`, over the form. `CharacterFields` is the
@@ -477,7 +477,14 @@ so the Modify tab renders the same inputs.
 Every cast section — anime, anime movie, manga, novel, h-comic and hentai, on
 Add and on Modify — passes the form's own `mal_link` to `CastEditor`, so
 **Import from MAL** appears once the entry has a MAL link (see `CastEditor` in
-[components.md](components.md)).
+[components.md](components.md)). A character's other identities are rows of
+their own, added with **+ Identity** on its main row. On both pages the
+submit first checks the active tab's cast (`castIdentityProblem`): an identity
+row with no identity picked stops the save with a warning toast, before the
+entry itself is written. Modify loads an entry's cast in the detail page's
+order — role rank, then position (`orderLoadedCast`) — and reloads it in that
+order after a save, once the cast has been refetched; it does not re-sort
+while the admin is editing.
 
 **Options tab.** Two sub-tabs (`OptionSubTabBar`, shared with Modify and
 Delete): **Options** and **Tags**, both creating system options (category +

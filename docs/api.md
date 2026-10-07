@@ -1778,8 +1778,8 @@ line for line, plus one deliberate departure — see the `POST` row.
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------- |
 | `GET`    | `/`                    | Public | List characters, sorted by resolved `display_name`. `?name=` does a case-insensitive substring match against all four name columns, so the cast editor's character combobox can offer suggestions without downloading the whole table. |
 | `GET`    | `/search-mal`      | `manage.catalog` | `?q=`, `limit`. Searches MAL characters. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
-| `GET`    | `/{system_id}`         | Public | Get one character by UUID. 404 if absent or hidden. |
-| `GET`    | `/{system_id}/entries` | Public | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry carries `seiyuu`: everyone who voiced the character there, in voice order, as `[{display_name, system_id, public_id, remark}]` — empty when nobody did. One entry appears **once per identity** the character is cast under in it, so each row also carries `casting_id`, `identity_id` and `identity_name` (null for the main identity); `casting_id`, not the entry's `system_id`, tells two appearances apart. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
+| `GET`    | `/{system_id}`         | Public | Get one character by `public_id` or UUID. 404 if absent or hidden. |
+| `GET`    | `/{system_id}/entries` | Public | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry carries `seiyuu`: everyone who voiced the character there, in voice order, as `[{display_name, system_id, public_id, remark}]` — empty when nobody did. One entry appears **once per identity** the character is cast under in it, so each row also carries `casting_id`, `identity_id`, `identity_name` and `identity_public_id` (null for the main identity); `casting_id`, not the entry's `system_id`, tells two appearances apart. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
 | `POST`   | `/`                    | Admin  | Create a character. **Always a plain create, never find-or-create** — unlike `POST /api/person`, which safely resolves two spellings of one director onto one row. Character names carry no unique constraint (see `docs/data-model.md`): the "Yuki" of one anime and the "Yuki" of another are different characters, and silently returning the first match on a POST would fuse two unrelated casts under one `system_id`. Disambiguation happens in the cast editor's combobox instead, which lists existing matches together with the entries they already appear in and requires an explicit "Create new character named X" choice before minting a row. Body: `CharacterCreate`. A body with no name at all is 422, mirroring `ck_character_has_a_name`. `mal_id` is derived from `mal_link`, and the character is then filled from MAL (see below). `appearance` and `trait` are written once the row exists (see **Tags** below). |
 | `PUT`    | `/{system_id}`         | Admin  | Fully update a character. Body: `CharacterUpdate`. A non-null `photo_fallback_entry_id` must name an entry this character is cast on and the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see. `mal_id` is derived from `mal_link`, and the character is filled from MAL after the payload is copied (see below). `appearance` and `trait` each replace their list whole; one left out or `null` is unchanged. |
 | `PATCH`  | `/{system_id}`         | Admin  | Partially update a character — the detail page's inline rating and remark edits. Body: any subset of the `CharacterBase` columns as a JSON object; only the keys sent change. The `PUT` rules are checked before anything is written: `gender`, `my_rating` and `role` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored — except `appearance` and `trait`, which replace their lists as on `PUT` (`null` is unchanged; anything but a list of strings is a 422). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `CharacterResponse`. |
@@ -1844,7 +1844,8 @@ unique. A Tenrai failure is logged and swallowed, so it never fails the save
 **`identities`** — `IdentityResponse[]` in `position` order, `[]` when the
 character has none, always present; the character itself is the main identity
 and is not repeated. Each carries the identity's own `system_id`, `character_id`,
-four names, `display_name_field`, resolved `display_name`, `gender` (raw, null
+`public_id` (what the identity page's URL carries), four names,
+`display_name_field`, resolved `display_name`, `gender` (raw, null
 when it inherits), `display_gender` (the identity's, else the character's),
 `remark`, `photo_file` / `photo_focus`, `display_photo_file` /
 `display_photo_focus` (the identity's own photo with its focus, else the
@@ -1863,22 +1864,32 @@ and answers 404 on `/{system_id}`, `/entries`, `PUT`, `DELETE` and `merge`.
 
 A character's other identities — an alter ego, a disguise, a civilian name. The
 `character` row is the main identity; these rows are the rest
-([data-model.md](data-model.md#character_identity)). **Admin-only, reads
-included** (`require_manage_catalog`): the public reads identities nested in
-`GET /api/character`, so this router serves the admin tabs and the cast
-editor's Identity field. There is no `PATCH`.
+([data-model.md](data-model.md#character_identity)). Two reads are
+**public** — one identity and the entries it is cast on, for the identity's
+own page (`/identity/<public_id>/<slug>`); both take the identity's
+`public_id` or its UUID, and answer 404 "Identity not found." when the
+identity is absent or its character is hidden from the caller. Listing and
+every write are admin-only (`require_manage_catalog`) and serve the admin tabs
+and the cast editor's Identity box. Every identity also reaches the public
+nested in its character, through `GET /api/character`. There is no `PATCH`.
 
 | Method   | Path             | Auth             | Description |
 | -------- | ---------------- | ---------------- | ----------- |
 | `GET`    | `/`              | `manage.catalog` | List identities, ordered by their character's `display_name` then `position`. `?character_id=` keeps one character's; `?name=` is a case-insensitive substring match on any of the four name columns. Only identities of characters the caller can see. |
-| `GET`    | `/{system_id}`   | `manage.catalog` | One identity. 404 "Identity not found." when absent, or when its character is hidden from the caller. |
+| `GET`    | `/{ref}`         | Public           | One identity, by `public_id` or UUID. Returns `IdentityDetailResponse`. 404 "Identity not found." when absent, or when its character is hidden from the caller. |
+| `GET`    | `/{ref}/entries` | Public           | The entries this identity is cast on: the cast rows naming it, none of its character's main-identity rows. The same shape and visibility rule as `GET /api/character/{system_id}/entries` (`casting_entry_groups`, `app/services/domain/casting_entries.py`). 404 as above. |
 | `POST`   | `/`              | `manage.catalog` | Create an identity under an existing character. Body: `IdentityCreate` — the identity's fields plus a **required** `character_id`. A plain create (no find-or-create); `position` is the character's highest plus one. 404 "Character not found." for an unknown or hidden `character_id`; 422 with no name, an unknown `display_name_field` or an unknown `gender`. |
 | `PUT`    | `/{system_id}`   | `manage.catalog` | Replace the identity's fields. Body: `IdentityUpdate`; a null `position` keeps the current one, and a `character_id` in the body is ignored — an identity never changes character. 404 and 422 as above. |
 | `DELETE` | `/{system_id}?castings=N` | `manage.catalog` | Delete an identity. Its cast rows are **folded into the main identity**, not deleted: where the character's main identity has no row in that entry the row's `identity_id` becomes null and it keeps its role, photo, remark and seiyuu; where it has one, the identity's row is absorbed into it (its blanks filled from the identity's, the seiyuu it lacked appended) and deleted. `castings` is **required**: the cast-row count the confirmation showed, and a mismatch is **409**. Returns `{status, castings_folded}`. |
 
-**Response model:** `IdentityAdminResponse` — `IdentityResponse` (above) plus
-`character_display_name`, `character_public_id` and `casting_count`, the number
-of cast rows a delete would fold: the count `DELETE` checks `?castings=` against.
+**Response models:** `IdentityDetailResponse`, the public `GET /{ref}` —
+`IdentityResponse` (above) plus `character_public_id` and
+`character_display_name`, enough to name and link the character; its
+`display_photo_file` falls back to the character's photo as resolved **for the
+caller**. `IdentityAdminResponse`, the list and every write — `IdentityResponse`
+plus `character_display_name`, `character_public_id` and `casting_count`, the
+number of cast rows a delete would fold: the count `DELETE` checks
+`?castings=` against.
 
 The check that an identity belongs to the character it is cast under lives in
 the casting payload's validation (see [Casting](#casting--apicasting)).
@@ -1916,8 +1927,9 @@ several characters: that is one `person_id` in several rows' `voices`, which
 is allowed.
 
 Each cast row in the response carries `character_name` (resolved
-`display_name`) and `identity_id` / `identity_name` (null for the main
-identity) alongside the raw ids, `voices` — `[{person_id,
+`display_name`) and `identity_id` / `identity_name` / `identity_public_id`
+(null for the main identity; the last is what the cast slip links the
+identity's page by) alongside the raw ids, `voices` — `[{person_id,
 person_public_id, person_name, remark}]` in voice order, empty on an unvoiced
 row or type — and two photo pairs. `photo_file` / `photo_focus` are the
 row's **own** values, null when it has none: that is what the cast editor loads

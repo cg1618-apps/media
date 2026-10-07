@@ -42,6 +42,7 @@ def identity_response(
     own_photo = bool(identity.photo_file)
     return schemas.IdentityResponse(
         system_id=identity.system_id,
+        public_id=identity.public_id,
         character_id=identity.character_id,
         name_en=identity.name_en,
         name_cn=identity.name_cn,

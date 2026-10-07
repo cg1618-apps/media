@@ -36,6 +36,7 @@ from app.schemas.character import (
     CharacterUpdate,
     IdentityAdminResponse,
     IdentityCreate,
+    IdentityDetailResponse,
     IdentityResponse,
     IdentityUpdate,
 )
@@ -384,6 +385,7 @@ __all__ = [
     "CharacterResponse",
     "IdentityAdminResponse",
     "IdentityCreate",
+    "IdentityDetailResponse",
     "IdentityResponse",
     "IdentityUpdate",
     "ComicBase",

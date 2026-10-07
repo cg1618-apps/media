@@ -685,7 +685,7 @@ carries a content label. They are hidden by what they are connected to, in
 | Record | Connections (`CONNECTIONS`) |
 |---|---|
 | person | `media_credit` rows, `character_casting_voice` rows (a seiyuu is credited through the castings they voice), `person_role` scopes |
-| character | `character_casting` rows. Its identities (`character_identity`) are not records of their own: an identity is visible exactly when its character is |
+| character | `character_casting` rows. Its identities (`character_identity`) are not records of their own: an identity is visible exactly when its character is, so the public `GET /api/character-identity/{ref}` and its `/entries` answer 404 exactly when the character's own routes do. Its `/entries` filters the identity's cast rows by the same rule as the character's |
 | studio | `media_credit` rows |
 | publisher | `media_credit` rows, `publisher_scope` scopes |
 | vocabulary value | `media_tag` rows, `media_source` rows (a main or reference source naming the value), `system_option_scope` scopes |

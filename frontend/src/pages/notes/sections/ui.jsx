@@ -23,9 +23,12 @@ import { DragHandle, SortableItem, SortableList, arrayMove } from "../../../comp
 //
 // `override` records an explicit click and wins from then on, so a card the
 // reader opened by hand does not slam shut when its last row is deleted.
-function useCollapsed(count) {
+//
+// `openWhenEmpty` opts a card out of the empty default: a song list carries its
+// own status, which says something even with no songs, so it opens anyway.
+function useCollapsed(count, openWhenEmpty = false) {
   const [override, setOverride] = useState(null);
-  return [override === null ? count === 0 : override, setOverride];
+  return [override === null ? !openWhenEmpty && count === 0 : override, setOverride];
 }
 
 export const inputCls =
@@ -75,11 +78,11 @@ export const SectionCardProvider = SectionCardContext.Provider;
 
 // `actions` are extra header controls drawn before Add - a section's view
 // toggles. They sit in the header's click-shielded strip, so pressing one
-// never collapses the card.
-export function SectionCard({ label, count, isAdmin, onAdd, actions, children }) {
+// never collapses the card. `openWhenEmpty` - see useCollapsed.
+export function SectionCard({ label, count, isAdmin, onAdd, actions, openWhenEmpty, children }) {
   const { bare, appendix, appendixCount } = useContext(SectionCardContext);
   const total = appendixCount ? (count || 0) + appendixCount : count;
-  const [collapsed, setCollapsed] = useCollapsed(total);
+  const [collapsed, setCollapsed] = useCollapsed(total, openWhenEmpty);
   if (bare) return <div className="space-y-2">{children}</div>;
   return (
     <div className="bg-surface border border-border">
@@ -132,9 +135,10 @@ export function SectionCard({ label, count, isAdmin, onAdd, actions, children })
 // its subsections collapse individually. `showCount` is for the Notes card,
 // which borrows this chrome to gain the same collapse-when-empty behaviour but
 // has never worn a count badge. `icon` is accepted (the registry still sends
-// one) and ignored: section titles do not carry icons.
-export function GroupCard({ label, count, showCount = true, children }) {
-  const [collapsed, setCollapsed] = useCollapsed(count);
+// one) and ignored: section titles do not carry icons. `openWhenEmpty` - see
+// useCollapsed; the music group passes it, since its lists open when empty.
+export function GroupCard({ label, count, showCount = true, openWhenEmpty, children }) {
+  const [collapsed, setCollapsed] = useCollapsed(count, openWhenEmpty);
   return (
     <div className="bg-surface border border-border">
       <div

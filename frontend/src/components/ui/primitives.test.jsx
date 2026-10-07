@@ -32,6 +32,25 @@ describe("Chip", () => {
   });
 });
 
+// The dashed chip is the identity tag: the app draws an identity with a
+// dashed line (cast editor rows, the cast slip), so it is an outline with no
+// fill, set apart from the filled role chip beside it.
+describe("dashed Chip", () => {
+  it("is a dashed outline with no fill, in the chip's type", () => {
+    render(<Chip dashed>Identity</Chip>);
+    const chip = screen.getByText("Identity");
+    expect(chip.className).toMatch(/border-dashed/);
+    expect(chip.className).toMatch(/bg-transparent/);
+    expect(chip.className).toMatch(/font-mono/);
+    expect(chip.className).toMatch(/uppercase/);
+  });
+
+  it("leaves an ordinary chip solid", () => {
+    render(<Chip>Main</Chip>);
+    expect(screen.getByText("Main").className).not.toMatch(/border-dashed/);
+  });
+});
+
 describe("status chip call sites", () => {
   it("DashboardCard does not clamp the status chip to a fixed width", () => {
     const text = readFileSync(

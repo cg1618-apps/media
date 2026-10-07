@@ -234,6 +234,8 @@ export const endpoints = {
     update: (id) => `/api/character-identity/${id}`,
     // The cast-row count the admin confirmed; 409 if it moved.
     remove: (id, castings) => `/api/character-identity/${id}?castings=${castings}`,
+    // The cast rows of this identity, grouped like character.entries.
+    entries: (id) => `/api/character-identity/${id}/entries`,
   },
   character: {
     list: (qs = "") => `/api/character/${qs ? `?${qs}` : ""}`,

@@ -219,6 +219,7 @@ describe("Character detail page", () => {
   describe("identities", () => {
     const IDENTITY = {
       system_id: "i1",
+      public_id: 3,
       display_name: "Edogawa Conan",
       display_gender: "男",
       remark: "glasses",
@@ -272,19 +273,23 @@ describe("Character detail page", () => {
       expect(screen.getAllByText("Edogawa Conan")).toHaveLength(1);
     });
 
-    it("highlights the identity named by the URL hash, and only that one", async () => {
+    it("links each identity card to the identity's own page", async () => {
       mockFetch({
         character: {
           ...CHARACTER,
-          identities: [IDENTITY, { ...IDENTITY, system_id: "i2", display_name: "Other" }],
+          identities: [IDENTITY, { ...IDENTITY, system_id: "i2", public_id: 4, display_name: "Other" }],
         },
       });
-      Element.prototype.scrollIntoView = vi.fn();
-      renderPage("/character/c1#identity-i1");
+      renderPage();
       await screen.findByRole("heading", { name: /identities/i });
-      expect(document.getElementById("identity-i1")).toHaveClass("ring-2");
-      expect(document.getElementById("identity-i2")).not.toHaveClass("ring-2");
-      expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+      expect(screen.getByRole("link", { name: /Edogawa Conan/ })).toHaveAttribute(
+        "href",
+        "/identity/3/edogawa-conan",
+      );
+      expect(screen.getByRole("link", { name: /Other/ })).toHaveAttribute(
+        "href",
+        "/identity/4/other",
+      );
     });
 
     it("draws no Identities section for a character without any", async () => {
