@@ -1,5 +1,7 @@
 """Name <-> entity resolution and link replacement."""
 
+import pytest
+
 from app import models
 from app.services.domain import credits as svc
 
@@ -200,3 +202,73 @@ def test_a_person_name_round_trips_through_sheets(db_session, manga_entry):
     same = svc.resolve_person(db_session, written[0], role="author", scope="manga")
     assert db_session.query(models.Person).count() == 1
     assert same.system_id is not None
+
+
+# ---------------------------------------------------------------------------
+# name_alt is a comma-separated list: each fragment is a name of its own
+# ---------------------------------------------------------------------------
+
+
+def _studio_one(db_session):
+    studio = models.Studio(name_en="Studio 1", name_alt="S1, Studio One")
+    db_session.add(studio)
+    db_session.flush()
+    return studio
+
+
+def test_resolve_studio_matches_each_fragment_of_name_alt(db_session):
+    studio = _studio_one(db_session)
+    assert svc.resolve_studio(db_session, "Studio One").system_id == studio.system_id
+    assert svc.resolve_studio(db_session, "S1").system_id == studio.system_id
+    assert db_session.query(models.Studio).count() == 1
+
+
+def test_resolve_studio_creates_a_name_no_fragment_holds(db_session):
+    # The mirror, with Studio 1 present so a lookup that matched too much
+    # would have something to wrongly return.
+    studio = _studio_one(db_session)
+    other = svc.resolve_studio(db_session, "Studio Two")
+    assert other.system_id != studio.system_id
+    assert db_session.query(models.Studio).count() == 2
+
+
+def test_resolve_person_matches_each_fragment_of_name_alt(db_session):
+    person = models.Person(name_en="Taro Tanaka", name_alt="Tanaka T., タナカ")
+    db_session.add(person)
+    db_session.flush()
+    found = svc.resolve_person(db_session, "タナカ", role="director", scope="anime")
+    assert found.system_id == person.system_id
+    found = svc.resolve_person(db_session, "Tanaka T.", role="director", scope="anime")
+    assert found.system_id == person.system_id
+    assert db_session.query(models.Person).count() == 1
+
+
+def test_resolve_person_creates_a_name_no_fragment_holds(db_session):
+    person = models.Person(name_en="Taro Tanaka", name_alt="Tanaka T., タナカ")
+    db_session.add(person)
+    db_session.flush()
+    other = svc.resolve_person(db_session, "Jiro Suzuki", role="director", scope="anime")
+    assert other.system_id != person.system_id
+    assert db_session.query(models.Person).count() == 2
+
+
+def test_two_people_sharing_one_alt_fragment_are_ambiguous(db_session):
+    db_session.add_all(
+        [
+            models.Person(name_en="Taro A", name_alt="Taro, T-chan"),
+            models.Person(name_en="Taro B", name_alt="Big T, Taro"),
+        ]
+    )
+    db_session.flush()
+    with pytest.raises(svc.AmbiguousNameError):
+        svc.find_person(db_session, "Taro")
+    # The mirror: a fragment only one of them holds is not ambiguous.
+    assert svc.find_person(db_session, "Big T").name_en == "Taro B"
+
+
+def test_one_row_holding_a_name_in_two_fields_is_not_ambiguous(db_session):
+    # De-dup by primary key: name_en and an alt fragment of the same row.
+    studio = models.Studio(name_en="KyoAni", name_alt="Kyoto Animation, KyoAni")
+    db_session.add(studio)
+    db_session.flush()
+    assert svc.find_studio(db_session, "kyoani").system_id == studio.system_id

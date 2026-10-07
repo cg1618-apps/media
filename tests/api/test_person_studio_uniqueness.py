@@ -109,3 +109,34 @@ def test_posting_an_existing_studio_returns_it(admin_client, db_session):
     assert second.status_code == 200
     assert second.json()["system_id"] == first["system_id"]
     assert db_session.query(models.Studio).count() == 1
+
+
+def test_posting_only_an_alt_list_finds_the_studio_holding_it(admin_client, db_session):
+    """name_alt is a comma-separated list, so the lookup is by its first name,
+    not by the whole value - which is no longer one of any studio's names."""
+    first = admin_client.post(
+        "/api/studio/", json={"name_en": "Studio 1", "name_alt": "S1, Studio One"}
+    ).json()
+    second = admin_client.post("/api/studio/", json={"name_alt": "S1, Studio One"})
+    assert second.status_code == 200
+    assert second.json()["system_id"] == first["system_id"]
+    assert db_session.query(models.Studio).count() == 1
+
+
+def test_posting_an_alt_list_no_studio_holds_creates_one(admin_client, db_session):
+    first = admin_client.post(
+        "/api/studio/", json={"name_en": "Studio 1", "name_alt": "S1, Studio One"}
+    ).json()
+    second = admin_client.post("/api/studio/", json={"name_alt": "S2, Studio Two"})
+    assert second.json()["system_id"] != first["system_id"]
+    assert db_session.query(models.Studio).count() == 2
+
+
+def test_posting_only_an_alt_list_finds_the_person_holding_it(admin_client, db_session):
+    first = admin_client.post(
+        "/api/person/", json={"name_en": "Taro Tanaka", "name_alt": "Tanaka T., タナカ"}
+    ).json()
+    second = admin_client.post("/api/person/", json={"name_alt": "Tanaka T., タナカ"})
+    assert second.status_code == 200
+    assert second.json()["system_id"] == first["system_id"]
+    assert db_session.query(models.Person).count() == 1

@@ -106,3 +106,87 @@ def test_every_auto_created_type_is_one_the_dropdown_offers():
     from app.utils.constants import FRANCHISE_TYPES
 
     assert {t.value for t in h.FRANCHISE_TYPE_FOR.values()} <= set(FRANCHISE_TYPES)
+
+
+# ---------------------------------------------------------------------------
+# franchise_name_alt / series_name_alt are comma-separated lists
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def listed(db_session):
+    f = models.Franchise(
+        system_id=uuid.uuid4(),
+        franchise_name_en="Cowboy Bebop",
+        franchise_name_alt="CB, Space Cowboys",
+        franchise_type="ACG",
+    )
+    s = models.Series(
+        system_id=uuid.uuid4(),
+        franchise_id=f.system_id,
+        series_name_en="Bebop Movies",
+        series_name_alt="BM, Bebop Films",
+    )
+    db_session.add_all([f, s])
+    db_session.flush()
+    return f, s
+
+
+@pytest.mark.parametrize("key", ENTRY_RESOLVERS)
+def test_a_franchise_name_matching_one_alt_fragment_resolves(db_session, listed, key):
+    resolve, _ = ENTRY_RESOLVERS[key]
+    f, _ = listed
+    assert resolve(db_session, "space COWBOYS", None, {})[0] == f.system_id
+    assert resolve(db_session, None, None, {"en": "cb"})[0] == f.system_id
+
+
+@pytest.mark.parametrize("key", ENTRY_RESOLVERS)
+def test_a_name_no_alt_fragment_holds_still_creates_a_franchise(db_session, listed, key):
+    # Mirror. "Space" is inside a fragment and "CB, Space Cowboys" is the
+    # whole stored value; neither is one of its names.
+    resolve, _ = ENTRY_RESOLVERS[key]
+    f, _ = listed
+    for name in ("Space", "CB, Space Cowboys"):
+        fid, _ = resolve(db_session, name, None, {})
+        assert fid != f.system_id
+    assert db_session.query(models.Franchise).count() == 3
+
+
+def test_a_like_wildcard_in_a_name_is_literal(db_session, listed):
+    f, _ = listed
+    fid = h.resolve_anime_parent_hierarchy(db_session, "Cowboy%", None, {})[0]
+    assert fid != f.system_id
+
+
+@pytest.mark.parametrize("key", ENTRY_RESOLVERS)
+def test_a_series_name_matching_one_alt_fragment_resolves(db_session, listed, key):
+    resolve, _ = ENTRY_RESOLVERS[key]
+    f, s = listed
+    assert resolve(db_session, f.system_id, "bebop films", {})[1] == s.system_id
+    # Mirror: a fragment of the franchise's list is not one of the series'.
+    assert resolve(db_session, f.system_id, "Space Cowboys", {})[1] is None
+
+
+def test_an_anime_saved_under_an_alt_fragment_joins_that_franchise(admin_client, listed):
+    """The write path the Add form takes, end to end: no franchise picked, so
+    the entry's own names are looked up - and its alt list is split too."""
+    f, _ = listed
+    response = admin_client.post(
+        "/api/anime/", json={"anime_name_en": "Bebop TV", "anime_name_alt": "Bebop 1998, CB"}
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["franchise_id"] == str(f.system_id)
+
+
+def test_an_anime_whose_names_hold_no_fragment_gets_a_new_franchise(
+    admin_client, db_session, listed
+):
+    # Mirror: "Space" sits inside one of the franchise's fragments, and the
+    # entry's one alt name is two of the franchise's run together.
+    f, _ = listed
+    response = admin_client.post(
+        "/api/anime/", json={"anime_name_en": "Space", "anime_name_alt": "Space Cowboys CB"}
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["franchise_id"] != str(f.system_id)
+    assert db_session.query(models.Franchise).count() == 2

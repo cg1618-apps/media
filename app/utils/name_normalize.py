@@ -12,7 +12,8 @@ always what gets stored - the key never reaches the database.
 
 import re
 import unicodedata
-from typing import Optional
+from collections.abc import Iterable, Mapping
+from typing import Any, Optional
 
 _WHITESPACE = re.compile(r"\s+")
 
@@ -104,4 +105,48 @@ def split_names(raw: Optional[str]) -> list[str]:
             continue
         seen.add(key)
         out.append(name)
+    return out
+
+
+def is_alt_field(field: str) -> bool:
+    """Whether a name field holds a comma-separated LIST of names.
+
+    Every `*_alt` column does - `name_alt`, `anime_name_alt`,
+    `franchise_name_alt` - and so does the bare `alt` key of a names dict
+    (app/services/domain/hierarchy.py). Every other name column holds one.
+    """
+    return field == "alt" or field.endswith("_alt")
+
+
+def names_of(row: Any, fields: Iterable[str]) -> list[str]:
+    """
+    The individual names `row` holds in `fields`, in field order.
+
+    An alt field (see is_alt_field) contributes each of its comma-separated
+    fragments through split_names; any other field contributes its stripped
+    value as one name, commas and all. Blank and missing fields contribute
+    nothing. `row` is a model instance, a pydantic payload or a mapping.
+
+    This is the one place the rule lives: anything that matches a name
+    against stored names - credit resolution, the duplicate finders, the
+    duplicate-entity check, franchise and series lookup - reads names
+    through here, so one fragment of an alt list matches on its own.
+    """
+    if isinstance(row, Mapping):
+        get = row.get
+    else:
+        def get(field):
+            return getattr(row, field, None)
+
+    out: list[str] = []
+    for field in fields:
+        value = get(field)
+        if not value:
+            continue
+        if is_alt_field(field):
+            out.extend(split_names(value))
+        else:
+            name = str(value).strip()
+            if name:
+                out.append(name)
     return out

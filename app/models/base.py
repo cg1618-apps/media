@@ -1,5 +1,7 @@
 """Shared ORM mixins used across media models."""
 
+from app.utils.name_normalize import names_of
+
 
 class NameFallbackMixin:
     """
@@ -28,8 +30,9 @@ class NameFallbackMixin:
         return ""
 
     def get_all_names(self) -> set:
-        return {
-            getattr(self, f).strip().lower()
-            for f in self._name_fields
-            if getattr(self, f) and str(getattr(self, f)).strip()
-        }
+        """
+        Every name this row answers to, lowercased. An `*_alt` column is a
+        comma-separated list, so each of its fragments is a name of its own
+        (see names_of).
+        """
+        return {name.lower() for name in names_of(self, self._name_fields)}

@@ -54,7 +54,7 @@ from app.services.rbac.shared_visibility import (
 from app.utils.credit_roles import PERSON_ROLES, credit_label, legal_scopes
 from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
-from app.utils.name_normalize import name_slot_for
+from app.utils.name_normalize import name_slot_for, names_of
 from app.utils.release_date import primary_release_value
 
 logger = logging.getLogger(__name__)
@@ -584,12 +584,10 @@ def create_person(
             detail="photo_fallback_entry_id must name an entry this person is linked to.",
         )
     data = payload.model_dump(exclude={"roles", "name"})
+    # name_alt is a comma-separated list, so its first name is looked up,
+    # never the whole value.
     lookup = payload.name or next(
-        n
-        for n in (
-            payload.name_en, payload.name_cn, payload.name_jp, payload.name_alt
-        )
-        if n
+        iter(names_of(payload, ("name_en", "name_cn", "name_jp", "name_alt"))), ""
     )
     person = find_person(db, lookup)
     created = person is None

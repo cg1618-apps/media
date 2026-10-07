@@ -111,3 +111,16 @@ def test_merging_a_publisher_into_itself_is_a_400(admin_client):
         ).status_code
         == 400
     )
+
+
+def test_creating_with_only_an_alt_list_finds_the_publisher_holding_it(admin_client):
+    first = admin_client.post(
+        "/api/publisher/", json={"name_en": "Kadokawa", "name_alt": "KADOKAWA Corp, 角川"}
+    ).json()
+    second = admin_client.post(
+        "/api/publisher/", json={"name_alt": "KADOKAWA Corp, 角川"}
+    ).json()
+    assert first["system_id"] == second["system_id"]
+    # Mirror: a list none of whose names it holds is a new publisher.
+    third = admin_client.post("/api/publisher/", json={"name_alt": "Shueisha, 集英社"}).json()
+    assert third["system_id"] != first["system_id"]

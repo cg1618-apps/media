@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-06
+Last verified: 2026-10-07
 
 ## What this is for
 
@@ -222,7 +222,10 @@ mints a person whenever Fill/Pull, the Sheets restore or a typed dropdown value
 names somebody unknown, and a name must not land in one column during the
 migration and another the next day. Resolution and display do not depend on the
 choice — `_find_by_name` matches on all four columns and `display_name` falls
-back through all four — so only the label is at stake.
+back through all four — so only the label is at stake. `name_alt` is a
+comma-separated list, and `_find_by_name` matches each of its fragments as a
+name of its own, never the whole value (`names_of`, see
+[business-rules.md](../business-rules.md), section 10).
 
 `normalize_name(raw)` = NFKC fold (full-width Latin → half-width), strip **all**
 whitespace, `casefold()`. It is a comparison key only — the original spelling is
@@ -314,7 +317,9 @@ on purpose rather than by accident.
 `find_duplicate_entities` (`app/services/domain/checking.py`) is part of
 `find_all_duplicates` under the `"entities"` key. It clusters people,
 studios and publishers (each table separately) by union-find over the normalized keys of all
-four name columns, since `_find_by_name` matches on any of them.
+four name columns, since `_find_by_name` matches on any of them - `name_alt`
+split into its comma-separated fragments, so two rows sharing one fragment are
+flagged.
 The fix it points at is the merge endpoint, never delete.
 
 ## Where credits are written

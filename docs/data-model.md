@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-06
+Last verified: 2026-10-07
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -132,8 +132,11 @@ deleting a group leaves its members in place and simply ungrouped.
   `_name_fields`, the list of its name columns, and a `display_name`
   property that returns the first non-empty name in a fixed language order
   (CN → EN → Alt → roman → JP for every type except `comic`, which leads with
-  EN). `get_all_names()` returns the lower-cased set of all non-empty names
-  and is what duplicate detection compares. **There is no database
+  EN). Every `*_alt` name column holds a comma-separated list of names; every
+  other name column holds one (see [business-rules.md](business-rules.md),
+  section 10). `get_all_names()` returns the lower-cased set of all non-empty
+  names, each alt fragment a name of its own, and is what duplicate detection
+  compares. **There is no database
   constraint requiring at least one name** - all name columns are nullable
   and a nameless row is legal at the DB level.
 - **No DB enums.** Vocabulary columns (`watching_status`, `relation_type`,
@@ -1015,7 +1018,7 @@ One human credited on a media entry (Tier 3 entity - see
 | `name_en` | String | yes | | Indexed |
 | `name_cn` | String | yes | | |
 | `name_jp` | String | yes | | |
-| `name_alt` | String | yes | | The slot for a name that is none of the other three. Never chosen automatically. |
+| `name_alt` | String | yes | | The slot for names that are none of the other three: a comma-separated list, each fragment a name of its own when a name is matched. Never chosen automatically. |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `gender` | String | yes | | GENDERS (`男` / `女` / `中性/無性` / `雙性混和` / `其他`), or NULL for not set. On the base table, not a seiyuu extension: a fact about the person, not the role. |
 | `my_rating` | String | yes | | MY_RATINGS, or NULL |

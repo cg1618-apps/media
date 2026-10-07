@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-06
+Last verified: 2026-10-07
 
 ## What this is for
 
@@ -464,6 +464,8 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | any other tab with a string `franchise_id` | look up `Franchise` by en/cn/jp/alt name; **not found → row skipped** |
      | string `collection_id` | look up `Collection` by any of its five names; not found → set to `None`, row kept (collection is optional) |
      | string `series_id` | look up `Series` by en/cn/alt name; **not found → row skipped** |
+
+     The three lookups above go through `find_by_names` (`hierarchy.py`), as the resolvers do: exact and case-insensitive, with an `*_alt` column matching on any one of its comma-separated fragments - never on its whole value.
 
    - **Primary key field**: `id` for `System Configs`, `Person Role`, `Publisher Scope`, `System Option Scope`, `System Option Usage` and `Users` (`users.id` is a uuid, but it is spelled `id`); `seasonal` for `Seasonal`; `system_id` for everything else.
    - **Id-less matching**: when the PK cell is blank the row is matched to an existing local row by a natural key so a re-import updates instead of duplicating:

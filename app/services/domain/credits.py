@@ -30,7 +30,12 @@ from app.utils.credit_roles import (
     sheet_column_for,
     tag_fields_for,
 )
-from app.utils.name_normalize import name_slot_for, normalize_name, split_names
+from app.utils.name_normalize import (
+    name_slot_for,
+    names_of,
+    normalize_name,
+    split_names,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +70,9 @@ def _find_by_name(db: Session, model, name: str):
 
     Fields come from the model's _name_fields, so an entity matches on any of
     its names - a Japanese name from Tenrai and an English one typed into the
-    Add form must land on the same row, or its credits split in two.
+    Add form must land on the same row, or its credits split in two. name_alt
+    is a comma-separated list, and each of its fragments is one of those names
+    (names_of); the column's whole value is not.
 
     Linear scan over the whole table in Python rather than a SQL filter -
     normalize_name folds width/case/whitespace in ways SQL can't express
@@ -90,11 +97,8 @@ def _find_by_name(db: Session, model, name: str):
     fields = getattr(model, "_name_fields", None) or ["name_en"]
     matches = {}
     for row in db.query(model).all():
-        for field in fields:
-            value = getattr(row, field, None)
-            if value and normalize_name(value) == key:
-                matches[row.system_id] = row
-                break
+        if any(normalize_name(n) == key for n in names_of(row, fields)):
+            matches[row.system_id] = row
 
     if not matches:
         return None
