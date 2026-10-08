@@ -56,6 +56,13 @@ The gate exists because a migration is the only class of change that can
 destroy data, and because `alembic downgrade` is not a restore: reversing a
 dropped column recreates it empty.
 
+**Which lane a release takes is known before it is opened.**
+`./deploy/migrations added origin/main origin/dev` prints the revision files it
+would add, and any output means gated. The release PR says which, when its
+text is proposed and again when it is opened, so a merge that will wait for a
+second approval is never a surprise — the platform's `CLAUDE.md`, "Git
+Branches".
+
 **The `production` environment must have you as a required reviewer**, and
 nothing in this repository declares it. Referencing an environment that does
 not exist does not fail — GitHub creates it with no protection rules and runs
