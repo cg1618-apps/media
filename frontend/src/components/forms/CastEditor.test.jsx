@@ -189,13 +189,16 @@ it("gives every cell at most one width utility", async () => {
 it("gives the character and seiyuu pickers one fixed width and the remark the rest", async () => {
   // Again the mechanism, not the picture: both name pickers carry the same
   // fixed width (so the columns line up) and neither stretches; the remark
-  // is the cell that grows, and it may wrap under the seiyuu.
+  // is the cell that grows, and it may wrap under the seiyuu. Below sm both
+  // take a full line, and the role and photo wrap under the character.
   render(<CastEditor mediaType="anime" value={[row()]} onChange={vi.fn()} />);
   const character = screen.getByLabelText("Character");
   const seiyuu = screen
     .getByPlaceholderText("Seiyuu name...")
-    .closest('div[class~="w-64"]');
-  expect(character).toHaveClass("w-64", "min-w-0");
+    .closest('div[class~="sm:w-64"]');
+  expect(character).toHaveClass("w-full", "sm:w-64", "min-w-0");
+  expect(character.parentElement).toHaveClass("flex-wrap", "sm:flex-nowrap");
+  expect(screen.getByLabelText("Seiyuu")).toHaveClass("w-full", "sm:w-auto");
   expect(character).not.toHaveClass("flex-1");
   expect(seiyuu).not.toBeNull();
   expect(seiyuu.className).toBe(character.className);
