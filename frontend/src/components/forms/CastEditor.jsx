@@ -67,8 +67,10 @@ const cellCls =
 // The character picker and every seiyuu picker: one width, about a long CJK
 // name, so the two columns line up. It may shrink (min-w-0) but never grows,
 // so a narrow form squeezes the picker instead of overflowing, and a wide one
-// gives the spare room to the remark.
-const NAME_CELL = "w-64 min-w-0";
+// gives the spare room to the remark. Below sm a phone has no room for a
+// fixed-width picker beside the role and photo, so the picker takes a line of
+// its own at full width and the cells that sat beside it wrap under it.
+const NAME_CELL = "w-full sm:w-64 min-w-0";
 
 // The POST body for a character minted from this editor: the typed name as
 // its CN name and display name, plus the gender NEW_CAST_CHARACTER_GENDER
@@ -823,7 +825,7 @@ export default function CastEditor({
             data-testid="cast-row"
             // Dashed, so an identity row reads as the same character under
             // another name rather than as one more character.
-            className={`flex gap-2 items-start border rounded-lg p-2 bg-surface ${
+            className={`flex gap-1 sm:gap-2 items-start border rounded-lg p-1.5 sm:p-2 bg-surface ${
               asIdentity ? "border-dashed border-border-strong" : "border-border"
             }`}
           >
@@ -843,9 +845,10 @@ export default function CastEditor({
                 the two columns line up and the remark takes what is left. The
                 second line wraps the remark under the seiyuu when even that
                 is too tight, and a picker shrinks below its width rather than
-                overflow. */}
+                overflow. On a phone each picker takes a full line and the
+                role and photo wrap under the character. */}
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-              <div className="flex gap-1.5 items-center">
+              <div className="flex flex-wrap sm:flex-nowrap gap-1.5 items-center">
                 {asIdentity ? (
                   <>
                     {/* The character is fixed on an identity row: to cast
@@ -969,7 +972,7 @@ export default function CastEditor({
               <div className="flex flex-wrap gap-1.5 items-start">
                 {showSeiyuu ? (
                   <div
-                    className="flex-[0_1_auto] min-w-0 flex flex-col gap-1"
+                    className="w-full sm:w-auto sm:flex-[0_1_auto] min-w-0 flex flex-col gap-1"
                     aria-label="Seiyuu"
                   >
                     {voiceLines(row).map((voice, v) => (
@@ -998,7 +1001,7 @@ export default function CastEditor({
                           />
                         </div>
                         <input
-                          className={cellCls + " shrink-0 w-28"}
+                          className={cellCls + " shrink-0 w-24 sm:w-28"}
                           placeholder="e.g. child"
                           value={voice.remark || ""}
                           onChange={(e) => updateVoice(i, v, { remark: e.target.value })}
