@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-10-07
+Last verified: 2026-10-09
 
 ## What this is for
 
@@ -307,7 +307,7 @@ Deliberately dropped: `about` — the character table has no column for it.
 
 ### Mapping for a cast — `map_tenrai_cast`
 
-The MAL cast import (`POST /api/casting/mal`, `app/services/domain/mal_cast.py`) reads `/anime|manga/{mal_id}/characters`, a list of `{character, role, voice_actors}` items, and turns each into one row. An item with no character id is dropped.
+The MAL cast import (`POST /api/casting/mal`, `app/services/domain/mal_cast.py`) reads `/anime|manga/{mal_id}/characters`, a list of `{character, role, voice_actors}` items, and turns each into one row. An item with no character id is dropped, and with `main_only` so is every row whose role is not `Main` - before matching, so nothing is created for it.
 
 | Tenrai field | Becomes | Rule |
 |---|---|---|

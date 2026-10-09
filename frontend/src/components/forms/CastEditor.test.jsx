@@ -736,6 +736,7 @@ it("imports a cast from the entry's MAL link and reports what it created", async
         media_type: "anime",
         mal_link: "https://myanimelist.net/anime/5114",
         character_ids: ["c1"],
+        main_only: false,
       });
       return Promise.resolve({
         ok: true,
@@ -764,6 +765,57 @@ it("imports a cast from the entry's MAL link and reports what it created", async
   expect(rows[1].voices).toEqual([{ person_id: "p9", person_name: "Romi Park", remark: "" }]);
   expect(await importStatus()).toHaveTextContent(
     "Imported 1 from MyAnimeList (1 already in this cast). Created 1 new characters and 1 new seiyuu.",
+  );
+});
+
+it("imports only MAL's main characters from the second button", async () => {
+  const main = {
+    character_id: "c9",
+    character_public_id: 9,
+    character_name: "Edward Elric",
+    role: "Main",
+    position: 0,
+    photo_file: null,
+    photo_focus: null,
+    remark: null,
+    voices: [],
+  };
+  let sent;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url, init) => {
+      if (url === "/api/casting/mal") {
+        sent = JSON.parse(init.body);
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ cast: [main], created_characters: 1, created_people: 0, warnings: [] }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    }),
+  );
+  const onChangeSpy = vi.fn();
+  render(
+    <Controlled
+      mediaType="anime"
+      initialRows={[]}
+      onChangeSpy={onChangeSpy}
+      malLink="https://myanimelist.net/anime/5114"
+    />,
+  );
+
+  // The full import stays beside it.
+  expect(screen.getByText("Import from MAL")).toBeInTheDocument();
+  fireEvent.click(screen.getByText("Import main cast from MAL"));
+
+  await waitFor(() => expect(onChangeSpy).toHaveBeenCalled());
+  expect(sent.main_only).toBe(true);
+  expect(onChangeSpy.mock.calls.at(-1)[0].map((r) => r.character_name)).toEqual([
+    "Edward Elric",
+  ]);
+  expect(await importStatus()).toHaveTextContent(
+    "Imported 1 main characters from MyAnimeList. Created 1 new characters.",
   );
 });
 
@@ -825,6 +877,7 @@ it("sends the characters the form holds, so a hand-added one is matched, not dup
 it("offers no MAL import without a MAL link, and shows the server's refusal", async () => {
   const { unmount } = render(<CastEditor mediaType="anime" value={[]} onChange={vi.fn()} />);
   expect(screen.queryByText("Import from MAL")).not.toBeInTheDocument();
+  expect(screen.queryByText("Import main cast from MAL")).not.toBeInTheDocument();
   unmount();
 
   vi.stubGlobal(
