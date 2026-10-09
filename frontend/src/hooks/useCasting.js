@@ -55,13 +55,16 @@ export function useReplaceCasting() {
         body: JSON.stringify({
           cast: (cast || [])
             .filter((row) => row && row.character_id)
-            // identity_name and the display_* pair are read-only: names and
-            // the resolved photo are display data, never part of the row.
+            // identity_name and the display_* and fallback_* pairs are
+            // read-only: names and the resolved photos are display data,
+            // never part of the row.
             .map(({
               identity_name: _identityName,
               identity_row: _identityRow,
               display_photo_file: _displayPhotoFile,
               display_photo_focus: _displayPhotoFocus,
+              fallback_photo_file: _fallbackPhotoFile,
+              fallback_photo_focus: _fallbackPhotoFocus,
               ...row
             }) => ({
               ...row,

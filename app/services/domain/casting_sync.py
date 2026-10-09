@@ -10,7 +10,8 @@ original's seiyuu are not a column anywhere: a seiyuu belongs to a
 performance, so they are read from the same character-and-identity's OTHER
 voiced cast rows - the voice list used most often, ties to the oldest row.
 The original's photo needs no copying at all: a cast row with no photo of
-its own already shows the identity's or the character's (casting_rows).
+its own already shows the identity's or the character's (casting_rows), and
+the cast editor is handed the same picture to show, never to store.
 
 Three operations:
 
@@ -35,7 +36,11 @@ from uuid import UUID
 from sqlalchemy.orm import Session, selectinload
 
 from app import models
-from app.services.domain.casting import VOICED_MEDIA_TYPES, fill_character_roles
+from app.services.domain.casting import (
+    VOICED_MEDIA_TYPES,
+    fallback_photo,
+    fill_character_roles,
+)
 from app.utils.character_roles import CHARACTER_ROLES
 
 # (character_id, identity_id) - identity_id None is the main identity.
@@ -118,12 +123,19 @@ def cast_originals(
     other entry does not vote, so its seiyuu cannot surface here.
     """
     character_ids = {c for c, _ in pairs}
+    identity_ids = {i for _, i in pairs if i}
     characters = {
         c.system_id: c
         for c in db.query(models.Character).filter(
             models.Character.system_id.in_(character_ids)
         )
     } if character_ids else {}
+    identities = {
+        i.system_id: i
+        for i in db.query(models.CharacterIdentity).filter(
+            models.CharacterIdentity.system_id.in_(identity_ids)
+        )
+    } if identity_ids else {}
 
     voiced = media_type in VOICED_MEDIA_TYPES
     sources = _voiced_castings_by_pair(db, pairs) if voiced else {}
@@ -146,6 +158,8 @@ def cast_originals(
     out = []
     for character_id, identity_id in pairs:
         character = characters.get(character_id)
+        identity = identities.get(identity_id) if identity_id else None
+        photo_file, photo_focus = fallback_photo(identity, character)
         out.append(
             {
                 "character_id": str(character_id),
@@ -153,6 +167,10 @@ def cast_originals(
                 # An identity has no role; the character's is the original's.
                 # No remark: it travels from cast row to original, never back.
                 "role": character.role if character else None,
+                # What the synced row, its own photo cleared, falls back to -
+                # for the editor to show, not to save.
+                "fallback_photo_file": photo_file,
+                "fallback_photo_focus": photo_focus,
                 "voices": [
                     {
                         "person_id": str(v["person_id"]),

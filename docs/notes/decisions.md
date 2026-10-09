@@ -3303,6 +3303,12 @@ page's cast row "Conan (Kudo Shinichi)" read as two characters.
   already shows the original's, so copying the key would freeze a picture the
   original may later change. Syncing a row therefore clears its photo, and the
   fill leaves cast photos alone.
+- **The editor shows the fallback rather than storing it (2026-10-09).** An
+  empty photo cell on Modify read as "no picture" although the entry page
+  showed one. Filling the row's `photo_file` from the original was offered
+  and turned down for the freezing reason above; instead the cast read and
+  `/originals` carry a read-only `fallback_photo_file`, drawn dimmed in the
+  cell and dropped on save.
 - **The fill runs originals first, then cast rows**, so a character with no
   role takes one from its highest-ranked row and the rest of its rows take it
   in the same run; the reverse order needed two runs to settle. It replaces
