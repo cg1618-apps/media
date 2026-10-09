@@ -661,7 +661,10 @@ held on a character or an identity - a seiyuu belongs to a performance - so the
 on other voiced entries: the voice list used most often, ties to the oldest
 row. A row with no voices does not vote. The original's photo is never copied
 into a cast row, because a row with no photo of its own already shows it
-(`display_photo_file`). All of it lives in `app/services/domain/casting_sync.py`.
+(`display_photo_file`); a copied key would also freeze a picture the original
+may later change. The cast editor shows it instead: the cast read and
+`POST /api/casting/originals` both carry the row's `fallback_photo_file`, which
+the editor draws dimmed in an empty photo cell and never saves. All of it lives in `app/services/domain/casting_sync.py`.
 
 Three ways the two are brought together:
 

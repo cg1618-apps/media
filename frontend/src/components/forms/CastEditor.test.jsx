@@ -261,6 +261,73 @@ it("keeps a cast photo's focal point beside it, and clears it with a new photo",
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 
+it("hands the picker the picture the row falls back to, for show only", async () => {
+  render(
+    <CastEditor
+      mediaType="anime"
+      value={[
+        row({
+          character_id: "c1",
+          character_name: "Ichika",
+          fallback_photo_file: "characters/ichika.jpg",
+          fallback_photo_focus: "10% 20%",
+        }),
+        row({ position: 1 }),
+      ]}
+      onChange={vi.fn()}
+    />,
+  );
+  const [withFallback, without] = pickerProps.slice(-2);
+  expect(withFallback).toMatchObject({
+    value: "",
+    fallback: { file: "characters/ichika.jpg", focus: "10% 20%" },
+  });
+  expect(without.fallback).toBeNull();
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
+it("forgets the fallback picture when the row's character is cleared", async () => {
+  const onChangeSpy = vi.fn();
+  render(
+    <Controlled
+      mediaType="anime"
+      initialRows={[
+        row({
+          character_id: "c1",
+          character_name: "Ichika",
+          fallback_photo_file: "characters/ichika.jpg",
+          fallback_photo_focus: "10% 20%",
+        }),
+      ]}
+      onChangeSpy={onChangeSpy}
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Clear character" }));
+
+  expect(onChangeSpy.mock.lastCall[0][0]).toMatchObject({
+    character_id: null,
+    fallback_photo_file: null,
+    fallback_photo_focus: null,
+  });
+});
+
+it("an imported row keeps the fallback picture of the same character", () => {
+  const imported = importedRow(
+    {
+      character_id: "c1",
+      fallback_photo_file: "characters/ichika.jpg",
+      fallback_photo_focus: "10% 20%",
+    },
+    0,
+    true,
+  );
+  expect(imported).toMatchObject({
+    fallback_photo_file: "characters/ichika.jpg",
+    fallback_photo_focus: "10% 20%",
+  });
+});
+
 it("hides the seiyuu column on manga", async () => {
   // ck_casting_voice_scope: nobody voices anyone in a manga, so the UI must
   // not offer what the database will reject.
@@ -618,6 +685,9 @@ it("imports another franchise entry's cast after the rows already here", async (
     position: 1,
     photo_file: "character/s1.jpg",
     photo_focus: "30% 20%",
+    // The source sent none, so the import knows none.
+    fallback_photo_file: null,
+    fallback_photo_focus: null,
     remark: "season one look",
   });
   expect(await importStatus()).toHaveTextContent(
@@ -1357,6 +1427,8 @@ describe("sync from original", () => {
     role: "Main",
     remark: "the original's remark",
     voices: [{ person_id: "p1", person_public_id: 1, person_name: "Kana Hanazawa", remark: null }],
+    fallback_photo_file: "characters/yuki.jpg",
+    fallback_photo_focus: "40% 40%",
   };
 
   function stubOriginals(originals) {
@@ -1387,7 +1459,7 @@ describe("sync from original", () => {
       ...overrides,
     });
 
-  it("replaces one row's role and seiyuu, keeps its remark and clears its photo", async () => {
+  it("replaces one row's role and seiyuu, keeps its remark, clears its photo and shows the original's", async () => {
     const bodies = stubOriginals([ORIGINAL]);
     const onChangeSpy = vi.fn();
     render(
@@ -1407,6 +1479,9 @@ describe("sync from original", () => {
       remark: "row remark",
       photo_file: null,
       photo_focus: null,
+      // Shown in the photo cell, never saved: the row falls back to it.
+      fallback_photo_file: "characters/yuki.jpg",
+      fallback_photo_focus: "40% 40%",
       voices: [{ person_id: "p1", person_name: "Kana Hanazawa", remark: "" }],
     });
     expect(

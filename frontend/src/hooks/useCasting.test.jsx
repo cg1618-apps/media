@@ -128,6 +128,8 @@ it("sends a loaded main row switched to an identity with no photo_file", async (
       photo_focus: null,
       display_photo_file: "characters/shinichi.jpg",
       display_photo_focus: "10% 10%",
+      fallback_photo_file: "characters/shinichi.jpg",
+      fallback_photo_focus: "10% 10%",
     },
   ];
 
@@ -139,6 +141,8 @@ it("sends a loaded main row switched to an identity with no photo_file", async (
   expect(sent.photo_file).toBeNull();
   expect(sent).not.toHaveProperty("display_photo_file");
   expect(sent).not.toHaveProperty("display_photo_focus");
+  expect(sent).not.toHaveProperty("fallback_photo_file");
+  expect(sent).not.toHaveProperty("fallback_photo_focus");
   expect(sent.identity_id).toBe("i1");
 });
 

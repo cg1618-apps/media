@@ -36,6 +36,18 @@ class CastingValidationError(ValueError):
     """A casting payload failed a rule the CHECK constraint would also catch."""
 
 
+def fallback_photo(identity, character) -> tuple[Optional[str], Optional[str]]:
+    """
+    The picture a cast row with no photo of its own shows, and its focus: the
+    identity's when the row names one that has a photo, else the character's.
+    """
+    if identity is not None and identity.photo_file:
+        return identity.photo_file, identity.photo_focus
+    if character is not None:
+        return character.photo_file, character.photo_focus
+    return None, None
+
+
 def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
     """
     One entry's cast, ordered by position, each row with its voices in order.
@@ -117,14 +129,11 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
         identity = identities.get(casting.identity_id) if casting.identity_id else None
         # The display photo: the row's own, then the identity's, then the
         # character's; the focus travels with whichever photo won.
+        fallback_file, fallback_focus = fallback_photo(identity, character)
         if casting.photo_file:
             display_file, display_focus = casting.photo_file, casting.photo_focus
-        elif identity is not None and identity.photo_file:
-            display_file, display_focus = identity.photo_file, identity.photo_focus
-        elif character is not None:
-            display_file, display_focus = character.photo_file, character.photo_focus
         else:
-            display_file = display_focus = None
+            display_file, display_focus = fallback_file, fallback_focus
         rows.append(
             {
                 "system_id": str(casting.system_id),
@@ -142,12 +151,15 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
                 "role": casting.role,
                 "position": casting.position,
                 # The row's OWN photo (null when it has none) - what the cast
-                # editor loads and sends back - and the resolved pair readers
-                # display.
+                # editor loads and sends back - the resolved pair readers
+                # display, and the fallback pair the editor shows, dimmed, in
+                # an empty photo cell. Neither of the last two is ever saved.
                 "photo_file": casting.photo_file,
                 "photo_focus": casting.photo_focus,
                 "display_photo_file": display_file,
                 "display_photo_focus": display_focus,
+                "fallback_photo_file": fallback_file,
+                "fallback_photo_focus": fallback_focus,
                 "remark": casting.remark,
             }
         )

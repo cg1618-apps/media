@@ -98,6 +98,7 @@ function voiceLines(row) {
 // A row of another entry's cast, as this editor holds one: everything is
 // copied - photo and remark included - except the casting's own id, so the
 // save makes a new casting here. Voices are dropped on a type nobody voices.
+// The fallback photo comes too: same character and identity, same picture.
 export function importedRow(source, position, voiced) {
   return {
     system_id: undefined,
@@ -116,6 +117,8 @@ export function importedRow(source, position, voiced) {
     position,
     photo_file: source.photo_file || null,
     photo_focus: source.photo_focus || null,
+    fallback_photo_file: source.fallback_photo_file || null,
+    fallback_photo_focus: source.fallback_photo_focus || null,
     remark: source.remark || "",
   };
 }
@@ -123,10 +126,16 @@ export function importedRow(source, position, voiced) {
 // A row after "Sync from original": the original's role and seiyuu replace
 // the row's - each only when the original has one, so a blank there leaves
 // the row's value - and the row's own photo is always cleared, so it shows
-// the original's picture. Voices only on a voiced type. The remark is never
-// touched: it travels from cast row to character, not back.
+// the original's picture, which the photo cell is handed to show dimmed.
+// Voices only on a voiced type. The remark is never touched: it travels from
+// cast row to character, not back.
 export function syncedRow(row, original, voiced) {
-  const patch = { photo_file: null, photo_focus: null };
+  const patch = {
+    photo_file: null,
+    photo_focus: null,
+    fallback_photo_file: original.fallback_photo_file || null,
+    fallback_photo_focus: original.fallback_photo_focus || null,
+  };
   if (original.role && original.role.trim()) patch.role = original.role;
   if (voiced && original.voices?.length) {
     patch.voices = original.voices.map((voice) => ({
@@ -279,10 +288,19 @@ export default function CastEditor({
   useEffect(() => {
     latestRows.current = value || [];
   }, [value]);
+  // A patch that moves the row to another character or identity also drops
+  // its fallback photo: that was the old original's picture, and the new
+  // one's is not known until the row is saved or synced.
   const updateRow = (i, patch) => {
-    const next = latestRows.current.map((r, j) =>
-      j === i ? { ...r, ...patch } : r,
-    );
+    const next = latestRows.current.map((r, j) => {
+      if (j !== i) return r;
+      const moved =
+        ("character_id" in patch && patch.character_id !== r.character_id) ||
+        ("identity_id" in patch && (patch.identity_id || null) !== (r.identity_id || null));
+      return moved
+        ? { ...r, ...patch, fallback_photo_file: null, fallback_photo_focus: null }
+        : { ...r, ...patch };
+    });
     latestRows.current = next;
     onChange(next);
   };
@@ -965,6 +983,11 @@ export default function CastEditor({
                     onChange={(key) => updateRow(i, { photo_file: key || null })}
                     focus={row.photo_focus || null}
                     onFocusChange={(focus) => updateRow(i, { photo_focus: focus })}
+                    fallback={
+                      row.fallback_photo_file
+                        ? { file: row.fallback_photo_file, focus: row.fallback_photo_focus || null }
+                        : null
+                    }
                   />
                 </div>
               </div>

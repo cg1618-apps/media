@@ -35,6 +35,11 @@
 // the server resets it on every attach and clear for the same reason - a form
 // that kept the old value would re-stamp it onto the new picture on save.
 // Quote and meme images are drawn uncropped and pass no onFocusChange.
+//
+// `fallback` ({file, focus}, compact only) is a picture the caller's record
+// shows when it has none of its own - a cast row's identity or character. It
+// is drawn dimmed in the empty thumbnail and is never handed to onChange:
+// showing it must not turn it into the record's own.
 import { useEffect, useRef, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
@@ -75,6 +80,7 @@ export default function ImagePicker({
   focus = null,
   onFocusChange,
   compact = false,
+  fallback = null,
 }) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
@@ -197,6 +203,15 @@ export default function ImagePicker({
               alt="Current image"
               className="w-8 h-8 rounded object-cover shrink-0 border border-border"
               style={focusStyle(focus)}
+            />
+          ) : fallback?.file ? (
+            <img
+              loading="lazy"
+              src={getCoverUrl(fallback.file)}
+              alt="Fallback image"
+              title="None of its own - showing the one it falls back to"
+              className="w-8 h-8 rounded object-cover shrink-0 border border-dashed border-border opacity-50"
+              style={focusStyle(fallback.focus)}
             />
           ) : (
             <span className="w-8 h-8 rounded shrink-0 border border-dashed border-border" />
