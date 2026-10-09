@@ -74,6 +74,7 @@ def test_photo_file_is_the_rows_own_and_display_photo_is_resolved(
     assert cast[0]["photo_file"] is None
     assert cast[0]["photo_focus"] is None
     assert cast[0]["display_photo_file"] == "characters/ichika.jpg"
+    assert cast[0]["fallback_photo_file"] == "characters/ichika.jpg"
     assert cast[1]["photo_file"] is None
     assert cast[1]["display_photo_file"] == "character-identity/conan.jpg"
     assert cast[1]["display_photo_focus"] == "10% 20%"
@@ -85,6 +86,10 @@ def test_photo_file_is_the_rows_own_and_display_photo_is_resolved(
     assert cast[1]["photo_focus"] == "1% 2%"
     assert cast[1]["display_photo_file"] == "character/own.jpg"
     assert cast[1]["display_photo_focus"] == "1% 2%"
+    # The fallback ignores the row's own photo: it is what the row would show
+    # without one, so the editor can show it the moment the own one is removed.
+    assert cast[1]["fallback_photo_file"] == "character-identity/conan.jpg"
+    assert cast[1]["fallback_photo_focus"] == "10% 20%"
 
 
 def test_entries_lists_each_identity_appearance(admin_client, client, anime, character, identity):

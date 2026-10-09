@@ -45,6 +45,25 @@ describe("ImagePicker - compact", () => {
     expect(screen.queryByRole("button", { name: "Remove image" })).not.toBeInTheDocument();
   });
 
+  it("shows the fallback, dimmed, when there is no image of its own", () => {
+    renderCompact({ value: "", fallback: { file: "characters/ichika.jpg", focus: "10% 20%" } });
+
+    const img = screen.getByAltText("Fallback image");
+    expect(img).toHaveClass("opacity-50");
+    expect(img.getAttribute("src")).toContain("characters/ichika.jpg");
+    expect(img).toHaveStyle({ objectPosition: "10% 20%" });
+    expect(screen.queryByAltText("Current image")).not.toBeInTheDocument();
+    // Nothing of the row's own to remove.
+    expect(screen.queryByRole("button", { name: "Remove image" })).not.toBeInTheDocument();
+  });
+
+  it("shows its own image, not the fallback, when it has one", () => {
+    renderCompact({ fallback: { file: "characters/ichika.jpg", focus: null } });
+
+    expect(screen.getByAltText("Current image")).toBeInTheDocument();
+    expect(screen.queryByAltText("Fallback image")).not.toBeInTheDocument();
+  });
+
   it("removes without an owner by emptying the value only", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

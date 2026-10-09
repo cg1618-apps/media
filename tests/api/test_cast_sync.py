@@ -90,6 +90,8 @@ def test_originals_carry_the_characters_role_but_never_its_remark(
     assert original["role"] == "Main"
     # A remark travels from cast row to character only, never back.
     assert "remark" not in original
+    # The picture the row falls back to, for the editor to show - not to store.
+    assert original["fallback_photo_file"] == "characters/ichika.jpg"
 
 
 def test_an_identity_rows_original_is_the_identity_with_the_characters_role(
@@ -114,6 +116,31 @@ def test_an_identity_rows_original_is_the_identity_with_the_characters_role(
     [original] = r.json()["originals"]
     assert original["role"] == "Main"
     assert "remark" not in original
+    # An identity with no photo of its own falls back to the character's.
+    assert original["fallback_photo_file"] == "characters/ichika.jpg"
+
+
+def test_an_identity_rows_fallback_photo_is_the_identitys_own(
+    admin_client, db_session, seasons, character
+):
+    identity = models.CharacterIdentity(
+        character_id=character.system_id, name_en="Masked",
+        photo_file="character-identity/masked.jpg", photo_focus="5% 6%",
+    )
+    db_session.add(identity)
+    db_session.flush()
+
+    r = admin_client.post("/api/casting/originals", json={
+        "media_type": "anime",
+        "rows": [{
+            "character_id": str(character.system_id),
+            "identity_id": str(identity.system_id),
+        }],
+    })
+
+    [original] = r.json()["originals"]
+    assert original["fallback_photo_file"] == "character-identity/masked.jpg"
+    assert original["fallback_photo_focus"] == "5% 6%"
 
 
 def test_original_seiyuu_are_the_most_used_voice_list_on_other_entries(
