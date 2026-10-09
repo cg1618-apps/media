@@ -1387,7 +1387,7 @@ describe("sync from original", () => {
       ...overrides,
     });
 
-  it("replaces one row's role, remark and seiyuu and clears its photo", async () => {
+  it("replaces one row's role and seiyuu, keeps its remark and clears its photo", async () => {
     const bodies = stubOriginals([ORIGINAL]);
     const onChangeSpy = vi.fn();
     render(
@@ -1401,9 +1401,10 @@ describe("sync from original", () => {
       { media_type: "anime", entry_id: "e1", rows: [{ character_id: "c1", identity_id: null }] },
     ]);
     const [synced] = onChangeSpy.mock.calls.at(-1)[0];
+    // A remark never comes down from the original, even when it sends one.
     expect(synced).toMatchObject({
       role: "Main",
-      remark: "the original's remark",
+      remark: "row remark",
       photo_file: null,
       photo_focus: null,
       voices: [{ person_id: "p1", person_name: "Kana Hanazawa", remark: "" }],
@@ -1476,7 +1477,7 @@ describe("sync from original", () => {
     expect(rows[1]).toMatchObject({ character_id: null, role: "" });
     expect(rows[2]).toMatchObject({
       role: "Core",
-      remark: "as the disguise",
+      remark: "row remark",
       photo_file: null,
       voices: [{ person_id: "p9", person_name: "Someone Else", remark: "" }],
     });

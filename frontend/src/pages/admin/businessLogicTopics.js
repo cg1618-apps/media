@@ -22,7 +22,7 @@ const CAST_SYNC = {
   title: "Sync cast and characters",
   fn: "run_sync_cast",
   summary:
-    "Keeps cast rows and the characters they cast in step. A cast row's original is the record it casts: the character's identity when the row names one, otherwise the character itself. It works both ways but only fills empty fields — nothing that already holds a value is overwritten, and one run settles everything, so a second run changes nothing. The Sync Cast button on the Control Center runs this step on its own.",
+    "Keeps cast rows and the characters they cast in step. A cast row's original is the record it casts: the character's identity when the row names one, otherwise the character itself. Role, photo and seiyuu work both ways; a remark goes one way only, from a cast row up to its original, and is never copied down. It only fills empty fields — nothing that already holds a value is overwritten, and one run settles everything, so a second run changes nothing. The Sync Cast button on the Control Center runs this step on its own.",
   groups: [
     {
       title: "First: cast rows fill the character or identity",
@@ -37,7 +37,7 @@ const CAST_SYNC = {
       title: "Then: the original fills its cast rows",
       points: [
         "An empty cast role takes the character's role. An identity has no role of its own, so the character's stands in.",
-        "An empty cast remark takes the original's remark.",
+        "A cast row's remark is never filled: a remark goes from the cast row up to the original, never back down.",
         "A cast row on a voiced type (anime, anime movie, hentai) with no seiyuu takes the original seiyuu, chosen as below.",
         "A cast row's photo is never filled: an empty one already shows the original's photo.",
       ],

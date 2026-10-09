@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-07
+Last verified: 2026-10-09
 
 ## What this is for
 
@@ -651,8 +651,11 @@ form holds, saved or not.
 ## A cast row and its original
 
 A cast row's **original** is the record it casts: the identity it names, else
-the character. The original's remark is the identity's or the character's;
-its role is always the character's, since an identity has none. Seiyuu are not
+the character. Its role is always the character's, since an identity has
+none. A **remark travels one way only, from a cast row up to its original**:
+the original's remark is never copied onto a cast row, by any of the three
+paths below, because a row's remark says something about that one
+appearance. Seiyuu are not
 held on a character or an identity - a seiyuu belongs to a performance - so the
 **original seiyuu** are read from the same character and identity's cast rows
 on other voiced entries: the voice list used most often, ties to the oldest
@@ -663,8 +666,9 @@ into a cast row, because a row with no photo of its own already shows it
 Three ways the two are brought together:
 
 - **Sync from original** (cast editor, one row or **Sync all from original**)
-  replaces the row's role, remark and seiyuu with the original's, through
-  `POST /api/casting/originals`, and clears the row's own photo. A value the
+  replaces the row's role and seiyuu with the original's, through
+  `POST /api/casting/originals`, and clears the row's own photo. The row's
+  remark is left as it is. A value the
   original does not have leaves the row's alone. It changes the form; Save
   writes it. The entry being edited never votes for its own seiyuu.
 - **Sync from cast** (character page) replaces the original's role, remark and
@@ -672,14 +676,15 @@ Three ways the two are brought together:
   `POST /api/character/{system_id}/sync-from-cast`. A value the row does not
   hold leaves the original's alone.
 - **Sync Cast** (System page, and a step of Calculate All's `run_sync`) is
-  fill-only, both ways, and never overwrites. First the originals: an empty
+  fill-only and never overwrites; role, photo and seiyuu go both ways, a
+  remark only up. First the originals: an empty
   character role takes the highest-ranked role of its rows
   (`fill_character_roles`), and an empty remark or photo on a character or an
   identity takes the value of its own rows' highest-ranked one that has it
   (`CHARACTER_ROLES` order, then oldest) - an identity's rows fill the
   identity, the main identity's fill the character. Then the cast rows: an
-  empty role or remark takes the original's, and a voiced row with no seiyuu
-  takes the original seiyuu. Cast photos are not filled. Because the
+  empty role takes the character's, and a voiced row with no seiyuu takes
+  the original seiyuu. Cast remarks and cast photos are not filled. Because the
   originals fill first, one run converges and a second changes nothing.
 
 ## Photo fallback

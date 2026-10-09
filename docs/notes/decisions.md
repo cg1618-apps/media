@@ -3304,6 +3304,21 @@ page's cast row "Conan (Kudo Shinichi)" read as two characters.
   original may later change. Syncing a row therefore clears its photo, and the
   fill leaves cast photos alone.
 - **The fill runs originals first, then cast rows**, so a character with no
-  remark takes one from its highest-ranked row and the rest of its rows take it
+  role takes one from its highest-ranked row and the rest of its rows take it
   in the same run; the reverse order needed two runs to settle. It replaces
   `run_sync_character_roles`, whose role fill is now its first step.
+
+### A remark travels one way, from cast row to character (2026-10-09)
+
+- **Owner's request: "When sync cast from character, don't sync remark.
+  Remark will only be one way fill, from cast to character."** Neither "Sync
+  from original" nor the Sync Cast fill copies the original's remark onto a
+  cast row any more; "Sync from cast" and the fill's first half still carry a
+  row's remark up to its character or identity.
+- **Why:** a cast row's remark is about that one appearance, so the
+  character's remark copied onto every row said the same thing on each entry
+  and filled rows that were blank on purpose. Role, photo and seiyuu are
+  unchanged.
+- **Done on the server, not only in the form:** `/api/casting/originals` no
+  longer returns `remark`, and the fill no longer counts `cast_remark`, so no
+  caller can bring a remark down by another route.

@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-07
+Last verified: 2026-10-09
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -62,8 +62,9 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   Sync Cast, Find Duplicates, With Remarks and Check & Download Covers. **Sync
   Cast** (`POST /api/data-control/calculate/sync-cast`,
   `endpoints.dataControl.syncCast`) runs Calculate All's cast step on its own -
-  the fill-only, both-ways sync between cast rows and the characters and
-  identities they cast - through the same `runCalc` as Calculate All: a
+  the fill-only sync between cast rows and the characters and identities
+  they cast, both ways except a remark, which only goes up to the
+  character - through the same `runCalc` as Calculate All: a
   spinner while it runs, the server's `message` as the toast, then the log
   reloads. Its tile carries the one-line description "Fill empty cast and
   character fields from each other — never overwrites." The rules are on
