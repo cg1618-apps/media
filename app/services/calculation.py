@@ -621,8 +621,8 @@ def run_sync_cast(db: Session) -> dict:
     """
     The fill-only, both-ways sync between cast rows and the characters and
     identities they cast (app/services/domain/casting_sync.py): empty
-    character and identity fields from their cast rows, then empty cast
-    fields from their originals. Nothing holding a value is overwritten. A
+    character and identity fields from their cast rows, then empty cast role
+    and seiyuu from their originals - a remark only ever goes up. Nothing holding a value is overwritten. A
     cast save fills only the character roles it touches; this is the net
     under everything else - a Pull, a sheet restore, a hand edit.
     """
@@ -633,7 +633,7 @@ def run_sync_cast(db: Session) -> dict:
         + counts["character_photo"] + counts["identity_remark"]
         + counts["identity_photo"]
     )
-    cast_side = counts["cast_role"] + counts["cast_remark"] + counts["cast_seiyuu"]
+    cast_side = counts["cast_role"] + counts["cast_seiyuu"]
     return {
         "status": "success",
         "message": (

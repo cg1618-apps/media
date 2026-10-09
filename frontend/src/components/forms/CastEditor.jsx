@@ -120,14 +120,14 @@ export function importedRow(source, position, voiced) {
   };
 }
 
-// A row after "Sync from original": the original's role, remark and seiyuu
-// replace the row's - each only when the original has one, so a blank there
-// leaves the row's value - and the row's own photo is always cleared, so it
-// shows the original's picture. Voices only on a voiced type.
+// A row after "Sync from original": the original's role and seiyuu replace
+// the row's - each only when the original has one, so a blank there leaves
+// the row's value - and the row's own photo is always cleared, so it shows
+// the original's picture. Voices only on a voiced type. The remark is never
+// touched: it travels from cast row to character, not back.
 export function syncedRow(row, original, voiced) {
   const patch = { photo_file: null, photo_focus: null };
   if (original.role && original.role.trim()) patch.role = original.role;
-  if (original.remark && original.remark.trim()) patch.remark = original.remark;
   if (voiced && original.voices?.length) {
     patch.voices = original.voices.map((voice) => ({
       person_id: voice.person_id,

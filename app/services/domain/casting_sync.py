@@ -2,8 +2,10 @@
 Keep cast rows and the character records they cast in step.
 
 A cast row's ORIGINAL is the record it casts: the character's identity when
-the row names one, otherwise the character itself. Remark and role come from
-it - an identity has no role of its own, so the character's stands in. The
+the row names one, otherwise the character itself. Role comes from it - an
+identity has no role of its own, so the character's stands in. A remark
+travels one way only, from cast row to original: a remark is written about
+one appearance, so the original's is never copied down onto a row. The
 original's seiyuu are not a column anywhere: a seiyuu belongs to a
 performance, so they are read from the same character-and-identity's OTHER
 voiced cast rows - the voice list used most often, ties to the oldest row.
@@ -13,15 +15,16 @@ its own already shows the identity's or the character's (casting_rows).
 Three operations:
 
 - `cast_originals` - what each cast row's original says, for the cast editor's
-  "Sync from original" buttons, which REPLACE the row's values with it in the
-  form. A value the original does not have leaves the row's alone; the photo
-  is always cleared, back to the fallback.
+  "Sync from original" buttons, which REPLACE the row's role and seiyuu with
+  it in the form - never its remark. A value the original does not have
+  leaves the row's alone; the photo is always cleared, back to the fallback.
 - `sync_character_from_cast` - the character page's "Sync from cast": one cast
   row's role, remark and photo replace the character's (or its identity's).
-- `fill_cast_and_characters` - the fill-only, both-ways pass Calculate All
-  runs. Empty character fields take their cast rows' values first, then empty
-  cast fields take their originals', so one run converges and a second
-  changes nothing. Nothing that holds a value is overwritten.
+- `fill_cast_and_characters` - the fill-only pass Calculate All runs. Empty
+  character fields take their cast rows' values first, then empty cast role
+  and seiyuu take their originals' (remark does not come down), so one run
+  converges and a second changes nothing. Nothing that holds a value is
+  overwritten.
 """
 
 from collections import Counter
@@ -115,19 +118,12 @@ def cast_originals(
     other entry does not vote, so its seiyuu cannot surface here.
     """
     character_ids = {c for c, _ in pairs}
-    identity_ids = {i for _, i in pairs if i}
     characters = {
         c.system_id: c
         for c in db.query(models.Character).filter(
             models.Character.system_id.in_(character_ids)
         )
     } if character_ids else {}
-    identities = {
-        i.system_id: i
-        for i in db.query(models.CharacterIdentity).filter(
-            models.CharacterIdentity.system_id.in_(identity_ids)
-        )
-    } if identity_ids else {}
 
     voiced = media_type in VOICED_MEDIA_TYPES
     sources = _voiced_castings_by_pair(db, pairs) if voiced else {}
@@ -150,15 +146,13 @@ def cast_originals(
     out = []
     for character_id, identity_id in pairs:
         character = characters.get(character_id)
-        identity = identities.get(identity_id) if identity_id else None
-        original = identity if identity is not None else character
         out.append(
             {
                 "character_id": str(character_id),
                 "identity_id": str(identity_id) if identity_id else None,
                 # An identity has no role; the character's is the original's.
+                # No remark: it travels from cast row to original, never back.
                 "role": character.role if character else None,
-                "remark": original.remark if original else None,
                 "voices": [
                     {
                         "person_id": str(v["person_id"]),
@@ -258,10 +252,10 @@ def fill_cast_and_characters(db: Session) -> dict:
     casting that very record count: an identity's rows fill the identity,
     the main identity's fill the character.
 
-    Then originals to cast rows: an empty role or remark takes the
-    original's, and a voiced row with no seiyuu takes the original seiyuu.
-    A cast row's photo is never filled - an empty one already shows the
-    original's.
+    Then originals to cast rows: an empty role takes the character's, and a
+    voiced row with no seiyuu takes the original seiyuu. A cast row's remark
+    is never filled - a remark goes up to the original and not back down -
+    nor its photo, since an empty one already shows the original's.
     """
     counts = {
         "character_role": fill_character_roles(db),
@@ -270,7 +264,6 @@ def fill_cast_and_characters(db: Session) -> dict:
         "identity_remark": 0,
         "identity_photo": 0,
         "cast_role": 0,
-        "cast_remark": 0,
         "cast_seiyuu": 0,
     }
     castings = (
@@ -328,14 +321,9 @@ def fill_cast_and_characters(db: Session) -> dict:
         character = characters.get(casting.character_id)
         if character is None:
             continue
-        identity = identities.get(casting.identity_id) if casting.identity_id else None
-        original = identity if identity is not None else character
         if casting.role is None and character.role in CHARACTER_ROLES:
             casting.role = character.role
             counts["cast_role"] += 1
-        if _blank(casting.remark) and not _blank(original.remark):
-            casting.remark = original.remark
-            counts["cast_remark"] += 1
         if casting.media_type in VOICED_MEDIA_TYPES and not casting.voices:
             voices = voices_by_pair[(casting.character_id, casting.identity_id)]
             if voices:
