@@ -1,5 +1,5 @@
 // Frontend: day-by-day weekly schedule grid used at the top of the dashboard.
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { SCHEDULE_DAYS } from "../../config/weekdays";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
@@ -62,6 +62,8 @@ function ScheduleEntry({ item, timeField }) {
  * (missing times last); otherwise they sort by display name.
  * With `collapsible`, the header toggles the day grid; `defaultCollapsed`
  * decides whether it starts closed.
+ * Whenever the grid is drawn, it scrolls so today's column comes first —
+ * later in the week, today would otherwise sit off-screen to the right.
  */
 export default function WeeklySchedule({
   id,
@@ -79,6 +81,8 @@ export default function WeeklySchedule({
 }) {
   const [collapsed, setCollapsed] = useState(collapsible && defaultCollapsed);
   const today = getTodayName();
+  const stripRef = useRef(null);
+  const todayRef = useRef(null);
 
   const byDay = Object.fromEntries(SCHEDULE_DAYS.map((d) => [d, []]));
   items.forEach((item) => {
@@ -102,6 +106,17 @@ export default function WeeklySchedule({
   );
 
   const total = SCHEDULE_DAYS.reduce((sum, d) => sum + byDay[d].length, 0);
+  const showGrid = !collapsed && total > 0;
+
+  // Layout effect, so the strip is never painted at Sunday first. The strip
+  // is `relative`, which makes it the columns' offsetParent; scrollLeft is
+  // set directly rather than via scrollIntoView, which would also scroll
+  // the page vertically.
+  useLayoutEffect(() => {
+    if (showGrid && stripRef.current && todayRef.current) {
+      stripRef.current.scrollLeft = todayRef.current.offsetLeft;
+    }
+  }, [showGrid, today]);
 
   const actions = (
     <>
@@ -145,7 +160,9 @@ export default function WeeklySchedule({
         // Day columns scroll horizontally so titles get a readable width
         // instead of being squeezed into a 7-across grid.
         <div
-          className="flex overflow-x-auto"
+          ref={stripRef}
+          data-testid="schedule-days"
+          className="relative flex overflow-x-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {SCHEDULE_DAYS.map((day) => {
@@ -154,6 +171,8 @@ export default function WeeklySchedule({
             return (
               <div
                 key={day}
+                ref={isToday ? todayRef : undefined}
+                data-day={day}
                 className={`w-64 shrink-0 p-3 border-r border-border last:border-r-0 ${
                   isToday ? "bg-brand-soft" : ""
                 }`}

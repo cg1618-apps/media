@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-10-07
+Last verified: 2026-10-08
 
 ## What this is for
 
@@ -27,6 +27,7 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 | Python | `venv/Scripts/python.exe` — **3.13.15**, built with `py -3.13`. 3.11 and 3.14 are also installed; neither is used here | `venv/Scripts/python.exe` — **3.13.6**, the version the project targets |
 | Node / npm | v24.18.0 / 11.16.0 | v24.14.1 / 11.11.0 |
 | Google Sheet | `GOOGLE_SHEET_ID=1d-rh8joD3xHhG58KdFyBDQ-g99xDfMnHNiBu7ECFemU` — the same sheet on both machines, and the only channel data travels through | same sheet |
+| Reaching the box | **None, by choice.** No `cloudflared`, no `~/.ssh/config` entry, no key for the box, so nothing about it goes over the company network. Work that needs the box waits for home; do not set a route up here | `ssh homelab`, through the Cloudflare tunnel — the platform's [shared-stack.md](https://github.com/cg1618-apps/platform/blob/dev/docs/shared-stack.md#ssh-through-the-tunnel). `homelab-lan` only when the tunnel is down and both are on the home LAN |
 | Remote | `origin` → `https://github.com/cg1618-apps/media.git`. Git's **global** identity on this machine is the work account, which has no write access to `cg1618-apps`, so this clone sets `user.name`, `user.email` and a `credential.helper` in its **local** config — see below | `origin` → `https://github.com/cg1618-apps/media.git` |
 
 > Both columns are recorded from the machine itself. Keep it that way — record

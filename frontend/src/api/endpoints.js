@@ -265,7 +265,7 @@ export const endpoints = {
     // POST {media_type, mal_link}: the MAL entry's cast as cast rows.
     fromMal: () => "/api/casting/mal",
     // POST {media_type, entry_id, rows: [{character_id, identity_id}]}: each
-    // row's original (role, remark, voices), for "Sync from original".
+    // row's original (role, voices), for "Sync from original".
     originals: () => "/api/casting/originals",
   },
 

@@ -72,7 +72,7 @@ def ayane(db_session):
 # -- /api/casting/originals --------------------------------------------------
 
 
-def test_originals_carry_the_characters_role_and_remark(
+def test_originals_carry_the_characters_role_but_never_its_remark(
     admin_client, db_session, seasons, character
 ):
     character.role = "Main"
@@ -88,7 +88,8 @@ def test_originals_carry_the_characters_role_and_remark(
     assert r.status_code == 200
     [original] = r.json()["originals"]
     assert original["role"] == "Main"
-    assert original["remark"] == "The lead."
+    # A remark travels from cast row to character only, never back.
+    assert "remark" not in original
 
 
 def test_an_identity_rows_original_is_the_identity_with_the_characters_role(
@@ -111,8 +112,8 @@ def test_an_identity_rows_original_is_the_identity_with_the_characters_role(
     })
 
     [original] = r.json()["originals"]
-    assert original["remark"] == "The disguise."
     assert original["role"] == "Main"
+    assert "remark" not in original
 
 
 def test_original_seiyuu_are_the_most_used_voice_list_on_other_entries(
@@ -323,7 +324,8 @@ def test_fill_gives_empty_cast_rows_the_originals_values(
 
     db_session.refresh(empty)
     assert empty.role == "Main"
-    assert empty.remark == "The lead."
+    # The character holds a remark, and it still does not come down.
+    assert empty.remark is None
     assert [v.person_id for v in empty.voices] == [kana.system_id]
     assert empty.photo_file is None
 
@@ -372,7 +374,8 @@ def test_fill_gives_an_empty_character_its_highest_ranked_rows_values(
 
 def test_fill_converges_in_one_run(db_session, seasons, second_character):
     # The character is empty and fills from the S1 row; the S2 row is empty
-    # and then fills from the character - in the same run.
+    # and then fills from the character - in the same run. The remark goes
+    # up to the character and stops there.
     _cast(db_session, seasons[0], second_character, role="Main", remark="From S1.")
     empty = _cast(db_session, seasons[1], second_character)
 
@@ -380,9 +383,12 @@ def test_fill_converges_in_one_run(db_session, seasons, second_character):
     second = fill_cast_and_characters(db_session)
 
     db_session.refresh(empty)
-    assert empty.remark == "From S1."
+    db_session.refresh(second_character)
+    assert second_character.remark == "From S1."
     assert empty.role == "Main"
-    assert first["cast_remark"] == 1
+    assert empty.remark is None
+    assert first["cast_role"] == 1
+    assert "cast_remark" not in first
     assert all(count == 0 for count in second.values())
 
 
@@ -401,12 +407,15 @@ def test_fill_leaves_unvoiced_rows_without_seiyuu(
 def test_calculate_sync_cast_endpoint_runs_the_fill(
     admin_client, db_session, seasons, character
 ):
+    character.role = "Main"
     character.remark = "The lead."
     empty = _cast(db_session, seasons[0], character)
 
     r = admin_client.post("/api/data-control/calculate/sync-cast")
 
     assert r.status_code == 200
-    assert r.json()["counts"]["cast_remark"] == 1
+    assert r.json()["counts"]["cast_role"] == 1
+    assert "cast_remark" not in r.json()["counts"]
     db_session.refresh(empty)
-    assert empty.remark == "The lead."
+    assert empty.role == "Main"
+    assert empty.remark is None

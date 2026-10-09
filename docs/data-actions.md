@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-07
+Last verified: 2026-10-09
 
 ## What this is for
 
@@ -998,7 +998,7 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | GET | `/clean/scan` | — | JSON `{tabs, totals, last_backup_at, anomalies}`; **503** when the sheet is unreadable or a tab is empty | find rows the sheet no longer mentions; read-only, logs nothing |
 | POST | `/clean/apply` | body `{"items": [{"tab", "system_id"}]}` | JSON `{deleted, per_tab, skipped}`; **503** as above, and nothing is deleted | re-scan, then delete only the named ids that are still orphans |
 | POST | `/calculate/all` | — | JSON `{"status", "message"}`; 500 on failure | Calculate All |
-| POST | `/calculate/sync-cast` | — | `{"status", "message", "counts"}`, `counts` keyed `character_role`, `character_remark`, `character_photo`, `identity_remark`, `identity_photo`, `cast_role`, `cast_remark`, `cast_seiyuu`; logged `Calculate` / `Sync Cast` | Calculate All's `run_sync_cast` step on its own |
+| POST | `/calculate/sync-cast` | — | `{"status", "message", "counts"}`, `counts` keyed `character_role`, `character_remark`, `character_photo`, `identity_remark`, `identity_photo`, `cast_role`, `cast_seiyuu` (no `cast_remark`: a cast row's remark is never filled); logged `Calculate` / `Sync Cast` | Calculate All's `run_sync_cast` step on its own |
 | GET | `/calculate/check-cover-image` | query `entry_type` (optional, an Anime `airing_type`) | JSON, see section 7 | cover check |
 | DELETE | `/calculate/delete-orphaned-covers` | — | `{"status", "deleted_count"}` | delete orphaned cover files |
 | POST | `/calculate/set-cover-image-fields` | — | `{"status", "updated_count"}` | link existing files to rows |

@@ -216,8 +216,9 @@ def get_cast_originals(
 ):
     """
     Each row's original - the identity it names, else the character - as the
-    role, remark and seiyuu the cast editor's "Sync from original" writes into
-    the row (casting_sync.cast_originals). Read-only; the editor's Save is what
+    role and seiyuu the cast editor's "Sync from original" writes into the
+    row (casting_sync.cast_originals); never a remark, which travels from cast
+    row to original only. Read-only; the editor's Save is what
     persists it. A POST because the question is a list of pairs. Keyed on the
     media type rather than an entry, like /mal, so Add can use it.
 
