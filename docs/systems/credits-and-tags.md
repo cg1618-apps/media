@@ -596,12 +596,15 @@ chose to keep - and the ids and timestamps are never copied.
 
 **Importing a cast.** `POST /api/casting/mal` (`manage.catalog`,
 `app/services/domain/mal_cast.py`) takes `{media_type, mal_link,
-character_ids}`. `mal_link` is the entry's own MAL page: `/anime/<id>` for anime, anime-movie and hentai, read
+character_ids, main_only}`. `mal_link` is the entry's own MAL page: `/anime/<id>` for anime, anime-movie and hentai, read
 through Tenrai's `GET /anime/{id}/characters`; `/manga/<id>` for manga, novel
 and h-comic, through `GET /manga/{id}/characters`. It returns `{cast, created_characters, created_people, warnings}`, where `cast` rows have
 the shape `GET /api/casting/{media_type}/{entry_id}` returns, in MAL's order.
 `character_ids` (optional, default empty) is every character the editor's
-form holds, saved or not.
+form holds, saved or not. `main_only` (optional, default false) keeps only
+the characters MAL calls Main, and drops the rest before anything is matched,
+so a side character and their seiyuu are neither returned nor created - the
+editor's **Import main cast from MAL**.
 
 - **A character is matched by `character.mal_id` first**, and never by name
   across the database (Decision G), only among the characters the caller can
@@ -808,12 +811,14 @@ that read voices are regression-tested in `test_person_router.py`
 import: `tests/api/test_character_mal.py` (the id from a link, both mappers,
 Japanese voices only, the Sheet columns, the fill on `POST` and `PUT`, `PATCH`
 deriving without fetching, an import creating what is missing and reusing what
-is not, a second import creating nothing, a manga cast without voices, the
+is not, a second import creating nothing, a main-only import creating nothing
+for the side cast, a manga cast without voices, the
 422 and 502, and a guest refused). Frontend:
 `frontend/src/components/forms/CastEditor.test.jsx` (the seiyuu column absent
 on manga/novel, a second seiyuu with its own remark, a blank seiyuu line
 that adds no voice, and Import from MAL: offered only with a MAL link,
-reporting what it created, and showing the server's refusal), `src/components/info/CastSection.test.jsx` (the
+reporting what it created, showing the server's refusal, and the main-cast
+button sending `main_only`), `src/components/info/CastSection.test.jsx` (the
 Main / Core / full-cast collapse, and every seiyuu of a row with its remark),
 `src/pages/library/CharacterLibrary.test.jsx`,
 `src/pages/detail/Character.test.jsx`, and the `role="seiyuu"` cases in

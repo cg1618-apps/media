@@ -363,7 +363,8 @@ export default function CastEditor({
   // Appends imported cast rows after the rows already here, skipping a
   // character this cast already has (uq_character_casting). Nothing is saved:
   // the rows land in the form like typed ones, to be edited and then saved.
-  function appendCast(cast, from, note = "") {
+  // `kind` names what was imported, when it was not the whole cast.
+  function appendCast(cast, from, note = "", kind = "") {
     const current = latestRows.current;
     // The appearance is (character, identity): the same character may be
     // cast twice under different identities (uq_character_casting).
@@ -378,7 +379,7 @@ export default function CastEditor({
     onChange(next);
     const skipped = (cast || []).length - incoming.length;
     setImportMessage(
-      `Imported ${incoming.length} from ${from}` +
+      `Imported ${incoming.length}${kind ? ` ${kind}` : ""} from ${from}` +
         (skipped ? ` (${skipped} already in this cast)` : "") +
         `.${note} Save to keep them.`,
     );
@@ -403,9 +404,12 @@ export default function CastEditor({
   // The characters this form holds go with the request: one with no MAL id
   // whose name matches is reused rather than minted again, and comes back
   // under its own id, so appendCast skips it like any held character.
-  const [malImporting, setMalImporting] = useState(false);
-  async function importFromMal() {
-    setMalImporting(true);
+  // `mainOnly` ("Import main cast from MAL") takes only MAL's Main
+  // characters; the server creates nothing for the rest.
+  // `malImporting` is the running import: null, "all" or "main".
+  const [malImporting, setMalImporting] = useState(null);
+  async function importFromMal(mainOnly = false) {
+    setMalImporting(mainOnly ? "main" : "all");
     setImportMessage("Fetching the cast from MyAnimeList…");
     const characterIds = latestRows.current.map((r) => r.character_id).filter(Boolean);
     try {
@@ -416,6 +420,7 @@ export default function CastEditor({
           media_type: mediaType,
           mal_link: malLink,
           character_ids: characterIds,
+          main_only: mainOnly,
         }),
         credentials: "include",
       });
@@ -433,11 +438,12 @@ export default function CastEditor({
         payload.cast,
         "MyAnimeList",
         (created.length ? ` Created ${created.join(" and ")}.` : "") + warnings,
+        mainOnly ? "main characters" : "",
       );
     } catch {
       setImportMessage("MyAnimeList import failed.");
     } finally {
-      setMalImporting(false);
+      setMalImporting(null);
     }
   }
 
@@ -1095,14 +1101,26 @@ export default function CastEditor({
           + Add cast member
         </button>
         {malLink && (
-          <button
-            type="button"
-            className="text-xs text-brand hover:underline disabled:opacity-50"
-            onClick={importFromMal}
-            disabled={malImporting}
-          >
-            {malImporting ? "Importing from MAL…" : "Import from MAL"}
-          </button>
+          <>
+            <button
+              type="button"
+              className="text-xs text-brand hover:underline disabled:opacity-50"
+              onClick={() => importFromMal(false)}
+              disabled={malImporting !== null}
+            >
+              {malImporting === "all" ? "Importing from MAL…" : "Import from MAL"}
+            </button>
+            <button
+              type="button"
+              className="text-xs text-brand hover:underline disabled:opacity-50"
+              onClick={() => importFromMal(true)}
+              disabled={malImporting !== null}
+            >
+              {malImporting === "main"
+                ? "Importing main cast from MAL…"
+                : "Import main cast from MAL"}
+            </button>
+          </>
         )}
         {rows.some(hasOriginal) && (
           <button
