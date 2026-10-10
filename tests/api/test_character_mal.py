@@ -253,6 +253,29 @@ def test_a_second_import_creates_nothing(admin_client, cast_calls):
     assert body["created_people"] == 0
 
 
+def test_a_main_only_import_creates_nothing_for_the_side_cast(
+    admin_client, db_session, cast_calls
+):
+    # FMA_CAST holds a Supporting character with a seiyuu of his own, so the
+    # filter has someone to leave out; the unfiltered import above takes him.
+    r = admin_client.post(
+        "/api/casting/mal",
+        json={"media_type": "anime", "mal_link": FMA_LINK, "main_only": True},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert [row["character_name"] for row in body["cast"]] == [
+        "Edward Elric", "Alphonse Elric",
+    ]
+    assert [row["role"] for row in body["cast"]] == ["Main", "Main"]
+    assert [row["position"] for row in body["cast"]] == [0, 1]
+    assert body["created_characters"] == 2
+    assert body["created_people"] == 2
+    # Roy and his voice were never minted, not just left out of the rows.
+    assert db_session.query(models.Character).filter_by(mal_id=13).count() == 0
+    assert db_session.query(models.Person).filter_by(mal_id=89).count() == 0
+
+
 def test_a_manga_cast_carries_no_voices(admin_client, cast_calls):
     body = _import(
         admin_client, "manga", "https://myanimelist.net/manga/25/Fullmetal_Alchemist"

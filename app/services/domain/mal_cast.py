@@ -1,7 +1,8 @@
 """
 Build an entry's cast from MyAnimeList, via Tenrai, for the cast editor.
 
-`mal_cast_rows` answers the editor's "Import from MAL": it reads the MAL
+`mal_cast_rows` answers the editor's "Import from MAL" and "Import main from
+MAL" (MAL's Main characters only): it reads the MAL
 entry's characters, finds or creates the local character and seiyuu each one
 names, and returns cast rows in the shape GET /api/casting returns - which the
 editor appends to its form exactly as it appends a franchise sibling's cast.
@@ -236,13 +237,20 @@ def download_portraits(portraits: list[tuple[str, str]]) -> None:
 
 
 def mal_cast_rows(
-    db: Session, viewer, media_type: str, mal_link: str, held_ids=None
+    db: Session,
+    viewer,
+    media_type: str,
+    mal_link: str,
+    held_ids=None,
+    main_only: bool = False,
 ) -> tuple[dict, list[tuple[str, str]]]:
     """
     ({cast, created_characters, created_people, warnings}, portraits) for one
     MAL entry, the cast in MAL's order; `portraits` is for
     download_portraits. `held_ids` are the character ids the editor's form
-    holds, the only characters a MAL row may match by name. Raises
+    holds, the only characters a MAL row may match by name. `main_only`
+    keeps only MAL's Main characters, dropped before matching so no side
+    character or their seiyuu is created. Raises
     MalCastError for a bad link and MalCastUnavailable when MAL answers with
     no cast. Does not commit. Skipping characters the form already holds is
     the editor's business, as it is for a franchise import.
@@ -252,6 +260,8 @@ def mal_cast_rows(
     if not items:
         raise MalCastUnavailable("MyAnimeList returned no cast for this entry.")
     rows = map_tenrai_cast(items)
+    if main_only:
+        rows = [row for row in rows if row["role"] == "Main"]
     if media_type not in VOICED_MEDIA_TYPES:
         for row in rows:
             row["voices"] = []

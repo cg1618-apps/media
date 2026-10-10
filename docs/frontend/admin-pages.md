@@ -503,7 +503,8 @@ so the Modify tab renders the same inputs.
 
 Every cast section — anime, anime movie, manga, novel, h-comic and hentai, on
 Add and on Modify — passes the form's own `mal_link` to `CastEditor`, so
-**Import from MAL** appears once the entry has a MAL link (see `CastEditor` in
+**Import from MAL** and **Import main cast from MAL** appear once the entry has
+a MAL link (see `CastEditor` in
 [components.md](components.md)). A character's other identities are rows of
 their own, added with **+ Identity** on its main row. On both pages the
 submit first checks the active tab's cast (`castIdentityProblem`): an identity
