@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-10-06
+Last verified: 2026-10-11
 
 ## What this is for
 
@@ -452,7 +452,7 @@ than about the game, so they read the same everywhere:
 
 | Vocabulary | Values |
 | --- | --- |
-| `COLLECT_STATUSES` (the three 物品 sections' `collected`) | not collected, enough collected, fully collected, skip — a progression with the opt-out last, like the row below. "Enough" is worth distinguishing from "fully" precisely because most things never reach "fully" |
+| `COLLECT_STATUSES` (the three 物品 sections' `collected`) | not collected, enough collected, fully collected, skip, inapplicable — a progression with the opt-out after it, like the row below. "Enough" is worth distinguishing from "fully" precisely because most things never reach "fully". "Inapplicable" means the row has nothing to collect at all, so "skip" stays a decision rather than doubling as "can't" |
 | `ENEMY_STATUSES` (`enemies.beaten`) | to beat, beaten, cheesed, skip — "cheesed" is deliberately not folded into "beaten": it answers "do I still owe this one a fair fight?" |
 | `ENDING_STATUSES` (`endings.completion`) | not yet, reached, skipped — "skipped" is a decision, not an absence, so it is a value rather than a blank |
 | `MOD_STATUSES` (`mods_and_tools.status`) | 常駐, to use, to play, played, won't — 常駐 is the always-on set |

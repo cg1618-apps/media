@@ -354,6 +354,7 @@ def test_the_three_gear_sections_track_collecting():
             "enough collected",
             "fully collected",
             "skip",
+            "inapplicable",
         ), key
         assert field.default == "not collected", key
 
