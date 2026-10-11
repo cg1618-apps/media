@@ -455,15 +455,18 @@ _SONG_LIST = dict(
 ENEMY_STATUSES = ("to beat", "beaten", "cheesed", "skip")
 
 # How far collecting one kind of thing has got. Ordered as a progression with
-# the opt-out last, like ENEMY_STATUSES above: "enough" is the state a
+# the opt-out after it, like ENEMY_STATUSES above: "enough" is the state a
 # completionist run leaves behind and a normal run stops at, and it is worth
 # distinguishing from "fully" precisely because most things never reach
-# "fully".
+# "fully". "inapplicable" is not an opt-out but the row having nothing to
+# collect at all - a thing worth noting that the game never lets you keep -
+# so "skip" stays a decision and never doubles as "can't".
 COLLECT_STATUSES = (
     "not collected",
     "enough collected",
     "fully collected",
     "skip",
+    "inapplicable",
 )
 
 # Whether an ending has been seen. "Skipped" is a decision, not an absence,
