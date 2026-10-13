@@ -1844,7 +1844,7 @@ fields resolved **for the viewer** from the entries they may see
 
 `gender`, `my_rating` and `photo_fallback_entry_id` follow the same rules as
 on `PersonResponse`, and the list resolves every row in one pass. `role` is
-what the character is overall — `Main`, `Core`, `Supporting`, `Other` or null
+what the character is overall — `Main`, `Core`, `Important Supporting`, `Supporting`, `Other` or null
 (`CHARACTER_ROLES`, served as `character_role` by `/api/constants`); a write
 outside it is a 422 and `""` is null. While it is null it is filled from the
 character's castings: the highest-ranked casting `role` (`CHARACTER_ROLES`

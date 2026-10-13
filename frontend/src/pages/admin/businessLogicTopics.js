@@ -27,7 +27,7 @@ const CAST_SYNC = {
     {
       title: "First: cast rows fill the character or identity",
       points: [
-        "An empty character role takes the highest-ranked role among that character's cast rows (Main, then Core, Supporting, Other).",
+        "An empty character role takes the highest-ranked role among that character's cast rows (Main, then Core, Important Supporting, Supporting, Other).",
         "An empty remark on a character or an identity takes the remark of its highest-ranked cast row that has one — by role order first, then the oldest row.",
         "An empty photo on a character or an identity is filled the same way, from its highest-ranked cast row that has a photo of its own.",
         "Only the rows casting that very record count: rows naming an identity fill the identity, rows naming no identity fill the character.",

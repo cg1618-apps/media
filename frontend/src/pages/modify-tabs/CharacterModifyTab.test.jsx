@@ -274,7 +274,7 @@ it("edits the character's own role through its chips", async () => {
   const role = await screen.findByRole("group", { name: "Role" });
   const chips = [...role.querySelectorAll("button")];
   expect(chips.map((b) => b.textContent)).toEqual([
-    "Main", "Core", "Supporting", "Other",
+    "Main", "Core", "Important Supporting", "Supporting", "Other",
   ]);
   expect(chips.every((b) => b.getAttribute("aria-pressed") === "false")).toBe(true);
 
