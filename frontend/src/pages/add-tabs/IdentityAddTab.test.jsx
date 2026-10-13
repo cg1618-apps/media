@@ -173,3 +173,21 @@ describe("names prefilled from the character", () => {
     expect(value("Name (Chinese)")).toBe("工藤新一");
   });
 });
+
+it("posts the identity's firsts, blank ones as null", async () => {
+  mount();
+  await userEvent.type(screen.getByRole("combobox", { name: /character/i }), "kudo");
+  await userEvent.click(await screen.findByText("Kudo Shinichi"));
+  await userEvent.type(screen.getByLabelText("Name (English)"), "Conan");
+  expect(screen.getByLabelText("First Appearance")).toHaveAttribute(
+    "placeholder",
+    "第1卷 第13章, 1-13, S1 ep 8",
+  );
+  await userEvent.type(screen.getByLabelText("First Appearance"), "S1 ep 8");
+  await userEvent.click(screen.getByRole("button", { name: /add identity/i }));
+  expect(JSON.parse(post.mock.calls[0][1].body)).toMatchObject({
+    first_mention: null,
+    first_appearance: "S1 ep 8",
+    first_encounter: null,
+  });
+});
