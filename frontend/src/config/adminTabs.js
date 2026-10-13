@@ -17,7 +17,7 @@ export const TAB_GROUPS = [
 ];
 
 export const ADMIN_TABS = [
-  { key: "anime", group: "entries", icon: "fa-tv", label: "Anime Entry" },
+  { key: "anime", group: "entries", icon: "fa-tv", label: "Anime" },
   {
     key: "anime-movie",
     group: "entries",
@@ -32,24 +32,24 @@ export const ADMIN_TABS = [
     icon: "fa-paint-brush",
     label: "Cartoon",
   },
-  { key: "manga", group: "entries", icon: "fa-book", label: "Manga Entry" },
+  { key: "manga", group: "entries", icon: "fa-book", label: "Manga" },
   {
     key: "novel",
     group: "entries",
     icon: "fa-book-open",
-    label: "Novel Entry",
+    label: "Novel",
   },
   {
     key: "comic",
     group: "entries",
     icon: "fa-mask",
-    label: "Comic Entry",
+    label: "Comic",
   },
   {
     key: "game",
     group: "entries",
     icon: "fa-gamepad",
-    label: "Game Entry",
+    label: "Game",
   },
   // Gated: AdminTabBar drops each for a session that cannot see its type, so
   // Add, Modify, Delete and Form Defaults all offer it or none of them do.
@@ -57,20 +57,20 @@ export const ADMIN_TABS = [
     key: "h-comic",
     group: "entries",
     icon: "fa-book",
-    label: "H-Comic Entry",
+    label: "H-Comic",
   },
   // Gated the same way, on h-game.
   {
     key: "h-game",
     group: "entries",
     icon: "fa-gamepad",
-    label: "H-Game Entry",
+    label: "H-Game",
   },
   {
     key: "hentai",
     group: "entries",
     icon: "fa-tv",
-    label: "Hentai Entry",
+    label: "Hentai",
   },
   {
     key: "collection",

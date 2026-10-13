@@ -276,7 +276,8 @@ field that is `null`, empty or whitespace, or that still holds the type's
 starting value (`freshForm`, so a `/defaults` value or anime's `airing_status`
 "Not Yet Aired"). A value the admin typed or changed is never replaced. The answer carries what
 the save's MAL autofill would write (dates, status, totals, ratings, airing
-type and season), MAL's English and Japanese titles, and the studio or author
+type and season), MAL's English and Japanese titles, its synonyms as the
+alternative name, and the studio or author
 credits as comma-joined names; the field list per type is in
 [api.md](../api.md#mal-prefill). An answer that arrives after the admin picked
 another result - the form's `mal_id` has moved on - is dropped. On success the

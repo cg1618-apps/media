@@ -701,8 +701,9 @@ export default function Add() {
   //     get it in their Romaji column. Their pick then fetches the type's
   //     mal-prefill (makeMalPick) and fills every field still blank with what
   //     the save's MAL autofill would write - plus the English and Japanese
-  //     titles and the studio or author credits, which the autofill never
-  //     puts on the form - so the admin sees MAL's values before saving.
+  //     titles, the synonyms as the alternative name, and the studio or
+  //     author credits, which the autofill never puts on the form - so the
+  //     admin sees MAL's values before saving.
   //   - Person and character get MAL's native name in name_jp, which is
   //     exactly what their create-time MAL autofill writes. MAL's `title` is
   //     family-name-first ("Hanazawa, Kana"), not the western-order name_en
