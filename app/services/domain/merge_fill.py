@@ -64,7 +64,7 @@ def fill_blank_columns(keep, drop, skip: tuple[str, ...] = ()) -> None:
 def fill_blank_casting(keep, drop) -> None:
     """
     One entry's casting of the survivor, filled from the loser's casting of
-    the same entry: role, remark, and the photo with its focus.
+    the same entry: role, credited name, remark, and the photo with its focus.
     """
     fill_blank_columns(
         keep,

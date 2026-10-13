@@ -691,7 +691,10 @@ hand-built beside `Person.jsx` and `Studio.jsx` rather than reusing a media
 detail shape — the header is a profile and the body is the entries this
 character is cast in. Two raw fetches, the profile then `.../entries` by the
 `system_id` it returns; the character call failing is the page's 404, the
-entries call failing is not. Beside the appearance count under the name, a
+entries call failing is not. Under the Profile card, a **First Appearances**
+`InfoCard` lists the character's First Mention, First Appearance and First
+Encounter — only the ones that are set (`firstsRows`); with none set the card
+is left out. Beside the appearance count under the name, a
 character with a `mal_link` gets a **MyAnimeList** button (`MalButton`, the
 MAL icon, opening in a new tab); one without draws none. The Profile card shows the character's own
 **Role** beside Gender — its own field, not derived from any casting's role —
@@ -727,7 +730,9 @@ card a link to the identity's own page (below); an identity with no
 `public_id` in the response renders as plain markup. The appearances list shows one card **per
 cast row**, keyed by `casting_id`: an entry the character is cast in under two
 identities appears twice, a row with an identity reading "as <identity name>"
-under the title, each with that row's own seiyuu.
+under the title, each with that row's own seiyuu. A row with a credited name -
+what that entry calls the character - reads "as <credited name>" instead, the
+identity's name following it after a "·" when the row names one.
 
 ### Identity — `/identity/:public_id`
 
@@ -735,7 +740,7 @@ File `pages/detail/Identity.jsx`, route `/identity/:publicId/:slug?`. The
 public page for one of a character's other identities (Edogawa Conan of Kudo
 Shinichi), hand-built beside `Character.jsx` and shaped like it: an identity
 is its character under another name, so the page shows what the character
-page does. The names, photo, gender and remark are the identity's own; the
+page does. The names, photo, gender, remark and firsts are the identity's own; the
 role, the appearance and trait tags, the rating and the MAL link are the
 character's. `GET /api/character-identity/{id}` by the URL's public id comes
 first, and its failing is the page's 404 ("Identity not found."). Then two
@@ -758,7 +763,9 @@ button (`MalButton`), a "Profile" `InfoCard` — **Role**, then **Gender**
 (`display_gender`, the character's when the identity sets none), then
 **Appearance** and **Trait** (`tagChips`) and **MAL** from the character, and
 the identity's **Remark**, shown to everyone — with a faint line under it,
-"Role, tags, rating and MAL are <character>'s." Then a **Character** section:
+"Role, tags, rating and MAL are <character>'s." Under it a **First
+Appearances** `InfoCard` lists the identity's own firsts, only those set, and
+is left out when none is; the character's firsts never show here. Then a **Character** section:
 the character's own card, labelled **Character** and linking to its page, then
 its other identities, labelled **Identity**, this one left out — all
 `IdentityCard`s; the character's card never shows the character's remark.
@@ -772,7 +779,7 @@ narrowed to the cast rows that name this identity, a group the viewer may see
 no entries of renders "Nothing you can see here", and no group at all reads
 **No appearances**. The cards are the shared `CastingCard` with
 `hideIdentity`, which drops the "as <identity>" line — every row here is this
-identity. The nav lights **Character** on this page (`matches` includes
+identity. A row with a credited name still reads "as <credited name>". The nav lights **Character** on this page (`matches` includes
 `/identity`).
 
 ### Publisher — `/publisher/:system_id`
@@ -991,7 +998,9 @@ Top to bottom:
    identities is drawn as one — a dashed frame on its thumbnail and a dashed
    **Identity** chip after the role chip — and reads "<identity> identity of
    <character>", the identity linking to its page and the character to its
-   own. It is **hidden by
+   own. A row with a credited name — what this entry calls the character —
+   shows it as the linked name, with the identity's (else the character's)
+   own name in small faint text beneath it. It is **hidden by
    default** when its character also has a main row in the cast: **Show
    identities (N)** brings those back and **Hide identities** folds them
    again, one toggle shared by the slip and the full-cast dialog, not

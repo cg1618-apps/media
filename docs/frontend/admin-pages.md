@@ -64,7 +64,8 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   `endpoints.dataControl.syncCast`) runs Calculate All's cast step on its own -
   the fill-only sync between cast rows and the characters and identities
   they cast, both ways except a remark, which only goes up to the
-  character - through the same `runCalc` as Calculate All: a
+  character, and a credited name, which belongs to its entry and goes
+  nowhere - through the same `runCalc` as Calculate All: a
   spinner while it runs, the server's `message` as the toast, then the log
   reloads. Its tile carries the one-line description "Fill empty cast and
   character fields from each other — never overwrites." The rules are on
@@ -477,7 +478,7 @@ rejects. Submit is blocked until at least one name is filled, matching
 `ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
 `PersonFields` is exported so the Modify tab renders the same inputs.
 
-**Identity tab (Entity).** `IdentityAddTab.jsx`, self-contained: it saves through its own button, and `Add.jsx`'s page-wide submit is hidden on it. An identity is always created under an existing character, so the tab opens with a required **Character** picker (a `ComboBox` over `GET /api/character/?name=`; the character is fixed once the identity is saved), then `IdentityFields`: the four names, **Display Name**, **Gender** (an empty choice means the same as the character), **Photo** and **Remark**. Picking a character prefills the four names and **Display Name** from it, as a starting point (`prefillFromCharacter`): a field is filled only while it is empty or still holds what the previous pick filled in, so nothing typed is overwritten and picking another character re-fills the untouched ones; clearing the character leaves the fields as they are, and gender, photo and remark are never prefilled. At least one name is required. The photo is attached after the create, as for characters, and Enter in a text input submits. `IdentityFields` is exported for the Modify tab. It has no `/defaults` tab (`identity` is outside `FORM_TABS`). Saves `POST /api/character-identity/`.
+**Identity tab (Entity).** `IdentityAddTab.jsx`, self-contained: it saves through its own button, and `Add.jsx`'s page-wide submit is hidden on it. An identity is always created under an existing character, so the tab opens with a required **Character** picker (a `ComboBox` over `GET /api/character/?name=`; the character is fixed once the identity is saved), then `IdentityFields`: the four names, **Display Name**, **Gender** (an empty choice means the same as the character), **Photo**, **Remark** and the identity's own **First Appearances** (`CharacterFirstsFields`: First Mention, First Appearance, First Encounter, free text, a blank one sent as null). Picking a character prefills the four names and **Display Name** from it, as a starting point (`prefillFromCharacter`): a field is filled only while it is empty or still holds what the previous pick filled in, so nothing typed is overwritten and picking another character re-fills the untouched ones; clearing the character leaves the fields as they are, and gender, photo, remark and the firsts are never prefilled. At least one name is required. The photo is attached after the create, as for characters, and Enter in a text input submits. `IdentityFields` is exported for the Modify tab. It has no `/defaults` tab (`identity` is outside `FORM_TABS`). Saves `POST /api/character-identity/`.
 
 **Character tab (Entity).** `CharacterAddTab.jsx`. Its only search box is the
 MAL `ExternalSearchBox`, over the form. `CharacterFields` is the
@@ -494,7 +495,10 @@ vocabulary lacks is created by the character write itself, so the tab runs no
 `ensureSourceValues`; the sources are refetched after the save), a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
 page; the server reads the MAL id from it and, on save, fills the blank names
 and the photo from MAL — see [api.md](../api.md#character--apicharacter)),
-the photo and the remark. The Role is the character's own. Left blank, it
+the photo, the remark, and a **First Appearances** section
+(`CharacterFirstsFields`): **First Mention**, **First Appearance** and
+**First Encounter**, free text in the work's own notation (placeholder
+`第1卷 第13章, 1-13, S1 ep 8`), a blank one sent as null. The Role is the character's own. Left blank, it
 is filled from the highest-ranked role the character's castings give it on
 the next cast save or Calculate All; once set it is never overwritten. It starts
 with gender unset; only a character minted from an entry's cast editor starts

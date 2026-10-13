@@ -1,9 +1,9 @@
 // Frontend: form component for an entry's cast (character + seiyuu list +
-// role + position + photo + remark). Controlled, like NovelUnitsEditor: the parent
-// owns `value` and receives every change through `onChange`. CastEditor
-// never calls the API to save a cast list — only to search/create the
-// characters and people its two comboboxes reference, and to read what
-// "Sync from original" writes into the form.
+// role + position + photo + credited name + remark). Controlled, like
+// NovelUnitsEditor: the parent owns `value` and receives every change
+// through `onChange`. CastEditor never calls the API to save a cast list —
+// only to search/create the characters and people its two comboboxes
+// reference, and to read what "Sync from original" writes into the form.
 //
 // Two kinds of row. A main row is the character as itself: a Character box.
 // An identity row is the character cast as one of its other identities
@@ -96,9 +96,10 @@ function voiceLines(row) {
 }
 
 // A row of another entry's cast, as this editor holds one: everything is
-// copied - photo and remark included - except the casting's own id, so the
-// save makes a new casting here. Voices are dropped on a type nobody voices.
-// The fallback photo comes too: same character and identity, same picture.
+// copied - photo, credited name and remark included - except the casting's
+// own id, so the save makes a new casting here. Voices are dropped on a
+// type nobody voices. The fallback photo comes too: same character and
+// identity, same picture.
 export function importedRow(source, position, voiced) {
   return {
     system_id: undefined,
@@ -119,6 +120,7 @@ export function importedRow(source, position, voiced) {
     photo_focus: source.photo_focus || null,
     fallback_photo_file: source.fallback_photo_file || null,
     fallback_photo_focus: source.fallback_photo_focus || null,
+    credited_name: source.credited_name || "",
     remark: source.remark || "",
   };
 }
@@ -128,7 +130,8 @@ export function importedRow(source, position, voiced) {
 // the row's value - and the row's own photo is always cleared, so it shows
 // the original's picture, which the photo cell is handed to show dimmed.
 // Voices only on a voiced type. The remark is never touched: it travels from
-// cast row to character, not back.
+// cast row to character, not back. Nor is the credited name: it belongs to
+// this entry alone, and the original has none to give.
 export function syncedRow(row, original, voiced) {
   const patch = {
     photo_file: null,
@@ -155,7 +158,8 @@ function hasOriginal(row) {
 
 // The identity row "+ Identity" adds after `source`: the same character and
 // role, so it sits in the same role group, and nothing else - the identity is
-// still to be picked, and photo, remark and voices are the identity's own.
+// still to be picked, and photo, credited name, remark and voices are the
+// identity's own.
 function identityRowOf(source, position) {
   return {
     ...emptyRow(position),
@@ -178,6 +182,7 @@ function emptyRow(position) {
     position,
     photo_file: null,
     photo_focus: null,
+    credited_name: "",
     remark: "",
   };
 }
@@ -864,7 +869,7 @@ export default function CastEditor({
 
             {/* Two lines, so no cell is squeezed to nothing on a narrow form:
                 who the character is and what they are here, then who voices
-                them and the casting's remark. The character and seiyuu
+                them, the name this entry credits, and the casting's remark. The character and seiyuu
                 pickers share one width (NAME_CELL), about a long CJK name, so
                 the two columns line up and the remark takes what is left. The
                 second line wraps the remark under the seiyuu when even that
@@ -1058,6 +1063,16 @@ export default function CastEditor({
                   </div>
                 ) : null}
 
+                {/* What the character is called in THIS entry, when it is
+                    not the character's (or the identity's) own name. Blank
+                    is no override. */}
+                <input
+                  className={cellCls + " flex-[1_1_10rem] min-w-0"}
+                  placeholder="Name in this entry"
+                  value={row.credited_name || ""}
+                  onChange={(e) => updateRow(i, { credited_name: e.target.value })}
+                  aria-label="Credited name"
+                />
                 <input
                   className={cellCls + " flex-[1_1_12rem] min-w-0"}
                   placeholder="Remark"

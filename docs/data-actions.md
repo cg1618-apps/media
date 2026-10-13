@@ -302,7 +302,11 @@ from before it existed - leaves the local value as it is rather than
 clearing it.
 `Character` also carries `role` (`CHARACTER_ROLES`); a value outside the list
 restores as blank. It carries `mal_id` and `mal_link` too, restored as they
-are, as on `Person`.
+are, as on `Person`, and the three free-text firsts, `first_mention`,
+`first_appearance` and `first_encounter`. Each first restores only when the
+sheet has its column: a backup from before they existed leaves the local
+values as they are rather than clearing them, as `alone_reviewed_media_id`
+does (`formatter._firsts_from_sheet`, shared with `Character Identity`).
 
 `Character` ends with two cells no column backs, `appearance` and `trait`:
 the character's tags (`character_tag`), each comma-joined in stored order,
@@ -319,7 +323,8 @@ cells land on the restored vocabulary.
 tabs: `character_id` is a real FK, and `Character Casting`'s `identity_id` must
 find its identity when it restores. It carries every column of
 `character_identity` (`public_id`, names, `display_name_field`, `gender`,
-`remark`, `photo_file`, `photo_focus`, `position`, timestamps), and
+`remark`, `first_mention`, `first_appearance`, `first_encounter`, `photo_file`,
+`photo_focus`, `position`, timestamps), and
 `character_id` round-trips as a plain uuid
 (`formatter.parse_character_identity_from_sheet`). `public_id` restores
 unchanged, so the identity page's URL is the same on both machines, and Pull
@@ -330,7 +335,7 @@ the character's". An empty table is legitimate here, as `Character` is.
 
 `Character Casting` sits after every media tab, because a casting reaches its
 entry by the FK-less `(media_type, entry_id)` pair, and carries no seiyuu
-column. It carries `identity_id`, a plain uuid, blank for the main identity; a sheet written before the column existed has no such header, and Pull restores every row of it as a main-identity row (`identity_id` NULL). A casting's seiyuu are the `Character Casting Voice` tab, restored
+column. It carries `identity_id`, a plain uuid, blank for the main identity; a sheet written before the column existed has no such header, and Pull restores every row of it as a main-identity row (`identity_id` NULL). It carries `credited_name` too, the name the character goes by in that entry, as plain text; a blank cell, or a sheet with no such header, restores as NULL - no override. A casting's seiyuu are the `Character Casting Voice` tab, restored
 immediately after it because each voice cites its casting by `casting_id`:
 one row per voice, with `casting_id`, the casting's `media_type` and
 `entry_id`, `person_id`, `position` and `remark`

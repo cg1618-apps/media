@@ -192,3 +192,24 @@ it("refuses a cast holding an identity row with no identity", async () => {
   expect(fetch).not.toHaveBeenCalled();
 });
 
+
+it("sends a credited name trimmed, and a blank one as null", async () => {
+  const { result } = renderHook(() => useReplaceCasting(), { wrapper });
+
+  const cast = [
+    { character_id: "c1", credited_name: " AAA ", position: 0 },
+    { character_id: "c2", credited_name: "   ", position: 1 },
+    { character_id: "c3", position: 2 },
+  ];
+
+  result.current.mutate({ mediaType: "anime", entryId: "e1", cast });
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+  const [, init] = fetch.mock.calls[0];
+  expect(JSON.parse(init.body).cast.map((r) => r.credited_name)).toEqual([
+    "AAA",
+    null,
+    null,
+  ]);
+});

@@ -127,6 +127,30 @@ describe("Character detail page", () => {
     ).toHaveAttribute("href", "/person/2/second-voice");
   });
 
+  it("names what the character is called in an entry that credits another name", async () => {
+    mockFetch({
+      entries: {
+        groups: [
+          {
+            media_type: "anime",
+            nav_path: "/anime",
+            entries: [
+              { ...ENTRIES.groups[0].entries[0], casting_id: "k1", credited_name: "AAA" },
+            ],
+          },
+        ],
+      },
+    });
+    renderPage();
+    expect(await screen.findByText("as AAA")).toBeInTheDocument();
+  });
+
+  it("names no other name on an appearance without one", async () => {
+    renderPage();
+    await screen.findByRole("link", { name: /Haruhi Suzumiya/ });
+    expect(screen.queryByText(/^as /)).toBeNull();
+  });
+
   it("renders an empty group rather than hiding it when every entry is hidden", async () => {
     renderPage();
     // The manga group has zero visible entries, but the group heading and its
@@ -370,5 +394,26 @@ describe("Character detail page", () => {
       fireEvent.blur(await screen.findByLabelText("Remark"));
       expect(patchCalls()).toHaveLength(0);
     });
+  });
+});
+
+describe("the character's firsts", () => {
+  it("lists only the firsts that are set, under First Appearances", async () => {
+    mockFetch({
+      character: { ...CHARACTER, first_mention: "第1卷 第3章", first_encounter: "S1 ep 8" },
+    });
+    renderPage();
+    const card = (await screen.findByText("First Appearances")).closest("section");
+    expect(within(card).getByText("First Mention")).toBeInTheDocument();
+    expect(within(card).getByText("第1卷 第3章")).toBeInTheDocument();
+    expect(within(card).getByText("First Encounter")).toBeInTheDocument();
+    expect(within(card).getByText("S1 ep 8")).toBeInTheDocument();
+    expect(within(card).queryByText("First Appearance")).toBeNull();
+  });
+
+  it("shows no First Appearances card when none is set", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: "Yuki Nagato" });
+    expect(screen.queryByText("First Appearances")).toBeNull();
   });
 });

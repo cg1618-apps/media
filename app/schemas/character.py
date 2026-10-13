@@ -31,6 +31,11 @@ class CharacterBase(BaseModel):
     # When None, a cast save or Calculate fills it from the castings' roles.
     role: Optional[str] = None
     remark: Optional[str] = None
+    # Where the character is first named, first shown and first met by the
+    # main character - free text, see app/models/character.py.
+    first_mention: Optional[str] = None
+    first_appearance: Optional[str] = None
+    first_encounter: Optional[str] = None
     # MAL's character record; mal_id is derived from mal_link on every write.
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
@@ -122,6 +127,10 @@ class IdentityBase(BaseModel):
     # on read, never copied.
     gender: Optional[str] = None
     remark: Optional[str] = None
+    # The identity's own firsts; never the character's.
+    first_mention: Optional[str] = None
+    first_appearance: Optional[str] = None
+    first_encounter: Optional[str] = None
     photo_file: Optional[str] = None
     photo_focus: ImageFocus = None
 

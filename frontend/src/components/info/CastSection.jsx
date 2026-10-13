@@ -50,6 +50,7 @@ function IdentityToggle({ showIdentities, hideableCount, onToggle }) {
 // gives its identity rows. A main row stays solid.
 function CastRow({ row }) {
   const asIdentity = Boolean(row.identity_id);
+  const ownName = row.identity_name || row.character_name || "Unknown";
   return (
     <div className="flex items-center gap-3" data-cast-row>
       <div
@@ -74,23 +75,32 @@ function CastRow({ row }) {
         {asIdentity && <Chip dashed>Identity</Chip>}
         {/* The casting row carries the target's own public_id and
             display name, so this is the real entity, not a stub. A row
-            cast as an identity opens that identity's page. */}
-        <Link
-          to={
-            row.identity_public_id != null
-              ? entityPath("identity", {
-                  public_id: row.identity_public_id,
-                  display_name: row.identity_name,
-                })
-              : entityPath("character", {
-                  public_id: row.character_public_id,
-                  display_name: row.character_name,
-                })
-          }
-          className={castLinkCls}
-        >
-          {row.identity_name || row.character_name || "Unknown"}
-        </Link>
+            cast as an identity opens that identity's page. A credited
+            name - what this entry calls the character - leads the row,
+            and the identity's or character's own name sits beneath it. */}
+        <span className="inline-flex flex-col min-w-0">
+          <Link
+            to={
+              row.identity_public_id != null
+                ? entityPath("identity", {
+                    public_id: row.identity_public_id,
+                    display_name: row.identity_name,
+                  })
+                : entityPath("character", {
+                    public_id: row.character_public_id,
+                    display_name: row.character_name,
+                  })
+            }
+            className={castLinkCls}
+          >
+            {row.credited_name || ownName}
+          </Link>
+          {row.credited_name && (
+            <span className="text-text-faint text-xs" data-real-name>
+              {ownName}
+            </span>
+          )}
+        </span>
         {/* An identity row names its character in words, the vocabulary
             the library's identity card uses, so it does not read as a
             second character. A sibling link, never nested in the one above. */}
