@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 ## What this is for
 
@@ -173,6 +173,7 @@ Read by the MAL prefill and, for the credits, by the four MAL autofills.
 |---|---|---|
 | `title_english` | `<type>_name_en` (prefill only) | stripped; blank is `None`. The romaji `title` is the picker's, written by the pick itself. |
 | `title_japanese` | `<type>_name_jp` (prefill only) | stripped; blank is `None`. |
+| `title_synonyms[]` | `<type>_name_alt` (prefill only) | each stripped; a blank, a repeat, or one equal to `title`, `title_english` or `title_japanese` is dropped; the rest comma-joined; none left is `None`. |
 | `studios[]` (anime) | `studio` credits on anime and anime movie | `map_tenrai_studios`: `{mal_id, name, url}` each; a nameless one is dropped. |
 | `authors[]` (manga) | `author` / `illustrator` credits on manga and novel | `map_tenrai_authors`: `role` `Story` → `author`, `Art` → `illustrator`, `Story & Art` → both; any other role, or no name, is dropped. `name` is `_western_order` (`"Oda, Eiichiro"` → `"Eiichiro Oda"`), `name_mal` keeps MAL's order. |
 
