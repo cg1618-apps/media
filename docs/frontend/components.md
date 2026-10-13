@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -217,7 +217,9 @@ not drawn. The character, person and studio libraries use it for
   to it, one without is faded, a value with no icon is skipped, and regional
   variants sharing one icon — `Toptoon TW` and `Toptoon KR` — draw it once),
   `FranchiseCard` and `CollectionCard` (each takes `cover`, a resolved
-  `{ url, focus }`), and `StaffCard`
+  `{ url, focus }`), `CharacterCard` (one card of `lib/characterCards.js` - a
+  character, or one of its identities drawn dashed; the character library and
+  the hubs' Characters tab draw it), and `StaffCard`
   (`PersonCard` / `StudioCard` / `PublisherCard` over one shared body — the
   person, studio and publisher libraries and the `/search` staff sections all
   draw it; each carries the entity's `my_rating` as a `RatingStamp`, as the
@@ -696,7 +698,7 @@ is a second place to keep in step.
 | `hComicForm.js` | `hComicSourceFields(form, split)`: the credit and tag fields the h-comic Add and Modify saves hand to `ensureSourceValues`, each person source with its role and `h-comic` scope |
 | `hGameForm.js` | `hGameSourceFields(form, split)`: the same for h-game - the developer (a studio) and the five tag fields, every option source scoped to `h-game` |
 | `hentaiForm.js` | `HENTAI_SOURCES` and `hentaiSourceFields(form, split)`: the same for hentai - the studio (unscoped), the director (role and `hentai` scope) and h-comic's three H genre vocabularies asked for under the `hentai` scope. `fieldMeta.js` reads `HENTAI_SOURCES` too, so the defaults page suggests from the lists the form does |
-| `novelUnits.js` | `NOVEL_UNIT_KINDS_BY_TYPE` (hand-mirrored from `app/utils/constants.py`, pinned by `config/novelUnitKinds.test.js`), `kindsForType`, `unitDisplayKey`, `arcStep` (frontend mirror of `normalize_arc_progress`) |
+| `novelUnits.js` | `NOVEL_UNIT_KINDS_BY_TYPE` (hand-mirrored from `app/utils/constants.py`, pinned by `config/novelUnitKinds.test.js`), `kindsForType`, `unitDisplayKey`, `arcStep` (frontend mirror of `normalize_arc_progress`), `arcProgressView` / `arcCursorFromView` (the arc being read as screens show it, and a typed arc and chapter back to the stored cursor), `arcCursorForChapters` (a typed chapter total folded into the arcs) |
 
 ## Testing conventions
 

@@ -45,6 +45,7 @@ import {
 import MediaCard from "../../components/cards/MediaCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import HubCharacters from "../../components/hub/HubCharacters";
 import FranchiseNotes from "./FranchiseNotes";
 import RelationGraph from "../../components/relations/RelationGraph";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
@@ -512,7 +513,7 @@ export default function FranchisePage() {
   // reports whether it holds anything, and an admin needs the entry point
   // precisely when it is still empty.
   const extraTabs = useMemo(
-    () => (franchise ? ["Watch Order", "Relations", "Notes"] : []),
+    () => (franchise ? ["Characters", "Watch Order", "Relations", "Notes"] : []),
     [franchise],
   );
 
@@ -2620,6 +2621,16 @@ export default function FranchisePage() {
             )}
           </Section>
         )}
+
+      {/* ── Characters tab content ───────────────────────────────────────── */}
+      {activeTab === "Characters" && (
+        <Section
+          title="Characters"
+          subtitle="Everyone cast on this franchise's entries, and the identities they appear as"
+        >
+          <HubCharacters scope="franchise" tierId={system_id} />
+        </Section>
+      )}
 
       {/* ── Watch Order tab content ──────────────────────────────────────── */}
       {activeTab === "Watch Order" && (

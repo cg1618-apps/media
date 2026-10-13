@@ -6,7 +6,13 @@ import {
   getDisplayName,
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
-import { arcStep, effectiveProgressDisplay } from "../../lib/novelUnits";
+import {
+  arcCursorForChapters,
+  arcCursorFromView,
+  arcProgressView,
+  arcStep,
+  effectiveProgressDisplay,
+} from "../../lib/novelUnits";
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
 import { focusStyle } from "../../lib/covers";
@@ -52,7 +58,9 @@ export default function NovelDashboardCard({
     .sort((a, b) => a.position - b.position);
   const arcFin = novel.arc_fin ?? 0;
   const chInArc = novel.ch_fin_in_arc ?? 0;
-  const currentArc = arcs[arcFin] || null;
+  // What the tracker shows: the arc being read, as the detail page and the
+  // library card show it - not the arcs finished, which is what arc_fin holds.
+  const arcView = arcProgressView(arcs, arcFin, chInArc);
 
   // ── Progress % ───────────────────────────────────────────────────
   let progressPercent = 0;
@@ -108,11 +116,7 @@ export default function NovelDashboardCard({
     const prev = novel.ch_fin ?? 0;
     if (target === prev) return;
     if (arcs.length > 0) {
-      const dir = target > prev ? 1 : -1;
-      let next = { arc_fin: arcFin, ch_fin_in_arc: chInArc };
-      for (let i = 0; i < Math.abs(target - prev); i += 1) {
-        next = arcStep(arcs, next.arc_fin, next.ch_fin_in_arc, dir);
-      }
+      const next = arcCursorForChapters(arcs, target);
       if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
       onProgressChange(
         novel.system_id,
@@ -138,38 +142,29 @@ export default function NovelDashboardCard({
     );
   }
 
-  // Direct edit of the arc number. There is no separate "position within the
-  // new arc" input here, so ch_fin_in_arc resets to 0 rather than carrying a
-  // stale value that may not even fit the newly chosen arc's width.
-  function handleArcFinInput(newVal) {
-    const target = Math.max(0, newVal);
-    if (arcs.length && target > arcs.length) {
-      showToast("error", "Cannot exceed total arcs.");
-      return;
-    }
-    if (target === arcFin) return;
+  // A typed arc or chapter, as the tracker shows them (arcProgressView),
+  // back to the stored cursor (arcCursorFromView). A typed arc starts at its
+  // beginning; a typed chapter stays in the arc shown and carries past its
+  // end into the next one, as stepping does.
+  function handleArcCursorInput(next) {
+    if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
     onProgressChange(
       novel.system_id,
-      { arc_fin: target, ch_fin_in_arc: 0 },
+      next,
       { arc_fin: arcFin, ch_fin_in_arc: chInArc },
     );
   }
 
-  // Direct edit of the chapter-within-arc number. arc_fin is unchanged;
-  // the server still re-normalises on write, so an overshoot past the
-  // current arc's width safely carries forward rather than corrupting state.
-  function handleChInArcInput(newVal) {
-    const target = Math.max(0, newVal);
-    if (currentArc?.ch_count != null && target > currentArc.ch_count) {
-      showToast("error", "Cannot exceed this arc's chapters.");
+  function handleArcInput(newVal) {
+    if (newVal > arcs.length + 1) {
+      showToast("error", "Cannot exceed total arcs.");
       return;
     }
-    if (target === chInArc) return;
-    onProgressChange(
-      novel.system_id,
-      { arc_fin: arcFin, ch_fin_in_arc: target },
-      { arc_fin: arcFin, ch_fin_in_arc: chInArc },
-    );
+    handleArcCursorInput(arcCursorFromView(arcs, newVal, 0));
+  }
+
+  function handleChInArcInput(newVal) {
+    handleArcCursorInput(arcCursorFromView(arcs, arcView.arcNumber, newVal));
   }
 
   // ── Progress tracker ─────────────────────────────────────────────
@@ -227,7 +222,7 @@ export default function NovelDashboardCard({
 
     if (pd === "arc_ch") {
       const arcTotal = novel.arc_total ?? arcs.length ?? "?";
-      const chInArcTotal = currentArc?.ch_count ?? "?";
+      const chInArcTotal = arcView.arc?.ch_count ?? "?";
 
       if (isAdmin) {
         return (
@@ -243,9 +238,10 @@ export default function NovelDashboardCard({
               <input
                 type="number"
                 className={`${STEPPER_INPUT} w-10 text-[11px]`}
-                value={arcFin}
+                value={arcView.arcNumber}
+                aria-label="Arc being read"
                 onChange={(e) =>
-                  handleArcFinInput(parseFloat(e.target.value) || 0)
+                  handleArcInput(parseFloat(e.target.value) || 0)
                 }
               />
               <span className="text-text-faint text-[9px]">/{arcTotal}</span>
@@ -254,7 +250,8 @@ export default function NovelDashboardCard({
               <input
                 type="number"
                 className={`${STEPPER_INPUT} w-10 text-[11px]`}
-                value={chInArc}
+                value={arcView.chInArc}
+                aria-label="Chapters read in this arc"
                 onChange={(e) =>
                   handleChInArcInput(parseFloat(e.target.value) || 0)
                 }
@@ -275,12 +272,12 @@ export default function NovelDashboardCard({
           <div className="font-mono text-[11px] flex items-baseline justify-center select-none w-full px-1 gap-1">
             <span className={UNIT}>arc</span>
             <span className="text-text">
-              {arcFin}/{arcTotal}
+              {arcView.arcNumber}/{arcTotal}
             </span>
             <span className="text-text-faint mx-1">·</span>
             <span className={UNIT}>ch</span>
             <span className="text-text">
-              {chInArc}/{chInArcTotal}
+              {arcView.chInArc}/{chInArcTotal}
             </span>
           </div>
         </div>

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   NOVEL_UNIT_KINDS_BY_TYPE,
   NOVEL_VOLUME_ONLY_TYPES,
+  arcCursorForChapters,
+  arcCursorFromView,
+  arcProgressView,
   arcStep,
   countsChapters,
   countsVolumes,
@@ -321,5 +324,68 @@ describe("wholeArcStep", () => {
 
   it("clamps at the last arc", () => {
     expect(wholeArcStep(arcs, 3, 0, 1)).toEqual({ arc_fin: 3, ch_fin_in_arc: 0 });
+  });
+});
+
+describe("arcProgressView", () => {
+  const arcs = [
+    { unit_kind: "arc", position: 1, ch_count: 100 },
+    { unit_kind: "arc", position: 2, ch_count: 40 },
+  ];
+
+  it("shows the arc being read, one-based, and the chapters read inside it", () => {
+    expect(arcProgressView(arcs, 1, 7)).toMatchObject({ arcNumber: 2, chInArc: 7, arc: arcs[1] });
+    expect(arcProgressView(arcs, 0, 0)).toMatchObject({ arcNumber: 1, chInArc: 0, arc: arcs[0] });
+  });
+
+  it("shows every recorded arc finished as the last arc, complete", () => {
+    expect(arcProgressView(arcs, 2, 0)).toMatchObject({ arcNumber: 2, chInArc: 40, arc: arcs[1] });
+  });
+
+  it("shows reading past the last recorded arc as the arc after it, of unknown length", () => {
+    expect(arcProgressView(arcs, 2, 5)).toMatchObject({ arcNumber: 3, chInArc: 5, arc: null });
+  });
+});
+
+describe("arcCursorFromView", () => {
+  const arcs = [
+    { unit_kind: "arc", position: 1, ch_count: 100 },
+    { unit_kind: "arc", position: 2, ch_count: 40 },
+  ];
+
+  it("turns a typed arc and chapter back into the stored cursor", () => {
+    expect(arcCursorFromView(arcs, 2, 7)).toEqual({ arc_fin: 1, ch_fin_in_arc: 7 });
+    expect(arcCursorFromView(arcs, 1, 0)).toEqual({ arc_fin: 0, ch_fin_in_arc: 0 });
+  });
+
+  it("carries chapters past the arc's end into the next arc, as the stepper does", () => {
+    expect(arcCursorFromView(arcs, 1, 105)).toEqual({ arc_fin: 1, ch_fin_in_arc: 5 });
+  });
+
+  it("reads the complete last arc as every arc finished, round-tripping the view", () => {
+    expect(arcCursorFromView(arcs, 2, 40)).toEqual({ arc_fin: 2, ch_fin_in_arc: 0 });
+  });
+
+  it("clamps the arc to the first, and to one past the last", () => {
+    expect(arcCursorFromView(arcs, 0, 3)).toEqual({ arc_fin: 0, ch_fin_in_arc: 3 });
+    expect(arcCursorFromView(arcs, 9, 3)).toEqual({ arc_fin: 2, ch_fin_in_arc: 3 });
+  });
+});
+
+describe("arcCursorForChapters", () => {
+  const arcs = [
+    { unit_kind: "arc", position: 1, ch_count: 100 },
+    { unit_kind: "arc", position: 2, ch_count: 40 },
+  ];
+
+  it("folds a total chapter count into the arcs", () => {
+    expect(arcCursorForChapters(arcs, 0)).toEqual({ arc_fin: 0, ch_fin_in_arc: 0 });
+    expect(arcCursorForChapters(arcs, 120)).toEqual({ arc_fin: 1, ch_fin_in_arc: 20 });
+    expect(arcCursorForChapters(arcs, 145)).toEqual({ arc_fin: 2, ch_fin_in_arc: 5 });
+  });
+
+  it("stops folding at an arc of unknown length", () => {
+    const open = [{ unit_kind: "arc", position: 1, ch_count: null }, arcs[1]];
+    expect(arcCursorForChapters(open, 120)).toEqual({ arc_fin: 0, ch_fin_in_arc: 120 });
   });
 });

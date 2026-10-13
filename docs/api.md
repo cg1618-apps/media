@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1807,7 +1807,7 @@ line for line, plus one deliberate departure — see the `POST` row.
 
 | Method   | Path                   | Auth   | Description                                                                          |
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------- |
-| `GET`    | `/`                    | Public | List characters, sorted by resolved `display_name`. `?name=` does a case-insensitive substring match against all four name columns, so the cast editor's character combobox can offer suggestions without downloading the whole table. |
+| `GET`    | `/`                    | Public | List characters, sorted by resolved `display_name`. `?name=` does a case-insensitive substring match against all four name columns, so the cast editor's character combobox can offer suggestions without downloading the whole table. `?franchise_id=` / `?series_id=` (UUIDs; both given means both hold) keep only the characters cast on an entry of that franchise or series which the viewer may see (`filter_visible_pairs`), and narrow each character's `identities` to the ones cast on those entries - the franchise and series hubs' Characters tab. `casting_count` keeps its unscoped meaning. |
 | `GET`    | `/search-mal`      | `manage.catalog` | `?q=`, `limit`. Searches MAL characters. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/{system_id}`         | Public | Get one character by `public_id` or UUID. 404 if absent or hidden. |
 | `GET`    | `/{system_id}/entries` | Public | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry carries `seiyuu`: everyone who voiced the character there, in voice order, as `[{display_name, system_id, public_id, remark}]` — empty when nobody did. One entry appears **once per identity** the character is cast under in it, so each row also carries `casting_id`, `identity_id`, `identity_name` and `identity_public_id` (null for the main identity); `casting_id`, not the entry's `system_id`, tells two appearances apart. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
@@ -2079,7 +2079,7 @@ Defaults** page (`/random-defaults`) and read by the picker (`/random`). One
 `system_configs` row per mode, keyed `random_picker_defaults:<mode>`, JSON in
 `config_value`; `app/routers/random_picker_defaults.py`.
 
-`mode` is `all` or one of the twelve media slugs; anything else is 400. A gated
+`mode` is `all`, one of the twelve media slugs, or `franchise` (the mode that draws a franchise); anything else is 400. A gated
 type's mode (`h-comic`, `h-game`, `hentai`) answers **404** on every verb to a
 session that may not see the type, so the endpoint does not say it exists.
 

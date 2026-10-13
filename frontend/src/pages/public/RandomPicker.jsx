@@ -1,6 +1,6 @@
 // Frontend: the random picker. /random draws from every visible media type
 // with the filters all types share; /random/<type> draws from one type with
-// that type's own library filters. Each mode opens with the default filters
+// that type's own library filters; /random/franchise draws a franchise. Each mode opens with the default filters
 // saved on the Picker Defaults page. The filters are lib/randomPicker.js, the
 // weighted draw lib/pickerWeights.js, the data hooks/usePickerData.js; this
 // file holds the pick and renders. A Weights tab (?tab=weights) lists every
@@ -9,6 +9,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 
+import FranchiseCard from "../../components/cards/FranchiseCard";
 import MediaCard from "../../components/cards/MediaCard";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import FilterPanel from "../../components/layout/FilterPanel";
@@ -23,7 +24,13 @@ import { usePickerData } from "../../hooks/usePickerData";
 import { visibleMediaTypes } from "../../lib/gatedTypes";
 import { applyFilterDefs, countActiveFilters } from "../../lib/libraryFilters";
 import { groupPlanMarks, pickWeighted } from "../../lib/pickerWeights";
-import { PICKER_TYPES, entryKey, pickerTypeLabel } from "../../lib/randomPicker";
+import {
+  FRANCHISE_MODE,
+  PICKER_TYPES,
+  entryKey,
+  isWeightedMode,
+  pickerTypeLabel,
+} from "../../lib/randomPicker";
 
 const ALL_TYPES = PICKER_TYPES.map((t) => t.type);
 
@@ -42,7 +49,9 @@ export default function RandomPicker({ type: typeProp }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get("tab") === "weights" ? "weights" : "pick";
 
-  if (type && !ALL_TYPES.includes(type)) return <Navigate to="/random" replace />;
+  if (type && type !== FRANCHISE_MODE && !ALL_TYPES.includes(type)) {
+    return <Navigate to="/random" replace />;
+  }
 
   const mode = type ?? "all";
   return (
@@ -78,7 +87,9 @@ export default function RandomPicker({ type: typeProp }) {
           <PickerBody
             key={mode}
             mode={mode}
-            typesKey={type ?? visibleTypes.join(",")}
+            // The franchise mode reads every visible type's list: they say
+            // what each franchise holds and give it a cover.
+            typesKey={type && type !== FRANCHISE_MODE ? type : visibleTypes.join(",")}
             signedIn={Boolean(auth.username)}
           />
         </>
@@ -137,7 +148,8 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
     dynamicFilterOptions,
   } = useFilterState(filterDefs, entries, defaultFilters);
 
-  const hasDefaults = countActiveFilters(defaultFilters) > 0 || !defaultWeighted;
+  const hasDefaults =
+    countActiveFilters(defaultFilters) > 0 || (isWeightedMode(mode) && !defaultWeighted);
 
   const pool = useMemo(
     () => applyFilterDefs(entries, filterDefs, filters),
@@ -214,15 +226,17 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
           <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
             {pool.length} in the pool
           </p>
-          <label className="inline-flex items-center gap-1.5 text-xs text-text-muted cursor-pointer">
-            <input
-              type="checkbox"
-              checked={weighted}
-              onChange={(e) => setWeighted(e.target.checked)}
-              className="accent-brand"
-            />
-            Weighted
-          </label>
+          {isWeightedMode(mode) && (
+            <label className="inline-flex items-center gap-1.5 text-xs text-text-muted cursor-pointer">
+              <input
+                type="checkbox"
+                checked={weighted}
+                onChange={(e) => setWeighted(e.target.checked)}
+                className="accent-brand"
+              />
+              Weighted
+            </label>
+          )}
         </div>
 
         {pool.length === 0 ? (
@@ -237,11 +251,15 @@ function PickerPool({ mode, entries, filterDefs, defaultFilters, defaultWeighted
             {mode === "all" && (
               <Eyebrow className="mb-1.5">{pickerTypeLabel(picked.type)}</Eyebrow>
             )}
-            <MediaCard
-              type={picked.type}
-              data={picked.item}
-              onUpdated={handleUpdated(picked.type)}
-            />
+            {picked.type === FRANCHISE_MODE ? (
+              <FranchiseCard franchise={picked.item} cover={picked.cover} />
+            ) : (
+              <MediaCard
+                type={picked.type}
+                data={picked.item}
+                onUpdated={handleUpdated(picked.type)}
+              />
+            )}
             {pickedChance !== null && (
               <p className="mt-1.5 font-mono text-[11px] text-text-faint">
                 {formatChance(pickedChance)} chance

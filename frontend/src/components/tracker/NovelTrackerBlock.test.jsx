@@ -269,10 +269,11 @@ describe("NovelTrackerBlock — the whole-arc stepper", () => {
     expect(screen.getByText("Arcs")).toBeInTheDocument();
     expect(screen.queryByText("Arc / Chapter")).not.toBeInTheDocument();
     expect(screen.queryByText("Chapters")).not.toBeInTheDocument();
-    // The count and the total live in sibling spans, so match on the row's
-    // combined text rather than on one node.
+    // The arc being read is a typable box; the total and the name are text
+    // beside it.
+    expect(screen.getByLabelText("Arc being read")).toHaveValue(2);
     const row = screen.getByText("Arcs").parentElement;
-    expect(row.textContent.replace(/\s+/g, " ")).toMatch(/arc 2\s*\/ 3/);
+    expect(row.textContent).toMatch(/\/ 3/);
     expect(row.textContent).toMatch(/序曲/);
   });
 
@@ -316,10 +317,10 @@ describe("NovelTrackerBlock — the whole-arc stepper", () => {
   });
 });
 
-describe("NovelTrackerBlock — flat chapters are read-only when arcs govern", () => {
+describe("NovelTrackerBlock — flat chapters derived from arcs", () => {
   const units = [{ unit_kind: "arc", position: 1, ch_count: 100 }];
 
-  it("shows the derived pair with no steppers when 'ch' is chosen with arc rows", () => {
+  it("shows the derived pair, labelled as coming from the arcs, when 'ch' is chosen with arc rows", () => {
     render(
       <NovelTrackerBlock
         {...baseProps({
@@ -338,10 +339,84 @@ describe("NovelTrackerBlock — flat chapters are read-only when arcs govern", (
     );
 
     expect(screen.getByText("Chapters")).toBeInTheDocument();
-    // ch_fin is derived from the arc rows, so editing it here would fight the
-    // derivation - the arc row is where it is edited.
-    expect(screen.queryByLabelText("Next chapter")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Chapters finished")).not.toBeInTheDocument();
-    expect(screen.getByText(/30/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Chapters finished")).toHaveValue(30);
+    expect(screen.getByText(/from arcs/)).toBeInTheDocument();
+  });
+});
+
+describe("NovelTrackerBlock — typing progress on a web novel with arcs", () => {
+  const units = [
+    { unit_kind: "arc", position: 1, ch_count: 100 },
+    { unit_kind: "arc", position: 2, ch_count: 40 },
+  ];
+  const novel = (extra) => ({ system_id: "n1", type: "Web", units, ...extra });
+
+  it("shows the arc being read, and a typed arc starts at its beginning", () => {
+    const onArcProgressChange = vi.fn();
+    render(
+      <NovelTrackerBlock
+        {...baseProps({ novel: novel({ arc_fin: 1, ch_fin_in_arc: 7 }), onArcProgressChange })}
+      />,
+    );
+    const arc = screen.getByLabelText("Arc being read");
+    expect(arc).toHaveValue(2);
+    expect(screen.getByLabelText("Chapters read in this arc")).toHaveValue(7);
+
+    fireEvent.change(arc, { target: { value: "1" } });
+    expect(onArcProgressChange).toHaveBeenCalledWith({ arc_fin: 0, ch_fin_in_arc: 0 });
+  });
+
+  it("a typed chapter stays in the arc shown, and carries past its end", () => {
+    const onArcProgressChange = vi.fn();
+    render(
+      <NovelTrackerBlock
+        {...baseProps({ novel: novel({ arc_fin: 0, ch_fin_in_arc: 7 }), onArcProgressChange })}
+      />,
+    );
+    const ch = screen.getByLabelText("Chapters read in this arc");
+    fireEvent.change(ch, { target: { value: "30" } });
+    expect(onArcProgressChange).toHaveBeenLastCalledWith({ arc_fin: 0, ch_fin_in_arc: 30 });
+    fireEvent.change(ch, { target: { value: "104" } });
+    expect(onArcProgressChange).toHaveBeenLastCalledWith({ arc_fin: 1, ch_fin_in_arc: 4 });
+  });
+
+  it("shows every arc finished as the last arc, complete", () => {
+    render(<NovelTrackerBlock {...baseProps({ novel: novel({ arc_fin: 2, ch_fin_in_arc: 0 }) })} />);
+    expect(screen.getByLabelText("Arc being read")).toHaveValue(2);
+    expect(screen.getByLabelText("Chapters read in this arc")).toHaveValue(40);
+  });
+
+  it("types the arc in the whole-arc display", () => {
+    const onArcProgressChange = vi.fn();
+    render(
+      <NovelTrackerBlock
+        {...baseProps({
+          novel: novel({ progress_display: "arc", arc_fin: 0, ch_fin_in_arc: 0 }),
+          onArcProgressChange,
+        })}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Arc being read"), { target: { value: "2" } });
+    expect(onArcProgressChange).toHaveBeenCalledWith({ arc_fin: 1, ch_fin_in_arc: 0 });
+  });
+
+  it("types a chapter total in the flat display, folded into the arcs", () => {
+    const onArcProgressChange = vi.fn();
+    const onChChange = vi.fn();
+    render(
+      <NovelTrackerBlock
+        {...baseProps({
+          novel: novel({ progress_display: "ch", arc_fin: 0, ch_fin_in_arc: 3, ch_fin: 3, ch_total: 140 }),
+          onArcProgressChange,
+          onChChange,
+        })}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Chapters finished"), { target: { value: "120" } });
+    expect(onArcProgressChange).toHaveBeenCalledWith({ arc_fin: 1, ch_fin_in_arc: 20 });
+    expect(onChChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByLabelText("Next chapter"));
+    expect(onArcProgressChange).toHaveBeenLastCalledWith({ arc_fin: 0, ch_fin_in_arc: 4 });
   });
 });

@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -60,7 +60,7 @@ are a large share of the bundle and never needed on first paint.
 | `/completions` | `public/Completions.jsx` | lazy |
 | `/random` | `public/RandomPicker.jsx` — the general mode | lazy |
 | `/random/h-comic`, `/random/h-game`, `/random/hentai` | `RandomPicker type="…"` — the same file, each inside its type's `<ProtectedRoute gatedType>` (matched before `/random/:type`) | lazy, **gated** |
-| `/random/:type` | `RandomPicker` — one type's mode; an unknown type redirects to `/random` | lazy |
+| `/random/:type` | `RandomPicker` — one type's mode, or `/random/franchise`, the franchise mode; an unknown type redirects to `/random` | lazy |
 | `/plan` | `public/Plan.jsx` | lazy, **login required** |
 | `/quote` | `public/Quotes.jsx` | lazy |
 | `/meme` | `public/Memes.jsx` | lazy |
@@ -863,15 +863,25 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation", parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
 | Admin controls | Overall Rating select, Expectation select, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), rewatch `PlanKindToggles` | Overall Rating, Expectation, rewatch `PlanKindToggles scope="series"` (no size groups at series level) | Overall Rating, Expectation |
 | Remark | textarea (admin editable, guest disabled, shown when admin or non-empty), "Show all" opens `RemarkModal`; saved on blur / modal close via PATCH `{ remark }` | same | same |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic and Hentai tabs each allowed by either type of the h-comic family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Watch Order, Relations, Notes | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Novel, Comic, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending), **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic and Hentai tabs each allowed by either type of the h-comic family), Movies, TV Shows, Cartoons — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters, Watch Order, Relations, Notes | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Watch Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
 (404 tolerated). Media tabs carry a sort select, a group-by-series checkbox
 (on by default for anime/comic/movies/tv/cartoons) and filter pills specific to
-the type. Extras render `WatchOrderSection` (see below),
+the type. Extras render `HubCharacters` (below), `WatchOrderSection` (see below),
 `RelationGraph readOnly scopeType=… scopeId=…`, and `{Tier}Notes` with the
 `remark` section hidden whenever the hero already shows the remark box.
+
+**Characters tab.** `components/hub/HubCharacters.jsx` lists the characters
+cast on the tier's entries - characters, not the cast: each character once,
+however many entries it is cast on, with its own picture and overall `role`,
+plus one dashed card for each of its identities cast on those entries. It asks
+`GET /api/character/?franchise_id=` (or `?series_id=`), which counts only
+castings on entries the viewer may see, and draws `CharacterCard`s grouped by
+`characterCardsByRole` (`lib/characterCards.js`): Main, Core, Supporting,
+Other, then No role, each group by name with an identity right after its
+character. Always offered, like the other extras; an empty tier says so.
 
 **Hero cover resolution.** Both hubs build their combined entry list from every
 list the page loaded and hand it to `getFranchiseCover` / `getSeriesCover`. It
@@ -1336,7 +1346,7 @@ everyone; it draws from the same lists the library pages read, so it can
 only offer what the viewer may already see.
 
 A strip of mode links runs across the top: **All**, then one per media type
-the session may see (`visibleMediaTypes`). Each mode has its own filters,
+the session may see (`visibleMediaTypes`), then **Franchise**. Each mode has its own filters,
 rendered by the library's `FilterPanel`. Each mode opens on its **default
 filters**, saved on the admin Picker Defaults page
 ([admin-pages.md](admin-pages.md#random-defaults-pickerdefaultsjsx)) and read
@@ -1353,6 +1363,16 @@ mode starts over from that mode's defaults, with no pick.
   pool like any other; untick it with the media-type chips.
 - **One type** (`/random/<type>`) fetches only that type and offers its
   library page's own `filterDefs`, then my rating and release decade.
+- **Franchise** (`/random/franchise`) draws a franchise, not an entry. It
+  fetches every franchise and every visible type's list; the lists give each
+  franchise its cover (the franchise library's `getFranchiseCover`) and say
+  what it holds. It filters on franchise type (each type of a multi-type
+  franchise counts), the media types it holds an entry of, the status groups
+  of the entries it holds (the All mode's groups; a franchise matches when any
+  entry does), expectation, and my rating. It always draws evenly - the
+  weights are an entry's own status, rating, plan marks and release, which a
+  franchise does not have - so it shows no **Weighted** checkbox. The pick is
+  a `FranchiseCard`.
 
 Within one filter the chosen chips OR; across filters they AND, exactly as
 on the library page. **Pick** draws from the pool, weighted or evenly as the
