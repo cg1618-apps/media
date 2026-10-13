@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 ## What this is for
 
@@ -35,9 +35,9 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 | `publisher_scope` | Which media types a publisher is offered on: `publisher_id` (FK, cascade), `scope` (**NOT NULL**, a hyphenated media-type key, one of `legal_scopes("publisher")`). Explicit rather than derived from credits, for `person_role`'s reason — a distributor added today must appear in the anime picker before its first credit exists. **No `role` column**: a publisher holds exactly one role, so a column whose value is the constant `publisher` on every row would encode nothing. Zero rows means offered *nowhere*, which is what makes auto-scoping on write purely additive. `studio` has no counterpart — a studio list offering every studio is not wrong the way a distributor list offering 木棉花 on a game would be. | `uq_publisher_scope (publisher_id, scope)` — plain, not NULLS NOT DISTINCT: `scope` is NOT NULL, so nothing in the key is nullable |
 | `media_credit` | One person, studio **or** publisher on one entry: `media_id` FK → `media.system_id` (cascade), `role` (one of `CREDIT_ROLE_KEYS`), `person_id` / `studio_id` / `publisher_id` (all three FK, cascade on delete), `position` (order of the original comma list), `remark`. Exactly one of the three is set. | `ck_media_credit_one_target` CHECK `num_nonnulls(person_id, studio_id, publisher_id) = 1`; `uq_media_credit_row (media_id, role, person_id, studio_id, publisher_id)` NULLS NOT DISTINCT; index on `media_id` |
 | `media_tag` | One vocabulary value on one entry: `media_id` FK → `media.system_id` (cascade), `field` (one of `TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. Column is `field`, not `category`: one category can back several fields, one field maps to exactly one category. | `uq_media_tag_row (media_id, field, option_id)`; index on `media_id` |
-| `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `photo_fallback_entry_id`, `role` (overall, `CHARACTER_ROLES`; a NULL one is filled from the castings' highest-ranked role), `remark`, timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
+| `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `photo_fallback_entry_id`, `role` (overall, `CHARACTER_ROLES`; a NULL one is filled from the castings' highest-ranked role), `remark`, `first_mention` / `first_appearance` / `first_encounter` (free text: first named, first shown, first met by the main character), timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
 | `character_tag` | One vocabulary value on one character, `media_tag`'s twin: `character_id` FK → `character.system_id` (cascade), `field` (`appearance` or `trait`, one of `CHARACTER_TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. See [Character tags](#character-tags). | `uq_character_tag_row (character_id, field, option_id)`; index on `character_id` |
-| `character_identity` | One of a character's other identities (the `character` row is the main one): `character_id` (FK, cascade), four optional names, `display_name_field`, `gender` (NULL inherits the character's), `remark`, `photo_file`, `position`, `public_id` (its page's URL id, own sequence). No tags, rating, role or MAL fields. | `ck_character_identity_has_a_name`; `uq_character_identity_owner (system_id, character_id)`, the composite FK's target; `uq_character_identity_public_id`, deferred |
+| `character_identity` | One of a character's other identities (the `character` row is the main one): `character_id` (FK, cascade), four optional names, `display_name_field`, `gender` (NULL inherits the character's), `remark`, its own `first_mention` / `first_appearance` / `first_encounter` (never inherited), `photo_file`, `position`, `public_id` (its page's URL id, own sequence). No tags, rating, role or MAL fields. | `ck_character_identity_has_a_name`; `uq_character_identity_owner (system_id, character_id)`, the composite FK's target; `uq_character_identity_public_id`, deferred |
 | `character_casting` | THE cast record for one character, in one entry: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `identity_id` (NULL = main identity), `role` (optional; `CHARACTER_ROLES` or NULL), `position`, `photo_file`, `remark`. Its seiyuu are `character_casting_voice` rows. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, identity_id, media_type, entry_id)` **NULLS NOT DISTINCT**; `fk_casting_identity (identity_id, character_id)` -> `character_identity`, deferred; `uq_character_casting_entry (system_id, media_type, entry_id)`, the composite FK's target; index on `(media_type, entry_id)` |
 | `character_casting_voice` | One seiyuu voicing one casting: `casting_id`, the casting's `media_type` and `entry_id` repeated, `person_id` (FK, **cascade**), `position`, `remark` (free text: `child`, `ep 13-`). A casting has zero or more. | `fk_casting_voice_casting (casting_id, media_type, entry_id)` → `character_casting (system_id, media_type, entry_id)`, cascade on delete and update; `uq_casting_voice (casting_id, person_id)`; `ck_casting_voice_scope` (only on `anime`/`anime-movie`/`hentai`); index on `(media_type, entry_id)` |
 
@@ -393,7 +393,10 @@ Four tables, and the shape is deliberate on the points recorded below.
 
 - `character` — one fictional character, shaped like `person`: four optional
   names, `display_name_field`, `gender`, `my_rating`, `photo_file`,
-  `photo_fallback_entry_id`, `role`, `remark`, and `mal_id` / `mal_link`
+  `photo_fallback_entry_id`, `role`, `remark`, the three firsts
+  (`first_mention`, `first_appearance`, `first_encounter` - free text: where
+  the character is first named, first shown at all, and first actually faced
+  by the main character), and `mal_id` / `mal_link`
   (indexed, not unique - see [MAL](#mal-a-characters-link-and-a-cast-import)
   below). `role` is what the character
   is overall. While it is NULL, `fill_character_roles`
@@ -408,7 +411,9 @@ Four tables, and the shape is deliberate on the points recorded below.
   as on `person` ([options.md](../options.md)); a write outside them is a 422.
 - `character_identity` — one of a character's **other** identities (an alter
   ego, a disguise, a civilian name): four optional names (at least one),
-  `display_name_field`, `gender`, `remark`, `photo_file`, `position`. The
+  `display_name_field`, `gender`, `remark`, its own three firsts (never the
+  character's - a disguise is usually met long after the character it hides),
+  `photo_file`, `position`. The
   `character` row **is** the main identity, so names, photo and remark are held
   once, and every identity is one character: search, tags, rating and the role
   derivation all stay the character's, and an identity has no tags, rating,

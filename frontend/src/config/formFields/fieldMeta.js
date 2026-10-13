@@ -1667,6 +1667,26 @@ export const TYPE_FIELD_META = {
       group: "Media",
     },
     remark: { autofillable: false },
+    // Where the character first turns up, in the work's own notation. Each
+    // character's own, so never auto-filled from another record.
+    first_mention: {
+      label: "First Mention",
+      control: "text",
+      group: "First Appearances",
+      autofillable: false,
+    },
+    first_appearance: {
+      label: "First Appearance",
+      control: "text",
+      group: "First Appearances",
+      autofillable: false,
+    },
+    first_encounter: {
+      label: "First Encounter",
+      control: "text",
+      group: "First Appearances",
+      autofillable: false,
+    },
   },
 };
 

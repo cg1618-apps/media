@@ -100,6 +100,15 @@ class Character(Base, NameFallbackMixin):
     # it (domain/casting_sync.py).
     role = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
+    # Where the character first turns up, as free text in whatever notation
+    # the work uses ("第1卷 第13章", "1-13", "S1 ep 8"). first_mention: first
+    # talked about or named, before being seen. first_appearance: first shown
+    # at all, even a glimpse with no real part. first_encounter: the main
+    # character first actually faces them - meets, talks, fights - whether or
+    # not the name is known by then.
+    first_mention = Column(Text, nullable=True)
+    first_appearance = Column(Text, nullable=True)
+    first_encounter = Column(Text, nullable=True)
     # MAL's character record, as person carries its people record: mal_link
     # is what an admin pastes, mal_id is derived from it and is what the cast
     # import matches a MAL character on. Not unique, like person.mal_id - a
@@ -279,6 +288,11 @@ class CharacterIdentity(Base, NameFallbackMixin):
     # resolved on read (services/domain/character_identities.py), never copied.
     gender = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
+    # The identity's own firsts, as on Character - never the character's:
+    # a disguise is usually met long after the character it hides.
+    first_mention = Column(Text, nullable=True)
+    first_appearance = Column(Text, nullable=True)
+    first_encounter = Column(Text, nullable=True)
     # Storage key under static/covers/character-identity/. NULL shows the
     # character's picture.
     photo_file = Column(String, nullable=True)

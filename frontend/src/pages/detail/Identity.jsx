@@ -11,7 +11,7 @@
 // An identity IS its character under another name, so the page shows what
 // the character page does: the character's role, appearance and trait tags,
 // rating and MAL link come from GET /api/character/{id}, read beside the
-// entries; the names, photo, gender and remark are the identity's own. A
+// entries; the names, photo, gender, remark and firsts are the identity's own. A
 // Character section links back to the character and to its other identities.
 //
 // Like Character.jsx it reads the API with plain fetch. Unlike it, nothing is
@@ -30,6 +30,7 @@ import InfoCard from "../../components/info/InfoCard";
 import MalButton from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
 import { tagChips } from "../../components/info/tagChips";
+import { firstsRows } from "../../lib/characterForm";
 import { AdminToolbar } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
@@ -123,6 +124,8 @@ export default function Identity() {
   // The server resolves the fallback, as it does for a character's photo.
   const photoUrl = getCoverUrl(identity.display_photo_file ?? identity.photo_file);
   const castingTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
+  // The identity's own firsts, only those set - never the character's.
+  const firsts = firstsRows(identity);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
@@ -242,6 +245,8 @@ export default function Identity() {
               Role, tags, rating and MAL are {characterName}&apos;s.
             </p>
           </div>
+
+          {firsts.length > 0 && <InfoCard title="First Appearances" fields={firsts} />}
 
           <section>
             <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">

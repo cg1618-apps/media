@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-10-08
+Last verified: 2026-10-13
 
 ## What this is for
 
@@ -148,8 +148,8 @@ below.
 
 | | Revision | Notes |
 |---|---|---|
-| **Home** | `i1d2p3ubid45` — head, as of 2026-10-06 | Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row. Two of the revisions it now holds declare `irreversible = True`, so it cannot be downgraded past them — going back before the notes rework means restoring a dump |
-| **Company** | `h1c2i3dentty` — one behind head (`i1d2p3ubid45`), as of 2026-10-07 | Upgraded from `h1c2o3m4i5c6` to `g1i2smain34` on 2026-09-30, then on to `h1c2i3dentty`; five revisions in the first range and two in the second (`a1n2imeacg3`, `g2c3hbranch4`) declare `irreversible = True`, and the dumps taken before them have since been deleted, so there is no going back on this machine. Volume-copied out of the pre-migration `anime_site_postgres_anime_data` on 2026-09-24, renamed `anime_site_db` → `media`, then upgraded from `s1e2asonalix`. 2,081 `media` rows, 833 `anime`, 2 accounts, 59 tables. **Pull All has still not been run here**, so its rows are its own and not the sheet's — the sheet predates the notes rework, which is why that is the safe place to stop |
+| **Home** | `i1d2p3ubid45` — one behind head (`f1i2r3stsee4`), as of 2026-10-06 | Moved off native PostgreSQL 17.6 into the container on 2026-09-08 by dump and restore, all 43 non-empty tables verified row-for-row. Two of the revisions it now holds declare `irreversible = True`, so it cannot be downgraded past them — going back before the notes rework means restoring a dump |
+| **Company** | `f1i2r3stsee4` — head, as of 2026-10-13 | Upgraded from `h1c2o3m4i5c6` to `g1i2smain34` on 2026-09-30, then on to `h1c2i3dentty`, `i1d2p3ubid45` and `f1i2r3stsee4`; five revisions in the first range and two in the second (`a1n2imeacg3`, `g2c3hbranch4`) declare `irreversible = True`, and the dumps taken before them have since been deleted, so there is no going back on this machine. Volume-copied out of the pre-migration `anime_site_postgres_anime_data` on 2026-09-24, renamed `anime_site_db` → `media`, then upgraded from `s1e2asonalix`. 2,081 `media` rows, 833 `anime`, 2 accounts, 59 tables. **Pull All has still not been run here**, so its rows are its own and not the sheet's — the sheet predates the notes rework, which is why that is the safe place to stop |
 
 Read it from the machine rather than from memory:
 

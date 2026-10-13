@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 ## What this is for
 
@@ -302,7 +302,11 @@ from before it existed - leaves the local value as it is rather than
 clearing it.
 `Character` also carries `role` (`CHARACTER_ROLES`); a value outside the list
 restores as blank. It carries `mal_id` and `mal_link` too, restored as they
-are, as on `Person`.
+are, as on `Person`, and the three free-text firsts, `first_mention`,
+`first_appearance` and `first_encounter`. Each first restores only when the
+sheet has its column: a backup from before they existed leaves the local
+values as they are rather than clearing them, as `alone_reviewed_media_id`
+does (`formatter._firsts_from_sheet`, shared with `Character Identity`).
 
 `Character` ends with two cells no column backs, `appearance` and `trait`:
 the character's tags (`character_tag`), each comma-joined in stored order,
@@ -319,7 +323,8 @@ cells land on the restored vocabulary.
 tabs: `character_id` is a real FK, and `Character Casting`'s `identity_id` must
 find its identity when it restores. It carries every column of
 `character_identity` (`public_id`, names, `display_name_field`, `gender`,
-`remark`, `photo_file`, `photo_focus`, `position`, timestamps), and
+`remark`, `first_mention`, `first_appearance`, `first_encounter`, `photo_file`,
+`photo_focus`, `position`, timestamps), and
 `character_id` round-trips as a plain uuid
 (`formatter.parse_character_identity_from_sheet`). `public_id` restores
 unchanged, so the identity page's URL is the same on both machines, and Pull

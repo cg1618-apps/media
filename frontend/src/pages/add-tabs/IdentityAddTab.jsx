@@ -3,7 +3,7 @@
 // An identity is always created under an EXISTING character - there is no
 // free-standing identity - so the tab opens with a required character
 // picker, and the form below it is the identity's own fields: names, gender
-// (empty = the character's), photo, remark. Self-contained like
+// (empty = the character's), photo, remark, and its own firsts. Self-contained like
 // CharacterModifyTab: it owns its fetches, so Add.jsx only renders it.
 //
 // IdentityFields is exported for IdentityModifyTab, which edits the same
@@ -14,11 +14,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
 import ImagePicker, { attachUploadedImage } from "../../components/forms/ImagePicker";
+import CharacterFirstsFields from "../../components/forms/CharacterFirstsFields";
 import { GENDERS } from "../../config/fieldOptions";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
+import { firstsPayload, firstsToForm } from "../../lib/characterForm";
 
 export const IDENTITY_NAME_FIELDS = PERSON_NAME_FIELDS;
 
@@ -30,6 +32,7 @@ export function defaultIdentity() {
   return {
     name_en: "", name_cn: "", name_jp: "", name_alt: "",
     display_name_field: "", gender: "", remark: "",
+    ...firstsToForm(null),
     photo_file: "", photo_focus: null, pending_image_id: null,
   };
 }
@@ -43,6 +46,7 @@ export function identityPayload(form) {
     display_name_field: form.display_name_field || null,
     gender: form.gender || null,
     remark: form.remark || null,
+    ...firstsPayload(form),
     photo_file: form.photo_file || null,
     photo_focus: form.photo_focus || null,
   };
@@ -50,8 +54,8 @@ export function identityPayload(form) {
 
 // What picking a character fills in: its four names and which one it
 // displays, as a starting point - an identity is often a variant of its
-// character's name. Never gender (empty means "the character's"), photo or
-// remark.
+// character's name. Never gender (empty means "the character's"), photo,
+// remark or the firsts - an identity's are its own.
 const PREFILLED_FIELDS = [...PERSON_NAME_FIELDS.map(({ field }) => field), "display_name_field"];
 
 // The form after picking `character`. A field is filled only while it is
@@ -127,6 +131,7 @@ export function IdentityFields({ form, update, ownerId, characterGender }) {
       <Field label="Remark">
         <textarea className={inputCls} rows={3} value={form.remark ?? ""} onChange={(e) => update("remark", e.target.value)} />
       </Field>
+      <CharacterFirstsFields form={form} update={update} />
     </div>
   );
 }

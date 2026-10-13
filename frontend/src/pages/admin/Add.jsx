@@ -107,7 +107,7 @@ import { CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { fetchAllSources } from "../../lib/sources";
-import { characterTagsPayload } from "../../lib/characterForm";
+import { characterTagsPayload, firstsPayload } from "../../lib/characterForm";
 import { enrichEntry } from "../../lib/enrich";
 
 export default function Add() {
@@ -1372,6 +1372,7 @@ export default function Add() {
         photo_focus: characterForm.photo_focus || null,
         mal_link: characterForm.mal_link?.trim() || null,
         remark: characterForm.remark || null,
+        ...firstsPayload(characterForm),
         // Unknown values are created by the character write itself, so no
         // ensureSourceValues here; the refetch below makes them selectable.
         ...characterTagsPayload(characterForm),
