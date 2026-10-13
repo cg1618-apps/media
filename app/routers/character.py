@@ -44,7 +44,7 @@ from app.services.domain.derivation import apply_extract_mal_id_character
 from app.services.domain.entity_photos import EntityMedia, character_media
 from app.services.domain.merge_fill import absorb_casting, finish_merge
 from app.services.integrations.tenrai import search_mal_characters
-from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
@@ -72,6 +72,32 @@ def _derive_and_fill_from_mal(db: Session, character: models.Character) -> None:
         return
     db.flush()
     autofill_character_from_mal(character)
+
+
+def _cast_in_scope(
+    db: Session, viewer, franchise_id: Optional[UUID], series_id: Optional[UUID]
+) -> tuple[set[UUID], set[UUID]]:
+    """
+    (character ids, identity ids) cast on the visible entries of a franchise
+    and/or a series. Both given means both must hold.
+    """
+    query = db.query(
+        models.CharacterCasting.character_id,
+        models.CharacterCasting.identity_id,
+        models.CharacterCasting.media_type,
+        models.CharacterCasting.entry_id,
+    ).join(models.Media, models.Media.system_id == models.CharacterCasting.entry_id)
+    if franchise_id:
+        query = query.filter(models.Media.franchise_id == franchise_id)
+    if series_id:
+        query = query.filter(models.Media.series_id == series_id)
+    rows = query.all()
+    visible = filter_visible_pairs(db, viewer, [(r.media_type, r.entry_id) for r in rows])
+    shown = [r for r in rows if (r.media_type, r.entry_id) in visible]
+    return (
+        {r.character_id for r in shown},
+        {r.identity_id for r in shown if r.identity_id},
+    )
 
 
 def _to_response(
@@ -139,6 +165,14 @@ def get_all_characters(
         default=None,
         description="Case-insensitive substring match against any of the four name columns.",
     ),
+    franchise_id: Optional[UUID] = Query(
+        default=None,
+        description="Only characters cast on an entry in this franchise.",
+    ),
+    series_id: Optional[UUID] = Query(
+        default=None,
+        description="Only characters cast on an entry in this series.",
+    ),
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
@@ -155,10 +189,25 @@ def get_all_characters(
 
     A character every casting of which is on a label-hidden entry is absent
     - see app/services/rbac/shared_visibility.py.
+
+    `franchise_id` / `series_id` scope the list to the characters cast on that
+    tier's entries - the franchise and series hubs' Characters tab. Only
+    castings on entries this viewer may see count, and each character's
+    `identities` narrows to the ones cast there, so the tab shows a card per
+    character and one per identity that actually appears. casting_count keeps
+    its unscoped meaning.
     """
     query = apply_shared_visibility(
         db.query(models.Character), models.Character, db, viewer
     )
+    scoped_identity_ids = None
+    if franchise_id or series_id:
+        character_ids, scoped_identity_ids = _cast_in_scope(
+            db, viewer, franchise_id, series_id
+        )
+        if not character_ids:
+            return []
+        query = query.filter(models.Character.system_id.in_(character_ids))
     if name:
         search_term = f"%{name}%"
         query = query.filter(
@@ -176,6 +225,11 @@ def get_all_characters(
     media = character_media(db, viewer, characters)
     tags = character_tag_values(db, [c.system_id for c in characters])
     identities = identities_by_character(db, [c.system_id for c in characters])
+    if scoped_identity_ids is not None:
+        identities = {
+            character_id: [i for i in rows if i.system_id in scoped_identity_ids]
+            for character_id, rows in identities.items()
+        }
     return [
         _to_response(
             db,

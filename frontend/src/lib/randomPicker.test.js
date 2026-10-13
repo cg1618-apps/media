@@ -1,6 +1,12 @@
 import { applyFilterDefs, initialFilters } from "./libraryFilters";
 import {
+  FRANCHISE_MODE,
+  PICKER_MODES,
   PICKER_TYPES,
+  filterDefsForMode,
+  franchiseFilterDefs,
+  isWeightedMode,
+  toFranchiseEntries,
   UNKNOWN_DECADE,
   decadeOf,
   entryKey,
@@ -126,5 +132,59 @@ describe("stored defaults", () => {
     const stored = { airingType: ["TV", "OVA"], bahaOnly: true };
     const state = resolveDefaultFilters(defs, stored);
     expect(toStoredFilters(state)).toEqual(stored);
+  });
+});
+
+describe("franchise mode", () => {
+  const franchises = [
+    { system_id: "f1", franchise_type: "ACG", franchise_expectation: "High", my_rating: "A" },
+    { system_id: "f2", franchise_type: "Movie, TV", franchise_expectation: "Low" },
+    { system_id: "f3", franchise_type: "Novel" },
+  ];
+  const lists = {
+    anime: [
+      { system_id: "a1", franchise_id: "f1", watching_status: "Completed" },
+      { system_id: "a2", franchise_id: "f1", watching_status: "Plan to Watch" },
+      { system_id: "a3", franchise_id: null },
+    ],
+    movie: [{ system_id: "m1", franchise_id: "f2" }],
+  };
+  const entries = toFranchiseEntries(franchises, lists);
+  const defs = franchiseFilterDefs(["anime", "movie"]);
+  const ids = (filters) => applyFilterDefs(entries, defs, filters).map((e) => e.item.system_id);
+
+  it("is a mode of its own, after every type, and draws unweighted", () => {
+    expect(PICKER_MODES.at(-1)).toBe(FRANCHISE_MODE);
+    expect(filterDefsForMode(FRANCHISE_MODE, ["anime"]).map((d) => d.key)).toEqual(
+      defs.map((d) => d.key),
+    );
+    expect(isWeightedMode(FRANCHISE_MODE)).toBe(false);
+    expect(isWeightedMode("anime")).toBe(true);
+  });
+
+  it("wraps every franchise as an entry keyed apart from media entries", () => {
+    expect(entries.map(entryKey)).toEqual(["franchise:f1", "franchise:f2", "franchise:f3"]);
+  });
+
+  it("filters on the franchise type, each of a multi-type franchise counting", () => {
+    expect(ids(withActive(defs, "franchiseType", ["TV"]))).toEqual(["f2"]);
+    const typeDef = defs.find((d) => d.key === "franchiseType");
+    expect(typeDef.deriveOptions(entries)).toEqual(["ACG", "TV", "Movie", "Novel"]);
+  });
+
+  it("filters on expectation and on my rating", () => {
+    expect(ids(withActive(defs, "expectation", ["Low"]))).toEqual(["f2"]);
+    expect(ids(withActive(defs, "myRating", ["Unrated"]))).toEqual(["f2", "f3"]);
+  });
+
+  it("filters on the media types a franchise holds", () => {
+    expect(ids(withActive(defs, "heldType", ["anime"]))).toEqual(["f1"]);
+  });
+
+  it("filters on the status of any entry it holds", () => {
+    expect(ids(withActive(defs, "entryStatus", ["Planned"]))).toEqual(["f1"]);
+    expect(ids(withActive(defs, "entryStatus", ["Completed"]))).toEqual(["f1"]);
+    // An entry with no status is "Might"; a franchise with no entries has none.
+    expect(ids(withActive(defs, "entryStatus", ["Might"]))).toEqual(["f2"]);
   });
 });

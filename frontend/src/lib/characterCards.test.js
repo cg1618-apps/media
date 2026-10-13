@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { characterCards } from "./characterCards";
+import { characterCards, characterCardsByRole } from "./characterCards";
 
 const shinichi = {
   system_id: "c1", public_id: 7, display_name: "Kudo Shinichi", name_en: "Kudo Shinichi",
@@ -46,5 +46,25 @@ describe("characterCards", () => {
     const [shinichiCard, , ranCard] = characterCards([shinichi, ran]);
     expect(shinichiCard.has_identities).toBe(true);
     expect(ranCard.has_identities).toBe(false);
+  });
+});
+
+describe("characterCardsByRole", () => {
+  const sonoko = { system_id: "c3", display_name: "Suzuki Sonoko", role: "Supporting", identities: [] };
+  const agasa = { system_id: "c4", display_name: "Agasa", role: null, identities: [] };
+  const mainRan = { ...ran, role: "Main" };
+
+  it("groups cards in role order, named characters alphabetically, unclassified last", () => {
+    const groups = characterCardsByRole([agasa, sonoko, shinichi, mainRan]);
+    expect(groups.map((g) => [g.label, g.cards.map((c) => c.display_name)])).toEqual([
+      ["Main", ["Kudo Shinichi", "Edogawa Conan", "Mouri Ran"]],
+      ["Supporting", ["Suzuki Sonoko"]],
+      ["No role", ["Agasa"]],
+    ]);
+  });
+
+  it("leaves out a role nobody holds", () => {
+    expect(characterCardsByRole([sonoko]).map((g) => g.label)).toEqual(["Supporting"]);
+    expect(characterCardsByRole([])).toEqual([]);
   });
 });

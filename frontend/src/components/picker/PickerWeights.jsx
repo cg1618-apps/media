@@ -44,7 +44,8 @@ export default function PickerWeights() {
         below, among the groups the filtered pool holds, so a large group gets no bigger share for
         being large. Then one entry in that group is chosen, by its entry weights multiplied
         together. Every weight is relative: 1.5 is half again as likely as 1. Turn weighting off on
-        the Pick tab to give every entry the same chance.
+        the Pick tab to give every entry the same chance. The Franchise mode is never weighted: every
+        franchise in its pool has the same chance.
       </p>
 
       <WeightTable

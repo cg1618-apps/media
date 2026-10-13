@@ -2,14 +2,17 @@
 // tested directly. The draw is lib/pickerWeights.js.
 //
 // The picker works on ENTRIES, `{ type, item }`, so one pool can mix media
-// types. It has two modes:
-//   general  every visible type at once, filtered by what all types share:
-//            media type, status group, my rating, release decade
-//   one type that type's own library filterDefs (LIBRARY_CONFIGS), plus my
-//            rating and release decade
+// types. It has three kinds of mode:
+//   general   every visible type at once, filtered by what all types share:
+//             media type, status group, my rating, release decade
+//   one type  that type's own library filterDefs (LIBRARY_CONFIGS), plus my
+//             rating and release decade
+//   franchise draws a franchise rather than an entry: `{ type: "franchise",
+//             item, cover, heldTypes, statusGroups }`, filtered by franchise
+//             type, expectation, my rating, and what its entries are
 // Every def here is an ordinary FilterDef (hooks/useLibraryState.js), so
 // FilterPanel and useFilterState render and hold them unchanged.
-import { MY_RATINGS } from "../config/fieldOptions";
+import { FRANCHISE_EXPECTATIONS, FRANCHISE_TYPES, MY_RATINGS } from "../config/fieldOptions";
 import { MEDIA_CONFIG } from "../config/mediaRegistry";
 import {
   PLAYING_STATUS_GROUP,
@@ -17,6 +20,8 @@ import {
   WATCHING_STATUS_GROUP,
 } from "../config/statusGroups";
 import { LIBRARY_CONFIGS } from "../pages/library/configs";
+import { getFranchiseCover, withMediaType } from "./covers";
+import { parseTypes } from "./formatters";
 import { initialFilters } from "./libraryFilters";
 import { primaryReleaseValue, releaseYear } from "./releaseDate";
 
@@ -37,9 +42,16 @@ export const PICKER_TYPES = [
   { type: "hentai", label: "Hentai" },
 ];
 
-const LABEL_OF = Object.fromEntries(PICKER_TYPES.map((t) => [t.type, t.label]));
+// The mode that draws a franchise. Not a media type, so it is not in
+// PICKER_TYPES; it follows them in PICKER_MODES.
+export const FRANCHISE_MODE = "franchise";
 
-/** The display label of a picker type. */
+const LABEL_OF = {
+  ...Object.fromEntries(PICKER_TYPES.map((t) => [t.type, t.label])),
+  [FRANCHISE_MODE]: "Franchise",
+};
+
+/** The display label of a picker type, or of the franchise mode. */
 export function pickerTypeLabel(type) {
   return LABEL_OF[type] ?? type;
 }
@@ -162,12 +174,99 @@ export function entryKey(entry) {
   return `${entry.type}:${entry.item.system_id}`;
 }
 
-/** Every mode the picker has: "all", then each type. */
-export const PICKER_MODES = ["all", ...PICKER_TYPES.map((t) => t.type)];
+/** Every mode the picker has: "all", then each type, then the franchise mode. */
+export const PICKER_MODES = ["all", ...PICKER_TYPES.map((t) => t.type), FRANCHISE_MODE];
 
-/** A mode's defs: the general ones for "all", else that type's. */
+/** A mode's defs: the general ones for "all", the franchise ones, else that type's. */
 export function filterDefsForMode(mode, types) {
-  return mode === "all" ? generalFilterDefs(types) : typeFilterDefs(mode);
+  if (mode === "all") return generalFilterDefs(types);
+  if (mode === FRANCHISE_MODE) return franchiseFilterDefs(types);
+  return typeFilterDefs(mode);
+}
+
+/**
+ * Whether a mode has a weighted draw. The weights (lib/pickerWeights.js) are
+ * an entry's status, rating, plan marks and release; a franchise has none of
+ * those of its own, so the franchise mode always draws evenly.
+ */
+export function isWeightedMode(mode) {
+  return mode !== FRANCHISE_MODE;
+}
+
+// FRANCHISE_TYPES order, then any value the vocabulary no longer lists.
+function sortFranchiseTypes(values) {
+  const rank = (v) => {
+    const i = FRANCHISE_TYPES.indexOf(v);
+    return i === -1 ? FRANCHISE_TYPES.length : i;
+  };
+  return [...values].sort((a, b) => rank(a) - rank(b));
+}
+
+/**
+ * The franchise mode's defs. `types` are the media types this session may
+ * see, offered as "holds an entry of" chips.
+ */
+export function franchiseFilterDefs(types) {
+  return [
+    {
+      key: "franchiseType",
+      label: "Franchise Type",
+      type: "set-dynamic",
+      deriveOptions: (entries) =>
+        sortFranchiseTypes(new Set(entries.flatMap((e) => parseTypes(e.item.franchise_type)))),
+      match: (entry, active) => parseTypes(entry.item.franchise_type).some((t) => active.has(t)),
+    },
+    {
+      key: "heldType",
+      label: "Holds a",
+      type: "set",
+      options: types,
+      optionLabel: pickerTypeLabel,
+      match: (entry, active) => [...entry.heldTypes].some((t) => active.has(t)),
+    },
+    {
+      key: "entryStatus",
+      label: "Holds an Entry That Is",
+      type: "set",
+      options: STATUS_GROUPS,
+      match: (entry, active) => [...entry.statusGroups].some((g) => active.has(g)),
+    },
+    {
+      key: "expectation",
+      label: "Expectation",
+      type: "set",
+      options: FRANCHISE_EXPECTATIONS,
+      match: (entry, active) => active.has(entry.item.franchise_expectation),
+    },
+    ratingDef,
+  ];
+}
+
+/**
+ * Every franchise as a franchise-mode entry, from `listsByType` - each
+ * visible type's entry list. The lists give each franchise its cover (the
+ * franchise library's rule, lib/covers.js getFranchiseCover), the types it
+ * holds, and the status groups its entries are in.
+ */
+export function toFranchiseEntries(franchises, listsByType) {
+  const all = Object.entries(listsByType ?? {}).flatMap(([type, items]) =>
+    withMediaType(items ?? [], type),
+  );
+  const byId = Object.fromEntries(all.map((e) => [e.system_id, e]));
+  const byFranchise = {};
+  for (const e of all) {
+    if (e.franchise_id) (byFranchise[e.franchise_id] ??= []).push(e);
+  }
+  return (franchises ?? []).map((franchise) => {
+    const held = byFranchise[franchise.system_id] ?? [];
+    return {
+      type: FRANCHISE_MODE,
+      item: franchise,
+      cover: getFranchiseCover(franchise, byId, byFranchise),
+      heldTypes: new Set(held.map((e) => e.media_type)),
+      statusGroups: new Set(held.map((e) => statusGroupOf(e.media_type, e))),
+    };
+  });
 }
 
 /**
