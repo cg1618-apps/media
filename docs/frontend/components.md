@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -217,7 +217,9 @@ not drawn. The character, person and studio libraries use it for
   to it, one without is faded, a value with no icon is skipped, and regional
   variants sharing one icon — `Toptoon TW` and `Toptoon KR` — draw it once),
   `FranchiseCard` and `CollectionCard` (each takes `cover`, a resolved
-  `{ url, focus }`), and `StaffCard`
+  `{ url, focus }`), `CharacterCard` (one card of `lib/characterCards.js` - a
+  character, or one of its identities drawn dashed; the character library and
+  the hubs' Characters tab draw it), and `StaffCard`
   (`PersonCard` / `StudioCard` / `PublisherCard` over one shared body — the
   person, studio and publisher libraries and the `/search` staff sections all
   draw it; each carries the entity's `my_rating` as a `RatingStamp`, as the

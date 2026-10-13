@@ -103,6 +103,12 @@ def test_modes_are_stored_apart(admin_client):
     assert admin_client.get(f"{ROUTE}/all").json()["filters"] == {}
 
 
+def test_the_franchise_mode_saves_like_any_other(admin_client, client):
+    res = admin_client.put(f"{ROUTE}/franchise", json={"filters": {"expectation": ["High"]}})
+    assert res.status_code == 200
+    assert client.get(f"{ROUTE}/franchise").json()["filters"] == {"expectation": ["High"]}
+
+
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------

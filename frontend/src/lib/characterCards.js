@@ -4,6 +4,7 @@
 // shown (an identity card sorts by its own name). An identity is listed,
 // searched and filtered as part of the same character, and links to its own
 // identity page.
+import { CHARACTER_ROLES } from "../config/fieldOptions";
 import { PERSON_NAME_FIELDS } from "./naming";
 
 export const CARD_KIND_CHARACTER = "Characters";
@@ -63,4 +64,27 @@ export function characterCards(characters) {
     }
   }
   return cards;
+}
+
+const NO_ROLE = "No role";
+
+// The franchise and series hubs' Characters tab: the cards in one group per
+// role, CHARACTER_ROLES order, then the characters with no role. Inside a
+// group characters sort by name and each identity follows its character. The
+// role is the character's own (what they are to the story overall), not one
+// casting's.
+export function characterCardsByRole(characters) {
+  const sorted = [...(characters || [])].sort((a, b) =>
+    (a.display_name || "").localeCompare(b.display_name || ""),
+  );
+  return [...CHARACTER_ROLES, NO_ROLE]
+    .map((label) => ({
+      label,
+      cards: characterCards(
+        sorted.filter((c) =>
+          label === NO_ROLE ? !CHARACTER_ROLES.includes(c.role) : c.role === label,
+        ),
+      ),
+    }))
+    .filter((group) => group.cards.length > 0);
 }

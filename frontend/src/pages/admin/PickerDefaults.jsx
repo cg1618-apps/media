@@ -1,5 +1,6 @@
 // Frontend: admin page for the random picker's default filters - what each
-// picker mode ("All" and every type) opens with, for every viewer.
+// picker mode ("All", every type, and "Franchise") opens with, for every
+// viewer.
 //
 // The filters are the picker's own (usePickerData), drawn with the same
 // FilterPanel, so what is saved here is exactly what the picker shows. Stored
@@ -21,7 +22,13 @@ import { pickerDefaultsQueryKey, usePickerData } from "../../hooks/usePickerData
 import { useToast } from "../../hooks/useToast";
 import { visibleMediaTypes } from "../../lib/gatedTypes";
 import { applyFilterDefs, countActiveFilters } from "../../lib/libraryFilters";
-import { PICKER_TYPES, pickerTypeLabel, toStoredFilters } from "../../lib/randomPicker";
+import {
+  FRANCHISE_MODE,
+  PICKER_TYPES,
+  isWeightedMode,
+  pickerTypeLabel,
+  toStoredFilters,
+} from "../../lib/randomPicker";
 
 const ALL_TYPES = PICKER_TYPES.map((t) => t.type);
 
@@ -63,7 +70,7 @@ export default function PickerDefaults() {
       <ModeEditor
         key={mode}
         mode={mode}
-        typesKey={mode === "all" ? visibleTypes.join(",") : mode}
+        typesKey={mode === "all" || mode === FRANCHISE_MODE ? visibleTypes.join(",") : mode}
         onDirtyChange={setDirty}
       />
     </div>
@@ -165,7 +172,7 @@ function DefaultsForm({
     try {
       await fetchJson(endpoints.randomPickerDefaults.reset(mode), { method: "DELETE" });
       clearFilters();
-      setWeighted(true);
+      setWeighted(isWeightedMode(mode));
       storeLocally({}, true);
       showToast("success", `${modeLabel(mode)} opens with no filters.`);
     } catch (err) {
@@ -187,15 +194,17 @@ function DefaultsForm({
       />
 
       <div className="sticky bottom-4 flex flex-wrap items-center gap-3 bg-surface/95 backdrop-blur border border-border px-4 py-3">
-        <label className="inline-flex items-center gap-1.5 text-xs font-bold text-text-muted cursor-pointer">
-          <input
-            type="checkbox"
-            checked={weighted}
-            onChange={(e) => setWeighted(e.target.checked)}
-            className="accent-brand"
-          />
-          Weighted
-        </label>
+        {isWeightedMode(mode) && (
+          <label className="inline-flex items-center gap-1.5 text-xs font-bold text-text-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={weighted}
+              onChange={(e) => setWeighted(e.target.checked)}
+              className="accent-brand"
+            />
+            Weighted
+          </label>
+        )}
         <span className="text-xs font-bold text-text-faint">
           {activeFilterCount} chip{activeFilterCount === 1 ? "" : "s"} on · {matching} matching
           now
@@ -209,7 +218,11 @@ function DefaultsForm({
         <div className="ml-auto flex items-center gap-2">
           <Button
             onClick={handleReset}
-            disabled={saving || (countActiveFilters(defaultFilters) === 0 && defaultWeighted)}
+            disabled={
+              saving ||
+              (countActiveFilters(defaultFilters) === 0 &&
+                (defaultWeighted || !isWeightedMode(mode)))
+            }
           >
             Reset to none
           </Button>

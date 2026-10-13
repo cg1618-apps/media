@@ -37,7 +37,13 @@ function respond(url) {
       weighted: storedWeighted[mode] ?? true,
     };
   }
-  if (url.startsWith("/api/manga/")) return [{ system_id: "m1", manga_name_en: "Yotsuba" }];
+  if (url.startsWith("/api/manga/"))
+    return [{ system_id: "m1", manga_name_en: "Yotsuba", franchise_id: "f2" }];
+  if (url.startsWith("/api/franchise/"))
+    return [
+      { system_id: "f1", public_id: 1, franchise_name_en: "Steins Gate", franchise_type: "ACG" },
+      { system_id: "f2", public_id: 2, franchise_name_en: "Yotsuba Franchise", franchise_type: "ACG" },
+    ];
   return [];
 }
 
@@ -120,6 +126,19 @@ it("fetches and offers a gated type the session may see", async () => {
   mount("/random");
   await waitFor(() => expect(fetched().some((u) => u.startsWith("/api/hentai/"))).toBe(true));
   expect(await screen.findByRole("link", { name: "Hentai" })).toBeInTheDocument();
+});
+
+it("draws a franchise in the franchise mode, unweighted, narrowed by what it holds", async () => {
+  mount("/random/franchise");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.getByRole("link", { name: "Franchise" })).toHaveAttribute("aria-current", "page");
+  expect(screen.queryByLabelText("Weighted")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Manga" }));
+  expect(screen.getByText("1 in the pool")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
+  expect(await screen.findByText("Yotsuba Franchise")).toBeInTheDocument();
+  expect(screen.getByText("1 in 1 (100.0%) chance")).toBeInTheDocument();
 });
 
 it("sends an unknown type back to the general mode", async () => {
