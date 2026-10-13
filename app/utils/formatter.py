@@ -1507,6 +1507,8 @@ def parse_character_casting_from_sheet(raw: dict) -> dict:
         "position": parse_from_sheet(raw.get("position"), int),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
         "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
+        # Blank, or a sheet from before the column existed: no credited name.
+        "credited_name": parse_from_sheet(raw.get("credited_name"), str),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
     }

@@ -284,6 +284,25 @@ describe("Identity detail page", () => {
     expect(screen.queryByText("as Edogawa Conan")).toBeNull();
   });
 
+  it("names what the identity is called in an entry that credits another name", async () => {
+    mockFetch({
+      entries: {
+        groups: [
+          {
+            media_type: "anime",
+            nav_path: "/anime",
+            entries: [{ ...ENTRIES.groups[0].entries[0], credited_name: "Edogawa" }],
+          },
+        ],
+      },
+    });
+    renderPage();
+    expect(await screen.findByText("as Edogawa")).toBeInTheDocument();
+    // The identity itself is still not repeated beneath it.
+    expect(screen.queryByText(/as Edogawa Conan/)).toBeNull();
+    expect(screen.queryByText(/· Edogawa Conan/)).toBeNull();
+  });
+
   it("renders the not-found state when the identity is missing", async () => {
     mockFetch({ identityOk: false, identity: { detail: "Identity not found." } });
     renderPage();

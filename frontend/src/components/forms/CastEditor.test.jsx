@@ -631,6 +631,7 @@ it("imports another franchise entry's cast after the rows already here", async (
       position: 1,
       photo_file: "character/s1.jpg",
       photo_focus: "30% 20%",
+      credited_name: "The New Kid",
       remark: "season one look",
     },
   ];
@@ -688,6 +689,7 @@ it("imports another franchise entry's cast after the rows already here", async (
     // The source sent none, so the import knows none.
     fallback_photo_file: null,
     fallback_photo_focus: null,
+    credited_name: "The New Kid",
     remark: "season one look",
   });
   expect(await importStatus()).toHaveTextContent(
@@ -1636,5 +1638,43 @@ describe("sync from original", () => {
     render(<CastEditor mediaType="anime" value={[row()]} onChange={vi.fn()} />);
     expect(screen.queryByText("Sync from original")).not.toBeInTheDocument();
     expect(screen.queryByText("Sync all from original")).not.toBeInTheDocument();
+  });
+});
+
+describe("credited name", () => {
+  it("edits the name this entry gives the character, per row", async () => {
+    const onChangeSpy = vi.fn();
+    render(
+      <Controlled
+        mediaType="anime"
+        initialRows={[row({ system_id: "k1", character_id: "c1", character_name: "Yuki" })]}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+    const input = screen.getByLabelText("Credited name");
+    expect(input).toHaveAttribute("placeholder", "Name in this entry");
+    fireEvent.change(input, { target: { value: "AAA" } });
+    expect(onChangeSpy).toHaveBeenLastCalledWith([
+      expect.objectContaining({ character_id: "c1", credited_name: "AAA" }),
+    ]);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+  });
+
+  it("shows a loaded row's credited name", () => {
+    render(
+      <CastEditor
+        mediaType="manga"
+        value={[row({ character_id: "c1", character_name: "Yuki", credited_name: "AAA" })]}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Credited name")).toHaveValue("AAA");
+  });
+
+  it("comes along with a cast imported from another entry", () => {
+    expect(importedRow({ character_id: "c1", credited_name: "AAA" }, 0, true)).toMatchObject({
+      credited_name: "AAA",
+    });
+    expect(importedRow({ character_id: "c1" }, 0, true).credited_name).toBe("");
   });
 });

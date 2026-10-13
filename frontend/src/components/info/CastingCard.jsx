@@ -5,8 +5,11 @@
 // CreditCard and Studio.jsx's card: the entries endpoints return a handful of
 // flat keys, not a full media payload.
 //
-// `hideIdentity` drops the "as <identity>" line, for the identity page, where
-// every row is that identity and the line would only repeat the headline.
+// The "as ..." line names who the part is in this entry: the casting's
+// credited name when it has one (what the entry calls the character), else
+// the identity it is cast as. `hideIdentity` drops the identity from it, for
+// the identity page, where every row is that identity and it would only
+// repeat the headline; a credited name is still shown there.
 import { Link } from "react-router-dom";
 
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
@@ -41,8 +44,18 @@ export default function CastingCard({ entry, navPath, hideIdentity = false }) {
       >
         {title}
       </h3>
-      {!hideIdentity && entry.identity_name && (
-        <span className="text-xs text-text-muted truncate">as {entry.identity_name}</span>
+      {entry.credited_name ? (
+        <span className="text-xs text-text-muted truncate">
+          as {entry.credited_name}
+          {!hideIdentity && entry.identity_name && (
+            <span className="text-text-faint"> · {entry.identity_name}</span>
+          )}
+        </span>
+      ) : (
+        !hideIdentity &&
+        entry.identity_name && (
+          <span className="text-xs text-text-muted truncate">as {entry.identity_name}</span>
+        )
       )}
       <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
         {year || "Undated"}

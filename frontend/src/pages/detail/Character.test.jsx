@@ -127,6 +127,30 @@ describe("Character detail page", () => {
     ).toHaveAttribute("href", "/person/2/second-voice");
   });
 
+  it("names what the character is called in an entry that credits another name", async () => {
+    mockFetch({
+      entries: {
+        groups: [
+          {
+            media_type: "anime",
+            nav_path: "/anime",
+            entries: [
+              { ...ENTRIES.groups[0].entries[0], casting_id: "k1", credited_name: "AAA" },
+            ],
+          },
+        ],
+      },
+    });
+    renderPage();
+    expect(await screen.findByText("as AAA")).toBeInTheDocument();
+  });
+
+  it("names no other name on an appearance without one", async () => {
+    renderPage();
+    await screen.findByRole("link", { name: /Haruhi Suzumiya/ });
+    expect(screen.queryByText(/^as /)).toBeNull();
+  });
+
   it("renders an empty group rather than hiding it when every entry is hidden", async () => {
     renderPage();
     // The manga group has zero visible entries, but the group heading and its

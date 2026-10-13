@@ -730,7 +730,9 @@ card a link to the identity's own page (below); an identity with no
 `public_id` in the response renders as plain markup. The appearances list shows one card **per
 cast row**, keyed by `casting_id`: an entry the character is cast in under two
 identities appears twice, a row with an identity reading "as <identity name>"
-under the title, each with that row's own seiyuu.
+under the title, each with that row's own seiyuu. A row with a credited name -
+what that entry calls the character - reads "as <credited name>" instead, the
+identity's name following it after a "·" when the row names one.
 
 ### Identity — `/identity/:public_id`
 
@@ -777,7 +779,7 @@ narrowed to the cast rows that name this identity, a group the viewer may see
 no entries of renders "Nothing you can see here", and no group at all reads
 **No appearances**. The cards are the shared `CastingCard` with
 `hideIdentity`, which drops the "as <identity>" line — every row here is this
-identity. The nav lights **Character** on this page (`matches` includes
+identity. A row with a credited name still reads "as <credited name>". The nav lights **Character** on this page (`matches` includes
 `/identity`).
 
 ### Publisher — `/publisher/:system_id`
@@ -996,7 +998,9 @@ Top to bottom:
    identities is drawn as one — a dashed frame on its thumbnail and a dashed
    **Identity** chip after the role chip — and reads "<identity> identity of
    <character>", the identity linking to its page and the character to its
-   own. It is **hidden by
+   own. A row with a credited name — what this entry calls the character —
+   shows it as the linked name, with the identity's (else the character's)
+   own name in small faint text beneath it. It is **hidden by
    default** when its character also has a main row in the cast: **Show
    identities (N)** brings those back and **Hide identities** folds them
    again, one toggle shared by the slip and the full-cast dialog, not

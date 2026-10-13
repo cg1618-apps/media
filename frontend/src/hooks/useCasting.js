@@ -45,7 +45,8 @@ export function useReplaceCasting() {
     // A row's role is optional: CastEditor's "—" choice (and a new row) holds
     // role "", which is sent as null - "" is not a role. Likewise a seiyuu
     // line nobody filled in is not a voice: only voices naming a person are
-    // sent, and a blank voice remark is sent as null.
+    // sent, and a blank voice remark is sent as null. A credited name is sent
+    // trimmed, and a blank one as null - no name of its own in this entry.
     mutationFn: ({ mediaType, entryId, cast }) => {
       const problem = castIdentityProblem(cast);
       if (problem) return Promise.reject(new Error(problem));
@@ -70,6 +71,7 @@ export function useReplaceCasting() {
               ...row,
               identity_id: row.identity_id || null,
               role: row.role || null,
+              credited_name: (row.credited_name || "").trim() || null,
               voices: (row.voices || [])
                 .filter((voice) => voice && voice.person_id)
                 .map((voice) => ({

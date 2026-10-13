@@ -384,6 +384,11 @@ class CharacterCasting(Base):
     # photo_file's focal point, "X% Y%"; NULL centres it. Falls back with the
     # photo: a casting with no photo_file shows the character's photo_focus.
     photo_focus = Column(String, nullable=True)
+    # The name the character goes by in THIS entry ("AAA" in season 1), when
+    # it is not the character's own or the identity's. NULL is no override.
+    # Written only by the cast save; nothing that fills cast rows from
+    # elsewhere (Calculate, MAL import, sync from original) touches it.
+    credited_name = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
 
