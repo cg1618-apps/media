@@ -680,6 +680,10 @@ export const defaultCharacter = () => ({
   pending_image_id: null,
   mal_link: "",
   remark: "",
+  // Free text; lib/characterForm.js's firstsPayload sends a blank one as null.
+  first_mention: "",
+  first_appearance: "",
+  first_encounter: "",
   // Comma-joined, as MultiSelect edits them; lib/characterForm.js turns them
   // into the arrays the API takes.
   appearance: "",

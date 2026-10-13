@@ -1820,7 +1820,8 @@ line for line, plus one deliberate departure — see the `POST` row.
 
 **Response model:** `CharacterResponse` — the four name columns,
 `display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
-`photo_file`, `photo_focus`, `photo_fallback_entry_id`, `role`, `remark`, `mal_id`, `mal_link`, `system_id`, the tag
+`photo_file`, `photo_focus`, `photo_fallback_entry_id`, `role`, `remark`, `first_mention`,
+`first_appearance`, `first_encounter`, `mal_id`, `mal_link`, `system_id`, the tag
 lists `appearance` and `trait` (`string[]`, in stored order, `[]` when none —
 always present), `identities` (the character's other identities, below), and five
 fields resolved **for the viewer** from the entries they may see
@@ -1843,7 +1844,7 @@ fields resolved **for the viewer** from the entries they may see
 
 `gender`, `my_rating` and `photo_fallback_entry_id` follow the same rules as
 on `PersonResponse`, and the list resolves every row in one pass. `role` is
-what the character is overall — `Main`, `Core`, `Supporting`, `Other` or null
+what the character is overall — `Main`, `Core`, `Important Supporting`, `Supporting`, `Other` or null
 (`CHARACTER_ROLES`, served as `character_role` by `/api/constants`); a write
 outside it is a 422 and `""` is null. While it is null it is filled from the
 character's castings: the highest-ranked casting `role` (`CHARACTER_ROLES`
@@ -1861,6 +1862,15 @@ the same `resolve_option` the entry tag fields use. The vocabularies are not
 gated and not scoped, so every viewer sees the same values. The list reads
 every character's tags in one query
 ([systems/credits-and-tags.md](systems/credits-and-tags.md#character-tags)).
+
+**Firsts.** `first_mention`, `first_appearance` and `first_encounter` are free
+text in whatever notation the work uses (`第1卷 第13章`, `1-13`, `S1 ep 8`),
+null when unrecorded, and written by `POST`, `PUT` and `PATCH` like `remark`.
+`first_mention` is where the character is first talked about or named before
+being seen; `first_appearance` where they are first shown at all, even a
+glimpse with no real part; `first_encounter` where the main character first
+actually faces them — meets, talks, fights — whether or not the name is known
+by then. An identity carries its own three, never the character's.
 
 **MAL.** `mal_link` is the character's `myanimelist.net/character/<id>` page;
 `mal_id` is derived from it on every `POST`, `PUT` and `PATCH` that carries
@@ -1880,7 +1890,8 @@ and is not repeated. Each carries the identity's own `system_id`, `character_id`
 `public_id` (what the identity page's URL carries), four names,
 `display_name_field`, resolved `display_name`, `gender` (raw, null
 when it inherits), `display_gender` (the identity's, else the character's),
-`remark`, `photo_file` / `photo_focus`, `display_photo_file` /
+`remark`, its own `first_mention` / `first_appearance` / `first_encounter`
+(null when unset — never the character's), `photo_file` / `photo_focus`, `display_photo_file` /
 `display_photo_focus` (the identity's own photo with its focus, else the
 character's displayed ones) and `position`. This is how the public reads
 identities: the library builds its identity cards from the one list response.
@@ -1911,7 +1922,7 @@ nested in its character, through `GET /api/character`. There is no `PATCH`.
 | `GET`    | `/`              | `manage.catalog` | List identities, ordered by their character's `display_name` then `position`. `?character_id=` keeps one character's; `?name=` is a case-insensitive substring match on any of the four name columns. Only identities of characters the caller can see. |
 | `GET`    | `/{ref}`         | Public           | One identity, by `public_id` or UUID. Returns `IdentityDetailResponse`. 404 "Identity not found." when absent, or when its character is hidden from the caller. |
 | `GET`    | `/{ref}/entries` | Public           | The entries this identity is cast on: the cast rows naming it, none of its character's main-identity rows. The same shape and visibility rule as `GET /api/character/{system_id}/entries` (`casting_entry_groups`, `app/services/domain/casting_entries.py`). 404 as above. |
-| `POST`   | `/`              | `manage.catalog` | Create an identity under an existing character. Body: `IdentityCreate` — the identity's fields plus a **required** `character_id`. A plain create (no find-or-create); `position` is the character's highest plus one. 404 "Character not found." for an unknown or hidden `character_id`; 422 with no name, an unknown `display_name_field` or an unknown `gender`. |
+| `POST`   | `/`              | `manage.catalog` | Create an identity under an existing character. Body: `IdentityCreate` — the identity's fields (names, `display_name_field`, `gender`, `remark`, `first_mention`, `first_appearance`, `first_encounter`, `photo_file`, `photo_focus`) plus a **required** `character_id`. A plain create (no find-or-create); `position` is the character's highest plus one. 404 "Character not found." for an unknown or hidden `character_id`; 422 with no name, an unknown `display_name_field` or an unknown `gender`. |
 | `PUT`    | `/{system_id}`   | `manage.catalog` | Replace the identity's fields. Body: `IdentityUpdate`; a null `position` keeps the current one, and a `character_id` in the body is ignored — an identity never changes character. 404 and 422 as above. |
 | `DELETE` | `/{system_id}?castings=N` | `manage.catalog` | Delete an identity. Its cast rows are **folded into the main identity**, not deleted: where the character's main identity has no row in that entry the row's `identity_id` becomes null and it keeps its role, photo, credited name, remark and seiyuu; where it has one, the identity's row is absorbed into it (its blanks filled from the identity's, the seiyuu it lacked appended) and deleted. `castings` is **required**: the cast-row count the confirmation showed, and a mismatch is **409**. Returns `{status, castings_folded}`. |
 

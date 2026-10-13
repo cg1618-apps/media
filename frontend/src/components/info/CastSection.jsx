@@ -12,8 +12,9 @@ const castLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 // The tiers the slip shows inline. Collapsed is every Main character;
-// expanded adds Core. Supporting, Other and role-less rows are only ever in
-// the full-cast popup, so a long cast never pushes the page down.
+// expanded adds Core. Important Supporting, Supporting, Other and role-less
+// rows are only ever in the full-cast popup, so a long cast never pushes the
+// page down.
 const COLLAPSED_ROLES = ["Main"];
 const EXPANDED_ROLES = ["Main", "Core"];
 

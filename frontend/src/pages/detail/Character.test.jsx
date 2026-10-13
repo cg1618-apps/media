@@ -396,3 +396,24 @@ describe("Character detail page", () => {
     });
   });
 });
+
+describe("the character's firsts", () => {
+  it("lists only the firsts that are set, under First Appearances", async () => {
+    mockFetch({
+      character: { ...CHARACTER, first_mention: "第1卷 第3章", first_encounter: "S1 ep 8" },
+    });
+    renderPage();
+    const card = (await screen.findByText("First Appearances")).closest("section");
+    expect(within(card).getByText("First Mention")).toBeInTheDocument();
+    expect(within(card).getByText("第1卷 第3章")).toBeInTheDocument();
+    expect(within(card).getByText("First Encounter")).toBeInTheDocument();
+    expect(within(card).getByText("S1 ep 8")).toBeInTheDocument();
+    expect(within(card).queryByText("First Appearance")).toBeNull();
+  });
+
+  it("shows no First Appearances card when none is set", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: "Yuki Nagato" });
+    expect(screen.queryByText("First Appearances")).toBeNull();
+  });
+});

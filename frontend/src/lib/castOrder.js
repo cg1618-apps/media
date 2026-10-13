@@ -1,6 +1,6 @@
 // Frontend: the one order a cast is shown in.
 //
-// Castings in CHARACTER_ROLES order (Main, Core, Supporting, Other), then the
+// Castings in CHARACTER_ROLES order (Main, Core, Important Supporting, Supporting, Other), then the
 // saved position; a casting with no role sorts last rather than crowding the
 // top (castRoleRank). The detail page's cast slip shows a cast this way, and
 // the cast editor takes a loaded cast in the same order, so what the admin

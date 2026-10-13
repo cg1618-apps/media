@@ -42,3 +42,13 @@ it("leaves the inherited value out once the identity has its own gender", async 
   await screen.findByLabelText("Gender");
   expect(screen.getByRole("option", { name: "Same as character" })).toBeInTheDocument();
 });
+
+it("loads the identity's firsts into inputs that show the notation", async () => {
+  mount({ ...BASE, gender: null, display_gender: null, first_mention: "1-13", first_encounter: null });
+  const mention = await screen.findByLabelText("First Mention");
+  expect(mention).toHaveValue("1-13");
+  for (const label of ["First Mention", "First Appearance", "First Encounter"]) {
+    expect(screen.getByLabelText(label)).toHaveAttribute("placeholder", "第1卷 第13章, 1-13, S1 ep 8");
+  }
+  expect(screen.getByLabelText("First Encounter")).toHaveValue("");
+});

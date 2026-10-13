@@ -33,7 +33,12 @@ import { Field, selectCls } from "../../components/forms/FormField";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
-import { characterTagsPayload, characterTagsToForm } from "../../lib/characterForm";
+import {
+  characterTagsPayload,
+  characterTagsToForm,
+  firstsPayload,
+  firstsToForm,
+} from "../../lib/characterForm";
 import { releaseYear } from "../../lib/releaseDate";
 
 function cleanString(str) {
@@ -54,6 +59,7 @@ function characterToForm(c) {
     photo_focus: c.photo_focus || null,
     mal_link: c.mal_link || "",
     remark: c.remark || "",
+    ...firstsToForm(c),
     photo_fallback_entry_id: c.photo_fallback_entry_id || null,
     ...characterTagsToForm(c),
   };
@@ -170,6 +176,7 @@ export default function CharacterModifyTab({
             photo_focus: characterForm.photo_focus || null,
             mal_link: characterForm.mal_link?.trim() || null,
             remark: characterForm.remark || null,
+            ...firstsPayload(characterForm),
             photo_fallback_entry_id: characterForm.photo_fallback_entry_id || null,
             ...characterTagsPayload(characterForm),
           }),

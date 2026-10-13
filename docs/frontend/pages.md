@@ -625,7 +625,7 @@ The **Filters** button opens a `FilterPanel` over
 groups without Type: **Entry type** — anime, anime movie, manga, novel, No
 entries, then a **Restricted** parent chip over h-comic and hentai (not
 h-game: nobody is cast on an h-game) — then **Role** — Main, Core,
-Supporting, Other, plus Not set for null, matched against the character's
+Important Supporting, Supporting, Other, plus Not set for null, matched against the character's
 own `role` field and never against the roles its castings carry — then **My
 Rating** and **Gender**, then **Appearance** and **Trait** — `set-dynamic`
 groups over the values the loaded characters hold, sorted, plus Not set when a
@@ -691,7 +691,10 @@ hand-built beside `Person.jsx` and `Studio.jsx` rather than reusing a media
 detail shape — the header is a profile and the body is the entries this
 character is cast in. Two raw fetches, the profile then `.../entries` by the
 `system_id` it returns; the character call failing is the page's 404, the
-entries call failing is not. Beside the appearance count under the name, a
+entries call failing is not. Under the Profile card, a **First Appearances**
+`InfoCard` lists the character's First Mention, First Appearance and First
+Encounter — only the ones that are set (`firstsRows`); with none set the card
+is left out. Beside the appearance count under the name, a
 character with a `mal_link` gets a **MyAnimeList** button (`MalButton`, the
 MAL icon, opening in a new tab); one without draws none. The Profile card shows the character's own
 **Role** beside Gender — its own field, not derived from any casting's role —
@@ -737,7 +740,7 @@ File `pages/detail/Identity.jsx`, route `/identity/:publicId/:slug?`. The
 public page for one of a character's other identities (Edogawa Conan of Kudo
 Shinichi), hand-built beside `Character.jsx` and shaped like it: an identity
 is its character under another name, so the page shows what the character
-page does. The names, photo, gender and remark are the identity's own; the
+page does. The names, photo, gender, remark and firsts are the identity's own; the
 role, the appearance and trait tags, the rating and the MAL link are the
 character's. `GET /api/character-identity/{id}` by the URL's public id comes
 first, and its failing is the page's 404 ("Identity not found."). Then two
@@ -760,7 +763,9 @@ button (`MalButton`), a "Profile" `InfoCard` — **Role**, then **Gender**
 (`display_gender`, the character's when the identity sets none), then
 **Appearance** and **Trait** (`tagChips`) and **MAL** from the character, and
 the identity's **Remark**, shown to everyone — with a faint line under it,
-"Role, tags, rating and MAL are <character>'s." Then a **Character** section:
+"Role, tags, rating and MAL are <character>'s." Under it a **First
+Appearances** `InfoCard` lists the identity's own firsts, only those set, and
+is left out when none is; the character's firsts never show here. Then a **Character** section:
 the character's own card, labelled **Character** and linking to its page, then
 its other identities, labelled **Identity**, this one left out — all
 `IdentityCard`s; the character's card never shows the character's remark.
@@ -881,7 +886,7 @@ however many entries it is cast on, with its own picture and overall `role`,
 plus one dashed card for each of its identities cast on those entries. It asks
 `GET /api/character/?franchise_id=` (or `?series_id=`), which counts only
 castings on entries the viewer may see, and draws `CharacterCard`s grouped by
-`characterCardsByRole` (`lib/characterCards.js`): Main, Core, Supporting,
+`characterCardsByRole` (`lib/characterCards.js`): Main, Core, Important Supporting, Supporting,
 Other, then No role, each group by name with an identity right after its
 character. Always offered, like the other extras; an empty tier says so.
 
@@ -979,7 +984,7 @@ Top to bottom:
    `/api/casting/{media_type}/{entry_id}` via `useCasting`), drawn by the
    shared `components/info/CastSection.jsx` and rendered only when the entry
    has a cast. Rows are sorted by role in `CHARACTER_ROLES` order — Main,
-   Core, Supporting, Other, then no role (`castRoleRank`) — then by
+   Core, Important Supporting, Supporting, Other, then no role (`castRoleRank`) — then by
    `position` (`sortCast`, `lib/castOrder.js`), and each shows a small
    cover-or-portrait thumbnail, a role chip, a link to the character, and — on Anime/AnimeMovie, the voiced types
    — "voiced by" and every seiyuu of the casting as a link to their person

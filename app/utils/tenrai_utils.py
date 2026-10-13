@@ -585,7 +585,8 @@ def _mal_cast_role(mal_role) -> str:
 
     MAL calls a character Main or Supporting. Main is kept; everyone else is
     filed as Other, Supporting included - MAL's Supporting is everyone who is
-    not Main, so which of them earn Supporting or Core is set by hand.
+    not Main, so which of them earn Core, Important Supporting or Supporting
+    is set by hand.
     """
     return "Main" if mal_role == "Main" else "Other"
 

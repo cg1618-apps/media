@@ -335,3 +335,27 @@ describe("Identity detail page", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("the identity's firsts", () => {
+  it("shows the identity's own firsts, never the character's", async () => {
+    mockFetch({
+      identity: { ...IDENTITY, first_appearance: "1-13" },
+      character: { ...CHARACTER, first_mention: "character mention", first_appearance: "1-1" },
+    });
+    renderPage();
+    const card = (await screen.findByText("First Appearances")).closest("section");
+    expect(within(card).getByText("First Appearance")).toBeInTheDocument();
+    expect(within(card).getByText("1-13")).toBeInTheDocument();
+    await waitFor(() => expect(fetch.mock.calls.map(([u]) => u)).toContain("/api/character/7"));
+    expect(screen.queryByText("character mention")).toBeNull();
+    expect(screen.queryByText("1-1")).toBeNull();
+    expect(within(card).queryByText("First Mention")).toBeNull();
+  });
+
+  it("shows no First Appearances card when the identity has none", async () => {
+    mockFetch({ character: { ...CHARACTER, first_mention: "character mention" } });
+    renderPage();
+    await screen.findByRole("heading", { name: "Edogawa Conan" });
+    expect(screen.queryByText("First Appearances")).toBeNull();
+  });
+});

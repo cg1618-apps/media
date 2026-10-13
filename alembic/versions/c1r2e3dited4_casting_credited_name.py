@@ -7,7 +7,7 @@ override. Nothing is backfilled; every existing cast row has none.
 The downgrade drops the column, and with it every credited name written.
 
 Revision ID: c1r2e3dited4
-Revises: i1d2p3ubid45
+Revises: f1i2r3stsee4
 Create Date: 2026-10-13 00:00:00.000000
 
 """
@@ -19,7 +19,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "c1r2e3dited4"
-down_revision: Union[str, Sequence[str], None] = "i1d2p3ubid45"
+down_revision: Union[str, Sequence[str], None] = "f1i2r3stsee4"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
