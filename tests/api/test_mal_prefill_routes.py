@@ -28,6 +28,7 @@ ANIME_RAW = {
     "title": "Sousou no Frieren",
     "title_english": "Frieren: Beyond Journey's End",
     "title_japanese": "葬送のフリーレン",
+    "title_synonyms": ["Frieren at the Funeral", "Frieren The Slayer"],
     "external": [{"name": "Official Site", "url": "https://frieren.test"}],
     "images": {"jpg": {"large_image_url": "https://cdn.test/frieren.jpg"}},
     "studios": [
@@ -55,6 +56,7 @@ MANGA_RAW = {
     "title": "Death Note",
     "title_english": "Death Note",
     "title_japanese": "デスノート",
+    "title_synonyms": ["DN"],
     "images": {"jpg": {"large_image_url": "https://cdn.test/dn.jpg"}},
     "authors": [
         {
@@ -110,6 +112,7 @@ def test_anime(admin_client, tenrai):
     assert response.json() == {
         "anime_name_en": "Frieren: Beyond Journey's End",
         "anime_name_jp": "葬送のフリーレン",
+        "anime_name_alt": "Frieren at the Funeral, Frieren The Slayer",
         "airing_type": "TV",
         "airing_status": "Finished Airing",
         "release_season": "FAL",
@@ -128,6 +131,7 @@ def test_anime_movie_takes_only_what_its_autofill_writes(admin_client, tenrai):
     assert response.json() == {
         "anime_movie_name_en": "Frieren: Beyond Journey's End",
         "anime_movie_name_jp": "葬送のフリーレン",
+        "anime_movie_name_alt": "Frieren at the Funeral, Frieren The Slayer",
         "airing_status": "Finished Airing",
         "release_date_jp": "2023-09-29",
         "mal_rating": 9.3,
@@ -142,6 +146,7 @@ def test_manga(admin_client, tenrai):
     assert response.json() == {
         "manga_name_en": "Death Note",
         "manga_name_jp": "デスノート",
+        "manga_name_alt": "DN",
         "serialization_status": "完結",
         "release_date": "2003-12-01",
         "end_date": "2006-05-15",
@@ -161,6 +166,7 @@ def test_novel(admin_client, tenrai):
     assert response.json() == {
         "novel_name_en": "Death Note",
         "novel_name_jp": "デスノート",
+        "novel_name_alt": "DN",
         "serialization_status": "完結",
         "release_date": "2003-12-01",
         "end_date": "2006-05-15",

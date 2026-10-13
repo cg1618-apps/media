@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 ## What this is for
 
@@ -173,6 +173,7 @@ Read by the MAL prefill and, for the credits, by the four MAL autofills.
 |---|---|---|
 | `title_english` | `<type>_name_en` (prefill only) | stripped; blank is `None`. The romaji `title` is the picker's, written by the pick itself. |
 | `title_japanese` | `<type>_name_jp` (prefill only) | stripped; blank is `None`. |
+| `title_synonyms[]` | `<type>_name_alt` (prefill only) | each stripped; a blank, a repeat, or one equal to `title`, `title_english` or `title_japanese` is dropped; the rest comma-joined; none left is `None`. |
 | `studios[]` (anime) | `studio` credits on anime and anime movie | `map_tenrai_studios`: `{mal_id, name, url}` each; a nameless one is dropped. |
 | `authors[]` (manga) | `author` / `illustrator` credits on manga and novel | `map_tenrai_authors`: `role` `Story` → `author`, `Art` → `illustrator`, `Story & Art` → both; any other role, or no name, is dropped. `name` is `_western_order` (`"Oda, Eiichiro"` → `"Eiichiro Oda"`), `name_mal` keeps MAL's order. |
 
@@ -315,7 +316,7 @@ The MAL cast import (`POST /api/casting/mal`, `app/services/domain/mal_cast.py`)
 | `character.url` | `character.mal_link` of a created character, or of a name-matched one whose `mal_link` is blank | as-is |
 | `character.name` | `character.name_en` of a created character (`name_en` in the row); the row's `name_mal` keeps it as MAL wrote it | `_western_order`; both orders are compared when matching a held character by name |
 | `character.images.jpg.image_url` | `character.photo_file` of a created character | `_mal_photo`; downloaded after the response (see [credits-and-tags.md](systems/credits-and-tags.md)) |
-| `role` | the casting's `role` | `Main` kept; everything else, MAL's `Supporting` included, becomes `Other` (`_mal_cast_role`). Which side characters are Core or Supporting is set by hand |
+| `role` | the casting's `role` | `Main` kept; everything else, MAL's `Supporting` included, becomes `Other` (`_mal_cast_role`). Which side characters are Core, Important Supporting or Supporting is set by hand |
 | `voice_actors[]` where `language` is `Japanese` | the casting's voices | each `person.mal_id` matched against `person.mal_id`, then `person.name` (western order) through `resolve_person`; other languages are dropped. A manga, novel or h-comic row carries no voices. |
 
 The cast itself is not written by the import: it returns rows for the editor, which the ordinary cast `PUT` saves.

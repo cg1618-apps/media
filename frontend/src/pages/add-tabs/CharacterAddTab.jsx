@@ -16,6 +16,7 @@ import ImagePicker from "../../components/forms/ImagePicker";
 import MultiSelect from "../../components/forms/MultiSelect";
 import QuickPicks from "../../components/forms/QuickPicks";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import CharacterFirstsFields from "../../components/forms/CharacterFirstsFields";
 import { endpoints } from "../../api/endpoints";
 import {
   GenderRatingFields,
@@ -148,6 +149,7 @@ export function CharacterFields({ characterForm, ucf, ownerId, sources }) {
           onChange={(e) => ucf("remark", e.target.value)}
         />
       </Field>
+      <CharacterFirstsFields form={characterForm} update={ucf} />
     </div>
   );
 }

@@ -1413,6 +1413,22 @@ def parse_person_from_sheet(raw: dict) -> dict:
     return parsed
 
 
+# The three free-text "where they first turn up" columns a character and an
+# identity both carry (app/models/character.py).
+CHARACTER_FIRST_COLUMNS = ("first_mention", "first_appearance", "first_encounter")
+
+
+def _firsts_from_sheet(raw: dict) -> dict:
+    """
+    A character's or identity's firsts, each only when the sheet has its
+    column: a backup from before they existed leaves the local values as they
+    are rather than clearing them, as _alone_reviewed_from_sheet does.
+    """
+    return {
+        c: parse_from_sheet(raw.get(c), str) for c in CHARACTER_FIRST_COLUMNS if c in raw
+    }
+
+
 def parse_character_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Character sheet into typed data ready for
@@ -1435,6 +1451,7 @@ def parse_character_from_sheet(raw: dict) -> dict:
         # Kept when it is one of CHARACTER_ROLES, blank otherwise.
         "role": normalize_character_role(parse_from_sheet(raw.get("role"), str)),
         "remark": parse_from_sheet(raw.get("remark"), str),
+        **_firsts_from_sheet(raw),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -1460,6 +1477,7 @@ def parse_character_identity_from_sheet(raw: dict) -> dict:
         "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
         "gender": normalize_gender(parse_from_sheet(raw.get("gender"), str)),
         "remark": parse_from_sheet(raw.get("remark"), str),
+        **_firsts_from_sheet(raw),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
         "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
         "position": parse_from_sheet(raw.get("position"), int) or 0,
@@ -1489,6 +1507,8 @@ def parse_character_casting_from_sheet(raw: dict) -> dict:
         "position": parse_from_sheet(raw.get("position"), int),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),
         "photo_focus": _focus_from_sheet(raw.get("photo_focus")),
+        # Blank, or a sheet from before the column existed: no credited name.
+        "credited_name": parse_from_sheet(raw.get("credited_name"), str),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
     }

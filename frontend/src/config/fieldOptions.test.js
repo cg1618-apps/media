@@ -255,13 +255,13 @@ describe("gender", () => {
 describe("character roles", () => {
   it("are wired into applyConstants under character_role, in rank order", () => {
     expect(CONSTANTS_FALLBACK.character_role).toBe(CHARACTER_ROLES);
-    expect(CHARACTER_ROLES).toEqual(["Main", "Core", "Supporting", "Other"]);
+    expect(CHARACTER_ROLES).toEqual(["Main", "Core", "Important Supporting", "Supporting", "Other"]);
   });
 
   it("rank a cast row by that order, with no role or an unknown one last", () => {
-    expect(["Other", null, "Main", "Supporting", "Core", "Extra"]
+    expect(["Other", null, "Main", "Supporting", "Important Supporting", "Core", "Extra"]
       .sort((a, b) => castRoleRank(a) - castRoleRank(b))
-      .slice(0, 4)).toEqual(["Main", "Core", "Supporting", "Other"]);
+      .slice(0, 5)).toEqual(["Main", "Core", "Important Supporting", "Supporting", "Other"]);
     expect(castRoleRank(null)).toBe(CHARACTER_ROLES.length);
   });
 });

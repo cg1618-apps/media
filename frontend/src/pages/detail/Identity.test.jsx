@@ -284,6 +284,25 @@ describe("Identity detail page", () => {
     expect(screen.queryByText("as Edogawa Conan")).toBeNull();
   });
 
+  it("names what the identity is called in an entry that credits another name", async () => {
+    mockFetch({
+      entries: {
+        groups: [
+          {
+            media_type: "anime",
+            nav_path: "/anime",
+            entries: [{ ...ENTRIES.groups[0].entries[0], credited_name: "Edogawa" }],
+          },
+        ],
+      },
+    });
+    renderPage();
+    expect(await screen.findByText("as Edogawa")).toBeInTheDocument();
+    // The identity itself is still not repeated beneath it.
+    expect(screen.queryByText(/as Edogawa Conan/)).toBeNull();
+    expect(screen.queryByText(/· Edogawa Conan/)).toBeNull();
+  });
+
   it("renders the not-found state when the identity is missing", async () => {
     mockFetch({ identityOk: false, identity: { detail: "Identity not found." } });
     renderPage();
@@ -314,5 +333,29 @@ describe("Identity detail page", () => {
     expect(
       await screen.findByText("at /modify?id=i1&type=identity"),
     ).toBeInTheDocument();
+  });
+});
+
+describe("the identity's firsts", () => {
+  it("shows the identity's own firsts, never the character's", async () => {
+    mockFetch({
+      identity: { ...IDENTITY, first_appearance: "1-13" },
+      character: { ...CHARACTER, first_mention: "character mention", first_appearance: "1-1" },
+    });
+    renderPage();
+    const card = (await screen.findByText("First Appearances")).closest("section");
+    expect(within(card).getByText("First Appearance")).toBeInTheDocument();
+    expect(within(card).getByText("1-13")).toBeInTheDocument();
+    await waitFor(() => expect(fetch.mock.calls.map(([u]) => u)).toContain("/api/character/7"));
+    expect(screen.queryByText("character mention")).toBeNull();
+    expect(screen.queryByText("1-1")).toBeNull();
+    expect(within(card).queryByText("First Mention")).toBeNull();
+  });
+
+  it("shows no First Appearances card when the identity has none", async () => {
+    mockFetch({ character: { ...CHARACTER, first_mention: "character mention" } });
+    renderPage();
+    await screen.findByRole("heading", { name: "Edogawa Conan" });
+    expect(screen.queryByText("First Appearances")).toBeNull();
   });
 });

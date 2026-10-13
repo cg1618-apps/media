@@ -439,10 +439,23 @@ def _clean(value: Any) -> Optional[str]:
 
 
 def map_tenrai_titles(raw_data: Dict[str, Any]) -> Dict[str, Optional[str]]:
-    """MAL's English and Japanese titles. The romaji `title` is the picker's."""
+    """
+    MAL's English and Japanese titles, and its synonyms comma-joined as the
+    alternative name. The romaji `title` is the picker's. A synonym that is
+    blank, repeated, or the same as one of the other three titles is dropped.
+    """
+    name_en = _clean(raw_data.get("title_english"))
+    name_jp = _clean(raw_data.get("title_japanese"))
+    taken = {name_en, name_jp, _clean(raw_data.get("title"))}
+    synonyms = []
+    for value in raw_data.get("title_synonyms") or []:
+        synonym = _clean(value)
+        if synonym and synonym not in taken and synonym not in synonyms:
+            synonyms.append(synonym)
     return {
-        "name_en": _clean(raw_data.get("title_english")),
-        "name_jp": _clean(raw_data.get("title_japanese")),
+        "name_en": name_en,
+        "name_jp": name_jp,
+        "name_alt": ", ".join(synonyms) or None,
     }
 
 
@@ -572,7 +585,8 @@ def _mal_cast_role(mal_role) -> str:
 
     MAL calls a character Main or Supporting. Main is kept; everyone else is
     filed as Other, Supporting included - MAL's Supporting is everyone who is
-    not Main, so which of them earn Supporting or Core is set by hand.
+    not Main, so which of them earn Core, Important Supporting or Supporting
+    is set by hand.
     """
     return "Main" if mal_role == "Main" else "Other"
 

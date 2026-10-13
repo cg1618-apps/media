@@ -274,7 +274,7 @@ it("edits the character's own role through its chips", async () => {
   const role = await screen.findByRole("group", { name: "Role" });
   const chips = [...role.querySelectorAll("button")];
   expect(chips.map((b) => b.textContent)).toEqual([
-    "Main", "Core", "Supporting", "Other",
+    "Main", "Core", "Important Supporting", "Supporting", "Other",
   ]);
   expect(chips.every((b) => b.getAttribute("aria-pressed") === "false")).toBe(true);
 
@@ -446,4 +446,35 @@ describe("sync from cast", () => {
     expect(screen.getByText(/Save or discard your edits first/)).toBeInTheDocument();
     expect(posts).toEqual([]);
   });
+});
+
+it("loads and saves the character's firsts", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  const original = CHARACTERS[0];
+  CHARACTERS[0] = { ...original, first_mention: "第1卷 第13章", first_appearance: null };
+  try {
+    mount({ initialId: "c1" });
+    const mention = await screen.findByLabelText("First Mention");
+    expect(mention).toHaveValue("第1卷 第13章");
+    for (const label of ["First Mention", "First Appearance", "First Encounter"]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute(
+        "placeholder",
+        "第1卷 第13章, 1-13, S1 ep 8",
+      );
+    }
+    await user.type(screen.getByLabelText("First Encounter"), "S1 ep 8");
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    await waitFor(() =>
+      expect(fetch.mock.calls.some(([, o]) => o?.method === "PUT")).toBe(true),
+    );
+    const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+    expect(JSON.parse(init.body)).toMatchObject({
+      first_mention: "第1卷 第13章",
+      first_appearance: null,
+      first_encounter: "S1 ep 8",
+    });
+  } finally {
+    CHARACTERS[0] = original;
+  }
 });
