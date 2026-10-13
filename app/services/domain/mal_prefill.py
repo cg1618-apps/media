@@ -5,9 +5,10 @@ manga or novel form.
 `mal_prefill` answers GET /api/<type>/mal-prefill/{mal_id}: a flat object of
 FORM field names to values, nulls left out. It carries exactly what that
 type's MAL autofill writes on save and on Fill - under the same conditions -
-plus MAL's English and Japanese titles and the studio or author credits as
-comma-joined names. The cover and the Official/Twitter reference rows are not
-in it: the save path fetches those itself.
+plus MAL's English and Japanese titles, its synonyms (comma-joined, as the
+alternative name), and the studio or author credits as comma-joined names.
+The cover and the Official/Twitter reference rows are not in it: the save
+path fetches those itself.
 
 Read-only. A credited studio or person is looked up the way the MAL autofill
 looks it up (credits.find_*_for_mal: MAL id, then name), but nothing is
@@ -165,6 +166,7 @@ def mal_prefill(db: Session, media_type: str, mal_id: int) -> Optional[Dict[str,
     out: Dict[str, Any] = {
         f"{prefix}_name_en": titles["name_en"],
         f"{prefix}_name_jp": titles["name_jp"],
+        f"{prefix}_name_alt": titles["name_alt"],
         **fields(j_data),
         # The autofills take a rating or rank only when MAL has one.
         "mal_rating": j_data.get("mal_rating") or None,

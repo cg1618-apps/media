@@ -17,6 +17,7 @@ FRIEREN = {
     "title": "Sousou no Frieren",
     "title_english": "Frieren: Beyond Journey's End",
     "title_japanese": "葬送のフリーレン",
+    "title_synonyms": ["Frieren at the Funeral", "Frieren The Slayer"],
     "studios": [
         {
             "mal_id": 11,
@@ -57,13 +58,24 @@ class TestTitles:
         assert map_tenrai_titles(FRIEREN) == {
             "name_en": "Frieren: Beyond Journey's End",
             "name_jp": "葬送のフリーレン",
+            "name_alt": "Frieren at the Funeral, Frieren The Slayer",
         }
 
     def test_blank_or_missing_titles_are_none(self):
         assert map_tenrai_titles({"title_english": "  ", "title": "X"}) == {
             "name_en": None,
             "name_jp": None,
+            "name_alt": None,
         }
+
+    def test_synonyms_drop_blanks_repeats_and_the_other_titles(self):
+        raw = {
+            "title": "Berserk",
+            "title_english": "Berserk",
+            "title_synonyms": [" Berserk ", "", "Berserk: The Prototype",
+                               "Berserk: The Prototype", None],
+        }
+        assert map_tenrai_titles(raw)["name_alt"] == "Berserk: The Prototype"
 
 
 class TestStudios:

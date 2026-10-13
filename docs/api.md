@@ -1142,17 +1142,17 @@ further: `GET /api/<type>/mal-prefill/{mal_id}` (`anime`, `anime-movie`,
 names** to values, with every null left out, and the SPA fills only the
 fields the admin left blank. It carries exactly what that type's MAL autofill
 writes on save and on Fill, under the same conditions, plus MAL's English and
-Japanese titles and the credits:
+Japanese titles, its synonyms as the alternative name, and the credits:
 
 | Type | Fields |
 | --- | --- |
-| `anime` | `anime_name_en`, `anime_name_jp`, `airing_type`, `airing_status`, `release_season`, `release_date`, `ep_total`, `mal_rating`, `mal_rank`, `studio` |
-| `anime-movie` | `anime_movie_name_en`, `anime_movie_name_jp`, `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `studio` |
-| `manga` | `manga_name_en`, `manga_name_jp`, `serialization_status`, `release_date`, `end_date`, `vol_total` and `ch_total` (only when the status is `完結`), `mal_rating`, `mal_rank`, `author_plot` (MAL's Story), `author_draw` (Art) |
-| `novel` | `novel_name_en`, `novel_name_jp`, `serialization_status`, `release_date`, `end_date`, `vol_total_original` and `ch_total` (only when `完結`), `mal_rating`, `mal_rank`, `author` (Story), `illustrator` (Art) |
+| `anime` | `anime_name_en`, `anime_name_jp`, `anime_name_alt`, `airing_type`, `airing_status`, `release_season`, `release_date`, `ep_total`, `mal_rating`, `mal_rank`, `studio` |
+| `anime-movie` | `anime_movie_name_en`, `anime_movie_name_jp`, `anime_movie_name_alt`, `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `studio` |
+| `manga` | `manga_name_en`, `manga_name_jp`, `manga_name_alt`, `serialization_status`, `release_date`, `end_date`, `vol_total` and `ch_total` (only when the status is `完結`), `mal_rating`, `mal_rank`, `author_plot` (MAL's Story), `author_draw` (Art) |
+| `novel` | `novel_name_en`, `novel_name_jp`, `novel_name_alt`, `serialization_status`, `release_date`, `end_date`, `vol_total_original` and `ch_total` (only when `完結`), `mal_rating`, `mal_rank`, `author` (Story), `illustrator` (Art) |
 
 `mal_rank` is a string, as the column is; the credit fields are comma-joined
-names, as the form holds them. A credited studio or person is matched the way
+names, as the form holds them, and so is `<type>_name_alt`. A credited studio or person is matched the way
 the MAL autofill matches it ([business-rules.md](business-rules.md#mal-credits)):
 a match is named by one of its own names that the save path resolves back to
 it — its display name when that does — and anything else by MAL's name, a
