@@ -64,7 +64,8 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   `endpoints.dataControl.syncCast`) runs Calculate All's cast step on its own -
   the fill-only sync between cast rows and the characters and identities
   they cast, both ways except a remark, which only goes up to the
-  character - through the same `runCalc` as Calculate All: a
+  character, and a credited name, which belongs to its entry and goes
+  nowhere - through the same `runCalc` as Calculate All: a
   spinner while it runs, the server's `message` as the toast, then the log
   reloads. Its tile carries the one-line description "Fill empty cast and
   character fields from each other — never overwrites." The rules are on

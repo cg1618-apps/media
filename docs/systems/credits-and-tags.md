@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 ## What this is for
 
@@ -38,7 +38,7 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 | `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `photo_fallback_entry_id`, `role` (overall, `CHARACTER_ROLES`; a NULL one is filled from the castings' highest-ranked role), `remark`, timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
 | `character_tag` | One vocabulary value on one character, `media_tag`'s twin: `character_id` FK → `character.system_id` (cascade), `field` (`appearance` or `trait`, one of `CHARACTER_TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. See [Character tags](#character-tags). | `uq_character_tag_row (character_id, field, option_id)`; index on `character_id` |
 | `character_identity` | One of a character's other identities (the `character` row is the main one): `character_id` (FK, cascade), four optional names, `display_name_field`, `gender` (NULL inherits the character's), `remark`, `photo_file`, `position`, `public_id` (its page's URL id, own sequence). No tags, rating, role or MAL fields. | `ck_character_identity_has_a_name`; `uq_character_identity_owner (system_id, character_id)`, the composite FK's target; `uq_character_identity_public_id`, deferred |
-| `character_casting` | THE cast record for one character, in one entry: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `identity_id` (NULL = main identity), `role` (optional; `CHARACTER_ROLES` or NULL), `position`, `photo_file`, `remark`. Its seiyuu are `character_casting_voice` rows. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, identity_id, media_type, entry_id)` **NULLS NOT DISTINCT**; `fk_casting_identity (identity_id, character_id)` -> `character_identity`, deferred; `uq_character_casting_entry (system_id, media_type, entry_id)`, the composite FK's target; index on `(media_type, entry_id)` |
+| `character_casting` | THE cast record for one character, in one entry: FK-less `(media_type, entry_id)` pair, `character_id` (FK, cascade), `identity_id` (NULL = main identity), `role` (optional; `CHARACTER_ROLES` or NULL), `position`, `photo_file`, `credited_name` (the name the character goes by in that entry; NULL is none), `remark`. Its seiyuu are `character_casting_voice` rows. No `media_credit` row for `seiyuu` ever exists alongside it. | `uq_character_casting (character_id, identity_id, media_type, entry_id)` **NULLS NOT DISTINCT**; `fk_casting_identity (identity_id, character_id)` -> `character_identity`, deferred; `uq_character_casting_entry (system_id, media_type, entry_id)`, the composite FK's target; index on `(media_type, entry_id)` |
 | `character_casting_voice` | One seiyuu voicing one casting: `casting_id`, the casting's `media_type` and `entry_id` repeated, `person_id` (FK, **cascade**), `position`, `remark` (free text: `child`, `ep 13-`). A casting has zero or more. | `fk_casting_voice_casting (casting_id, media_type, entry_id)` → `character_casting (system_id, media_type, entry_id)`, cascade on delete and update; `uq_casting_voice (casting_id, person_id)`; `ck_casting_voice_scope` (only on `anime`/`anime-movie`/`hentai`); index on `(media_type, entry_id)` |
 
 **Why NULLS NOT DISTINCT everywhere.** Postgres treats two NULLs as distinct
@@ -292,14 +292,14 @@ All.
 | `GET /api/publisher/?scope=`, `GET /{id}`, `GET /{id}/entries`, `POST /`, `PUT /{id}`, `PATCH /{id}`, `DELETE /{id}`, `POST /{id}/merge` | as studio | `app/routers/publisher.py` mirrors `app/routers/studio.py` endpoint for endpoint, minus the MAL derivation and autofill (there is no MAL record to enrich a publisher from) — and minus the delete guard: `DELETE` takes no `?credits=N`, exactly as studio's does not. One deliberate divergence, below. Studio has no counterpart for the `scopes` list every publisher payload carries: `?scope=<media-type>` narrows the list to publishers offered on one type (omitted, it returns everything, including publishers holding no scope at all — the admin list page must be able to see a publisher in order to give it one); `POST` inserts scopes additively, `PUT` replaces the whole set, and merge unions both sides'. There is no `/api/publisher/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
 | `GET/POST/PUT/DELETE /api/options/...` | read public, write admin | The Tier 2 vocabulary `media_tag` points at; see [options.md](../options.md). |
 | `GET /api/character/?name=` | public | Substring match, case-insensitive, across all four name columns. Sorted by resolved `display_name`. Exists so the cast editor's character combobox never downloads the whole table. |
-| `GET /api/character/{id}`, `GET /{id}/entries` | public | As person/studio, but `/entries` groups only by media type (a character holds no role) and each entry carries `seiyuu`: everyone who voiced them there, in voice order, each as `{display_name, system_id, public_id, remark}` (empty when nobody did). |
+| `GET /api/character/{id}`, `GET /{id}/entries` | public | As person/studio, but `/entries` groups only by media type (a character holds no role) and each entry carries `seiyuu`: everyone who voiced them there, in voice order, each as `{display_name, system_id, public_id, remark}` (empty when nobody did), and `credited_name`, the name that casting gives the character there (null for none). |
 | `POST /api/character/` | admin | **Plain create — not find-or-create**, unlike `POST /api/person/` and `POST /api/studio/`. See [Character and character_casting](#character-and-character_casting) for why. |
 | `PUT /api/character/{id}` | admin | Full metadata update. `photo_fallback_entry_id` must name an entry the character is cast on and the editor can see (422); a null keeps a stored choice the editor cannot see. |
 | `PATCH /api/character/{id}` | admin | Partial update, for inline rating and remark edits; the `PUT` rules are checked first and server columns are a 422. |
 | `DELETE /api/character/{id}?castings=N` | admin | Same count-guard shape as `DELETE /api/person?credits=N`: castings cascade away, and a count that moved underneath the admin is a 409. |
-| `POST /api/character/{id}/merge` `{source_id}` | admin | Repoints every casting from source onto target, deletes the source. Where both are cast on the same entry (which would collide on `uq_character_casting`), the source's casting is dropped, its voices the target's casting lacks are appended to the target's, and the target's casting fills its blank role, remark and photo from it. Then fills the target's blank columns, as person does. The correct fix for a duplicate, since a delete would cascade the castings away. |
-| `GET /api/casting/{media_type}/{entry_id}` | public (viewer) | The entry's cast, ordered by `position`; each row carries `voices: [{person_id, person_public_id, person_name, remark}]` in voice order. Missing or hidden entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
-| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order, each row with its `voices: [{person_id, remark?}]` in order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, novel, h-comic, hentai). `role` is optional - null or blank stores no role. Rejects (422) voices on a non-voiced media type - h-comic included - one person twice in a row's voices, or a non-blank role outside `CHARACTER_ROLES`, before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice`. |
+| `POST /api/character/{id}/merge` `{source_id}` | admin | Repoints every casting from source onto target, deletes the source. Where both are cast on the same entry (which would collide on `uq_character_casting`), the source's casting is dropped, its voices the target's casting lacks are appended to the target's, and the target's casting fills its blank role, credited name, remark and photo from it. Then fills the target's blank columns, as person does. The correct fix for a duplicate, since a delete would cascade the castings away. |
+| `GET /api/casting/{media_type}/{entry_id}` | public (viewer) | The entry's cast, ordered by `position`; each row carries `voices: [{person_id, person_public_id, person_name, remark}]` in voice order, and `credited_name`. Missing or hidden entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
+| `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order, each row with its `voices: [{person_id, remark?}]` in order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, novel, h-comic, hentai). `role` is optional - null or blank stores no role. `credited_name` is trimmed, and null or blank stores none. Rejects (422) voices on a non-voiced media type - h-comic included - one person twice in a row's voices, or a non-blank role outside `CHARACTER_ROLES`, before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice`. |
 
 **Deleting a publisher removes its logo; deleting a studio does not.** This
 asymmetry is deliberate, not an oversight. `delete_publisher` calls
@@ -428,12 +428,20 @@ Four tables, and the shape is deliberate on the points recorded below.
   A cast row may name one of its character's identities (`identity_id`; NULL is
   the main identity), and **one character may be cast once per identity per
   entry**: Shinichi and Conan are two rows in one entry, each with its own role,
-  photo, remark and seiyuu list. The identity must be the row's character's own
+  photo, credited name, remark and seiyuu list. The identity must be the row's character's own
   (`fk_casting_identity`, and a 422 before the database). A row's displayed
   photo (`display_photo_file`) falls back **row, then its identity, then
   `character.photo_file`**, the focus travelling with whichever won; the row's
-  own `photo_file` stays what was saved, null when it has none. `fill_character_roles` still reads every
-  casting of the character, identity rows included - they are one character.
+  own `photo_file` stays what was saved, null when it has none. A row's
+  **credited name** (`credited_name`) is what that one entry calls the
+  character - "AAA" in season 1 - and is free text, NULL for none. The cast
+  slip shows it as the row's name, the identity's (else the character's) own
+  name beneath it; the character and identity pages show it as "as AAA" on
+  that appearance. Character search (`GET /api/character/?name=`) does not
+  match it: the search reads the character's own four names, and a credited
+  name lives on a casting whose entry the viewer may not be allowed to see.
+  `fill_character_roles` still reads every casting of the character, identity
+  rows included - they are one character.
 - `character_casting_voice` — one seiyuu voicing one casting, with a
   `position` and a free-text `remark` saying which voice it is (`child`,
   `ep 13-`). A character may have several seiyuu in one entry, and one seiyuu
@@ -674,7 +682,7 @@ Three ways the two are brought together:
 - **Sync from original** (cast editor, one row or **Sync all from original**)
   replaces the row's role and seiyuu with the original's, through
   `POST /api/casting/originals`, and clears the row's own photo. The row's
-  remark is left as it is. A value the
+  remark and credited name are left as they are. A value the
   original does not have leaves the row's alone. It changes the form; Save
   writes it. The entry being edited never votes for its own seiyuu.
 - **Sync from cast** (character page) replaces the original's role, remark and
@@ -690,7 +698,8 @@ Three ways the two are brought together:
   (`CHARACTER_ROLES` order, then oldest) - an identity's rows fill the
   identity, the main identity's fill the character. Then the cast rows: an
   empty role takes the character's, and a voiced row with no seiyuu takes
-  the original seiyuu. Cast remarks and cast photos are not filled. Because the
+  the original seiyuu. Cast remarks, credited names and cast photos are not
+  filled. Because the
   originals fill first, one run converges and a second changes nothing.
 
 ## Photo fallback
@@ -789,7 +798,11 @@ its casting, `ck_casting_voice_scope` on the voice table, and both merges
 moving or folding voices), `test_character_router.py` (two `POST`s of the
 same name create **two** characters — the API-level half of Decision G —
 plus merge and the `?castings=N` 409 guard), `test_casting_router.py`
-(GET/PUT wholesale replace, visibility), and the round-trip and ordering
+(GET/PUT wholesale replace, visibility), `test_casting_credited_name.py`
+(a cast row's credited name through the cast save - trimmed, blank as none -
+the entry cast, the character's and the identity's appearances, Backup and
+Pull, Calculate, a character merge and an identity fold; MAL import leaving it
+alone is in `test_character_mal.py`), and the round-trip and ordering
 assertions in `test_credits_sheets.py`
 (`test_every_character_tab_is_registered`,
 `test_character_restores_before_every_media_tab`,

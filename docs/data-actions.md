@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 ## What this is for
 
@@ -330,7 +330,7 @@ the character's". An empty table is legitimate here, as `Character` is.
 
 `Character Casting` sits after every media tab, because a casting reaches its
 entry by the FK-less `(media_type, entry_id)` pair, and carries no seiyuu
-column. It carries `identity_id`, a plain uuid, blank for the main identity; a sheet written before the column existed has no such header, and Pull restores every row of it as a main-identity row (`identity_id` NULL). A casting's seiyuu are the `Character Casting Voice` tab, restored
+column. It carries `identity_id`, a plain uuid, blank for the main identity; a sheet written before the column existed has no such header, and Pull restores every row of it as a main-identity row (`identity_id` NULL). It carries `credited_name` too, the name the character goes by in that entry, as plain text; a blank cell, or a sheet with no such header, restores as NULL - no override. A casting's seiyuu are the `Character Casting Voice` tab, restored
 immediately after it because each voice cites its casting by `casting_id`:
 one row per voice, with `casting_id`, the casting's `media_type` and
 `entry_id`, `person_id`, `position` and `remark`

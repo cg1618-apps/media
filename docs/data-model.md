@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-07
+Last verified: 2026-10-13
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1388,6 +1388,7 @@ the casting, because one character may have several seiyuu in one entry.
 | `position` | Integer | no | `0` (server default too) | Display / drag-reorder order |
 | `photo_file` | String | yes | | Storage key: this character as she appears in this entry, usually a library image (`library/<checksum>.jpg`) set through the cast editor's picker. NULL stays NULL in the row; readers display the row's identity's `photo_file` when it names one with a photo, then `character.photo_file` (the cast response's `display_photo_file`, resolved at read time). Not an attachment - castings are re-inserted on every cast save, so their ids cannot own one - so the image library reads this column itself when it asks whether an image is in use. |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Written by the cast save with the photo. Displayed with the photo: a casting with no `photo_file` is shown with the focus of the identity's or character's photo that stands in for it (`display_photo_focus`). A forced image delete that NULLs `photo_file` NULLs this too |
+| `credited_name` | String | yes | | The name the character goes by in **this** entry, when it is not its own (or its identity's) - free text. NULL is no override; the cast save trims it and stores a blank one as NULL. Readers show it as the row's name, with the identity's or character's own name beneath it, and as "as …" on the character's and the identity's appearances. Written only by the cast editor's save: Calculate's cast sync, MAL cast import and Sync from original never write it. Character merge and identity fold carry it with the casting, and a casting absorbed into another fills a blank one |
 | `remark` | Text | yes | | |
 | `created_at` | DateTime | yes | now | No `updated_at` |
 
@@ -1398,9 +1399,10 @@ Constraints and indexes:
   per entry (Decision E: casting is per-entry with no default/override split,
   so a recast is a second row, not a resolution rule). One character may
   therefore be cast twice in an entry, once per identity, each row with its own
-  role, photo, remark and seiyuu. `identity_id` is nullable, and without NULLS
-  NOT DISTINCT two main-identity rows (both NULL) would never collide, so the
-  main identity could be cast any number of times in one entry.
+  role, photo, credited name, remark and seiyuu. `identity_id` is nullable,
+  and without NULLS NOT DISTINCT two main-identity rows (both NULL) would
+  never collide, so the main identity could be cast any number of times in one
+  entry.
 - `fk_casting_identity` FOREIGN KEY (`identity_id`, `character_id`) ->
   `character_identity` (`system_id`, `character_id`), backed by
   `uq_character_identity_owner`: an identity must belong to the row's own
