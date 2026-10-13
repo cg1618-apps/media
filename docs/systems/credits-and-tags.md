@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-09
+Last verified: 2026-10-13
 
 ## What this is for
 
@@ -628,7 +628,7 @@ editor's **Import main cast from MAL**.
   characters count in `created_characters`.
 - **Only MAL's Main characters are Main; every other row is Other.** MAL's
   Supporting means "not Main", so it is not carried as Supporting - which
-  side characters earn Core or Supporting is set by hand.
+  side characters earn Core, Important Supporting or Supporting is set by hand.
 - **Only Japanese voice actors are taken.** MAL lists every dub; a casting
   records the original cast. Manga, novel and h-comic rows carry no voices.
 - **A seiyuu is matched by `person.mal_id`, then by name** through

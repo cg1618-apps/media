@@ -23,7 +23,7 @@ from typing import Optional
 # entry) and character.role (what the character is overall). Both are
 # nullable: an admin need not classify. A NULL character.role is filled from
 # the castings' roles, earliest in this order first.
-CHARACTER_ROLES: tuple[str, ...] = ("Main", "Core", "Supporting", "Other")
+CHARACTER_ROLES: tuple[str, ...] = ("Main", "Core", "Important Supporting", "Supporting", "Other")
 
 
 def check_character_role(value: Optional[str]) -> Optional[str]:

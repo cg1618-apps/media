@@ -131,7 +131,7 @@ export const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 // /api/constants key "character_role"), in rank order. The same vocabulary
 // serves a casting's role and a character's own role; the two are
 // independent and neither is derived from the other.
-export const CHARACTER_ROLES = ["Main", "Core", "Supporting", "Other"];
+export const CHARACTER_ROLES = ["Main", "Core", "Important Supporting", "Supporting", "Other"];
 
 /**
  * Where a cast row with this role sorts: CHARACTER_ROLES order, then a row

@@ -79,7 +79,7 @@ describe("characterFilterDefs", () => {
   it("filters by the character's own role, with Not set for null, ANDed with the rest", () => {
     const defs = characterFilterDefs(SEES_ALL);
     expect(def(defs, "role").options).toEqual([
-      "Main", "Core", "Supporting", "Other", ROLE_NOT_SET,
+      "Main", "Core", "Important Supporting", "Supporting", "Other", ROLE_NOT_SET,
     ]);
     const rows = [
       { id: "m", role: "Main", my_rating: "S", castings: [{ role: "Other" }] },

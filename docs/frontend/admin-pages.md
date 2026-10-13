@@ -483,7 +483,7 @@ rejects. Submit is blocked until at least one name is filled, matching
 MAL `ExternalSearchBox`, over the form. `CharacterFields` is the
 person form without the role × scope matrix: the four name fields, the
 "Display name" select, a **Role** as `QuickPicks` chips — one per
-`CHARACTER_ROLES` value, Main, Core, Supporting, Other, with no select beside
+`CHARACTER_ROLES` value, Main, Core, Important Supporting, Supporting, Other, with no select beside
 them since all four fit at any width; clicking the pressed chip clears it to
 none — the same Gender and My Rating fields, **Appearance** and **Trait**
 (`MultiSelect`s suggesting from the `Character Appearance` and `Character
@@ -789,7 +789,7 @@ only land in its own grid. The swap is a draft until **Save Grid**.
 - **Character tab (Entity).** `CharacterModifyTab.jsx`, self-contained the
   same way over `/api/character/` (query key `["characters-admin"]`) and
   picked the way people are: a `SubTabBar` of **All** then one tab per
-  `CHARACTER_ROLES` value (Main, Core, Supporting, Other — a character holds
+  `CHARACTER_ROLES` value (Main, Core, Important Supporting, Supporting, Other — a character holds
   at most one), scope chips over the media types the shown characters are
   cast in, and a grid of every match up front filtered by the all-four-names
   search. All lists characters with no type too. The pick
