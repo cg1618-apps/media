@@ -21,6 +21,7 @@ import {
   hasAnyIdentityName,
   identityPayload,
 } from "../add-tabs/IdentityAddTab";
+import { firstsToForm } from "../../lib/characterForm";
 
 export { IDENTITIES_QUERY_KEY };
 
@@ -46,6 +47,7 @@ function identityToForm(i) {
     display_name_field: i.display_name_field || "",
     gender: i.gender || "",
     remark: i.remark || "",
+    ...firstsToForm(i),
     photo_file: i.photo_file || "",
     photo_focus: i.photo_focus || null,
   };

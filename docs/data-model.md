@@ -1273,6 +1273,9 @@ with one intentional deviation - see the constraints note below.
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. While NULL it is filled from the highest-ranked `character_casting.role` (`CHARACTER_ROLES` order) on each cast save and by Calculate All; a set value is never overwritten |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose picture stands in when `photo_file` is NULL; must be an entry the character is cast on. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `remark` | Text | yes | | |
+| `first_mention` | Text | yes | | Free text, the work's own notation (`第1卷 第13章`, `1-13`, `S1 ep 8`): where the character is first talked about or named, before being seen |
+| `first_appearance` | Text | yes | | Free text: where the character is first shown at all, even a glimpse with no real part yet |
+| `first_encounter` | Text | yes | | Free text: where the main character first actually faces them — meets, talks, fights — whether or not the name is known by then |
 | `mal_id` | Integer | yes | | MAL character id. Indexed (`ix_character_mal_id`), **not unique**, like `person.mal_id`: a duplicate is fixed by merge, not refused. Derived from `mal_link` by `extract_mal_id_character` on every write. The key the MAL cast import matches a character on, and the key the character is filled from MAL on |
 | `mal_link` | String | yes | | `myanimelist.net/character/<id>/<slug>` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
@@ -1338,6 +1341,7 @@ never held twice.
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain - the same resolution as `character.display_name_field` |
 | `gender` | String | yes | | GENDERS, or NULL meaning **the same as the character's**. Resolved on read (`display_gender` = `gender` or the character's), never copied, so editing the character's gender moves every identity that inherits it |
 | `remark` | Text | yes | | |
+| `first_mention` / `first_appearance` / `first_encounter` | Text | yes | | As on `character`, and the identity's own: NULL means unrecorded, never the character's |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character-identity/<system_id>.jpg` (hyphenated, like the owner type). NULL shows the character's displayed picture |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset when the photo changes - see [image focal points](#image-focal-points) |
 | `position` | Integer | no | `0` (server default too) | Order on the character page and in `CharacterResponse.identities`. A create takes the character's highest position plus one |

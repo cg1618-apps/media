@@ -26,6 +26,7 @@ import InfoCard from "../../components/info/InfoCard";
 import MalButton from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
 import { tagChips } from "../../components/info/tagChips";
+import { firstsRows } from "../../lib/characterForm";
 import {
   AdminToolbar,
   RatingSelect,
@@ -103,6 +104,8 @@ export default function Character() {
   // its cover, then the newest visible casting photo, then the newest cover.
   const photoUrl = getCoverUrl(character.display_photo_file ?? character.photo_file);
   const castingTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
+  // Only the firsts that are set; with none, the card is left out.
+  const firsts = firstsRows(character);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
@@ -212,6 +215,8 @@ export default function Character() {
               ...(isAdmin ? [] : [{ label: "Remark", value: character.remark }]),
             ]}
           />
+
+          {firsts.length > 0 && <InfoCard title="First Appearances" fields={firsts} />}
 
           {isAdmin && (
             <RemarkEditor
