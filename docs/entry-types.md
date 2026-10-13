@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-10-07
+Last verified: 2026-10-13
 
 ## What this is for
 
@@ -202,9 +202,19 @@ The five counters render as:
 | Value | Tracker row | Cover rule |
 |---|---|---|
 | `vol_original` / `vol_tw` | `Volumes`, editable | `Volumes 3 / 11 · 27%` |
-| `ch` | `Chapters`, editable — **read-only when the novel has arc rows**, because `ch_fin` is derived from them and an edit here would be overwritten on the next save | `Chapters 21 / 87 · 24%` |
-| `arc` | `Arcs`: `arc 7 / 8 · 倒吊人` — the arc being read, its name, and the arc count. Stepping closes or reopens a whole arc and resets `ch_fin_in_arc` | `Arcs 6 / 8 · 75%` (arcs *finished*) |
-| `arc_ch` | `Arc / Chapter`, the two-stage stepper | `Chapters`, the derived absolute pair |
+| `ch` | `Chapters`, editable. On a novel with arc rows `ch_fin` is derived from them, so a typed or stepped total is folded into the arc cursor (`arcCursorForChapters`) and the row is marked "from arcs" | `Chapters 21 / 87 · 24%` |
+| `arc` | `Arcs`: `arc 7 / 8 · 倒吊人` — the arc being read (typable), its name, and the arc count. Stepping closes or reopens a whole arc and resets `ch_fin_in_arc`; typing an arc starts at its beginning | `Arcs 6 / 8 · 75%` (arcs *finished*) |
+| `arc_ch` | `Arc / Chapter`: the arc being read and the chapters read inside it, both typable, with a chapter stepper | `Chapters`, the derived absolute pair |
+
+Every `arc_ch` display - the tracker row, the dashboard card and the library
+card's progress line (`getNovelProgress`) - names **the arc being read**, not
+the arcs finished, through `arcProgressView` (`lib/novelUnits.js`): arc
+`arc_fin + 1`, with `ch_fin_in_arc` chapters read in it. With every recorded
+arc finished and nothing read past them it shows the last arc, complete
+(`arc 8 · 90/90`); chapters read past the last recorded arc show as the arc
+after it, of unknown length (`arc 9 · 6/?`). A typed arc and chapter go back
+through `arcCursorFromView`: a typed arc starts at its beginning, and a typed
+chapter stays in the arc shown and carries past its end as the stepper does.
 
 `countsVolumes()` is the volume-side counterpart of `countsChapters()`, and
 the two are deliberately asymmetric. Chapters on a light novel are

@@ -186,3 +186,48 @@ export function arcStep(arcs, arcFin, chInArc, direction) {
 
   return { arc_fin: fin, ch_fin_in_arc: ch };
 }
+
+/**
+ * What a web novel's arc cursor reads as on screen: the arc being read
+ * (`arcNumber`, one-based), the chapters read inside it, and its arc row.
+ * The stored cursor counts FINISHED arcs (`arc_fin`), so the arc being read
+ * is arc_fin + 1, with two cases at the end:
+ *
+ * - every recorded arc finished and nothing read past them shows as the last
+ *   arc, complete ("arc 2 · 40/40"), not as an arc 3 nobody has entered;
+ * - chapters read past the last recorded arc (an ongoing novel, see arcStep)
+ *   show as that next arc, `arc` null because it has no row yet.
+ *
+ * Every arc + chapter display reads this - the detail page's tracker, the
+ * dashboard card and getNovelProgress - so they all name the same arc.
+ */
+export function arcProgressView(arcs, arcFin, chInArc) {
+  const rows = arcs || [];
+  const fin = Math.max(0, Math.floor(Number(arcFin) || 0));
+  const ch = Math.max(0, Number(chInArc) || 0);
+  if (rows.length > 0 && fin >= rows.length && ch === 0) {
+    const last = rows[rows.length - 1];
+    return { arcNumber: rows.length, chInArc: Number(last.ch_count) || 0, arc: last };
+  }
+  return { arcNumber: fin + 1, chInArc: ch, arc: rows[fin] ?? null };
+}
+
+/**
+ * The stored cursor for an arc and chapter typed as arcProgressView shows
+ * them. The arc is clamped to 1..(arc count + 1); chapters past the arc's
+ * end carry into the next one, exactly as stepping does (arcStep).
+ */
+export function arcCursorFromView(arcs, arcNumber, chInArc) {
+  const total = (arcs || []).length;
+  const n = Math.min(total + 1, Math.max(1, Math.floor(Number(arcNumber) || 0)));
+  return arcStep(arcs, n - 1, Math.max(0, Math.floor(Number(chInArc) || 0)), 0);
+}
+
+/**
+ * The stored cursor for a total number of chapters read, folded into the
+ * arcs from the first one - what typing into a flat chapter counter means on
+ * a novel whose ch_fin is derived from its arcs.
+ */
+export function arcCursorForChapters(arcs, chFin) {
+  return arcStep(arcs, 0, Math.max(0, Math.floor(Number(chFin) || 0)), 0);
+}

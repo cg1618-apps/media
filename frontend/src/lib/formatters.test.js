@@ -277,6 +277,32 @@ describe("getNovelProgress", () => {
     expect(getNovelProgress(novel)).toBe("arc 2 · 101/112 CH");
   });
 
+  it("shows every arc finished as the last arc, complete", () => {
+    const novel = {
+      progress_display: "arc_ch",
+      arc_fin: 2,
+      ch_fin_in_arc: 0,
+      units: [
+        { unit_kind: "arc", position: 1, ch_count: 100 },
+        { unit_kind: "arc", position: 2, ch_count: 112 },
+      ],
+    };
+    expect(getNovelProgress(novel)).toBe("arc 2 · 112/112 CH");
+  });
+
+  it("shows reading past the last recorded arc as the next arc, of unknown length", () => {
+    const novel = {
+      progress_display: "arc_ch",
+      arc_fin: 2,
+      ch_fin_in_arc: 6,
+      units: [
+        { unit_kind: "arc", position: 1, ch_count: 100 },
+        { unit_kind: "arc", position: 2, ch_count: 112 },
+      ],
+    };
+    expect(getNovelProgress(novel)).toBe("arc 3 · 6/? CH");
+  });
+
   it("falls back to the flat chapter pair when there are no arcs", () => {
     const novel = { progress_display: "ch", ch_fin: 120, ch_total: 300, units: [] };
     expect(getNovelProgress(novel)).toBe("120 / 300 CH");
