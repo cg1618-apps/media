@@ -625,7 +625,7 @@ The **Filters** button opens a `FilterPanel` over
 groups without Type: **Entry type** — anime, anime movie, manga, novel, No
 entries, then a **Restricted** parent chip over h-comic and hentai (not
 h-game: nobody is cast on an h-game) — then **Role** — Main, Core,
-Supporting, Other, plus Not set for null, matched against the character's
+Important Supporting, Supporting, Other, plus Not set for null, matched against the character's
 own `role` field and never against the roles its castings carry — then **My
 Rating** and **Gender**, then **Appearance** and **Trait** — `set-dynamic`
 groups over the values the loaded characters hold, sorted, plus Not set when a
@@ -879,7 +879,7 @@ however many entries it is cast on, with its own picture and overall `role`,
 plus one dashed card for each of its identities cast on those entries. It asks
 `GET /api/character/?franchise_id=` (or `?series_id=`), which counts only
 castings on entries the viewer may see, and draws `CharacterCard`s grouped by
-`characterCardsByRole` (`lib/characterCards.js`): Main, Core, Supporting,
+`characterCardsByRole` (`lib/characterCards.js`): Main, Core, Important Supporting, Supporting,
 Other, then No role, each group by name with an identity right after its
 character. Always offered, like the other extras; an empty tier says so.
 
@@ -977,7 +977,7 @@ Top to bottom:
    `/api/casting/{media_type}/{entry_id}` via `useCasting`), drawn by the
    shared `components/info/CastSection.jsx` and rendered only when the entry
    has a cast. Rows are sorted by role in `CHARACTER_ROLES` order — Main,
-   Core, Supporting, Other, then no role (`castRoleRank`) — then by
+   Core, Important Supporting, Supporting, Other, then no role (`castRoleRank`) — then by
    `position` (`sortCast`, `lib/castOrder.js`), and each shows a small
    cover-or-portrait thumbnail, a role chip, a link to the character, and — on Anime/AnimeMovie, the voiced types
    — "voiced by" and every seiyuu of the casting as a link to their person

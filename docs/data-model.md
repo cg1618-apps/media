@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-07
+Last verified: 2026-10-13
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1384,7 +1384,7 @@ the casting, because one character may have several seiyuu in one entry.
 | `media_type` | String | no | | Hyphenated key: one of `CASTING_MEDIA_TYPES` (`anime`, `anime-movie`, `manga`, `novel`, `h-comic`, `hentai`) |
 | `identity_id` | UUID | yes | | NULL is the **main identity** (the character itself); otherwise one of *this character's* [`character_identity`](#character_identity) rows, enforced by `fk_casting_identity`. Indexed |
 | `entry_id` | UUID | no | | FK-less - see [Cross-table references](#cross-table-references-without-foreign-keys) |
-| `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Fills a NULL `character.role`; never written from it |
+| `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Important Supporting`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Fills a NULL `character.role`; never written from it |
 | `position` | Integer | no | `0` (server default too) | Display / drag-reorder order |
 | `photo_file` | String | yes | | Storage key: this character as she appears in this entry, usually a library image (`library/<checksum>.jpg`) set through the cast editor's picker. NULL stays NULL in the row; readers display the row's identity's `photo_file` when it names one with a photo, then `character.photo_file` (the cast response's `display_photo_file`, resolved at read time). Not an attachment - castings are re-inserted on every cast save, so their ids cannot own one - so the image library reads this column itself when it asks whether an image is in use. |
 | `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Written by the cast save with the photo. Displayed with the photo: a casting with no `photo_file` is shown with the focus of the identity's or character's photo that stands in for it (`display_photo_focus`). A forced image delete that NULLs `photo_file` NULLs this too |
