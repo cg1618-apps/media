@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-13
+Last verified: 2026-10-14
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -673,6 +673,12 @@ The one difference from the studio page: a person may hold several roles, so
 not from the page. A group the viewer may see no entries of still renders, with
 "Nothing you can see here" inside it. Entry cards are the same local
 `CreditCard`, not `MediaCard`, for the reason spelled out below.
+
+A **seiyuu** group is drawn differently, because what a seiyuu is credited
+with is a part, not a work: one `VoicedPartCard` per casting voiced
+(`components/info/VoicedPartCard.jsx`), led by the character's picture and
+name, with the entry as a small cover-and-title line at its foot. One entry
+voiced as two identities is two cards.
 
 **Club membership** (`components/info/ClubMembership.jsx`, under the Profile
 card) is drawn only for a session that can see h-comic. A club - a person holding the `club` role -
