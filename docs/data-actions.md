@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-13
+Last verified: 2026-10-14
 
 ## What this is for
 
@@ -339,10 +339,11 @@ column. It carries `identity_id`, a plain uuid, blank for the main identity; a s
 immediately after it because each voice cites its casting by `casting_id`:
 one row per voice, with `casting_id`, the casting's `media_type` and
 `entry_id`, `person_id`, `position` and `remark`
-(`formatter.parse_character_casting_voice_from_sheet`). `casting_id`,
-`entry_id` and `person_id` round-trip as plain uuids - `person_id` is **not**
-translated through the Person tab the way `Person Role` and
-`Person Membership` cite a person.
+(`formatter.parse_character_casting_voice_from_sheet`). `casting_id` and
+`entry_id` round-trip as plain uuids. `person_id` is translated through the
+Person tab, as `Person Role` and `Person Membership` cite a person: a person
+Pull matched by name keeps this database's uuid, so the sheet's uuid for them
+names nobody here, and left untranslated it fails the tab's commit.
 
 **Entry tables carry no source columns.** There is no `source_baha`,
 `baha_link`, `source_netflix`, `source_other`, `official_link`,
@@ -455,6 +456,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 1. **Unknown tab** → `{"status": "error", "message": "Unknown tab: ..."}` (400, nothing logged).
 2. **Read** `get_all_raw_rows(tab_name)`. A `SheetsUnavailableError` (any read failure) logs `Pull {tab}` / `Failed` and returns `{"status": "error", "reason": "sheet_unavailable"}`. An outage is never mistaken for an empty tab.
 3. **Empty tab** (fewer than 2 rows) → logs `Success` and returns `processed: 0`.
+   **Parents first**: a tab in `SELF_REFERENCES` (`Game` and `H-Game` on `base_game_id`, `Note` on `parent_id`) is reordered by `parents_first` so a row comes after any row of the same tab it cites. Those foreign keys are checked at once, not at commit, and Pull flushes as it goes, so a DLC the sheet lists above its base game would otherwise fail the whole tab. Rows with nothing to wait for keep the sheet's order. `Resources` is not reordered: its `parent_id` is deferred, and it reports skipped rows by sheet row number.
 4. For every non-blank data row:
    - `parse_row_to_dict(headers, row)` then the tab's parser from `TAB_PARSERS`.
    - **Header filter**: keep only keys that were in the sheet's header row. Parsers emit their full key set, so without this a sheet predating a migration would null the new column on every Pull. A blank cell under a present header is kept and still means "clear this value".
@@ -553,7 +555,7 @@ Skip-unreadable policy: a tab whose result has `reason == "sheet_unavailable"` i
 | every tab restored | `Pull` / `Pull All` / `Success`, totals, `details_json` = `{tab: processed}` | 200 `{"status": "success", "details": {...}}` |
 | one or more tabs unreadable | `Failed`, `error_message` = `"Full Pull Pipeline incomplete. Tabs not pulled: ..."`, `details_json` = `{"pulled": ..., "unread": ...}` | raises `SheetsUnavailableError` (500) |
 | every tab pulled, some references unresolved | `Failed`, `error_message` = `"Full Pull Pipeline completed with N unresolved reference(s); those rows did not restore..."`, `details_json` = `{"pulled": ..., "unresolved_refs": [...], ...}` | 200 `{"status": "success", ..., "unresolved_refs": [...]}` |
-| any other error | `Failed` with the message | re-raised (500) |
+| any other error | `Failed` with the message - the session is rolled back first, so a flush that failed mid-tab cannot take the audit row down with it | re-raised (500) |
 
 `unresolved_refs` is checked **before** `credit_conflicts`, and like it the run
 is not raised: the caller needs the list to act on, and a raise would replace
