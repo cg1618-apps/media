@@ -180,6 +180,82 @@ def test_a_seiyuus_entries_come_from_castings(client, seiyuu_with_one_casting, a
     assert group["entries"][0]["character_name"]
 
 
+def test_a_seiyuu_entry_names_the_part_voiced(
+    db_session, client, anime, character
+):
+    """The seiyuu page leads with the part, not the entry, so each row carries
+    who the part is: the identity, the credited name, the casting's role and
+    the resolved photo. One entry voiced as two identities is two rows."""
+    character.photo_file = "character/own.webp"
+    identity = models.CharacterIdentity(
+        character_id=character.system_id,
+        name_en="Zvornik Disguise",
+        photo_file="character-identity/disguise.webp",
+        photo_focus="40% 10%",
+    )
+    person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Voice")
+    db_session.add_all([identity, person])
+    db_session.flush()
+    db_session.add(
+        models.PersonRole(person_id=person.system_id, role="seiyuu", scope="anime")
+    )
+
+    def voice(remark=None):
+        return models.CharacterCastingVoice(
+            media_type="anime",
+            entry_id=anime.system_id,
+            person_id=person.system_id,
+            remark=remark,
+        )
+
+    db_session.add_all(
+        [
+            models.CharacterCasting(
+                character_id=character.system_id,
+                media_type="anime",
+                entry_id=anime.system_id,
+                role="Main",
+                position=0,
+                credited_name="Zvornik Credited",
+                voices=[voice("child")],
+            ),
+            models.CharacterCasting(
+                character_id=character.system_id,
+                identity_id=identity.system_id,
+                media_type="anime",
+                entry_id=anime.system_id,
+                role="Supporting",
+                position=1,
+                voices=[voice()],
+            ),
+        ]
+    )
+    db_session.commit()
+
+    groups = client.get(f"/api/person/{person.system_id}/entries").json()["groups"]
+    (group,) = [g for g in groups if g["role"] == "seiyuu"]
+    rows = sorted(group["entries"], key=lambda e: e["identity_id"] is not None)
+    assert len({r["casting_id"] for r in rows}) == 2
+    main, disguise = rows
+
+    assert main["character_public_id"] == character.public_id
+    assert main["identity_name"] is None
+    assert main["credited_name"] == "Zvornik Credited"
+    assert main["character_role"] == "Main"
+    assert main["voice_remark"] == "child"
+    assert main["display_photo_file"] == "character/own.webp"
+
+    assert disguise["identity_name"] == "Zvornik Disguise"
+    assert disguise["identity_public_id"] == identity.public_id
+    assert disguise["character_role"] == "Supporting"
+    assert disguise["voice_remark"] is None
+    # No casting photo: the identity's stands in before the character's.
+    assert disguise["display_photo_file"] == "character-identity/disguise.webp"
+    assert disguise["display_photo_focus"] == "40% 10%"
+    # The entry is still there, as the complement.
+    assert disguise["system_id"] == str(anime.system_id)
+
+
 def test_a_seiyuu_cast_only_on_a_hidden_entry_is_404(
     client, seiyuu_with_hidden_casting
 ):

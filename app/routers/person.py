@@ -27,6 +27,7 @@ from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
 from app.services.domain.autofill import autofill_person_from_mal
+from app.services.domain.casting import fallback_photo
 from app.services.domain.credits import find_person
 from app.services.domain.derivation import apply_extract_mal_id_person
 from app.services.domain.entity_photos import EntityMedia, person_media
@@ -309,8 +310,8 @@ def get_person_entries(
     # walked and grouped alongside the credit rows, through the same
     # visibility pass, rather than as a separate endpoint. uq_casting_voice
     # makes this one row per casting.
-    casting_rows = (
-        db.query(models.CharacterCasting)
+    casting_voices = (
+        db.query(models.CharacterCasting, models.CharacterCastingVoice.remark)
         .join(
             models.CharacterCastingVoice,
             models.CharacterCastingVoice.casting_id == models.CharacterCasting.system_id,
@@ -319,6 +320,8 @@ def get_person_entries(
         .order_by(models.CharacterCasting.position)
         .all()
     )
+    voice_remarks = {r.system_id: remark for r, remark in casting_voices}
+    casting_rows = [r for r, _ in casting_voices]
     visible = set(
         filter_visible_pairs(
             db,
@@ -359,8 +362,8 @@ def get_person_entries(
             .all()
         }
 
-    # character_id -> Character, for character_name/character_id on each
-    # seiyuu entry. One bulk query, not one per casting row.
+    # character_id -> Character and identity_id -> CharacterIdentity, for the
+    # part each seiyuu entry names. One bulk query each, not one per row.
     character_ids = {r.character_id for r in casting_rows}
     characters = (
         {
@@ -370,6 +373,17 @@ def get_person_entries(
             )
         }
         if character_ids
+        else {}
+    )
+    identity_ids = {r.identity_id for r in casting_rows if r.identity_id}
+    identities = (
+        {
+            i.system_id: i
+            for i in db.query(models.CharacterIdentity).filter(
+                models.CharacterIdentity.system_id.in_(identity_ids)
+            )
+        }
+        if identity_ids
         else {}
     )
 
@@ -404,6 +418,13 @@ def get_person_entries(
         if entry is None:
             continue
         character = characters.get(row.character_id)
+        identity = identities.get(row.identity_id) if row.identity_id else None
+        # The part's picture resolves as on the entry's cast table: the
+        # casting's own, then the identity's, then the character's.
+        if row.photo_file:
+            photo_file, photo_focus = row.photo_file, row.photo_focus
+        else:
+            photo_file, photo_focus = fallback_photo(identity, character)
         payload.append(
             {
                 "system_id": str(entry.system_id),
@@ -412,8 +433,20 @@ def get_person_entries(
                 "cover_image_file": getattr(entry, "cover_image_file", None),
                 "cover_image_focus": getattr(entry, "cover_image_focus", None),
                 "release_date": primary_release_value(row.media_type, entry),
+                # One entry appears once per part voiced in it, so the
+                # casting - not the entry - is what tells two rows apart.
+                "casting_id": str(row.system_id),
                 "character_name": character.display_name if character else None,
                 "character_id": str(character.system_id) if character else None,
+                "character_public_id": character.public_id if character else None,
+                "identity_id": str(row.identity_id) if row.identity_id else None,
+                "identity_name": identity.display_name if identity else None,
+                "identity_public_id": identity.public_id if identity else None,
+                "credited_name": row.credited_name,
+                "character_role": row.role,
+                "voice_remark": voice_remarks.get(row.system_id),
+                "display_photo_file": photo_file,
+                "display_photo_focus": photo_focus,
             }
         )
 

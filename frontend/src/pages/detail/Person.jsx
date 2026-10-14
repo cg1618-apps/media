@@ -6,7 +6,8 @@
 // person is credited on, grouped as GET /api/person/{id}/entries returns them
 // — by media type AND role, because one person can be an anime's director and
 // a manga's author, and each group carries the label that credit has on that
-// media type.
+// media type. A seiyuu group is the exception in what it shows: its cards
+// lead with the part voiced (VoicedPartCard), the entry beneath it.
 //
 // Like Studio.jsx it reads the API with plain fetch. An admin can set my
 // rating and the remark in place and jump to the full editor, the same
@@ -20,6 +21,7 @@ import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
 import ClubMembership from "../../components/info/ClubMembership";
+import VoicedPartCard from "../../components/info/VoicedPartCard";
 import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import InfoCard from "../../components/info/InfoCard";
 import MalButton from "../../components/info/MalButton";
@@ -243,13 +245,21 @@ export default function Person() {
                   </p>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {group.entries.map((entry) => (
-                      <CreditCard
-                        key={entry.system_id}
-                        entry={entry}
-                        navPath={group.nav_path}
-                      />
-                    ))}
+                    {group.entries.map((entry) =>
+                      group.role === "seiyuu" ? (
+                        <VoicedPartCard
+                          key={entry.casting_id}
+                          entry={entry}
+                          navPath={group.nav_path}
+                        />
+                      ) : (
+                        <CreditCard
+                          key={entry.system_id}
+                          entry={entry}
+                          navPath={group.nav_path}
+                        />
+                      ),
+                    )}
                   </div>
                 )}
               </section>
