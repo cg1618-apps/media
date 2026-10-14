@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-13
+Last verified: 2026-10-14
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1540,6 +1540,18 @@ first with an undated entry last. A hidden person answers **404**. A visible
 person's credits on label-hidden entries are omitted whole — no group is left
 behind naming the hidden work's type — while a credit withheld only because
 the viewer lacks its `media_type.<key>` keeps its group, empty.
+
+A **seiyuu** group comes from `character_casting_voice`, not `media_credit`,
+and each of its rows is one **part voiced** rather than one entry: an entry
+appears once per casting the person voices in it, so `casting_id` — not the
+entry's `system_id` — tells two rows apart. Beside the entry keys above, a
+seiyuu row carries the part: `character_id`, `character_name`,
+`character_public_id`; `identity_id`, `identity_name`, `identity_public_id`
+(null for the main identity); `credited_name`, what that entry calls the
+character (null for none); `character_role`, the casting's role; and
+`voice_remark`, this person's remark on that voice (`child`, `ep 13-`). Its
+`display_photo_file` / `display_photo_focus` resolve as the entry's cast table
+does: the casting's own photo, else the identity's, else the character's.
 
 ---
 

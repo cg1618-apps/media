@@ -29,7 +29,7 @@ const PERSON = {
   roles: [{ role: "director", scope: "anime-movie" }],
 };
 
-function mockFetch(person = PERSON) {
+function mockFetch(person = PERSON, groups = []) {
   global.fetch = vi.fn((url, init = {}) => {
     if (init.method === "PATCH") {
       return Promise.resolve({
@@ -39,7 +39,7 @@ function mockFetch(person = PERSON) {
       });
     }
     if (String(url).endsWith("/entries")) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ groups: [] }) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ groups }) });
     }
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(person) });
   });
@@ -140,6 +140,90 @@ describe("Person detail page", () => {
     expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
     expect(screen.getByText("Retired, twice.")).toBeInTheDocument();
     expect(screen.getByLabelText("Rating S")).toBeInTheDocument();
+  });
+
+  describe("a seiyuu group", () => {
+    const ENTRY = {
+      system_id: "a1",
+      public_id: 3,
+      display_name: "Detective Conan",
+      cover_image_file: "anime/conan.jpg",
+      release_date: "1996-01-08",
+    };
+    const SEIYUU_GROUP = {
+      media_type: "anime",
+      role: "seiyuu",
+      label: "Seiyuu 聲優",
+      nav_path: "/anime",
+      entries: [
+        {
+          ...ENTRY,
+          casting_id: "c1",
+          character_name: "Kudo Shinichi",
+          character_public_id: 11,
+          identity_id: "i1",
+          identity_name: "Edogawa Conan",
+          identity_public_id: 21,
+          credited_name: null,
+          character_role: "Main",
+          voice_remark: "child",
+          display_photo_file: "character-identity/conan.webp",
+        },
+        {
+          ...ENTRY,
+          casting_id: "c2",
+          character_name: "Kudo Shinichi",
+          character_public_id: 11,
+          identity_id: null,
+          identity_name: null,
+          identity_public_id: null,
+          credited_name: "Mysterious Boy",
+          character_role: "Supporting",
+          voice_remark: null,
+          display_photo_file: "character/shinichi.webp",
+        },
+      ],
+    };
+
+    beforeEach(() => mockFetch(PERSON, [SEIYUU_GROUP]));
+
+    it("leads each card with the part voiced, linked to its page", async () => {
+      renderPage();
+      const identity = await screen.findByRole("link", { name: "Edogawa Conan" });
+      expect(identity).toHaveAttribute("href", "/identity/21/edogawa-conan");
+      // A credited name leads; the character's own name sits beneath it.
+      expect(screen.getByRole("link", { name: "Mysterious Boy" })).toHaveAttribute(
+        "href",
+        "/character/11/kudo-shinichi",
+      );
+      expect(screen.getByAltText("Edogawa Conan")).toHaveAttribute(
+        "src",
+        "/api/covers/character-identity/conan.webp",
+      );
+      expect(screen.getByText("Main")).toBeInTheDocument();
+      expect(screen.getByText("(child)")).toBeInTheDocument();
+    });
+
+    it("names an identity's character", async () => {
+      renderPage();
+      const card = (await screen.findByRole("link", { name: "Edogawa Conan" })).closest(
+        "[data-voiced-part]",
+      );
+      expect(within(card).getByText(/identity of/)).toBeInTheDocument();
+      expect(within(card).getByRole("link", { name: "Kudo Shinichi" })).toHaveAttribute(
+        "href",
+        "/character/11/kudo-shinichi",
+      );
+    });
+
+    it("keeps the entry as a secondary link on every card", async () => {
+      renderPage();
+      await screen.findByRole("link", { name: "Edogawa Conan" });
+      // One entry, two parts in it: two cards, each linking the entry.
+      const entryLinks = screen.getAllByRole("link", { name: /Detective Conan/ });
+      expect(entryLinks).toHaveLength(2);
+      for (const link of entryLinks) expect(link).toHaveAttribute("href", "/anime/a1");
+    });
   });
 
   describe("as an admin", () => {

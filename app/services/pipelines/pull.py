@@ -270,6 +270,7 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[tuple[str, str], ...]] = {
     "System Option Alias": (("option_id", "System Options"),),
     "Person Role": (("person_id", "Person"),),
     "Person Membership": (("member_id", "Person"), ("club_id", "Person")),
+    "Character Casting Voice": (("person_id", "Person"),),
     "Publisher Scope": (("publisher_id", "Publisher"),),
     "Media Content Label": (("label_id", "Content Label"),),
     "Franchise Content Label": (("label_id", "Content Label"),),
@@ -529,6 +530,53 @@ _NOTE_CONTENT_COLUMNS = (
     "entries",
     "fields",
 )
+
+
+# Tabs whose rows cite another row of the same tab, through a foreign key that
+# is checked at once rather than at COMMIT. Pull flushes as it goes, so a child
+# row the sheet lists above its parent - a DLC above its base game - reaches
+# the database first and fails the whole tab. parents_first reorders them.
+# resource_node.parent_id is DEFERRABLE INITIALLY DEFERRED and needs none of
+# this; Resources keeps its sheet order because it reports rows by index.
+SELF_REFERENCES: dict[str, str] = {
+    "Game": "base_game_id",
+    "H-Game": "base_game_id",
+    "Note": "parent_id",
+}
+
+
+def parents_first(headers: list, data_rows: list, column: str) -> list:
+    """
+    `data_rows` reordered so a row the tab cites through `column` comes before
+    every row citing it. Rows with nothing to wait for keep the sheet's order;
+    a parent the sheet does not carry is already in the database or nowhere,
+    so it imposes no order. A cycle cannot be satisfied in any order, so its
+    rows are left at the end, in sheet order, for the FK to report.
+    """
+    if "system_id" not in headers or column not in headers:
+        return data_rows
+    id_at, parent_at = headers.index("system_id"), headers.index(column)
+
+    def cell(row, index):
+        return row[index].strip() if index < len(row) and row[index] else ""
+
+    in_sheet = {cell(row, id_at) for row in data_rows} - {""}
+    placed: set = set()
+    ordered: list = []
+    pending = list(data_rows)
+    while pending:
+        waiting = []
+        for row in pending:
+            parent = cell(row, parent_at)
+            if parent and parent in in_sheet and parent not in placed:
+                waiting.append(row)
+                continue
+            ordered.append(row)
+            placed.add(cell(row, id_at))
+        if len(waiting) == len(pending):
+            return ordered + waiting
+        pending = waiting
+    return ordered
 
 
 def _sheet_ids(headers: list, data_rows: list) -> set:
@@ -859,6 +907,8 @@ def execute_pull_specific(
 
     headers = raw_matrix[0]
     data_rows = raw_matrix[1:]
+    if tab_name in SELF_REFERENCES:
+        data_rows = parents_first(headers, data_rows, SELF_REFERENCES[tab_name])
 
     Model = MODEL_MAP[tab_name]
     parser = PARSER_MAP[tab_name]
@@ -2045,6 +2095,10 @@ def execute_pull_all(
 
     except Exception as e:
         logger.error("Full Pull Pipeline crashed: %s", e)
+        # A flush that failed inside a tab's loop leaves the session needing a
+        # rollback, and an audit row added to it would be lost with it. The
+        # tab's own rows are discarded either way: its commit never ran.
+        db.rollback()
         log_data_control(
             db, "Pull", "Pull All", action_type, "Failed", error_message=str(e)
         )
