@@ -449,7 +449,7 @@ export default function Comic() {
               comic.artist ||
               comic.publisher ||
               comic.imprint ||
-              comic.publisher_refs?.length) && (
+              comic.publisher_refs?.length > 0) && (
               <InfoCard
                 title="Production"
                 fields={[
