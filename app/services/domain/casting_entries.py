@@ -103,6 +103,8 @@ def casting_entry_groups(
                 "identity_id": str(row.identity_id) if row.identity_id else None,
                 "identity_name": identity.display_name if identity else None,
                 "identity_public_id": identity.public_id if identity else None,
+                # What this entry calls the character - "as <credited_name>".
+                "credited_name": row.credited_name,
                 "display_name": entry.display_name,
                 "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),

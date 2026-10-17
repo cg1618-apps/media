@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-09
+Last verified: 2026-10-14
 
 ## What this is for
 
@@ -302,7 +302,11 @@ from before it existed - leaves the local value as it is rather than
 clearing it.
 `Character` also carries `role` (`CHARACTER_ROLES`); a value outside the list
 restores as blank. It carries `mal_id` and `mal_link` too, restored as they
-are, as on `Person`.
+are, as on `Person`, and the three free-text firsts, `first_mention`,
+`first_appearance` and `first_encounter`. Each first restores only when the
+sheet has its column: a backup from before they existed leaves the local
+values as they are rather than clearing them, as `alone_reviewed_media_id`
+does (`formatter._firsts_from_sheet`, shared with `Character Identity`).
 
 `Character` ends with two cells no column backs, `appearance` and `trait`:
 the character's tags (`character_tag`), each comma-joined in stored order,
@@ -319,7 +323,8 @@ cells land on the restored vocabulary.
 tabs: `character_id` is a real FK, and `Character Casting`'s `identity_id` must
 find its identity when it restores. It carries every column of
 `character_identity` (`public_id`, names, `display_name_field`, `gender`,
-`remark`, `photo_file`, `photo_focus`, `position`, timestamps), and
+`remark`, `first_mention`, `first_appearance`, `first_encounter`, `photo_file`,
+`photo_focus`, `position`, timestamps), and
 `character_id` round-trips as a plain uuid
 (`formatter.parse_character_identity_from_sheet`). `public_id` restores
 unchanged, so the identity page's URL is the same on both machines, and Pull
@@ -330,14 +335,15 @@ the character's". An empty table is legitimate here, as `Character` is.
 
 `Character Casting` sits after every media tab, because a casting reaches its
 entry by the FK-less `(media_type, entry_id)` pair, and carries no seiyuu
-column. It carries `identity_id`, a plain uuid, blank for the main identity; a sheet written before the column existed has no such header, and Pull restores every row of it as a main-identity row (`identity_id` NULL). A casting's seiyuu are the `Character Casting Voice` tab, restored
+column. It carries `identity_id`, a plain uuid, blank for the main identity; a sheet written before the column existed has no such header, and Pull restores every row of it as a main-identity row (`identity_id` NULL). It carries `credited_name` too, the name the character goes by in that entry, as plain text; a blank cell, or a sheet with no such header, restores as NULL - no override. A casting's seiyuu are the `Character Casting Voice` tab, restored
 immediately after it because each voice cites its casting by `casting_id`:
 one row per voice, with `casting_id`, the casting's `media_type` and
 `entry_id`, `person_id`, `position` and `remark`
-(`formatter.parse_character_casting_voice_from_sheet`). `casting_id`,
-`entry_id` and `person_id` round-trip as plain uuids - `person_id` is **not**
-translated through the Person tab the way `Person Role` and
-`Person Membership` cite a person.
+(`formatter.parse_character_casting_voice_from_sheet`). `casting_id` and
+`entry_id` round-trip as plain uuids. `person_id` is translated through the
+Person tab, as `Person Role` and `Person Membership` cite a person: a person
+Pull matched by name keeps this database's uuid, so the sheet's uuid for them
+names nobody here, and left untranslated it fails the tab's commit.
 
 **Entry tables carry no source columns.** There is no `source_baha`,
 `baha_link`, `source_netflix`, `source_other`, `official_link`,
@@ -450,6 +456,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 1. **Unknown tab** → `{"status": "error", "message": "Unknown tab: ..."}` (400, nothing logged).
 2. **Read** `get_all_raw_rows(tab_name)`. A `SheetsUnavailableError` (any read failure) logs `Pull {tab}` / `Failed` and returns `{"status": "error", "reason": "sheet_unavailable"}`. An outage is never mistaken for an empty tab.
 3. **Empty tab** (fewer than 2 rows) → logs `Success` and returns `processed: 0`.
+   **Parents first**: a tab in `SELF_REFERENCES` (`Game` and `H-Game` on `base_game_id`, `Note` on `parent_id`) is reordered by `parents_first` so a row comes after any row of the same tab it cites. Those foreign keys are checked at once, not at commit, and Pull flushes as it goes, so a DLC the sheet lists above its base game would otherwise fail the whole tab. Rows with nothing to wait for keep the sheet's order. `Resources` is not reordered: its `parent_id` is deferred, and it reports skipped rows by sheet row number.
 4. For every non-blank data row:
    - `parse_row_to_dict(headers, row)` then the tab's parser from `TAB_PARSERS`.
    - **Header filter**: keep only keys that were in the sheet's header row. Parsers emit their full key set, so without this a sheet predating a migration would null the new column on every Pull. A blank cell under a present header is kept and still means "clear this value".
@@ -548,7 +555,7 @@ Skip-unreadable policy: a tab whose result has `reason == "sheet_unavailable"` i
 | every tab restored | `Pull` / `Pull All` / `Success`, totals, `details_json` = `{tab: processed}` | 200 `{"status": "success", "details": {...}}` |
 | one or more tabs unreadable | `Failed`, `error_message` = `"Full Pull Pipeline incomplete. Tabs not pulled: ..."`, `details_json` = `{"pulled": ..., "unread": ...}` | raises `SheetsUnavailableError` (500) |
 | every tab pulled, some references unresolved | `Failed`, `error_message` = `"Full Pull Pipeline completed with N unresolved reference(s); those rows did not restore..."`, `details_json` = `{"pulled": ..., "unresolved_refs": [...], ...}` | 200 `{"status": "success", ..., "unresolved_refs": [...]}` |
-| any other error | `Failed` with the message | re-raised (500) |
+| any other error | `Failed` with the message - the session is rolled back first, so a flush that failed mid-tab cannot take the audit row down with it | re-raised (500) |
 
 `unresolved_refs` is checked **before** `credit_conflicts`, and like it the run
 is not raised: the caller needs the list to act on, and a raise would replace
@@ -752,7 +759,7 @@ The manual route `POST /replace/{key}/{entry_id}` calls the same function with `
 | 1 | `run_post_processing` | `anime_post_processing` for every Anime, `anime_movie_post_processing` for every AnimeMovies, `tv_show_post_processing` for every TVShows, `cartoon_post_processing` for every Cartoon, `manga_post_processing` for every Manga; commit after each type. (Movies, Novel and Comic have no post-processing.) |
 | 2 | `run_derive_ep_previous` | `derive_ep_previous_all_anime(db)` — anime is the only type with a franchise-wide derived field left |
 | 3 | `run_seed_sequel_relations` | `seed_sequel_relations(db)` + commit — in every ACG franchise no `media_relation` row touches yet, one `sequel` row per adjacent pair of TV/ONA anime in each series, ordered by season/part; a group with a tied season/part is skipped. A seeded franchise has rows, so later runs skip it ([systems/relations.md](systems/relations.md#sequel-seed--seed_sequel_relations-in-appservicesdomainmedia_relationpy)) |
-| 4 | `run_sync` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears over the whole table - and a commit), `run_sync_hentai` (just `extract_system_options`), `run_sync_gated_labels` (`enforce_gated_label_invariants` - every gated type's label on every entry of the type and every franchise of its franchise type - and a commit), `run_sync_size_groups` (`derive_size_groups` + commit), then `run_sync_cast` (`fill_cast_and_characters`, `app/services/domain/casting_sync.py` - empty character and identity role, remark and photo from their cast rows, then empty cast role, remark and seiyuu from their originals, never overwriting; see [systems/credits-and-tags.md](systems/credits-and-tags.md#a-cast-row-and-its-original) - and a commit) |
+| 4 | `run_sync` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears over the whole table - and a commit), `run_sync_hentai` (just `extract_system_options`), `run_sync_gated_labels` (`enforce_gated_label_invariants` - every gated type's label on every entry of the type and every franchise of its franchise type - and a commit), `run_sync_size_groups` (`derive_size_groups` + commit), then `run_sync_cast` (`fill_cast_and_characters`, `app/services/domain/casting_sync.py` - empty character and identity role, remark and photo from their cast rows, then empty cast role and seiyuu from their originals, never overwriting - a cast row's remark is never filled, since a remark travels from cast row to original and not back; see [systems/credits-and-tags.md](systems/credits-and-tags.md#a-cast-row-and-its-original) - and a commit) |
 | 5 | `bulk_check_cover_image(db)` | runs the cover check; its result is discarded |
 | 6 | log | `Calculate` / `Calculate All` / `Manual` / `Success` |
 

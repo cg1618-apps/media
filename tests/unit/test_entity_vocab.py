@@ -175,11 +175,11 @@ def test_a_pull_restores_the_photo_fallback(parse):
 def test_character_roles_are_in_dropdown_order():
     from app.utils.character_roles import CHARACTER_ROLES
 
-    assert CHARACTER_ROLES == ("Main", "Core", "Supporting", "Other")
+    assert CHARACTER_ROLES == ("Main", "Core", "Important Supporting", "Supporting", "Other")
 
 
 @pytest.mark.parametrize("schema", [schemas.CharacterCreate, schemas.CharacterUpdate])
-@pytest.mark.parametrize("role", ["Main", "Core", "Supporting", "Other"])
+@pytest.mark.parametrize("role", ["Main", "Core", "Important Supporting", "Supporting", "Other"])
 def test_every_character_role_is_accepted(schema, role):
     assert schema(name_en="A", role=role).role == role
 

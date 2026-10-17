@@ -47,6 +47,7 @@ import {
 import MediaCard from "../../components/cards/MediaCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import HubCharacters from "../../components/hub/HubCharacters";
 import SeriesNotes from "./SeriesNotes";
 import RelationGraph from "../../components/relations/RelationGraph";
 import PlanKindToggles, {
@@ -434,7 +435,7 @@ export default function SeriesPage() {
   // reports whether it holds anything, and an admin needs the entry point
   // precisely when it is still empty.
   const extraTabs = useMemo(
-    () => (series ? ["Watch Order", "Relations", "Notes"] : []),
+    () => (series ? ["Characters", "Watch Order", "Relations", "Notes"] : []),
     [series],
   );
 
@@ -1966,6 +1967,16 @@ export default function SeriesPage() {
               ))}
             </div>
           )}
+        </Section>
+      )}
+
+      {/* ── Characters tab content ───────────────────────────────────────── */}
+      {activeTab === "Characters" && (
+        <Section
+          title="Characters"
+          subtitle="Everyone cast on this series's entries, and the identities they appear as"
+        >
+          <HubCharacters scope="series" tierId={system_id} />
         </Section>
       )}
 

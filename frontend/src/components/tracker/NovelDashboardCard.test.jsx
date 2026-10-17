@@ -166,3 +166,52 @@ describe("NovelDashboardCard — non-derived paths are unaffected", () => {
     );
   });
 });
+
+describe("NovelDashboardCard — the arc + chapter numbers name the arc being read", () => {
+  const units = [
+    { unit_kind: "arc", position: 1, ch_count: 100 },
+    { unit_kind: "arc", position: 2, ch_count: 40 },
+  ];
+  const novel = (extra) => ({
+    system_id: "n6",
+    progress_display: "arc_ch",
+    units,
+    arc_total: 2,
+    ch_total: 140,
+    ...extra,
+  });
+
+  it("shows the current arc, not the arcs finished", () => {
+    renderCard(novel({ arc_fin: 1, ch_fin_in_arc: 7 }));
+    expect(screen.getByLabelText("Arc being read")).toHaveValue(2);
+    expect(screen.getByLabelText("Chapters read in this arc")).toHaveValue(7);
+  });
+
+  it("shows every arc finished as the last arc, complete", () => {
+    renderCard(novel({ arc_fin: 2, ch_fin_in_arc: 0 }));
+    expect(screen.getByLabelText("Arc being read")).toHaveValue(2);
+    expect(screen.getByLabelText("Chapters read in this arc")).toHaveValue(40);
+  });
+
+  it("a typed arc starts at its beginning", () => {
+    const onProgressChange = renderCard(novel({ arc_fin: 0, ch_fin_in_arc: 7 }));
+    fireEvent.change(screen.getByLabelText("Arc being read"), { target: { value: "2" } });
+    expect(onProgressChange).toHaveBeenCalledWith(
+      "n6",
+      { arc_fin: 1, ch_fin_in_arc: 0 },
+      { arc_fin: 0, ch_fin_in_arc: 7 },
+    );
+  });
+
+  it("a typed chapter past the arc's end carries into the next arc", () => {
+    const onProgressChange = renderCard(novel({ arc_fin: 0, ch_fin_in_arc: 7 }));
+    fireEvent.change(screen.getByLabelText("Chapters read in this arc"), {
+      target: { value: "103" },
+    });
+    expect(onProgressChange).toHaveBeenCalledWith(
+      "n6",
+      { arc_fin: 1, ch_fin_in_arc: 3 },
+      { arc_fin: 0, ch_fin_in_arc: 7 },
+    );
+  });
+});

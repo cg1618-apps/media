@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-10-06
+Last verified: 2026-10-14
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -62,26 +62,10 @@ the command silently discarded before the fix.
 
 ## The two machines and the backup sheet
 
-The sheet holds exactly one version of the data. The company machine migrated
-on 2026-09-24 and its database is at head, so what is left here is about the
-**sheet** rather than about that machine being behind. Arrival procedure is
+The sheet holds exactly one version of the data, and it is in the current
+shape: its `Note` tab carries `parent_id` and `fields`, and a Pull All from it
+restores every tab on the company machine. Arrival procedure is
 [switching-environments.md](switching-environments.md).
-
-**The backup sheet predates the notes rework, so a Pull from it would undo
-part of it.** `note` gained `parent_id` and `fields`, and eleven sections moved
-onto the `structured` shape, so the tab is two columns short and its note rows
-are in the old shape. Pull matches columns by header name and writes what it
-finds: it would restore `entries` values on sections that are `structured` now
-— refused by validation the next time anybody edits one — and `side_quests`
-rows under a section key the registry no longer has, which nothing renders.
-
-Neither failure is loud. The rows restore, the page loads, and it shows up one
-edit later.
-
-Closed by running **Backup** from the machine holding the newer data, which
-rewrites every tab in the current shape. Until then, neither machine may Pull:
-the company machine's arrival on 2026-09-24 deliberately stopped one step short
-of it, so that database is its own 2,081 rows rather than the sheet's.
 
 **The company machine's owner flag is applied; whether every row followed is
 unverified.** That database is now at head, it has the
@@ -166,6 +150,7 @@ docker exec cg1618-dev-db psql -U postgres -d media -tAc   "SELECT cl.key, count
 | `delete_studio` never calls `delete_cover_image`, so a studio logo leaks; publisher does it correctly | `app/routers/studio.py` |
 | `_STRIPPED` holds a stray backslash. `"\/"` is not an escape in Python, so the backslash survives and `clean_string` strips a character the JS `cleanString` it is kept "character-for-character in step with" does not. Warns today, and is a `SyntaxError` in a future Python | `app/services/domain/search.py:39` |
 | A Pull after a character merge done on the other machine rolls back the `Character Identity` and `Character Casting` tabs: the deferred `fk_casting_identity` fails at commit while the local cast rows still name the old character. Repeat the merge locally before running Pull | `docs/data-actions.md`, Pull All; `app/routers/character.py` merge |
+| A person, character or other public entity created on **both** machines fails Pull at commit with `duplicate key value violates unique constraint "uq_<table>_public_id"`. Each machine mints the row under its own uuid and `public_id`; Pull matches it to the local copy only by uuid or, for a person, by all four names exactly, so a copy whose names differ (one filled in from MAL, one not) restores as a second row carrying the sheet's `public_id`, which a row that exists only here may already hold. Nothing renumbers a local-only row. Until it does, delete or merge the local duplicate before pulling. A copy that does not collide still arrives as a duplicate, which the credit pass then reports as ambiguous | `app/services/pipelines/pull.py`, `_match_by_natural_key`, `resync_public_id_sequence` |
 | Entry tabs may still mint entities. `credits.resolve_*` is find-or-create for the Add form too, and whether entry tabs should refuse instead is a policy call | `app/services/domain/credits.py` |
 
 ## Tooling

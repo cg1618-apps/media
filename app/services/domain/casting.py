@@ -160,6 +160,10 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
                 "display_photo_focus": display_focus,
                 "fallback_photo_file": fallback_file,
                 "fallback_photo_focus": fallback_focus,
+                # What this entry calls the character; null for no override.
+                # Readers show it as the row's name, the identity's (else the
+                # character's) own name beneath it.
+                "credited_name": casting.credited_name,
                 "remark": casting.remark,
             }
         )
@@ -305,6 +309,7 @@ def replace_casting(
             position=row.get("position", index),
             photo_file=row.get("photo_file"),
             photo_focus=row.get("photo_focus"),
+            credited_name=row.get("credited_name"),
             remark=row.get("remark"),
         )
         casting.voices = [

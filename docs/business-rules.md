@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-07
+Last verified: 2026-10-13
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -387,7 +387,9 @@ gave arc rows to) tracks progress in two stages instead of one flat chapter
 counter: `arc_fin` counts arcs that are **fully finished**, and
 `ch_fin_in_arc` is the chapter position inside the arc currently being read
 — the arc at index `arc_fin` (0-based) among the novel's arc rows in
-`position` order.
+`position` order. Screens show that arc one-based, as arc `arc_fin + 1`
+(`arcProgressView`, see [entry-types.md](entry-types.md)); what is stored is
+the finished count.
 
 **Derivation** (`derive_novel_progress`, called unconditionally on every
 create/update/patch by the router, whether or not the write touched `units`):

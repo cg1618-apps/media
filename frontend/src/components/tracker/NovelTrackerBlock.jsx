@@ -8,6 +8,9 @@ import {
   withLegacyProgressDisplay,
 } from "../../config/fieldOptions";
 import {
+  arcCursorForChapters,
+  arcCursorFromView,
+  arcProgressView,
   arcStep,
   countsChapters,
   countsVolumes,
@@ -16,6 +19,12 @@ import {
   unitDisplayKey,
   wholeArcStep,
 } from "../../lib/novelUnits";
+
+// A typed number: an empty or unparseable box reads as 0, as the volume and
+// chapter boxes always have.
+function typedNumber(e) {
+  return parseFloat(e.target.value) || 0;
+}
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -93,15 +102,17 @@ export default function NovelTrackerBlock({
 
   // Which chapter-side row renders is the chosen display, not just whether
   // arc rows exist: "arc_ch" is the two-stage stepper, "arc" the whole-arc
-  // one, "ch" the flat pair. The flat pair goes read-only when arc rows are
-  // present, because ch_fin is then derived from them and an editable
-  // stepper here would fight derive_novel_progress on the next save.
+  // one, "ch" the flat pair. With arc rows present ch_fin is derived from
+  // them, so every edit here - stepped or typed, in any of the three rows -
+  // moves the arc cursor (arc_fin, ch_fin_in_arc) rather than ch_fin, which
+  // derive_novel_progress would overwrite on the same save.
   const arcs = (novel.units || [])
     .filter((u) => u.unit_kind === "arc")
     .sort((a, b) => a.position - b.position);
   const arcFin = novel.arc_fin ?? 0;
-  const currentArc = arcs[arcFin] || null;
   const chInArc = novel.ch_fin_in_arc ?? 0;
+  // What the rows show: the arc being read, not the arcs finished.
+  const view = arcProgressView(arcs, arcFin, chInArc);
   const chIsDerived = arcs.length > 0;
 
   function handleVolStep(dir) {
@@ -125,6 +136,13 @@ export default function NovelTrackerBlock({
     if (next.arc_fin === (novel.arc_fin ?? 0) && next.ch_fin_in_arc === chInArc) {
       return;
     }
+    onArcProgressChange(next);
+  }
+
+  // A typed arc or chapter, as the rows show them, back to the stored cursor.
+  function handleArcCursorInput(next) {
+    if (!isAdmin) return;
+    if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
     onArcProgressChange(next);
   }
 
@@ -269,8 +287,19 @@ export default function NovelTrackerBlock({
         {!countsChapters(novel) ? null : pd === "arc_ch" ? (
           <TrackerRow isHighlighted label="Arc / Chapter">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm">
-                arc {arcFin + 1}
+              <span className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
+                arc
+                <input
+                  type="number"
+                  value={view.arcNumber}
+                  disabled={!isAdmin}
+                  step="1"
+                  onChange={(e) =>
+                    handleArcCursorInput(arcCursorFromView(arcs, typedNumber(e), 0))
+                  }
+                  className={STEP_INPUT_CLS}
+                  aria-label="Arc being read"
+                />
                 <span className={UNIT_CLS}>of {arcs.length}</span>
               </span>
               <span className="text-text-faint">·</span>
@@ -279,9 +308,21 @@ export default function NovelTrackerBlock({
                   −
                 </StepButton>
               )}
-              <span className="font-mono text-sm">
-                {chInArc}
-                <span className={UNIT_CLS}>/ {currentArc?.ch_count ?? "?"} ch</span>
+              <span className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
+                <input
+                  type="number"
+                  value={view.chInArc}
+                  disabled={!isAdmin}
+                  step="1"
+                  onChange={(e) =>
+                    handleArcCursorInput(
+                      arcCursorFromView(arcs, view.arcNumber, typedNumber(e)),
+                    )
+                  }
+                  className={STEP_INPUT_CLS}
+                  aria-label="Chapters read in this arc"
+                />
+                <span className={UNIT_CLS}>/ {view.arc?.ch_count ?? "?"} ch</span>
               </span>
               {isAdmin && (
                 <StepButton onClick={() => handleArcChapterStep(1)} label="Next chapter">
@@ -301,15 +342,26 @@ export default function NovelTrackerBlock({
                   −
                 </StepButton>
               )}
-              <span className="font-mono text-sm whitespace-nowrap">
-                arc {arcFin + 1}
+              <span className="font-mono text-sm whitespace-nowrap flex items-center gap-1">
+                arc
+                <input
+                  type="number"
+                  value={view.arcNumber}
+                  disabled={!isAdmin}
+                  step="1"
+                  onChange={(e) =>
+                    handleArcCursorInput(arcCursorFromView(arcs, typedNumber(e), 0))
+                  }
+                  className={STEP_INPUT_CLS}
+                  aria-label="Arc being read"
+                />
                 <span className={UNIT_CLS}>/ {arcs.length}</span>
-                {currentArc && (
+                {view.arc && (
                   <span className="text-text-muted">
                     {" · "}
-                    {currentArc.name_cn ||
-                      currentArc.name_en ||
-                      unitDisplayKey("arc", currentArc.position, currentArc.unit_key)}
+                    {view.arc.name_cn ||
+                      view.arc.name_en ||
+                      unitDisplayKey("arc", view.arc.position, view.arc.unit_key)}
                   </span>
                 )}
               </span>
@@ -321,16 +373,37 @@ export default function NovelTrackerBlock({
             </div>
           </TrackerRow>
         ) : chIsDerived ? (
-          /* Flat pair, read-only: with arc rows present ch_fin and ch_total
-             are derived from them, so this shows the number without offering
-             an edit that the next save would overwrite. */
+          /* Flat pair over arc rows: ch_fin and ch_total are derived from
+             the arcs, so a typed or stepped total is folded into the arc
+             cursor (arcCursorForChapters / arcStep) and the server derives
+             ch_fin back from it. */
           <TrackerRow isHighlighted={chHighlighted} label="Chapters">
-            <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
-              <span className="text-text">{chFin}</span>
-              <span className="text-text-faint text-xs">/</span>
-              <span className="text-text-muted">{chTotal ?? "?"}</span>
-              <span className={UNIT_CLS}>ch</span>
-              <span className="text-text-faint text-xs">· from arcs</span>
+            <div className="flex items-center gap-1.5 w-fit">
+              {isAdmin && (
+                <StepButton onClick={() => handleArcChapterStep(-1)} label="Previous chapter">−</StepButton>
+              )}
+              <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
+                <input
+                  type="number"
+                  value={chFin}
+                  disabled={!isAdmin}
+                  step="1"
+                  onChange={(e) => {
+                    const v = typedNumber(e);
+                    if (chTotal !== null && v > chTotal) return;
+                    handleArcCursorInput(arcCursorForChapters(arcs, v));
+                  }}
+                  className={STEP_INPUT_CLS}
+                  aria-label="Chapters finished"
+                />
+                <span className="text-text-faint text-xs">/</span>
+                <span className="text-text-muted">{chTotal ?? "?"}</span>
+                <span className={UNIT_CLS}>ch</span>
+                <span className="text-text-faint text-xs">· from arcs</span>
+              </div>
+              {isAdmin && (
+                <StepButton onClick={() => handleArcChapterStep(1)} label="Next chapter">+</StepButton>
+              )}
             </div>
           </TrackerRow>
         ) : (

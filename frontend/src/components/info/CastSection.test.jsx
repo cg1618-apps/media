@@ -290,3 +290,40 @@ describe("identity rows look like identities", () => {
     expect(conan.querySelector("[data-identity-thumb]")).not.toBeNull();
   });
 });
+
+describe("a credited name", () => {
+  it("leads the row, with the character's own name beneath it", () => {
+    mount([{ ...casting("Hero", "Main", 0), credited_name: "AAA" }]);
+    expect(shownNames()).toEqual(["AAA"]);
+    expect(screen.getByRole("link", { name: "AAA" })).toHaveAttribute(
+      "href",
+      "/character/1/hero",
+    );
+    const real = screen.getByText("Hero");
+    expect(real.closest("a")).toBeNull();
+    expect(real).toHaveAttribute("data-real-name");
+  });
+
+  it("puts the identity's name beneath it on an identity row", () => {
+    mount([
+      {
+        ...casting("Shinichi", "Main", 0),
+        identity_id: "i1",
+        identity_public_id: 3,
+        identity_name: "Conan",
+        credited_name: "Edogawa",
+      },
+    ]);
+    expect(screen.getByRole("link", { name: "Edogawa" })).toHaveAttribute(
+      "href",
+      "/identity/3/conan",
+    );
+    expect(screen.getByText("Conan")).toHaveAttribute("data-real-name");
+  });
+
+  it("adds no second name to a row without one", () => {
+    mount([casting("Hero", "Main", 0)]);
+    expect(shownNames()).toEqual(["Hero"]);
+    expect(document.querySelector("[data-real-name]")).toBeNull();
+  });
+});

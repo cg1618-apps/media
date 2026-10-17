@@ -81,20 +81,22 @@ venv/Scripts/ruff.exe check .                    # backend lint
 cd frontend && npm run test:run && npm run lint  # frontend tests + ESLint
 ```
 
-**The backend suite takes ~5.5 minutes**, and that dominates the cost of any
-backend change. Three rules follow:
+**The full backend suite runs on CI, not here** — see the platform's
+`CLAUDE.md`, "CI runs the full test suite; a session does not". Locally it
+takes about half an hour. Three rules follow:
 
-- **Run it before every commit, not at checkpoints.** A scoped run
-  (`-k something`) cannot see a test three directories away that your change
-  invalidated. Five such failures once accumulated across five task reviews
-  that were each clean against their own diff.
+- **Before the PR, run the tests the change touches, and not just `-k` on the
+  one you wrote.** Include the test files for every module you edited: a
+  scoped run cannot see a test three directories away that your change
+  invalidated, and that is exactly what the CI run is there to catch. When CI
+  goes red, fix it on the branch before merging.
 - **Never run two pytest processes at once.** Both trees and both suites share
   one PostgreSQL and one `media_test`, so a concurrent run produces
   spurious "relation role does not exist" and unique-constraint failures that
   look like real breakage.
-- **When estimating work, quote minutes and include the suite runs.** Any
-  backend change has a ~12 minute floor because it needs at least two. Sizing
-  the diff ("small — about 15 lines") is not sizing the task.
+- **When estimating work, include the CI run.** It takes about 20 minutes per
+  pull request, and a red one costs another. Sizing the diff ("small — about
+  15 lines") is not sizing the task.
 
 ## Frontend Ports and Rebuilds
 
@@ -103,12 +105,12 @@ backend change. Three rules follow:
 
 **After any frontend change, run `cd frontend && npm run build`** so the change works on both ports. Do this before claiming a frontend change is done. If a change appears missing on one port only, suspect a stale build first. `frontend_dist/` is gitignored.
 
-**Build and notify me BEFORE the slow suite, then keep going.** I review changes
-in the running app on :8000 while the backend suite runs, so a build that waits
-until the end wastes the whole ~5.5 minute window. The order is: write the code
-→ fast checks (`npm run build`, `npm run test:run`, `npm run lint`, `ruff`,
-~40s) → send me a push notification saying it is viewable → start `pytest` →
-carry on with tests, docs and the commit proposal. The notification is a signal,
+**Build and notify me BEFORE the PR, then keep going.** I review changes in the
+running app on :8000 while CI runs, so a build that waits until the end wastes
+that window. The order is: write the code → fast checks (`npm run build`,
+`npm run test:run`, `npm run lint`, `ruff`, ~40s) → send me a push
+notification saying it is viewable → the touched backend tests → commit, PR,
+and CI. The notification is a signal,
 not a question: **do not pause for my reply.** The fast checks come first
 because notifying before anything is verified hands me a page that may not even
 compile; 40 seconds buys that.

@@ -6,7 +6,7 @@ edits them (/random-defaults).
 One row per picker mode in the system_configs key/value table, keyed as
 'random_picker_defaults:<mode>' with a JSON blob as the value, the same way
 routers/form_defaults.py stores form defaults. A mode is "all" (the general
-picker) or one media type.
+picker), one media type, or "franchise" (the mode that draws a franchise).
 
 Reading is open to everyone, because the picker is: a guest's picker opens
 with the same defaults as anyone's. Writing is manage.catalog, as with form
@@ -36,10 +36,12 @@ router = APIRouter(prefix="/api/random-picker-defaults", tags=["Random Picker De
 PICKER_DEFAULTS_PREFIX = "random_picker_defaults:"
 MAX_PAYLOAD_BYTES = 32 * 1024
 
-# Mirrors PICKER_TYPES in frontend/src/lib/randomPicker.js, plus "all".
+# Mirrors PICKER_MODES in frontend/src/lib/randomPicker.js: "all", every
+# PICKER_TYPES type, and "franchise", which draws franchises, not entries.
 VALID_MODES = frozenset(
     {
         "all",
+        "franchise",
         "anime",
         "anime-movie",
         "movie",

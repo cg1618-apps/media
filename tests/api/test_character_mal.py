@@ -435,3 +435,28 @@ def test_a_reused_characters_set_mal_link_is_kept(
     edward = db_session.get(models.Character, edward.system_id)
     assert edward.mal_id == 11
     assert edward.mal_link == kept
+
+
+def test_a_mal_import_leaves_a_saved_credited_name_alone(
+    admin_client, db_session, cast_calls, anime
+):
+    # Edward is already cast here under the name this entry gives him. The
+    # import matches him on mal_id, so it has his row to clobber if it would.
+    edward = models.Character(system_id=uuid.uuid4(), name_en="Ed", mal_id=11)
+    db_session.add(edward)
+    db_session.flush()
+    casting = models.CharacterCasting(
+        character_id=edward.system_id, media_type="anime",
+        entry_id=anime.system_id, credited_name="Fullmetal",
+    )
+    db_session.add(casting)
+    db_session.commit()
+
+    r = _import_holding(admin_client, edward)
+    assert r.status_code == 200, r.text
+    ed_row = next(row for row in r.json()["cast"] if row["character_id"] == str(edward.system_id))
+    # MAL knows no per-entry name, so its row offers none.
+    assert ed_row.get("credited_name") is None
+
+    db_session.expire_all()
+    assert db_session.get(models.CharacterCasting, casting.system_id).credited_name == "Fullmetal"

@@ -4,7 +4,8 @@ Read and wholesale-replace one media entry's cast.
 
 Not a part of /api/credits, whose payload is Dict[str, List[str]] - bare
 names keyed by role. A cast row is richer than that: it names a character, an
-optional seiyuu, a role, a display position, a photo, and a remark, and each
+optional seiyuu, a role, a display position, a photo, a credited name and a
+remark, and each
 of those needs its own column rather than collapsing into a name string -
 and the seiyuu are a list of their own, one character may have several.
 Keeping the two endpoints apart also keeps /api/credits' role vocabulary
@@ -58,7 +59,17 @@ class CastRowIn(BaseModel):
     position: Optional[int] = None
     photo_file: Optional[str] = None
     photo_focus: ImageFocus = None
+    # The name the character goes by in this entry; blank is none.
+    credited_name: Optional[str] = None
     remark: Optional[str] = None
+
+    @field_validator("credited_name", mode="before")
+    @classmethod
+    def _trim_credited_name(cls, v):
+        """Trimmed; blank or whitespace is no credited name, as NULL is."""
+        if isinstance(v, str):
+            return v.strip() or None
+        return v
 
     @field_validator("role", mode="before")
     @classmethod

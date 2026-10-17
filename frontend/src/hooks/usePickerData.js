@@ -1,13 +1,21 @@
 // Frontend: everything one random picker mode draws on - the lists of its
-// types as picker entries, its FilterDefs, its stored default filters, and
-// whether it draws weighted by default.
+// types as picker entries (or, in the franchise mode, every franchise, with
+// the type lists describing what each holds), its FilterDefs, its stored
+// default filters, and whether it draws weighted by default.
 // Shared by the picker and the defaults editor, which must agree on all three.
 import { useMemo } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 
 import { endpoints } from "../api/endpoints";
 import { MEDIA_CONFIG } from "../config/mediaRegistry";
-import { filterDefsForMode, resolveDefaultFilters, toEntries } from "../lib/randomPicker";
+import {
+  FRANCHISE_MODE,
+  filterDefsForMode,
+  isWeightedMode,
+  resolveDefaultFilters,
+  toEntries,
+  toFranchiseEntries,
+} from "../lib/randomPicker";
 import { LIST_OPTIONS, mediaListQueryKey } from "./useMediaList";
 import { buildUrl, fetchJson } from "./queryUtils";
 
@@ -26,9 +34,10 @@ function combineLists(results) {
 }
 
 /**
- * mode      "all" or one type
- * typesKey  the comma-joined types the mode draws from - a string, so the
- *           memos below see a change of types rather than a new array
+ * mode      "all", one type, or FRANCHISE_MODE
+ * typesKey  the comma-joined types the mode draws from (for the franchise
+ *           mode, every visible type) - a string, so the memos below see a
+ *           change of types rather than a new array
  */
 export function usePickerData(mode, typesKey) {
   const types = useMemo(() => typesKey.split(",").filter(Boolean), [typesKey]);
@@ -44,6 +53,16 @@ export function usePickerData(mode, typesKey) {
     combine: combineLists,
   });
 
+  // The franchise mode's pool. The same key the franchise lists share.
+  const isFranchiseMode = mode === FRANCHISE_MODE;
+  const franchisesQuery = useQuery({
+    queryKey: mediaListQueryKey("franchise", LIST_OPTIONS.params),
+    queryFn: () =>
+      fetchJson(buildUrl(`${MEDIA_CONFIG.franchise.apiEndpoint}/`, LIST_OPTIONS.params)),
+    staleTime: 30_000,
+    enabled: isFranchiseMode,
+  });
+
   // Defaults that cannot be read are no defaults: the picker still works.
   const defaultsQuery = useQuery({
     queryKey: pickerDefaultsQueryKey(mode),
@@ -55,9 +74,13 @@ export function usePickerData(mode, typesKey) {
     staleTime: 30_000,
   });
 
+  const franchises = franchisesQuery.data;
   const entries = useMemo(
-    () => types.flatMap((t, i) => toEntries(t, lists[i])),
-    [types, lists],
+    () =>
+      isFranchiseMode
+        ? toFranchiseEntries(franchises, Object.fromEntries(types.map((t, i) => [t, lists[i]])))
+        : types.flatMap((t, i) => toEntries(t, lists[i])),
+    [isFranchiseMode, franchises, types, lists],
   );
   const filterDefs = useMemo(() => filterDefsForMode(mode, types), [mode, types]);
   const storedFilters = defaultsQuery.data?.filters;
@@ -70,9 +93,9 @@ export function usePickerData(mode, typesKey) {
     entries,
     filterDefs,
     defaultFilters,
-    // Weighted unless a mode was saved otherwise.
-    defaultWeighted: defaultsQuery.data?.weighted ?? true,
-    isLoading: listsLoading || defaultsQuery.isLoading,
-    error,
+    // Weighted unless a mode was saved otherwise, or cannot be weighted.
+    defaultWeighted: isWeightedMode(mode) && (defaultsQuery.data?.weighted ?? true),
+    isLoading: listsLoading || defaultsQuery.isLoading || franchisesQuery.isLoading,
+    error: error ?? franchisesQuery.error?.message ?? null,
   };
 }
