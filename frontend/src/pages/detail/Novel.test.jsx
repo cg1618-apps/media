@@ -228,3 +228,15 @@ describe("Novel detail page — sources", () => {
     expect(screen.queryByText("Open Library")).not.toBeInTheDocument();
   });
 });
+
+describe("Novel detail page — Production", () => {
+  // An empty publisher_refs is what bites: `[].length` is 0, and React prints
+  // a bare 0 where a false condition prints nothing.
+  it("prints no stray zero when nobody is credited", async () => {
+    mockFetch({ ...BASE_NOVEL, publisher_refs: [] });
+    mount();
+    await screen.findByRole("heading", { name: "Test Novel" });
+    expect(screen.queryByText("0")).toBeNull();
+    expect(screen.queryByText("Production")).toBeNull();
+  });
+});

@@ -522,7 +522,7 @@ export default function HGame() {
                   ],
                 ]}
               />
-              {(hGame.studio || hGame.studio_refs?.length) && (
+              {(hGame.studio || hGame.studio_refs?.length > 0) && (
                 <InfoCard
                   title="Production"
                   fields={[{ label: "Developer", value: studioValue(hGame) }]}

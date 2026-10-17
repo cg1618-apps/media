@@ -163,4 +163,13 @@ describe("HGame detail page", () => {
     await waitFor(() => expect(screen.getByLabelText("Reorder group Ahri")).not.toBeDisabled());
     expect(JSON.parse(patch[1].body)).toEqual({ highlight_group_order: ["Bora", "Ahri"] });
   });
+
+  // An empty studio_refs is what bites: `[].length` is 0, and React prints a
+  // bare 0 where a false condition prints nothing.
+  it("prints no stray zero when no developer is credited", async () => {
+    mockFetch({ ...ENTRY, studio: null, studio_refs: [] }, []);
+    mount();
+    await screen.findByRole("heading", { name: "Aitch Game" });
+    expect(screen.queryByText("0")).toBeNull();
+  });
 });
