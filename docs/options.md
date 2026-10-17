@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-10-13
+Last verified: 2026-10-17
 
 ## What this is for
 
@@ -537,7 +537,6 @@ Tier 2 category:
 | `genre_main` | Genre Main | `Genre Main` | anime |
 | `genre_sub` | Genre Sub | `Genre Sub` | anime |
 | `label` | 標籤 Label | `Label` | anime, game |
-| `quality` | Quality 品質 | `Quality` | anime |
 | `original_source` | Original Source | `Platform` | tv-show, cartoon, movie, h-comic |
 | `exclusive_source` | Exclusive Source | `Platform` | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | `Serialization Platform` | manga, novel |
@@ -604,12 +603,12 @@ legacy sheet header `source_official` (`LEGACY_SHEET_COLUMN`), while `movie`
 [data-model.md](data-model.md#virtual-fields-on-media-entries).
 
 `TAG_CATEGORIES` (served as `/api/constants` `tag_categories`): `Genre Main`,
-`Genre Sub`, `Label`, `Quality` — the subset of the categories below that the
+`Genre Sub`, `Label` — the subset of the categories below that the
 admin Add / Modify / Delete pages offer under their **Tags** sub-tab instead
 of **Options**. The split is navigation only: both sub-tabs are the same form
 over the same `system_option` rows, and nothing in the data or the API marks
-a category as a tag. The list is written out, not derived — these four happen
-to be exactly the anime-only tag fields today, but what puts a category here
+a category as a tag. The list is written out, not derived — these three happen
+to be anime's tag fields today, but what puts a category here
 is that its values read as tags *on* the work, while `Platform` and the
 Comic vocabularies name an outside party. A new anime-only category is therefore not automatically a tag.
 
@@ -707,7 +706,6 @@ twenty-four in `OPTION_CATEGORIES`:
 | `Genre Main` | anime | tag field `genre_main` |
 | `Genre Sub` | anime | tag field `genre_sub` |
 | `Label` | anime | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
-| `Quality` | anime | tag field `quality` (品質: production-quality tags; ships with no values, an admin adds them through the Options Add page) |
 | `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie, h-comic) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
 | `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; every `game`-scoped value and `Twitter` also carry `h-game` (below); `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
 | `Serialization Platform` | manga, novel | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |

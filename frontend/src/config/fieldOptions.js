@@ -121,8 +121,7 @@ export const PRICE_CURRENCIES = ["USD", "JPY", "TWD", "EUR", "GBP", "KRW", "CNY"
 export const IS_MAIN = ["本傳", "外傳", "前傳", "後傳", "總集篇"];
 
 // The anime tag fields "Import genres & labels from…" copies from a
-// franchise sibling. Quality is not one: it describes this entry's own
-// production, so a sequel does not inherit it.
+// franchise sibling.
 export const ANIME_IMPORTED_TAGS = ["genre_main", "genre_sub", "label"];
 
 export const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
@@ -383,7 +382,6 @@ export const OPTION_CATEGORIES = [
   "Genre Main",
   "Genre Sub",
   "Label",
-  "Quality",
   "Official Source",
   // "Publisher / Distributor TW" and "Comic Publisher" were here until
   // 2026-09-07. Both vocabularies are retired: every publisher and TW
@@ -409,7 +407,7 @@ export const OPTION_CATEGORIES = [
 // The subset of OPTION_CATEGORIES the admin pages group under their "Tags"
 // sub-tab (TAG_CATEGORIES in app/utils/credit_roles.py). Navigation only -
 // both sub-tabs are the same form over the same system_option rows.
-export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label", "Quality"];
+export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label"];
 
 // Shape-matched to GET /api/constants. Rendered only until the fetch resolves.
 export const CONSTANTS_FALLBACK = {

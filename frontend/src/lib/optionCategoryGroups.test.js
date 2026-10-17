@@ -17,12 +17,11 @@ const ALL = [
   "Genre Sub",
   "Label",
   "Official Source",
-  "Quality",
 ];
 
 describe("isTagCategory", () => {
   it("recognises the tag categories", () => {
-    expect(isTagCategory("Quality")).toBe(true);
+    expect(isTagCategory("Label")).toBe(true);
     expect(isTagCategory("Genre Main")).toBe(true);
   });
 
@@ -34,7 +33,7 @@ describe("isTagCategory", () => {
   it("follows /api/constants rather than a copy of the list", () => {
     applyConstants({ tag_categories: ["Comic Era"] });
     expect(isTagCategory("Comic Era")).toBe(true);
-    expect(isTagCategory("Quality")).toBe(false);
+    expect(isTagCategory("Label")).toBe(false);
   });
 });
 
@@ -42,7 +41,7 @@ describe("categoriesForSubTab", () => {
   it("splits the categories across the two pickers with nothing lost", () => {
     const tags = categoriesForSubTab(ALL, "tags");
     const options = categoriesForSubTab(ALL, "options");
-    expect(tags).toEqual(["Genre Main", "Genre Sub", "Label", "Quality"]);
+    expect(tags).toEqual(["Genre Main", "Genre Sub", "Label"]);
     expect(options).toEqual(["Comic Era", "Official Source"]);
     expect([...tags, ...options].sort()).toEqual([...ALL].sort());
   });

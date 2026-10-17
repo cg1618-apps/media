@@ -83,16 +83,16 @@ def test_serves_the_declared_option_categories(admin_client):
     # admin_client: `unrestricted`, which sees every gated type, so nothing
     # is narrowed. A narrow session's payload is covered below.
     """
-    The Options form used to build its category list purely from the options
-    already in the database, so a category declared in TAG_FIELDS but not yet
-    populated - Quality on the day it shipped - could not be picked at all,
-    and its first value had to be typed blind into a free-text box.
+    The Options form cannot build its category list from the options already
+    in the database alone: a category declared in TAG_FIELDS but not yet
+    populated would be unpickable, and its first value typed blind.
     """
     from app.utils.credit_roles import OPTION_CATEGORIES
 
     body = admin_client.get("/api/constants").json()
     assert body["option_categories"] == list(OPTION_CATEGORIES)
-    assert "Quality" in body["option_categories"]
+    assert "Combat Mode" in body["option_categories"]
+    assert "Quality" not in body["option_categories"]
 
 
 def test_serves_the_tag_categories_as_a_subset_of_option_categories(client):
@@ -108,7 +108,8 @@ def test_serves_the_tag_categories_as_a_subset_of_option_categories(client):
     body = client.get("/api/constants").json()
     assert body["tag_categories"] == list(TAG_CATEGORIES)
     assert set(body["tag_categories"]) <= set(body["option_categories"])
-    assert "Quality" in body["tag_categories"]
+    assert "Label" in body["tag_categories"]
+    assert "Quality" not in body["tag_categories"]
     assert "Comic Era" not in body["tag_categories"]
 
 

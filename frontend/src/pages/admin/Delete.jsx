@@ -27,6 +27,7 @@ import {
   toggleIn,
 } from "../../lib/entityScopes";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
+import OptionValueGroups from "../../components/forms/OptionValueGroups";
 import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
 import {
   ALIAS_CATEGORIES,
@@ -3348,10 +3349,11 @@ export default function Delete() {
             />
           </div>
 
-          {optCategoryFilter && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {filteredOptions.length ? (
-                filteredOptions.map((opt) => (
+          {optCategoryFilter &&
+            (filteredOptions.length ? (
+              <OptionValueGroups
+                options={filteredOptions}
+                renderOption={(opt) => (
                   <div
                     key={opt.system_id}
                     className="bg-surface border border-border rounded-xl p-3 flex justify-between items-center group hover:bg-danger/10 hover:border-danger/40 transition shadow-sm"
@@ -3366,14 +3368,13 @@ export default function Delete() {
                       <i className="fas fa-trash-alt text-xs"></i>
                     </button>
                   </div>
-                ))
-              ) : (
-                <div className="col-span-full text-center text-sm text-text-faint italic py-8 border border-dashed border-border-strong rounded-xl">
-                  No options in this category.
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              />
+            ) : (
+              <div className="text-center text-sm text-text-faint italic py-8 border border-dashed border-border-strong rounded-xl">
+                No options in this category.
+              </div>
+            ))}
         </div>
       )}
 

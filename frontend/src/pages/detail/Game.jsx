@@ -534,9 +534,12 @@ export default function Game() {
                     },
                   ],
                   [
-                    // The only vocabulary shown here: which platform the game is
-                    // on is the one a reader looks for on the page.
                     { label: "Platform", value: game.game_platform },
+                    { label: "Genre", value: game.game_genre },
+                    { label: "Theme", value: game.game_theme },
+                    { label: "Mode", value: game.game_mode },
+                    { label: "Combat Mode", value: game.combat_mode },
+                    { label: "標籤 Label", value: game.label },
                   ],
                   [
                     { label: "Release Status", value: game.release_status },

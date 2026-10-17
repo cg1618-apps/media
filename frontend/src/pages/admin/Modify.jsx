@@ -30,6 +30,7 @@ import TVShowNotes from "../detail/TVShowNotes";
 import CartoonNotes from "../detail/CartoonNotes";
 import MangaNotes from "../detail/MangaNotes";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
+import OptionValueGroups from "../../components/forms/OptionValueGroups";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
 import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
 import CollectionModifyTab from "../modify-tabs/CollectionModifyTab";
@@ -4108,8 +4109,9 @@ export default function Modify() {
           )}
 
           {activeTab === "options" && optCatFilter && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {filteredOptions.map((opt) => (
+            <OptionValueGroups
+              options={filteredOptions}
+              renderOption={(opt) => (
                 <button
                   key={opt.system_id}
                   onClick={() => openEditor(opt, "options")}
@@ -4117,8 +4119,8 @@ export default function Modify() {
                 >
                   {opt.value}
                 </button>
-              ))}
-            </div>
+              )}
+            />
           )}
 
           {activeTab !== "options" && (
