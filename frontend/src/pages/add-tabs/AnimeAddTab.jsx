@@ -491,21 +491,7 @@ export default function AnimeAddTab({
             limit={null}
           />
         </Field>
-        <Field label="Quality 品質">
-          <MultiSelect
-            options={getSourceValues(sources, {
-              kind: "option",
-              category: "Quality",
-            })}
-            value={af.quality}
-            onChange={(v) => ua("quality", v)}
-            placeholder="Select qualities..."
-            limit={null}
-          />
-        </Field>
       </div>
-      {/* Quality is left out on purpose: it rates this entry's production,
-          which a sibling does not share. */}
       <TagImport
         mediaType="anime"
         franchiseId={af.franchise_id}

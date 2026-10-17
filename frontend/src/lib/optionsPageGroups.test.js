@@ -149,7 +149,6 @@ const CATEGORIES = [
   "Genre Sub",
   "Label",
   "Platform",
-  "Quality",
   "Reference Source",
   "Serialization Platform",
   "Song Source",
@@ -165,7 +164,7 @@ describe("groupTier2Categories", () => {
     ]);
   });
 
-  it("reads the four anime tag vocabularies together", () => {
+  it("reads the three anime tag vocabularies together", () => {
     const tags = groupTier2Categories(CATEGORIES).find(
       (s) => s.title === "Tags",
     );
@@ -173,7 +172,6 @@ describe("groupTier2Categories", () => {
       "Genre Main",
       "Genre Sub",
       "Label",
-      "Quality",
     ]);
   });
 

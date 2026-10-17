@@ -122,7 +122,6 @@ class AnimeLinkFields(AttachedFields):
     genre_main: Optional[str] = None
     genre_sub: Optional[str] = None
     label: Optional[str] = None
-    quality: Optional[str] = None
     exclusive_source: Optional[str] = None
 
 

@@ -29,7 +29,6 @@ const CREDITS_FIELD_MAP = {
       genre_main: "genre_main",
       genre_sub: "genre_sub",
       label: "label",
-      quality: "quality",
       exclusive_source: "exclusive_source",
     },
   },

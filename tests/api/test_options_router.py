@@ -205,15 +205,15 @@ def test_update_keeps_a_scope_the_option_already_had(admin_client):
     """
     created = admin_client.post(
         "/api/options/",
-        json={"category": "Quality", "value": "品質高", "scopes": ["anime"]},
+        json={"category": "Label", "value": "會跳OP", "scopes": ["anime"]},
     ).json()
 
     r = admin_client.put(
         f"/api/options/{created['system_id']}",
-        json={"category": "Quality", "value": "品質很高", "scopes": ["anime"]},
+        json={"category": "Label", "value": "會跳ED", "scopes": ["anime"]},
     )
     assert r.status_code == 200, r.text
-    assert r.json()["value"] == "品質很高"
+    assert r.json()["value"] == "會跳ED"
     assert r.json()["scopes"] == ["anime"]
 
 
@@ -251,12 +251,12 @@ def test_update_can_clear_every_scope(admin_client):
     """Empty scopes means offered everywhere, and must be reachable."""
     created = admin_client.post(
         "/api/options/",
-        json={"category": "Quality", "value": "作畫崩壞", "scopes": ["anime"]},
+        json={"category": "Label", "value": "很多福利", "scopes": ["anime"]},
     ).json()
 
     r = admin_client.put(
         f"/api/options/{created['system_id']}",
-        json={"category": "Quality", "value": "作畫崩壞", "scopes": []},
+        json={"category": "Label", "value": "很多福利", "scopes": []},
     )
     assert r.status_code == 200, r.text
     assert r.json()["scopes"] == []
