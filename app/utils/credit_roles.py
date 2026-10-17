@@ -114,7 +114,7 @@ PERSON_ROLES: tuple[str, ...] = tuple(
 # Labels that differ by media type. One person type, three reader-facing words:
 # the same `author` is 原作 on a manga, Author on a novel and Writer on a
 # comic. 作畫 is the traditional form, matching the site's other CJK labels
-# (標籤 Label, Quality 品質); the pre-collapse label carried the Japanese 作画.
+# (標籤 Label); the pre-collapse label carried the Japanese 作画.
 # Anything absent falls back to CreditRole.label.
 _LABEL_OVERRIDES: dict[tuple[str, str], str] = {
     ("author", "manga"): "原作",
@@ -166,9 +166,6 @@ TAG_FIELDS: dict[str, TagField] = {
     # Viewing-experience tags (會跳OP, 很多福利, ...). No legacy column ever
     # held these, so no LEGACY_SHEET_COLUMN entry: the sheet header is the key.
     "label": TagField("label", "標籤 Label", "Label", ("anime", "game")),
-    # Production-quality tags (神作畫, 作畫崩壞, ...). Anime-only and, like
-    # `label`, never a legacy column, so its sheet header is the key itself.
-    "quality": TagField("quality", "Quality 品質", "Quality", ("anime",)),
     # Where a work FIRST appeared. Multi-value: a film can open in cinemas and
     # on a streaming service the same day.
     "original_source": TagField(
@@ -281,8 +278,8 @@ FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
 # the same system_option rows - the split is navigational, nothing in the
 # data or the API distinguishes a tag category from any other.
 #
-# Listed, not derived. These four happen to be exactly the anime-only tag
-# fields today, but that is a coincidence of the current vocabulary, not the
+# Listed, not derived. These three happen to be anime's tag fields today,
+# but that is a coincidence of the current vocabulary, not the
 # rule: what puts a category here is that its values read as tags ON the
 # work, while Official Source and the Comic vocabularies name an outside
 # party. A new anime-only category is not automatically a tag, so it must be
@@ -291,7 +288,6 @@ TAG_CATEGORIES: tuple[str, ...] = (
     "Genre Main",
     "Genre Sub",
     "Label",
-    "Quality",
 )
 
 # Four sources, each declared where its readers live: the entry tag fields

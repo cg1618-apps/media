@@ -141,27 +141,21 @@ def test_anime_carries_the_label_tag_and_its_sheet_column(client, db_session):
     assert values[headers.index("label")] == "會跳OP, 很多福利"
 
 
-def test_anime_carries_the_quality_tag_and_its_sheet_column(client, db_session):
+def test_anime_serves_no_quality_field_or_sheet_column(client, db_session):
     """
-    Quality 品質 is anime-only and, like 標籤 Label, never had a legacy string
-    column, so it is served - and backed up - under its own key.
+    Quality 品質 is not a tag field: the anime response and its sheet columns
+    carry no `quality`. The label tag beside it is the mirror case - it proves
+    the response does carry the tag fields that exist.
     """
-    a = _anime(db_session, "品質測試")
-    credits_service.replace_tags(db_session, a.system_id, "quality", ["作畫崩壞", "神作畫"])
+    a = _anime(db_session, "無品質")
+    credits_service.replace_tags(db_session, a.system_id, "label", ["會跳OP"])
     db_session.commit()
 
     body = client.get(f"/api/anime/{a.system_id}").json()
-    assert body["quality"] == "作畫崩壞, 神作畫"
+    assert body["label"] == "會跳OP"
+    assert "quality" not in body
 
-    headers = credits_service.sheet_link_headers("anime")
-    values = credits_service.sheet_link_values(db_session, "anime", a)
-    assert values[headers.index("quality")] == "作畫崩壞, 神作畫"
-
-
-# ---------------------------------------------------------------------------
-# credit_refs: the same person credits, with ids and the per-media-type label,
-# so a detail page can link to the person the legacy string only names.
-# ---------------------------------------------------------------------------
+    assert "quality" not in credits_service.sheet_link_headers("anime")
 
 
 def test_credit_refs_carry_ids_and_derived_labels(client, manga_with_credits):

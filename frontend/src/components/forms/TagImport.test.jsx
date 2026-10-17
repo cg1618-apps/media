@@ -1,6 +1,6 @@
 // TagImport's contracts: the picker lists the franchise's other entries that
 // carry a tag, a pick appends the source's tags after the form's own without
-// duplicating one, and a field the import is not given - quality, on anime -
+// duplicating one, and a field the import is not given - exclusive_source, on anime -
 // is never touched however much the source holds of it.
 import { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -16,7 +16,7 @@ const SIBLINGS = [
     genre_main: "Action, Fantasy",
     genre_sub: "Isekai",
     label: "原創",
-    quality: "神作畫",
+    exclusive_source: "Netflix",
   },
   // The entry being edited: never offered as its own source.
   { system_id: "e2", anime_name_cn: "第二季", genre_main: "Action" },
@@ -71,16 +71,16 @@ it("lists the franchise's other anime that carry a genre or label", async () => 
   const picker = await screen.findByLabelText("Import genres and labels from");
   expect(fetchMock.mock.calls[0][0]).toBe("/api/anime/?franchise_id=f1");
   const options = [...picker.querySelectorAll("option")].map((o) => o.textContent);
-  // Quality does not count towards the number shown.
+  // exclusive_source does not count towards the number shown.
   expect(options).toEqual(["Import genres & labels from…", "第一季 (4)"]);
 });
 
-it("appends the sibling's genres and labels but never its quality", async () => {
+it("appends the sibling's genres and labels but never its exclusive source", async () => {
   stubList();
   const spy = vi.fn();
   render(
     <Form
-      initial={{ genre_main: "Action", genre_sub: "", label: "", quality: "作畫崩壞" }}
+      initial={{ genre_main: "Action", genre_sub: "", label: "", exclusive_source: "" }}
       spy={spy}
     />,
   );
@@ -94,9 +94,9 @@ it("appends the sibling's genres and labels but never its quality", async () => 
     genre_sub: "Isekai",
     label: "原創",
   });
-  // The fixture's quality is non-empty, so this proves the import skipped
+  // The fixture's exclusive_source is non-empty, so this proves the import skipped
   // it rather than finding nothing to copy.
-  expect(spy.mock.calls.map(([k]) => k)).not.toContain("quality");
+  expect(spy.mock.calls.map(([k]) => k)).not.toContain("exclusive_source");
   expect(screen.getByRole("status")).toHaveTextContent(
     "Imported 3 from 第一季 (1 already here). Save to keep them.",
   );

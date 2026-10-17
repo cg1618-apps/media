@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-13
+Last verified: 2026-10-17
 
 ## What this is for
 
@@ -148,7 +148,6 @@ that names a credit which does not exist.
 | `genre_main` | Genre Main | Genre Main | anime |
 | `genre_sub` | Genre Sub | Genre Sub | anime |
 | `label` | 標籤 Label | Label | anime, game |
-| `quality` | Quality 品質 | Quality | anime |
 | `original_source` | Original Source | Platform | tv-show, cartoon, movie, h-comic (the KR official source) |
 | `exclusive_source` | Exclusive Source | Platform | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | Serialization Platform | manga, novel |

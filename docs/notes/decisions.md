@@ -3328,3 +3328,17 @@ page's cast row "Conan (Kudo Shinichi)" read as two characters.
 - **Done on the server, not only in the form:** `/api/casting/originals` no
   longer returns `remark`, and the fill no longer counts `cast_remark`, so no
   caller can bring a remark down by another route.
+
+### Quality 品質 is removed, values and all (2026-10-17)
+
+Quality was an anime-only tag vocabulary for production quality (神作畫,
+作畫崩壞, ...). The owner dropped it outright: the `quality` tag field, its
+`Quality` category, the anime form and detail-page fields, and the stored
+data, by `q1u2alityrm3`, which deletes every `quality` media_tag row and every
+`Quality` system_option and declares itself irreversible. Nothing was
+migrated or exported first, by the owner's choice.
+
+The Google Sheet still holds an anime `quality` column and the `Quality`
+options until the next Backup rewrites it. Pull ignores the column, since no
+tag field names it, but would restore the option rows from the System Options
+tab, so back up from a migrated database before any Pull.

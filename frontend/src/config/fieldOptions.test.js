@@ -109,22 +109,22 @@ describe("admin-form vocabularies served from /api/constants", () => {
 });
 
 // A category with no values yet exists only in TAG_FIELDS, so the Options
-// form cannot learn it from the stored options - the reason Quality 品質 was
-// unreachable on the day its tag field shipped.
+// form cannot learn it from the stored options; the declared list is what
+// makes it pickable before its first value exists.
 describe("declared option categories", () => {
   it("is wired into applyConstants like every other Tier 1 list", () => {
     expect(CONSTANTS_FALLBACK.option_categories).toBe(OPTION_CATEGORIES);
   });
 
   it("offers a category that has no options stored against it", () => {
-    expect(OPTION_CATEGORIES).toContain("Quality");
+    expect(OPTION_CATEGORIES).toContain("Combat Mode");
   });
 
   it("updates in place from the API payload", () => {
     const before = OPTION_CATEGORIES;
-    applyConstants({ option_categories: ["Genre Main", "Quality"] });
+    applyConstants({ option_categories: ["Genre Main", "Label"] });
     expect(OPTION_CATEGORIES).toBe(before);
-    expect(OPTION_CATEGORIES).toEqual(["Genre Main", "Quality"]);
+    expect(OPTION_CATEGORIES).toEqual(["Genre Main", "Label"]);
   });
 });
 

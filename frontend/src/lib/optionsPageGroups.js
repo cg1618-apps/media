@@ -81,7 +81,7 @@ export const TIER1_GROUPS = [
 // OPTION_CATEGORIES builds them in app/utils/credit_roles.py - a rename there
 // drops the category into Other rather than hiding it.
 //
-// Listed rather than derived. "Tags" holds the same four categories as
+// Listed rather than derived. "Tags" holds the same three categories as
 // TAG_CATEGORIES today, but that list answers a different question (which
 // sub-tab of Add/Modify edits a category, see optionCategoryGroups.js) and the
 // two are free to diverge.
@@ -94,7 +94,7 @@ export const TIER1_GROUPS = [
 export const TIER2_GROUPS = [
   {
     title: "Tags",
-    categories: ["Genre Main", "Genre Sub", "Label", "Quality"],
+    categories: ["Genre Main", "Genre Sub", "Label"],
   },
   {
     title: "Game",

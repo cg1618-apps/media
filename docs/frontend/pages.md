@@ -1041,7 +1041,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 
 | Page | Information card | Production card | Extras |
 |---|---|---|---|
-| Anime | 本傳/外傳, Season Part, Special Episodes, Total Episodes (with cumulative), Airing Type/Status, Release Season, Release Date, Genre main/sub, 標籤 Label, Quality 品質 | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder |
+| Anime | 本傳/外傳, Season Part, Special Episodes, Total Episodes (with cumulative), Airing Type/Status, Release Season, Release Date, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder |
 | AnimeMovie | Airing Status, Length, Release Date JP/TW | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder |
 | Movie | 本傳/外傳, Airing Status, Length, Director, Release Date TW/USA | — | inline IMDb score block |
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Status, Release Date | — | |

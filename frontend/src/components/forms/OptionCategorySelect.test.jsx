@@ -60,7 +60,7 @@ describe("OptionCategorySelect", () => {
   it("renders one section flat, with no heading over the whole list", () => {
     const { container } = render(
       <OptionCategorySelect
-        categories={["Genre Main", "Genre Sub", "Label", "Quality"]}
+        categories={["Genre Main", "Genre Sub", "Label"]}
         value=""
         onChange={vi.fn()}
       />,
@@ -68,7 +68,7 @@ describe("OptionCategorySelect", () => {
     expect(container.querySelectorAll("optgroup")).toHaveLength(0);
     expect(
       [...container.querySelectorAll("option")].map((o) => o.value),
-    ).toEqual(["", "Genre Main", "Genre Sub", "Label", "Quality"]);
+    ).toEqual(["", "Genre Main", "Genre Sub", "Label"]);
   });
 
   it("offers a blank placeholder row and reports the picked category", () => {
