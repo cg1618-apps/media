@@ -203,10 +203,17 @@ describe("Game detail page — Replace", () => {
 
   // The vocabularies are media_tag rows the API returns as comma-joined
   // strings; the Information card shows them beside Platform, as anime's does.
-  it("shows the game's genre, theme and label in the Information card", async () => {
+  it("shows the game's genre, theme, modes and label in the Information card", async () => {
     mockFetch({
       isAdmin: false,
-      game: { ...GAME, game_genre: "角色扮演, 冒險", game_theme: "奇幻", label: "神作" },
+      game: {
+        ...GAME,
+        game_genre: "角色扮演, 冒險",
+        game_theme: "奇幻",
+        game_mode: "單人, 多人",
+        combat_mode: "PvE",
+        label: "神作",
+      },
     });
     mount();
 
@@ -214,6 +221,10 @@ describe("Game detail page — Replace", () => {
     expect(screen.getByText("角色扮演, 冒險")).toBeInTheDocument();
     expect(screen.getByText("Theme")).toBeInTheDocument();
     expect(screen.getByText("奇幻")).toBeInTheDocument();
+    expect(screen.getByText("Mode")).toBeInTheDocument();
+    expect(screen.getByText("單人, 多人")).toBeInTheDocument();
+    expect(screen.getByText("Combat Mode")).toBeInTheDocument();
+    expect(screen.getByText("PvE")).toBeInTheDocument();
     expect(screen.getByText("標籤 Label")).toBeInTheDocument();
     expect(screen.getByText("神作")).toBeInTheDocument();
   });

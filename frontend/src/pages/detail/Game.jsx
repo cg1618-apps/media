@@ -537,6 +537,8 @@ export default function Game() {
                     { label: "Platform", value: game.game_platform },
                     { label: "Genre", value: game.game_genre },
                     { label: "Theme", value: game.game_theme },
+                    { label: "Mode", value: game.game_mode },
+                    { label: "Combat Mode", value: game.combat_mode },
                     { label: "標籤 Label", value: game.label },
                   ],
                   [
