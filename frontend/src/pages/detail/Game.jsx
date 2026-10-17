@@ -535,28 +535,51 @@ export default function Game() {
                   ],
                   [
                     { label: "Platform", value: game.game_platform },
-                    { label: "Genre", value: game.game_genre },
-                    { label: "Theme", value: game.game_theme },
                     { label: "Mode", value: game.game_mode },
                     { label: "Combat Mode", value: game.combat_mode },
-                    { label: "標籤 Label", value: game.label },
+                  ],
+                ]}
+              />
+              <InfoCard
+                title="Genres"
+                fields={[
+                  [
+                    { label: "Genre", value: game.game_genre },
+                    { label: "Theme", value: game.game_theme },
+                  ],
+                  { label: "標籤 Label", value: game.label },
+                ]}
+              />
+              <InfoCard
+                title="Production & Release"
+                fields={[
+                  [
+                    { label: "Developer", value: studioValue(game) },
+                    {
+                      label: publisherLabel(game, "發行商"),
+                      value: publisherValue(game),
+                    },
+                  ],
+                  [
+                    {
+                      label: creditLabel(game, "director", "Director"),
+                      value: creditValue(game, "director", game.director),
+                    },
+                    {
+                      label: creditLabel(game, "composer", "Composer"),
+                      value: creditValue(game, "composer", game.composer),
+                    },
                   ],
                   [
                     { label: "Release Status", value: game.release_status },
                     { label: "Release Date", value: game.release_date },
                     { label: "Current Patch", value: game.current_patch },
                   ],
-                  [
-                    // Playing status and the four completion axes are NOT here:
-                    // they are editable in My tracker and the Completion block
-                    // above. This one stays because it is a fact about the
-                    // source - whether Steam may write this entry's progress -
-                    // rather than an answer about a playthrough.
-                    {
-                      label: "Steam Progress Sync",
-                      value: yesNo(game.steam_progress_sync),
-                    },
-                  ],
+                ]}
+              />
+              <InfoCard
+                title="Reception"
+                fields={[
                   [
                     // Metacritic's public verdict, not mine - my_rating is the
                     // stamp on the cover.
@@ -567,14 +590,6 @@ export default function Game() {
                     {
                       label: "Metacritic User",
                       value: outOf(game.metacritic_user_score, 10),
-                    },
-                  ],
-                  [
-                    // Derived from the copy rows server-side, never stored.
-                    { label: "Ownership", value: game.ownership },
-                    {
-                      label: "Copies",
-                      value: game.copies?.length ? String(game.copies.length) : null,
                     },
                   ],
                 ]}
@@ -612,45 +627,24 @@ export default function Game() {
                   ],
                 ]}
               />
-              {(game.studio ||
-                game.studio_refs?.length ||
-                game.publisher ||
-                game.publisher_refs?.length ||
-                game.director ||
-                game.composer) && (
-                <InfoCard
-                  title="Production"
-                  fields={[
-                    ...(game.studio || game.studio_refs?.length
-                      ? [{ label: "Developer", value: studioValue(game) }]
-                      : []),
-                    ...(game.publisher || game.publisher_refs?.length
-                      ? [
-                          {
-                            label: publisherLabel(game, "發行商"),
-                            value: publisherValue(game),
-                          },
-                        ]
-                      : []),
-                    ...(game.director
-                      ? [
-                          {
-                            label: creditLabel(game, "director", "Director"),
-                            value: creditValue(game, "director", game.director),
-                          },
-                        ]
-                      : []),
-                    ...(game.composer
-                      ? [
-                          {
-                            label: creditLabel(game, "composer", "Composer"),
-                            value: creditValue(game, "composer", game.composer),
-                          },
-                        ]
-                      : []),
-                  ]}
-                />
-              )}
+              <InfoCard
+                title="Library"
+                fields={[
+                  [
+                    // Derived from the copy rows server-side, never stored.
+                    { label: "Ownership", value: game.ownership },
+                    {
+                      label: "Copies",
+                      value: game.copies?.length ? String(game.copies.length) : null,
+                    },
+                  ],
+                  // Playing status and the four completion axes are NOT here:
+                  // they are editable in My tracker and the Completion block
+                  // above. This one is a fact about the source - whether Steam
+                  // may write this entry's progress - so it sits with the copies.
+                  { label: "Steam Progress Sync", value: yesNo(game.steam_progress_sync) },
+                ]}
+              />
             </div>
 
             <GameCopiesSection copies={game.copies} />

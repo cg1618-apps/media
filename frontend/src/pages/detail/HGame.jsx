@@ -470,40 +470,49 @@ export default function HGame() {
                     },
                   ],
                   [
-                    { label: "Play Style", value: hGame.playstyle },
                     { label: "Series Number", value: num(hGame.series_number) },
+                    { label: "Play Style", value: hGame.playstyle },
                   ],
                   [
-                    { label: "Language", value: hGame.language_availability },
                     { label: "Platform", value: choiceText(hGame.platform) },
+                    { label: "Language", value: hGame.language_availability },
                   ],
+                ]}
+              />
+              <InfoCard
+                title="Genres"
+                fields={[
                   [
-                    { label: "Dialogue Audio", value: choiceText(hGame.dialogue_audio) },
-                    { label: "Sound Effect", value: choiceText(hGame.sound_effect) },
+                    { label: "Genre", value: hGame.game_genre },
+                    { label: "Theme", value: hGame.game_theme },
                   ],
+                  { label: "Genre Plot", value: hGame.h_genre_plot },
+                  { label: "Genre Appearance", value: hGame.h_genre_appearance },
+                  { label: "Genre Relation", value: hGame.h_genre_relation },
+                ]}
+              />
+              <InfoCard
+                title="Presentation"
+                fields={[
                   [
                     { label: "Art Style", value: choiceText(hGame.art_style) },
                     { label: "H 演出 Art Style", value: choiceText(hGame.h_art_style) },
                   ],
                   { label: "H 演出形式", value: choiceText(hGame.h_presentation) },
                   [
+                    { label: "Dialogue Audio", value: choiceText(hGame.dialogue_audio) },
+                    { label: "Sound Effect", value: choiceText(hGame.sound_effect) },
+                  ],
+                ]}
+              />
+              <InfoCard
+                title="Production & Release"
+                fields={[
+                  { label: "Developer", value: studioValue(hGame) },
+                  [
                     { label: "Release Status", value: hGame.release_status },
                     { label: "Release Date", value: hGame.release_date },
                     { label: "Current Patch", value: hGame.current_patch },
-                  ],
-                  [
-                    {
-                      label: "Steam Progress Sync",
-                      value: yesNo(hGame.steam_progress_sync),
-                    },
-                  ],
-                  [
-                    // Derived from the copy rows server-side, never stored.
-                    { label: "Ownership", value: hGame.ownership },
-                    {
-                      label: "Copies",
-                      value: hGame.copies?.length ? String(hGame.copies.length) : null,
-                    },
                   ],
                 ]}
               />
@@ -522,22 +531,18 @@ export default function HGame() {
                   ],
                 ]}
               />
-              {(hGame.studio || hGame.studio_refs?.length > 0) && (
-                <InfoCard
-                  title="Production"
-                  fields={[{ label: "Developer", value: studioValue(hGame) }]}
-                />
-              )}
               <InfoCard
-                title="Genres"
+                title="Library"
                 fields={[
                   [
-                    { label: "Genre", value: hGame.game_genre },
-                    { label: "Theme", value: hGame.game_theme },
+                    // Derived from the copy rows server-side, never stored.
+                    { label: "Ownership", value: hGame.ownership },
+                    {
+                      label: "Copies",
+                      value: hGame.copies?.length ? String(hGame.copies.length) : null,
+                    },
                   ],
-                  { label: "Genre Plot", value: hGame.h_genre_plot },
-                  { label: "Genre Appearance", value: hGame.h_genre_appearance },
-                  { label: "Genre Relation", value: hGame.h_genre_relation },
+                  { label: "Steam Progress Sync", value: yesNo(hGame.steam_progress_sync) },
                 ]}
               />
             </div>

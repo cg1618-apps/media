@@ -172,4 +172,37 @@ describe("HGame detail page", () => {
     await screen.findByRole("heading", { name: "Aitch Game" });
     expect(screen.queryByText("0")).toBeNull();
   });
+
+  it("splits the h-game's facts across Information, Presentation, Production & Release and Library", async () => {
+    mockFetch(
+      {
+        ...ENTRY,
+        playstyle: "ADV",
+        studio: "Aitch Soft",
+        release_status: "Released",
+        sound_effect: ["Moans"],
+        ownership: "Owned",
+      },
+      []
+    );
+    mount();
+
+    const card = async (title) =>
+      within((await screen.findByRole("heading", { name: title })).closest("section"));
+
+    const info = await card("Information");
+    expect(info.getByText("ADV")).toBeInTheDocument();
+    expect(info.getByText("Steam · DLsite")).toBeInTheDocument();
+    expect(info.queryByText("2D · Live2D")).toBeNull();
+
+    const presentation = await card("Presentation");
+    expect(presentation.getByText("2D · Live2D")).toBeInTheDocument();
+    expect(presentation.getByText("Moans")).toBeInTheDocument();
+
+    const production = await card("Production & Release");
+    expect(production.getByText("Aitch Soft")).toBeInTheDocument();
+    expect(production.getByText("Released")).toBeInTheDocument();
+
+    expect((await card("Library")).getByText("Owned")).toBeInTheDocument();
+  });
 });
