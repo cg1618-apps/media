@@ -677,7 +677,7 @@ export default function Manga() {
               manga.author_draw ||
               manga.anime_studio ||
               manga.publisher_tw ||
-              manga.publisher_refs?.length) && (
+              manga.publisher_refs?.length > 0) && (
               <InfoCard
                 title="Production"
                 fields={[

@@ -4,7 +4,7 @@
 // main-story estimate, plus achievements when the game reports a total —
 // so the block must render nothing at all rather than a misleading "0 h".
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -202,30 +202,53 @@ describe("Game detail page — Replace", () => {
   });
 
   // The vocabularies are media_tag rows the API returns as comma-joined
-  // strings; the Information card shows them beside Platform, as anime's does.
-  it("shows the game's genre, theme, modes and label in the Information card", async () => {
+  // strings. Genre, theme and label have a card of their own; the modes stay
+  // in Information beside Platform, since they say what kind of game it is.
+  it("splits the game's facts across Information, Genres, Production & Release, Reception and Library", async () => {
     mockFetch({
       isAdmin: false,
       game: {
         ...GAME,
+        game_platform: "PC",
         game_genre: "角色扮演, 冒險",
         game_theme: "奇幻",
         game_mode: "單人, 多人",
         combat_mode: "PvE",
         label: "神作",
+        studio: "FromSoftware",
+        release_status: "Released",
+        current_patch: "1.12",
+        metacritic_score: 96,
+        ownership: "Owned",
+        steam_progress_sync: true,
       },
     });
     mount();
 
-    expect(await screen.findByText("Genre")).toBeInTheDocument();
-    expect(screen.getByText("角色扮演, 冒險")).toBeInTheDocument();
-    expect(screen.getByText("Theme")).toBeInTheDocument();
-    expect(screen.getByText("奇幻")).toBeInTheDocument();
-    expect(screen.getByText("Mode")).toBeInTheDocument();
-    expect(screen.getByText("單人, 多人")).toBeInTheDocument();
-    expect(screen.getByText("Combat Mode")).toBeInTheDocument();
-    expect(screen.getByText("PvE")).toBeInTheDocument();
-    expect(screen.getByText("標籤 Label")).toBeInTheDocument();
-    expect(screen.getByText("神作")).toBeInTheDocument();
+    const card = async (title) =>
+      within((await screen.findByRole("heading", { name: title })).closest("section"));
+
+    const info = await card("Information");
+    expect(info.getByText("PC")).toBeInTheDocument();
+    expect(info.getByText("單人, 多人")).toBeInTheDocument();
+    expect(info.getByText("PvE")).toBeInTheDocument();
+    expect(info.queryByText("角色扮演, 冒險")).toBeNull();
+    expect(info.queryByText("Released")).toBeNull();
+
+    const genres = await card("Genres");
+    expect(genres.getByText("角色扮演, 冒險")).toBeInTheDocument();
+    expect(genres.getByText("奇幻")).toBeInTheDocument();
+    expect(genres.getByText("神作")).toBeInTheDocument();
+
+    const production = await card("Production & Release");
+    expect(production.getByText("FromSoftware")).toBeInTheDocument();
+    expect(production.getByText("Released")).toBeInTheDocument();
+    expect(production.getByText("1.12")).toBeInTheDocument();
+
+    expect((await card("Reception")).getByText("96 / 100")).toBeInTheDocument();
+
+    const library = await card("Library");
+    expect(library.getByText("Owned")).toBeInTheDocument();
+    expect(library.getByText("Steam Progress Sync")).toBeInTheDocument();
   });
 });

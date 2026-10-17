@@ -567,7 +567,7 @@ export default function Novel() {
             {(novel.author ||
               novel.illustrator ||
               novel.publisher_tw ||
-              novel.publisher_refs?.length) && (
+              novel.publisher_refs?.length > 0) && (
               <InfoCard
                 title="Production"
                 fields={[
