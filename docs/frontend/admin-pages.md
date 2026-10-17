@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-13
+Last verified: 2026-10-17
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -526,6 +526,15 @@ categories the Category picker offers differ (`TAG_CATEGORIES`, see
 [../options.md](../options.md)). All three pages now show the same two, so the
 Add-only `OPTION_VALUE_SUB_TABS` variant is gone. People and studios are
 **not** here — each has its own Entity tab.
+
+On Modify and Delete, a chosen category's values are listed grouped by the
+media type each is scoped to (`forms/OptionValueGroups.jsx` over
+`lib/optionScopeGroups.js`), so a shared vocabulary such as Label reads as
+Anime's values and Game's values rather than one list. Groups follow
+`MEDIA_TYPES` order; a value with several scopes is listed under each, and
+values with no scope — offered everywhere — come last under **All types**. A
+category whose values all fall in one group renders as a plain grid with no
+heading.
 
 Below the scope and usage pickers sits `forms/AliasPicker.jsx`, repeating
 `source` + external-value rows. Its hint says the opposite of theirs on
