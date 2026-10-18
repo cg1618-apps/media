@@ -6,7 +6,13 @@ import { SuggestItem, SuggestList, SuggestNote, stepActive } from "./SuggestList
 
 // ComboBox: search existing items by label, or type a new value (if allowNew).
 // Props:
-//   items: [{id, label}]
+//   items: [{id, label, searchText?, pinned?}]
+//                             — `pinned` marks an action rather than a match
+//                               (CastEditor's "Create new character named
+//                               X"): it is filtered like any item but never
+//                               counted against the ten-result cap, and it
+//                               always follows the matches, so a long list
+//                               of matches cannot push it out of reach
 //   selectedId: string|null   — the currently chosen existing item's ID
 //   inputText: string         — text typed when no existing item is selected
 //   onSelect(id, label)       — called when user picks an existing item
@@ -74,13 +80,15 @@ export default function ComboBox({
 
   const keyOf = (i) => cleanStr(i.searchText || i.label);
   const typed = cleanStr(query);
-  const filtered = (
-    !typed
-      ? items
-      : rankMatches
-        ? rankByMatch(items, typed, keyOf)
-        : items.filter((i) => keyOf(i).includes(typed))
-  ).slice(0, 10);
+  const matching = !typed
+    ? items
+    : rankMatches
+      ? rankByMatch(items, typed, keyOf)
+      : items.filter((i) => keyOf(i).includes(typed));
+  const filtered = [
+    ...matching.filter((i) => !i.pinned).slice(0, 10),
+    ...matching.filter((i) => i.pinned),
+  ];
 
   const isNewValue = allowNew && inputText && !selectedId;
 
