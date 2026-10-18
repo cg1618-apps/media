@@ -12,7 +12,13 @@ from app.services.domain.content_labels import (
     label_keys_for_entry,
     label_keys_for_franchise,
 )
-from app.services.domain.credits import credit_names, tag_values
+from app.services.domain.credits import (
+    credit_names,
+    replace_credits,
+    sheet_link_headers,
+    sheet_link_rows,
+    tag_values,
+)
 from app.services.pipelines import pull
 from app.services.pipelines.tabs import MEDIA_TYPE_FOR_TAB, TAB_BY_NAME, TAB_NAMES
 from app.utils.formatter import parse_hentai_from_sheet
@@ -48,6 +54,7 @@ def test_the_parser_types_every_column():
             "anidb_id": "4521.0",
             "anidb_link": "https://anidb.net/anime/4521",
             "studio": "Studio A, Studio B",
+            "author": "Author A, Author B",
         }
     )
     assert parsed["source_material"] == "Manga"
@@ -58,6 +65,7 @@ def test_the_parser_types_every_column():
     assert parsed["anidb_id"] == 4521
     assert parsed["anidb_link"] == "https://anidb.net/anime/4521"
     assert parsed["studio"] == "Studio A, Studio B"
+    assert parsed["author"] == "Author A, Author B"
 
 
 def test_pull_stamps_the_label_on_every_row_and_franchise(monkeypatch, db_session):
@@ -80,13 +88,29 @@ def test_pull_restores_credits_and_tags(monkeypatch, db_session):
         monkeypatch,
         db_session,
         "Hentai",
-        ["hentai_name_cn", "studio", "director", "h_genre_plot"],
-        [["Zvornik Credited", "Studio Z", "Director Z", "Plot Z"]],
+        ["hentai_name_cn", "studio", "director", "author", "h_genre_plot"],
+        [["Zvornik Credited", "Studio Z", "Director Z", "Author Y, Author Z", "Plot Z"]],
     )
     entry = db_session.query(models.Hentai).filter_by(hentai_name_cn="Zvornik Credited").one()
     assert credit_names(db_session, entry.system_id, "studio") == ["Studio Z"]
     assert credit_names(db_session, entry.system_id, "director") == ["Director Z"]
+    assert credit_names(db_session, entry.system_id, "author") == ["Author Y", "Author Z"]
     assert tag_values(db_session, entry.system_id, "h_genre_plot") == ["Plot Z"]
+
+
+def test_backup_writes_the_author_under_its_own_key(db_session):
+    """No legacy header: the type is new, so the column is the role key, as
+    h-comic's is. Pull reads it back by the same name (above)."""
+    entry = models.Hentai(hentai_name_cn="Zvornik Backed Up")
+    db_session.add(entry)
+    db_session.flush()
+    replace_credits(db_session, "hentai", entry.system_id, "author", ["Author B", "Author A"])
+    db_session.flush()
+
+    headers = sheet_link_headers("hentai")
+    assert headers[:3] == ["studio", "director", "author"]
+    row = dict(zip(headers, sheet_link_rows(db_session, "hentai", [entry])[0]))
+    assert row["author"] == "Author B, Author A"
 
 
 def test_a_label_tab_restore_repairs_a_missing_label(monkeypatch, db_session):

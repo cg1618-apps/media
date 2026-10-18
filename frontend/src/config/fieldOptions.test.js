@@ -138,7 +138,7 @@ const LEGAL = {
   director: ["anime", "anime-movie", "movie", "game", "hentai"],
   producer: ["anime"],
   composer: ["anime", "game"],
-  author: ["manga", "novel", "comic", "h-comic"],
+  author: ["manga", "novel", "comic", "h-comic", "hentai"],
   illustrator: ["manga", "novel", "comic", "h-comic"],
   club: ["h-comic"],
 };
@@ -178,16 +178,18 @@ describe("person field sources", () => {
     for (const key of retired) expect(json).not.toContain(`"${key}"`);
   });
 
-  it("asks for seventeen distinct role/scope pairs", () => {
+  it("asks for eighteen distinct role/scope pairs", () => {
     // Eleven before games; director|game and composer|game are the two the
     // ninth media type adds, illustrator, author and club the three the
-    // gated h-comic type adds, and director|hentai the one hentai adds.
+    // gated h-comic type adds, and director|hentai and author|hentai the two
+    // hentai adds.
     // H-game adds none: its one credit, the developer, is a studio row, not
     // a person.
     const keys = PERSON_SOURCES.map((s) => `${s.role}|${s.scope}`);
-    expect(new Set(keys).size).toBe(17);
-    expect(keys).toHaveLength(17);
+    expect(new Set(keys).size).toBe(18);
+    expect(keys).toHaveLength(18);
     expect(keys).toContain("director|hentai");
+    expect(keys).toContain("author|hentai");
     expect(keys).toContain("director|game");
     expect(keys).toContain("composer|game");
     expect(keys).toContain("illustrator|h-comic");

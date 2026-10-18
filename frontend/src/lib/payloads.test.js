@@ -328,15 +328,20 @@ describe("h-comic ehentai_link", () => {
 });
 
 describe("hentai", () => {
-  it("sends studio and director as credits and the three genres as tags", () => {
+  it("sends studio, director and author as credits and the three genres as tags", () => {
     const payload = buildCreditsPayload("hentai", {
       studio: "Pink Pineapple",
       director: "A, B",
+      author: "W",
       h_genre_plot: "X",
       h_genre_appearance: "",
       h_genre_relation: "Y, Z",
     });
-    expect(payload.credits).toEqual({ studio: ["Pink Pineapple"], director: ["A", "B"] });
+    expect(payload.credits).toEqual({
+      studio: ["Pink Pineapple"],
+      director: ["A", "B"],
+      author: ["W"],
+    });
     expect(payload.tags).toEqual({
       h_genre_plot: ["X"],
       h_genre_appearance: [],
@@ -346,12 +351,13 @@ describe("hentai", () => {
 
   it("reads the same fields back out of a credits response", () => {
     const form = creditsResponseToForm("hentai", {
-      credits: { studio: ["S"], director: [] },
+      credits: { studio: ["S"], director: [], author: ["W1", "W2"] },
       tags: { h_genre_plot: ["P"] },
     });
     expect(form).toEqual({
       studio: "S",
       director: "",
+      author: "W1, W2",
       h_genre_plot: "P",
       h_genre_appearance: "",
       h_genre_relation: "",

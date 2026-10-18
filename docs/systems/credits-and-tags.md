@@ -67,7 +67,7 @@ the stored value, tuple of keys for validation.
 | `director` | Director | person | anime, anime-movie, movie, game, hentai |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime, game |
-| `author` | Author | person | manga, novel, comic, h-comic |
+| `author` | Author | person | manga, novel, comic, h-comic, hentai |
 | `illustrator` | Illustrator | person | manga, novel, comic, h-comic |
 | `club` | Club | person | h-comic |
 | `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai |
@@ -176,6 +176,14 @@ scope rather than a hentai-only role, so a studio credited on a mainstream
 anime and on a hentai is one studio row. The shared-record rule then does the
 rest: credited only on hentai, it is hidden with them; credited on an anime
 too, it stays visible through that anime, with the hentai credit omitted.
+
+**Hentai shares h-comic's author.** The `author` role gains the `hentai`
+scope for the same reason: a hentai and the h-comic it adapts name the same
+writer, so one person row carries both credits and their page lists both. It
+reads **Author** on a hentai, as on an h-comic - neither has a label override.
+A session that sees h-comic but not hentai sees that person through the
+h-comic, with the hentai credit and the `author|hentai` role omitted; one
+credited only on hentai is hidden with it.
 
 `FILTER_ONLY_CATEGORIES = ("Franchise for Filter", "Reference Source")` exists
 as a vocabulary but backs no field. **There is no `publisher_tw` or

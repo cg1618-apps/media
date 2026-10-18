@@ -8,7 +8,8 @@
 // finishes the entry when it reaches the total, and Mark completed, which
 // also marks it aired and carries the counter to the total. What it adds is
 // h-comic's: usefulness, the three H genre fields, and the originality of
-// the work; and anime's: a studio, a director, a voiced cast, and a MAL link
+// the work, and an author; and anime's: a studio, a director, a voiced cast,
+// and a MAL link
 // Tenrai fills the airing status, release date, episode count, cover and two
 // reference links from.
 import { useEffect, useMemo, useState } from "react";
@@ -426,6 +427,10 @@ export default function Hentai() {
                     value: creditValue(hentai, "director", hentai.director),
                   },
                 ],
+                {
+                  label: creditLabel(hentai, "author", "Author"),
+                  value: creditValue(hentai, "author", hentai.author),
+                },
               ]}
             />
             <CastSection cast={cast} />

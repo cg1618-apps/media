@@ -127,9 +127,12 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
       </div>
 
       <SectionHeader icon="fa-pen-nib" title="Credits" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Studio">{tagField("studio", "Select studio...")}</Field>
         <Field label="Director">{tagField("director", "Select director...")}</Field>
+        <Field label="Author" hint="The original work's writer">
+          {tagField("author", "Select or type author...")}
+        </Field>
       </div>
 
       {/* Saved through PUT /api/casting/hentai/{id} once the entry exists,

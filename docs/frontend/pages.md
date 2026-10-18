@@ -1169,7 +1169,7 @@ carries `MyTrackerCard`'s `EpisodeStepper` in its actions slot - `ep_fin` of
 `ep_total`, `PATCH { ep_fin }`, and `progressToast`'s "Marked as Completed!"
 when a step reaches the total and the server finishes the entry - then
 `CommunityCard`, `NamingCard`, and three cards - **Information** (Source
-Material, Originality, Airing Status, Release Date, Episodes), **Credits** (Studio via `studioValue`, Director) and
+Material, Originality, Airing Status, Release Date, Episodes), **Credits** (Studio via `studioValue` and Director on one row, Author below, each person linked through `creditValue`) and
 **Genres** (Genre Plot / Appearance / Relation), with a **Cast** slip between
 Credits and Genres - the shared `CastSection`, characters with "voiced by"
 every seiyuu, from `useCasting("hentai", …)`, drawn only when the entry has a

@@ -275,7 +275,7 @@ inserted beside it. Parsers: `parse_game_choice_node_from_sheet`,
 
 `H-Comic` follows `Game Choice Mark`, and `Hentai` follows `H-Comic`, both still
 before `User Media List`. Hentai's credit and tag columns (`studio`,
-`director`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) travel
+`director`, `author`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) travel
 under their own keys the same way. Its `ep_total` is an ordinary column of the
 `Hentai` tab, and the viewer's `ep_fin` and `time_fin` travel on
 `User Media List`, as cartoon's do. Its credit and

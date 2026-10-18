@@ -1137,6 +1137,7 @@ def parse_hentai_from_sheet(raw: dict) -> dict:
         "anidb_link": parse_from_sheet(raw.get("anidb_link"), str),
         "studio": parse_from_sheet(raw.get("studio"), str),
         "director": parse_from_sheet(raw.get("director"), str),
+        "author": parse_from_sheet(raw.get("author"), str),
         "h_genre_plot": parse_from_sheet(raw.get("h_genre_plot"), str),
         "h_genre_appearance": parse_from_sheet(raw.get("h_genre_appearance"), str),
         "h_genre_relation": parse_from_sheet(raw.get("h_genre_relation"), str),
