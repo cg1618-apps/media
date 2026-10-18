@@ -1,7 +1,15 @@
 // Frontend: form component file for MultiSelect.
 import { useState, useRef, useEffect, useId } from "react";
 
-import { SuggestItem, SuggestList, SuggestNote, stepActive } from "./SuggestList";
+import { isEnterKey, useEnterSubmitGuard } from "../../hooks/useEnterToAdd";
+import { rankByMatch } from "../../lib/suggest";
+import {
+  SuggestAction,
+  SuggestItem,
+  SuggestList,
+  SuggestNote,
+  stepActive,
+} from "./SuggestList";
 
 // MultiSelect: manage a comma-separated string value using pill UI.
 // Props:
@@ -14,10 +22,21 @@ import { SuggestItem, SuggestList, SuggestNote, stepActive } from "./SuggestList
 //   max: number | null        — max values that can be SELECTED (default
 //                                unlimited); picking one more replaces the
 //                                oldest, so max=1 behaves as a single select
+//   idleOptions: string[]     — what an empty box offers (default: options);
+//                                typing always searches all of `options`
+//
+// Typed text is matched exact, then prefix, then contains (lib/suggest.js's
+// rankByMatch), each tier keeping the order `options` came in - so a list
+// given most-used first stays that way inside each tier.
 //
 // The list is the shared SuggestList, anchored under the whole pill box.
 // ArrowUp/ArrowDown highlight an option and Enter adds it; Enter with nothing
 // highlighted adds the typed text (the matching option when one equals it).
+// While text is typed that no option equals, the list ends with an
+// `Add "<text>"` row, so a value that is not in the vocabulary yet can be
+// added by a tap - on a phone keyboard Enter is not always readable
+// (hooks/useEnterToAdd.js). Leaving the field does not add the text: a stray
+// tap away would otherwise mint a vocabulary value nobody meant.
 export default function MultiSelect({
   options = [],
   value = "",
@@ -25,6 +44,7 @@ export default function MultiSelect({
   placeholder = "Select...",
   limit = 10,
   max = null,
+  idleOptions,
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -63,8 +83,18 @@ export default function MultiSelect({
   const available = options.filter((o) => !selected.includes(o));
   const cap = (arr) => (limit == null ? arr : arr.slice(0, limit));
   const filtered = query
-    ? cap(available.filter((o) => cleanStr(o).includes(cleanStr(query))))
-    : cap(available);
+    ? cap(rankByMatch(available, cleanStr(query), cleanStr))
+    : cap((idleOptions ?? options).filter((o) => !selected.includes(o)));
+
+  const typedText = query.trim();
+  const typedKey = typedText.toLowerCase();
+  const exactOption = available.find((o) => o.toLowerCase() === typedKey);
+  // The add row: typed text that is neither an option nor already held.
+  const offerAdd =
+    typedText !== "" &&
+    !exactOption &&
+    !selected.some((v) => v.toLowerCase() === typedKey);
+  const rowCount = filtered.length + (offerAdd ? 1 : 0);
 
   function addValue(val) {
     const added = [...selected, val];
@@ -80,6 +110,16 @@ export default function MultiSelect({
     onChange(next.join(", "));
   }
 
+  // Enter with nothing highlighted: the matching option, else the typed
+  // text as a custom value. False when there is nothing typed to add.
+  function addTyped() {
+    if (!typedText) return false;
+    addValue(exactOption || typedText);
+    return true;
+  }
+
+  useEnterSubmitGuard(inputRef, addTyped);
+
   function handleKeyDown(e) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
@@ -87,21 +127,18 @@ export default function MultiSelect({
         setOpen(true);
         return;
       }
-      setActive((c) => stepActive(c, e.key === "ArrowDown" ? 1 : -1, filtered.length));
+      setActive((c) => stepActive(c, e.key === "ArrowDown" ? 1 : -1, rowCount));
       return;
     }
-    if (e.key === "Enter" && open && active >= 0 && filtered[active]) {
+    const enter = isEnterKey(e);
+    if (enter && open && active >= 0 && filtered[active]) {
       e.preventDefault();
       addValue(filtered[active]);
       return;
     }
-    if (e.key === "Enter" && query.trim()) {
+    if (enter && typedText) {
       e.preventDefault();
-      const exact = available.find(
-        (o) => o.toLowerCase() === query.trim().toLowerCase(),
-      );
-      if (exact) addValue(exact);
-      else if (query.trim()) addValue(query.trim()); // allow custom entry
+      addTyped();
     }
     if (e.key === "Backspace" && !query && selected.length > 0) {
       removeValue(selected[selected.length - 1]);
@@ -155,6 +192,7 @@ export default function MultiSelect({
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
+          enterKeyHint="enter"
           placeholder={selected.length === 0 ? placeholder : ""}
           className="flex-1 min-w-[4rem] text-sm font-medium outline-none bg-transparent py-0.5"
           autoComplete="off"
@@ -164,22 +202,27 @@ export default function MultiSelect({
       {/* Dropdown */}
       {open && (
         <SuggestList anchorRef={boxRef} id={listId}>
-          {filtered.length === 0 ? (
-            <SuggestNote>
-              {query ? `Press Enter to add "${query}"` : "No more options"}
-            </SuggestNote>
-          ) : (
-            filtered.map((opt, index) => (
-              <SuggestItem
-                key={opt}
-                id={`${listId}-${index}`}
-                active={index === active}
-                onPick={() => addValue(opt)}
-                onHover={() => setActive(index)}
-              >
-                {opt}
-              </SuggestItem>
-            ))
+          {rowCount === 0 && <SuggestNote>No more options</SuggestNote>}
+          {filtered.map((opt, index) => (
+            <SuggestItem
+              key={opt}
+              id={`${listId}-${index}`}
+              active={index === active}
+              onPick={() => addValue(opt)}
+              onHover={() => setActive(index)}
+            >
+              {opt}
+            </SuggestItem>
+          ))}
+          {offerAdd && (
+            <SuggestItem
+              id={`${listId}-${filtered.length}`}
+              active={active === filtered.length}
+              onPick={() => addValue(typedText)}
+              onHover={() => setActive(filtered.length)}
+            >
+              <SuggestAction icon="fa-plus">{`Add "${typedText}"`}</SuggestAction>
+            </SuggestItem>
           )}
         </SuggestList>
       )}

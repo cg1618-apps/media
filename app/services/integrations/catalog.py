@@ -220,6 +220,18 @@ SERVICES: dict[str, Service] = {
         rate_limit="none published; 1 s between requests as a courtesy",
         docs_anchor="dlsite",
     ),
+    "hltb": Service(
+        key="hltb",
+        label="HowLongToBeat",
+        module="app.services.integrations.hltb",
+        base_url="https://howlongtobeat.com (the site's own search endpoint)",
+        auth=(
+            "None - an undocumented search, its path read from the site's own "
+            "script and a token from its init call; HLTB_ENABLED=false stops it"
+        ),
+        rate_limit="none published; 1 s between requests as a courtesy",
+        docs_anchor="howlongtobeat",
+    ),
     "anidb": Service(
         key="anidb",
         label="AniDB",
@@ -274,6 +286,25 @@ _TENRAI_LINKS = (
         "if-absent",
         "a reference media_source row; matched on twitter.com or x.com",
     ),
+)
+
+# A game's and an h-game's two review-site links, both reference
+# media_source rows rather than columns.
+_METACRITIC_LINK = Write(
+    "Metacritic",
+    "source",
+    "if-absent",
+    "a reference media_source row: appdetails' metacritic.url, without its "
+    "tracking query and with the legacy platform segment dropped",
+)
+_HLTB_LINK = Write(
+    "HowLongToBeat",
+    "source",
+    "if-absent",
+    "a reference media_source row: the game page of the one search result "
+    "whose name matches exactly, the release year breaking a tie; nothing "
+    "when the search fails or is ambiguous. Fill and a save do not repeat a "
+    "miss in the same process; a bulk Replace and Autofill do",
 )
 
 # Identical on all four AniList-covered types: same three columns, same
@@ -725,8 +756,10 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "and one achievement call, skipped entirely when "
             "steam_progress_sync is false; the Steam library is fetched once "
             "a run. Plus one or two probes of Steam's image CDN when IGDB "
-            "supplied no cover, and one more storefront call for the header "
-            "image when the capsule is missing too"
+            "supplied no cover, one more storefront call for the header "
+            "image when the capsule is missing too, and one HowLongToBeat "
+            "search while the entry has no HowLongToBeat link (the first "
+            "search in a process also reads the site's scripts and a token)"
         ),
         note=(
             "Two sources keyed on different columns: IGDB on igdb_id, Steam "
@@ -736,9 +769,10 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "speaks English and the vocabulary is Chinese, and a term with "
             "no alias row is logged and skipped, never stored raw - see the "
             "Alias Conversion page. Steam never touches that layer: it writes "
-            "columns, plus its library capsule as the cover when IGDB had "
-            "none, and its landscape header image when the capsule is missing "
-            "too."
+            "columns and the Metacritic link, plus its library capsule as the "
+            "cover when IGDB had none, and its landscape header image when the "
+            "capsule is missing too. HowLongToBeat is searched by the game's "
+            "Latin names for its page link alone."
         ),
         sources=(
             SourceBlock(
@@ -757,7 +791,8 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "column",
                         "fill-only",
                         "from IGDB's game_time_to_beats, converted from seconds to "
-                        "hours - HowLongToBeat itself is never called",
+                        "hours - HowLongToBeat is searched for its page link "
+                        "only, never for these figures",
                     ),
                     Write("hltb_main_extra", "column", "fill-only"),
                     Write("hltb_completionist", "column", "fill-only"),
@@ -878,8 +913,10 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "IGDB already owns the game vocabulary through the "
                         "alias layer; a second one would fight it",
                     ),
+                    _METACRITIC_LINK,
                 ),
             ),
+            SourceBlock(source="hltb", writes=(_HLTB_LINK,)),
         ),
     ),
     # Manga's Tenrai record, for the columns h_comic has, then E-Hentai for
@@ -979,7 +1016,8 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "achievement call, skipped when steam_progress_sync is false; "
             "plus up to two Steam capsule checks, one more IGDB game request "
             "and one more Steam storefront call for the header image while "
-            "the entry still has no cover"
+            "the entry still has no cover, and one HowLongToBeat search while "
+            "it has no HowLongToBeat link"
         ),
         note=(
             "Game's fill, generalised over the table, with DLsite in front. "
@@ -1085,8 +1123,10 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "last resort for an app whose capsule is not at the "
                         "unhashed path",
                     ),
+                    _METACRITIC_LINK,
                 ),
             ),
+            SourceBlock(source="hltb", writes=(_HLTB_LINK,)),
         ),
     ),
     Coverage(

@@ -59,6 +59,33 @@ describe("fetchAllSources", () => {
   });
 });
 
+describe("fetchAllSources usage counts", () => {
+  it("fetches the usage counts once and returns them as `usage`", async () => {
+    const counts = { anime: { studio: { s1: 2 } } };
+    const calls = stubFetch((url) => (url.includes("/api/credits/usage") ? counts : []));
+
+    const { usage } = await fetchAllSources();
+
+    expect(calls.filter((u) => u.includes("/api/credits/usage"))).toHaveLength(1);
+    expect(usage).toEqual(counts);
+  });
+
+  it("returns null usage when the counts cannot be read", async () => {
+    global.fetch = vi.fn((url) =>
+      Promise.resolve(
+        String(url).includes("/api/credits/usage")
+          ? { ok: false, json: async () => ({}) }
+          : { ok: true, json: async () => [] },
+      ),
+    );
+
+    const { usage, studios } = await fetchAllSources();
+
+    expect(usage).toBeNull();
+    expect(studios).toEqual([]);
+  });
+});
+
 describe("PUBLISHER_SOURCES", () => {
   it("lists the distinct scopes the publisher fields ask for", () => {
     // Six, one per media type the publisher role is offered on -

@@ -245,13 +245,14 @@ describe("Identity detail page", () => {
     expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
   });
 
-  it("lists all four names on a Naming card", async () => {
+  it("lists the names it has on a Naming card, and no row for an unset one", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Edogawa Conan" });
     const naming = screen.getByText("Naming").closest("section");
-    for (const label of ["English", "Chinese", "Japanese", "Alternative"]) {
+    for (const label of ["English", "Chinese", "Japanese"]) {
       expect(within(naming).getByText(label)).toBeInTheDocument();
     }
+    expect(within(naming).queryByText("Alternative")).not.toBeInTheDocument();
     expect(within(naming).getByText("江戸川コナン")).toBeInTheDocument();
   });
 

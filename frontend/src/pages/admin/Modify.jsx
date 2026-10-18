@@ -23,6 +23,7 @@ import {
   requiredLabelsForType,
 } from "../../lib/gatedTypes";
 import { fetchAllSources } from "../../lib/sources";
+import { withMediaType } from "../../lib/suggestionOrder";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
 import AnimeMovieNotes from "../detail/AnimeMovieNotes";
 import MovieNotes from "../detail/MovieNotes";
@@ -3913,6 +3914,10 @@ export default function Modify() {
 
   const tabDefs = [...ADMIN_TABS, FAV3X3_TAB];
 
+  // The open tab's bag: its tags fields order by, and its studio field
+  // scopes on, this media type's counts (lib/suggestionOrder.js).
+  const formSources = withMediaType(sources, activeTab);
+
   if (sourcesLoading)
     return (
       <div className="flex items-center justify-center py-24">
@@ -3986,7 +3991,7 @@ export default function Modify() {
       {activeTab === "character" && (
         <CharacterModifyTab
           initialId={entityDeepLink?.type === "character" ? entityDeepLink.id : null}
-          sources={sources}
+          sources={formSources}
           refreshSources={async () => setSources(await fetchAllSources())}
         />
       )}
@@ -4281,7 +4286,7 @@ export default function Modify() {
                 ua={ua}
                 franchiseItems={franchiseItems}
                 seriesItemsForAnime={seriesItemsForAnime}
-                sources={sources}
+                sources={formSources}
                 editingItem={editingItem}
               />
             )}
@@ -4339,7 +4344,7 @@ export default function Modify() {
                 amf={amf}
                 uam={uam}
                 franchiseItems={franchiseItems}
-                sources={sources}
+                sources={formSources}
                 editingItem={editingItem}
               />
             )}
@@ -4353,7 +4358,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForMovie={seriesItemsForMovie}
                 editingItem={editingItem}
-                sources={sources}
+                sources={formSources}
               />
             )}
 
@@ -4366,7 +4371,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForTvShow={seriesItemsForTvShow}
                 editingItem={editingItem}
-                sources={sources}
+                sources={formSources}
               />
             )}
 
@@ -4379,7 +4384,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForCartoon={seriesItemsForCartoon}
                 editingItem={editingItem}
-                sources={sources}
+                sources={formSources}
               />
             )}
 
@@ -4393,7 +4398,7 @@ export default function Modify() {
                 seriesItemsForManga={seriesItemsForManga}
                 editingItem={editingItem}
                 ribbonSection={mangaRibbonSection}
-                sources={sources}
+                sources={formSources}
               />
             )}
 
@@ -4406,7 +4411,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForNovel={seriesItemsForNovel}
                 editingItem={editingItem}
-                sources={sources}
+                sources={formSources}
               />
             )}
 
@@ -4420,7 +4425,7 @@ export default function Modify() {
                 seriesItemsForComic={seriesItemsForComic}
                 editingItem={editingItem}
                 ribbonSection={comicRibbonSection}
-                sources={sources}
+                sources={formSources}
               />
             )}
 
@@ -4434,7 +4439,7 @@ export default function Modify() {
                 allGames={allGames}
                 seriesItemsForGame={seriesItemsForGame}
                 editingItem={editingItem}
-                sources={sources}
+                sources={formSources}
               />
             )}
 
@@ -4448,7 +4453,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForHComic={seriesItemsForHComic}
                 editingItem={editingItem}
-                sources={sources}
+                sources={formSources}
               />
             )}
 
@@ -4462,7 +4467,7 @@ export default function Modify() {
                 allHGames={allHGames}
                 seriesItemsForHGame={seriesItemsForHGame}
                 editingItem={editingItem}
-                sources={sources}
+                sources={formSources}
               />
             )}
 
@@ -4475,7 +4480,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForHentai={seriesItemsForHentai}
                 editingItem={editingItem}
-                sources={sources}
+                sources={formSources}
               />
             )}
 

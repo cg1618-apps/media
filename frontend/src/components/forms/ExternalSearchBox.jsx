@@ -11,7 +11,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { fetchJson } from "../../api/client";
-import { SuggestItem, SuggestList, SuggestNote } from "./SuggestList";
+import { isEnterKey, useEnterSubmitGuard } from "../../hooks/useEnterToAdd";
+import { SuggestAction, SuggestItem, SuggestList, SuggestNote } from "./SuggestList";
 
 export const EXTERNAL_SEARCH_DEBOUNCE_MS = 350;
 export const EXTERNAL_SEARCH_MIN_CHARS = 2;
@@ -37,7 +38,10 @@ function failureMessage(error, source) {
  * - `searchUrl(q, limit)`: the endpoint, from api/endpoints.js.
  * - `onPick(result)`: called with the picked ExternalSearchResult row.
  * - `submitOnEnter`: search only when Enter is pressed, never as-you-type -
- *   for a source with a tight request budget (Comic Vine).
+ *   for a source with a tight request budget (Comic Vine). Until then the
+ *   list holds one `Search <source> for "<text>"` row, which a tap runs the
+ *   same as Enter: a phone keyboard's Enter is not always readable
+ *   (hooks/useEnterToAdd.js).
  * - `placeholder`, `hint`: optional wording; `hint` shows under the box.
  */
 export default function ExternalSearchBox({
@@ -58,6 +62,7 @@ export default function ExternalSearchBox({
   const [answer, setAnswer] = useState(EMPTY_ANSWER);
   const [open, setOpen] = useState(false);
   const boxRef = useRef(null);
+  const inputRef = useRef(null);
 
   const typed = query.trim();
   const term = submitOnEnter ? submitted.term : typed;
@@ -117,14 +122,23 @@ export default function ExternalSearchBox({
     reset();
   }
 
-  // Enter never submits the Add form from here. In Enter mode it searches.
-  function onKeyDown(e) {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
+  function search() {
     if (!submitOnEnter || typed.length < EXTERNAL_SEARCH_MIN_CHARS) return;
     setSubmitted((s) => ({ term: typed, n: s.n + 1 }));
     setOpen(true);
   }
+
+  // Enter never submits the Add form from here. In Enter mode it searches.
+  function onKeyDown(e) {
+    if (!isEnterKey(e)) return;
+    e.preventDefault();
+    search();
+  }
+
+  useEnterSubmitGuard(inputRef, () => {
+    search();
+    return true;
+  });
 
   const awaitingEnter =
     submitOnEnter &&
@@ -139,7 +153,9 @@ export default function ExternalSearchBox({
       <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
         <i className="fas fa-magic text-brand text-sm"></i>
         <input
+          ref={inputRef}
           type="text"
+          enterKeyHint="search"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -178,10 +194,9 @@ export default function ExternalSearchBox({
       {showList && (
         <SuggestList anchorRef={boxRef} label={`${source} results`}>
           {awaitingEnter && (
-            <SuggestNote>
-              <i className="fas fa-level-down-alt fa-rotate-90"></i>
-              Press Enter to search {source}
-            </SuggestNote>
+            <SuggestItem onPick={search}>
+              <SuggestAction icon="fa-search">{`Search ${source} for "${typed}"`}</SuggestAction>
+            </SuggestItem>
           )}
           {!awaitingEnter && error && (
             <SuggestNote>

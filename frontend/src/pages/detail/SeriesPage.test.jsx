@@ -104,3 +104,50 @@ describe("SeriesPage games", () => {
     expect(screen.getByText("艾爾登法環")).toBeInTheDocument();
   });
 });
+
+// Every media tab carries the number of entries it lists. A tab whose label
+// had no count showed 0 beside a full list.
+describe("SeriesPage tab counts", () => {
+  it("counts the Comic tab", async () => {
+    global.fetch.mockImplementation((url) => {
+      if (String(url).startsWith("/api/series/")) return jsonRes(SERIES);
+      if (String(url).startsWith("/api/comic/"))
+        return jsonRes([
+          { system_id: "CM001", comic_name_en: "One" },
+          { system_id: "CM002", comic_name_en: "Two" },
+        ]);
+      return jsonRes([]);
+    });
+    renderPage();
+    expect(
+      await screen.findByRole("button", { name: /^Comic\s*2$/ }),
+    ).toBeInTheDocument();
+  });
+
+  // The header's entry total and completion are taken over every listed tab,
+  // each type judged by its own status field: one of two games and one of
+  // two comics is completed.
+  it("counts the comics and games in the header totals", async () => {
+    global.fetch.mockImplementation((url) => {
+      if (String(url).startsWith("/api/series/")) return jsonRes(SERIES);
+      if (String(url).startsWith("/api/game/")) return jsonRes(GAMES);
+      if (String(url).startsWith("/api/comic/"))
+        return jsonRes([
+          { system_id: "CM001", comic_name_en: "One", reading_status: "Completed" },
+          { system_id: "CM002", comic_name_en: "Two", reading_status: "Plan to Read" },
+        ]);
+      return jsonRes([]);
+    });
+    renderPage();
+    expect(
+      await screen.findByText(/4 entries\s+·\s+50% completed/),
+    ).toBeInTheDocument();
+  });
+
+  it("counts the Game tab", async () => {
+    renderPage();
+    expect(
+      await screen.findByRole("button", { name: /^Game\s*2$/ }),
+    ).toBeInTheDocument();
+  });
+});

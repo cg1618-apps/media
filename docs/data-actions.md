@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-14
+Last verified: 2026-10-18
 
 ## What this is for
 
@@ -616,8 +616,10 @@ the games backend as a spec that fetched nothing — registration demands one,
 because `MEDIA_TABLES` membership is asserted by `test_sheet_tabs` and by the
 data-control route builder, which generates `/api/data-control/fill/game` and
 `/replace/game/...` from the registry. Fill Game calls
-`autofill_game_from_igdb`, then `autofill_game_from_steam`, and derives the
-SteamDB row in `post_process` (`game_post_processing`) rather than in `fill` —
+`autofill_game_from_igdb`, then `autofill_game_from_steam` (which also writes
+the Metacritic reference row from the same answer), then
+`autofill_hltb_source` (the HowLongToBeat row, not asked again for a game
+whose search already missed in this process), and derives the SteamDB row in `post_process` (`game_post_processing`) rather than in `fill` —
 it fetches nothing, and post-processing runs over every entry in the run
 rather than only the queue, which is what lets it reach a game whose columns
 `fill_eligible` already considers complete. Games are in Fill All. **Game's
@@ -626,7 +628,9 @@ Game.steam_appid, Game.steam_link, Game.igdb_id, Game.igdb_link)`,
 `in_replace_all=True`): IGDB first and still fill-only — nothing in an IGDB
 record drifts, so Replace keeps what is set, as the MAL Replace keeps
 everything but its scores — then Steam, whose current prices and Metacritic
-score are what Replace overwrites. IGDB runs because it can supply the appid
+score are what Replace overwrites, then the HowLongToBeat search, retried
+here for a game whose last search missed - except from the save write hook,
+which runs the spec's `save_replace` and skips a remembered miss. IGDB runs because it can supply the appid
 Steam keys off, so one Replace (or one press of the detail page's Autofill
 button) finishes an entry that carries only an IGDB link.
 
@@ -731,7 +735,7 @@ the write hook.
 4. `replace_after` steps: same as the type's `fill_after` for anime (`derive_ep_previous_all_anime`, `run_sync_anime`), anime-movie, tv-show, cartoon, manga, novel; none for movie.
 5. Log `Replace` / `Replace {label}` / `Success`, `rows_updated` = replaced count.
 
-`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — both sources, as Fill: it derives `igdb_id` and `steam_appid` from their links (`apply_extract_game_ids`), runs `autofill_game_from_igdb` (fill-only), derives the SteamDB `media_source` row (`derive_steamdb_source`), then runs `autofill_game_from_steam`. The SteamDB row costs no request and comes before the Steam fetch, so the link lands even on a run where the storefront is out of budget; it comes after IGDB, so an appid IGDB just supplied gets its row. In a bulk run the `budget` gate (the Steam limiter) is checked for every entry, IGDB-only ones included, because IGDB can hand Steam an appid mid-entry.
+`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — both sources, as Fill: it derives `igdb_id` and `steam_appid` from their links (`apply_extract_game_ids`), runs `autofill_game_from_igdb` (fill-only), derives the SteamDB `media_source` row (`derive_steamdb_source`), then runs `autofill_game_from_steam` (prices, Metacritic score and Metacritic link) and `autofill_hltb_source` (the HowLongToBeat link, for a game without one). The SteamDB row costs no request and comes before the Steam fetch, so the link lands even on a run where the storefront is out of budget; it comes after IGDB, so an appid IGDB just supplied gets its row. In a bulk run the `budget` gate (the Steam limiter) is checked for every entry, IGDB-only ones included, because IGDB can hand Steam an appid mid-entry.
 
 **Replace All** (`execute_replace_all` → `run_all("Replace", REPLACE_ALL, ...)`) covers the eleven types with `in_replace_all=True` — game, h-comic, h-game and hentai included — (comic, studio and seiyuu excluded), then Backup (`Auto`), one master row `Replace` / `Replace All`, same error handling as Fill All.
 
@@ -744,7 +748,7 @@ Returns a status dict, never raises. `action_specific` is `"Replace for single {
 3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic`, `run_sync_game`, `run_sync_h_comic` then `run_sync_gated_labels` (h-comic), `run_sync_game` then `run_sync_gated_labels` (h-game), `run_sync_hentai` then `run_sync_gated_labels` (hentai). Movie and TV Show have none. Comic has no `replace` at all, so its single hook only re-syncs system options.
 4. Log `Replace` / `Success` with `rows_updated=1`; return `{"status": "success", "message": "Successfully updated {display_name}."}`. Any exception → rollback, log `Failed`, `status_code: 500`.
 
-**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel, comic, game, h-comic, h-game and hentai (`execute_replace_single_game` calls `apply_single_replace_game` and `execute_replace_single_h_game` calls `apply_single_replace_h_game`, so a game saved with an IGDB or Steam link - or an h-game with a DLsite one, or an h-comic with a MAL or E-Hentai one - picks up its sources' data immediately, not just on the next Replace run — each save of a linked game costs up to two IGDB requests and three storefront requests, the same kind of per-save cost movie, TV show and cartoon pay to TMDB/OMDb): the CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
+**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel, comic, h-comic and hentai. Game and h-game use `execute_save_replace_game` / `execute_save_replace_h_game` instead: the same `run_replace_single`, with `on_save=True`, which runs the spec's `save_replace` - `apply_single_replace_game` / `apply_single_replace_h_game` with `retry_hltb_misses=False`, so a save does not re-search a HowLongToBeat miss that the Autofill button would retry (`run_replace_single` runs either in the threadpool, off the event loop). So a game saved with an IGDB or Steam link - or an h-game with a DLsite one, or an h-comic with a MAL or E-Hentai one - picks up its sources' data immediately, not just on the next Replace run — each save of a linked game costs up to two IGDB requests and three storefront requests, the same kind of per-save cost movie, TV show and cartoon pay to TMDB/OMDb. The CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
 
 The manual route `POST /replace/{key}/{entry_id}` calls the same function with `action_type="Manual"`, `log_action=False` — so a single Replace never writes a `DataControlLog` row, whichever way it is triggered.
 

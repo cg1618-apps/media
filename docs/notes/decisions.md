@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-06
+Last verified: 2026-10-18
 
 ## What this is for
 
@@ -3342,3 +3342,171 @@ The Google Sheet still holds an anime `quality` column and the `Quality`
 options until the next Backup rewrites it. Pull ignores the column, since no
 tag field names it, but would restore the option rows from the System Options
 tab, so back up from a migrated database before any Pull.
+
+### The nav search dropdown: eight rows, a hue per type, closed by a search (2026-10-18)
+
+- **Owner's request**, three parts: the suggestion dropdown stayed open after
+  Enter until the reader clicked elsewhere; it showed too many suggestions;
+  and its type badges should each have a colour, to tell the types apart.
+- **The dropdown that stayed open was a response landing late.** Enter
+  cleared the debounce timer and hid the dropdown, but a request that had
+  already left still held the current request id, so when it answered it
+  passed the stale-response check and reopened the dropdown over `/search`.
+  Enter, a result click and an emptied input now move the request id on as
+  well as clearing the timer (`cancelPendingSearch`), so the late response is
+  discarded. Aborting the fetch was not needed: the id check already throws
+  the answer away, and an abort would add a second mechanism for the same job.
+- **Eight rows, not twenty.** The dropdown is a shortcut to the likely row;
+  `/search` is the result list. Eight rows cannot carry the old per-type
+  quotas (anime alone had ten), so every title type gets a floor of one and
+  the staff types none — the first pass is about showing as many types as
+  fit, and the round-robin hands out the rest. The request's per-bucket
+  `limit` drops to the same eight. **Exact matches moved into the merge**:
+  they used to be lifted after it, which at twenty rows rarely lost one, but
+  at eight a whole-title hit in a late bucket (a publisher, say) would be cut
+  by the cap before it could be lifted, so the merge now takes every bucket's
+  exact matches first.
+- **The badge colour is the second sanctioned exception to design rule 5.**
+  The rule asks that a colour-coded category make its own argument. This
+  one's: the dropdown mixes up to nineteen types in eight rows that are
+  scanned, not read, while the reader is still typing — the job is to find
+  the one row of the type they meant, and hue does that before the mono
+  label is read. That is the same shape as the System Options column (a
+  comparison across rows, not a reading of one), on a different surface. The
+  label stays in the chip, so colour is never the only signal.
+- **Media types reuse their scope hue** rather than getting a second palette,
+  so a type has one colour wherever it is coloured; `config/scopeColors.js`
+  holds both as `TYPE_HUES`, and `SCOPE_CHIPS` is built from it. The seven
+  types the System Options column never shows got new `--c-scope-*` tokens.
+  Collection, franchise, series and seasonal take saturated hues in the gaps
+  the media types leave; person, studio and publisher take low-saturation
+  slate, taupe and mauve, so a credited entity reads as "not a title" first.
+  Nineteen hues cannot all be far apart, so franchise and comic, series and
+  movie, seasonal and novel are close in hue and separated by saturation.
+  Every new value clears WCAG AA on `--c-surface` (lowest 5.29 light, 6.30
+  dark), above the existing floors.
+- **Rejected:** a separate ad-hoc colour map in `NavSearch.jsx` (two homes
+  for one type's colour, and the tokens' "used only by scopeColors.js"
+  guarantee would no longer hold); colouring the full `/search` results page
+  too (its rows sit under per-type headings, so the type is already given by
+  position, and the rule's argument does not carry over).
+
+### Metacritic from Steam, HowLongToBeat from the site's search, or nothing (2026-10-18)
+
+- **Owner's request: fill a game's HowLongToBeat and Metacritic page links
+  automatically, "similar to what we did for SteamDB".** Both values were
+  already seeded in the Reference Source vocabulary for games and h-games;
+  nothing wrote them.
+- **IGDB was the first place looked, and it has neither.** Queried live, its
+  `external_game_sources` and `website_types` carry no HowLongToBeat and no
+  Metacritic entry, so IGDB's `external_games` - which supplies the Steam
+  appid - cannot supply these.
+- **Metacritic comes from the Steam answer already fetched.** `appdetails`
+  returns `metacritic.url` beside the score, so the link costs no request.
+  Steam's URL is the legacy `/game/pc/<slug>?ftag=...` form; Metacritic 301s
+  it to `/game/<slug>/` (checked live), so that is what is stored - one page
+  per game, and no tracking query. Rejected: storing Steam's URL verbatim,
+  which keeps a tracking tag and a redirect in every link.
+- **HowLongToBeat comes from the site's own search, kept only when
+  confident.** The owner's decision: store `https://howlongtobeat.com/game/<id>`
+  only when the right entry is identified with confidence, and otherwise
+  nothing. So the rule is an exact match on a normalised name, aliases only
+  when no name matches, the release year only to break a tie, and more than
+  one survivor is no link. Rejected: a fuzzy "best" match, which would put
+  plausible wrong links on the Sources card where nobody checks them; and a
+  search-results URL (`/?q=<name>`), which is a link to a question rather
+  than to the game.
+- **The search is undocumented, and the client is written to fail quietly.**
+  HowLongToBeat publishes no API; its search endpoint's path and token
+  handshake change over time. The client reads the path out of the site's
+  own script and fetches a token the way the page does - the same mechanism
+  as the maintained `howlongtobeatpy` package - and answers every failure
+  as None. Rejected: depending on `howlongtobeatpy` itself, which pulls in
+  `aiohttp`, `fake_useragent`, `beautifulsoup4` and a test library as runtime
+  requirements for what is three `requests` calls here, and randomises its
+  User-Agent, which the token is bound to.
+- **Fill asks only for the entries it queues, and does not repeat a miss.**
+  SteamDB is derived in post-processing because it is free; a search is not,
+  and post-processing runs on the event loop for every entry in a run. A miss
+  is remembered per process and retried by a bulk Replace or the Autofill
+  button - not by an ordinary save, which runs the same Replace through the
+  write hook but would otherwise add a search of a second or more to every
+  save of an unmatched game - rather than stored: a column or table recording "searched, not found"
+  would be a migration and a gated release for what a restart costs one
+  extra search to forget.
+- The time-to-beat **figures** still come from IGDB, as decided when games
+  were built. HowLongToBeat is asked for its page link only.
+
+### Characters are searched on the search page only, by opt-in (2026-10-18)
+
+The `/search` page shows results on three tabs - Media, People & companies,
+Characters - and characters became searchable for it. `GET /api/search/`
+adds the `character` bucket only when asked (`characters=true`), and only
+the page asks.
+
+- **Opt-in, not a new default bucket.** The nav dropdown shares the endpoint
+  and fills eight rows from per-bucket quotas; a query there is usually about a
+  title, and character names recur across unrelated works on purpose, so a
+  default bucket would spend the dropdown's slots on the weakest answers.
+  Leaving the default response unchanged keeps the dropdown as it was without
+  it having to filter anything out.
+- **One request, not a second call to `/api/character/`.** The page already
+  makes one search request; the character bucket is one more query plus three
+  decoration queries (castings, tags, identities) for the whole bucket, built
+  by the same `character_responses` helper the character list uses, so a
+  search card and a library card cannot disagree. `/api/character/?name=`
+  would have meant a second request, raw `ILIKE` matching instead of the
+  search normalisation, and no `limit`.
+- **Not a scope.** The scope selector is the dropdown's, and the dropdown has
+  no characters; the bucket is filled at `scope=all` only.
+- **Character names only.** An identity's names do not find its character and
+  identities are not results of their own: the identity list is an admin
+  surface, and an identity is reached from its character's page.
+- **The same visibility as the list.** Character is a shared record, so the
+  bucket goes through `apply_shared_visibility` exactly as
+  `GET /api/character/` does - one whose every casting is on a hidden entry is
+  absent.
+
+### Form suggestions are ordered by appearances on the form's media type (2026-10-18)
+
+The Add and Modify tags fields used to offer their values alphabetically
+(people, studios, publishers) or in `sort_order` (vocabularies). The owner
+asked for the most-used values first, and for a studio field's empty box to
+offer only the studios of the entry's own type.
+
+**What "appearances" counts.** The number of **entries of the form's media
+type** that use the value, among those the viewer can see — not the value's
+total across every type, and not rows. Per type because that is the scope the
+owner's studio rule already names: the studio most used on hentai is not the
+one an anime form wants first. Entries rather than rows so a value used twice
+on one entry (a studio under two role keys, a vocabulary value in two fields)
+counts once. People are counted **per role**, because a person picker is per
+role: a prolific director who once composed is not the first composer.
+Label-hidden entries and types the viewer lacks are left out, the
+`credit_count` rule, so a narrow mode cannot learn from an order what it
+cannot read. The manga form's Anime Studio field counts under anime: it names
+the adaptation's studio, and no studio is credited on a manga.
+
+**Which vocabularies.** Only the genre and label ones (Genre Main, Genre Sub,
+Label, Game Genre, the H genres). The rest — platforms, imprints, themes,
+modes — keep their admin `sort_order`, which is curated; reordering them by
+use would discard that ordering without being asked to.
+
+**How it is served.** One endpoint, `GET /api/credits/usage`, for every type
+at once: two `GROUP BY` queries (media_credit, media_tag) plus the hidden-label
+lookup, so the cost does not grow with the number of values. The forms fetch
+it once beside their suggestion lists and sort client-side, typing included.
+A separate endpoint rather than a parameter on the list endpoints because the
+library, search and entity pages read those lists in their own order, and
+the counts for one form come from several of them; the lists themselves are
+untouched.
+
+**Studio scope is the empty box only.** A studio has no declared scope (no
+`studio_scope` table, unlike `publisher_scope` and `person_role`), so "in
+scope" is read from the counts: credited on a visible entry of the type. The
+empty box offers those; typed text searches every studio, exact and prefix
+matches first, then appearances, so a studio new to the type is still
+reachable. Publishers and people keep their stricter, declared scope — an
+out-of-scope publisher is not offered even when typed — because that scope is
+an admin's statement ("a games publisher must not be suggested as an anime
+distributor"), not an inference from history.
