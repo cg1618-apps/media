@@ -630,6 +630,7 @@ export default function CastEditor({
         id: `${CREATE_CHARACTER_PREFIX}${typed}`,
         label: `Create new character named "${typed}"`,
         searchText: typed,
+        pinned: true,
       });
     }
     return items;
@@ -695,6 +696,7 @@ export default function CastEditor({
         id: `${CREATE_IDENTITY_PREFIX}${typed}`,
         label: `Create new identity named "${typed}"`,
         searchText: typed,
+        pinned: true,
       });
     }
     // Offered, typed text or not, while the character has no identity by
@@ -709,6 +711,7 @@ export default function CastEditor({
         id: CREATE_SAME_NAME_IDENTITY,
         label: `Create identity named "${characterName}" (same as character)`,
         searchText: typed,
+        pinned: true,
       });
     }
     return items;
