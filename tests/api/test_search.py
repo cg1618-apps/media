@@ -13,6 +13,7 @@ import uuid
 import pytest
 
 from app import models
+from tests.api.conftest import nsfw_label  # noqa: F401
 
 
 @pytest.fixture
@@ -169,7 +170,7 @@ class TestLimits:
 
 
 class TestStaff:
-    """People and studios are searchable; characters deliberately are not."""
+    """People, studios and publishers are searchable."""
 
     @pytest.fixture
     def studio(self, db_session):
@@ -233,10 +234,111 @@ class TestStaff:
         )
         assert row["credit_count"] == 1
 
-    def test_character_is_not_searchable(self, client, character):
-        """Characters stay out of the universal bar — the scope is rejected."""
-        assert client.get("/api/search/?q=Ichika&scope=character").status_code == 422
+
+
+class TestCharacters:
+    """
+    Characters are searched only when the caller opts in with
+    `characters=true` - the search page does, the nav dropdown does not.
+
+    The refusal test needs `nsfw_label` on the entry the character is cast
+    on: the safe mode's hidden label set is EMPTY in a fresh database, so
+    without it the character would be "hidden" by nothing and the test would
+    pass vacuously. The admin mirror proves the gate did the refusing.
+    """
+
+    @pytest.fixture
+    def labelled_anime(self, db_session, sample_franchise, nsfw_label):
+        entry = models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            anime_name_en="Zvornik Search Hidden Anime",
+            airing_type="TV",
+        )
+        db_session.add(entry)
+        db_session.flush()
+        db_session.add(
+            models.MediaContentLabel(
+                system_id=uuid.uuid4(),
+                media_id=entry.system_id,
+                label_id=nsfw_label.system_id,
+            )
+        )
+        db_session.flush()
+        return entry
+
+    def test_absent_by_default(self, client, character):
+        """The default response - the nav dropdown's - has no character key."""
         assert "character" not in client.get("/api/search/?q=Ichika").json()["results"]
+
+    def test_character_is_not_a_scope(self, client, character):
+        assert client.get("/api/search/?q=Ichika&scope=character").status_code == 422
+
+    def test_present_when_opted_in(self, client, character):
+        payload = client.get("/api/search/?q=Ichika&characters=true").json()
+        assert ids(payload, "character") == [str(character.system_id)]
+
+    def test_any_name_column_matches_normalised(self, client, db_session):
+        c = models.Character(system_id=uuid.uuid4(), name_jp="Ri:Zero Chan")
+        db_session.add(c)
+        db_session.flush()
+        payload = client.get("/api/search/?q=rizero&characters=true").json()
+        assert ids(payload, "character") == [str(c.system_id)]
+
+    def test_exact_match_first(self, client, db_session):
+        longer = models.Character(system_id=uuid.uuid4(), name_en="Aaa Yuki Zz")
+        exact = models.Character(system_id=uuid.uuid4(), name_en="Yuki")
+        db_session.add_all([longer, exact])
+        db_session.flush()
+        payload = client.get("/api/search/?q=yuki&characters=true").json()
+        assert ids(payload, "character")[0] == str(exact.system_id)
+
+    def test_rows_carry_what_the_card_needs(
+        self, client, db_session, character, sample_anime
+    ):
+        db_session.add(
+            models.CharacterCasting(
+                character_id=character.system_id,
+                media_type="anime",
+                entry_id=sample_anime.system_id,
+            )
+        )
+        db_session.flush()
+        row = client.get("/api/search/?q=Ichika&characters=true").json()["results"][
+            "character"
+        ][0]
+        assert row["display_name"] == "Ichika"
+        assert row["casting_count"] == 1
+        assert row["public_id"] == character.public_id
+        assert "display_photo_file" in row
+
+    def test_limit_caps_the_bucket(self, client, db_session):
+        db_session.add_all(
+            [models.Character(system_id=uuid.uuid4(), name_en=f"Limitchar {i}") for i in range(3)]
+        )
+        db_session.flush()
+        payload = client.get("/api/search/?q=limitchar&characters=true&limit=2").json()
+        assert len(payload["results"]["character"]) == 2
+
+    def test_a_scoped_search_leaves_the_bucket_empty(self, client, character):
+        payload = client.get("/api/search/?q=Ichika&scope=person&characters=true").json()
+        assert payload["results"]["character"] == []
+
+    def test_a_character_cast_only_on_hidden_entries_is_excluded(
+        self, client, admin_client, db_session, labelled_anime, character
+    ):
+        db_session.add(
+            models.CharacterCasting(
+                character_id=character.system_id,
+                media_type="anime",
+                entry_id=labelled_anime.system_id,
+            )
+        )
+        db_session.flush()
+        url = "/api/search/?q=Ichika&characters=true"
+        assert str(character.system_id) not in ids(client.get(url).json(), "character")
+        # The mirror: the unrestricted admin sees the same character.
+        assert str(character.system_id) in ids(admin_client.get(url).json(), "character")
 
 
 class TestGameAndPublisherBuckets:

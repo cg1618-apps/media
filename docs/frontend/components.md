@@ -218,10 +218,10 @@ not drawn. The character, person and studio libraries use it for
   variants sharing one icon — `Toptoon TW` and `Toptoon KR` — draw it once),
   `FranchiseCard` and `CollectionCard` (each takes `cover`, a resolved
   `{ url, focus }`), `CharacterCard` (one card of `lib/characterCards.js` - a
-  character, or one of its identities drawn dashed; the character library and
-  the hubs' Characters tab draw it), and `StaffCard`
+  character, or one of its identities drawn dashed; the character library,
+  the hubs' Characters tab and `/search`'s Characters tab draw it), and `StaffCard`
   (`PersonCard` / `StudioCard` / `PublisherCard` over one shared body — the
-  person, studio and publisher libraries and the `/search` staff sections all
+  person, studio and publisher libraries and `/search`'s People & companies tab all
   draw it; each carries the entity's `my_rating` as a `RatingStamp`, as the
   franchise and collection cards do; `PersonCard` shows `display_photo_file`,
   the server-resolved photo or fallback cover, positioned by

@@ -3436,3 +3436,33 @@ tab, so back up from a migrated database before any Pull.
   extra search to forget.
 - The time-to-beat **figures** still come from IGDB, as decided when games
   were built. HowLongToBeat is asked for its page link only.
+
+### Characters are searched on the search page only, by opt-in (2026-10-18)
+
+The `/search` page shows results on three tabs - Media, People & companies,
+Characters - and characters became searchable for it. `GET /api/search/`
+adds the `character` bucket only when asked (`characters=true`), and only
+the page asks.
+
+- **Opt-in, not a new default bucket.** The nav dropdown shares the endpoint
+  and fills eight rows from per-bucket quotas; a query there is usually about a
+  title, and character names recur across unrelated works on purpose, so a
+  default bucket would spend the dropdown's slots on the weakest answers.
+  Leaving the default response unchanged keeps the dropdown as it was without
+  it having to filter anything out.
+- **One request, not a second call to `/api/character/`.** The page already
+  makes one search request; the character bucket is one more query plus three
+  decoration queries (castings, tags, identities) for the whole bucket, built
+  by the same `character_responses` helper the character list uses, so a
+  search card and a library card cannot disagree. `/api/character/?name=`
+  would have meant a second request, raw `ILIKE` matching instead of the
+  search normalisation, and no `limit`.
+- **Not a scope.** The scope selector is the dropdown's, and the dropdown has
+  no characters; the bucket is filled at `scope=all` only.
+- **Character names only.** An identity's names do not find its character and
+  identities are not results of their own: the identity list is an admin
+  surface, and an identity is reached from its character's page.
+- **The same visibility as the list.** Character is a shared record, so the
+  bucket goes through `apply_shared_visibility` exactly as
+  `GET /api/character/` does - one whose every casting is on a hidden entry is
+  absent.
