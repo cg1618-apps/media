@@ -44,18 +44,24 @@
   --color-ink: var(--c-ink);
   --color-ink-text: var(--c-ink-text);
 
-  /* Media-type scope hues. The one documented exception to design rule 5
-     (colour never encodes a category): the System Options table compares
-     eight scope keys at a glance down a single column, where reading each
-     chip's text is the slow path. Used ONLY by config/scopeColors.js -
-     nothing else colours a media type. Tint with opacity (bg-scope-anime/12).
-     Hues are ~45 degrees apart so neighbours stay separable, and every value
-     is desaturated enough to sit on bone paper without competing with brand.
-     Lightness is set by contrast, not by eye: the chip text is 10px, so every
-     hue must clear WCAG AA 4.5:1 on --c-surface. Measured floors are 4.54
-     (light) and 5.84 (dark) - anime, tv-show and cartoon were each darkened
-     in the light palette to get there, so do not lighten one back for looks
-     without re-measuring. */
+  /* Type hues. The two documented exceptions to design rule 5 (colour never
+     encodes a category): the System Options table compares the twelve media
+     type scope keys at a glance down a single column, and the nav search
+     dropdown badges each suggestion by type, where reading each chip's text
+     is the slow path. Used ONLY through config/scopeColors.js (SCOPE_CHIPS
+     and typeHue) - nothing else colours a type. Tint with opacity
+     (bg-scope-anime/12). The twelve media types plus collection, franchise,
+     series and seasonal are saturated hues spread round the wheel; person,
+     studio and publisher are deliberately low-saturation (slate, taupe,
+     mauve) so the credited entities read as a family apart from titles.
+     Nineteen hues cannot all sit far apart, so the close pairs (franchise and
+     comic, series and movie, seasonal and novel) are separated by saturation
+     as well as hue. Every value is desaturated enough to sit on bone paper
+     without competing with brand. Lightness is set by contrast, not by eye:
+     the chip text is 10px, so every hue must clear WCAG AA 4.5:1 on
+     --c-surface. Measured floors are 4.54 (light) and 5.84 (dark) - anime,
+     tv-show and cartoon were each darkened in the light palette to get
+     there, so do not lighten one back for looks without re-measuring. */
   --color-scope-anime: var(--c-scope-anime);
   --color-scope-anime-movie: var(--c-scope-anime-movie);
   --color-scope-movie: var(--c-scope-movie);
@@ -68,6 +74,13 @@
   --color-scope-h-comic: var(--c-scope-h-comic);
   --color-scope-h-game: var(--c-scope-h-game);
   --color-scope-hentai: var(--c-scope-hentai);
+  --color-scope-collection: var(--c-scope-collection);
+  --color-scope-franchise: var(--c-scope-franchise);
+  --color-scope-series: var(--c-scope-series);
+  --color-scope-seasonal: var(--c-scope-seasonal);
+  --color-scope-person: var(--c-scope-person);
+  --color-scope-studio: var(--c-scope-studio);
+  --color-scope-publisher: var(--c-scope-publisher);
 
   /* Semantic state hues; tint with opacity modifiers (bg-success/15). */
   --color-danger: #ef4444;
@@ -125,6 +138,13 @@
   --c-scope-h-comic: hsl(70 55% 30%);
   --c-scope-h-game: hsl(285 35% 45%);
   --c-scope-hentai: hsl(125 40% 32%);
+  --c-scope-collection: hsl(235 45% 50%);
+  --c-scope-franchise: hsl(330 50% 44%);
+  --c-scope-series: hsl(8 60% 44%);
+  --c-scope-seasonal: hsl(168 55% 29%);
+  --c-scope-person: hsl(220 18% 40%);
+  --c-scope-studio: hsl(30 20% 38%);
+  --c-scope-publisher: hsl(280 14% 42%);
 }
 
 /* Dark palette. Applied by the attribute, and by the OS preference when no
@@ -158,6 +178,13 @@
   --c-scope-h-comic: hsl(70 50% 56%);
   --c-scope-h-game: hsl(285 45% 72%);
   --c-scope-hentai: hsl(125 40% 60%);
+  --c-scope-collection: hsl(235 60% 75%);
+  --c-scope-franchise: hsl(330 60% 72%);
+  --c-scope-series: hsl(8 65% 68%);
+  --c-scope-seasonal: hsl(168 45% 55%);
+  --c-scope-person: hsl(220 18% 70%);
+  --c-scope-studio: hsl(30 22% 66%);
+  --c-scope-publisher: hsl(280 16% 70%);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
@@ -190,6 +217,13 @@
     --c-scope-h-comic: hsl(70 50% 56%);
     --c-scope-h-game: hsl(285 45% 72%);
     --c-scope-hentai: hsl(125 40% 60%);
+    --c-scope-collection: hsl(235 60% 75%);
+    --c-scope-franchise: hsl(330 60% 72%);
+    --c-scope-series: hsl(8 65% 68%);
+    --c-scope-seasonal: hsl(168 45% 55%);
+    --c-scope-person: hsl(220 18% 70%);
+    --c-scope-studio: hsl(30 22% 66%);
+    --c-scope-publisher: hsl(280 16% 70%);
   }
 }
 

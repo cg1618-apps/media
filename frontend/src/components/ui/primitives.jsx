@@ -73,7 +73,8 @@ export function RatingStamp({ rating, size = "sm", tilt = false, className = "" 
 // A chip: mono text on a faint fill with a hairline border and a slight
 // radius - softer than the slips around it. Colour does not encode a
 // category - every chip is ink, except `tone="brand"` for the one thing the
-// page wants to point at and `tone="danger"` for destructive/critical states.
+// page wants to point at, `tone="danger"` for destructive/critical states, and
+// `hue` (below) where design rule 5 sanctions a type colour.
 const CHIP_TONES = {
   ink: "border-border bg-surface-2/60 text-text-muted",
   brand: "border-brand/40 bg-brand-soft text-brand",
@@ -86,8 +87,11 @@ const CHIP_TONES = {
 // it sits beside. It replaces the tone rather than adding to it: two border
 // colours on one element resolve by stylesheet order, not class order.
 const CHIP_DASHED = "border-dashed border-border-strong bg-transparent text-text-muted";
-export function Chip({ tone = "ink", dashed = false, className = "", children, ...rest }) {
-  const look = dashed ? CHIP_DASHED : CHIP_TONES[tone] || CHIP_TONES.ink;
+// `hue` takes a type's colour classes from config/scopeColors.js (typeHue),
+// for the few places design rule 5 lets colour name a type. Like `dashed`, it
+// replaces the tone rather than adding to it.
+export function Chip({ tone = "ink", dashed = false, hue = null, className = "", children, ...rest }) {
+  const look = dashed ? CHIP_DASHED : hue || CHIP_TONES[tone] || CHIP_TONES.ink;
   return (
     <span
       className={`inline-flex items-center gap-1 border rounded-[4px] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none whitespace-nowrap ${look} ${className}`}

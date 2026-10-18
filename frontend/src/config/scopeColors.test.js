@@ -1,8 +1,17 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { MEDIA_TYPES } from "./fieldOptions";
 import { USAGES } from "../components/forms/UsagePicker";
-import { SCOPE_CHIPS, scopeChip, USAGE_CHIPS, usageChip } from "./scopeColors";
+import {
+  SCOPE_CHIPS,
+  scopeChip,
+  TYPE_HUES,
+  typeHue,
+  USAGE_CHIPS,
+  usageChip,
+} from "./scopeColors";
 
 describe("scope chip colours", () => {
   it("covers every media type key the scope picker offers", () => {
@@ -26,6 +35,32 @@ describe("scope chip colours", () => {
       expect(chip).toMatch(/text-scope-[a-z-]+(?!\/)/);
       expect(chip).not.toMatch(PALETTE);
       expect(chip).not.toMatch(/#[0-9a-f]{3,8}/i);
+    }
+  });
+
+  it("colours a media type the same in the scope column and the search badge", () => {
+    for (const type of MEDIA_TYPES) {
+      expect(scopeChip(type)).toContain(typeHue(type));
+    }
+  });
+
+  it("gives every searchable type a distinct hue drawn from scope tokens", () => {
+    const hues = Object.values(TYPE_HUES);
+    expect(new Set(hues).size).toBe(hues.length);
+    for (const hue of hues) {
+      expect(hue).toMatch(/^bg-scope-[a-z-]+\/12 border-scope-[a-z-]+\/40 text-scope-[a-z-]+$/);
+    }
+    expect(typeHue("holodeck")).toBeNull();
+  });
+
+  it("defines every hue's token in all three palettes", () => {
+    // A token missing from one palette renders as nothing in that theme -
+    // the prefers-color-scheme block is the one that is easy to forget.
+    const css = readFileSync(join(process.cwd(), "src", "index.css"), "utf8");
+    for (const type of Object.keys(TYPE_HUES)) {
+      expect(css).toContain(`--color-scope-${type}: var(--c-scope-${type});`);
+      const defs = css.match(new RegExp(`--c-scope-${type}: hsl\\(`, "g")) || [];
+      expect(defs, type).toHaveLength(3);
     }
   });
 
