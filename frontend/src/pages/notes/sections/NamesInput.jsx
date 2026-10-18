@@ -6,11 +6,20 @@
 // matches no character row is still a name. So the suggestions - the display
 // names of the characters cast on this entry - are a convenience, not a
 // vocabulary: Enter (or a comma) takes whatever was typed, unless ArrowUp /
-// ArrowDown has highlighted a suggestion, which Enter then takes. The list is
-// the shared SuggestList (components/forms/SuggestList.jsx).
+// ArrowDown has highlighted a suggestion, which Enter then takes. While text
+// is typed that no suggestion equals, the list ends with an `Add "<text>"`
+// row, and leaving the field adds the text too, so a phone keyboard whose
+// Enter is not readable (hooks/useEnterToAdd.js) still has a way in. The
+// list is the shared SuggestList (components/forms/SuggestList.jsx).
 import { useId, useRef, useState } from "react";
 
-import { SuggestItem, SuggestList, stepActive } from "../../../components/forms/SuggestList";
+import {
+  SuggestAction,
+  SuggestItem,
+  SuggestList,
+  stepActive,
+} from "../../../components/forms/SuggestList";
+import { isEnterKey, useEnterSubmitGuard } from "../../../hooks/useEnterToAdd";
 import { inputCls, tagCls } from "./ui";
 
 const MAX_SUGGESTIONS = 8;
@@ -28,6 +37,13 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
     .filter((name) => name && !chosen.has(name))
     .filter((name) => !query || name.toLowerCase().includes(query))
     .slice(0, MAX_SUGGESTIONS);
+  const typed = text.trim();
+  const offerAdd =
+    typed !== "" &&
+    !chosen.has(typed) &&
+    !offered.some((name) => name.toLowerCase() === typed.toLowerCase());
+  const rowCount = offered.length + (offerAdd ? 1 : 0);
+  const showing = open && rowCount > 0;
 
   const add = (raw) => {
     const name = String(raw || "").trim();
@@ -37,6 +53,12 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
     onChange([...value, name]);
   };
   const remove = (name) => onChange(value.filter((n) => n !== name));
+
+  useEnterSubmitGuard(inputRef, () => {
+    if (!typed) return false;
+    add(text);
+    return true;
+  });
 
   return (
     <div className="space-y-1">
@@ -64,12 +86,13 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
           value={text}
           aria-label={label}
           role="combobox"
-          aria-expanded={open && offered.length > 0}
+          aria-expanded={showing}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={
-            open && active >= 0 && active < offered.length ? `${listId}-${active}` : undefined
+            showing && active >= 0 && active < rowCount ? `${listId}-${active}` : undefined
           }
+          enterKeyHint="enter"
           placeholder={`Add ${label.toLowerCase()}…`}
           onChange={(e) => {
             const next = e.target.value;
@@ -92,8 +115,8 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
               e.preventDefault();
               setOpen(true);
-              setActive((c) => stepActive(c, e.key === "ArrowDown" ? 1 : -1, offered.length));
-            } else if (e.key === "Enter") {
+              setActive((c) => stepActive(c, e.key === "ArrowDown" ? 1 : -1, rowCount));
+            } else if (isEnterKey(e)) {
               e.preventDefault();
               add(active >= 0 && offered[active] ? offered[active] : text);
             } else if (e.key === "Backspace" && !text && value.length) {
@@ -113,7 +136,7 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
           }}
           className={inputCls}
         />
-        {open && offered.length > 0 && (
+        {showing && (
           <SuggestList anchorRef={inputRef} id={listId} label={`${label} suggestions`}>
             {offered.map((name, index) => (
               <SuggestItem
@@ -128,6 +151,16 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
                 {name}
               </SuggestItem>
             ))}
+            {offerAdd && (
+              <SuggestItem
+                id={`${listId}-${offered.length}`}
+                active={active === offered.length}
+                onPick={() => add(text)}
+                onHover={() => setActive(offered.length)}
+              >
+                <SuggestAction icon="fa-plus">{`Add "${typed}"`}</SuggestAction>
+              </SuggestItem>
+            )}
           </SuggestList>
         )}
       </div>

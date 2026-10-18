@@ -18,6 +18,7 @@ import CharacterFirstsFields from "../../components/forms/CharacterFirstsFields"
 import { GENDERS } from "../../config/fieldOptions";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
+import { isEnterKey } from "../../hooks/useEnterToAdd";
 import { useToast } from "../../hooks/useToast";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
 import { firstsPayload, firstsToForm } from "../../lib/characterForm";
@@ -223,7 +224,7 @@ export default function IdentityAddTab() {
         // Enter in a text input submits. Add.jsx's page-wide form would
         // otherwise swallow it; the ComboBox's Enter-to-select has already
         // called preventDefault, so picking a character does not submit.
-        if (e.key !== "Enter" || e.defaultPrevented || e.target.tagName !== "INPUT") return;
+        if (!isEnterKey(e) || e.defaultPrevented || e.target.tagName !== "INPUT") return;
         e.preventDefault();
         submit();
       }}

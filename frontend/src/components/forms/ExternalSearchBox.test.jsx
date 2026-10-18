@@ -1,6 +1,6 @@
 // Frontend: the Add tab's external search box - one component for MAL, TMDB,
 // Open Library, Comic Vine and IGDB, all answering ExternalSearchResult rows.
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -147,7 +147,9 @@ describe("ExternalSearchBox", () => {
       await settle();
 
       expect(global.fetch).not.toHaveBeenCalled();
-      expect(screen.getByText(/Press Enter to search Comic Vine/)).toBeInTheDocument();
+      expect(
+        screen.getByRole("option", { name: 'Search Comic Vine for "saga"' }),
+      ).toBeInTheDocument();
 
       await user.keyboard("{Enter}");
 
@@ -178,6 +180,42 @@ describe("ExternalSearchBox", () => {
       await user.type(box("Comic Vine"), "saga{Enter}");
 
       expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    // A phone: the row is the tap target where a keyboard would press Enter.
+    it("searches when the search row is pressed", async () => {
+      const user = userEvent.setup();
+      renderBox({ source: "Comic Vine", searchUrl: comicUrl, submitOnEnter: true });
+
+      await user.type(box("Comic Vine"), "saga");
+      fireEvent.mouseDown(screen.getByRole("option", { name: 'Search Comic Vine for "saga"' }));
+
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+      expect(await screen.findByRole("option", { name: /Sousou no Frieren/ })).toBeInTheDocument();
+    });
+
+    // An Android keyboard's unreadable Enter (keyCode 229) still makes the
+    // browser submit the form; the box takes that submit as its own Enter.
+    it("searches instead of submitting when an unreadable Enter submits the form", async () => {
+      const onSubmit = vi.fn((e) => e.preventDefault());
+      render(
+        <form onSubmit={onSubmit}>
+          <ExternalSearchBox
+            source="Comic Vine"
+            searchUrl={comicUrl}
+            onPick={() => {}}
+            submitOnEnter
+          />
+        </form>,
+      );
+      const input = box("Comic Vine");
+      act(() => input.focus());
+      fireEvent.change(input, { target: { value: "saga" } });
+      fireEvent.keyDown(input, { key: "Unidentified", keyCode: 229 });
+      fireEvent.submit(input.form);
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
     });
   });
 });
