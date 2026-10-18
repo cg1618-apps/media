@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-14
+Last verified: 2026-10-18
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -358,7 +358,7 @@ nested `copies` collection.
 | `GET`    | `/`                    | Public | List all games. Optional params: `franchise_id`, `series_id`, `playing_status`, `release_status`, `game_type`, `search_query`, plus **`ownership`** (see below). |
 | `GET`    | `/search-igdb`         | `manage.catalog` | `?q=`, `limit`. Searches IGDB; `external_id` is the numeric IGDB id, `link` the public slug page (which `extract_igdb_id` cannot parse, so the form writes `igdb_id` itself). Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/{entry_id}`          | Public | One game by UUID. |
-| `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_replace_single_game` after creation, which calls `apply_single_replace_game` (IGDB fill-only, keyed on `igdb_id`, then Steam, keyed on `steam_appid`; both ids derived from their links first) and re-extracts system options, then logs the write. |
+| `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_save_replace_game` after creation, which calls `apply_single_replace_game` with `retry_hltb_misses=False` (IGDB fill-only, keyed on `igdb_id`, then Steam, keyed on `steam_appid`, with the Metacritic link; both ids derived from their links first; then the HowLongToBeat search, skipped for a miss already remembered in this process) and re-extracts system options, then logs the write. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `GameUpdate`. Same write hook. `GameCreate` and `GameUpdate` check `is_main` against `GAME_IS_MAIN` (422 otherwise). |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. `copies` is honoured here too — the nested writer coerces a copy's `system_id` from a JSON string, since a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets `playing_status = "Completed"` and **nothing else**: `completion_level`, the three `all_*` flags and the achievement pair are independent axes only the user can judge. |
@@ -539,7 +539,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 | `GET`    | `/search-igdb`         | `manage.catalog` | `?q=`, `limit`. Searches IGDB so the admin can pick the entry and store its `igdb_id` - Game's search, under this route. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/`                    | Public | List. Optional params: `franchise_id`, `series_id`, `playing_status`, `release_status`, `game_type`, `playstyle`, `language_availability`, `ownership` (the acting user's copies, as for game), `search_query` (all five name columns). |
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
-| `POST`   | `/`                    | Admin  | Create. Body: `HGameCreate`. Auto-runs `execute_replace_single_h_game`: Game's Replace (ids extracted from `igdb_link` and `steam_link`, IGDB fetched fill-only when there is an `igdb_id`, SteamDB row derived, Steam fetched when there is an appid), then `run_sync_game` and `run_sync_gated_labels`. |
+| `POST`   | `/`                    | Admin  | Create. Body: `HGameCreate`. Auto-runs `execute_save_replace_h_game`: Game's Replace in its save form (ids extracted from `igdb_link` and `steam_link`, IGDB fetched fill-only when there is an `igdb_id`, SteamDB row derived, Steam fetched when there is an appid, then the HowLongToBeat search unless it already missed in this process), then `run_sync_game` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HGameUpdate`. Same write hook. |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `playing_status = "Completed"`; nothing on the catalogue side, as for game. |

@@ -193,7 +193,8 @@ def _fill_game(db, entry) -> None:
     autofill_game_from_steam. The HowLongToBeat row is a search of its own,
     and is here rather than in post-processing because it is a fetch: Fill
     asks for queued entries only, and does not ask again for a game whose
-    search already missed in this process - Replace retries those. See
+    search already missed in this process - a bulk Replace and the Autofill
+    button retry those. See
     autofill_hltb_source."""
     autofill_game_from_igdb(entry, db)
     autofill_game_from_steam(entry, db)
@@ -433,6 +434,11 @@ PIPELINES: dict[str, PipelineSpec] = {
             Game, Game.steam_appid, Game.steam_link, Game.igdb_id, Game.igdb_link
         ),
         replace=lambda db, e, bulk: apply_single_replace_game(db, e, bulk=bulk),
+        # The save write hook: the same Replace, minus re-searching a
+        # HowLongToBeat miss - a save is not a request to retry it.
+        save_replace=lambda db, e, bulk: apply_single_replace_game(
+            db, e, bulk=bulk, retry_hltb_misses=False
+        ),
         replace_sleep=STEAM_PAUSE,
         replace_after=(("Syncing system options...", run_sync_game),),
         single_after=(run_sync_game,),
@@ -537,6 +543,9 @@ PIPELINES: dict[str, PipelineSpec] = {
             HGame.dlsite_link_tw,
         ),
         replace=lambda db, e, bulk: apply_single_replace_h_game(db, e, bulk=bulk),
+        save_replace=lambda db, e, bulk: apply_single_replace_h_game(
+            db, e, bulk=bulk, retry_hltb_misses=False
+        ),
         replace_sleep=STEAM_PAUSE,
         replace_after=(
             ("Syncing system options...", run_sync_game),

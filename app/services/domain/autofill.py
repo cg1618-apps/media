@@ -1601,9 +1601,9 @@ def _write_metacritic_source(game, db: Session, url: Optional[str]) -> None:
 
 
 # system_ids whose HowLongToBeat lookup found no confident match, for the
-# life of the process. Fill reads it and does not ask again; Replace ignores
-# it, so a miss is retried by a Replace (bulk, or the entry's own save and
-# Autofill button) and by Fill after a restart.
+# life of the process. Fill and the save write hook read it and do not ask
+# again; a bulk Replace and the Autofill button ignore it and retry. A restart
+# forgets it.
 _hltb_misses: set = set()
 
 
@@ -1633,7 +1633,8 @@ def autofill_hltb_source(game, db: Session, *, retry_misses: bool = True) -> boo
     A game that already has the row - fetched, or typed by hand - costs no
     request at all, which is also what makes the row fill-only. A miss is
     remembered (`_hltb_misses`) and, with `retry_misses=False`, not asked
-    again; Fill passes False, Replace leaves it True. A failed or ambiguous
+    again; Fill and the save write hook pass False, a bulk Replace and the
+    Autofill button leave it True. A failed or ambiguous
     search writes nothing. Returns True when a row was added. Does not
     commit, and never raises: the client answers every failure as None.
     """

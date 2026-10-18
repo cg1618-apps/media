@@ -187,7 +187,9 @@ def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) ->
     autofill_from_anilist(novel, MANGA, db)
 
 
-def apply_single_replace_game(db: Session, game, bulk: bool = False) -> None:
+def apply_single_replace_game(
+    db: Session, game, bulk: bool = False, retry_hltb_misses: bool = True
+) -> None:
     """
     Core 'Replace' logic for a single Game entry: IGDB, then Steam, then
     Steam's library capsule if IGDB left the cover empty.
@@ -203,19 +205,24 @@ def apply_single_replace_game(db: Session, game, bulk: bool = False) -> None:
     The SteamDB row is derived before the Steam fetch, not after it: it needs
     only the appid, so a storefront that is down or rate-limited must not cost
     the entry its link. The Metacritic row rides on the Steam answer; the
-    HowLongToBeat row is looked up for any game that has none, a game whose
-    search missed before included - this is where a miss is retried.
+    HowLongToBeat row is looked up for any game that has none. A bulk
+    Replace and the Autofill button retry a search that missed before; the
+    save write hook passes `retry_hltb_misses=False` (the spec's
+    `save_replace`), so an ordinary save of an unmatched game does not pay
+    for the same miss again.
     """
     apply_extract_game_ids(game)
     autofill_game_from_igdb(game, db)
     derive_steamdb_source(game, db)
     autofill_game_from_steam(game, db)
-    autofill_hltb_source(game, db)
+    autofill_hltb_source(game, db, retry_misses=retry_hltb_misses)
     autofill_cover_from_steam(game)
     autofill_cover_from_steam_header(game)
 
 
-def apply_single_replace_h_game(db: Session, h_game, bulk: bool = False) -> None:
+def apply_single_replace_h_game(
+    db: Session, h_game, bulk: bool = False, retry_hltb_misses: bool = True
+) -> None:
     """
     Core 'Replace' logic for a single HGame entry: game's Replace with DLsite
     in front and the cover taken in priority order - DLsite, then Steam's
@@ -233,7 +240,7 @@ def apply_single_replace_h_game(db: Session, h_game, bulk: bool = False) -> None
     autofill_game_from_igdb(h_game, db, cover=False)
     derive_steamdb_source(h_game, db)
     autofill_game_from_steam(h_game, db)
-    autofill_hltb_source(h_game, db)
+    autofill_hltb_source(h_game, db, retry_misses=retry_hltb_misses)
     autofill_cover_from_steam(h_game)
     autofill_game_cover_from_igdb(h_game)
     autofill_cover_from_steam_header(h_game)

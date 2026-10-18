@@ -915,7 +915,7 @@ dependencies (`aiohttp`, `fake_useragent`, `beautifulsoup4`):
 |---|---|
 | Throttle | None published. Every request — discovery, token and search — waits until `MIN_INTERVAL` (1 s) after the previous one. A lookup is one search once the endpoint and token are cached; the first in a process also reads the home page, its scripts up to the one carrying the search, and the token. |
 | Timeout | `TIMEOUT` (15 s) on every request. |
-| Failure | Never raised. A network error, a 429, any other non-200, a body that is not JSON or an endpoint that cannot be found is logged as a warning and answered `None`; the entry gets no row and the run goes on. Not retried with backoff: a miss is retried by the next Replace instead. |
+| Failure | Never raised. A network error, a 429, any other non-200, a body that is not JSON or an endpoint that cannot be found is logged as a warning and answered `None`; the entry gets no row and the run goes on. Not retried with backoff: a miss is retried by the next bulk Replace or Autofill instead. |
 | Off switch | `HLTB_ENABLED=false` (`settings.hltb_enabled`) sends nothing at all. The test suite sets it in `tests/conftest.py`, since the game write hook would otherwise search the live site for every game a test saves. |
 
 ### Matching — `pick_hltb_game_id`
@@ -953,15 +953,21 @@ hand — which is also what makes the row fill-only.
 
 - **Replace** — `apply_single_replace_game` / `_h_game`, so a bulk Replace,
   the entry's Autofill button and the write hook behind every create and
-  update — looks up any game without the row.
+  update — looks up any game without the row. The write hook runs it as the
+  spec's `save_replace` (`retry_hltb_misses=False`, through
+  `execute_save_replace_game` / `_h_game`), so it skips a remembered miss.
+  All three run the fetch in the threadpool (`run_in_threadpool` in
+  `run_replace_single` and `run_replace`), never on the event loop.
 - **Fill** looks up queued entries only, inside `_fill_game` / `_fill_h_game`,
   and not in post-processing as SteamDB is: it is a fetch, and post-processing
   runs on the event loop for every entry in the run. A game Fill does not queue
   gets its link from the next save or Replace.
 - **A miss is remembered** for the life of the process (`_hltb_misses`, keyed
-  by `system_id`). Fill does not ask again for a remembered miss; Replace
-  does, so a game HowLongToBeat lists later, or whose name is corrected, picks
-  its link up on the next Replace or save. A restart forgets every miss.
+  by `system_id`). Fill and an ordinary save do not ask again for a
+  remembered miss, so editing an unmatched game costs no search; a bulk
+  Replace and the Autofill button do, so a game HowLongToBeat lists later, or
+  whose name is corrected, picks its link up on the next Replace or Autofill.
+  A restart forgets every miss.
 
 ## DLsite
 
@@ -1255,7 +1261,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `seiyuu` | `apply_extract_mal_id_person` (every person) | `autofill_person_from_mal`, for a person holding the `seiyuu` role with a `mal_id` and a blank fillable column; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
-| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`), then `autofill_hltb_source` (not repeating a miss), then `autofill_cover_from_steam` and `autofill_cover_from_steam_header` while the cover is still empty; in Fill All; Replace (bulk, single, write hook) runs all five, IGDB fill-only, and retries a HowLongToBeat miss | `STEAM_PAUSE` (0.5 s), plus HowLongToBeat's own 1 s spacing | IGDB (+ Twitch for the token), Steam, HowLongToBeat |
+| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`), then `autofill_hltb_source` (not repeating a miss), then `autofill_cover_from_steam` and `autofill_cover_from_steam_header` while the cover is still empty; in Fill All; Replace (bulk, single, write hook) runs all five, IGDB fill-only; bulk and single retry a HowLongToBeat miss, the write hook does not | `STEAM_PAUSE` (0.5 s), plus HowLongToBeat's own 1 s spacing | IGDB (+ Twitch for the token), Steam, HowLongToBeat |
 | `h-comic` | `apply_extract_mal_id_manga_novel` | `_fill_h_comic`: `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has - then `autofill_h_comic_from_ehentai` - the cover and illustrator MAL left empty (see [E-Hentai](#e-hentai)); all fill-only; no AniList; in Fill All and Replace All, and Replace (`apply_single_replace_h_comic`) runs the same order and also selects entries linked only to E-Hentai | 1 s | Tenrai, E-Hentai |
 | `hentai` | `apply_extract_hentai_ids` (MAL then AniDB) | `_fill_hentai`: `autofill_hentai_from_mal`, then `autofill_hentai_from_anidb` for what MAL left blank (see [AniDB](#anidb)); stops when `anidb.has_capacity()` is false (an AniDB error answer); in Fill All; Replace (`apply_single_replace_hentai`) runs the same order and also selects entries linked only to AniDB | 1 s, plus AniDB's own 4 s spacing | Tenrai, AniDB (API and image CDN) |
 | `h-game` | as game | `_fill_h_game`: `autofill_h_game_from_dlsite`, then game's two autofills on the `h_game` table writing only what it has (IGDB's cover held back), then `autofill_hltb_source` as game, then `autofill_cover_from_steam`, `autofill_game_cover_from_igdb` and `autofill_cover_from_steam_header` - the cover comes DLsite, Steam's capsule, IGDB, Steam's header (see [DLsite](#dlsite)); in Fill All; Replace (`apply_single_replace_h_game`) runs the same order and also selects entries linked only to DLsite. `/api/h-game/search-igdb` is game's picker | `STEAM_PAUSE` (0.5 s) | DLsite, IGDB (+ Twitch), Steam (storefront and image CDN), HowLongToBeat |

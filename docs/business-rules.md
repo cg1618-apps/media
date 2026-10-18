@@ -193,9 +193,9 @@ queues) and inside Replace, never in post-processing.
   when exactly one result matches one of the game's names exactly (the release
   year breaking a tie) — `https://howlongtobeat.com/game/<id>`. A failed or
   ambiguous search writes nothing. A game that already has the row is never
-  searched. A miss is remembered for the life of the process: Fill does not
-  ask again, Replace — bulk, the entry's Autofill button, and the write hook
-  behind every save — does.
+  searched. A miss is remembered for the life of the process: Fill and an
+  ordinary save (the write hook) do not ask again; a bulk Replace and the
+  entry's Autofill button do.
 
 The matching rules and the search mechanism are in
 [external-apis.md](external-apis.md#howlongtobeat).

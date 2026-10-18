@@ -3380,8 +3380,10 @@ tab, so back up from a migrated database before any Pull.
 - **Fill asks only for the entries it queues, and does not repeat a miss.**
   SteamDB is derived in post-processing because it is free; a search is not,
   and post-processing runs on the event loop for every entry in a run. A miss
-  is remembered per process and retried by Replace - which every save runs -
-  rather than stored: a column or table recording "searched, not found"
+  is remembered per process and retried by a bulk Replace or the Autofill
+  button - not by an ordinary save, which runs the same Replace through the
+  write hook but would otherwise add a search of a second or more to every
+  save of an unmatched game - rather than stored: a column or table recording "searched, not found"
   would be a migration and a gated release for what a restart costs one
   extra search to forget.
 - The time-to-beat **figures** still come from IGDB, as decided when games

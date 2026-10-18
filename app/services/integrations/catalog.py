@@ -303,8 +303,8 @@ _HLTB_LINK = Write(
     "if-absent",
     "a reference media_source row: the game page of the one search result "
     "whose name matches exactly, the release year breaking a tie; nothing "
-    "when the search fails or is ambiguous. Fill does not repeat a miss in "
-    "the same process; Replace does",
+    "when the search fails or is ambiguous. Fill and a save do not repeat a "
+    "miss in the same process; a bulk Replace and Autofill do",
 )
 
 # Identical on all four AniList-covered types: same three columns, same

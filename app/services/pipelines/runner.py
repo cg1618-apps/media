@@ -66,6 +66,10 @@ class PipelineSpec:
     # ---- Replace ----------------------------------------------------------
     replace_select: Optional[Callable[[Session], list]] = None   # None: no bulk Replace
     replace: Optional[Callable[[Session, Any, bool], None]] = None  # (db, entry, bulk)
+    # What the save write hook runs instead of `replace`, for a type whose
+    # Replace does something a save should not repeat. None: `replace`.
+    # Game's skips a HowLongToBeat search that already missed in this process.
+    save_replace: Optional[Callable[[Session, Any, bool], None]] = None
     replace_sleep: float = 0
     replace_after: tuple[Step, ...] = ()
     single_after: tuple[Callable[[Session], None], ...] = field(default_factory=tuple)
@@ -297,10 +301,16 @@ async def run_replace_single(
     entry_id: str,
     action_type: str = "Manual",
     log_action: bool = True,
+    on_save: bool = False,
 ) -> dict:
-    """Re-fetch one entry (the write hook behind create/update). Returns a
+    """Re-fetch one entry: the write hook behind create/update (`on_save`),
+    and the single Replace route behind the Autofill button. Returns a
     status dict rather than raising: the factory logs a failure, it never
-    500s a row that is already committed."""
+    500s a row that is already committed.
+
+    The fetch runs in the threadpool, never on the event loop: every
+    `replace` is synchronous network I/O. `on_save` swaps in
+    `spec.save_replace` where the type has one."""
     action_specific = f"Replace for single {spec.label.lower()} entry"
     try:
         entry = db.query(spec.model).filter(spec.model.system_id == entry_id).first()
@@ -309,8 +319,9 @@ async def run_replace_single(
                  error_message=f"{spec.label} not found 404")
             return {"status": "error", "message": f"{spec.label} entry not found", "status_code": 404}
 
-        if spec.replace:
-            await run_in_threadpool(spec.replace, db, entry, False)
+        replace = (on_save and spec.save_replace) or spec.replace
+        if replace:
+            await run_in_threadpool(replace, db, entry, False)
         db.commit()
         for fn in spec.single_after:
             fn(db)
