@@ -87,6 +87,38 @@ def test_an_entry_round_trips(admin_client):
     assert fetched["watching_status"] == "Might Watch"
 
 
+def test_an_author_is_credited_and_read_back(admin_client):
+    """h-comic's author role, on hentai: written through /api/credits like
+    every credit, read back joined and as linkable refs labelled Author."""
+    body = _create(admin_client)
+    response = admin_client.put(
+        f"/api/credits/hentai/{body['system_id']}",
+        json={"credits": {"author": ["Zvornik Writer", "Zvornik Second"]}},
+    )
+    assert response.status_code == 200, response.text
+
+    fetched = admin_client.get(f"{ROUTE}/{body['public_id']}").json()
+    assert fetched["author"] == "Zvornik Writer, Zvornik Second"
+    refs = fetched["credit_refs"]["author"]
+    assert [r["display_name"] for r in refs] == ["Zvornik Writer", "Zvornik Second"]
+    assert {r["label"] for r in refs} == {"Author"}
+    credits = admin_client.get(f"/api/credits/hentai/{body['system_id']}").json()
+    assert credits["credits"]["author"] == ["Zvornik Writer", "Zvornik Second"]
+
+    # An update replaces the set; an empty list clears it.
+    admin_client.put(
+        f"/api/credits/hentai/{body['system_id']}",
+        json={"credits": {"author": ["Zvornik Third"]}},
+    )
+    assert admin_client.get(f"{ROUTE}/{body['public_id']}").json()["author"] == "Zvornik Third"
+    admin_client.put(
+        f"/api/credits/hentai/{body['system_id']}", json={"credits": {"author": []}}
+    )
+    cleared = admin_client.get(f"{ROUTE}/{body['public_id']}").json()
+    assert cleared["author"] is None
+    assert "author" not in cleared["credit_refs"]
+
+
 def test_display_name_falls_back_through_the_names(admin_client):
     body = admin_client.post(f"{ROUTE}/", json={"hentai_name_roman": "Romaji Only"}).json()
     assert body["display_name"] == "Romaji Only"

@@ -523,7 +523,7 @@ every type).
 **Response model:** `HentaiResponse` — the columns, the personal fields,
 `display_name` (CN → EN → Alt → roman → JP), `public_id`, `content_labels`,
 `sources`, `credit_refs`, `studio_refs`, and the link fields `studio`,
-`director`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`.
+`director`, `author`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`.
 
 ---
 

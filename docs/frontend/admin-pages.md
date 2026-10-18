@@ -493,13 +493,13 @@ restricted family (**Hentai, H-Comic and H-Game** franchises), so a hentai can
 join the franchise of the h-comic it adapts; a new franchise typed there is created as
 `Hentai` (`HENTAI_FRANCHISE_TYPE`). The body has the five names;
 classification (source material, originality, series number and the three H
-Genre fields); credits (**Studio** and **Director**); airing status and
+Genre fields); credits (**Studio**, **Director** and **Author**); airing status and
 release date; watching status, rating and **usefulness**; total and
 finished episodes and **Paused at**; the **MAL link** -
 there is no MAL id input, since the write hook derives `mal_id` from the link
 and `hentaiFieldsPayload` sends an id only beside one; sources, Watch Next /
 To Rewatch, cover and remark. Submit needs a CN or EN name and a franchise,
-quick-creates the studio, director and genre values through `hentaiSourceFields`, then
+quick-creates the studio, director, author and genre values through `hentaiSourceFields`, then
 `POST /api/hentai/`, the credits and the labels, without enrichment (Fill and
 Replace fetch from Tenrai and AniDB later); the `hentai` label is checked and locked in
 the picker.

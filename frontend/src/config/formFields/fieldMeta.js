@@ -1401,6 +1401,12 @@ export const TYPE_FIELD_META = {
       source: HENTAI_SOURCES.director,
       group: "Credits",
     },
+    author: {
+      label: "Author",
+      control: "tags",
+      source: HENTAI_SOURCES.author,
+      group: "Credits",
+    },
     h_genre_plot: {
       label: "Genre Plot",
       control: "tags",

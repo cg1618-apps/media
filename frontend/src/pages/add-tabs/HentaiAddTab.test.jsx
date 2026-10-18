@@ -81,6 +81,12 @@ describe("HentaiAddTab", () => {
     expect(screen.getByText("Genre Relation")).toBeInTheDocument();
   });
 
+  it("credits an author beside the studio and director, as h-comic does", () => {
+    renderTab();
+    expect(screen.getByText("Author")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Select or type author...")).toBeInTheDocument();
+  });
+
   it("offers the episode pair", async () => {
     const user = userEvent.setup();
     renderTab();

@@ -452,7 +452,7 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 | `director` | Director | person | anime, anime-movie, movie, game, hentai |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime, game |
-| `author` | Author | person | manga, novel, comic, h-comic |
+| `author` | Author | person | manga, novel, comic, h-comic, hentai |
 | `illustrator` | Illustrator | person | manga, novel, comic, h-comic |
 | `club` | Club | person | h-comic |
 | `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai |

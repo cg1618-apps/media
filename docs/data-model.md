@@ -875,8 +875,8 @@ Constraints and wiring, as for every entry table: composite FK `fk_hentai_media`
 `hentai_public_id_seq`, and the AFTER DELETE trigger `trg_hentai_delete_media`.
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, and the
-`studio` / `studio_refs` / `director` / `h_genre_plot` / `h_genre_appearance` /
-`h_genre_relation` link fields. Personal columns: `watching_status`,
+`studio` / `studio_refs` / `director` / `author` / `h_genre_plot` /
+`h_genre_appearance` / `h_genre_relation` link fields. Personal columns: `watching_status`,
 `my_rating`, `ep_fin`, `time_fin`, `usefulness`, `completed_at` on
 [`user_media_list`](#user_media_list).
 
