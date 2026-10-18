@@ -50,3 +50,19 @@ it("ranks exact, then prefix, then contains matches only when asked", async () =
   await userEvent.type(screen.getByPlaceholderText("Search"), "hana");
   expect(labels()).toEqual(["Kana Hanazawa", "Hana", "Hanae Natsuki"]);
 });
+
+// The cast editor's "Create new character named X" comes after every server
+// match; twelve matches once pushed it past the ten-result cap, so on a phone
+// there was nothing to tap.
+it("keeps a pinned item after the matches, past the ten-result cap", async () => {
+  const items = [
+    ...Array.from({ length: 12 }, (_, n) => ({ id: `y${n}`, label: `Yuki ${n}` })),
+    { id: "create", label: 'Create new character named "Yuki"', searchText: "Yuki", pinned: true },
+  ];
+  render(<ComboBox items={items} placeholder="Search" />);
+  await userEvent.type(screen.getByPlaceholderText("Search"), "Yuki");
+
+  const labels = screen.getAllByRole("option").map((o) => o.textContent);
+  expect(labels).toHaveLength(11);
+  expect(labels.at(-1)).toBe('Create new character named "Yuki"');
+});

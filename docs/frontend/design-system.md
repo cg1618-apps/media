@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-10-06
+Last verified: 2026-10-18
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -57,24 +57,52 @@ counts). `h1` is display by default.
    not get an icon.
 5. **Colour never encodes a category.** Media type, airing status,
    expectation and the like are text (`Chip`, tone `ink`). The exceptions
-   are the rating stamp (brand), destructive states (danger) and the
-   **scope chips on the System Options page** (`config/scopeColors.js`,
-   `--color-scope-*` in all three palettes). That page runs the same twelve media
-   type keys down one narrow column across hundreds of rows, and the question
-   asked of it — which two values are offered in the same places — is a
-   comparison, not a reading; hue answers it at a glance where
-   "anime-movie" against "anime" does not. The key stays written in the chip,
-   so the colour is an index and never the only signal. It is scoped to that
-   one column on purpose: `config/mediaTypeColors.js` still gives every media
-   type the same ink chip everywhere else, and a second colour-coded category
-   needs the same argument made again, not this one cited. Adding a media type
-   means adding its `--c-scope-*` hue to `:root`, `[data-theme="dark"]` **and**
-   the `prefers-color-scheme` block — `game` is `hsl(95 40% 33%)` light,
+   are the rating stamp (brand), destructive states (danger) and two
+   type-coloured chips, both drawn from `config/scopeColors.js` and the
+   `--color-scope-*` tokens in all three palettes:
+
+   - The **scope chips** (`scopeChip`), on the System Options page and the
+     admin pages that list the same scope keys (Aliases, External APIs). The
+     System Options page runs the twelve media type keys down one narrow
+     column across hundreds of rows, and the question asked of it — which two
+     values are offered in the same places — is a comparison, not a reading;
+     hue answers it at a glance where "anime-movie" against "anime" does not.
+   - The **nav search suggestion badge** (`typeHue`, through `Chip`'s `hue`
+     prop). The dropdown mixes up to nineteen types — the twelve media types,
+     collection, franchise, series, seasonal, person, studio and publisher —
+     in eight rows that the reader scans while still typing, to pick out the
+     one row of the type they meant. That is a search across rows, not a
+     reading of one; hue finds the row before the badge text is read. The
+     media types keep their scope hue, so a type has one colour wherever it is
+     coloured. The grouping tiers and seasonal take saturated hues in the gaps
+     between the media types; person, studio and publisher take
+     low-saturation ones, so a credited entity reads as "not a title" first.
+
+   In both, the type stays written in the chip, so the colour is an index and
+   never the only signal. Both are scoped on purpose: every other surface keeps
+   the ink chip — `config/mediaTypeColors.js` gives every media type the same
+   one on the relations canvas, and the full `/search` results page labels its
+   rows in ink too — and a third colour-coded category needs the same argument
+   made again, not these cited.
+   Adding a type means adding its `--c-scope-*` hue to `:root`,
+   `[data-theme="dark"]` **and** the `prefers-color-scheme` block
+   (`config/scopeColors.test.js` checks all three), at WCAG AA 4.5:1 against
+   `--c-surface` in each — `game` is `hsl(95 40% 33%)` light,
    `hsl(95 45% 58%)` dark; `h-comic` is `hsl(70 55% 30%)` light,
    `hsl(70 50% 56%)` dark, an olive between game's green and cartoon's ochre;
    `h-game` is `hsl(285 35% 45%)` light, `hsl(285 45% 72%)` dark, a violet
    between anime movie's and comic's; `hentai` is `hsl(125 40% 32%)` light,
-   `hsl(125 40% 60%)` dark, a green between game's and manga's.
+   `hsl(125 40% 60%)` dark, a green between game's and manga's. The search-only
+   hues, light then dark: `collection` `hsl(235 45% 50%)` / `hsl(235 60% 75%)`,
+   an indigo between anime's blue and anime movie's violet; `franchise`
+   `hsl(330 50% 44%)` / `hsl(330 60% 72%)`, a rose more saturated than comic's
+   orchid; `series` `hsl(8 60% 44%)` / `hsl(8 65% 68%)`, a brick red more
+   saturated than movie's; `seasonal` `hsl(168 55% 29%)` / `hsl(168 45% 55%)`,
+   a teal between manga and novel; `person` `hsl(220 18% 40%)` /
+   `hsl(220 18% 70%)` slate, `studio` `hsl(30 20% 38%)` / `hsl(30 22% 66%)`
+   taupe, `publisher` `hsl(280 14% 42%)` / `hsl(280 16% 70%)` mauve. Nineteen
+   hues cannot all sit far apart round the wheel, so the close pairs are told
+   apart by saturation as well as hue.
 6. **Copy** is sentence case, plain verbs, no exclamation marks:
    "Quick edit", "Mark completed", "Saved". Empty states say what is
    missing and what to do, not a mood.
@@ -112,7 +140,8 @@ counts). `h1` is display by default.
 - `RatingStamp` — outlined brand square with the rank letter; `size`
   `sm`/`md`, `tilt` on covers.
 - `Chip` — mono tag on a faint fill, hairline border, 4 px radius; `tone` `ink` (default) / `brand` / `danger` /
-  `muted`. `dashed` is the identity tag: a dashed `border-border-strong`
+  `muted`. `hue` takes a type's colour classes from `typeHue` and replaces the
+  tone, for the nav search badge rule 5 sanctions. `dashed` is the identity tag: a dashed `border-border-strong`
   outline with no fill and muted text, replacing the tone. A dashed line means
   "identity" across the app — the cast editor's identity rows, the cast
   slip's identity thumbnails, the library's identity cards.
