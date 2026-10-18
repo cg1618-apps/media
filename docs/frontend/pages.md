@@ -652,7 +652,7 @@ Layout: breadcrumb → (admin) the dashed **Admin** strip with **Quick edit**,
 linking to `/modify?id=<system_id>&type=person` → left column with the photo
 (`display_photo_file`: the photo, else the server-resolved fallback cover,
 else `FALLBACK_SVG`) and rating stamp, (admin) a **My rating** select, and a
-**Naming** card (`NamingCard`, all four names) → right column with the
+**Naming** card (`NamingCard`, each of the four names that is set) → right column with the
 display name, credited-entry count and, for a person with a `mal_link`, a
 **MyAnimeList** button beside it (`MalButton`, as on the character page; none
 without one), a "Profile" `InfoCard` (gender; the types
@@ -763,7 +763,7 @@ name, linking to its page / the identity's name → (admin) the dashed
 **Identity** spine (`display_photo_file`, the identity's own photo else the
 character's displayed one, as the server resolves it; else `FALLBACK_SVG`),
 the character's `my_rating` stamp on it, read-only, and a **Naming** card
-(`NamingCard type="identity"`, all four names) → right column with the
+(`NamingCard type="identity"`, each of the four names that is set) → right column with the
 display name, its appearance count and the character's **MyAnimeList**
 button (`MalButton`), a "Profile" `InfoCard` — **Role**, then **Gender**
 (`display_gender`, the character's when the identity sets none), then
@@ -828,7 +828,7 @@ Layout:
 2. **Admin strip** (admin only) — the dashed strip with **Quick edit** to
    `/modify?id=<system_id>&type=studio`.
 3. **Left column** — logo with the rating stamp, (admin) the **My rating**
-   select, then the **Naming** card (`NamingCard`, all four names —
+   select, then the **Naming** card (`NamingCard`, each of the four names that is set —
    English, Chinese, Japanese, Alternative — the displayed one included, as
    on the person and character pages).
 4. **Right column** — the display name, a credited-entry count and, for a

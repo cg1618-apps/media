@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-10-17
+Last verified: 2026-10-18
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -278,10 +278,13 @@ not drawn. The character, person and studio libraries use it for
 - **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `ScoreBlock`,
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`,
   `ClubMembership` (see [Entity components](#entity-components-person-studio-and-character)).
-  `NamingCard` shows an h-comic's own region's name only (JP or KR), and a
-  character's, person's, studio's or publisher's four unprefixed names —
-  the displayed one included — (`NAMING_CONFIGS.character` / `.person` /
-  `.studio` / `.publisher`).
+  `NamingCard` lists the type's name fields (`getNamingFields`) that hold a
+  value: a null or blank name gets no row rather than a "—", and with none
+  set the card is not rendered at all, on every page that uses it. The
+  fields it draws from are an h-comic's own region's name only (JP or KR),
+  and a character's, person's, studio's or publisher's four unprefixed
+  names — the displayed one included — (`NAMING_CONFIGS.character` /
+  `.person` / `.studio` / `.publisher`).
   `SourcesCard` reads the entry's `sources` array (server-ordered — access
   rows in `sort_order`/insertion order, never re-sorted client-side), splits
   it into `access`/`reference` sections by `row.kind`, titles the access
