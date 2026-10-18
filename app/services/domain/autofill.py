@@ -2,6 +2,7 @@
 
 import logging
 from datetime import date
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -32,6 +33,7 @@ from app.services.integrations.anilist import anilist_record
 from app.services.integrations.comicvine import fetch_comicvine_volume
 from app.services.integrations.dlsite import fetch_dlsite_product
 from app.services.integrations.ehentai import fetch_ehentai_gallery
+from app.services.integrations.hltb import find_hltb_game_id
 from app.services.integrations.igdb import fetch_igdb_game, fetch_igdb_time_to_beat
 from app.services.integrations.image_manager import (
     cover_needs_download,
@@ -59,6 +61,7 @@ from app.utils.comicvine_utils import map_comicvine_to_comic_data
 from app.utils.constants import H_COMIC_REGION_KR
 from app.utils.dlsite_utils import dlsite_product_id_for, map_dlsite_to_h_game_data
 from app.utils.ehentai_utils import ehentai_gallery_key_for, map_ehentai_to_h_comic_data
+from app.utils.hltb_utils import hltb_link_for
 from app.utils.igdb_utils import map_igdb_to_game_data
 from app.utils.imdb_utils import (
     _derive_tv_season_airing_status,
@@ -67,7 +70,7 @@ from app.utils.imdb_utils import (
     map_imdb_to_movie_data,
     map_imdb_to_tv_show_data,
 )
-from app.utils.name_normalize import split_names
+from app.utils.name_normalize import names_of, split_names
 from app.utils.openlibrary_utils import map_openlibrary_to_novel_data
 from app.utils.steam_utils import (
     REGIONS,
@@ -1504,14 +1507,17 @@ def autofill_game_from_steam(game, db: Session) -> None:
     the caller is responsible. A column the entry's table lacks is never
     written: an h-game has no hours_played and no Metacritic score.
 
-    Columns only: no tag, no credit and no cover, so this never touches the
-    alias layer and cannot produce an untranslated term. Both fills take a
+    Columns and the Metacritic reference row only: no tag, no credit and no
+    cover, so this never touches the alias layer and cannot produce an
+    untranslated term. Both fills take a
     Steam cover separately, through autofill_cover_from_steam. `metacritic_user_score` is
     deliberately absent — Steam does not publish it.
 
     Unlike the IGDB half this is not fill-only. The current prices and the
     Metacritic score are rewritten on every run, which is what makes a bulk
-    Replace worth having for games.
+    Replace worth having for games. The Metacritic page link that rides on
+    the same answer is the exception: it is a reference row, written only
+    when the entry has none (_write_metacritic_source).
 
     The two progress columns pass two guards first. `steam_progress_sync` is
     False for a game owned here but played elsewhere, and stops them outright.
@@ -1545,6 +1551,8 @@ def autofill_game_from_steam(game, db: Session) -> None:
             if _has_column(game, column) and s_data.get(column) is not None:
                 setattr(game, column, s_data[column])
 
+        _write_metacritic_source(game, db, s_data.get("metacritic_url"))
+
         # is_free is not written to any column (there is no such column to
         # write); it exists only to make a free game's null prices legible in
         # the logs rather than looking like a fetch that silently came back
@@ -1576,3 +1584,78 @@ def autofill_game_from_steam(game, db: Session) -> None:
 
     except Exception as e:
         logger.error("Steam autofill failed for app %s: %s", appid, e)
+
+
+def _write_metacritic_source(game, db: Session, url: Optional[str]) -> None:
+    """
+    The game's Metacritic reference row, from the url Steam's appdetails
+    answered (already normalised by map_steam_to_game_data). Fill-only,
+    through upsert_main_source, so a hand-entered row wins; no url, no row.
+    """
+    if db is None or not url:
+        return
+    from app.services.domain.sources import upsert_main_source
+    from app.utils.source_fields import METACRITIC_VALUE
+
+    upsert_main_source(db, game.system_id, "reference", METACRITIC_VALUE, url)
+
+
+# system_ids whose HowLongToBeat lookup found no confident match, for the
+# life of the process. Fill reads it and does not ask again; Replace ignores
+# it, so a miss is retried by a Replace (bulk, or the entry's own save and
+# Autofill button) and by Fill after a restart.
+_hltb_misses: set = set()
+
+
+def reset_hltb_misses() -> None:
+    """Forget every remembered miss. Used by the tests."""
+    _hltb_misses.clear()
+
+
+def _release_year(entry) -> Optional[int]:
+    """The year of an ISO-shaped release_date ("2022", "2022-02", ...)."""
+    value = getattr(entry, "release_date", None) or ""
+    return int(value[:4]) if value[:4].isdigit() else None
+
+
+def autofill_hltb_source(game, db: Session, *, retry_misses: bool = True) -> bool:
+    """
+    The game's HowLongToBeat reference row: the game page of the one search
+    result that confidently is this game (hltb_utils.pick_hltb_game_id), or
+    nothing. Works on a Game or an HGame - both carry en / roman / alt / jp
+    names and a release_date.
+
+    The search term is the first Latin name - English, then romanised, then
+    the first alt fragment - since the site's search is English; every name,
+    Japanese included, takes part in the match. A game with no Latin name is
+    not looked up.
+
+    A game that already has the row - fetched, or typed by hand - costs no
+    request at all, which is also what makes the row fill-only. A miss is
+    remembered (`_hltb_misses`) and, with `retry_misses=False`, not asked
+    again; Fill passes False, Replace leaves it True. A failed or ambiguous
+    search writes nothing. Returns True when a row was added. Does not
+    commit, and never raises: the client answers every failure as None.
+    """
+    from app.services.domain.sources import find_main_source, upsert_main_source
+    from app.utils.source_fields import HOWLONGTOBEAT_VALUE
+
+    if find_main_source(db, game.system_id, "reference", HOWLONGTOBEAT_VALUE) is not None:
+        return False
+    if not retry_misses and game.system_id in _hltb_misses:
+        return False
+
+    names = game.names_dict
+    latin = names_of(names, ("en", "roman", "alt"))
+    if not latin:
+        return False
+
+    game_id = find_hltb_game_id(latin[0], latin + names_of(names, ("jp",)), _release_year(game))
+    if game_id is None:
+        _hltb_misses.add(game.system_id)
+        return False
+
+    _hltb_misses.discard(game.system_id)
+    return upsert_main_source(
+        db, game.system_id, "reference", HOWLONGTOBEAT_VALUE, hltb_link_for(game_id)
+    )

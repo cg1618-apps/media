@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-14
+Last verified: 2026-10-18
 
 ## What this is for
 
@@ -616,8 +616,10 @@ the games backend as a spec that fetched nothing — registration demands one,
 because `MEDIA_TABLES` membership is asserted by `test_sheet_tabs` and by the
 data-control route builder, which generates `/api/data-control/fill/game` and
 `/replace/game/...` from the registry. Fill Game calls
-`autofill_game_from_igdb`, then `autofill_game_from_steam`, and derives the
-SteamDB row in `post_process` (`game_post_processing`) rather than in `fill` —
+`autofill_game_from_igdb`, then `autofill_game_from_steam` (which also writes
+the Metacritic reference row from the same answer), then
+`autofill_hltb_source` (the HowLongToBeat row, not asked again for a game
+whose search already missed in this process), and derives the SteamDB row in `post_process` (`game_post_processing`) rather than in `fill` —
 it fetches nothing, and post-processing runs over every entry in the run
 rather than only the queue, which is what lets it reach a game whose columns
 `fill_eligible` already considers complete. Games are in Fill All. **Game's
@@ -626,7 +628,8 @@ Game.steam_appid, Game.steam_link, Game.igdb_id, Game.igdb_link)`,
 `in_replace_all=True`): IGDB first and still fill-only — nothing in an IGDB
 record drifts, so Replace keeps what is set, as the MAL Replace keeps
 everything but its scores — then Steam, whose current prices and Metacritic
-score are what Replace overwrites. IGDB runs because it can supply the appid
+score are what Replace overwrites, then the HowLongToBeat search, retried
+here for a game whose last search missed. IGDB runs because it can supply the appid
 Steam keys off, so one Replace (or one press of the detail page's Autofill
 button) finishes an entry that carries only an IGDB link.
 
@@ -731,7 +734,7 @@ the write hook.
 4. `replace_after` steps: same as the type's `fill_after` for anime (`derive_ep_previous_all_anime`, `run_sync_anime`), anime-movie, tv-show, cartoon, manga, novel; none for movie.
 5. Log `Replace` / `Replace {label}` / `Success`, `rows_updated` = replaced count.
 
-`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — both sources, as Fill: it derives `igdb_id` and `steam_appid` from their links (`apply_extract_game_ids`), runs `autofill_game_from_igdb` (fill-only), derives the SteamDB `media_source` row (`derive_steamdb_source`), then runs `autofill_game_from_steam`. The SteamDB row costs no request and comes before the Steam fetch, so the link lands even on a run where the storefront is out of budget; it comes after IGDB, so an appid IGDB just supplied gets its row. In a bulk run the `budget` gate (the Steam limiter) is checked for every entry, IGDB-only ones included, because IGDB can hand Steam an appid mid-entry.
+`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — both sources, as Fill: it derives `igdb_id` and `steam_appid` from their links (`apply_extract_game_ids`), runs `autofill_game_from_igdb` (fill-only), derives the SteamDB `media_source` row (`derive_steamdb_source`), then runs `autofill_game_from_steam` (prices, Metacritic score and Metacritic link) and `autofill_hltb_source` (the HowLongToBeat link, for a game without one). The SteamDB row costs no request and comes before the Steam fetch, so the link lands even on a run where the storefront is out of budget; it comes after IGDB, so an appid IGDB just supplied gets its row. In a bulk run the `budget` gate (the Steam limiter) is checked for every entry, IGDB-only ones included, because IGDB can hand Steam an appid mid-entry.
 
 **Replace All** (`execute_replace_all` → `run_all("Replace", REPLACE_ALL, ...)`) covers the eleven types with `in_replace_all=True` — game, h-comic, h-game and hentai included — (comic, studio and seiyuu excluded), then Backup (`Auto`), one master row `Replace` / `Replace All`, same error handling as Fill All.
 

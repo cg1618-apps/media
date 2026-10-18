@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-13
+Last verified: 2026-10-18
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -170,6 +170,35 @@ appid IGDB supplied in that same pass is still in hand. Replace derives it in
 create and update. A game entered
 before this existed picks its row up on the next save or the next Replace
 Game.
+
+### Metacritic and HowLongToBeat links
+
+A game's two review-site links are reference rows of the same kind as SteamDB
+— `Metacritic` and `HowLongToBeat` in the Reference Source vocabulary — on a
+game and an h-game alike, and both are written through `upsert_main_source`,
+so an existing row of either is left alone and a hand-entered one wins. Unlike
+SteamDB, neither is derivable from a column, so both are fetched, and both
+are written only by the fills that fetch: inside Fill (for the entries it
+queues) and inside Replace, never in post-processing.
+
+- **Metacritic** rides on the Steam storefront answer
+  `autofill_game_from_steam` already fetches: `appdetails`' `metacritic.url`,
+  normalised by `metacritic_link_for` to the page Metacritic itself redirects
+  to — `https://www.metacritic.com/game/<slug>/`, the tracking query and the
+  legacy platform segment gone. A game Steam has no Metacritic block for gets
+  no row. It costs no request of its own, which is also why a game Fill no
+  longer queues (Steam has written its prices) gets the link from the next
+  Replace or save rather than from Fill.
+- **HowLongToBeat** is a search of the site, `autofill_hltb_source`, kept only
+  when exactly one result matches one of the game's names exactly (the release
+  year breaking a tie) — `https://howlongtobeat.com/game/<id>`. A failed or
+  ambiguous search writes nothing. A game that already has the row is never
+  searched. A miss is remembered for the life of the process: Fill does not
+  ask again, Replace — bulk, the entry's Autofill button, and the write hook
+  behind every save — does.
+
+The matching rules and the search mechanism are in
+[external-apis.md](external-apis.md#howlongtobeat).
 
 ### Season / Part from the title
 
