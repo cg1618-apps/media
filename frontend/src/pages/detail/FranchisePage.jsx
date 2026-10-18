@@ -17,6 +17,7 @@ import {
 } from "../../utils/media";
 import { getFranchiseCover, withMediaType } from "../../lib/covers";
 import { inFranchiseFamily } from "../../lib/gatedTypes";
+import { buildMediaTabs } from "../../lib/mediaTabs";
 import {
   HubLoading,
   HubError,
@@ -465,23 +466,25 @@ export default function FranchisePage() {
 
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below, because mixing the two in one
-  // row made "Memes" read as just another entry type.
-  const mediaTabs = useMemo(() => {
-    if (!franchise) return [];
-    return [
-      hasACG && animeList.length && "Anime",
-      (hasACG || hasAnimeMovie) && animeMovieList.length && "Anime Movies",
-      hasACG && mangaList.length && "Manga",
-      hasNovel && novelList.length && "Novel",
-      hasComic && comicList.length && "Comic",
-      hasGame && gameList.length && "Game",
-      hasHComic && hComicList.length && "H-Comic",
-      hasHGame && hGameList.length && "H-Game",
-      hasHentai && hentaiList.length && "Hentai",
-      hasMovie && movieList.length && "Movies",
-      hasTV && tvShowList.length && "TV Shows",
-      hasCartoon && cartoonList.length && "Cartoons",
-    ].filter(Boolean);
+  // row made "Memes" read as just another entry type. Each row names its tab,
+  // the list behind it and whether the franchise's type offers it; the tab's
+  // count comes from the same row.
+  const { tabs: mediaTabs, countOf: getTabCount } = useMemo(() => {
+    if (!franchise) return buildMediaTabs([]);
+    return buildMediaTabs([
+      ["Anime", animeList, hasACG],
+      ["Anime Movies", animeMovieList, hasACG || hasAnimeMovie],
+      ["Manga", mangaList, hasACG],
+      ["Novel", novelList, hasNovel],
+      ["Comic", comicList, hasComic],
+      ["Game", gameList, hasGame],
+      ["H-Comic", hComicList, hasHComic],
+      ["H-Game", hGameList, hasHGame],
+      ["Hentai", hentaiList, hasHentai],
+      ["Movies", movieList, hasMovie],
+      ["TV Shows", tvShowList, hasTV],
+      ["Cartoons", cartoonList, hasCartoon],
+    ]);
   }, [
     franchise,
     hasACG,
@@ -1245,20 +1248,6 @@ export default function FranchisePage() {
     ).length;
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
-
-  function getTabCount(tab) {
-    const map = {
-      Anime: animeList.length,
-      "Anime Movies": animeMovieList.length,
-      Manga: mangaList.length,
-      Novel: novelList.length,
-      Comic: comicList.length,
-      Movies: movieList.length,
-      "TV Shows": tvShowList.length,
-      Cartoons: cartoonList.length,
-    };
-    return map[tab] ?? 0;
-  }
 
   // ── loading / error ───────────────────────────────────────────────────────
   if (loading) return <HubLoading label="Loading Franchise Hub..." />;

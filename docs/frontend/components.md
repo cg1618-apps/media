@@ -676,6 +676,7 @@ is a second place to keep in step.
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
+| `mediaTabs.js` | `buildMediaTabs(rows)`: the franchise and series hubs' "Media" tab row from `[label, entries, offered]` rows → `{ tabs, countOf }`. A tab shows when offered and its list is non-empty, and its count is read from the same row, so no tab is shown without one |
 | `suggest.js` | What a type-or-choose input offers for the typed text: `rankByMatch(items, typed, keyOf)` (exact, then prefix, then contains, each tier in the given order) and `suggest(options, text)`, `SuggestInput`'s matcher (case-insensitive, the option already typed left out) |
 | `peopleOrder.js` | `byRatingThenAppearances(people)`: a person picker's best-first order before typed-text matching — `my_rating` by `getRatingWeight` (unrated last), then `credit_count`, most first; stable. The cast editor's seiyuu box uses it |
 | `formatters.js` | `getSourceValues(sources, source)` (filters the `fetchAllSources()` bag by category/scope/**usage** for a `ComboBox`) and display formatters |

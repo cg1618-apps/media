@@ -6,6 +6,7 @@ import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType, inFranchiseFamily } from "../../lib/gatedTypes";
+import { buildMediaTabs } from "../../lib/mediaTabs";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
@@ -400,22 +401,23 @@ export default function SeriesPage() {
 
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below. A series carries no type, so
-  // a tab appears purely because its list holds something.
-  const mediaTabs = useMemo(() => {
-    if (!series) return [];
-    return [
-      animeList.length && "Anime",
-      mangaList.length && "Manga",
-      novelList.length && "Novel",
-      comicList.length && "Comic",
-      gameList.length && "Game",
-      hComicList.length && "H-Comic",
-      hGameList.length && "H-Game",
-      hentaiList.length && "Hentai",
-      movieList.length && "Movies",
-      tvShowList.length && "TV Shows",
-      cartoonList.length && "Cartoons",
-    ].filter(Boolean);
+  // a tab appears purely because its list holds something. The tab's count
+  // comes from the same row.
+  const { tabs: mediaTabs, countOf: getTabCount } = useMemo(() => {
+    if (!series) return buildMediaTabs([]);
+    return buildMediaTabs([
+      ["Anime", animeList],
+      ["Manga", mangaList],
+      ["Novel", novelList],
+      ["Comic", comicList],
+      ["Game", gameList],
+      ["H-Comic", hComicList],
+      ["H-Game", hGameList],
+      ["Hentai", hentaiList],
+      ["Movies", movieList],
+      ["TV Shows", tvShowList],
+      ["Cartoons", cartoonList],
+    ]);
   }, [
     series,
     animeList,
@@ -991,22 +993,6 @@ export default function SeriesPage() {
     ).length;
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
-
-  function getTabCount(tab) {
-    const map = {
-      Anime: animeList.length,
-      Manga: mangaList.length,
-      Novel: novelList.length,
-      Movies: movieList.length,
-      "TV Shows": tvShowList.length,
-      Cartoons: cartoonList.length,
-      Game: gameList.length,
-      "H-Comic": hComicList.length,
-      "H-Game": hGameList.length,
-      Hentai: hentaiList.length,
-    };
-    return map[tab] ?? 0;
-  }
 
   // ── loading / error ───────────────────────────────────────────────────────
   if (loading) return <HubLoading label="Loading Series Hub..." />;
