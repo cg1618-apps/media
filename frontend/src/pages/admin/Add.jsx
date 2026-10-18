@@ -2857,9 +2857,9 @@ export default function Add() {
       return;
     }
 
-    // An h-comic only ever sits in an H-Comic franchise (the server refuses
-    // any other), so a new one is created with that type - and with the
-    // h-comic label, which the server attaches on create.
+    // An h-comic sits only in a franchise of the restricted family (the
+    // server refuses any other), so a new one is created with the H-Comic
+    // type - and with the h-comic label, which the server attaches on create.
     let franchiseId = hcf.franchise_id;
     if (!franchiseId && hcf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
@@ -2991,9 +2991,9 @@ export default function Add() {
       return;
     }
 
-    // An h-game only ever sits in an H-Game franchise (the server refuses
-    // any other), so a new one is created with that type - and with the
-    // h-game label, which the server attaches on create.
+    // An h-game sits only in a franchise of the restricted family (the
+    // server refuses any other), so a new one is created with the H-Game
+    // type - and with the h-game label, which the server attaches on create.
     let franchiseId = hgf.franchise_id;
     if (!franchiseId && hgf.franchise_text.trim()) {
       const result = await new Promise((resolve) => {
@@ -3121,7 +3121,7 @@ export default function Add() {
       return;
     }
 
-    // A hentai sits only in a franchise of the h-comic family (the server
+    // A hentai sits only in a franchise of the restricted family (the server
     // refuses any other), so a new one is created with the Hentai type - and
     // with the hentai label, which the server attaches on create.
     let franchiseId = htf.franchise_id;

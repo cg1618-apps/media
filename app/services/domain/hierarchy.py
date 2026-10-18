@@ -24,7 +24,10 @@ Families
     within the entry's own family, and a franchise named by id is checked by
     check_entry_franchise_family - both directions, so an h-comic never lands
     in a mainstream franchise and a mainstream entry never lands under one
-    whose label hides it.
+    whose label hides it. H-Comic, Hentai and H-Game are one family
+    (`restricted`), so a name written for any of the three matches a
+    franchise of any of them: an h-game named like an existing H-Comic or
+    Hentai franchise attaches to it rather than creating an H-Game one.
 
 Series
   * a UUID passes through;

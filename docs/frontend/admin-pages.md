@@ -425,10 +425,11 @@ source. The region's own name field (JP or KR) shows beside the shared EN / CN
 / Alt names. Both regions carry serialization status, club, 繪師 (artists),
 the three H Genre tag fields, reading status, rating, usefulness, release /
 end date, the cast (`CastEditor`, no seiyuu column) and sources. The franchise
-picker (`FamilyLineageFields`, shared with the Hentai tab) offers the h-comic
-family's franchises - **H-Comic and Hentai**, so an h-comic can join the
-franchise of the hentai that adapts it - and a new franchise typed there is
-created as `H-Comic`; the server refuses an h-comic in any other family. Submit
+picker (`FamilyLineageFields`, shared with the Hentai and H-Game tabs) offers
+the restricted family's franchises - **H-Comic, Hentai and H-Game**, so an
+h-comic can join the franchise of the hentai that adapts it, or a doujin
+franchise holding all three - and a new franchise typed there is created as
+`H-Comic`; the server refuses an h-comic in any other family. Submit
 needs a region and a CN or EN name, blanks what the region does not use
 (`clearedForRegion` - names are kept), quick-creates the typed people and genre
 values through `hComicSourceFields`, then `POST /api/h-comic/`, the credits,
@@ -454,9 +455,12 @@ carries it, and the save adds it back. The form never sends
 tab reshaped for `h_game`: the same two boxes at the top (`EntryAutofillSearch`
 over the loaded h-games, then the IGDB `ExternalSearchBox` pointed at
 `/api/h-game/search-igdb`, filling the id, the link and a blank EN name), then `HGameLineageFields` and `HGameFormBody`, which the Modify tab
-renders too. The franchise picker offers **H-Game franchises only**, and a new
-franchise typed there is created as `H-Game` - H-Game is a franchise family of
-its own, and the server refuses an h-game anywhere else. The **Base Game**
+renders too. `HGameLineageFields` is `FamilyLineageFields` over the restricted
+family, so the franchise picker offers **H-Game, H-Comic and Hentai**
+franchises - an h-game can join a doujin franchise holding h-comics and
+hentai - and a new franchise typed there is created as `H-Game`
+(`H_GAME_FRANCHISE_TYPE`); the server refuses an h-game in a mainstream
+franchise. The **Base Game**
 picker offers h-games only (the self-FK is on `h_game`) and never the row
 being edited. The body has the five names; classification (game type, Main /
 Remake, base game, **play style**, series number, Genre and Theme scoped to `h-game`, and
@@ -485,8 +489,8 @@ built-in pick), which the Sources editor also offers as a suggestion (and Modify
 suggested**) - `lib/restrictedSources.js`. Its **Cast** section is `CastEditor` with the seiyuu column, as
 on anime, saved through `PUT /api/casting/hentai/{id}` after the entry by both
 the Add and the Modify page. The franchise picker is `FamilyLineageFields` over the
-h-comic family (**Hentai and H-Comic** franchises), so a hentai can join the
-franchise of the h-comic it adapts; a new franchise typed there is created as
+restricted family (**Hentai, H-Comic and H-Game** franchises), so a hentai can
+join the franchise of the h-comic it adapts; a new franchise typed there is created as
 `Hentai` (`HENTAI_FRANCHISE_TYPE`). The body has the five names;
 classification (source material, originality, series number and the three H
 Genre fields); credits (**Studio**, **Director** and **Author**); airing status and

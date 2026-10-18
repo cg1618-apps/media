@@ -1,8 +1,8 @@
 """
-Franchise families as hentai uses them: H-Comic and Hentai are one family
-(FRANCHISE_FAMILY_FOR_TYPE), so an h-comic and its hentai adaptation may share
-a franchise, and a franchise carries the label of each gated type in its type
-list.
+Franchise families as hentai uses them: H-Comic, Hentai and H-Game are one
+family, `restricted` (FRANCHISE_FAMILY_FOR_TYPE), so an h-comic and its hentai
+adaptation may share a franchise, and a franchise carries the label of each
+gated type in its type list.
 
 The family mechanism itself - every write path, both directions, retyping a
 franchise with entries - is tests/api/test_franchise_family.py. This file
@@ -32,7 +32,7 @@ def _create(admin_client, franchise_type, name="Zvornik Family"):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("franchise_type", ["ACG, Hentai", "Anime, H-Comic"])
+@pytest.mark.parametrize("franchise_type", ["ACG, Hentai", "Anime, H-Comic", "ACG, H-Game"])
 def test_create_refuses_a_franchise_spanning_two_families(
     admin_client, db_session, franchise_type
 ):
@@ -60,9 +60,10 @@ def test_update_and_patch_refuse_a_type_spanning_two_families(
     assert row.franchise_type == "ACG"
 
 
-def test_the_two_h_comic_family_types_are_one_family(admin_client):
+@pytest.mark.parametrize("franchise_type", ["H-Comic, Hentai", "H-Comic, Hentai, H-Game"])
+def test_the_restricted_family_types_are_one_family(admin_client, franchise_type):
     """The mirror of the refusals above."""
-    assert _create(admin_client, "H-Comic, Hentai", name="Zvornik Gated").status_code == 200
+    assert _create(admin_client, franchise_type, name="Zvornik Gated").status_code == 200
 
 
 @pytest.mark.parametrize("method", ["put", "patch"])
@@ -98,6 +99,17 @@ def test_a_franchise_holding_both_gated_types_carries_both_labels(
     created = _create(admin_client, "H-Comic, Hentai").json()
     assert label_keys_for_franchise(db_session, uuid.UUID(created["system_id"])) == [
         "h-comic",
+        "hentai",
+    ]
+
+
+def test_a_franchise_of_all_three_restricted_types_carries_all_three_labels(
+    admin_client, db_session
+):
+    created = _create(admin_client, "H-Comic, Hentai, H-Game").json()
+    assert label_keys_for_franchise(db_session, uuid.UUID(created["system_id"])) == [
+        "h-comic",
+        "h-game",
         "hentai",
     ]
 
@@ -178,10 +190,10 @@ def test_an_h_comic_and_its_hentai_resolve_to_one_franchise(admin_client):
     assert hentai["franchise_id"] == h_comic["franchise_id"]
 
 
-def test_a_mainstream_entry_does_not_match_a_franchise_of_either_gated_type(
+def test_a_mainstream_entry_does_not_match_a_franchise_of_any_restricted_type(
     admin_client, db_session
 ):
-    for franchise_type in ("H-Comic", "Hentai", "H-Comic, Hentai"):
+    for franchise_type in ("H-Comic", "Hentai", "H-Game", "H-Comic, Hentai, H-Game"):
         db_session.add(
             models.Franchise(
                 system_id=uuid.uuid4(),

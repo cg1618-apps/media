@@ -182,7 +182,7 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `franchise_type` | String | yes | | One of FRANCHISE_TYPES / `FranchiseType` (the two lists differ - see [options.md](options.md#franchise-type)). May hold a comma-separated list; duplicate detection buckets under each token. Every type in the list must belong to one family (`FRANCHISE_FAMILY_FOR_TYPE`: `H-Comic` and `Hentai` are one, everything else is mainstream) - a mixed list is refused (422) by the franchise endpoints. See [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy). |
+| `franchise_type` | String | yes | | One of FRANCHISE_TYPES / `FranchiseType` (the two lists differ - see [options.md](options.md#franchise-type)). May hold a comma-separated list; duplicate detection buckets under each token. Every type in the list must belong to one family (`FRANCHISE_FAMILY_FOR_TYPE`: `H-Comic`, `Hentai` and `H-Game` are the `restricted` family, everything else is mainstream; the family is code, never stored) - a mixed list is refused (422) by the franchise endpoints. See [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy). |
 | `franchise_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Name variants; CN leads `display_name`. |
 | `my_rating` | String | yes | | MY_RATINGS |
 | `franchise_expectation` | String | yes | `"Low"` | FRANCHISE_EXPECTATIONS |

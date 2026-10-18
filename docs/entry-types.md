@@ -31,33 +31,38 @@ A franchise may carry a comma-separated list of types; duplicate detection bucke
 
 #### Franchise families (`FRANCHISE_FAMILY_FOR_TYPE`, `app/utils/constants.py`)
 
-Franchise types fall into **families**: `H-Comic` and `Hentai` are the
-`h-comic` family, `H-Game` the `h-game` family, and every type the map does
-not list is `mainstream`. An untyped franchise is mainstream. Families are
-kept apart in both directions:
+Franchise types fall into **families**: `H-Comic`, `Hentai` and `H-Game` are
+the `restricted` family (`RESTRICTED_FAMILY`), and every type the map does not
+list is `mainstream`. An untyped franchise is mainstream. Families are kept
+apart in both directions:
 
 - **A franchise spans one family.** A `franchise_type` mixing two
-  (`"ACG, H-Comic"`, `"ACG, Hentai"`, `"H-Comic, H-Game"`) is refused (422) on
-  create, update and patch (`check_franchise_type_family`), and so is
-  retyping a franchise into another family than an entry it holds
-  (`check_franchise_entries_family`). `"H-Comic, Hentai"` is one family and is
-  accepted: an h-comic and its hentai adaptation share a franchise the way a
-  manga and its anime do.
+  (`"ACG, H-Comic"`, `"ACG, Hentai"`, `"ACG, H-Game"`, `"Game, H-Game"`) is
+  refused (422) on create, update and patch (`check_franchise_type_family`),
+  and so is retyping a franchise into another family than an entry it holds
+  (`check_franchise_entries_family`). Any list of the three restricted types -
+  `"H-Comic, Hentai"`, `"H-Comic, H-Game"`, `"H-Comic, Hentai, H-Game"` - is
+  one family and is accepted: an h-comic and its hentai adaptation share a
+  franchise the way a manga and its anime do, and one doujin franchise holds
+  fan-made h-comics, hentai and h-games together.
 - **An entry sits in a franchise of its own family.** An entry's family is the
   family of the type it stamps (`FRANCHISE_TYPE_FOR` below). The name resolver
-  matches an entry only against franchises of its family - so an h-comic or a
-  hentai named "Fate" never attaches to the mainstream Fate franchise, a manga
-  named "Fate" never attaches to an `H-Comic` or `Hentai` one, an h-game named
-  "Fate" attaches to neither, and a hentai named after an h-comic attaches to
-  that h-comic's franchise. A `franchise_id` naming a franchise of another
+  matches an entry only against franchises of its family - so an h-comic, a
+  hentai or an h-game named "Fate" never attaches to the mainstream Fate
+  franchise, a manga or a game named "Fate" never attaches to an `H-Comic`,
+  `Hentai` or `H-Game` one, and a restricted entry attaches to a restricted
+  franchise of its name whichever of the three types that franchise is: a
+  hentai named after an h-comic joins that h-comic's franchise, and an h-game
+  named like an existing `H-Comic` or `Hentai` franchise joins it rather than
+  creating an `H-Game` one. A `franchise_id` naming a franchise of another
   family is refused (422) on create and update for every media type, and in a
   tracker PATCH body too, although PATCH does not otherwise write
   `franchise_id` (`check_entry_franchise_family`,
   `app/services/domain/hierarchy.py`, run by the router factory).
 - **Labels.** A franchise carries the content label of each gated type in
   its type list - `H-Comic` brings `h-comic`, `H-Game` brings `h-game`,
-  `Hentai` brings `hentai`, and a franchise holding `H-Comic` and `Hentai`
-  carries both - attached on auto-create and whenever a franchise is created
+  `Hentai` brings `hentai`, and a franchise typed `"H-Comic, Hentai, H-Game"`
+  carries all three - attached on auto-create and whenever a franchise is created
   or updated with that type (`app/services/domain/gated_labels.py`).
 - A series is not segregated: it names its parent whatever that parent's
   type.

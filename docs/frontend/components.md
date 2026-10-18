@@ -397,10 +397,11 @@ not drawn. The character, person and studio libraries use it for
   two-stage reading cursor stepper (`arcStep`, same module) lives in the
   tracker components below, not here), `QuoteForm`,
   `QuoteEntryPicker`, `MemeForm`, `MemeOwnerPicker`, `FamilyLineageFields`
-  (the franchise and series pickers of the h-comic and hentai forms: it
-  offers only the franchises of one franchise family, through
-  `inFranchiseFamily`, so an h-comic and its hentai adaptation can share a
-  franchise; retyping the franchise drops the series), `ChoiceChips` (a
+  (the franchise and series pickers of the h-comic, hentai and h-game forms:
+  it offers only the franchises of one franchise family, through
+  `inFranchiseFamily` - for all three the restricted family, so an h-comic
+  and its hentai adaptation can share a franchise and one doujin franchise
+  can hold all three types; retyping the franchise drops the series), `ChoiceChips` (a
   multi-choice field over a fixed vocabulary as toggle chips, for the h-game
   form's six lists: the value is a list or `null`,
   and two state chips, None and Unknown, set `[]` and `null` outright, so
@@ -747,7 +748,7 @@ is a second place to keep in step.
 | `textFit.js` | width measurement for `FittedName` |
 | `clipboardImage.js` | copy an image to the clipboard (quotes/memes) |
 | `resourceTree.js` | The Resources tree's move arithmetic, pure: `findNode`, `parentIdOf`, `childrenOf`, `countDescendants`, `countByKind`, `flattenGroups`, `canDropInto` (refuses a group into itself or any descendant, and an item as a parent), `moveAmongSiblings` and `moveInto` (each returns the reorder body `{parent_id, ordered_ids}` - the complete new child list - or `null`), and `applyReorder` for the optimistic cache update |
-| `gatedTypes.js` | The gated-type question - see [Gated media types](#gated-media-types). `GATED_TYPES`, `canSeeGatedType`, the list filters, and `REQUIRED_LABEL_FOR_TYPE` (mirrors the backend's) with `requiredLabelsForType` / `requiredLabelsForFranchiseType`. `FRANCHISE_FAMILY_FOR_TYPE` mirrors the backend's franchise families - `H-Comic` and `Hentai` are one family, `h-comic` - and `inFranchiseFamily(franchiseType, family)` asks whether a comma-joined `franchise_type` names a type of it |
+| `gatedTypes.js` | The gated-type question - see [Gated media types](#gated-media-types). `GATED_TYPES`, `canSeeGatedType`, the list filters, and `REQUIRED_LABEL_FOR_TYPE` (mirrors the backend's) with `requiredLabelsForType` / `requiredLabelsForFranchiseType`. `FRANCHISE_FAMILY_FOR_TYPE` mirrors the backend's franchise families - `H-Comic`, `Hentai` and `H-Game` are one family, `RESTRICTED_FAMILY` (`restricted`) - and `inFranchiseFamily(franchiseType, family)` asks whether a comma-joined `franchise_type` names a type of it |
 | `hComicAnimation.js` | An h-comic's animation status, hand-set or derived. `isDerivedAnimationStatus(entry)` (`animation_status_source === "derived"`: a hentai adapts it) and `adaptingHentai(rows)` (the stored, reverse-direction `adaptation` rows of a relation card whose far end is a hentai, as their `other` endpoints) |
 | `hComicRegion.js` | Which h-comic fields a region uses, the novelUnits pattern for a variant-dependent form. `REGION_ONLY_FIELDS` (JP: `h_comic_name_jp`, originality, animation status, series number, page total and `page_fin`; KR: `h_comic_name_kr`, chapter total, `ch_behind`, `ch_fin`, author, official source, `highlight_group_order` - the catalogue and reader columns mirror the server's `REGION_CLEARS` / `LIST_REGION_CLEARS`), `showsField(region, field)` (a region-only field shows on its region and on none while the region is unset), `clearedForRegion(form)` (blanks the other region's fields before a save; names are kept, and the KR-only author and official source - credits the server does not clear - are cleared here), `progressFor(entry)` (pages on JP, chapters on KR) |
 | `restrictedSources.js` | The restricted sources each media type offers, fixed in code, per variant (`all`, or h-comic's `JP` and `KR`), with each variant's built-in prefill - the table is in [Admin Pages](admin-pages.md#add-addjsx). `picks` below is the type's `restricted_prefill` from `/defaults` (null for the built-ins). `prefillVariants(mediaType)` (`[{ key, label, names, builtIn }]`, for `/defaults`), `restrictedSourcesFor(mediaType, region, picks)` (`{ prefill, suggestions }`: the picked names, then those plus every other name; `region` matters only to h-comic, where an unset region gets what both regions prefill), `withRestrictedSources(rows, names)` (adds the missing ones), `defaultRestrictedSources(mediaType)` (the built-in rows every `formFactories.js` factory with a list starts from), `startingSources(mediaType, rows, region, picks)` (a configured `sources` default with its restricted rows replaced by the pick), `followRegion(rows, from, to, picks)` (h-comic's Add form region change: drops the old region's prefilled names only while untouched - no url - and adds the new region's) and `mergeHComicAutofill(form, patch, picks)` |
@@ -821,15 +822,15 @@ another:
 | Nav search scope, Plan tabs, Completions tabs, Random Picker mode strip and media-type chips, Quotes filter, image owner-type filter, watch-order type filter, Control Center Fill (and, for h-game and hentai, Replace) button, `PersonSubTabBar` Club tab, Franchise Library filter chip | `visibleByType` / `canSeeGatedType` at the list |
 | Favourite grids (the h-game franchise and entry grids) | `gatedType` on the grid in `config/favoriteGrids.js`; `visibleFavoriteGrids(auth)` filters them for the statistics page and the admin 3x3 editor, and the statistics sidebar drops their links the same way |
 | Options scope picker (`ScopePicker`, both Options tabs) | `visibleMediaTypes` over the list it is handed, so the `MEDIA_TYPES` fallback drawn before `/api/constants` answers does not name a hidden gated type either |
-| Lists fetched only when visible | `usePlanData`, `Completions`, `RandomPicker`, `useStatisticsData` (the h-comic, h-game and hentai rating cards and the h-game favourite grids), `SeriesPage` (h-games only under an `H-Game` parent franchise, hentai only under one of the h-comic family) and `FranchiseLibrary` (which waits for `/api/auth/me`) |
+| Lists fetched only when visible | `usePlanData`, `Completions`, `RandomPicker`, `useStatisticsData` (the h-comic, h-game and hentai rating cards and the h-game favourite grids), `SeriesPage` (h-games and hentai only under a parent franchise of the restricted family) and `FranchiseLibrary` (which waits for `/api/auth/me`) |
 | Club membership on the person page | `ClubMembership` renders, and fetches, nothing for a narrow session |
 
 What a gated type's surface does **not** filter is what the server already
 answers empty for a narrow session: the `h-comic`, `h-game` and `hentai` search buckets
 (left out altogether, and read as `results[type] ?? []`), the profile groups,
-a franchise hub (only a franchise of the h-comic family, `H-Comic` or
-`Hentai`, asks for h-comics and hentai, and only an `H-Game` one for h-games;
-each is hidden with its label). Hiding in the SPA is
+a franchise hub (only a franchise of the restricted family, `H-Comic`,
+`Hentai` or `H-Game`, asks for h-comics, hentai and h-games; each is hidden
+with its label). Hiding in the SPA is
 cosmetic in every case.
 
 A gated type's **required label** is locked on in `ContentLabelPicker`
@@ -846,7 +847,7 @@ content-label endpoints refuse (422) a set that drops it.
 5. `pages/add-tabs/<Type>AddTab.jsx`, `pages/modify-tabs/<Type>ModifyTab.jsx`, entries in `config/adminTabs.js`, `formFactories.js`, `formFields/fieldMeta.js`, `lib/payloads.js`, and the submit/save handlers in `Add.jsx` / `Modify.jsx`. Export the field body from the Add tab and render it from the Modify tab, the way `GameModifyTab` renders `GameAddTab`'s `GameFormBody` and `GameLineageFields` — the comic pair keeps two near-identical files and can drift.
 6. `Delete.jsx` `MEDIA_KEYS`, `pages/plan/usePlanData.js`, `pages/statistics/useStatisticsData.js` (+ `StatsCompletions.jsx`, `utils/statsUtils.js`), `Index.jsx` divisions, `Completions.jsx`, `Search.jsx`, `NavSearch.jsx` scopes and quotas, `GroupedEntryPage.jsx` `MEDIA_TYPE_FILTERS`, `navigation.js`, `lib/status.js`, `lib/randomPicker.js` `PICKER_TYPES`, `libraryColumns.jsx`, `planNextGroups.js`, `mediaTypeColors.js`, and `scopeColors.js` plus the three `--c-scope-*` palettes in `index.css`.
 7. Backend first: registry spec, pipeline spec, sheet tab — see [../entry-types.md](../entry-types.md).
-8. A **gated** type (one naming a required label) also needs its key in `GATED_TYPES` (and a franchise type stamped only for it in `GATED_FRANCHISE_TYPES`) in `lib/gatedTypes.js`, its nav row given `gatedType`, its library, detail and `/random/<type>` routes wrapped in `<ProtectedRoute gatedType>`, and every list above that names it rendered through the helper - see [Gated media types](#gated-media-types). `h-comic` is the worked example, and `h-game` the second: a gated type that is another type's copy (Game's) reuses that type's components - `ExternalSearchBox` takes a `searchUrl`, `GameCompletionBlock` takes `axes`, `SourcesCard` takes the extra storefront links - rather than forking them. `hentai` is the third, and the first to share a franchise family with another type: a gated type whose franchise may hold another family member's entries lists its franchise type in `FRANCHISE_FAMILY_FOR_TYPE`, uses `FamilyLineageFields` for its pickers, and has the hubs ask `inFranchiseFamily` rather than test the franchise type.
+8. A **gated** type (one naming a required label) also needs its key in `GATED_TYPES` (and a franchise type stamped only for it in `GATED_FRANCHISE_TYPES`) in `lib/gatedTypes.js`, its nav row given `gatedType`, its library, detail and `/random/<type>` routes wrapped in `<ProtectedRoute gatedType>`, and every list above that names it rendered through the helper - see [Gated media types](#gated-media-types). `h-comic` is the worked example, and `h-game` the second: a gated type that is another type's copy (Game's) reuses that type's components - `ExternalSearchBox` takes a `searchUrl`, `GameCompletionBlock` takes `axes`, `SourcesCard` takes the extra storefront links - rather than forking them. `hentai` is the third. All three share the restricted franchise family: a gated type whose franchise may hold another family member's entries lists its franchise type in `FRANCHISE_FAMILY_FOR_TYPE`, uses `FamilyLineageFields` for its pickers, and has the hubs ask `inFranchiseFamily` rather than test the franchise type.
 
 ## Entity components (person, studio and character)
 

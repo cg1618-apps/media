@@ -1,7 +1,8 @@
 // Frontend: the h-game form.
 //
 // Game's form reshaped for h_game: the fields h_game lacks are not offered,
-// its own are, the franchise and base-game pickers offer h-game rows only,
+// its own are, the franchise picker offers the restricted family's franchises
+// (H-Game, H-Comic, Hentai), the base-game picker h-game rows only,
 // and the multi-choice lists keep "none" and "not recorded" apart in form
 // state. The Modify tab renders the same body, so this pins both.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -108,16 +109,21 @@ describe("HGameAddTab", () => {
     expect(latest.art_style).toBeNull();
   });
 
-  it("offers only H-Game franchises", async () => {
+  it("offers the restricted family's franchises and no mainstream one", async () => {
     const user = userEvent.setup();
     renderTab({
       franchises: [
         { system_id: "f1", franchise_name_en: "Plain Game Line", franchise_type: "Game" },
         { system_id: "f2", franchise_name_en: "Adult Game Line", franchise_type: "H-Game" },
+        // The same family: one doujin franchise holds all three types.
+        { system_id: "f3", franchise_name_en: "Adult Comic Line", franchise_type: "H-Comic" },
+        { system_id: "f4", franchise_name_en: "Adult Anime Line", franchise_type: "Hentai" },
       ],
     });
     await user.click(screen.getByPlaceholderText("Search or type new franchise..."));
     expect(await screen.findByText("Adult Game Line")).toBeInTheDocument();
+    expect(screen.getByText("Adult Comic Line")).toBeInTheDocument();
+    expect(screen.getByText("Adult Anime Line")).toBeInTheDocument();
     expect(screen.queryByText("Plain Game Line")).toBeNull();
   });
 });

@@ -439,7 +439,7 @@ def test_me_names_nothing_for_borderline(mode_client, plain_member):
 
 
 # ---------------------------------------------------------------------------
-# Franchises: the h-game family
+# Franchises: the restricted family
 # ---------------------------------------------------------------------------
 
 
@@ -459,8 +459,19 @@ def test_an_auto_created_franchise_is_typed_and_labelled(admin_client, db_sessio
     assert label_keys_for_franchise(db_session, franchise.system_id) == [LABEL]
 
 
-@pytest.mark.parametrize("other_type", ["Game", "H-Comic"])
-def test_an_h_game_never_attaches_by_name_to_another_family(admin_client, db_session, other_type):
+# The restricted family is H-Comic, Hentai and H-Game together, so an h-game
+# shares a franchise with h-comics and hentai and with nothing mainstream.
+# Every refusal below names a franchise that exists and is of the mainstream
+# family (`Game`, `ACG`), so there is something to refuse; each is paired with
+# the same write into a franchise of the restricted family, which succeeds.
+MAINSTREAM_TYPES = ["Game", "ACG"]
+RESTRICTED_TYPES = ["H-Game", "H-Comic", "Hentai", "H-Comic, Hentai, H-Game"]
+
+
+@pytest.mark.parametrize("other_type", MAINSTREAM_TYPES)
+def test_an_h_game_never_attaches_by_name_to_a_mainstream_franchise(
+    admin_client, db_session, other_type
+):
     other = _franchise(db_session, other_type)
     body = _create(admin_client, h_game_name_cn=None, h_game_name_en="Fate")
     assert body["franchise_id"] != str(other.system_id)
@@ -468,66 +479,100 @@ def test_an_h_game_never_attaches_by_name_to_another_family(admin_client, db_ses
     assert created.franchise_type == "H-Game"
 
 
-def test_an_h_game_attaches_to_an_h_game_franchise_of_that_name(admin_client, db_session):
-    """The mirror: the resolver does match, within its own family."""
-    own = _franchise(db_session, "H-Game")
+@pytest.mark.parametrize("own_type", RESTRICTED_TYPES)
+def test_an_h_game_attaches_by_name_to_a_restricted_franchise(admin_client, db_session, own_type):
+    """The mirror: the resolver does match, anywhere in its own family."""
+    own = _franchise(db_session, own_type)
     body = _create(admin_client, h_game_name_cn=None, h_game_name_en="Fate")
     assert body["franchise_id"] == str(own.system_id)
 
 
-@pytest.mark.parametrize(
-    "route,payload",
-    [
-        ("/api/game/", {"game_name_en": "Fate"}),
-        ("/api/h-comic/", {"h_comic_name_en": "Fate", "region": "JP"}),
-    ],
-)
-def test_another_family_never_attaches_by_name_to_an_h_game_franchise(
-    admin_client, db_session, route, payload
-):
+def test_an_h_comic_attaches_by_name_to_an_h_game_franchise(admin_client, db_session):
     own = _franchise(db_session, "H-Game")
-    body = admin_client.post(route, json=payload).json()
+    body = admin_client.post(
+        "/api/h-comic/", json={"h_comic_name_en": "Fate", "region": "JP"}
+    ).json()
+    assert body["franchise_id"] == str(own.system_id)
+
+
+def test_a_game_never_attaches_by_name_to_an_h_game_franchise(admin_client, db_session):
+    own = _franchise(db_session, "H-Game")
+    body = admin_client.post("/api/game/", json={"game_name_en": "Fate"}).json()
     assert body["franchise_id"] != str(own.system_id)
 
 
-@pytest.mark.parametrize("other_type", ["Game", "H-Comic"])
-def test_another_familys_franchise_named_by_id_is_refused(admin_client, db_session, other_type):
+@pytest.mark.parametrize("other_type", MAINSTREAM_TYPES)
+def test_a_mainstream_franchise_named_by_id_is_refused(admin_client, db_session, other_type):
     other = _franchise(db_session, other_type)
     response = admin_client.post(
         f"{ROUTE}/", json={"h_game_name_cn": TITLE, "franchise_id": str(other.system_id)}
     )
     assert response.status_code == 422
+    assert db_session.query(models.HGame).filter_by(franchise_id=other.system_id).count() == 0
 
 
-@pytest.mark.parametrize(
-    "route,payload",
-    [
-        ("/api/game/", {"game_name_en": "Fate"}),
-        ("/api/h-comic/", {"h_comic_name_en": "Fate", "region": "JP"}),
-    ],
-)
-def test_an_h_game_franchise_named_by_id_from_another_family_is_refused(
-    admin_client, db_session, route, payload
-):
-    own = _franchise(db_session, "H-Game")
-    response = admin_client.post(route, json={**payload, "franchise_id": str(own.system_id)})
-    assert response.status_code == 422
-
-
-def test_an_h_game_franchise_named_by_id_is_accepted(admin_client, db_session):
-    """The mirror of the by-id refusals."""
-    own = _franchise(db_session, "H-Game")
+@pytest.mark.parametrize("own_type", RESTRICTED_TYPES)
+def test_a_restricted_franchise_named_by_id_is_accepted(admin_client, db_session, own_type):
+    """The mirror of the by-id refusal: an h-game may sit in an H-Comic or a
+    Hentai franchise as well as an H-Game one."""
+    own = _franchise(db_session, own_type)
     body = _create(admin_client, franchise_id=str(own.system_id))
     assert body["franchise_id"] == str(own.system_id)
 
 
-@pytest.mark.parametrize("franchise_type", ["Game, H-Game", "H-Comic, H-Game"])
-def test_a_franchise_mixing_h_game_with_another_family_is_refused(admin_client, franchise_type):
+def test_an_h_game_franchise_named_by_id_from_a_game_is_refused(admin_client, db_session):
+    own = _franchise(db_session, "H-Game")
+    response = admin_client.post(
+        "/api/game/", json={"game_name_en": "Fate", "franchise_id": str(own.system_id)}
+    )
+    assert response.status_code == 422
+
+
+def test_an_h_game_franchise_named_by_id_from_an_h_comic_is_accepted(admin_client, db_session):
+    """The mirror: the h-comic is of the same family."""
+    own = _franchise(db_session, "H-Game")
+    response = admin_client.post(
+        "/api/h-comic/",
+        json={"h_comic_name_en": "Fate", "region": "JP", "franchise_id": str(own.system_id)},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["franchise_id"] == str(own.system_id)
+
+
+@pytest.mark.parametrize("franchise_type", ["Game, H-Game", "ACG, H-Game"])
+def test_a_franchise_mixing_h_game_with_a_mainstream_type_is_refused(
+    admin_client, db_session, franchise_type
+):
     response = admin_client.post(
         "/api/franchise/",
         json={"franchise_name_en": "Zvornik Mixed", "franchise_type": franchise_type},
     )
     assert response.status_code == 422
+    assert (
+        db_session.query(models.Franchise).filter_by(franchise_name_en="Zvornik Mixed").count()
+        == 0
+    )
+
+
+@pytest.mark.parametrize("franchise_type", ["H-Comic, H-Game", "H-Comic, Hentai, H-Game"])
+def test_a_franchise_of_the_whole_restricted_family_is_accepted(
+    admin_client, db_session, franchise_type
+):
+    """The mirror: every type of the family may share one franchise, and it
+    carries the label of each one it names."""
+    response = admin_client.post(
+        "/api/franchise/",
+        json={"franchise_name_en": "Zvornik Doujin", "franchise_type": franchise_type},
+    )
+    assert response.status_code == 200, response.text
+    expected = {
+        "H-Comic, H-Game": ["h-comic", "h-game"],
+        "H-Comic, Hentai, H-Game": ["h-comic", "h-game", "hentai"],
+    }[franchise_type]
+    assert (
+        sorted(label_keys_for_franchise(db_session, uuid.UUID(response.json()["system_id"])))
+        == expected
+    )
 
 
 @pytest.mark.parametrize("method", ["put", "patch"])
@@ -535,11 +580,24 @@ def test_a_franchise_holding_an_h_game_cannot_be_retyped_out_of_its_family(
     admin_client, method
 ):
     body = _create(admin_client)
-    for other in ("Game", "H-Comic"):
+    for other in MAINSTREAM_TYPES:
         response = getattr(admin_client, method)(
             f"/api/franchise/{body['franchise_id']}", json={"franchise_type": other}
         )
         assert response.status_code == 422, other
+
+
+@pytest.mark.parametrize("method", ["put", "patch"])
+def test_a_franchise_holding_an_h_game_can_be_retyped_within_its_family(
+    admin_client, method
+):
+    """The mirror: the refusal above is about the family."""
+    body = _create(admin_client)
+    for other in ("H-Comic", "H-Comic, Hentai, H-Game"):
+        response = getattr(admin_client, method)(
+            f"/api/franchise/{body['franchise_id']}", json={"franchise_type": other}
+        )
+        assert response.status_code == 200, (other, response.text)
 
 
 @pytest.mark.parametrize("method", ["put", "patch"])
