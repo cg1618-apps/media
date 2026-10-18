@@ -14,6 +14,8 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
+import TimeToBeatCard from "../../components/info/TimeToBeatCard";
+import { hours } from "../../lib/gameHours";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import { publisherLabel, publisherValue, studioValue } from "../../components/info/StudioLinks";
 import NamingCard from "../../components/info/NamingCard";
@@ -47,12 +49,6 @@ const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
-
-function hours(value) {
-  if (value == null || value === "") return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? `${n} h` : null;
-}
 
 /**
  * A score with its denominator: "96 / 100", "8.6 / 10".
@@ -594,6 +590,7 @@ export default function Game() {
                   ],
                 ]}
               />
+              <TimeToBeatCard entry={game} />
               <InfoCard
                 title="Prices"
                 fields={[

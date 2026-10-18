@@ -251,4 +251,31 @@ describe("Game detail page — Replace", () => {
     expect(library.getByText("Owned")).toBeInTheDocument();
     expect(library.getByText("Steam Progress Sync")).toBeInTheDocument();
   });
+
+  // The three IGDB time-to-beat figures, in hours. Only the ones recorded get
+  // a row; with none recorded the card is left out.
+  it("shows the recorded time-to-beat figures on a Time to Beat card", async () => {
+    mockFetch({
+      isAdmin: false,
+      game: { ...GAME, hltb_main: 45, hltb_main_extra: 72.5, hltb_completionist: null },
+    });
+    mount();
+
+    const ttb = within(
+      (await screen.findByRole("heading", { name: "Time to Beat" })).closest("section"),
+    );
+    expect(ttb.getByText("Main")).toBeInTheDocument();
+    expect(ttb.getByText("45 h")).toBeInTheDocument();
+    expect(ttb.getByText("Main + Extra")).toBeInTheDocument();
+    expect(ttb.getByText("72.5 h")).toBeInTheDocument();
+    expect(ttb.queryByText("Completionist")).toBeNull();
+  });
+
+  it("leaves the Time to Beat card out when no figure is recorded", async () => {
+    mockFetch({ isAdmin: false });
+    mount();
+
+    await screen.findByRole("heading", { name: "Test Game" });
+    expect(screen.queryByRole("heading", { name: "Time to Beat" })).toBeNull();
+  });
 });

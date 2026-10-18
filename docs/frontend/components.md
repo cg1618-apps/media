@@ -275,7 +275,7 @@ not drawn. The character, person and studio libraries use it for
   watch/read pair, and a game's bar is read-only playtime against `hltb_main`
   (achievements when the game reports a total and no estimate exists), so
   there is no progress callback to thread through.
-- **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `ScoreBlock`,
+- **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `TimeToBeatCard`, `ScoreBlock`,
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`,
   `ClubMembership` (see [Entity components](#entity-components-person-studio-and-character)).
   `NamingCard` lists the type's name fields (`getNamingFields`) that hold a
@@ -285,6 +285,9 @@ not drawn. The character, person and studio libraries use it for
   and a character's, person's, studio's or publisher's four unprefixed
   names — the displayed one included — (`NAMING_CONFIGS.character` /
   `.person` / `.studio` / `.publisher`).
+  `TimeToBeatCard` is the game and h-game pages' **Time to Beat** card: one
+  row of the recorded figures from `timeToBeatFields` (`lib/gameHours.js`),
+  and nothing at all when none is recorded.
   `SourcesCard` reads the entry's `sources` array (server-ordered — access
   rows in `sort_order`/insertion order, never re-sorted client-side), splits
   it into `access`/`reference` sections by `row.kind`, titles the access
@@ -679,6 +682,7 @@ is a second place to keep in step.
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
+| `gameHours.js` | `hours(value)` (`"32.5 h"`, null for a missing or unreadable figure) and `timeToBeatFields(entry)`: the recorded IGDB time-to-beat figures (`hltb_main`, `hltb_main_extra`, `hltb_completionist`) as `InfoCard` fields Main, Main + Extra, Completionist, `[]` when none is recorded. Shared by the game and h-game pages |
 | `mediaTabs.js` | `buildMediaTabs(rows)`: the franchise and series hubs' "Media" tab row from `[label, entries, offered]` rows → `{ tabs, countOf }`. A tab shows when offered and its list is non-empty, and its count is read from the same row, so no tab is shown without one |
 | `suggest.js` | What a type-or-choose input offers for the typed text: `rankByMatch(items, typed, keyOf)` (exact, then prefix, then contains, each tier in the given order) and `suggest(options, text)`, `SuggestInput`'s matcher (case-insensitive, the option already typed left out) |
 | `peopleOrder.js` | `byRatingThenAppearances(people)`: a person picker's best-first order before typed-text matching — `my_rating` by `getRatingWeight` (unrated last), then `credit_count`, most first; stable. The cast editor's seiyuu box uses it |
