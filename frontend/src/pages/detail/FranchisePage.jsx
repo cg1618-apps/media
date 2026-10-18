@@ -467,23 +467,33 @@ export default function FranchisePage() {
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below, because mixing the two in one
   // row made "Memes" read as just another entry type. Each row names its tab,
-  // the list behind it and whether the franchise's type offers it; the tab's
-  // count comes from the same row.
-  const { tabs: mediaTabs, countOf: getTabCount } = useMemo(() => {
+  // its media type, the list behind it and whether the franchise's type
+  // offers it; the tab's count and the hero's totals come from the same rows.
+  const {
+    tabs: mediaTabs,
+    countOf: getTabCount,
+    total: totalEntries,
+    completed: completedCount,
+  } = useMemo(() => {
     if (!franchise) return buildMediaTabs([]);
     return buildMediaTabs([
-      ["Anime", animeList, hasACG],
-      ["Anime Movies", animeMovieList, hasACG || hasAnimeMovie],
-      ["Manga", mangaList, hasACG],
-      ["Novel", novelList, hasNovel],
-      ["Comic", comicList, hasComic],
-      ["Game", gameList, hasGame],
-      ["H-Comic", hComicList, hasHComic],
-      ["H-Game", hGameList, hasHGame],
-      ["Hentai", hentaiList, hasHentai],
-      ["Movies", movieList, hasMovie],
-      ["TV Shows", tvShowList, hasTV],
-      ["Cartoons", cartoonList, hasCartoon],
+      { label: "Anime", type: "anime", entries: animeList, offered: hasACG },
+      {
+        label: "Anime Movies",
+        type: "anime-movie",
+        entries: animeMovieList,
+        offered: hasACG || hasAnimeMovie,
+      },
+      { label: "Manga", type: "manga", entries: mangaList, offered: hasACG },
+      { label: "Novel", type: "novel", entries: novelList, offered: hasNovel },
+      { label: "Comic", type: "comic", entries: comicList, offered: hasComic },
+      { label: "Game", type: "game", entries: gameList, offered: hasGame },
+      { label: "H-Comic", type: "h-comic", entries: hComicList, offered: hasHComic },
+      { label: "H-Game", type: "h-game", entries: hGameList, offered: hasHGame },
+      { label: "Hentai", type: "hentai", entries: hentaiList, offered: hasHentai },
+      { label: "Movies", type: "movie", entries: movieList, offered: hasMovie },
+      { label: "TV Shows", type: "tv-show", entries: tvShowList, offered: hasTV },
+      { label: "Cartoons", type: "cartoon", entries: cartoonList, offered: hasCartoon },
     ]);
   }, [
     franchise,
@@ -1224,28 +1234,7 @@ export default function FranchisePage() {
   }, [filteredAndSortedCartoons, seriesList]);
 
   // ── Completion ────────────────────────────────────────────────────────────
-  const allWatchable = useMemo(
-    () => [
-      ...animeList,
-      ...animeMovieList,
-      ...movieList,
-      ...tvShowList,
-      ...cartoonList,
-    ],
-    [animeList, animeMovieList, movieList, tvShowList, cartoonList],
-  );
-  const totalEntries =
-    allWatchable.length + mangaList.length + comicList.length;
-  const completedCount =
-    allWatchable.filter((e) =>
-      COMPLETED_STATUSES.includes(e.watching_status),
-    ).length +
-    mangaList.filter((m) =>
-      COMPLETED_STATUSES.includes(m.reading_status),
-    ).length +
-    comicList.filter((c) =>
-      COMPLETED_STATUSES.includes(c.reading_status),
-    ).length;
+  // totalEntries and completedCount come from the media tab rows above.
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 

@@ -17,11 +17,17 @@ const FRANCHISE = {
 };
 
 const GAMES = [
-  { system_id: "GM001", game_name_en: "Elden Ring", game_type: "Base Game" },
+  {
+    system_id: "GM001",
+    game_name_en: "Elden Ring",
+    game_type: "Base Game",
+    playing_status: "Completed",
+  },
   {
     system_id: "GM002",
     game_name_en: "Shadow of the Erdtree",
     game_type: "DLC",
+    playing_status: "Plan to Play",
   },
 ];
 
@@ -68,6 +74,17 @@ describe("FranchisePage tab counts", () => {
     renderPage();
     expect(
       await screen.findByRole("button", { name: /^Game\s*2$/ }),
+    ).toBeInTheDocument();
+  });
+});
+
+// The header's entry total and completion are taken over every listed tab,
+// each type judged by its own status field.
+describe("FranchisePage header totals", () => {
+  it("counts the games and their completion", async () => {
+    renderPage();
+    expect(
+      await screen.findByText(/2 entries\s+·\s+50% completed/),
     ).toBeInTheDocument();
   });
 });

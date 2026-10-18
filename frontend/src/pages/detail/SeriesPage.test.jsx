@@ -124,6 +124,26 @@ describe("SeriesPage tab counts", () => {
     ).toBeInTheDocument();
   });
 
+  // The header's entry total and completion are taken over every listed tab,
+  // each type judged by its own status field: one of two games and one of
+  // two comics is completed.
+  it("counts the comics and games in the header totals", async () => {
+    global.fetch.mockImplementation((url) => {
+      if (String(url).startsWith("/api/series/")) return jsonRes(SERIES);
+      if (String(url).startsWith("/api/game/")) return jsonRes(GAMES);
+      if (String(url).startsWith("/api/comic/"))
+        return jsonRes([
+          { system_id: "CM001", comic_name_en: "One", reading_status: "Completed" },
+          { system_id: "CM002", comic_name_en: "Two", reading_status: "Plan to Read" },
+        ]);
+      return jsonRes([]);
+    });
+    renderPage();
+    expect(
+      await screen.findByText(/4 entries\s+·\s+50% completed/),
+    ).toBeInTheDocument();
+  });
+
   it("counts the Game tab", async () => {
     renderPage();
     expect(

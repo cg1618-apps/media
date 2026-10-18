@@ -402,21 +402,26 @@ export default function SeriesPage() {
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below. A series carries no type, so
   // a tab appears purely because its list holds something. The tab's count
-  // comes from the same row.
-  const { tabs: mediaTabs, countOf: getTabCount } = useMemo(() => {
+  // and the hero's totals come from the same rows.
+  const {
+    tabs: mediaTabs,
+    countOf: getTabCount,
+    total: totalEntries,
+    completed: completedCount,
+  } = useMemo(() => {
     if (!series) return buildMediaTabs([]);
     return buildMediaTabs([
-      ["Anime", animeList],
-      ["Manga", mangaList],
-      ["Novel", novelList],
-      ["Comic", comicList],
-      ["Game", gameList],
-      ["H-Comic", hComicList],
-      ["H-Game", hGameList],
-      ["Hentai", hentaiList],
-      ["Movies", movieList],
-      ["TV Shows", tvShowList],
-      ["Cartoons", cartoonList],
+      { label: "Anime", type: "anime", entries: animeList },
+      { label: "Manga", type: "manga", entries: mangaList },
+      { label: "Novel", type: "novel", entries: novelList },
+      { label: "Comic", type: "comic", entries: comicList },
+      { label: "Game", type: "game", entries: gameList },
+      { label: "H-Comic", type: "h-comic", entries: hComicList },
+      { label: "H-Game", type: "h-game", entries: hGameList },
+      { label: "Hentai", type: "hentai", entries: hentaiList },
+      { label: "Movies", type: "movie", entries: movieList },
+      { label: "TV Shows", type: "tv-show", entries: tvShowList },
+      { label: "Cartoons", type: "cartoon", entries: cartoonList },
     ]);
   }, [
     series,
@@ -973,24 +978,7 @@ export default function SeriesPage() {
   }, [cartoonList, cartoonFilters, cartoonSort]);
 
   // ── Completion ────────────────────────────────────────────────────────────
-  const allWatchable = useMemo(
-    () => [...animeList, ...movieList, ...tvShowList, ...cartoonList],
-    [animeList, movieList, tvShowList, cartoonList],
-  );
-  // Every tab the strip can show feeds these totals: the watchable types by
-  // watching_status, and manga and novels alike by reading_status.
-  const totalEntries =
-    allWatchable.length + mangaList.length + novelList.length;
-  const completedCount =
-    allWatchable.filter((e) =>
-      COMPLETED_STATUSES.includes(e.watching_status),
-    ).length +
-    mangaList.filter((m) =>
-      COMPLETED_STATUSES.includes(m.reading_status),
-    ).length +
-    novelList.filter((n) =>
-      COMPLETED_STATUSES.includes(n.reading_status),
-    ).length;
+  // totalEntries and completedCount come from the media tab rows above.
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
 

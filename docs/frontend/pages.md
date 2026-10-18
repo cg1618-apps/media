@@ -880,10 +880,14 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
-(404 tolerated). Each "Media" tab shows the number of entries its list holds.
-Both pages build the tab row and those counts from one list of
-`[label, entries, offered]` rows (`lib/mediaTabs.js`, `buildMediaTabs`), so a
-tab is never shown without its count. Media tabs carry a sort select, a group-by-series checkbox
+(404 tolerated). Each "Media" tab shows the number of entries its list holds,
+and the hero's entry total and completion bar are taken over every listed
+tab: an entry counts as completed when its own type's status field
+(`MEDIA_CONFIG[type].statusField` — `watching_status`, `reading_status` or
+`playing_status`) holds one of `COMPLETED_STATUSES`. Both pages build the tab
+row, the counts and the totals from one list of
+`{ label, type, entries, offered }` rows (`lib/mediaTabs.js`,
+`buildMediaTabs`), so a tab is never shown without being counted. Media tabs carry a sort select, a group-by-series checkbox
 (on by default for anime/comic/movies/tv/cartoons) and filter pills specific to
 the type. Extras render `HubCharacters` (below), `WatchOrderSection` (see below),
 `RelationGraph readOnly scopeType=… scopeId=…`, and `{Tier}Notes` with the
