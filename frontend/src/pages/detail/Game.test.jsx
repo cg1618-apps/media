@@ -48,7 +48,7 @@ describe("yesNo", () => {
 
 // The two Metacritic figures sit on different scales — critics out of 100,
 // users out of 10 — so each carries its denominator, and an unscored game
-// drops the row rather than showing a zero.
+// shows the card's em dash rather than a zero.
 describe("outOf", () => {
   it("keeps each score on its own scale", () => {
     expect(outOf(96, 100)).toBe("96 / 100");

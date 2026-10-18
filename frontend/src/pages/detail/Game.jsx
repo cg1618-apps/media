@@ -56,7 +56,7 @@ const lineageLinkCls =
  * Metacritic's two figures sit on different scales, so the denominator has to
  * travel with the number - a bare "8.6" beside a bare "96" reads as a
  * catastrophe rather than a good user score. Returns null when there is no
- * score, so the InfoCard drops the row instead of showing a zero.
+ * score, so the InfoCard shows its em dash for the field instead of a zero.
  */
 export function outOf(value, max) {
   if (value == null || value === "") return null;
