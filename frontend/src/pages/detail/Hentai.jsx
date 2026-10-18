@@ -16,7 +16,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
-import { EpisodeStepper } from "../../components/tracker/MyTrackerCard";
+import { EpisodeStepper, PausedAtInput } from "../../components/tracker/MyTrackerCard";
 import CommunityCard from "../../components/info/CommunityCard";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
@@ -133,6 +133,12 @@ function HentaiTrackerBlock({ hentai, isAdmin, onPatch }) {
           emptyLabel: "—",
           msg: "Usefulness saved",
         })}
+        <PausedAtInput
+          value={hentai.time_fin}
+          isAdmin={isAdmin}
+          onChange={(v) => onPatch({ time_fin: v }, "Paused position saved")}
+          className="space-y-1"
+        />
         {flag("watch_next", "Watch next", "Added to Watch Next", "Removed from Watch Next")}
         {flag("to_rewatch", "To rewatch", "Marked for rewatch", "Removed from rewatch")}
       </div>

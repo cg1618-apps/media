@@ -28,6 +28,8 @@ class TVShowBase(BaseModel):
 
     ep_total: Optional[int] = None
     ep_fin: Optional[int] = 0
+    # "Paused at": free text, stored stripped and NULL when blank.
+    time_fin: Optional[str] = None
 
     my_rating: Optional[str] = None
     imdb_rating: Optional[str] = None

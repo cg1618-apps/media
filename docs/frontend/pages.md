@@ -1060,9 +1060,11 @@ Top to bottom:
 
 **Tracker**: `MyTrackerCard` (`components/tracker/MyTrackerCard.jsx`:
 progress stepper with cumulative counts, status select, rating select,
-optional Watch/Read Next and To Rewatch/Reread checkboxes; every control is
+an optional **Paused at** text input (`time_fin`, `PausedAtInput`), optional
+Watch/Read Next and To Rewatch/Reread checkboxes; every control is
 admin-only) on Anime, TV (`watch_next` + `to_rewatch`), Cartoon
-(`watch_next`), Comic (`issue_fin`, `reading_status`, `to_reread`) and Game
+(`watch_next`) - those three pass `onTimeFinChange`, which `PATCH`es
+`{ time_fin }` - Comic (`issue_fin`, `reading_status`, `to_reread`) and Game
 (`playing_status`, `to_replay`) — Game passes **no** `onEpChange`, which is
 what drops the stepper: a game has no unit to count off, and playtime lives in
 its own Progress slip instead.
@@ -1071,7 +1073,8 @@ tracker: `completion_level` plus the three `GAME_COMPLETION_FLAGS` axes as
 four selects, each patching the one field it changed and sending `null` rather
 than `""` for the unset option. Same two guards as `MyTrackerCard` — nothing
 at all for a logged-out visitor, read-only `Chip`s for a signed-in non-admin.
-AnimeMovie and Movie inline a status/rating/Watch Next/To Rewatch tracker;
+AnimeMovie and Movie inline a status/rating/Paused at/Watch Next/To Rewatch
+tracker, the Paused at field being the same `PausedAtInput`;
 Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 `read_next`, `to_reread`); Novel uses `components/tracker/NovelTrackerBlock`
 (`ch_fin/vol_fin/arc_fin` by `progress_display`).
@@ -1161,7 +1164,7 @@ take free text with no suggestions
 
 **Hentai** (`pages/detail/Hentai.jsx`) is the third gated type's page, routed
 the same way. It is tracked like Cartoon: a local `HentaiTrackerBlock`
-(watching status, rating, **usefulness**, Watch next, To rewatch) whose slip
+(watching status, rating, **usefulness**, Paused at, Watch next, To rewatch) whose slip
 carries `MyTrackerCard`'s `EpisodeStepper` in its actions slot - `ep_fin` of
 `ep_total`, `PATCH { ep_fin }`, and `progressToast`'s "Marked as Completed!"
 when a step reaches the total and the server finishes the entry - then

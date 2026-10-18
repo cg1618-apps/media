@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-13
+Last verified: 2026-10-18
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -877,7 +877,7 @@ Constraints and wiring, as for every entry table: composite FK `fk_hentai_media`
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, and the
 `studio` / `studio_refs` / `director` / `h_genre_plot` / `h_genre_appearance` /
 `h_genre_relation` link fields. Personal columns: `watching_status`,
-`my_rating`, `ep_fin`, `usefulness`, `completed_at` on
+`my_rating`, `ep_fin`, `time_fin`, `usefulness`, `completed_at` on
 [`user_media_list`](#user_media_list).
 
 ---
@@ -962,6 +962,7 @@ shape serves all twelve types and a deleted entry takes its list rows with it.
 | `completed_at` | DateTime | yes | | Stamped when the status becomes a completed one (`apply_list_completion_timestamp`) |
 | `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
 | `ep_fin` | Integer | yes | | anime, tv_shows, cartoons, hentai |
+| `time_fin` | String | yes | | **Paused at**: where playback stopped - `1:10:00` into a movie, `14:35` into the episode after `ep_fin`. The six watching types (anime, anime_movies, movies, tv_shows, cartoons, hentai). Free text, never parsed; stored stripped, a blank as NULL (`clean_time_fin`). Which episode it belongs to is `ep_fin`'s job, not this column's. Cleared when `ep_fin` goes up or the row becomes Completed - see [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress) |
 | `vol_fin` | Float | yes | | manga, novel. Float because novel counts in halves. |
 | `vol_fin_page` | Integer | yes | | manga |
 | `ch_fin` | Float | yes | | manga, novel, h_comic (KR; cleared on JP) |

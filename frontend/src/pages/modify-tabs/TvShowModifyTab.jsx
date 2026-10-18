@@ -205,6 +205,16 @@ export default function TvShowModifyTab({
             onChange={(e) => utv("ep_fin", e.target.value)}
           />
         </Field>
+        <Field label="Paused at">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="Paused at"
+            value={tvmf.time_fin ?? ""}
+            onChange={(e) => utv("time_fin", e.target.value)}
+            placeholder="14:35"
+          />
+        </Field>
         <Field label="My Rating">
           <select
             className={selectCls}

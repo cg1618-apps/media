@@ -70,6 +70,11 @@ class UserMediaList(Base):
     my_watch_day = Column(String, nullable=True)          # anime only
 
     ep_fin = Column(Integer, nullable=True)               # anime, tv-show, cartoon, hentai
+    # Where playback was paused - "1:10:00" into a movie, "14:35" into the
+    # episode after ep_fin. Free text, never parsed; which episode it belongs
+    # to is ep_fin's job. Cleared when ep_fin goes up or the row becomes
+    # Completed (services/domain/user_list.clear_stale_time_fin).
+    time_fin = Column(String, nullable=True)              # the six watching types
     # Float, not Integer: novel counts half volumes and half chapters. Manga's
     # integer values widen into it without a cast.
     vol_fin = Column(Float, nullable=True)                # manga, novel

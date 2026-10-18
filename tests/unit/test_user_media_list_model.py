@@ -10,7 +10,7 @@ def test_user_media_list_has_exactly_the_contracted_columns():
         "my_rating", "completed_at", "my_watch_day",
         "ep_fin", "vol_fin", "vol_fin_page", "ch_fin",
         "arc_fin", "ch_fin_in_arc", "progress_display", "issue_fin",
-        "page_fin", "usefulness",
+        "page_fin", "usefulness", "time_fin",
         "created_at", "updated_at",
     }
 
@@ -28,7 +28,7 @@ def test_every_progress_column_is_nullable():
     for name in (
         "my_rating", "completed_at", "my_watch_day", "ep_fin", "vol_fin",
         "vol_fin_page", "ch_fin", "arc_fin", "ch_fin_in_arc",
-        "progress_display", "issue_fin", "page_fin", "usefulness",
+        "progress_display", "issue_fin", "page_fin", "usefulness", "time_fin",
     ):
         assert t.c[name].nullable is True, name
 

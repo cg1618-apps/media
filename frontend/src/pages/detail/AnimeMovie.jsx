@@ -17,6 +17,7 @@ import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import SourcesCard from "../../components/info/SourcesCard";
+import { PausedAtInput } from "../../components/tracker/MyTrackerCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import AnimeMovieNotes from "./AnimeMovieNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
@@ -368,6 +369,13 @@ export default function AnimeMovie() {
                   ))}
                 </select>
               </div>
+              <PausedAtInput
+                value={movie.time_fin}
+                isAdmin={isAdmin}
+                onChange={(v) => performUpdate({ time_fin: v }, "Paused position saved")}
+                placeholder="1:10:00"
+                className="space-y-1"
+              />
               <div className="space-y-1">
                 <Eyebrow>Watch next</Eyebrow>
                 <label

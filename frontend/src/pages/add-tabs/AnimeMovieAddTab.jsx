@@ -221,6 +221,16 @@ export default function AnimeMovieAddTab({
             ))}
           </select>
         </Field>
+        <Field label="Paused at">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="Paused at"
+            value={amf.time_fin ?? ""}
+            onChange={(e) => uam("time_fin", e.target.value)}
+            placeholder="1:10:00"
+          />
+        </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="MAL Rating">

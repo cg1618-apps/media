@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildAnimeMoviePayload,
   buildAnimePayload,
   buildCreditsPayload,
   creditsResponseToForm,
@@ -451,5 +452,21 @@ describe("cover_image_focus", () => {
   it("is null for a centred image", () => {
     expect(gameFieldsPayload({ cover_image_focus: "" }).cover_image_focus).toBeNull();
     expect(gameFieldsPayload({}).cover_image_focus).toBeNull();
+  });
+});
+
+describe("time_fin (Paused at)", () => {
+  it("travels on the anime, anime movie and hentai bodies", () => {
+    expect(buildAnimePayload({ time_fin: "14:35" }).time_fin).toBe("14:35");
+    expect(buildAnimeMoviePayload({ time_fin: "1:10:00" }).time_fin).toBe(
+      "1:10:00",
+    );
+    expect(hentaiFieldsPayload({ time_fin: "08:00" }).time_fin).toBe("08:00");
+  });
+
+  it("sends a blank as null, so the server stores no position", () => {
+    expect(buildAnimePayload({ time_fin: "" }).time_fin).toBeNull();
+    expect(buildAnimeMoviePayload({}).time_fin).toBeNull();
+    expect(hentaiFieldsPayload({ time_fin: "" }).time_fin).toBeNull();
   });
 });

@@ -269,7 +269,15 @@ not drawn. The character, person and studio libraries use it for
   (`statusLabel` and `rewatchLabel` are what relabel it "Playing Status" /
   "To Replay"). The stepper itself is the exported `EpisodeStepper`, so the
   hentai page, whose tracker fields are its own, puts the same control in
-  its own slip.
+  its own slip. The same rule drops the **Paused at** field: the card renders
+  it only when the caller passes an `onTimeFinChange`, which the anime, TV
+  and cartoon pages do. The field is the exported `PausedAtInput` - a free-text
+  input styled as the card's selects (`SELECT_CLS`), saved on blur or Enter
+  and only when the trimmed text changed, a blank sent as `null`, and a
+  read-only `Chip` for a viewer who cannot write. It is keyed on the stored
+  value, so a position the server cleared (an `ep_fin` step up, or becoming
+  Completed) disappears as soon as the response lands. The movie, anime movie
+  and hentai trackers render `PausedAtInput` in their own slips.
   `GameDashboardCard` is a fourth dashboard card rather than a third arm
   inside `DashboardCard`: that file's `isReading` ternaries serve the
   watch/read pair, and a game's bar is read-only playtime against `hltb_main`

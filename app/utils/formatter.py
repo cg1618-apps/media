@@ -52,6 +52,13 @@ from app.utils.plan_next_kinds import OWNER_COLUMN
 # FORMATTERS (DB -> Google Sheets)
 # ==========================================
 
+# Free-text columns whose values Sheets would otherwise reinterpret under
+# USER_ENTERED - a paused position "14:35" or "1:10:00" reads as a time of
+# day. Written with the same forcing apostrophe as the release dates below.
+TEXT_CELL_COLUMNS: Dict[str, tuple] = {
+    "user_media_list": ("time_fin",),
+}
+
 
 def format_for_sheet(val: Any, expected_type: type = str) -> str:
     """
@@ -89,11 +96,15 @@ def format_model_for_sheet(instance: Any, columns: Optional[List[str]] = None) -
     into a date cell and returns the spreadsheet's locale rendering on the next
     read — corrupting the value on the first backup-then-pull cycle. The
     apostrophe forces a text cell and is not part of the value on read.
+    TEXT_CELL_COLUMNS get the same treatment for the same reason.
     """
     if not instance:
         return []
 
-    date_columns = release_date.DATE_COLUMNS.get(instance.__class__.__tablename__, ())
+    table = instance.__class__.__tablename__
+    text_columns = release_date.DATE_COLUMNS.get(table, ()) + TEXT_CELL_COLUMNS.get(
+        table, ()
+    )
 
     row_data = []
     # Loop through the exact columns in the exact order they appear in the database schema
@@ -102,7 +113,7 @@ def format_model_for_sheet(instance: Any, columns: Optional[List[str]] = None) -
             continue
         val = getattr(instance, column.name, None)
         cell = format_for_sheet(val)
-        if column.name in date_columns and cell:
+        if column.name in text_columns and cell:
             cell = f"'{cell}"
         row_data.append(cell)
 
@@ -379,7 +390,22 @@ def parse_user_media_list_from_sheet(raw: dict) -> dict:
         "issue_fin": parse_from_sheet(raw.get("issue_fin"), int),
         "page_fin": parse_from_sheet(raw.get("page_fin"), int),
         "usefulness": parse_from_sheet(raw.get("usefulness"), str),
+        "time_fin": _text_cell_from_sheet(raw.get("time_fin")),
     }
+
+
+def _text_cell_from_sheet(val: Any) -> Optional[str]:
+    """
+    A TEXT_CELL_COLUMNS value as the viewer typed it.
+
+    Sheets strips the forcing apostrophe on read, but a copy of the matrix
+    that never went through Sheets - or a hand edit that typed one - still
+    carries it, so one leading apostrophe is dropped here too.
+    """
+    text = parse_from_sheet(val, str)
+    if text is not None and text.startswith("'"):
+        text = text[1:].strip() or None
+    return text
 
 
 def parse_media_from_sheet(raw: dict) -> dict:

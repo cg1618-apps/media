@@ -46,6 +46,8 @@ class HentaiBase(BaseModel):
     watching_status: str = "Might Watch"
     my_rating: Optional[str] = None
     ep_fin: Optional[int] = 0
+    # "Paused at": free text, stored stripped and NULL when blank.
+    time_fin: Optional[str] = None
     usefulness: Optional[str] = None
     completed_at: Optional[datetime] = None
 
