@@ -222,9 +222,14 @@ export default function NavSearch({ variant = "inline", onDone }) {
   // and - by moving the request id on - any response still in flight, which
   // would otherwise land after the reader has left and reopen the dropdown
   // over the page they went to.
-  function cancelPendingSearch() {
+  function stopPendingSearch() {
     clearTimeout(searchDebounceRef.current);
     searchReqIdRef.current += 1;
+  }
+
+  // Leaving by a search or a row: nothing is pending and nothing is held.
+  function cancelPendingSearch() {
+    stopPendingSearch();
     setSearchResults([]);
     setShowResults(false);
   }
@@ -289,12 +294,15 @@ export default function NavSearch({ variant = "inline", onDone }) {
       setSearchResults(mergeBuckets(buckets, quotas, isExact));
       setShowResults(true);
     }, 250);
+    // cancelPendingSearch touches only refs and state setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, searchScope]);
 
   // Close the results and scope menus on an outside click.
   useEffect(() => {
     function handler(e) {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
+        stopPendingSearch();
         setShowResults(false);
         setShowScopeMenu(false);
       }
@@ -305,6 +313,8 @@ export default function NavSearch({ variant = "inline", onDone }) {
 
   function handleSearchKey(e) {
     if (e.key === "Escape") {
+      // Dismissed, not left: the query and held results stay for a refocus.
+      stopPendingSearch();
       setShowResults(false);
       setShowScopeMenu(false);
       return;

@@ -220,6 +220,30 @@ describe("the suggestion dropdown", () => {
     expect(input).toHaveValue("");
   });
 
+  it("stays closed when the response lands after Escape, keeping the query", async () => {
+    const user = userEvent.setup();
+    const input = renderSearch();
+    await user.type(input, "frieren");
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+
+    await user.keyboard("{Escape}");
+    await releaseAll();
+    expect(suggestions()).not.toBeInTheDocument();
+    expect(input).toHaveValue("frieren");
+  });
+
+  it("stays closed when the response lands after an outside click", async () => {
+    const user = userEvent.setup();
+    const input = renderSearch();
+    await user.type(input, "frieren");
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+
+    await user.click(document.body);
+    await releaseAll();
+    expect(suggestions()).not.toBeInTheDocument();
+    expect(input).toHaveValue("frieren");
+  });
+
   it("stays closed when a result is clicked before a newer response lands", async () => {
     const user = userEvent.setup();
     const input = renderSearch();

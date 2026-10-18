@@ -197,7 +197,10 @@ Enter and a result click both close the dropdown and cancel the search
 behind it: the debounce timer is cleared and the request id moves on, so a
 response still in flight is discarded when it lands instead of reopening the
 dropdown over the page the reader went to. Emptying the input cancels the same
-way.
+way. Escape and a click outside dismiss rather than leave: they stop the
+pending search the same way, so a late response cannot reopen the dropdown,
+but keep the typed query and the results already held, which a refocus shows
+again.
 
 **Theme.** `ThemeContext` keeps `light | dark | system` in
 `localStorage["cg1618:theme"]` and stamps `<html data-theme>`; `index.html`
