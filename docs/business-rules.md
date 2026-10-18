@@ -297,8 +297,8 @@ Every completion helper comes in halves, because "this finished airing" and
 
 | Type | Catalogue half | Personal half |
 | --- | --- | --- |
-| Anime, TV Show, Cartoon, Hentai | `mark_tv_catalog` - `airing_status = "Finished Airing"` | `mark_tv_list` - `status = "Completed"`, `ep_fin = ep_total` when the total is known |
-| Anime Movie, Movie | `mark_movie_catalog` - `airing_status = "Finished Airing"` | `mark_movie_list` - `status = "Completed"` |
+| Anime, TV Show, Cartoon, Hentai | `mark_tv_catalog` - `airing_status = "Finished Airing"` | `mark_tv_list` - `status = "Completed"`, `ep_fin = ep_total` when the total is known, `time_fin` cleared |
+| Anime Movie, Movie | `mark_movie_catalog` - `airing_status = "Finished Airing"` | `mark_movie_list` - `status = "Completed"`, `time_fin` cleared |
 | Manga | `mark_reading_catalog` - `serialization_status = "完結"` unless it is `腰斬` | `mark_reading_list` - `status`, `ch_fin`, `vol_fin`, `vol_fin_page = 0` |
 | Novel | `mark_novel_catalog` - serialisation, and the volume totals agree on the largest **published** figure | `mark_novel_list` - `status`, `vol_fin`, and the arc cursor closed |
 | Comic | `mark_comic_catalog` - serialisation | `mark_comic_list` - `status`, `issue_fin` |
@@ -352,6 +352,49 @@ do not decide "`ep_fin == ep_total`, therefore Completed": `ep_fin` is one
 reader's position and only that reader's own write may conclude from it. What
 a pipeline may say is that the **work** has finished airing, and only when the
 source it fetched from says so — which `autofill` writes.
+
+### A paused position is cleared by progress
+
+`time_fin` - **Paused at** in the UI - is where the viewer stopped playback in
+one of the six watching types (anime, anime movie, movie, TV show, cartoon,
+hentai): `1:10:00` into a movie, `14:35` into the episode after `ep_fin`. It
+is free text and is never parsed; a write stores it stripped, and a blank as
+NULL (`clean_time_fin`).
+
+A position belongs to one point in the work, so the server drops it when the
+viewer moves past that point. The rules run in `apply_list_payload`
+(`clear_stale_time_fin` in `app/services/domain/user_list.py`), after the
+payload is applied and against what the row held before it, so they hold
+whatever client writes and on every request path that writes a list row: the
+entry endpoints' `POST`, `PUT` and `PATCH` - which is the detail page's
+tracker, the Add and Modify forms, the dashboard's `+` and the seasonal pages
+- and the caller's own `PUT /api/me/list/{media_id}`.
+
+1. **Becoming Completed clears it.** The status moving from outside
+   `COMPLETED_WATCH_STATUSES` (`Completed`, `Completed (解說)`) into it sets
+   `time_fin` to NULL, whatever else the write carried, including a position
+   sent in the same write: a finished work has nothing paused part-way.
+   **It is a transition, not a level.** A write that re-sends `Completed` on
+   a row that already was Completed is not becoming anything, so a rewatch of
+   a finished entry can record where it paused.
+2. **`ep_fin` going up clears it** - anime, TV show, cartoon and hentai - because
+   the position belonged to the episode that has just been counted as
+   watched. Up means the written `ep_fin` is greater than the stored one,
+   with no stored value counting as 0; re-saving the same count or stepping
+   it down leaves the position alone.
+   **A new position in the same write wins.** When that write also carries a
+   non-empty `time_fin` that differs from the stored one, the writer has said
+   where the next episode is paused, and that value stands. Re-sending the
+   stored value is not new: the Modify form sends every field back as it
+   loaded them, so bumping the episode there still clears the position.
+
+`POST /{id}/complete`, and a `PATCH` that carries `ep_fin` to its total (see
+above), finish through `mark_tv_list` / `mark_movie_list`, which clear
+`time_fin` themselves - so reaching the total clears it even when the same
+write named a new position.
+
+A Pull restores `time_fin` verbatim and runs neither rule: the sheet is a
+copy of rows that were already consistent when they were backed up.
 
 ### A game has five completion axes, and they are independent
 

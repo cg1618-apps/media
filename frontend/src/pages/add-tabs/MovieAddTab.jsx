@@ -288,6 +288,16 @@ export default function MovieAddTab({
             ))}
           </select>
         </Field>
+        <Field label="Paused at">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="Paused at"
+            value={mf.time_fin ?? ""}
+            onChange={(e) => umf("time_fin", e.target.value)}
+            placeholder="1:10:00"
+          />
+        </Field>
       </div>
       <div className="flex flex-wrap gap-6 mt-2">
         <Field label="Watch Next">

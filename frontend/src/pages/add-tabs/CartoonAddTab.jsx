@@ -290,6 +290,16 @@ export default function CartoonAddTab({
             placeholder="0"
           />
         </Field>
+        <Field label="Paused at">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="Paused at"
+            value={cf.time_fin ?? ""}
+            onChange={(e) => uc("time_fin", e.target.value)}
+            placeholder="14:35"
+          />
+        </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="My Rating">

@@ -8,7 +8,7 @@ PERSONAL = {
     "watching_status", "reading_status", "playing_status", "my_rating",
     "ep_fin", "vol_fin", "vol_fin_page", "ch_fin", "arc_fin",
     "ch_fin_in_arc", "progress_display", "issue_fin", "my_watch_day",
-    "completed_at",
+    "completed_at", "time_fin",
 }
 
 

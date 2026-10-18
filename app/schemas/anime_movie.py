@@ -24,6 +24,8 @@ class AnimeMovieBase(BaseModel):
     airing_status: Optional[str] = None
     watching_status: str = "Might Watch"
     my_rating: Optional[str] = None
+    # "Paused at": free text, stored stripped and NULL when blank.
+    time_fin: Optional[str] = None
 
     mal_rating: Optional[float] = None
     mal_rank: Optional[str] = None

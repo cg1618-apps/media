@@ -182,6 +182,17 @@ starting values are configurable on `/defaults`. Only options, alias, quote
 and meme are excluded — those four have no factory in
 `config/formFactories.js`.
 
+**Paused at** (`time_fin`) is a free-text input on the six watching types'
+Add and Modify forms - anime, TV show and cartoon beside Episodes Finished,
+movie and anime movie beside My Rating, hentai beside its episode pair. It
+posts as typed, a blank as `null`; the server strips it and clears it when
+`ep_fin` goes up or the entry becomes Completed, and the Modify form's echo
+of the stored value does not count as a new one
+([business-rules.md](../business-rules.md#a-paused-position-is-cleared-by-progress)).
+It takes no default and auto-fill never copies it (`defaultable: false`,
+`autofillable: false` in `fieldMeta.js`): it is one viewer's place in one
+work.
+
 **Data loaded on mount.** Collections, franchises and series (read by every
 tab's pickers and by `buildAutofillPatch`), the form defaults and the
 suggestion sources — all started together, in one wave.
@@ -480,7 +491,7 @@ franchise of the h-comic it adapts; a new franchise typed there is created as
 classification (source material, originality, series number and the three H
 Genre fields); credits (**Studio** and **Director**); airing status and
 release date; watching status, rating and **usefulness**; total and
-finished episodes; the **MAL link** -
+finished episodes and **Paused at**; the **MAL link** -
 there is no MAL id input, since the write hook derives `mal_id` from the link
 and `hentaiFieldsPayload` sends an id only beside one; sources, Watch Next /
 To Rewatch, cover and remark. Submit needs a CN or EN name and a franchise,

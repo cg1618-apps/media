@@ -3,6 +3,7 @@
 // A slip: mono title on a dotted rule, the episode stepper as outline
 // buttons around a mono input, selects on hairlines. Status is text, never
 // a coloured background.
+import { useId } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
 import StatusOptions from "../ui/StatusOptions";
@@ -87,6 +88,61 @@ export function EpisodeStepper({
   );
 }
 
+/**
+ * "Paused at": where playback stopped, as free text - "1:10:00" into a movie,
+ * "14:35" into the next episode. Exported for the trackers that lay out their
+ * own fields (movie, anime movie, hentai).
+ *
+ * Saved on blur or Enter, and only when the trimmed text differs from what
+ * is stored, so tabbing through the tracker writes nothing. A blank saves as
+ * null. The server clears the position when ep_fin goes up or the entry
+ * becomes Completed; the input is keyed on the stored value so that a cleared
+ * position shows the moment the write's response lands.
+ */
+export function PausedAtInput({
+  value,
+  isAdmin,
+  onChange,
+  placeholder = "14:35",
+  className = "space-y-1.5",
+}) {
+  const id = useId();
+  const stored = value ?? "";
+
+  function commit(e) {
+    if (!isAdmin) return;
+    const next = e.target.value.trim();
+    if (next === stored) return;
+    onChange(next || null);
+  }
+
+  return (
+    <div className={className}>
+      <Eyebrow as="label" htmlFor={id} className="block">
+        Paused at
+      </Eyebrow>
+      {isAdmin ? (
+        <input
+          key={stored}
+          id={id}
+          type="text"
+          defaultValue={stored}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          placeholder={placeholder}
+          className={SELECT_CLS}
+        />
+      ) : (
+        <div>
+          <Chip>{stored || "—"}</Chip>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MyTrackerCard({
   epFin,
   epTotal,
@@ -95,12 +151,14 @@ export default function MyTrackerCard({
   cumTotal,
   watchingStatus,
   myRating,
+  timeFin,
   watchNext,
   toRewatch,
   isAdmin,
   onEpChange,
   onStatusChange,
   onRatingChange,
+  onTimeFinChange,
   onWatchNextChange,
   onToRewatchChange,
   statusOptions,
@@ -181,6 +239,15 @@ export default function MyTrackerCard({
             </div>
           )}
         </div>
+        {/* Only the watching types pass a handler: a paused position means
+            nothing for a comic or a game. */}
+        {typeof onTimeFinChange === "function" && (
+          <PausedAtInput
+            value={timeFin}
+            isAdmin={isAdmin}
+            onChange={onTimeFinChange}
+          />
+        )}
         {onWatchNextChange !== undefined && (
           <div className="space-y-1.5">
             <Eyebrow className="block">Watch next</Eyebrow>

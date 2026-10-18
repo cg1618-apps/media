@@ -372,6 +372,7 @@ export default function TV() {
             epTotal={epTotal ?? "?"}
             watchingStatus={show.watching_status}
             myRating={show.my_rating}
+            timeFin={show.time_fin}
             watchNext={show.watch_next}
             toRewatch={show.to_rewatch}
             isAdmin={isAdmin}
@@ -383,6 +384,9 @@ export default function TV() {
             }
             onRatingChange={(v) =>
               performPatch({ my_rating: v }, "Rating saved")
+            }
+            onTimeFinChange={(v) =>
+              performPatch({ time_fin: v }, "Paused position saved")
             }
             onWatchNextChange={(v) =>
               performPatch(

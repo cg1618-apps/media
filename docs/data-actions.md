@@ -192,6 +192,15 @@ a human reads this tab during an environment switch. Its natural key is
 resolved to local uuids. A reference that resolves to nothing skips the row
 and lands in `unresolved_refs`.
 
+`time_fin` (Paused at) is written as a **text cell**: Backup prefixes it with
+an apostrophe (`TEXT_CELL_COLUMNS` in `app/utils/formatter.py`, the same
+treatment release dates get), because under `USER_ENTERED` Sheets would read
+`14:35` or `1:10:00` as a time of day and hand back its own rendering on the
+next Pull. Pull drops one leading apostrophe if a cell still carries it
+(`_text_cell_from_sheet`), and restores the value verbatim - neither clearing
+rule in [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)
+runs on a restore.
+
 **`Plan Next` and `Seasonal`** drop `user_id` for `username` too, for the same
 reason. Pull falls back to `_restore_owner_id` — the **installation owner**:
 `users.is_installation_owner`, else the alphabetically-first non-root
@@ -268,8 +277,8 @@ inserted beside it. Parsers: `parse_game_choice_node_from_sheet`,
 before `User Media List`. Hentai's credit and tag columns (`studio`,
 `director`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) travel
 under their own keys the same way. Its `ep_total` is an ordinary column of the
-`Hentai` tab, and the viewer's `ep_fin` travels on `User Media List`, as
-cartoon's does. Its credit and
+`Hentai` tab, and the viewer's `ep_fin` and `time_fin` travel on
+`User Media List`, as cartoon's do. Its credit and
 tag columns (`illustrator`, `author`, `club`, `original_source`,
 `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) have no legacy
 header, so each travels under its own key, and `highlight_group_order`

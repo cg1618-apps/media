@@ -1732,6 +1732,7 @@ export default function Add() {
       airing_status: mf.airing_status || null,
       watching_status: mf.watching_status || freshForm("movie").watching_status,
       my_rating: mf.my_rating || null,
+      time_fin: mf.time_fin || null,
       movie_type: mf.movie_type || null,
       length_min: mf.length_min !== "" ? parseInt(mf.length_min) : null,
       release_date_usa: mf.release_date_usa || null,
@@ -1904,6 +1905,7 @@ export default function Add() {
         tvf.watching_status || freshForm("tv-show").watching_status,
       ep_total: tvf.ep_total !== "" ? parseInt(tvf.ep_total) : null,
       ep_fin: tvf.ep_fin !== "" ? parseInt(tvf.ep_fin) : null,
+      time_fin: tvf.time_fin || null,
       my_rating: tvf.my_rating || null,
       imdb_rating: tvf.imdb_rating || null,
       release_date: tvf.release_date || null,
@@ -2056,6 +2058,7 @@ export default function Add() {
       is_main: cf.is_main || null,
       ep_total: cf.ep_total !== "" ? parseInt(cf.ep_total) : null,
       ep_fin: cf.ep_fin !== "" ? parseInt(cf.ep_fin) : null,
+      time_fin: cf.time_fin || null,
       my_rating: cf.my_rating || null,
       imdb_rating: cf.imdb_rating || null,
       length_ep_min:

@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.database import get_taipei_now
+from app.utils.constants import COMPLETED_WATCH_STATUSES
 
 # Which payload key carries the status, per hyphenated media type.
 STATUS_FIELD: dict[str, str] = {
@@ -77,12 +78,18 @@ LIST_FIELD_DEFAULTS: dict[str, int] = {
 
 # Every payload key that lives on the list row, per type. The status key is
 # included and is translated to `status` on the way in and back on the way out.
+#
+# time_fin ("Paused at") belongs to the six watching types and to nothing else:
+# a playback position means nothing for a page count or a save file.
 LIST_FIELDS: dict[str, tuple[str, ...]] = {
-    "anime": ("watching_status", "my_rating", "ep_fin", "my_watch_day", "completed_at"),
-    "anime-movie": ("watching_status", "my_rating", "completed_at"),
-    "movie": ("watching_status", "my_rating", "completed_at"),
-    "tv-show": ("watching_status", "my_rating", "ep_fin", "completed_at"),
-    "cartoon": ("watching_status", "my_rating", "ep_fin", "completed_at"),
+    "anime": (
+        "watching_status", "my_rating", "ep_fin", "time_fin", "my_watch_day",
+        "completed_at",
+    ),
+    "anime-movie": ("watching_status", "my_rating", "time_fin", "completed_at"),
+    "movie": ("watching_status", "my_rating", "time_fin", "completed_at"),
+    "tv-show": ("watching_status", "my_rating", "ep_fin", "time_fin", "completed_at"),
+    "cartoon": ("watching_status", "my_rating", "ep_fin", "time_fin", "completed_at"),
     "manga": (
         "reading_status", "my_rating", "vol_fin", "vol_fin_page", "ch_fin",
         "completed_at",
@@ -103,7 +110,8 @@ LIST_FIELDS: dict[str, tuple[str, ...]] = {
     # Cartoon's episode counter. usefulness is h-comic's column and
     # vocabulary.
     "hentai": (
-        "watching_status", "my_rating", "ep_fin", "usefulness", "completed_at",
+        "watching_status", "my_rating", "ep_fin", "time_fin", "usefulness",
+        "completed_at",
     ),
     # Game's, plus the usefulness h-comic introduced. No progress counter.
     "h-game": ("playing_status", "my_rating", "completed_at", "usefulness"),
@@ -330,16 +338,92 @@ def split_list_payload(media_type: str, payload: dict) -> tuple[dict, dict]:
     return catalog, personal
 
 
+def clean_time_fin(value) -> Optional[str]:
+    """
+    A paused position as stored: the text stripped, a blank as NULL.
+
+    Nothing else. It is free text on purpose - "1:10:00", "14:35", "after the
+    OP" - so it is never parsed or checked against a format.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def clear_stale_time_fin(
+    row, personal: dict, status_before, ep_fin_before, time_fin_before
+) -> None:
+    """
+    Drop a paused position the write just made stale. Runs after the payload
+    has been applied, with what the row held before it.
+
+    Two rules:
+
+    1. **Becoming Completed** - the status moving from outside
+       COMPLETED_WATCH_STATUSES into it - clears time_fin, whatever else the
+       write carried: a finished work has nothing paused part-way. A write
+       that re-sends Completed on a row that already was Completed is not
+       becoming anything, so a rewatch can record where it paused.
+    2. **ep_fin going up** clears time_fin, because the position belonged to
+       the episode that has just been counted as watched - unless the same
+       write sets a NEW non-empty time_fin, one that differs from what the
+       row held, in which case the writer has said where the next episode is
+       paused and that value stands. Re-sending the stored value is not new:
+       the Modify form sends every field back as it loaded them, and bumping
+       the episode there must still clear it.
+
+    Mark completed (and a PATCH that carries ep_fin to its total) finishes
+    through mark_tv_list / mark_movie_list, which clear time_fin themselves.
+    """
+    if (
+        status_before not in COMPLETED_WATCH_STATUSES
+        and row.status in COMPLETED_WATCH_STATUSES
+    ):
+        row.time_fin = None
+        return
+
+    advanced = (
+        "ep_fin" in personal
+        and row.ep_fin is not None
+        and row.ep_fin > (ep_fin_before or 0)
+    )
+    if not advanced:
+        return
+    sent_new = (
+        "time_fin" in personal
+        and row.time_fin is not None
+        and row.time_fin != time_fin_before
+    )
+    if not sent_new:
+        row.time_fin = None
+
+
 def apply_list_payload(row, personal: dict, media_type: str) -> None:
-    """Apply a personal payload to a list row, translating the status key."""
+    """
+    Apply a personal payload to a list row, translating the status key.
+
+    Every request path that writes a list row comes through here - the entry
+    endpoints' create, PUT and PATCH, and the caller's own PUT /api/me/list -
+    so the time_fin rules live here rather than in each of them.
+    """
     status_field = STATUS_FIELD[media_type]
+    status_before = row.status
+    ep_fin_before = row.ep_fin
+    time_fin_before = row.time_fin
     for key, value in personal.items():
         if key == status_field:
             # A status is NOT NULL; a payload explicitly clearing it falls
             # back to the type's default rather than failing at COMMIT.
             row.status = value if value is not None else DEFAULT_STATUS[media_type]
+        elif key == "time_fin":
+            row.time_fin = clean_time_fin(value)
         else:
             setattr(row, key, value)
+    if "time_fin" in LIST_FIELDS[media_type]:
+        clear_stale_time_fin(
+            row, personal, status_before, ep_fin_before, time_fin_before
+        )
     row.updated_at = get_taipei_now()
 
 

@@ -382,6 +382,7 @@ export default function Cartoon() {
             epTotal={epTotal ?? "?"}
             watchingStatus={cartoon.watching_status}
             myRating={cartoon.my_rating}
+            timeFin={cartoon.time_fin}
             watchNext={cartoon.watch_next}
             isAdmin={isAdmin}
             onEpChange={(v) =>
@@ -392,6 +393,9 @@ export default function Cartoon() {
             }
             onRatingChange={(v) =>
               performPatch({ my_rating: v }, "Rating saved")
+            }
+            onTimeFinChange={(v) =>
+              performPatch({ time_fin: v }, "Paused position saved")
             }
             onWatchNextChange={(v) =>
               performPatch(

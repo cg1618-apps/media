@@ -61,6 +61,7 @@ def test_the_backup_row_names_its_user_and_its_entry(db):
         status="Watching",
         my_rating="9.5",
         ep_fin=11,
+        time_fin="14:35",
     )
     db.add(row)
     db.flush()
@@ -84,6 +85,9 @@ def test_the_backup_row_names_its_user_and_its_entry(db):
     assert cells["status"] == "Watching"
     assert cells["my_rating"] == "9.5"
     assert cells["ep_fin"] == "11"
+    # A text cell: under USER_ENTERED, Sheets would read "14:35" as a time of
+    # day and hand back its own rendering of it on the next Pull.
+    assert cells["time_fin"] == "'14:35"
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +97,7 @@ def test_the_backup_row_names_its_user_and_its_entry(db):
 UML_HEADERS = [
     "status", "my_rating", "completed_at", "my_watch_day",
     "ep_fin", "vol_fin", "vol_fin_page", "ch_fin", "arc_fin",
-    "ch_fin_in_arc", "progress_display", "issue_fin",
+    "ch_fin_in_arc", "progress_display", "issue_fin", "time_fin",
     "created_at", "updated_at",
     "media_type", "public_id", "username",
 ]
@@ -272,3 +276,28 @@ def test_a_blank_timestamp_still_inserts(db, sheets, two_users):
     row = db.query(models.UserMediaList).one()
     assert row.created_at is not None
     assert row.updated_at is not None
+
+
+@pytest.mark.parametrize("cell", ["1:10:00", "'1:10:00", "  1:10:00 "])
+def test_a_paused_position_restores_as_the_text_it_was(db, sheets, two_users, cell):
+    """Whether the cell arrives as Sheets returns it, with the forcing
+    apostrophe still on it, or padded by a hand edit, the stored value is the
+    text the viewer typed."""
+    anime = models.Anime(anime_name_cn="測試六")
+    db.add(anime)
+    db.flush()
+    media = db.query(models.Media).filter_by(system_id=anime.system_id).one()
+
+    sheets({
+        "User Media List": [
+            UML_HEADERS,
+            _blank(status="Active Watching", ep_fin="3", time_fin=cell,
+                   username="cg1618", media_type="anime",
+                   public_id=str(media.public_id)),
+        ]
+    })
+
+    result = pull.execute_pull_specific(db, "User Media List", log_action=False)
+
+    assert result["status"] == "success"
+    assert db.query(models.UserMediaList).one().time_fin == "1:10:00"

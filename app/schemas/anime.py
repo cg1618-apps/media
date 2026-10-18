@@ -37,6 +37,8 @@ class AnimeBase(BaseModel):
     ep_previous: Optional[int] = None
     ep_total: Optional[int] = None
     ep_fin: Optional[int] = 0
+    # "Paused at": free text, stored stripped and NULL when blank.
+    time_fin: Optional[str] = None
     ep_special: Optional[float] = None
 
     my_rating: Optional[str] = None

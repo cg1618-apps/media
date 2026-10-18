@@ -65,7 +65,7 @@ def two_users_with_lists(db):
         models.UserMediaList(user_id=cg.id, media_id=media_of(frieren).system_id,
                              status="Completed", my_rating="9.5", ep_fin=28),
         models.UserMediaList(user_id=kana.id, media_id=media_of(frieren).system_id,
-                             status="Watching", ep_fin=11),
+                             status="Watching", ep_fin=11, time_fin="14:35"),
         models.UserMediaList(user_id=cg.id, media_id=media_of(csm).system_id,
                              status="Reading", my_rating="8.0",
                              vol_fin=14.0, ch_fin=152.0),
@@ -89,6 +89,7 @@ def _snapshot(db):
         lists[(user.username, media.media_type, media.public_id)] = (
             row.status, row.my_rating, row.ep_fin, row.vol_fin,
             row.ch_fin, row.issue_fin, row.my_watch_day, row.completed_at,
+            row.time_fin,
         )
     return users, lists
 
