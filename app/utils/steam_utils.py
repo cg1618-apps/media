@@ -9,6 +9,7 @@ import logging
 import re
 from decimal import Decimal
 from typing import Any, Dict, Optional
+from urllib.parse import urlsplit
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,51 @@ def steamdb_link_for(appid: int) -> str:
     URLs cannot disagree.
     """
     return f"https://steamdb.info/app/{appid}/"
+
+
+METACRITIC_BASE_URL = "https://www.metacritic.com"
+
+# The platform segments of Metacritic's legacy `/game/<platform>/<slug>`
+# URLs. Steam only ever hands back `pc`; the rest are here so a link pasted
+# from an old console page normalises the same way.
+METACRITIC_LEGACY_PLATFORMS = frozenset(
+    {
+        "pc", "playstation-5", "playstation-4", "playstation-3", "playstation-2",
+        "playstation", "ps-vita", "psp", "xbox-series-x", "xbox-one", "xbox-360",
+        "xbox", "switch", "wii-u", "wii", "3ds", "ds", "gamecube", "dreamcast",
+        "nintendo-64", "game-boy-advance", "ios", "stadia",
+    }
+)
+
+
+def metacritic_link_for(url: Optional[str]) -> Optional[str]:
+    """
+    The Metacritic page we store, from the `metacritic.url` Steam hands back.
+
+    Steam answers Metacritic's legacy per-platform form with a tracking query,
+    `/game/pc/<slug>?ftag=...`, and Metacritic answers that with a 301 to
+    `/game/<slug>/` - one page per game, the platform gone. The stored link
+    is the one it redirects to, so a link is stable and two platforms of one
+    game cannot disagree. A Metacritic path of any other shape keeps its path
+    and loses only the query and fragment; a URL on another host is None.
+    """
+    if not url:
+        return None
+
+    parts = urlsplit(str(url).strip())
+    host = (parts.hostname or "").lower()
+    if host != "metacritic.com" and not host.endswith(".metacritic.com"):
+        return None
+
+    segments = [s for s in parts.path.split("/") if s]
+    if segments[:1] == ["game"]:
+        if len(segments) == 2:
+            return f"{METACRITIC_BASE_URL}/game/{segments[1]}/"
+        # Only a known platform is stripped: `/game/<slug>/critic-reviews/`
+        # is three segments too, and its slug is the middle one.
+        if len(segments) == 3 and segments[1] in METACRITIC_LEGACY_PLATFORMS:
+            return f"{METACRITIC_BASE_URL}/game/{segments[2]}/"
+    return f"{METACRITIC_BASE_URL}{parts.path or '/'}"
 
 
 # Steam returns every price as an integer with two implied decimals, whatever
@@ -116,6 +162,8 @@ def map_steam_to_game_data(payloads: Dict[str, Dict[str, Any]]) -> Dict[str, Any
 
     mapped: Dict[str, Any] = {
         "metacritic_score": metacritic.get("score"),
+        # Not a column: the Metacritic reference row's url.
+        "metacritic_url": metacritic_link_for(metacritic.get("url")),
         "achievements_total": achievements.get("total"),
         "is_free": bool(primary.get("is_free")),
     }

@@ -48,7 +48,7 @@ describe("yesNo", () => {
 
 // The two Metacritic figures sit on different scales — critics out of 100,
 // users out of 10 — so each carries its denominator, and an unscored game
-// drops the row rather than showing a zero.
+// shows the card's em dash rather than a zero.
 describe("outOf", () => {
   it("keeps each score on its own scale", () => {
     expect(outOf(96, 100)).toBe("96 / 100");
@@ -250,5 +250,32 @@ describe("Game detail page — Replace", () => {
     const library = await card("Library");
     expect(library.getByText("Owned")).toBeInTheDocument();
     expect(library.getByText("Steam Progress Sync")).toBeInTheDocument();
+  });
+
+  // The three IGDB time-to-beat figures, in hours. Only the ones recorded get
+  // a row; with none recorded the card is left out.
+  it("shows the recorded time-to-beat figures on a Time to Beat card", async () => {
+    mockFetch({
+      isAdmin: false,
+      game: { ...GAME, hltb_main: 45, hltb_main_extra: 72.5, hltb_completionist: null },
+    });
+    mount();
+
+    const ttb = within(
+      (await screen.findByRole("heading", { name: "Time to Beat" })).closest("section"),
+    );
+    expect(ttb.getByText("Main")).toBeInTheDocument();
+    expect(ttb.getByText("45 h")).toBeInTheDocument();
+    expect(ttb.getByText("Main + Extra")).toBeInTheDocument();
+    expect(ttb.getByText("72.5 h")).toBeInTheDocument();
+    expect(ttb.queryByText("Completionist")).toBeNull();
+  });
+
+  it("leaves the Time to Beat card out when no figure is recorded", async () => {
+    mockFetch({ isAdmin: false });
+    mount();
+
+    await screen.findByRole("heading", { name: "Test Game" });
+    expect(screen.queryByRole("heading", { name: "Time to Beat" })).toBeNull();
   });
 });

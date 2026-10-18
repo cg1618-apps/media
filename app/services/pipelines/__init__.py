@@ -49,6 +49,8 @@ from app.services.pipelines.replace import (
     execute_replace_single_novel,
     execute_replace_single_tv_show,
     execute_replace_tv_show,
+    execute_save_replace_game,
+    execute_save_replace_h_game,
 )
 
 __all__ = [
@@ -78,6 +80,8 @@ __all__ = [
     "execute_replace_single_h_comic",
     "execute_replace_single_hentai",
     "execute_replace_single_h_game",
+    "execute_save_replace_game",
+    "execute_save_replace_h_game",
     "execute_replace_anime",
     "execute_replace_anime_movie",
     "execute_replace_movie",

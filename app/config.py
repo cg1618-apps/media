@@ -104,6 +104,11 @@ class Settings(BaseSettings):
     # connection is a logged connection; STEAM_ENABLED=false stops the traffic
     # at the transport instead of relying on nobody pressing Fill.
     steam_enabled: bool = True
+    # HowLongToBeat needs no credential - the game pipeline searches the site
+    # the way its own search box does (app/services/integrations/hltb.py).
+    # HLTB_ENABLED=false stops every request, which is also how the test
+    # suite keeps the write hook off the live site.
+    hltb_enabled: bool = True
     # AniDB's HTTP API answers only a registered client: the name and version
     # the client was registered under at anidb.net. Both unset (the default)
     # turns AniDB off - no request, and no hentai queued for it. The version

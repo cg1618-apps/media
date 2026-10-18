@@ -19,3 +19,8 @@ os.environ.setdefault("ADMIN_PASSWORD", "testadmin123")
 # rather than in the CI job so the suite owns its own environment; the tests
 # that assert production behaviour move the setting themselves.
 os.environ.setdefault("APP_ENV", "development")
+# HowLongToBeat is looked up by the game Replace, which is also the write hook
+# behind every game create and update - so without this, any test that saves a
+# game with an English name would search the live site. The client's own tests
+# switch it back on and patch requests out.
+os.environ.setdefault("HLTB_ENABLED", "false")

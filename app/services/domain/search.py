@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.registry import MEDIA_REGISTRY
+from app.services.domain.character_responses import character_responses
 from app.services.domain.content_labels import attach_franchise_content_labels
 from app.services.domain.credits import credit_summaries
 from app.services.domain.entity_photos import person_media
@@ -175,9 +176,9 @@ SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
         sort_desc=True,
     ),
     # People and studios come last because they rank last: a query is usually
-    # about a title, so a name match is the weaker answer. The search page
-    # stacks their sections below every media section for the same reason.
-    # Characters are deliberately absent - they stay out of the universal bar.
+    # about a title, so a name match is the weaker answer. The search
+    # page shows them on a tab of their own, after the media tab.
+    # Characters are not in this tuple - see CHARACTER_SEARCH below.
     SearchableType(
         key="person",
         model=models.Person,
@@ -205,6 +206,19 @@ SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
 )
 
 SEARCHABLE_BY_KEY: dict[str, SearchableType] = {t.key: t for t in SEARCHABLE_TYPES}
+
+# Characters are searched only on request (`include_characters`): the search
+# page asks, the nav dropdown does not, so the dropdown's answer stays about
+# titles and the staff who made them. Not a scope either - the page's scope
+# selector is the dropdown's. docs/notes/decisions.md has the reasoning.
+CHARACTER_SEARCH = SearchableType(
+    key="character",
+    model=models.Character,
+    response_schema=schemas.CharacterResponse,
+    name_fields=("name_en", "name_cn", "name_jp", "name_alt"),
+    sort_field="name_en",
+    sort_fallbacks=("name_cn", "name_jp", "name_alt"),
+)
 
 # Every accepted `scope` value.
 SCOPES: tuple[str, ...] = ("all",) + tuple(SEARCHABLE_BY_KEY)
@@ -255,7 +269,8 @@ def _run(
         # Hidden with its franchise, read-time through series.franchise_id.
         query = apply_series_visibility(query, db, viewer)
     elif spec.model in CONNECTIONS:
-        # People, studios and publishers: hidden when every connection is.
+        # People, characters, studios and publishers: hidden when every
+        # connection is - the rule their own list routes apply.
         query = apply_shared_visibility(query, spec.model, db, viewer)
     sort_column = getattr(spec.model, spec.sort_field)
     if spec.sort_fallbacks:
@@ -335,6 +350,10 @@ def _decorate(db: Session, viewer, spec: SearchableType, entries: list):
     """Attach the non-column fields the list endpoints attach, then field-gate."""
     if spec.key == "person":
         return _person_results(db, viewer, entries)
+    if spec.key == CHARACTER_SEARCH.key:
+        # Built as GET /api/character/ builds them, in three queries for
+        # the whole bucket.
+        return character_responses(db, viewer, entries)
     if spec.key in _CREDIT_OWNER_COLUMN:
         _attach_credit_counts(db, viewer, spec, entries)
         return entries
@@ -369,7 +388,14 @@ def _related_franchises(db: Session, entries: list, limit: int) -> list:
     )
 
 
-def search(db: Session, viewer, query: str, scope: str = "all", limit: int = 500):
+def search(
+    db: Session,
+    viewer,
+    query: str,
+    scope: str = "all",
+    limit: int = 500,
+    include_characters: bool = False,
+):
     """
     Search every type (or the one named by `scope`) for `query`.
 
@@ -377,9 +403,14 @@ def search(db: Session, viewer, query: str, scope: str = "all", limit: int = 500
     searchable type this viewer may see, empty for the ones this scope did not
     ask about. A gated type the viewer cannot see has NO key: an empty bucket
     would still say the type exists (gated_types.py).
+
+    `include_characters` adds a `character` bucket, searched at scope "all"
+    only; without it there is no such key.
     """
     hidden = unseeable_gated_types(db, viewer)
     searchable = tuple(spec for spec in SEARCHABLE_TYPES if spec.key not in hidden)
+    if include_characters:
+        searchable += (CHARACTER_SEARCH,)
     buckets: dict[str, list] = {spec.key: [] for spec in searchable}
     q_clean = clean_string(query)
     if not q_clean:

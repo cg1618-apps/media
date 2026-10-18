@@ -358,7 +358,7 @@ nested `copies` collection.
 | `GET`    | `/`                    | Public | List all games. Optional params: `franchise_id`, `series_id`, `playing_status`, `release_status`, `game_type`, `search_query`, plus **`ownership`** (see below). |
 | `GET`    | `/search-igdb`         | `manage.catalog` | `?q=`, `limit`. Searches IGDB; `external_id` is the numeric IGDB id, `link` the public slug page (which `extract_igdb_id` cannot parse, so the form writes `igdb_id` itself). Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/{entry_id}`          | Public | One game by UUID. |
-| `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_replace_single_game` after creation, which calls `apply_single_replace_game` (IGDB fill-only, keyed on `igdb_id`, then Steam, keyed on `steam_appid`; both ids derived from their links first) and re-extracts system options, then logs the write. |
+| `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_save_replace_game` after creation, which calls `apply_single_replace_game` with `retry_hltb_misses=False` (IGDB fill-only, keyed on `igdb_id`, then Steam, keyed on `steam_appid`, with the Metacritic link; both ids derived from their links first; then the HowLongToBeat search, skipped for a miss already remembered in this process) and re-extracts system options, then logs the write. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `GameUpdate`. Same write hook. `GameCreate` and `GameUpdate` check `is_main` against `GAME_IS_MAIN` (422 otherwise). |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. `copies` is honoured here too — the nested writer coerces a copy's `system_id` from a JSON string, since a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets `playing_status = "Completed"` and **nothing else**: `completion_level`, the three `all_*` flags and the achievement pair are independent axes only the user can judge. |
@@ -539,7 +539,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 | `GET`    | `/search-igdb`         | `manage.catalog` | `?q=`, `limit`. Searches IGDB so the admin can pick the entry and store its `igdb_id` - Game's search, under this route. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/`                    | Public | List. Optional params: `franchise_id`, `series_id`, `playing_status`, `release_status`, `game_type`, `playstyle`, `language_availability`, `ownership` (the acting user's copies, as for game), `search_query` (all five name columns). |
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
-| `POST`   | `/`                    | Admin  | Create. Body: `HGameCreate`. Auto-runs `execute_replace_single_h_game`: Game's Replace (ids extracted from `igdb_link` and `steam_link`, IGDB fetched fill-only when there is an `igdb_id`, SteamDB row derived, Steam fetched when there is an appid), then `run_sync_game` and `run_sync_gated_labels`. |
+| `POST`   | `/`                    | Admin  | Create. Body: `HGameCreate`. Auto-runs `execute_save_replace_h_game`: Game's Replace in its save form (ids extracted from `igdb_link` and `steam_link`, IGDB fetched fill-only when there is an `igdb_id`, SteamDB row derived, Steam fetched when there is an appid, then the HowLongToBeat search unless it already missed in this process), then `run_sync_game` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HGameUpdate`. Same write hook. |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `playing_status = "Completed"`; nothing on the catalogue side, as for game. |
@@ -1178,7 +1178,7 @@ list endpoints.
 
 | Method | Path | Auth   | Description                                     |
 | ------ | ---- | ------ | ----------------------------------------------- |
-| `GET`  | `/`  | Public | Every entry, group, and season matching a query. |
+| `GET`  | `/`  | Public | Every entry, group, season and staff record matching a query; characters on request. |
 
 **Query parameters**
 
@@ -1187,6 +1187,7 @@ list endpoints.
 | `q`     | `""`    | Search text. Empty or all-punctuation returns empty buckets, never the whole collection.       |
 | `scope` | `all`   | One bucket key, or `all`. An unrecognised value is a `422`.                                    |
 | `limit` | `500`   | Cap per bucket, 1–2000.                                                                        |
+| `characters` | `false` | `true` adds a `character` bucket, searched at `scope=all` only. The `/search` page sends it; the nav dropdown does not. |
 
 **Matching.** The query and every name column are lowercased and stripped of
 whitespace and punctuation before the substring test, so `re zero` finds
@@ -1197,7 +1198,7 @@ and `_` is not, which is why the `LIKE` autoescapes.
 
 **Ordering.** Within a bucket, whole-title matches come first, then the type's
 name column ascending (`comic` sorts on `comic_name_en`, `seasonal` descending;
-`person`, `studio` and `publisher` sort on
+`person`, `studio`, `publisher` and `character` sort on
 `COALESCE(name_en, name_cn, name_jp, name_alt)`,
 because their display name is a per-row choice among four nullable columns and
 no single column can order them).
@@ -1223,7 +1224,8 @@ routes.
     "anime": [...], "anime-movie": [...], "movie": [...], "tv-show": [...],
     "cartoon": [...], "manga": [...], "novel": [...], "comic": [...],
     "game": [...], "h-comic": [...], "h-game": [...], "hentai": [...],
-    "seasonal": [...], "person": [...], "studio": [...], "publisher": [...]
+    "seasonal": [...], "person": [...], "studio": [...], "publisher": [...],
+    "character": [...]
   },
   "related_franchises": [...]
 }
@@ -1252,8 +1254,21 @@ the same shared-record rule as their lists
 ([authorization.md](authorization.md#shared-records)), so a person, studio or
 publisher whose every connection is hidden is absent from its bucket, and a
 series in a label-hidden franchise is absent from the `series` bucket.
-**Characters are deliberately not searchable** — there is
-no `character` bucket and `scope=character` is a `422`.
+
+**Characters.** With `characters=true` the response carries a `character`
+bucket; without it there is no such key, so the nav dropdown never sees one.
+The bucket matches `name_en`, `name_cn`, `name_jp` and `name_alt` with the
+same normalisation and exact-first ordering as every other bucket, and is
+filled at `scope=all` only — at any other scope it is present and empty.
+`character` is not a scope: `scope=character` is a `422`. Rows are the
+`CharacterResponse` `GET /api/character/` returns, `casting_count`, the
+resolved picture, `media_types`, `restricted`, the tag lists and
+`identities` included, built by the same helper
+(`character_responses`, `app/services/domain/character_responses.py`) in
+three queries for the whole bucket. A character goes through the same
+shared-record rule as its list, so one whose every casting is on a hidden
+entry is absent. Only character names are matched: an identity's names do
+not find its character, and identities are not a bucket of their own.
 
 **Franchise expansion.** At `scope=all`, a franchise whose name matched brings
 its anime with it, so searching a franchise name finds the shows in it even when

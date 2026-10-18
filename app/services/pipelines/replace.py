@@ -45,6 +45,12 @@ execute_replace_single_hentai = _single("hentai")
 # Game's Replace (IGDB, then Steam), on the h-game table.
 execute_replace_single_h_game = _single("h-game")
 
+# The save write hooks of the types whose spec carries a `save_replace`: the
+# single Replace minus what a save should not repeat. The Autofill button
+# keeps the execute_replace_single_* above.
+execute_save_replace_game = partial(run_replace_single, PIPELINES["game"], on_save=True)
+execute_save_replace_h_game = partial(run_replace_single, PIPELINES["h-game"], on_save=True)
+
 execute_replace_anime = _bulk("anime")
 execute_replace_anime_movie = _bulk("anime-movie")
 execute_replace_movie = _bulk("movie")

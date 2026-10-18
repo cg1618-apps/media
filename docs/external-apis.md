@@ -1,10 +1,10 @@
 # External APIs
 
-Last verified: 2026-10-13
+Last verified: 2026-10-18
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Twelve outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels, studios, seiyuu and characters, builds a cast from an entry's MAL character list, fills the columns an h-comic has, and four fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts, the cover and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime, and its library capsule - else its header image - is the cover when IGDB has none; **DLsite** fills an h-game's release date, studio and cover ahead of both; **AniDB** fills whatever of a hentai's cover, release date, airing status and episode count MAL left blank; **E-Hentai** fills an h-comic's cover and illustrator after Tenrai, for the doujinshi MAL does not list; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Thirteen outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels, studios, seiyuu and characters, builds a cast from an entry's MAL character list, fills the columns an h-comic has, and four fields and two reference links of a hentai; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts, the cover and the Steam appid, Steam fills prices, the Metacritic score and link and this collection's own playtime, and its library capsule - else its header image - is the cover when IGDB has none, and **HowLongToBeat**'s own search supplies a game's page link; **DLsite** fills an h-game's release date, studio and cover ahead of both; **AniDB** fills whatever of a hentai's cover, release date, airing status and episode count MAL left blank; **E-Hentai** fills an h-comic's cover and illustrator after Tenrai, for the doujinshi MAL does not list; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
@@ -26,6 +26,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 - [Open Library](#open-library)
 - [IGDB](#igdb)
 - [Steam](#steam)
+- [HowLongToBeat](#howlongtobeat)
 - [DLsite](#dlsite)
 - [AniDB](#anidb)
 - [E-Hentai](#e-hentai)
@@ -46,6 +47,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 | Open Library | `https://openlibrary.org` | none | `app/services/integrations/openlibrary.py` | `app/utils/openlibrary_utils.py` | `novel` (no MAL link) |
 | IGDB | `https://api.igdb.com/v4` (token from `https://id.twitch.tv/oauth2/token`) | `settings.igdb_client_id` ← `IGDB_CLIENT_ID` **and** `settings.igdb_client_secret` ← `IGDB_CLIENT_SECRET` | `app/services/integrations/igdb.py` | `app/utils/igdb_utils.py` | `games` |
 | Steam | `https://store.steampowered.com/api` (no key) **and** `https://api.steampowered.com` (`settings.steam_api_key` ← `STEAM_API_KEY`, `settings.steam_id` ← `STEAM_ID`) | `settings.steam_api_key` / `settings.steam_id`, both optional | `app/services/integrations/steam.py` | `app/utils/steam_utils.py` | `games`, including a game's cover when IGDB has none; the cover of an `h_game` (image CDN for the capsule, storefront for the header image) |
+| HowLongToBeat | `https://howlongtobeat.com`, the site's own search endpoint (undocumented) | none; `settings.hltb_enabled` ← `HLTB_ENABLED` turns it off | `app/services/integrations/hltb.py` | `app/utils/hltb_utils.py` | the HowLongToBeat reference row on `games` and `h_game` |
 | DLsite | `https://www.dlsite.com/maniax/api/=/product.json` (undocumented) | none | `app/services/integrations/dlsite.py` | `app/utils/dlsite_utils.py` | `h_game` |
 | AniDB | `http://api.anidb.net:9001/httpapi` (XML, gzip) | `settings.anidb_client` ← `ANIDB_CLIENT` **and** `settings.anidb_clientver` ← `ANIDB_CLIENTVER`, a client registered at anidb.net; AniDB is off while either is unset | `app/services/integrations/anidb.py` | `app/utils/anidb_utils.py` | `hentai` |
 | E-Hentai | `https://api.e-hentai.org/api.php` (the official gallery metadata API, `gdata`) | none | `app/services/integrations/ehentai.py` | `app/utils/ehentai_utils.py` | `h_comic` |
@@ -535,9 +537,10 @@ against IGDB's published reference:
   would put `162000` in `hltb_main`.
 
 Most games have no submissions at all, so `None` here is ordinary and not a
-failure. **HowLongToBeat itself is never called**: it publishes no official
-API, and these figures — despite the `hltb_*` column names, which predate the
-integration — come from IGDB.
+failure. These figures — despite the `hltb_*` column names, which predate the
+integration — come from IGDB, not from HowLongToBeat, which publishes no
+official API. HowLongToBeat is searched for one thing only, the game's page
+link — see [HowLongToBeat](#howlongtobeat).
 
 ### Mapping — `map_igdb_to_game_data`
 
@@ -784,15 +787,32 @@ post-processing, over every entry rather than only the queued ones. It is
 fill-only: a hand-entered SteamDB row is left alone. See
 [business-rules.md](business-rules.md#steamdb-derived-from-the-appid).
 
+### The Metacritic link rides on the same answer
+
+`appdetails` carries `metacritic.url` beside the score, so the link costs no
+request of its own. Steam answers Metacritic's legacy per-platform form with a
+tracking query — `https://www.metacritic.com/game/pc/elden-ring?ftag=MCD-06-10aaa1f`
+— and Metacritic answers that with a 301 to `https://www.metacritic.com/game/elden-ring/`,
+one page per game. `metacritic_link_for` (`app/utils/steam_utils.py`) stores the
+page it redirects to: the query and fragment dropped, a known platform segment
+(`METACRITIC_LEGACY_PLATFORMS`) removed, the host made `www.metacritic.com`. A
+Metacritic path of any other shape keeps its path; another host is no link.
+`autofill_game_from_steam` writes it as the `Metacritic` reference row, on a
+game and an h-game alike — an h-game has no score column, but the page is still
+the game's. Fill-only, through `upsert_main_source`: a hand-entered Metacritic
+row is left alone. A game Steam has no Metacritic block for gets no row. See
+[business-rules.md](business-rules.md#metacritic-and-howlongtobeat-links).
+
 ### Mapping — `map_steam_to_game_data`
 
-Columns only. Steam writes no tag and no credit, so it never touches the
-alias layer. `header_image` is not mapped here: it is a cover source, read by
+Columns, plus the Metacritic link above. Steam writes no tag and no credit, so
+it never touches the alias layer. `header_image` is not mapped here: it is a cover source, read by
 `steam_header_image_url` for `autofill_cover_from_steam_header`.
 
 | Steam field | Column | Rule | Note |
 |---|---|---|---|
 | `metacritic.score` | `metacritic_score` | overwrite | 0-100 int |
+| `metacritic.url` (as `metacritic_url`, via `metacritic_link_for`) | the `Metacritic` reference `media_source` row | fill-only (`upsert_main_source`) | canonical `/game/<slug>/`; also written on an h-game |
 | — | `metacritic_user_score` | never | not published by Steam; stays hand-typed |
 | `price_overview.initial` | `price_original_{us,jp,tw}` | fill-only | list price, not the launch price |
 | `price_overview.final` | `price_current_{us,jp,tw}` | overwrite | the number a sale moves |
@@ -858,6 +878,97 @@ Game.igdb_id, Game.igdb_link)`, runs `autofill_game_from_igdb` (fill-only,
 so it only fills gaps) and then `autofill_game_from_steam`, which overwrites
 the current prices and the Metacritic score.
 
+## HowLongToBeat
+
+HowLongToBeat supplies one thing: the **link to a game's page**,
+`https://howlongtobeat.com/game/<id>`, as the `HowLongToBeat` reference
+`media_source` row on a game or an h-game. Its time-to-beat figures are not
+read — the three `hltb_*` columns come from [IGDB](#time-to-beat). IGDB cannot
+supply the link either: neither its `external_game_sources` nor its
+`website_types` include HowLongToBeat or Metacritic.
+
+**HowLongToBeat publishes no API.** `app/services/integrations/hltb.py` calls
+the endpoint the site's own search box posts to, and the site moves that
+endpoint and changes its authentication from time to time — so this
+integration can stop working without any change here. The client takes the
+same three steps as the maintained `howlongtobeatpy` package, without its
+dependencies (`aiohttp`, `fake_useragent`, `beautifulsoup4`):
+
+1. **Find the endpoint.** `GET https://howlongtobeat.com/`, then each
+   `/_next/static/chunks/*.js` script the page loads, until one contains a
+   `fetch("/api/...", {method: "POST"})`. Today that is `/api/search/site`,
+   which is also `FALLBACK_SEARCH_PATH`, tried when no script names one. The
+   path is cached for the life of the process; a 404 from it drops the cache
+   and discovers again, once.
+2. **Get a token.** `GET <endpoint>/init?t=<epoch ms>` answers
+   `{"token": "..."}`, sent back as the `x-auth-token` header. The token is
+   bound to the caller's address and User-Agent, so one fixed browser
+   User-Agent is sent on every request. It is cached until a search answers
+   403, which fetches a fresh one and retries, once — what the site's own
+   script does.
+3. **Search.** `POST <endpoint>` with the site's JSON search body
+   (`searchType: "games"`, `searchTerms` the term split on spaces, 20 results).
+   The answer's `data` is the result list; each row carries `game_id`,
+   `game_name`, `game_alias` (comma-separated) and `release_world` (a year).
+
+| Concern | Behaviour |
+|---|---|
+| Throttle | None published. Every request — discovery, token and search — waits until `MIN_INTERVAL` (1 s) after the previous one. A lookup is one search once the endpoint and token are cached; the first in a process also reads the home page, its scripts up to the one carrying the search, and the token. |
+| Timeout | `TIMEOUT` (15 s) on every request. |
+| Failure | Never raised. A network error, a 429, any other non-200, a body that is not JSON or an endpoint that cannot be found is logged as a warning and answered `None`; the entry gets no row and the run goes on. Not retried with backoff: a miss is retried by the next bulk Replace or Autofill instead. |
+| Off switch | `HLTB_ENABLED=false` (`settings.hltb_enabled`) sends nothing at all. The test suite sets it in `tests/conftest.py`, since the game write hook would otherwise search the live site for every game a test saves. |
+
+### Matching — `pick_hltb_game_id`
+
+A wrong link is worse than no link, so only one confident candidate is kept
+(`app/utils/hltb_utils.py`):
+
+- **The term** is the game's first Latin name — English, else romanised, else
+  the first alt fragment — since the site's search is English. A game with
+  none is not looked up. **Every** name, Japanese included, takes part in the
+  match.
+- **Names are compared on `hltb_match_key`**: `normalize_name`'s width, case
+  and whitespace folding, with punctuation and `™ ® ©` dropped too, so
+  `The Witcher 3: Wild Hunt` and `the witcher 3 - wild hunt` are one title.
+  The match is exact: `The Witcher 3` matches neither the base game nor
+  *Hearts of Stone*.
+- **A result's own `game_name` first.** Only when no result's name matches is
+  `game_alias` consulted, so an edition that lists our title as an alias
+  cannot make an exact name ambiguous.
+- **The release year breaks ties, and only ties.** Several matches and a known
+  year keep those whose `release_world` is that year. A lone exact match is
+  kept even when its year differs, because a JP release and a worldwide one
+  often sit a year apart.
+- **One `game_id` left is the answer.** None, or several, is no row.
+
+Checked against the live site: `The Witcher 3: Wild Hunt` (2015) → `10270`;
+`Doom` with no year → none, since 1993's and 2016's are both exact; `Doom`
+with 2016 → one game; an invented title → none.
+
+### When it runs, and how often it asks
+
+`autofill_hltb_source` (`app/services/domain/autofill.py`) wraps the lookup,
+and costs no request for a game that already has the row, fetched or typed by
+hand — which is also what makes the row fill-only.
+
+- **Replace** — `apply_single_replace_game` / `_h_game`, so a bulk Replace,
+  the entry's Autofill button and the write hook behind every create and
+  update — looks up any game without the row. The write hook runs it as the
+  spec's `save_replace` (`retry_hltb_misses=False`, through
+  `execute_save_replace_game` / `_h_game`), so it skips a remembered miss.
+  All three run the fetch in the threadpool (`run_in_threadpool` in
+  `run_replace_single` and `run_replace`), never on the event loop.
+- **Fill** looks up queued entries only, inside `_fill_game` / `_fill_h_game`,
+  and not in post-processing as SteamDB is: it is a fetch, and post-processing
+  runs on the event loop for every entry in the run. A game Fill does not queue
+  gets its link from the next save or Replace.
+- **A miss is remembered** for the life of the process (`_hltb_misses`, keyed
+  by `system_id`). Fill and an ordinary save do not ask again for a
+  remembered miss, so editing an unmatched game costs no search; a bulk
+  Replace and the Autofill button do, so a game HowLongToBeat lists later, or
+  whose name is corrected, picks its link up on the next Replace or Autofill.
+  A restart forgets every miss.
+
 ## DLsite
 
 DLsite fills three things on an **h-game** only, all fill-only: the
@@ -899,8 +1010,9 @@ priority. `_fill_h_game` (`app/services/pipelines/specs.py`) and
 1. `autofill_h_game_from_dlsite` - release date, studio, cover.
 2. `autofill_game_from_igdb(..., cover=False)` - everything IGDB writes
    except the cover, including the appid Steam keys off.
-3. `autofill_game_from_steam` - prices and achievements (Replace derives the
-   SteamDB row just before it, as for a game).
+3. `autofill_game_from_steam` - prices, achievements and the Metacritic link
+   (Replace derives the SteamDB row just before it, as for a game), then
+   `autofill_hltb_source`, the HowLongToBeat link.
 4. `autofill_cover_from_steam` - the library capsule, if there is still no
    cover.
 5. `autofill_game_cover_from_igdb` - IGDB's cover, if there is still none.
@@ -1149,10 +1261,10 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `seiyuu` | `apply_extract_mal_id_person` (every person) | `autofill_person_from_mal`, for a person holding the `seiyuu` role with a `mal_id` and a blank fillable column; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
-| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`), then `autofill_cover_from_steam` and `autofill_cover_from_steam_header` while the cover is still empty; in Fill All; Replace (bulk, single, write hook) runs all four, IGDB fill-only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
+| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`), then `autofill_hltb_source` (not repeating a miss), then `autofill_cover_from_steam` and `autofill_cover_from_steam_header` while the cover is still empty; in Fill All; Replace (bulk, single, write hook) runs all five, IGDB fill-only; bulk and single retry a HowLongToBeat miss, the write hook does not | `STEAM_PAUSE` (0.5 s), plus HowLongToBeat's own 1 s spacing | IGDB (+ Twitch for the token), Steam, HowLongToBeat |
 | `h-comic` | `apply_extract_mal_id_manga_novel` | `_fill_h_comic`: `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has - then `autofill_h_comic_from_ehentai` - the cover and illustrator MAL left empty (see [E-Hentai](#e-hentai)); all fill-only; no AniList; in Fill All and Replace All, and Replace (`apply_single_replace_h_comic`) runs the same order and also selects entries linked only to E-Hentai | 1 s | Tenrai, E-Hentai |
 | `hentai` | `apply_extract_hentai_ids` (MAL then AniDB) | `_fill_hentai`: `autofill_hentai_from_mal`, then `autofill_hentai_from_anidb` for what MAL left blank (see [AniDB](#anidb)); stops when `anidb.has_capacity()` is false (an AniDB error answer); in Fill All; Replace (`apply_single_replace_hentai`) runs the same order and also selects entries linked only to AniDB | 1 s, plus AniDB's own 4 s spacing | Tenrai, AniDB (API and image CDN) |
-| `h-game` | as game | `_fill_h_game`: `autofill_h_game_from_dlsite`, then game's two autofills on the `h_game` table writing only what it has (IGDB's cover held back), then `autofill_cover_from_steam`, `autofill_game_cover_from_igdb` and `autofill_cover_from_steam_header` - the cover comes DLsite, Steam's capsule, IGDB, Steam's header (see [DLsite](#dlsite)); in Fill All; Replace (`apply_single_replace_h_game`) runs the same order and also selects entries linked only to DLsite. `/api/h-game/search-igdb` is game's picker | `STEAM_PAUSE` (0.5 s) | DLsite, IGDB (+ Twitch), Steam (storefront and image CDN) |
+| `h-game` | as game | `_fill_h_game`: `autofill_h_game_from_dlsite`, then game's two autofills on the `h_game` table writing only what it has (IGDB's cover held back), then `autofill_hltb_source` as game, then `autofill_cover_from_steam`, `autofill_game_cover_from_igdb` and `autofill_cover_from_steam_header` - the cover comes DLsite, Steam's capsule, IGDB, Steam's header (see [DLsite](#dlsite)); in Fill All; Replace (`apply_single_replace_h_game`) runs the same order and also selects entries linked only to DLsite. `/api/h-game/search-igdb` is game's picker | `STEAM_PAUSE` (0.5 s) | DLsite, IGDB (+ Twitch), Steam (storefront and image CDN), HowLongToBeat |
 
 Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page touch local disk and, for missing covers, the autofill functions again.
 
@@ -1168,6 +1280,7 @@ Things the code does today that a reader might not expect. None is a documentati
 - The docstring of `_status_code` in `sheets.py` says gspread `5.12.0` is pinned; `requirements.txt` pins `6.2.1`. The function handles both shapes, so behaviour is unaffected.
 - AniDB's ban protection - the 24-hour answer cache and the halt - is per-process memory, like the rate limiters: a restart forgets which aids were fetched today.
 - DLsite's product JSON is undocumented: a change to its shape shows up as h-games that stop filling, logged, not as an error anywhere visible.
+- HowLongToBeat's search is undocumented in the same way, and more fragile: its path and token handshake are read off the live site. A change shows up as games that stop gaining a HowLongToBeat link and a `HowLongToBeat` warning in the log, nothing else. Its endpoint, token and remembered misses are per-process memory.
 - E-Hentai's cover is its 250px-wide gallery thumb, the largest the API names; an h-comic whose cover came from E-Hentai is a small image.
 - Steam's library capsule is looked up at the unhashed CDN path only. Apps whose store assets sit under a hashed path answer 404 there, so their h-game cover falls through to IGDB, and a game IGDB has no cover for takes Steam's landscape header image instead - a cover of a different shape from the rest.
 - MAL's `OAD` type maps to `"Other"` even though the app's own vocabulary has an `OAD` value.

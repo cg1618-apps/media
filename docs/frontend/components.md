@@ -218,10 +218,10 @@ not drawn. The character, person and studio libraries use it for
   variants sharing one icon — `Toptoon TW` and `Toptoon KR` — draw it once),
   `FranchiseCard` and `CollectionCard` (each takes `cover`, a resolved
   `{ url, focus }`), `CharacterCard` (one card of `lib/characterCards.js` - a
-  character, or one of its identities drawn dashed; the character library and
-  the hubs' Characters tab draw it), and `StaffCard`
+  character, or one of its identities drawn dashed; the character library,
+  the hubs' Characters tab and `/search`'s Characters tab draw it), and `StaffCard`
   (`PersonCard` / `StudioCard` / `PublisherCard` over one shared body — the
-  person, studio and publisher libraries and the `/search` staff sections all
+  person, studio and publisher libraries and `/search`'s People & companies tab all
   draw it; each carries the entity's `my_rating` as a `RatingStamp`, as the
   franchise and collection cards do; `PersonCard` shows `display_photo_file`,
   the server-resolved photo or fallback cover, positioned by
@@ -275,13 +275,19 @@ not drawn. The character, person and studio libraries use it for
   watch/read pair, and a game's bar is read-only playtime against `hltb_main`
   (achievements when the game reports a total and no estimate exists), so
   there is no progress callback to thread through.
-- **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `ScoreBlock`,
+- **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `TimeToBeatCard`, `ScoreBlock`,
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`,
   `ClubMembership` (see [Entity components](#entity-components-person-studio-and-character)).
-  `NamingCard` shows an h-comic's own region's name only (JP or KR), and a
-  character's, person's, studio's or publisher's four unprefixed names —
-  the displayed one included — (`NAMING_CONFIGS.character` / `.person` /
-  `.studio` / `.publisher`).
+  `NamingCard` lists the type's name fields (`getNamingFields`) that hold a
+  value: a null or blank name gets no row rather than a "—", and with none
+  set the card is not rendered at all, on every page that uses it. The
+  fields it draws from are an h-comic's own region's name only (JP or KR),
+  and a character's, person's, studio's or publisher's four unprefixed
+  names — the displayed one included — (`NAMING_CONFIGS.character` /
+  `.person` / `.studio` / `.publisher`).
+  `TimeToBeatCard` is the game and h-game pages' **Time to Beat** card: one
+  row of the recorded figures from `timeToBeatFields` (`lib/gameHours.js`),
+  and nothing at all when none is recorded.
   `SourcesCard` reads the entry's `sources` array (server-ordered — access
   rows in `sort_order`/insertion order, never re-sorted client-side), splits
   it into `access`/`reference` sections by `row.kind`, titles the access
@@ -716,6 +722,8 @@ is a second place to keep in step.
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
+| `gameHours.js` | `hours(value)` (`"32.5 h"`, null for a missing or unreadable figure) and `timeToBeatFields(entry)`: the recorded IGDB time-to-beat figures (`hltb_main`, `hltb_main_extra`, `hltb_completionist`) as `InfoCard` fields Main, Main + Extra, Completionist, `[]` when none is recorded. Shared by the game and h-game pages |
+| `mediaTabs.js` | `buildMediaTabs(rows)`: the franchise and series hubs' "Media" tab row from `{ label, type, entries, offered }` rows → `{ tabs, countOf, total, completed }`. A tab shows when offered and its list is non-empty; its count and the hero's totals are read from the same rows, so no tab is shown without being counted. `isCompleted(type, entry)`: whether the entry's own status field (`MEDIA_CONFIG[type].statusField`) holds one of `COMPLETED_STATUSES` |
 | `suggest.js` | What a type-or-choose input offers for the typed text: `rankByMatch(items, typed, keyOf)` (exact, then prefix, then contains, each tier in the given order) and `suggest(options, text)`, `SuggestInput`'s matcher (case-insensitive, the option already typed left out) |
 | `peopleOrder.js` | `byRatingThenAppearances(people)`: a person picker's best-first order before typed-text matching — `my_rating` by `getRatingWeight` (unrated last), then `credit_count`, most first; stable. The cast editor's seiyuu box uses it |
 | `formatters.js` | `getSourceValues(sources, source)` (filters the `fetchAllSources()` bag by category/scope/**usage** for a `ComboBox` or `MultiSelect`, every value whatever its scope — `ensureSourceValues` reads it to decide what already exists — ordered by `suggestionOrder.js` where the field has counts), `getIdleSourceValues(sources, source)` (a studio field's empty-box list: the studios with a count on the form's media type, most first; `undefined` for any other field, or without counts, meaning the whole list) and display formatters |

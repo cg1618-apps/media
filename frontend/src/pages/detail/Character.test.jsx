@@ -230,12 +230,15 @@ describe("Character detail page", () => {
     expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
   });
 
-  it("lists all four names on a Naming card", async () => {
+  it("lists the names it has on a Naming card, and no row for an unset one", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Yuki Nagato" });
     const naming = screen.getByText("Naming").closest("section");
-    for (const label of ["English", "Chinese", "Japanese", "Alternative"]) {
+    for (const label of ["English", "Japanese"]) {
       expect(within(naming).getByText(label)).toBeInTheDocument();
+    }
+    for (const label of ["Chinese", "Alternative"]) {
+      expect(within(naming).queryByText(label)).not.toBeInTheDocument();
     }
     expect(within(naming).getByText("長門有希")).toBeInTheDocument();
   });

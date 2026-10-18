@@ -29,19 +29,17 @@ from app.schemas.external_search import ExternalSearchResult
 from app.services.domain import casting_sync
 from app.services.domain.autofill import autofill_character_from_mal
 from app.services.domain.casting_entries import casting_entry_groups
-from app.services.domain.character_identities import (
-    identities_by_character,
-    identity_response,
+from app.services.domain.character_responses import (
+    character_response,
+    character_responses,
 )
 from app.services.domain.character_tags import (
-    character_tag_values,
     merge_character_tags,
     pop_character_tags,
     pop_patch_tags,
     write_character_tags,
 )
 from app.services.domain.derivation import apply_extract_mal_id_character
-from app.services.domain.entity_photos import EntityMedia, character_media
 from app.services.domain.merge_fill import absorb_casting, finish_merge
 from app.services.integrations.tenrai import search_mal_characters
 from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
@@ -97,61 +95,6 @@ def _cast_in_scope(
     return (
         {r.character_id for r in shown},
         {r.identity_id for r in shown if r.identity_id},
-    )
-
-
-def _to_response(
-    db: Session,
-    character: models.Character,
-    viewer=None,
-    media: Optional[EntityMedia] = None,
-    tags: Optional[dict[str, list[str]]] = None,
-    identities: Optional[list] = None,
-) -> schemas.CharacterResponse:
-    # casting_count, the picture and the media types all count only castings
-    # on entries the viewer may see, exactly as person._to_response counts
-    # credit_count - a number is a smaller leak than a title, but "cast in 3
-    # things, you can see 2" is still one.
-    #
-    # `media` is passed in by the list route, which resolves the whole page
-    # in one pass (entity_photos.character_media); a single-entity route
-    # leaves it None and pays for one.
-    if media is None:
-        media = character_media(db, viewer, [character])[character.system_id]
-    # The same arrangement for the tag lists (character_tags.character_tag_values).
-    if tags is None:
-        tags = character_tag_values(db, [character.system_id])[character.system_id]
-    if identities is None:
-        identities = identities_by_character(db, [character.system_id])[character.system_id]
-    return schemas.CharacterResponse(
-        system_id=character.system_id,
-        public_id=character.public_id,
-        name_en=character.name_en,
-        name_cn=character.name_cn,
-        name_jp=character.name_jp,
-        name_alt=character.name_alt,
-        display_name_field=character.display_name_field,
-        display_name=character.display_name,
-        gender=character.gender,
-        my_rating=character.my_rating,
-        photo_file=character.photo_file,
-        photo_focus=character.photo_focus,
-        photo_fallback_entry_id=media.photo_fallback_entry_id,
-        role=character.role,
-        mal_id=character.mal_id,
-        mal_link=character.mal_link,
-        remark=character.remark,
-        first_mention=character.first_mention,
-        first_appearance=character.first_appearance,
-        first_encounter=character.first_encounter,
-        casting_count=media.count,
-        display_photo_file=media.display_photo_file,
-        display_photo_focus=media.display_photo_focus,
-        media_types=media.media_types,
-        restricted=media.restricted,
-        appearance=tags["appearance"],
-        trait=tags["trait"],
-        identities=[identity_response(i, character, media) for i in identities],
     )
 
 
@@ -225,25 +168,7 @@ def get_all_characters(
     # Sorted in Python, not SQL: display_name is a property over four columns
     # with a per-row choice, so no single ORDER BY column can express it.
     characters.sort(key=lambda c: c.display_name.casefold())
-    media = character_media(db, viewer, characters)
-    tags = character_tag_values(db, [c.system_id for c in characters])
-    identities = identities_by_character(db, [c.system_id for c in characters])
-    if scoped_identity_ids is not None:
-        identities = {
-            character_id: [i for i in rows if i.system_id in scoped_identity_ids]
-            for character_id, rows in identities.items()
-        }
-    return [
-        _to_response(
-            db,
-            character,
-            viewer,
-            media[character.system_id],
-            tags[character.system_id],
-            identities[character.system_id],
-        )
-        for character in characters
-    ]
+    return character_responses(db, viewer, characters, scoped_identity_ids)
 
 
 # Before every /{system_id} route, which would otherwise swallow this path.
@@ -316,7 +241,7 @@ def get_character_by_id(
     require_visible_shared(
         db, viewer, models.Character, character.system_id, NOT_FOUND
     )
-    return _to_response(db, character, viewer)
+    return character_response(db, character, viewer)
 
 
 # ==========================================
@@ -363,7 +288,7 @@ def create_character(
     _derive_and_fill_from_mal(db, character)
     db.commit()
     db.refresh(character)
-    return _to_response(db, character, admin)
+    return character_response(db, character, admin)
 
 
 @router.put(
@@ -403,7 +328,7 @@ def update_character(
 
     db.commit()
     db.refresh(character)
-    return _to_response(db, character, admin)
+    return character_response(db, character, admin)
 
 
 @router.patch(
@@ -453,7 +378,7 @@ def patch_character(
 
     db.commit()
     db.refresh(character)
-    return _to_response(db, character, admin)
+    return character_response(db, character, admin)
 
 
 @router.delete("/{system_id}", summary="Delete Character")
@@ -617,4 +542,4 @@ def sync_character_from_cast(
     casting_sync.sync_character_from_cast(db, character, casting)
     db.commit()
     db.refresh(character)
-    return _to_response(db, character, admin)
+    return character_response(db, character, admin)

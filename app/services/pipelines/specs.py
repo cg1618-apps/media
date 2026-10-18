@@ -78,6 +78,7 @@ from app.services.domain import (
     autofill_h_game_from_dlsite,
     autofill_hentai_from_anidb,
     autofill_hentai_from_mal,
+    autofill_hltb_source,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
@@ -186,9 +187,18 @@ def _fill_game(db, entry) -> None:
     `fill_eligible`, which reads columns - so a game Steam had already filled
     was never queued and never got its row. It is `game_post_processing` now,
     which runs for every entry in the run, still after this queue, so an appid
-    IGDB supplied in this pass is picked up either way."""
+    IGDB supplied in this pass is picked up either way.
+
+    The Metacritic row rides on Steam's answer, inside
+    autofill_game_from_steam. The HowLongToBeat row is a search of its own,
+    and is here rather than in post-processing because it is a fetch: Fill
+    asks for queued entries only, and does not ask again for a game whose
+    search already missed in this process - a bulk Replace and the Autofill
+    button retry those. See
+    autofill_hltb_source."""
     autofill_game_from_igdb(entry, db)
     autofill_game_from_steam(entry, db)
+    autofill_hltb_source(entry, db, retry_misses=False)
     autofill_cover_from_steam(entry)
     autofill_cover_from_steam_header(entry)
 
@@ -202,10 +212,12 @@ def _fill_h_game(db, entry) -> None:
     IGDB goes second, cover held back, because it may supply the appid Steam
     keys off. Steam then writes its columns and offers its capsule, IGDB's
     cover is fetched for an entry that still has none, and Steam's header
-    image is the last resort."""
+    image is the last resort. The Metacritic and HowLongToBeat rows are
+    written as _fill_game writes them."""
     autofill_h_game_from_dlsite(entry, db)
     autofill_game_from_igdb(entry, db, cover=False)
     autofill_game_from_steam(entry, db)
+    autofill_hltb_source(entry, db, retry_misses=False)
     autofill_cover_from_steam(entry)
     autofill_game_cover_from_igdb(entry)
     autofill_cover_from_steam_header(entry)
@@ -422,6 +434,11 @@ PIPELINES: dict[str, PipelineSpec] = {
             Game, Game.steam_appid, Game.steam_link, Game.igdb_id, Game.igdb_link
         ),
         replace=lambda db, e, bulk: apply_single_replace_game(db, e, bulk=bulk),
+        # The save write hook: the same Replace, minus re-searching a
+        # HowLongToBeat miss - a save is not a request to retry it.
+        save_replace=lambda db, e, bulk: apply_single_replace_game(
+            db, e, bulk=bulk, retry_hltb_misses=False
+        ),
         replace_sleep=STEAM_PAUSE,
         replace_after=(("Syncing system options...", run_sync_game),),
         single_after=(run_sync_game,),
@@ -526,6 +543,9 @@ PIPELINES: dict[str, PipelineSpec] = {
             HGame.dlsite_link_tw,
         ),
         replace=lambda db, e, bulk: apply_single_replace_h_game(db, e, bulk=bulk),
+        save_replace=lambda db, e, bulk: apply_single_replace_h_game(
+            db, e, bulk=bulk, retry_hltb_misses=False
+        ),
         replace_sleep=STEAM_PAUSE,
         replace_after=(
             ("Syncing system options...", run_sync_game),
