@@ -3343,6 +3343,54 @@ options until the next Backup rewrites it. Pull ignores the column, since no
 tag field names it, but would restore the option rows from the System Options
 tab, so back up from a migrated database before any Pull.
 
+### The nav search dropdown: eight rows, a hue per type, closed by a search (2026-10-18)
+
+- **Owner's request**, three parts: the suggestion dropdown stayed open after
+  Enter until the reader clicked elsewhere; it showed too many suggestions;
+  and its type badges should each have a colour, to tell the types apart.
+- **The dropdown that stayed open was a response landing late.** Enter
+  cleared the debounce timer and hid the dropdown, but a request that had
+  already left still held the current request id, so when it answered it
+  passed the stale-response check and reopened the dropdown over `/search`.
+  Enter, a result click and an emptied input now move the request id on as
+  well as clearing the timer (`cancelPendingSearch`), so the late response is
+  discarded. Aborting the fetch was not needed: the id check already throws
+  the answer away, and an abort would add a second mechanism for the same job.
+- **Eight rows, not twenty.** The dropdown is a shortcut to the likely row;
+  `/search` is the result list. Eight rows cannot carry the old per-type
+  quotas (anime alone had ten), so every title type gets a floor of one and
+  the staff types none — the first pass is about showing as many types as
+  fit, and the round-robin hands out the rest. The request's per-bucket
+  `limit` drops to the same eight. **Exact matches moved into the merge**:
+  they used to be lifted after it, which at twenty rows rarely lost one, but
+  at eight a whole-title hit in a late bucket (a publisher, say) would be cut
+  by the cap before it could be lifted, so the merge now takes every bucket's
+  exact matches first.
+- **The badge colour is the second sanctioned exception to design rule 5.**
+  The rule asks that a colour-coded category make its own argument. This
+  one's: the dropdown mixes up to nineteen types in eight rows that are
+  scanned, not read, while the reader is still typing — the job is to find
+  the one row of the type they meant, and hue does that before the mono
+  label is read. That is the same shape as the System Options column (a
+  comparison across rows, not a reading of one), on a different surface. The
+  label stays in the chip, so colour is never the only signal.
+- **Media types reuse their scope hue** rather than getting a second palette,
+  so a type has one colour wherever it is coloured; `config/scopeColors.js`
+  holds both as `TYPE_HUES`, and `SCOPE_CHIPS` is built from it. The seven
+  types the System Options column never shows got new `--c-scope-*` tokens.
+  Collection, franchise, series and seasonal take saturated hues in the gaps
+  the media types leave; person, studio and publisher take low-saturation
+  slate, taupe and mauve, so a credited entity reads as "not a title" first.
+  Nineteen hues cannot all be far apart, so franchise and comic, series and
+  movie, seasonal and novel are close in hue and separated by saturation.
+  Every new value clears WCAG AA on `--c-surface` (lowest 5.29 light, 6.30
+  dark), above the existing floors.
+- **Rejected:** a separate ad-hoc colour map in `NavSearch.jsx` (two homes
+  for one type's colour, and the tokens' "used only by scopeColors.js"
+  guarantee would no longer hold); colouring the full `/search` results page
+  too (its rows sit under per-type headings, so the type is already given by
+  position, and the rule's argument does not carry over).
+
 ### Metacritic from Steam, HowLongToBeat from the site's search, or nothing (2026-10-18)
 
 - **Owner's request: fill a game's HowLongToBeat and Metacritic page links
