@@ -14,6 +14,8 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
+import TimeToBeatCard from "../../components/info/TimeToBeatCard";
+import { hours } from "../../lib/gameHours";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import { publisherLabel, publisherValue, studioValue } from "../../components/info/StudioLinks";
 import NamingCard from "../../components/info/NamingCard";
@@ -48,19 +50,13 @@ const textareaCls =
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
-function hours(value) {
-  if (value == null || value === "") return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? `${n} h` : null;
-}
-
 /**
  * A score with its denominator: "96 / 100", "8.6 / 10".
  *
  * Metacritic's two figures sit on different scales, so the denominator has to
  * travel with the number - a bare "8.6" beside a bare "96" reads as a
  * catastrophe rather than a good user score. Returns null when there is no
- * score, so the InfoCard drops the row instead of showing a zero.
+ * score, so the InfoCard shows its em dash for the field instead of a zero.
  */
 export function outOf(value, max) {
   if (value == null || value === "") return null;
@@ -594,6 +590,7 @@ export default function Game() {
                   ],
                 ]}
               />
+              <TimeToBeatCard entry={game} />
               <InfoCard
                 title="Prices"
                 fields={[

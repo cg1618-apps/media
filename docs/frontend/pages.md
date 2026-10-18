@@ -670,7 +670,7 @@ Layout: breadcrumb → (admin) the dashed **Admin** strip with **Quick edit**,
 linking to `/modify?id=<system_id>&type=person` → left column with the photo
 (`display_photo_file`: the photo, else the server-resolved fallback cover,
 else `FALLBACK_SVG`) and rating stamp, (admin) a **My rating** select, and a
-**Naming** card (`NamingCard`, all four names) → right column with the
+**Naming** card (`NamingCard`, each of the four names that is set) → right column with the
 display name, credited-entry count and, for a person with a `mal_link`, a
 **MyAnimeList** button beside it (`MalButton`, as on the character page; none
 without one), a "Profile" `InfoCard` (gender; the types
@@ -781,7 +781,7 @@ name, linking to its page / the identity's name → (admin) the dashed
 **Identity** spine (`display_photo_file`, the identity's own photo else the
 character's displayed one, as the server resolves it; else `FALLBACK_SVG`),
 the character's `my_rating` stamp on it, read-only, and a **Naming** card
-(`NamingCard type="identity"`, all four names) → right column with the
+(`NamingCard type="identity"`, each of the four names that is set) → right column with the
 display name, its appearance count and the character's **MyAnimeList**
 button (`MalButton`), a "Profile" `InfoCard` — **Role**, then **Gender**
 (`display_gender`, the character's when the identity sets none), then
@@ -846,7 +846,7 @@ Layout:
 2. **Admin strip** (admin only) — the dashed strip with **Quick edit** to
    `/modify?id=<system_id>&type=studio`.
 3. **Left column** — logo with the rating stamp, (admin) the **My rating**
-   select, then the **Naming** card (`NamingCard`, all four names —
+   select, then the **Naming** card (`NamingCard`, each of the four names that is set —
    English, Chinese, Japanese, Alternative — the displayed one included, as
    on the person and character pages).
 4. **Right column** — the display name, a credited-entry count and, for a
@@ -898,7 +898,14 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
-(404 tolerated). Media tabs carry a sort select, a group-by-series checkbox
+(404 tolerated). Each "Media" tab shows the number of entries its list holds,
+and the hero's entry total and completion bar are taken over every listed
+tab: an entry counts as completed when its own type's status field
+(`MEDIA_CONFIG[type].statusField` — `watching_status`, `reading_status` or
+`playing_status`) holds one of `COMPLETED_STATUSES`. Both pages build the tab
+row, the counts and the totals from one list of
+`{ label, type, entries, offered }` rows (`lib/mediaTabs.js`,
+`buildMediaTabs`), so a tab is never shown without being counted. Media tabs carry a sort select, a group-by-series checkbox
 (on by default for anime/comic/movies/tv/cartoons) and filter pills specific to
 the type. Extras render `HubCharacters` (below), `WatchOrderSection` (see below),
 `RelationGraph readOnly scopeType=… scopeId=…`, and `{Tier}Notes` with the
@@ -1067,7 +1074,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | |
 | Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with drag-to-reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Main Line, Serialization/Reading Status, Release Year, Issue Total | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
-| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme, 標籤 Label — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score dropping the field; the public verdict, not mine, which is the stamp on the cover); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
+| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme, 標籤 Label — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); no `RelationsSection`, no `ScoreBlock`, no Cast |
 
 **H-Comic** (`pages/detail/HComic.jsx`) is a gated type's page: App.jsx
 routes to it only for a session that can see h-comic
@@ -1127,6 +1134,7 @@ IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
 | Genres card | Genre, Theme, Genre Plot / Appearance / Relation |
 | Presentation card | Art Style, H 演出 Art Style, H 演出形式, Dialogue Audio, Sound Effect — how it looks and sounds |
 | Production & Release card | Developer (`studioValue`), Release Status / Date, Current Patch — always shown |
+| Time to Beat card | `TimeToBeatCard`, as on Game - Main, Main + Extra, Completionist, only the recorded ones, and left out when none is |
 | Library card | Ownership, Copies, Steam Progress Sync, as on Game |
 | Sources | `SourcesCard` with `igdbLink`, `steamLink` and the two DLsite links under "Where to Play" |
 | Notes | every game section, plus **亮點 Highlights** |
