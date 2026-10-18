@@ -23,6 +23,8 @@ class MovieBase(BaseModel):
     airing_status: Optional[str] = None
     watching_status: str = "Might Watch"
     my_rating: Optional[str] = None
+    # "Paused at": free text, stored stripped and NULL when blank.
+    time_fin: Optional[str] = None
     imdb_rating: Optional[str] = None
     movie_type: Optional[str] = None
     is_main: Optional[str] = None

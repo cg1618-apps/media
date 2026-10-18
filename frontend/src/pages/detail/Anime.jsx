@@ -394,6 +394,7 @@ export default function Anime() {
             cumTotal={cumTotal}
             watchingStatus={anime.watching_status}
             myRating={anime.my_rating}
+            timeFin={anime.time_fin}
             isAdmin={isAdmin}
             onEpChange={(v) =>
               performUpdate({ ep_fin: v }, "Episode progress saved")
@@ -403,6 +404,9 @@ export default function Anime() {
             }
             onRatingChange={(v) =>
               performUpdate({ my_rating: v }, "Rating saved")
+            }
+            onTimeFinChange={(v) =>
+              performUpdate({ time_fin: v }, "Paused position saved")
             }
             statusOptions={WATCHING_STATUSES}
             ratingOptions={MY_RATINGS}

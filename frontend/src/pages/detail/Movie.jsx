@@ -11,6 +11,7 @@ import InfoCard from "../../components/info/InfoCard";
 import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
+import { PausedAtInput } from "../../components/tracker/MyTrackerCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import MovieNotes from "./MovieNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
@@ -395,6 +396,13 @@ export default function Movie() {
                   ))}
                 </select>
               </div>
+              <PausedAtInput
+                value={movie.time_fin}
+                isAdmin={isAdmin}
+                onChange={(v) => performPatch({ time_fin: v }, "Paused position saved")}
+                placeholder="1:10:00"
+                className="space-y-1"
+              />
               <div className="space-y-1">
                 <Eyebrow>Watch next</Eyebrow>
                 <label

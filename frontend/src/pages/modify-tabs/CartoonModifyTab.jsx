@@ -221,6 +221,16 @@ export default function CartoonModifyTab({
             onChange={(e) => uc("ep_fin", e.target.value)}
           />
         </Field>
+        <Field label="Paused at">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="Paused at"
+            value={cmf.time_fin ?? ""}
+            onChange={(e) => uc("time_fin", e.target.value)}
+            placeholder="14:35"
+          />
+        </Field>
         <Field label="Ep Length (min)">
           <input
             className={inputCls}

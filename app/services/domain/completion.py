@@ -22,6 +22,8 @@ def mark_tv_list(row, entry) -> None:
     row.status = "Completed"
     if getattr(entry, "ep_total", None) is not None:
         row.ep_fin = entry.ep_total
+    # Finished means nothing is paused part-way.
+    row.time_fin = None
 
 
 def mark_movie_catalog(entry) -> None:
@@ -30,6 +32,7 @@ def mark_movie_catalog(entry) -> None:
 
 def mark_movie_list(row, entry) -> None:
     row.status = "Completed"
+    row.time_fin = None
 
 
 def mark_reading_catalog(entry) -> None:

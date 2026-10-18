@@ -151,6 +151,15 @@ export const COMMON_FIELD_META = {
   // ---- Progress & ratings ---------------------------------------------
   ep_total: { label: "Total Episodes", control: "number", group: "Progress" },
   ep_fin: { label: "Episodes Finished", control: "number", group: "Progress" },
+  // Where playback was paused. One viewer's position in one work, so neither
+  // a default nor something auto-fill may copy from another entry.
+  time_fin: {
+    label: "Paused at",
+    control: "text",
+    group: "Progress",
+    defaultable: false,
+    autofillable: false,
+  },
   vol_fin: { label: "Volumes Finished", control: "number", group: "Progress" },
   ch_total: { label: "Total Chapters", control: "number", group: "Progress" },
   ch_fin: { label: "Chapters Finished", control: "number", group: "Progress" },

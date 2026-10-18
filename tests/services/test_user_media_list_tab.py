@@ -42,6 +42,7 @@ def test_the_parser_reads_the_natural_key_and_every_progress_column():
         "my_watch_day": "Friday",
         "vol_fin": "3.5",
         "issue_fin": "6",
+        "time_fin": "1:10:00",
         "completed_at": "2024-03-22 00:00:00",
     }
     parsed = formatter.parse_user_media_list_from_sheet(row)
@@ -53,6 +54,7 @@ def test_the_parser_reads_the_natural_key_and_every_progress_column():
     assert parsed["ep_fin"] == 28
     assert parsed["vol_fin"] == 3.5
     assert parsed["issue_fin"] == 6
+    assert parsed["time_fin"] == "1:10:00"
 
 
 def test_the_parser_leaves_a_blank_progress_column_null():

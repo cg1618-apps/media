@@ -167,9 +167,10 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
         {select("my_rating", "My Rating", MY_RATINGS)}
         {select("usefulness", "Usefulness", H_COMIC_USEFULNESS)}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {text("ep_total", "Total Episodes", "2", "number")}
         {text("ep_fin", "Episodes Finished", "0", "number")}
+        {text("time_fin", "Paused at", "14:35")}
       </div>
 
       {/* Neither id is typed in: the write hook derives each from its link.

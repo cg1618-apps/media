@@ -366,6 +366,16 @@ export default function AnimeAddTab({
             placeholder="0"
           />
         </Field>
+        <Field label="Paused at">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="Paused at"
+            value={af.time_fin ?? ""}
+            onChange={(e) => ua("time_fin", e.target.value)}
+            placeholder="14:35"
+          />
+        </Field>
         <Field label="EP Special">
           <input
             className={inputCls}
