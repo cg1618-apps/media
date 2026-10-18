@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   canSeeGatedType,
+  FRANCHISE_FAMILY_FOR_TYPE,
   inFranchiseFamily,
   isGatedType,
+  RESTRICTED_FAMILY,
   requiredLabelsForFranchiseType,
   requiredLabelsForType,
   visibleByType,
@@ -122,20 +124,36 @@ describe("hentai", () => {
     expect(requiredLabelsForFranchiseType("Hentai")).toEqual(["hentai"]);
     // One family, one franchise: it carries both labels.
     expect(requiredLabelsForFranchiseType("H-Comic, Hentai")).toEqual(["h-comic", "hentai"]);
+    expect(requiredLabelsForFranchiseType("H-Comic, Hentai, H-Game")).toEqual([
+      "h-comic",
+      "hentai",
+      "h-game",
+    ]);
   });
 });
 
 describe("franchise families", () => {
-  it("puts H-Comic and Hentai franchises in one family", () => {
-    expect(inFranchiseFamily("H-Comic", "h-comic")).toBe(true);
-    expect(inFranchiseFamily("Hentai", "h-comic")).toBe(true);
-    expect(inFranchiseFamily("H-Comic, Hentai", "h-comic")).toBe(true);
+  it("mirrors the backend's map: the three restricted types are one family", () => {
+    expect(FRANCHISE_FAMILY_FOR_TYPE).toEqual({
+      "H-Comic": RESTRICTED_FAMILY,
+      Hentai: RESTRICTED_FAMILY,
+      "H-Game": RESTRICTED_FAMILY,
+    });
+    expect(RESTRICTED_FAMILY).toBe("restricted");
+  });
+
+  it("puts H-Comic, Hentai and H-Game franchises in one family", () => {
+    expect(inFranchiseFamily("H-Comic", RESTRICTED_FAMILY)).toBe(true);
+    expect(inFranchiseFamily("Hentai", RESTRICTED_FAMILY)).toBe(true);
+    expect(inFranchiseFamily("H-Game", RESTRICTED_FAMILY)).toBe(true);
+    expect(inFranchiseFamily("H-Comic, Hentai, H-Game", RESTRICTED_FAMILY)).toBe(true);
   });
 
   it("leaves a mainstream franchise out of it", () => {
-    expect(inFranchiseFamily("ACG", "h-comic")).toBe(false);
-    expect(inFranchiseFamily("ACG, Game", "h-comic")).toBe(false);
-    expect(inFranchiseFamily(null, "h-comic")).toBe(false);
+    expect(inFranchiseFamily("ACG", RESTRICTED_FAMILY)).toBe(false);
+    expect(inFranchiseFamily("ACG, Game", RESTRICTED_FAMILY)).toBe(false);
+    expect(inFranchiseFamily("Game", RESTRICTED_FAMILY)).toBe(false);
+    expect(inFranchiseFamily(null, RESTRICTED_FAMILY)).toBe(false);
   });
 });
 

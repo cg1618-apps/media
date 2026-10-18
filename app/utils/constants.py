@@ -95,14 +95,15 @@ class FranchiseType(str, Enum):
     NOVEL = "Novel"
     GAME = "Game"
     # The franchise type of the adult comics type. An h-comic only ever sits
-    # in a franchise of this type, and every franchise of this type carries
-    # the `h-comic` content label - see app/services/domain/h_comic.py.
+    # in a franchise of the restricted family (FRANCHISE_FAMILY_FOR_TYPE
+    # below), and every franchise of this type carries the `h-comic` content
+    # label - see app/services/domain/h_comic.py.
     H_COMIC = "H-Comic"
     # The franchise type of adult anime. A hentai only ever sits in a
-    # franchise of the h-comic family (FRANCHISE_FAMILY_FOR_TYPE below), and
-    # every franchise of this type carries the `hentai` content label.
+    # franchise of the restricted family (FRANCHISE_FAMILY_FOR_TYPE below),
+    # and every franchise of this type carries the `hentai` content label.
     HENTAI = "Hentai"
-    # The franchise type of the adult games type, a family of its own
+    # The franchise type of the adult games type, of the restricted family
     # (FRANCHISE_FAMILY_FOR_TYPE below) - see app/services/domain/h_game.py.
     H_GAME = "H-Game"
 
@@ -240,12 +241,15 @@ FRANCHISE_TYPES: tuple[str, ...] = (
 # A franchise whose types span two families is refused, and an entry sits only
 # in a franchise of its own family - matched by name or named by id
 # (app/services/domain/hierarchy.py). Keyed on the franchise type, so a gated
-# media type joins by naming its franchise type here. An h-comic and its hentai
-# adaptation share a franchise the way a manga and its anime do.
+# media type joins by naming its franchise type here. The three restricted
+# franchise types are one family, so an h-comic and its hentai adaptation share
+# a franchise the way a manga and its anime do, and one doujin franchise can
+# hold fan-made h-comics, hentai and h-games together.
+RESTRICTED_FAMILY = "restricted"
 FRANCHISE_FAMILY_FOR_TYPE: dict[str, str] = {
-    "H-Comic": "h-comic",
-    "Hentai": "h-comic",
-    "H-Game": "h-game",
+    "H-Comic": RESTRICTED_FAMILY,
+    "Hentai": RESTRICTED_FAMILY,
+    "H-Game": RESTRICTED_FAMILY,
 }
 MAINSTREAM_FAMILY = "mainstream"
 

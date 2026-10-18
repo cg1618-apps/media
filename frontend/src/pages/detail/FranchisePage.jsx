@@ -16,7 +16,7 @@ import {
   COMPLETED_STATUSES,
 } from "../../utils/media";
 import { getFranchiseCover, withMediaType } from "../../lib/covers";
-import { inFranchiseFamily } from "../../lib/gatedTypes";
+import { RESTRICTED_FAMILY, inFranchiseFamily } from "../../lib/gatedTypes";
 import { buildMediaTabs } from "../../lib/mediaTabs";
 import {
   HubLoading,
@@ -236,16 +236,16 @@ export default function FranchisePage() {
         if (!fRes.ok) throw new Error("Franchise not found");
         const franchiseData = await fRes.json();
         const resolvedId = franchiseData.system_id;
-        // Only a franchise of the h-comic family (H-Comic, Hentai) holds
-        // h-comics and hentai - an entry of either never sits in any other,
-        // and the two may share one - and a session that cannot see a gated
-        // type never reaches one. So each list is asked for only where it
-        // can exist.
-        const inHComicFamily = inFranchiseFamily(
+        // Only a franchise of the restricted family (H-Comic, Hentai, H-Game)
+        // holds h-comics, hentai and h-games - an entry of any of them never
+        // sits in any other, and the three may share one - and a session that
+        // cannot see a gated type never reaches one. So each list is asked
+        // for only where it can exist.
+        const inRestrictedFamily = inFranchiseFamily(
           franchiseData.franchise_type,
-          "h-comic",
+          RESTRICTED_FAMILY,
         );
-        const hComicFetch = inHComicFamily
+        const hComicFetch = inRestrictedFamily
           ? fetch(
               buildUrl(endpoints.resource("h-comic").list(), {
                 franchise_id: resolvedId,
@@ -253,7 +253,7 @@ export default function FranchisePage() {
               { credentials: "include" },
             ).then((r) => (r.ok ? r.json() : []))
           : Promise.resolve([]);
-        const hentaiFetch = inHComicFamily
+        const hentaiFetch = inRestrictedFamily
           ? fetch(
               buildUrl(endpoints.resource("hentai").list(), {
                 franchise_id: resolvedId,
@@ -261,10 +261,7 @@ export default function FranchisePage() {
               { credentials: "include" },
             ).then((r) => (r.ok ? r.json() : []))
           : Promise.resolve([]);
-        // The same for h-games: only an H-Game franchise holds them.
-        const hGameFetch = parseTypes(franchiseData.franchise_type).includes(
-          "H-Game",
-        )
+        const hGameFetch = inRestrictedFamily
           ? fetch(
               buildUrl(endpoints.resource("h-game").list(), {
                 franchise_id: resolvedId,
@@ -401,15 +398,16 @@ export default function FranchisePage() {
   const hasCartoon = useMemo(() => types.includes("Cartoon"), [types]);
   const hasComic = useMemo(() => types.includes("Comic"), [types]);
   const hasGame = useMemo(() => types.includes("Game"), [types]);
-  // The h-comic family: an h-comic or a hentai may sit in a franchise of
-  // either type, so each tab asks the family rather than its own type.
-  const inHComicFamily = useMemo(
-    () => inFranchiseFamily(franchise?.franchise_type, "h-comic"),
+  // The restricted family: an h-comic, a hentai or an h-game may sit in a
+  // franchise of any of its three types, so each tab asks the family rather
+  // than its own type.
+  const inRestrictedFamily = useMemo(
+    () => inFranchiseFamily(franchise?.franchise_type, RESTRICTED_FAMILY),
     [franchise?.franchise_type],
   );
-  const hasHComic = inHComicFamily;
-  const hasHentai = inHComicFamily;
-  const hasHGame = useMemo(() => types.includes("H-Game"), [types]);
+  const hasHComic = inRestrictedFamily;
+  const hasHentai = inRestrictedFamily;
+  const hasHGame = inRestrictedFamily;
 
   // Media types this franchise carries a size bucket for, restricted to
   // franchise-eligible scopes (comic/anime-movie/manga/novel can never be

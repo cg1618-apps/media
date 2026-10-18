@@ -1267,7 +1267,7 @@ def execute_pull_specific(
                 resolve_game_parent_hierarchy(db, fid, sid, name_fields)
             )
         # H-Comic uses resolve_h_comic_parent_hierarchy, which matches and
-        # auto-creates ONLY franchises of type "H-Comic" (and labels them)
+        # auto-creates ONLY franchises of the restricted family (and labels them)
         elif tab_name == "H-Comic" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
             sid = clean_header_dict.get("series_id")
@@ -1281,7 +1281,7 @@ def execute_pull_specific(
                 resolve_h_comic_parent_hierarchy(db, fid, sid, name_fields)
             )
         # Hentai uses resolve_hentai_parent_hierarchy, which matches and
-        # auto-creates ONLY franchises of the h-comic family (and labels them)
+        # auto-creates ONLY franchises of the restricted family (and labels them)
         elif tab_name == "Hentai" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
             sid = clean_header_dict.get("series_id")
@@ -1296,7 +1296,7 @@ def execute_pull_specific(
                 resolve_hentai_parent_hierarchy(db, fid, sid, name_fields)
             )
         # H-Game uses resolve_h_game_parent_hierarchy, which matches and
-        # auto-creates ONLY franchises of the h-game family (and labels them)
+        # auto-creates ONLY franchises of the restricted family (and labels them)
         elif tab_name == "H-Game" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
             sid = clean_header_dict.get("series_id")
