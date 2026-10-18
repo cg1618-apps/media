@@ -161,21 +161,30 @@ any search that navigates.
 
 **`components/layout/NavSearch.jsx`** is the universal search box. It
 debounces 250 ms, discards stale responses by request id, and calls
-`GET /api/search/?q=…&limit=20[&scope=…]`. Scopes: all, collection, franchise,
+`GET /api/search/?q=…&limit=8[&scope=…]` — the per-bucket `limit` is
+`MAX_RESULTS`, the most rows the dropdown shows, so no bucket sends more than
+can be used. Scopes: all, collection, franchise,
 series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game,
 h-comic, h-game and hentai (each offered only to a session that can see the type), seasonal, person,
-studio, publisher. With scope `all`, `TYPE_QUOTAS`
-(collection 3, franchise 3, series 3, anime 10, anime-movie 3, movie 3,
-tv-show 3, cartoon 5, manga 5, novel 5, comic 5, game 5, h-comic 5, h-game 5,
-hentai 5, seasonal 3, person 2, studio 2, publisher 2) act as first-pass
-floors that `mergeBuckets` fills in
-order then round-robins up to `MAX_RESULTS = 20` (the quotas sum to 77, so
-they never all fill). The server leaves a gated type's bucket out altogether
-for a session that cannot see the type, and a missing bucket reads as empty. Person, studio and publisher come last and smallest on
+studio, publisher. `mergeBuckets` builds the at most `MAX_RESULTS = 8` rows
+in three passes. First, every bucket's exact matches (a name column equal to
+the query after `cleanString`), so a whole-title hit is never cut by the cap
+and always sits at the top. Then, with scope `all`, `TYPE_QUOTAS` give one
+row to each title type in order — collection, franchise, series, anime,
+anime-movie, movie, tv-show, cartoon, manga, novel, comic, game, h-comic,
+h-game, hentai, seasonal — so a broad query shows as many types as fit before
+any type shows a second; person, studio and publisher have no floor. Last,
+the slots left over are filled round-robin from the buckets that still have
+rows, so a query matching only movies gets eight movies. A scoped search has
+one bucket, and it may fill all eight. The server leaves a gated type's bucket out altogether
+for a session that cannot see the type, and a missing bucket reads as empty. Person, studio and publisher come last, with no floor, on
 purpose: a query is usually about a title, so a name match on a credited
 person, studio or publisher is the weaker answer and takes the slots the media
-buckets left behind. Exact
-matches are lifted to the top. Enter navigates to `/search?q=…[&scope=…]`; a
+buckets left behind. Each row's type badge is a `Chip` coloured by its type
+(`typeHue` in `config/scopeColors.js`) — one of the two places design rule 5
+lets colour name a type, see
+[design-system.md](design-system.md#rules). Enter navigates to
+`/search?q=…[&scope=…]`; a
 result click routes to the entry's page (`/seasonal/<encoded id>` for seasons,
 `/person/:id`, `/studio/:id` and `/publisher/:id` for entities). Comic display
 names are EN-first; a person, studio or publisher row shows the
@@ -183,6 +192,15 @@ server-resolved `display_name` and its credit count as the secondary line. **Cha
 there is no character scope. The `sheet` variant (the phone overlay) fills its
 row, focuses itself, and uses a 16px input so iOS does not zoom the page on
 focus. It calls `onDone` after any search that navigates.
+
+Enter and a result click both close the dropdown and cancel the search
+behind it: the debounce timer is cleared and the request id moves on, so a
+response still in flight is discarded when it lands instead of reopening the
+dropdown over the page the reader went to. Emptying the input cancels the same
+way. Escape and a click outside dismiss rather than leave: they stop the
+pending search the same way, so a late response cannot reopen the dropdown,
+but keep the typed query and the results already held, which a refocus shows
+again.
 
 **Theme.** `ThemeContext` keeps `light | dark | system` in
 `localStorage["cg1618:theme"]` and stamps `<html data-theme>`; `index.html`

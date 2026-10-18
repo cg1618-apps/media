@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { cleanString, getDisplayName } from "../../utils/media";
 import { Chip } from "../ui/primitives";
+import { typeHue } from "../../config/scopeColors";
 import { entityPath } from "../../lib/entityPath";
 import { useAuth } from "../../contexts/AuthContext";
 import { visibleByType } from "../../lib/gatedTypes";
@@ -37,7 +38,9 @@ const SCOPES = [
   { key: "publisher", label: "Publisher" },
 ];
 
-// Short mono labels for the result rows. Text, not colour, names the type.
+// Short mono labels for the result rows. The text names the type; the badge's
+// hue (typeHue, config/scopeColors.js) is an index on top of it, so a reader
+// scanning eight mixed rows finds the type they meant before reading.
 const TYPE_LABEL = {
   collection: "COLLECT",
   franchise: "FRAN",
@@ -108,32 +111,88 @@ export function getResultName(item) {
   return PLACEHOLDERS.has(name) ? "—" : name;
 }
 
-// Rows one query may put in the dropdown. The panel scrolls, so this caps the
-// result list, not the panel height.
-const MAX_RESULTS = 20;
+// Every type a suggestion row can be, in TYPE_LABEL's order.
+export const RESULT_TYPES = Object.keys(TYPE_LABEL);
+
+// Rows one query may put in the dropdown, and the per-bucket `limit` the
+// request sends: no bucket can contribute more rows than the dropdown shows.
+// The dropdown is a shortcut to the likely row, not the result list - Enter
+// opens /search for everything.
+export const MAX_RESULTS = 8;
+
+// [bucket key, guaranteed slots when scope === "all"], in the order the first
+// pass visits them. One each: eight rows cannot hold a quota per type, so the
+// first pass is about variety - each matching type shows its best row before
+// any type shows a second - and the round-robin hands out what is left.
+// Person, studio and publisher come last with no floor: a query is usually
+// about a title, so staff rows only take the slots the titles left behind.
+const TYPE_QUOTAS = [
+  ["collection", 1],
+  ["franchise", 1],
+  ["series", 1],
+  ["anime", 1],
+  ["anime-movie", 1],
+  ["movie", 1],
+  ["tv-show", 1],
+  ["cartoon", 1],
+  ["manga", 1],
+  ["novel", 1],
+  ["comic", 1],
+  ["game", 1],
+  ["h-comic", 1],
+  ["h-game", 1],
+  ["hentai", 1],
+  ["seasonal", 1],
+  ["person", 0],
+  ["studio", 0],
+  ["publisher", 0],
+];
 
 /**
  * Flattens the per-type result buckets into at most MAX_RESULTS rows.
  *
- * Each type first draws up to its quota, which stops a big table from burying
- * the small ones. The slots left over are then filled round-robin from the
- * buckets that still have rows, so quota no type claimed is not wasted — a
- * query matching only movies gets all of them, not just the movie quota.
+ * Exact matches go first, from every bucket, so a whole-title hit in a late
+ * bucket is never cut by the cap. Each type then draws up to its quota, which
+ * stops a big table from burying the small ones. The slots left over are
+ * filled round-robin from the buckets that still have rows, so quota no type
+ * claimed is not wasted — a query matching only movies gets eight movies.
  */
-function mergeBuckets(buckets, quotas) {
-  const cursors = buckets.map(() => 0);
+export function mergeBuckets(buckets, quotas, isExact) {
+  // The server already sorts each bucket exact-first; partitioning again
+  // keeps this pass right if the two definitions of "exact" ever differ.
+  const ordered = buckets.map((bucket) => [
+    ...bucket.filter(isExact),
+    ...bucket.filter((row) => !isExact(row)),
+  ]);
+  const cursors = ordered.map(() => 0);
   const out = [];
-  buckets.forEach((bucket, i) => {
-    const take = Math.min(quotas[i], bucket.length, MAX_RESULTS - out.length);
-    out.push(...bucket.slice(0, take));
-    cursors[i] = take;
+  ordered.forEach((bucket, i) => {
+    while (
+      out.length < MAX_RESULTS &&
+      cursors[i] < bucket.length &&
+      isExact(bucket[cursors[i]])
+    ) {
+      out.push(bucket[cursors[i]++]);
+    }
+  });
+  ordered.forEach((bucket, i) => {
+    const take = Math.max(
+      0,
+      Math.min(
+        quotas[i] - cursors[i],
+        bucket.length - cursors[i],
+        MAX_RESULTS - out.length,
+      ),
+    );
+    out.push(...bucket.slice(cursors[i], cursors[i] + take));
+    cursors[i] += take;
   });
   let progressed = true;
   while (out.length < MAX_RESULTS && progressed) {
     progressed = false;
-    for (let i = 0; i < buckets.length && out.length < MAX_RESULTS; i++) {
-      if (cursors[i] < buckets[i].length) {
-        out.push(buckets[i][cursors[i]++]);
+    for (let i = 0; i < ordered.length && out.length < MAX_RESULTS; i++) {
+      if (cursors[i] < ordered[i].length) {
+        out.push(ordered[i][cursors[i]++]);
         progressed = true;
       }
     }
@@ -159,16 +218,27 @@ export default function NavSearch({ variant = "inline", onDone }) {
   const searchDebounceRef = useRef(null);
   const searchReqIdRef = useRef(0);
 
+  // Drops whatever search is pending: the debounce that has not fired yet,
+  // and - by moving the request id on - any response still in flight, which
+  // would otherwise land after the reader has left and reopen the dropdown
+  // over the page they went to.
+  function stopPendingSearch() {
+    clearTimeout(searchDebounceRef.current);
+    searchReqIdRef.current += 1;
+  }
+
+  // Leaving by a search or a row: nothing is pending and nothing is held.
+  function cancelPendingSearch() {
+    stopPendingSearch();
+    setSearchResults([]);
+    setShowResults(false);
+  }
+
   // Universal search. The backend matches; this effect only decides how many
-  // rows of each type reach the dropdown. Each type carries a quota so a large
-  // table (e.g. anime) can never crowd out the smaller ones, but the quota is a
-  // floor, not a ceiling: slots no type claims go back to the types that still
-  // have matches waiting, so a query that hits only one or two tables still
-  // fills the list.
+  // rows of each type reach the dropdown (see TYPE_QUOTAS and mergeBuckets).
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setShowResults(false);
+      cancelPendingSearch();
       return;
     }
     clearTimeout(searchDebounceRef.current);
@@ -177,32 +247,6 @@ export default function NavSearch({ variant = "inline", onDone }) {
       const q = searchQuery.trim();
       const qClean = cleanString(q);
       const scope = searchScope;
-
-      // [bucket key, guaranteed slots when scope === "all"]
-      const TYPE_QUOTAS = [
-        ["collection", 3],
-        ["franchise", 3],
-        ["series", 3],
-        ["anime", 10],
-        ["anime-movie", 3],
-        ["movie", 3],
-        ["tv-show", 3],
-        ["cartoon", 5],
-        ["manga", 5],
-        ["novel", 5],
-        ["comic", 5],
-        ["game", 5],
-        ["h-comic", 5],
-        ["h-game", 5],
-        ["hentai", 5],
-        ["seasonal", 3],
-        // Last, and smallest: a query is usually about a title, so staff rows
-        // take the slots the media buckets left behind rather than claiming
-        // any of the first twenty.
-        ["person", 2],
-        ["studio", 2],
-        ["publisher", 2],
-      ];
 
       let payload;
       try {
@@ -217,9 +261,11 @@ export default function NavSearch({ variant = "inline", onDone }) {
         return; // ignore search errors
       }
 
-      // A newer keystroke superseded this request while it was in flight.
+      // A newer keystroke superseded this request while it was in flight, or
+      // the reader searched or picked a row and the search was cancelled.
       if (reqId !== searchReqIdRef.current) return;
 
+      // A scoped search has one bucket, and it may fill every row.
       const active = TYPE_QUOTAS.filter(
         ([type]) => scope === "all" || scope === type,
       );
@@ -229,8 +275,6 @@ export default function NavSearch({ variant = "inline", onDone }) {
       const quotas = active.map(([, quota]) =>
         scope === "all" ? quota : MAX_RESULTS,
       );
-
-      const results = mergeBuckets(buckets, quotas);
 
       // Each bucket already arrives with its own exact matches first, but the
       // merge interleaves the buckets, so the whole-title matches have to be
@@ -246,17 +290,19 @@ export default function NavSearch({ variant = "inline", onDone }) {
             typeof value === "string" &&
             cleanString(value) === qClean,
         );
-      results.sort((a, b) => Number(isExact(b)) - Number(isExact(a)));
 
-      setSearchResults(results);
+      setSearchResults(mergeBuckets(buckets, quotas, isExact));
       setShowResults(true);
     }, 250);
+    // cancelPendingSearch touches only refs and state setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, searchScope]);
 
   // Close the results and scope menus on an outside click.
   useEffect(() => {
     function handler(e) {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
+        stopPendingSearch();
         setShowResults(false);
         setShowScopeMenu(false);
       }
@@ -267,16 +313,16 @@ export default function NavSearch({ variant = "inline", onDone }) {
 
   function handleSearchKey(e) {
     if (e.key === "Escape") {
+      // Dismissed, not left: the query and held results stay for a refocus.
+      stopPendingSearch();
       setShowResults(false);
       setShowScopeMenu(false);
       return;
     }
     if (e.key === "Enter" && searchQuery.trim()) {
-      clearTimeout(searchDebounceRef.current);
       const q = searchQuery.trim();
+      cancelPendingSearch();
       setSearchQuery("");
-      setSearchResults([]);
-      setShowResults(false);
       onDone?.();
       const params = new URLSearchParams({ q });
       if (searchScope !== "all") params.set("scope", searchScope);
@@ -285,7 +331,7 @@ export default function NavSearch({ variant = "inline", onDone }) {
   }
 
   function handleResultClick(item) {
-    setShowResults(false);
+    cancelPendingSearch();
     setSearchQuery("");
     // Seasonal is not an entity: it routes by the season string itself.
     if (item.type === "seasonal") {
@@ -374,7 +420,7 @@ export default function NavSearch({ variant = "inline", onDone }) {
 
       {/* Results */}
       {showResults && searchResults.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border shadow-xl overflow-hidden max-h-[70dvh] overflow-y-auto overscroll-contain z-50">
+        <div role="listbox" aria-label="Search suggestions" className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border shadow-xl overflow-hidden max-h-[70dvh] overflow-y-auto overscroll-contain z-50">
           {searchResults.map((item, i) => {
             const secondary =
               item.type === "franchise"
@@ -391,11 +437,15 @@ export default function NavSearch({ variant = "inline", onDone }) {
             return (
               <button
                 key={i}
+                role="option"
+                aria-selected={false}
                 type="button"
                 onClick={() => handleResultClick(item)}
                 className="w-full text-left flex items-center px-3 py-2.5 hover:bg-surface-2 transition border-b border-border last:border-0"
               >
-                <Chip className="mr-2">{TYPE_LABEL[item.type]}</Chip>
+                <Chip hue={typeHue(item.type)} className="mr-2">
+                  {TYPE_LABEL[item.type]}
+                </Chip>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-text truncate">
                     {getResultName(item)}
