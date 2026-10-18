@@ -3390,3 +3390,49 @@ tab, so back up from a migrated database before any Pull.
   guarantee would no longer hold); colouring the full `/search` results page
   too (its rows sit under per-type headings, so the type is already given by
   position, and the rule's argument does not carry over).
+
+### Metacritic from Steam, HowLongToBeat from the site's search, or nothing (2026-10-18)
+
+- **Owner's request: fill a game's HowLongToBeat and Metacritic page links
+  automatically, "similar to what we did for SteamDB".** Both values were
+  already seeded in the Reference Source vocabulary for games and h-games;
+  nothing wrote them.
+- **IGDB was the first place looked, and it has neither.** Queried live, its
+  `external_game_sources` and `website_types` carry no HowLongToBeat and no
+  Metacritic entry, so IGDB's `external_games` - which supplies the Steam
+  appid - cannot supply these.
+- **Metacritic comes from the Steam answer already fetched.** `appdetails`
+  returns `metacritic.url` beside the score, so the link costs no request.
+  Steam's URL is the legacy `/game/pc/<slug>?ftag=...` form; Metacritic 301s
+  it to `/game/<slug>/` (checked live), so that is what is stored - one page
+  per game, and no tracking query. Rejected: storing Steam's URL verbatim,
+  which keeps a tracking tag and a redirect in every link.
+- **HowLongToBeat comes from the site's own search, kept only when
+  confident.** The owner's decision: store `https://howlongtobeat.com/game/<id>`
+  only when the right entry is identified with confidence, and otherwise
+  nothing. So the rule is an exact match on a normalised name, aliases only
+  when no name matches, the release year only to break a tie, and more than
+  one survivor is no link. Rejected: a fuzzy "best" match, which would put
+  plausible wrong links on the Sources card where nobody checks them; and a
+  search-results URL (`/?q=<name>`), which is a link to a question rather
+  than to the game.
+- **The search is undocumented, and the client is written to fail quietly.**
+  HowLongToBeat publishes no API; its search endpoint's path and token
+  handshake change over time. The client reads the path out of the site's
+  own script and fetches a token the way the page does - the same mechanism
+  as the maintained `howlongtobeatpy` package - and answers every failure
+  as None. Rejected: depending on `howlongtobeatpy` itself, which pulls in
+  `aiohttp`, `fake_useragent`, `beautifulsoup4` and a test library as runtime
+  requirements for what is three `requests` calls here, and randomises its
+  User-Agent, which the token is bound to.
+- **Fill asks only for the entries it queues, and does not repeat a miss.**
+  SteamDB is derived in post-processing because it is free; a search is not,
+  and post-processing runs on the event loop for every entry in a run. A miss
+  is remembered per process and retried by a bulk Replace or the Autofill
+  button - not by an ordinary save, which runs the same Replace through the
+  write hook but would otherwise add a search of a second or more to every
+  save of an unmatched game - rather than stored: a column or table recording "searched, not found"
+  would be a migration and a gated release for what a restart costs one
+  extra search to forget.
+- The time-to-beat **figures** still come from IGDB, as decided when games
+  were built. HowLongToBeat is asked for its page link only.
