@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-10-17
+Last verified: 2026-10-18
 
 ## What this is for
 
@@ -94,7 +94,7 @@ type it serves is seeable.
 | `CARTOON_AIRING_TYPES` | `TV`, `Movie`, `OVA`, `Special` | `cartoons.airing_type` dropdown (Fill only handles `TV` and `Movie`, see business-rules.md section 17) | `cartoon_airing_type` |
 | `FranchiseType` (Enum) | `Movie`, `TV`, `Cartoon`, `Comic`, `ACG`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | backend-internal only | not served |
 | `FRANCHISE_TYPES` | `ACG`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel`, `Game`, `H-Comic`, `H-Game`, `Hentai` | `franchise.franchise_type` dropdown. `H-Comic`, `H-Game` and `Hentai` are the types code branches on: a franchise carrying one carries that gated type's label and only entries of its family resolve into it ([entry-types.md](entry-types.md#franchise_type-values)) | `franchise_type` |
-| `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic` -> `h-comic`, `Hentai` -> `h-comic`, `H-Game` -> `h-game`; any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
+| `FRANCHISE_FAMILY_FOR_TYPE` | `H-Comic`, `Hentai` and `H-Game` -> `restricted` (`RESTRICTED_FAMILY`); any other type is `mainstream` (`MAINSTREAM_FAMILY`) | which franchise types may share a franchise, and which franchises an entry may sit in. A franchise type list spanning two families is refused (422) | not served |
 | `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `franchise.franchise_expectation` | `franchise_expectation` |
 | `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on entries, franchise, seasonal, person, character, studio. **Enforced** on `person` and `character`: a write naming anything else is a 422 and `""` is NULL (`app/utils/entity_vocab.py`) | `my_rating` |
 | `GENDERS` | `男`, `女`, `中性/無性`, `雙性混和`, `其他` | `gender` on `person` and `character`. NULL means not set and is not a sixth value. **Enforced**: a write naming anything else is a 422 and `""` is NULL. A Sheets Pull folds an old free-text cell instead of refusing it - `male` -> `男`, `female` -> `女` (trimmed, any case), anything else unreadable -> NULL - and folds `my_rating` by trimming and upper-casing, the same rules the revision that closed both vocabularies applied to the stored rows | `gender` |
@@ -452,7 +452,7 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 | `director` | Director | person | anime, anime-movie, movie, game, hentai |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime, game |
-| `author` | Author | person | manga, novel, comic, h-comic |
+| `author` | Author | person | manga, novel, comic, h-comic, hentai |
 | `illustrator` | Illustrator | person | manga, novel, comic, h-comic |
 | `club` | Club | person | h-comic |
 | `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie, hentai |

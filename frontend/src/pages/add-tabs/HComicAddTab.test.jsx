@@ -143,19 +143,22 @@ describe("HComicAddTab", () => {
     expect(screen.getByText(/Derived from a linked hentai adaptation/)).toBeInTheDocument();
   });
 
-  it("offers only the h-comic family's franchises", async () => {
+  it("offers only the restricted family's franchises", async () => {
     const user = userEvent.setup();
     renderTab({
       franchises: [
         { system_id: "f1", franchise_name_en: "Mainstream Fate", franchise_type: "ACG" },
         { system_id: "f2", franchise_name_en: "Adult Fate", franchise_type: "H-Comic" },
-        // The same family: an h-comic may share its hentai adaptation's.
+        // The same family: an h-comic may share its hentai adaptation's, or a
+        // doujin franchise holding h-games.
         { system_id: "f3", franchise_name_en: "Adult Anime", franchise_type: "Hentai" },
+        { system_id: "f4", franchise_name_en: "Adult Game", franchise_type: "H-Game" },
       ],
     });
     await user.click(screen.getByPlaceholderText("Search or type new franchise..."));
     expect(screen.getByText("Adult Fate")).toBeInTheDocument();
     expect(screen.getByText("Adult Anime")).toBeInTheDocument();
+    expect(screen.getByText("Adult Game")).toBeInTheDocument();
     expect(screen.queryByText("Mainstream Fate")).toBeNull();
   });
 

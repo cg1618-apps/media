@@ -11,7 +11,7 @@ One invariant, and one place that keeps it:
             live in app/services/domain/gated_labels.py.
 
 Beside it, the vocabulary columns are checked on every write. The franchise
-family - a hentai sits only in a franchise of the h-comic family
+family - a hentai sits only in a franchise of the restricted family
 (FRANCHISE_FAMILY_FOR_TYPE), which it shares with the h-comic it adapts - is
 the router factory's check, run for every media type.
 

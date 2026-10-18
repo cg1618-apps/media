@@ -84,8 +84,11 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     "composer": CreditRole(
         "composer", "Music / Composer", "person", ("anime", "game")
     ),
+    # hentai beside h-comic: a hentai and the h-comic it adapts name the same
+    # writer, so that person's page lists both. Reads Author on both - no
+    # override below - unlike manga's 原作 and comic's Writer.
     "author": CreditRole(
-        "author", "Author", "person", ("manga", "novel", "comic", "h-comic")
+        "author", "Author", "person", ("manga", "novel", "comic", "h-comic", "hentai")
     ),
     "illustrator": CreditRole(
         "illustrator", "Illustrator", "person",

@@ -32,6 +32,7 @@ import {
   READING_STATUSES,
 } from "../../config/fieldOptions";
 import { isDerivedAnimationStatus } from "../../lib/hComicAnimation";
+import { RESTRICTED_FAMILY } from "../../lib/gatedTypes";
 import { showsField } from "../../lib/hComicRegion";
 import { followRegion, restrictedSourcesFor } from "../../lib/restrictedSources";
 import { usePrefillPicks } from "../../contexts/RestrictedPrefillContext";
@@ -40,7 +41,7 @@ import { getDisplayName, getSourceValues } from "../../utils/media";
 export { defaultHComic } from "../../config/formFactories";
 
 // The franchise type a new h-comic franchise is created with. The picker
-// offers the whole h-comic family (FamilyLineageFields).
+// offers the whole restricted family (FamilyLineageFields).
 export const H_COMIC_FRANCHISE_TYPE = "H-Comic";
 
 function Options({ values }) {
@@ -382,9 +383,9 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
 }
 
 /**
- * The franchise and series pickers, shared by both h-comic tabs. The h-comic
- * family's franchises only - H-Comic, and Hentai, which an h-comic may share
- * with its adaptation.
+ * The franchise and series pickers, shared by both h-comic tabs. The
+ * restricted family's franchises only - H-Comic, Hentai, which an h-comic may
+ * share with its adaptation, and H-Game.
  */
 export function HComicLineageFields({
   f,
@@ -397,8 +398,8 @@ export function HComicLineageFields({
     <FamilyLineageFields
       f={f}
       u={u}
-      family="h-comic"
-      hint="H-Comic and Hentai franchises only"
+      family={RESTRICTED_FAMILY}
+      hint="H-Comic, Hentai and H-Game franchises only"
       allFranchises={allFranchises}
       seriesItems={seriesItemsForHComic}
       franchiseCollections={franchiseCollections}

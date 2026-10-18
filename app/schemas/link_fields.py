@@ -227,12 +227,14 @@ class HComicLinkFields(AttachedFields):
 class HentaiLinkFields(AttachedFields):
     # No legacy sheet column for any of these: the type is new, so every
     # header is its own key (credit_roles.sheet_column_for's fallback).
-    # Studio and director are anime's roles; the three genres are h-comic's
-    # vocabularies, shared.
+    # Studio and director are anime's roles, author is h-comic's (so the
+    # writer of the h-comic a hentai adapts is one person across both); the
+    # three genres are h-comic's vocabularies, shared.
     credit_refs: dict[str, list[PersonRef]] = {}
     studio: Optional[str] = None
     studio_refs: list[StudioRef] = []
     director: Optional[str] = None
+    author: Optional[str] = None
     h_genre_plot: Optional[str] = None
     h_genre_appearance: Optional[str] = None
     h_genre_relation: Optional[str] = None

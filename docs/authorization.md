@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-10-06
+Last verified: 2026-10-18
 
 ## What this is for
 
@@ -715,9 +715,11 @@ A connection is one of three kinds:
   a person role, a publisher scope or an option scope naming one is a hidden
   connection for a session that cannot see that type: a club created before
   its first credit (its `club` role is scoped to h-comic alone) and an unused
-  H Genre value are hidden by their scope. A studio or director credited on a
-  hentai is the ordinary case: hidden when every credit is on a hidden entry,
-  visible through any mainstream anime it is also credited on.
+  H Genre value are hidden by their scope. A studio, director or author
+  credited on a hentai is the ordinary case: hidden when every credit is on a
+  hidden entry, visible through any other credit the viewer can see - a
+  mainstream anime for a studio or director, the adapted h-comic for an
+  author, with the hentai credit omitted.
 - **A category serving gated types only.** A vocabulary value's own
   `category` is a connection when every tag field drawing on that category
   serves gated types alone (`gated_tag_categories`,
@@ -807,9 +809,12 @@ every gated type (`app/services/domain/gated_labels.py`):
 - **Kept in its own franchises, both ways.** A mainstream entry under a gated
   family's franchise would be hidden by that franchise's label, and a gated
   entry under a mainstream franchise would put a gated work in a public group.
-  `FRANCHISE_FAMILY_FOR_TYPE` sorts franchise types into families - `H-Comic`
-  and `Hentai` are one, `H-Game` is its own - and every write path keeps an
-  entry in its own ([entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy)).
+  `FRANCHISE_FAMILY_FOR_TYPE` sorts franchise types into families - `H-Comic`,
+  `Hentai` and `H-Game` are the one `restricted` family - and every write path
+  keeps an entry in its own ([entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy)).
+  A franchise's labels follow its type list, not the entries it holds: an
+  h-game in a franchise typed `H-Comic` alone leaves that franchise carrying
+  `h-comic` only, and the h-game is hidden by its own `h-game` label.
 
 The label handling lives in `app/services/domain/gated_labels.py` and is driven by
 `REQUIRED_LABEL_FOR_TYPE` and `FRANCHISE_TYPE_FOR` alone: a further gated
@@ -1434,12 +1439,12 @@ matters is enforced server-side.
 | `tests/api/test_shared_record_visibility.py` | the shared-record rule: a person, seiyuu, character, studio, publisher or vocabulary value connected only to label-hidden entries is hidden, one visible connection keeps it visible with the hidden one omitted, no connections stays visible, a type gap hides nothing; series under a hidden franchise; entity photos; notes on a hidden series; and scope connections through a gated type registered for the test (`manga` pointed at `nsfw`), independent of h-comic. Every refusal pairs with `admin_client` seeing the same record |
 | `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` carries the label after a re-seed, `visible_gated_types`, no `h-comic` search bucket for a narrow session, `PUT /api/me/list` running the list hook, H-Comic franchises labelled and segregated from mainstream ones |
 | `tests/api/test_hentai_entries.py` | hentai: the same set as h-comic's - label stamped, refused removal and deletion, narrow modes 404 while `unrestricted` sees it, only `unrestricted` carries the label - plus its franchise family |
-| `tests/api/test_hentai_shared_records.py` | a studio or director credited only on hentai is hidden, one also on an anime is not; an H Genre value used only by hentai is hidden; `/api/constants` for a session seeing neither gated type and for one seeing h-comic only (`unrestricted` with `hentai` denied, both labels present) |
+| `tests/api/test_hentai_shared_records.py` | a studio, director or author credited only on hentai is hidden (the author from guest and from an h-comic-only session alike), one also on an anime is not, and an author also on the h-comic the hentai adapts is seen through the h-comic alone by an h-comic-only session and through both by `unrestricted`; an H Genre value used only by hentai is hidden; `/api/constants` for a session seeing neither gated type and for one seeing h-comic only (`unrestricted` with `hentai` denied, both labels present) |
 | `tests/api/test_hentai_label_migration.py` | the hentai revision's own `settle_label`: the label leaves an anime and stays on a hentai, adopted not duplicated, granted to `unrestricted` alone |
 | `tests/api/test_franchise_family.py` | franchise families: a `franchise_id` of another family refused on create, `PUT` and `PATCH`, in both directions, a franchise type spanning two families refused, a franchise holding mainstream entries not retyped into the gated family - each with its accepted mirror |
-| `tests/api/test_franchise_families.py` | what hentai adds to the families: `"ACG, Hentai"` refused on every write path and `"H-Comic, Hentai"` accepted, a franchise holding a hentai not retyped mainstream, both gated labels on an `H-Comic, Hentai` franchise and neither removable, an h-comic and its hentai resolving to one franchise |
+| `tests/api/test_franchise_families.py` | the restricted family: `"ACG, Hentai"` and `"ACG, H-Game"` refused on every write path and `"H-Comic, Hentai"` and `"H-Comic, Hentai, H-Game"` accepted, a franchise holding a hentai not retyped mainstream, both gated labels on an `H-Comic, Hentai` franchise and neither removable, all three on an `H-Comic, Hentai, H-Game` one, an h-comic and its hentai resolving to one franchise, a mainstream entry matching no restricted franchise |
 | `tests/unit/test_search_gated_buckets.py` | every gated type's `SearchBuckets` field defaults to absent, so a new gated type cannot put its key back |
-| `tests/api/test_h_game_entries.py` | h-game: CRUD and the vocabularies (422 on create, update and the tracker PATCH), the DLC chain, purchase records on h-game and still on game, the `h-game` label stamped on every write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 while `unrestricted` sees it, the h-game franchise family refused both ways, by name and by id |
+| `tests/api/test_h_game_entries.py` | h-game: CRUD and the vocabularies (422 on create, update and the tracker PATCH), the DLC chain, purchase records on h-game and still on game, the `h-game` label stamped on every write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 while `unrestricted` sees it, the restricted family: an h-game refused from a `Game` or `ACG` franchise both ways, by name and by id, and `"ACG, H-Game"` refused, each mirrored by an h-game accepted into an `H-Game`, `H-Comic` or `Hentai` franchise, by name and by id, and by `"H-Comic, Hentai, H-Game"` accepted with all three labels |
 | `tests/api/test_h_game_shared_records.py` | a studio, a game genre and an H Genre value connected only to h-game are hidden; an unused game genre stays visible; the notes registry, `/api/constants` and the external-API catalogue leave h-game out for a narrow session, with the `unrestricted` mirror |
 | `tests/api/test_h_comic_shared_records.py` | people in every h-comic role, a club with no credit, characters and vocabulary values connected only to h-comic are hidden; club membership filters hidden members and reveals nobody |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |

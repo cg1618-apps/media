@@ -128,12 +128,13 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 **Franchise families.** A `franchise_type` whose types span two families
 (`FRANCHISE_FAMILY_FOR_TYPE`, see
 [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy)) is **422** on `POST`,
-`PUT` and `PATCH` - `"ACG, H-Comic"` and `"ACG, Hentai"` mix mainstream and
-h-comic, while `"H-Comic, Hentai"` is one family and accepted. So is a `PUT`
-or `PATCH` that retypes a franchise into another family than an entry it
-already holds. Both are checked before anything is written. A franchise whose
-types include a gated type's (`H-Comic`, `Hentai`) gains that type's content
-label on every write.
+`PUT` and `PATCH` - `"ACG, H-Comic"`, `"ACG, Hentai"` and `"ACG, H-Game"` mix
+mainstream and restricted, while any list of `H-Comic`, `Hentai` and `H-Game`
+(`"H-Comic, Hentai, H-Game"`) is the one `restricted` family and accepted. So
+is a `PUT` or `PATCH` that retypes a franchise into another family than an
+entry it already holds. Both are checked before anything is written. A
+franchise whose types include a gated type's (`H-Comic`, `Hentai`, `H-Game`)
+gains that type's content label on every write.
 
 **Response model:** `FranchiseResponse`
 
@@ -448,11 +449,11 @@ region, `app/services/domain/gated_labels.py` for the label):
   `highlight_group_order` and the reader's `ch_fin`.
 - **Label.** The `h-comic` label is attached if missing.
 
-**Franchise.** An h-comic auto-resolves only into a franchise of the h-comic
-family - `H-Comic` or `Hentai` - and auto-creates one of type `H-Comic`,
-labelled. A `franchise_id` naming a franchise of another family is **422** -
-and so, the other way round, is a mainstream entry's `franchise_id` naming an
-h-comic-family franchise. The check is the factory's, for every media type, on
+**Franchise.** An h-comic auto-resolves only into a franchise of the
+restricted family - `H-Comic`, `Hentai` or `H-Game` - and auto-creates one of
+type `H-Comic`, labelled. A `franchise_id` naming a franchise of another
+family is **422** - and so, the other way round, is a mainstream entry's
+`franchise_id` naming a restricted-family franchise. The check is the factory's, for every media type, on
 `POST` and `PUT` (see [entry-types.md](entry-types.md)). `PATCH` does not move
 an entry - `franchise_id` is on `media`, not the entry's table, so it is
 skipped - but a foreign `franchise_id` in a PATCH body is refused all the same.
@@ -513,7 +514,7 @@ reads as `null`, anything else unknown is 422.
 **Every write keeps the label on** (`app/services/domain/hentai.py`): the
 `hentai` label is attached if missing.
 
-**Franchise.** A hentai auto-resolves only into a franchise of the h-comic
+**Franchise.** A hentai auto-resolves only into a franchise of the restricted
 family - so a hentai named after an h-comic joins that h-comic's franchise -
 and auto-creates one of type `Hentai`, labelled `hentai`. A `franchise_id`
 naming a franchise of another family is **422** (the factory's check, as for
@@ -522,7 +523,7 @@ every type).
 **Response model:** `HentaiResponse` — the columns, the personal fields,
 `display_name` (CN → EN → Alt → roman → JP), `public_id`, `content_labels`,
 `sources`, `credit_refs`, `studio_refs`, and the link fields `studio`,
-`director`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`.
+`director`, `author`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`.
 
 ---
 
@@ -570,10 +571,12 @@ list, is **422**.
 **Every write keeps the label on** (`app/services/domain/h_game.py`): the
 `h-game` label is attached if missing.
 
-**Franchise.** An h-game auto-resolves only into a franchise of the `h-game`
-family, whose type is `H-Game` (and auto-creates one of that type, labelled).
-A `franchise_id` naming a franchise of another family - mainstream or
-`H-Comic` - is **422**.
+**Franchise.** An h-game auto-resolves only into a franchise of the
+`restricted` family - `H-Game`, `H-Comic` or `Hentai` - so an h-game named
+like an existing h-comic or hentai franchise joins it, and otherwise
+auto-creates one of type `H-Game`, labelled. A `franchise_id` naming an
+`H-Comic` or `Hentai` franchise is accepted; one naming a mainstream franchise
+(`Game`, `ACG`, ...) is **422**.
 
 **`highlight_group_order`** is the order of the highlight groups (see
 [systems/notes.md](systems/notes.md)), written whole as on h-comic; every

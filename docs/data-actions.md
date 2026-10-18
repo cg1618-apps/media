@@ -275,7 +275,7 @@ inserted beside it. Parsers: `parse_game_choice_node_from_sheet`,
 
 `H-Comic` follows `Game Choice Mark`, and `Hentai` follows `H-Comic`, both still
 before `User Media List`. Hentai's credit and tag columns (`studio`,
-`director`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) travel
+`director`, `author`, `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) travel
 under their own keys the same way. Its `ep_total` is an ordinary column of the
 `Hentai` tab, and the viewer's `ep_fin` and `time_fin` travel on
 `User Media List`, as cartoon's do. Its credit and
@@ -475,7 +475,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 
      | Tab | How |
      |---|---|
-     | `TV Shows`, `Cartoons`, `Manga`, `Novel`, `Comic`, `Movies`, `Game`, `H-Comic`, `Hentai` | `resolve_*_parent_hierarchy(db, franchise, series, name_fields)` — auto-creates the franchise if missing (type `Game` for a game, `H-Comic` - labelled `h-comic` - for an h-comic, `Hentai` - labelled `hentai` - for a hentai), looks up the series. A name matches only a franchise of the entry's own family: an h-comic or hentai name only an `H-Comic` / `Hentai` franchise, every other type's name only a franchise holding neither |
+     | `TV Shows`, `Cartoons`, `Manga`, `Novel`, `Comic`, `Movies`, `Game`, `H-Comic`, `Hentai`, `H-Game` | `resolve_*_parent_hierarchy(db, franchise, series, name_fields)` — auto-creates the franchise if missing (type `Game` for a game, `H-Comic` - labelled `h-comic` - for an h-comic, `Hentai` - labelled `hentai` - for a hentai, `H-Game` - labelled `h-game` - for an h-game), looks up the series. A name matches only a franchise of the entry's own family: an h-comic, hentai or h-game name only an `H-Comic` / `Hentai` / `H-Game` franchise, every other type's name only a franchise holding none of them |
      | `Anime Movie` | `resolve_anime_movie_parent_hierarchy(db, franchise, name_fields)` when `franchise_id` is `None` or a string (auto-creates the franchise; no series) |
      | any other tab with a string `franchise_id` | look up `Franchise` by en/cn/jp/alt name; **not found → row skipped** |
      | string `collection_id` | look up `Collection` by any of its five names; not found → set to `None`, row kept (collection is optional) |

@@ -966,16 +966,21 @@ cells.
 | comic                            | `Comic`                       |
 | game                             | `Game`                        |
 | h-comic                          | `H-Comic` (labelled `h-comic`) |
+| h-game                           | `H-Game` (labelled `h-game`)  |
 | hentai                           | `Hentai` (labelled `hentai`)  |
 
-**Families** (`FRANCHISE_FAMILY_FOR_TYPE`, `app/utils/constants.py`). `H-Comic`
-and `Hentai` are the `h-comic` family; every other franchise type, and an
-untyped franchise, is `mainstream`. An entry's family is the family of the
-type it would stamp. The lookup in steps 2 and 3 matches only franchises
+**Families** (`FRANCHISE_FAMILY_FOR_TYPE`, `app/utils/constants.py`). `H-Comic`,
+`Hentai` and `H-Game` are the `restricted` family; every other franchise type,
+and an untyped franchise, is `mainstream`. An entry's family is the family of
+the type it would stamp. The lookup in steps 2 and 3 matches only franchises
 whose type list names a type of that family and none of another family's
 (`_segregation`), so a gated entry never attaches to a mainstream franchise
-and a mainstream entry never lands under one whose gated label would hide it;
-an h-comic and its hentai adaptation resolve to the same franchise. A series
+and a mainstream entry never lands under one whose gated label would hide it.
+Within the restricted family the three types match one another: an h-comic
+and its hentai adaptation resolve to the same franchise, and an h-game whose
+name matches an existing `H-Comic` or `Hentai` franchise attaches to it
+rather than creating an `H-Game` one - so one doujin franchise collects
+fan-made h-comics, hentai and h-games. A series
 is exempt: it names its parent whatever the family. Three rules close the
 other ways in:
 
@@ -987,8 +992,9 @@ other ways in:
   refused (422) by the router factory, on create, update and the tracker
   PATCH body (`check_entry_franchise_family`).
 
-A franchise gets the content label of each gated type its type list names -
-on auto-create here, and on every franchise write
+A franchise gets the content label of each gated type its type list names - a
+`"H-Comic, Hentai, H-Game"` franchise carries `h-comic`, `hentai` and
+`h-game` - on auto-create here, and on every franchise write
 (`app/services/domain/gated_labels.py`).
 
 `ACG` is the one franchise type for anime and manga franchises: an anime, an

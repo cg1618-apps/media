@@ -556,6 +556,7 @@ export const defaultHentai = () => ({
   usefulness: "",
   studio: "",
   director: "",
+  author: "",
   h_genre_plot: "",
   h_genre_appearance: "",
   h_genre_relation: "",

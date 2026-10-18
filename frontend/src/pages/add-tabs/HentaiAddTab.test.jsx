@@ -1,7 +1,7 @@
 // Frontend: the hentai form.
 //
 // The form carries cartoon's episode pair and nothing more; and it offers
-// only franchises of the h-comic family, the ones the server lets a hentai
+// only franchises of the restricted family, the ones the server lets a hentai
 // sit in. The Modify tab renders the same body, so this pins both.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -81,6 +81,12 @@ describe("HentaiAddTab", () => {
     expect(screen.getByText("Genre Relation")).toBeInTheDocument();
   });
 
+  it("credits an author beside the studio and director, as h-comic does", () => {
+    renderTab();
+    expect(screen.getByText("Author")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Select or type author...")).toBeInTheDocument();
+  });
+
   it("offers the episode pair", async () => {
     const user = userEvent.setup();
     renderTab();
@@ -108,18 +114,20 @@ describe("HentaiAddTab", () => {
     expect(screen.getByText("Cast")).toBeInTheDocument();
   });
 
-  it("offers the h-comic family's franchises and no mainstream one", async () => {
+  it("offers the restricted family's franchises and no mainstream one", async () => {
     const user = userEvent.setup();
     renderTab({
       franchises: [
         { system_id: "f1", franchise_name_en: "Mainstream Fate", franchise_type: "ACG" },
         { system_id: "f2", franchise_name_en: "Adult Fate", franchise_type: "H-Comic" },
         { system_id: "f3", franchise_name_en: "Adult Anime", franchise_type: "Hentai" },
+        { system_id: "f4", franchise_name_en: "Adult Game", franchise_type: "H-Game" },
       ],
     });
     await user.click(screen.getByPlaceholderText("Search or type new franchise..."));
     expect(screen.getByText("Adult Fate")).toBeInTheDocument();
     expect(screen.getByText("Adult Anime")).toBeInTheDocument();
+    expect(screen.getByText("Adult Game")).toBeInTheDocument();
     expect(screen.queryByText("Mainstream Fate")).toBeNull();
   });
 });

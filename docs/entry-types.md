@@ -31,33 +31,38 @@ A franchise may carry a comma-separated list of types; duplicate detection bucke
 
 #### Franchise families (`FRANCHISE_FAMILY_FOR_TYPE`, `app/utils/constants.py`)
 
-Franchise types fall into **families**: `H-Comic` and `Hentai` are the
-`h-comic` family, `H-Game` the `h-game` family, and every type the map does
-not list is `mainstream`. An untyped franchise is mainstream. Families are
-kept apart in both directions:
+Franchise types fall into **families**: `H-Comic`, `Hentai` and `H-Game` are
+the `restricted` family (`RESTRICTED_FAMILY`), and every type the map does not
+list is `mainstream`. An untyped franchise is mainstream. Families are kept
+apart in both directions:
 
 - **A franchise spans one family.** A `franchise_type` mixing two
-  (`"ACG, H-Comic"`, `"ACG, Hentai"`, `"H-Comic, H-Game"`) is refused (422) on
-  create, update and patch (`check_franchise_type_family`), and so is
-  retyping a franchise into another family than an entry it holds
-  (`check_franchise_entries_family`). `"H-Comic, Hentai"` is one family and is
-  accepted: an h-comic and its hentai adaptation share a franchise the way a
-  manga and its anime do.
+  (`"ACG, H-Comic"`, `"ACG, Hentai"`, `"ACG, H-Game"`, `"Game, H-Game"`) is
+  refused (422) on create, update and patch (`check_franchise_type_family`),
+  and so is retyping a franchise into another family than an entry it holds
+  (`check_franchise_entries_family`). Any list of the three restricted types -
+  `"H-Comic, Hentai"`, `"H-Comic, H-Game"`, `"H-Comic, Hentai, H-Game"` - is
+  one family and is accepted: an h-comic and its hentai adaptation share a
+  franchise the way a manga and its anime do, and one doujin franchise holds
+  fan-made h-comics, hentai and h-games together.
 - **An entry sits in a franchise of its own family.** An entry's family is the
   family of the type it stamps (`FRANCHISE_TYPE_FOR` below). The name resolver
-  matches an entry only against franchises of its family - so an h-comic or a
-  hentai named "Fate" never attaches to the mainstream Fate franchise, a manga
-  named "Fate" never attaches to an `H-Comic` or `Hentai` one, an h-game named
-  "Fate" attaches to neither, and a hentai named after an h-comic attaches to
-  that h-comic's franchise. A `franchise_id` naming a franchise of another
+  matches an entry only against franchises of its family - so an h-comic, a
+  hentai or an h-game named "Fate" never attaches to the mainstream Fate
+  franchise, a manga or a game named "Fate" never attaches to an `H-Comic`,
+  `Hentai` or `H-Game` one, and a restricted entry attaches to a restricted
+  franchise of its name whichever of the three types that franchise is: a
+  hentai named after an h-comic joins that h-comic's franchise, and an h-game
+  named like an existing `H-Comic` or `Hentai` franchise joins it rather than
+  creating an `H-Game` one. A `franchise_id` naming a franchise of another
   family is refused (422) on create and update for every media type, and in a
   tracker PATCH body too, although PATCH does not otherwise write
   `franchise_id` (`check_entry_franchise_family`,
   `app/services/domain/hierarchy.py`, run by the router factory).
 - **Labels.** A franchise carries the content label of each gated type in
   its type list - `H-Comic` brings `h-comic`, `H-Game` brings `h-game`,
-  `Hentai` brings `hentai`, and a franchise holding `H-Comic` and `Hentai`
-  carries both - attached on auto-create and whenever a franchise is created
+  `Hentai` brings `hentai`, and a franchise typed `"H-Comic, Hentai, H-Game"`
+  carries all three - attached on auto-create and whenever a franchise is created
   or updated with that type (`app/services/domain/gated_labels.py`).
 - A series is not segregated: it names its parent whatever that parent's
   type.
@@ -99,7 +104,7 @@ Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_re
 | `game` | `games` | One **purchasable**, not one work: `game_type` is `"Base Game"`, `"DLC"`, `"Expansion"` or `"Bundle"`, and a DLC is a row in this same table with a `base_game_id`. `is_main` is `"Main"`, `"Remake"` or `"Remaster"` (`GAME_IS_MAIN`, not the other types' 本傳 / 外傳 list), a label independent of `game_type` and of the relation kinds. Ownership is not a column - it is derived from the `game_copy` rows. A game also owns a **choice graph** - the blocks (parts) of its branching story and the choices and conditions that lead from one to the next, with each player's own done marks and notes - in three tables of its own ([systems/game-choices.md](systems/game-choices.md)). |
 | `h-comic` | `h_comic` | Adult comics, seen in the `unrestricted` access mode only. One table, two variants keyed on `region` (`"JP"` or `"KR"`, required): the columns a region does not use are cleared on every write path (see "H-Comic regions" below). A **gated type** - every entry carries the `h-comic` content label ([authorization.md](authorization.md)). Its `animation_status` is derived from hentai adaptations when it has any (see "H-Comic animation status" below). |
 | `h-game` | `h_game` | Adult games, seen in the `unrestricted` access mode only: to `game` what `h-comic` is to `manga`. One purchasable per row as for game (`game_type`, `is_main`, a `base_game_id` self-FK for DLC), with Game's fill plus DLsite, purchase records (`game_copy`), the choice graph and note sections. Its own fields: `playstyle`, `all_cg`, `language_availability`, `dialogue_audio`, `sound_effect`, `h_presentation`, `h_art_style`, `platform`, `dlsite_link_jp` / `_tw` (see "H-Game fields" below). A **gated type** - every entry carries the `h-game` content label. |
-| `hentai` | `hentai` | Adult anime, seen in the `unrestricted` access mode only. Tracked like a cartoon - `ep_total` on the entry, `ep_fin` on the viewer's list row, no `ep_previous` or `ep_special` - and a `PATCH` that steps `ep_fin` up to `ep_total` finishes it; watch orders still treat an entry as whole. `source_material` is `"Original"`, `"Manga"` or `"Novel"`; `originality` reuses h-comic's `原創` / `同人`; `airing_status` is anime's vocabulary. A **gated type** - every entry carries the `hentai` content label. Cast like anime, seiyuu included. No notes section of its own. |
+| `hentai` | `hentai` | Adult anime, seen in the `unrestricted` access mode only. Tracked like a cartoon - `ep_total` on the entry, `ep_fin` on the viewer's list row, no `ep_previous` or `ep_special` - and a `PATCH` that steps `ep_fin` up to `ep_total` finishes it; watch orders still treat an entry as whole. `source_material` is `"Original"`, `"Manga"` or `"Novel"`; `originality` reuses h-comic's `原創` / `同人`; `airing_status` is anime's vocabulary. A **gated type** - every entry carries the `hentai` content label. Credits anime's studio and director and h-comic's author, so the writer of the h-comic a hentai adapts is one person on both. Cast like anime, seiyuu included. No notes section of its own. |
 
 All twelve have their own router under `app/routers/` and a detail page in `frontend/src/App.jsx`. H-Comic's, H-Game's and Hentai's library and detail routes are gated: they, their nav rows and every other surface of each type in the SPA are drawn only for a session that can see that type ([frontend/components.md](frontend/components.md#gated-media-types)).
 

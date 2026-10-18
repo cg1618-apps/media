@@ -137,12 +137,13 @@ const CREDITS_FIELD_MAP = {
       h_genre_relation: "h_genre_relation",
     },
   },
-  // anime's two credits and h-comic's three genre fields, each under its own
-  // role or tag key.
+  // anime's two credits, h-comic's author and its three genre fields, each
+  // under its own role or tag key.
   hentai: {
     credits: {
       studio: "studio",
       director: "director",
+      author: "author",
     },
     tags: {
       h_genre_plot: "h_genre_plot",

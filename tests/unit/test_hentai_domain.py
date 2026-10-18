@@ -47,8 +47,11 @@ def test_source_materials_are_the_three_the_owner_named():
 
 
 def test_the_family_map_is_the_agreed_one():
-    assert c.FRANCHISE_FAMILY_FOR_TYPE["H-Comic"] == "h-comic"
-    assert c.FRANCHISE_FAMILY_FOR_TYPE["Hentai"] == "h-comic"
+    assert c.FRANCHISE_FAMILY_FOR_TYPE == {
+        "H-Comic": "restricted",
+        "Hentai": "restricted",
+        "H-Game": "restricted",
+    }
     assert "Hentai" in c.FRANCHISE_TYPES
     assert FRANCHISE_TYPE_FOR["hentai"] == c.FranchiseType.HENTAI
 
@@ -59,9 +62,11 @@ def test_the_family_map_is_the_agreed_one():
         (None, {"mainstream"}),
         ("", {"mainstream"}),
         ("ACG, Anime", {"mainstream"}),
-        ("H-Comic", {"h-comic"}),
-        ("H-Comic, Hentai", {"h-comic"}),
-        ("ACG, Hentai", {"mainstream", "h-comic"}),
+        ("H-Comic", {"restricted"}),
+        ("H-Comic, Hentai", {"restricted"}),
+        ("H-Comic, Hentai, H-Game", {"restricted"}),
+        ("ACG, Hentai", {"mainstream", "restricted"}),
+        ("ACG, H-Game", {"mainstream", "restricted"}),
     ],
 )
 def test_franchise_families(value, families):
@@ -71,13 +76,17 @@ def test_franchise_families(value, families):
 def test_a_mixed_franchise_type_is_refused_and_one_family_is_not():
     with pytest.raises(ValueError):
         check_franchise_type_family("Anime, Hentai")
+    with pytest.raises(ValueError):
+        check_franchise_type_family("ACG, H-Game")
     check_franchise_type_family("H-Comic, Hentai")
+    check_franchise_type_family("H-Comic, Hentai, H-Game")
     check_franchise_type_family("ACG, Anime")
 
 
 def test_entry_families():
-    assert entry_family("hentai") == "h-comic"
-    assert entry_family("h-comic") == "h-comic"
+    assert entry_family("hentai") == "restricted"
+    assert entry_family("h-comic") == "restricted"
+    assert entry_family("h-game") == "restricted"
     assert entry_family("anime") == "mainstream"
 
 

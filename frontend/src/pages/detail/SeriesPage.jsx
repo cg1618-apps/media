@@ -5,7 +5,7 @@ import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
-import { canSeeGatedType, inFranchiseFamily } from "../../lib/gatedTypes";
+import { RESTRICTED_FAMILY, canSeeGatedType, inFranchiseFamily } from "../../lib/gatedTypes";
 import { buildMediaTabs } from "../../lib/mediaTabs";
 import { useToast } from "../../hooks/useToast";
 import {
@@ -15,7 +15,6 @@ import {
   FALLBACK_SVG,
   getRatingWeight,
   COMPLETED_STATUSES,
-  parseTypes,
 } from "../../utils/media";
 import { getSeriesCover } from "../../lib/covers";
 import { PLAYING_STATUS_GROUP } from "../../config/statusGroups";
@@ -103,8 +102,9 @@ export default function SeriesPage() {
   const { publicId } = useParams();
   const auth = useAuth();
   const { isAdmin, has } = auth;
-  // Gated: a series under an H-Comic franchise is hidden from a session that
-  // cannot see the type, so only a session that can asks for its h-comics.
+  // Gated: a series under a franchise of the restricted family is hidden from
+  // a session that cannot see the type, so only a session that can asks for
+  // its h-comics.
   const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const canSeeHGame = canSeeGatedType(auth, "h-game");
   const canSeeHentai = canSeeGatedType(auth, "hentai");
@@ -320,14 +320,15 @@ export default function SeriesPage() {
     };
   }, [canSeeHComic, seriesId]);
 
-  // The series' h-games, the same way - and only under an H-Game franchise,
-  // the one kind that can hold them, which the parent franchise (resolved
-  // below for the breadcrumb) says.
-  const parentHoldsHGames = parseTypes(parentFranchise?.franchise_type).includes(
-    "H-Game",
+  // The series' h-games and hentai, the same way - and only under a franchise
+  // of the restricted family, the one kind that can hold them, which the
+  // parent franchise (resolved below for the breadcrumb) says.
+  const parentInRestrictedFamily = inFranchiseFamily(
+    parentFranchise?.franchise_type,
+    RESTRICTED_FAMILY,
   );
   useEffect(() => {
-    if (!canSeeHGame || !seriesId || !parentHoldsHGames) return undefined;
+    if (!canSeeHGame || !seriesId || !parentInRestrictedFamily) return undefined;
     let cancelled = false;
     fetch(
       buildUrl(endpoints.resource("h-game").list(), { series_id: seriesId }),
@@ -341,13 +342,10 @@ export default function SeriesPage() {
     return () => {
       cancelled = true;
     };
-  }, [canSeeHGame, seriesId, parentHoldsHGames]);
+  }, [canSeeHGame, seriesId, parentInRestrictedFamily]);
 
-  // The series' hentai, the same way - only under a franchise of the h-comic
-  // family, the one kind that can hold them.
-  const parentHoldsHentai = inFranchiseFamily(parentFranchise?.franchise_type, "h-comic");
   useEffect(() => {
-    if (!canSeeHentai || !seriesId || !parentHoldsHentai) return undefined;
+    if (!canSeeHentai || !seriesId || !parentInRestrictedFamily) return undefined;
     let cancelled = false;
     fetch(
       buildUrl(endpoints.resource("hentai").list(), { series_id: seriesId }),
@@ -361,7 +359,7 @@ export default function SeriesPage() {
     return () => {
       cancelled = true;
     };
-  }, [canSeeHentai, seriesId, parentHoldsHentai]);
+  }, [canSeeHentai, seriesId, parentInRestrictedFamily]);
 
   // Media types this series actually holds entries for. PlanKindToggles
   // further filters this down to what rewatch allows at series scope (movie,

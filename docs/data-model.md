@@ -182,7 +182,7 @@ missing). Model: `Franchise` (`app/models/franchise.py`).
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `franchise_type` | String | yes | | One of FRANCHISE_TYPES / `FranchiseType` (the two lists differ - see [options.md](options.md#franchise-type)). May hold a comma-separated list; duplicate detection buckets under each token. Every type in the list must belong to one family (`FRANCHISE_FAMILY_FOR_TYPE`: `H-Comic` and `Hentai` are one, everything else is mainstream) - a mixed list is refused (422) by the franchise endpoints. See [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy). |
+| `franchise_type` | String | yes | | One of FRANCHISE_TYPES / `FranchiseType` (the two lists differ - see [options.md](options.md#franchise-type)). May hold a comma-separated list; duplicate detection buckets under each token. Every type in the list must belong to one family (`FRANCHISE_FAMILY_FOR_TYPE`: `H-Comic`, `Hentai` and `H-Game` are the `restricted` family, everything else is mainstream; the family is code, never stored) - a mixed list is refused (422) by the franchise endpoints. See [entry-types.md](entry-types.md#franchise-families-franchise_family_for_type-apputilsconstantspy). |
 | `franchise_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | Name variants; CN leads `display_name`. |
 | `my_rating` | String | yes | | MY_RATINGS |
 | `franchise_expectation` | String | yes | `"Low"` | FRANCHISE_EXPECTATIONS |
@@ -875,8 +875,8 @@ Constraints and wiring, as for every entry table: composite FK `fk_hentai_media`
 `hentai_public_id_seq`, and the AFTER DELETE trigger `trg_hentai_delete_media`.
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, and the
-`studio` / `studio_refs` / `director` / `h_genre_plot` / `h_genre_appearance` /
-`h_genre_relation` link fields. Personal columns: `watching_status`,
+`studio` / `studio_refs` / `director` / `author` / `h_genre_plot` /
+`h_genre_appearance` / `h_genre_relation` link fields. Personal columns: `watching_status`,
 `my_rating`, `ep_fin`, `time_fin`, `usefulness`, `completed_at` on
 [`user_media_list`](#user_media_list).
 

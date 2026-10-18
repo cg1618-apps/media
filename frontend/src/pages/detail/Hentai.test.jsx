@@ -118,6 +118,21 @@ describe("Hentai detail page", () => {
     );
   });
 
+  it("credits the author, linked to the person, beside the studio and director", async () => {
+    const credited = {
+      ...ENTRY,
+      author: "Zvornik Writer",
+      credit_refs: {
+        author: [{ system_id: "p1", public_id: 7, display_name: "Zvornik Writer", label: "Author" }],
+      },
+    };
+    mockFetch(credited);
+    mount(credited);
+    await screen.findByRole("heading", { name: "中文名" });
+    expect(screen.getByText("Author")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zvornik Writer" })).toBeInTheDocument();
+  });
+
   it("steps the episode counter with a PATCH of ep_fin", async () => {
     const watching = { ...ENTRY, watching_status: "Active Watching", ep_total: 3, ep_fin: 1 };
     mockFetch(watching, [], {

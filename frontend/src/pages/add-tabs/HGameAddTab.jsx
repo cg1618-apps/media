@@ -11,6 +11,7 @@
 // is the shared ExternalSearchBox, pointed at /api/h-game/search-igdb.
 import ComboBox from "../../components/forms/ComboBox";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
+import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import ChoiceChips from "../../components/forms/ChoiceChips";
 import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
@@ -18,7 +19,6 @@ import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
 import ImagePicker from "../../components/forms/ImagePicker";
 import {
-  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -26,8 +26,9 @@ import {
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
+import { getDisplayName, getSourceValues } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
+import { RESTRICTED_FAMILY } from "../../lib/gatedTypes";
 import {
   COMPLETION_LEVELS,
   GAME_COMPLETION_FLAGS,
@@ -50,8 +51,9 @@ import { useAuth } from "../../contexts/AuthContext";
 
 export { defaultHGame } from "../../config/formFactories";
 
-// The one franchise type an h-game may sit in: H-Game is a franchise family
-// of its own, so the server refuses any other and the picker offers no other.
+// The franchise type a new h-game franchise is created with. The picker
+// offers the whole restricted family (FamilyLineageFields), so an h-game can
+// join a doujin franchise holding h-comics and hentai.
 export const H_GAME_FRANCHISE_TYPE = "H-Game";
 
 function Options({ values }) {
@@ -427,74 +429,22 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
   );
 }
 
-/** The franchise and series pickers, shared by both h-game tabs. */
+/**
+ * The franchise and series pickers, shared by both h-game tabs. The
+ * restricted family's franchises only - H-Game, and H-Comic and Hentai, which
+ * an h-game may share in one doujin franchise.
+ */
 export function HGameLineageFields({ f, u, allFranchises, seriesItemsForHGame, franchiseCollections }) {
   return (
-    <>
-      <Field label="Franchise" hint="H-Game franchises only">
-        <ComboBox
-          items={allFranchises
-            .filter((fr) => parseTypes(fr.franchise_type).includes(H_GAME_FRANCHISE_TYPE))
-            .map((fr) => ({
-              id: fr.system_id,
-              label: getDisplayName(fr, "franchise"),
-              searchText: [
-                fr.franchise_name_en,
-                fr.franchise_name_cn,
-                fr.franchise_name_roman,
-                fr.franchise_name_jp,
-                fr.franchise_name_alt,
-              ]
-                .filter(Boolean)
-                .join(" "),
-            }))}
-          selectedId={f.franchise_id}
-          inputText={f.franchise_text}
-          onSelect={(id, label) => {
-            u("franchise_id", id);
-            u("franchise_text", label);
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          onType={(t) => {
-            u("franchise_text", t);
-            u("franchise_id", null);
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          onClear={() => {
-            u("franchise_id", null);
-            u("franchise_text", "");
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          placeholder="Search or type new franchise..."
-          allowNew
-        />
-        <CollectionNote franchiseId={f.franchise_id} franchiseCollections={franchiseCollections} />
-      </Field>
-      <Field label="Series">
-        <ComboBox
-          items={seriesItemsForHGame}
-          selectedId={f.series_id}
-          inputText={f.series_text}
-          onSelect={(id, label) => {
-            u("series_id", id);
-            u("series_text", label);
-          }}
-          onType={(t) => {
-            u("series_text", t);
-            u("series_id", null);
-          }}
-          onClear={() => {
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          placeholder="Search or type new series..."
-          allowNew
-        />
-      </Field>
-    </>
+    <FamilyLineageFields
+      f={f}
+      u={u}
+      family={RESTRICTED_FAMILY}
+      hint="H-Game, H-Comic and Hentai franchises only"
+      allFranchises={allFranchises}
+      seriesItems={seriesItemsForHGame}
+      franchiseCollections={franchiseCollections}
+    />
   );
 }
 

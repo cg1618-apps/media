@@ -5,6 +5,10 @@ the type, and what hentai shares with other types stays where they need it.
   studio, director   shared with mainstream anime: a studio credited only on
                      hentai is hidden with it, one also credited on an anime
                      stays visible through that
+  author             shared with h-comic (and the mainstream reading types):
+                     an author credited only on hentai is hidden with it, and
+                     one who also wrote the h-comic it adapts is seen, with
+                     the h-comic credit alone, by a session seeing h-comic
   H Genre            shared with h-comic: the categories serve gated types
                      only, so they hide from a session that sees neither
   /api/constants     a vocabulary hentai shares with h-comic is served while
@@ -60,7 +64,7 @@ def h_comic_only(mode_client, db_session):
 
 
 # ---------------------------------------------------------------------------
-# Studio and director
+# Studio, director and author
 # ---------------------------------------------------------------------------
 
 
@@ -99,11 +103,76 @@ def test_a_director_credited_only_on_hentai_is_hidden(
     assert admin_client.get(f"/api/person/{person.system_id}").status_code == 200
 
 
-def test_studio_and_director_reach_hentai_and_nothing_hentai_only_is_new():
+def _ids(response) -> set[str]:
+    assert response.status_code == 200, response.text
+    return {row["system_id"] for row in response.json()}
+
+
+def test_an_author_credited_only_on_hentai_is_hidden(
+    client, admin_client, h_comic_only, db_session, hentai_id
+):
+    credits_service.replace_credits(
+        db_session, "hentai", hentai_id, "author", ["Zvornik Hentai Author"]
+    )
+    person = credits_service.find_person(db_session, "Zvornik Hentai Author")
+    # The person is really there, credited on a labelled entry.
+    assert credits_service.credit_names(db_session, hentai_id, "author") == [
+        "Zvornik Hentai Author"
+    ]
+
+    for narrow in (client, h_comic_only):
+        assert narrow.get(f"/api/person/{person.system_id}").status_code == 404
+        assert narrow.get(f"/api/person/{person.system_id}/entries").status_code == 404
+        assert str(person.system_id) not in _ids(narrow.get("/api/person/"))
+
+    assert admin_client.get(f"/api/person/{person.system_id}").status_code == 200
+    assert str(person.system_id) in _ids(admin_client.get("/api/person/"))
+    groups = admin_client.get(f"/api/person/{person.system_id}/entries").json()["groups"]
+    assert [(g["media_type"], g["role"], g["label"]) for g in groups] == [
+        ("hentai", "author", "Author")
+    ]
+    assert [e["system_id"] for e in groups[0]["entries"]] == [str(hentai_id)]
+
+
+def test_the_h_comic_author_credited_on_its_hentai_lists_both(
+    admin_client, h_comic_only, db_session, hentai_id
+):
+    """One person, the h-comic's author and the hentai's. A session seeing
+    both types sees both credits on the person's page; one seeing h-comic
+    alone sees the person through the h-comic, and the hentai not at all."""
+    body = admin_client.post(
+        "/api/h-comic/", json={"h_comic_name_cn": "Zvornik Source H-Comic", "region": "KR"}
+    ).json()
+    h_comic_id = uuid.UUID(body["system_id"])
+    for media_type, entry_id in (("h-comic", h_comic_id), ("hentai", hentai_id)):
+        credits_service.replace_credits(
+            db_session, media_type, entry_id, "author", ["Zvornik Shared Author"]
+        )
+    person = credits_service.find_person(db_session, "Zvornik Shared Author")
+
+    def groups(cl):
+        response = cl.get(f"/api/person/{person.system_id}/entries")
+        assert response.status_code == 200, response.text
+        return {
+            (g["media_type"], g["role"]): [e["system_id"] for e in g["entries"]]
+            for g in response.json()["groups"]
+        }
+
+    assert groups(admin_client) == {
+        ("h-comic", "author"): [str(h_comic_id)],
+        ("hentai", "author"): [str(hentai_id)],
+    }
+    assert groups(h_comic_only) == {("h-comic", "author"): [str(h_comic_id)]}
+    roles = h_comic_only.get(f"/api/person/{person.system_id}").json()["roles"]
+    assert {(r["role"], r["scope"]) for r in roles} == {("author", "h-comic")}
+
+
+def test_studio_director_and_author_reach_hentai_and_nothing_hentai_only_is_new():
     from app.utils.credit_roles import CREDIT_ROLES, TAG_FIELDS
 
     assert "hentai" in CREDIT_ROLES["studio"].media_types
     assert "hentai" in CREDIT_ROLES["director"].media_types
+    assert "hentai" in CREDIT_ROLES["author"].media_types
     for key in ("h_genre_plot", "h_genre_appearance", "h_genre_relation"):
         assert TAG_FIELDS[key].media_types == ("h-comic", "h-game", "hentai")
     # No role and no vocabulary exists for hentai alone.

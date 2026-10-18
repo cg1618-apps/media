@@ -144,6 +144,13 @@ def test_h_comic_labels():
     assert cr.credit_label("club", "h-comic") == "Club"
 
 
+def test_hentai_author_reads_author_as_h_comic_does():
+    """One person writes the h-comic and is credited on the hentai adapting
+    it, under the same word on both."""
+    assert cr.credit_label("author", "hentai") == "Author"
+    assert cr.sheet_column_for("hentai", "author") == "author"
+
+
 def test_club_is_a_person_role_scoped_to_h_comic_alone():
     club = cr.CREDIT_ROLES["club"]
     assert club.target == "person"
@@ -165,8 +172,13 @@ def test_h_comic_tag_fields():
 
 
 def test_hentai_credits_and_tags():
-    """Anime's studio and director, and the three shared H Genre fields."""
-    assert {r.key for r in cr.credit_roles_for("hentai")} == {"studio", "director"}
+    """Anime's studio and director, h-comic's author, and the three shared H
+    Genre fields."""
+    assert {r.key for r in cr.credit_roles_for("hentai")} == {
+        "studio",
+        "director",
+        "author",
+    }
     assert {f.key for f in cr.tag_fields_for("hentai")} == {
         "h_genre_plot",
         "h_genre_appearance",
@@ -225,7 +237,7 @@ def test_legal_scopes_match_media_types():
     )
     assert cr.legal_scopes("producer") == ("anime",)
     assert cr.legal_scopes("composer") == ("anime", "game")
-    assert cr.legal_scopes("author") == ("manga", "novel", "comic", "h-comic")
+    assert cr.legal_scopes("author") == ("manga", "novel", "comic", "h-comic", "hentai")
     assert cr.legal_scopes("illustrator") == ("manga", "novel", "comic", "h-comic")
     assert cr.legal_scopes("club") == ("h-comic",)
 
