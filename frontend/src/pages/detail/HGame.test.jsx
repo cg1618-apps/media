@@ -205,4 +205,28 @@ describe("HGame detail page", () => {
 
     expect((await card("Library")).getByText("Owned")).toBeInTheDocument();
   });
+
+  it("shows the recorded time-to-beat figures on a Time to Beat card", async () => {
+    mockFetch(
+      { ...ENTRY, hltb_main: null, hltb_main_extra: 12, hltb_completionist: 20.5 },
+      []
+    );
+    mount();
+
+    const ttb = within(
+      (await screen.findByRole("heading", { name: "Time to Beat" })).closest("section")
+    );
+    expect(ttb.queryByText("Main")).toBeNull();
+    expect(ttb.getByText("Main + Extra")).toBeInTheDocument();
+    expect(ttb.getByText("12 h")).toBeInTheDocument();
+    expect(ttb.getByText("Completionist")).toBeInTheDocument();
+    expect(ttb.getByText("20.5 h")).toBeInTheDocument();
+  });
+
+  it("leaves the Time to Beat card out when no figure is recorded", async () => {
+    mockFetch(ENTRY, []);
+    mount();
+    await screen.findByRole("heading", { name: "Aitch Game" });
+    expect(screen.queryByRole("heading", { name: "Time to Beat" })).toBeNull();
+  });
 });

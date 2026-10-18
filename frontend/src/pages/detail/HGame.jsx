@@ -20,6 +20,7 @@ import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import CommunityCard from "../../components/info/CommunityCard";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
+import TimeToBeatCard from "../../components/info/TimeToBeatCard";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import { studioValue } from "../../components/info/StudioLinks";
@@ -43,6 +44,7 @@ import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useToast } from "../../hooks/useToast";
 import { entityPath } from "../../lib/entityPath";
+import { hours } from "../../lib/gameHours";
 import { releaseYear } from "../../lib/releaseDate";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import ChoiceGraphCard from "../../components/game-choices/ChoiceGraphCard";
@@ -86,8 +88,8 @@ function achievements(hGame) {
  * estimate stands alone. Renders nothing when neither figure exists.
  */
 export function HGameProgress({ hGame }) {
-  const estimate =
-    hGame.hltb_main != null && hGame.hltb_main !== "" ? `~${hGame.hltb_main} h` : null;
+  const main = hours(hGame.hltb_main);
+  const estimate = main ? `~${main}` : null;
   const ach = achievements(hGame);
   if (!estimate && !ach) return null;
   return (
@@ -516,6 +518,7 @@ export default function HGame() {
                   ],
                 ]}
               />
+              <TimeToBeatCard entry={hGame} />
               <InfoCard
                 title="Prices"
                 fields={[
