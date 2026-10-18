@@ -151,3 +151,55 @@ describe("SeriesPage tab counts", () => {
     ).toBeInTheDocument();
   });
 });
+
+// The restricted family: an h-game may sit under a franchise of any of its
+// three types, so a series whose parent franchise is H-Comic asks for its
+// h-games too - and one under a mainstream franchise never does, even for a
+// session that may see the type.
+describe("SeriesPage restricted family", () => {
+  const H_GAMES = [
+    { system_id: "HG001", h_game_name_en: "Doujin Game", playing_status: "Plan to Play" },
+  ];
+
+  function stubWithParent(franchiseType) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        const u = String(url);
+        if (u.startsWith("/api/auth/me")) {
+          return jsonRes({ username: "admin", is_admin: true, visible_gated_types: ["h-game"] });
+        }
+        if (u.startsWith("/api/series/")) return jsonRes({ ...SERIES, franchise_id: "FR001" });
+        if (u.startsWith("/api/franchise/FR001")) {
+          return jsonRes({ system_id: "FR001", franchise_name_en: "Doujin", franchise_type: franchiseType });
+        }
+        if (u.startsWith("/api/h-game/")) return jsonRes(H_GAMES);
+        return jsonRes([]);
+      }),
+    );
+  }
+
+  const hGameFetched = () =>
+    fetch.mock.calls.some(([url]) => String(url).startsWith("/api/h-game/"));
+
+  it.each(["H-Comic", "Hentai", "H-Game"])(
+    "lists the h-games of a series under a %s franchise",
+    async (franchiseType) => {
+      stubWithParent(franchiseType);
+      renderPage();
+      expect(
+        await screen.findByRole("button", { name: /^H-Game\s*1$/ }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("does not ask for h-games under a mainstream franchise", async () => {
+    stubWithParent("Game");
+    renderPage();
+    await screen.findByText("Elden Ring Series");
+    await waitFor(() =>
+      expect(fetch.mock.calls.some(([url]) => String(url).startsWith("/api/franchise/FR001"))).toBe(true),
+    );
+    expect(hGameFetched()).toBe(false);
+  });
+});

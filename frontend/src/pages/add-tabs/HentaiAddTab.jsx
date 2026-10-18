@@ -28,12 +28,13 @@ import {
 import { HENTAI_SOURCES } from "../../lib/hentaiForm";
 import { getDisplayName, getSourceValues } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
+import { RESTRICTED_FAMILY } from "../../lib/gatedTypes";
 
 export { defaultHentai } from "../../config/formFactories";
 
 // The franchise type a new hentai franchise is created with. The picker
-// offers the whole h-comic family, so a hentai can join the franchise of the
-// h-comic it adapts.
+// offers the whole restricted family, so a hentai can join the franchise of
+// the h-comic it adapts, or a doujin franchise holding all three types.
 export const HENTAI_FRANCHISE_TYPE = "Hentai";
 
 function Options({ values }) {
@@ -245,8 +246,8 @@ export function HentaiLineageFields({ f, u, allFranchises, seriesItemsForHentai,
     <FamilyLineageFields
       f={f}
       u={u}
-      family="h-comic"
-      hint="Hentai and H-Comic franchises only"
+      family={RESTRICTED_FAMILY}
+      hint="Hentai, H-Comic and H-Game franchises only"
       allFranchises={allFranchises}
       seriesItems={seriesItemsForHentai}
       franchiseCollections={franchiseCollections}

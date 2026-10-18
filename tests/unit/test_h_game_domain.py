@@ -59,13 +59,14 @@ def test_the_vocabularies():
     )
 
 
-def test_the_franchise_type_is_a_family_of_its_own():
+def test_the_franchise_type_shares_the_restricted_family():
     assert FranchiseType.H_GAME.value == "H-Game"
     assert "H-Game" in FRANCHISE_TYPES
     assert FRANCHISE_TYPE_FOR["h-game"] == FranchiseType.H_GAME
-    assert FRANCHISE_FAMILY_FOR_TYPE["H-Game"] == "h-game"
-    assert entry_family("h-game") == "h-game"
-    assert entry_family("h-comic") != entry_family("h-game")
+    assert FRANCHISE_FAMILY_FOR_TYPE["H-Game"] == "restricted"
+    assert entry_family("h-game") == "restricted"
+    assert entry_family("h-comic") == entry_family("h-game") == entry_family("hentai")
+    assert entry_family("game") != entry_family("h-game")
 
 
 def test_the_label_is_pinned_to_the_registry():

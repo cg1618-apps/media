@@ -3510,3 +3510,35 @@ reachable. Publishers and people keep their stricter, declared scope — an
 out-of-scope publisher is not offered even when typed — because that scope is
 an admin's statement ("a games publisher must not be suggested as an anime
 distributor"), not an inference from history.
+
+### The three restricted types are one franchise family (2026-10-18)
+
+`FRANCHISE_FAMILY_FOR_TYPE` maps `H-Comic`, `Hentai` and `H-Game` to one
+family, `restricted`. Until now H-Comic and Hentai were the `h-comic` family
+and H-Game a family of its own ("A franchise family of its own", above). The
+owner reversed that: fan-made works span all three types, and one doujin
+franchise ("Doujin Works / 同人作品") should hold the h-comics, the hentai and
+the h-games together. That is a choice about grouping, not about visibility,
+so nothing else about the gate moves.
+
+- **Renamed, because it is no longer comics only.** `h-comic` was also the
+  media type key and the content label key, and a family of three types named
+  after one of them reads as that one. The family string is code alone - no
+  column, sheet tab or migration stores it - so the rename needs no migration.
+- **Name matching now crosses the three.** The resolver matches within the
+  entry's family, so an h-game whose franchise name matches an existing
+  `H-Comic` or `Hentai` franchise attaches to it instead of creating an
+  `H-Game` one. That is the intended consequence: the doujin franchise is
+  found by name from any of the three forms or sheet tabs.
+- **Labels stay per type list.** A franchise still carries the label of each
+  gated franchise type its `franchise_type` names; one typed
+  `"H-Comic, Hentai, H-Game"` carries all three. Joining a franchise does not
+  add the joiner's type, as before, and the hubs fetch every restricted list
+  under any restricted franchise for that reason.
+- **The h-game form reuses `FamilyLineageFields`.** Its own picker filtered on
+  the `H-Game` type and was otherwise the same component; `HGameLineageFields`
+  now wraps the shared one, as the h-comic and hentai tabs do. The DLC chain's
+  Base Game picker is untouched - it picks among h-games, not franchises.
+- **The mainstream boundary is unchanged.** `"ACG, H-Game"`, `"Game, H-Game"`
+  and an h-game written into an `ACG` or `Game` franchise are still refused
+  (422), so no gated entry reaches a public group.

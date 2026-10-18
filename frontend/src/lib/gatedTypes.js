@@ -31,19 +31,23 @@ export const GATED_FRANCHISE_TYPES = Object.freeze({
 const GATED = new Set(GATED_TYPES);
 
 // Franchise FAMILIES (FRANCHISE_FAMILY_FOR_TYPE in app/utils/constants.py):
-// which franchise types may share one franchise. An h-comic and its hentai
-// adaptation share one the way a manga and its anime do, so H-Comic and
-// Hentai are one family; a type not listed is mainstream. The server refuses
-// an entry written into a franchise of another family, so a gated type's
-// franchise picker offers only its own family's franchises.
+// which franchise types may share one franchise. The three restricted
+// franchise types - H-Comic, Hentai and H-Game - are one family, so an h-comic
+// and its hentai adaptation share one the way a manga and its anime do, and
+// one doujin franchise holds fan-made h-comics, hentai and h-games together.
+// A type not listed is mainstream. The server refuses an entry written into a
+// franchise of another family, so a gated type's franchise picker offers only
+// its own family's franchises.
+export const RESTRICTED_FAMILY = "restricted";
 export const FRANCHISE_FAMILY_FOR_TYPE = Object.freeze({
-  "H-Comic": "h-comic",
-  Hentai: "h-comic",
+  "H-Comic": RESTRICTED_FAMILY,
+  Hentai: RESTRICTED_FAMILY,
+  "H-Game": RESTRICTED_FAMILY,
 });
 
 /**
  * True when a franchise whose `franchise_type` is this comma-joined list
- * ("H-Comic, Hentai") belongs to `family`.
+ * ("H-Comic, Hentai, H-Game") belongs to `family`.
  */
 export function inFranchiseFamily(franchiseType, family) {
   return String(franchiseType || "")

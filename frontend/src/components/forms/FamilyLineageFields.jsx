@@ -2,10 +2,11 @@
 //
 // A gated type's entry sits only in a franchise of its own FAMILY
 // (lib/gatedTypes.js inFranchiseFamily): the server refuses (422) any other,
-// so the picker offers no other. H-Comic and Hentai are one family, so an
-// h-comic and its hentai adaptation can share a franchise the way a manga and
-// its anime do. Typing a name that matches nothing creates a franchise of the
-// caller's own type on save; the page does that, not this component.
+// so the picker offers no other. H-Comic, Hentai and H-Game are one family
+// (`restricted`), so an h-comic and its hentai adaptation can share a
+// franchise the way a manga and its anime do, and one doujin franchise can
+// hold all three. Typing a name that matches nothing creates a franchise of
+// the caller's own type on save; the page does that, not this component.
 import ComboBox from "./ComboBox";
 import { CollectionNote, Field } from "./FormField";
 import { inFranchiseFamily } from "../../lib/gatedTypes";
