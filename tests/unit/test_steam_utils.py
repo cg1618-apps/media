@@ -5,6 +5,7 @@ from decimal import Decimal
 from app.utils.steam_utils import (
     extract_steam_appid,
     map_steam_to_game_data,
+    metacritic_link_for,
     steam_header_image_url,
 )
 
@@ -112,3 +113,62 @@ class TestHeaderImage:
         assert steam_header_image_url(None) is None
         assert steam_header_image_url({}) is None
         assert steam_header_image_url({"header_image": ""}) is None
+
+
+class TestMetacriticLink:
+    """
+    Steam hands back Metacritic's legacy per-platform URL with a tracking
+    query. Metacritic itself answers that URL with a 301 to the
+    platform-less one, so the stored link is the one it redirects to.
+    """
+
+    def test_the_legacy_platform_form_becomes_the_canonical_one(self):
+        url = "https://www.metacritic.com/game/pc/the-witcher-3-wild-hunt?ftag=MCD-06-10aaa1f"
+        assert (
+            metacritic_link_for(url)
+            == "https://www.metacritic.com/game/the-witcher-3-wild-hunt/"
+        )
+
+    def test_any_platform_segment_is_dropped(self):
+        url = "https://www.metacritic.com/game/playstation-4/bloodborne"
+        assert metacritic_link_for(url) == "https://www.metacritic.com/game/bloodborne/"
+
+    def test_an_already_canonical_url_is_kept_with_its_query_dropped(self):
+        url = "http://metacritic.com/game/elden-ring/?ftag=x#reviews"
+        assert metacritic_link_for(url) == "https://www.metacritic.com/game/elden-ring/"
+
+    def test_a_canonical_sub_page_is_not_mistaken_for_the_legacy_form(self):
+        url = "https://www.metacritic.com/game/elden-ring/critic-reviews/?platform=pc"
+        assert (
+            metacritic_link_for(url)
+            == "https://www.metacritic.com/game/elden-ring/critic-reviews/"
+        )
+
+    def test_an_unrecognised_metacritic_path_keeps_its_path_without_the_query(self):
+        url = "https://www.metacritic.com/browse/game/?ftag=x"
+        assert metacritic_link_for(url) == "https://www.metacritic.com/browse/game/"
+
+    def test_a_url_on_another_host_is_refused(self):
+        assert metacritic_link_for("https://example.com/game/pc/x") is None
+        assert metacritic_link_for("https://notmetacritic.com/game/x/") is None
+
+    def test_empty_values_are_none(self):
+        assert metacritic_link_for(None) is None
+        assert metacritic_link_for("") is None
+
+    def test_the_mapper_carries_the_normalised_link(self):
+        mapped = map_steam_to_game_data(
+            payloads(
+                us={
+                    "metacritic": {
+                        "score": 94,
+                        "url": "https://www.metacritic.com/game/pc/elden-ring?ftag=MCD-06-10aaa1f",
+                    }
+                }
+            )
+        )
+        assert mapped["metacritic_url"] == "https://www.metacritic.com/game/elden-ring/"
+
+    def test_a_game_steam_has_no_metacritic_block_for_maps_to_none(self):
+        mapped = map_steam_to_game_data(payloads(us={"is_free": False}))
+        assert mapped["metacritic_url"] is None

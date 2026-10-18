@@ -69,13 +69,16 @@ SERIALIZATION_CATEGORY = "Serialization Platform"
 BAHAMUT_VALUE = "動畫瘋"
 
 # Reference Source values a pipeline writes rows for: the two links Tenrai
-# returns, AniList's own page, and SteamDB - which is alone in being derived
-# from a column rather than fetched, since games.steam_appid is the whole of
-# a SteamDB URL.
+# returns, AniList's own page, and a game's three: SteamDB - which is alone in
+# being derived from a column rather than fetched, since games.steam_appid is
+# the whole of a SteamDB URL - Metacritic, whose url rides on the Steam
+# storefront answer, and HowLongToBeat, found by searching that site.
 OFFICIAL_SITE_VALUE = "Official site"
 TWITTER_VALUE = "Twitter"
 ANILIST_VALUE = "AniList"
 STEAMDB_VALUE = "SteamDB"
+METACRITIC_VALUE = "Metacritic"
+HOWLONGTOBEAT_VALUE = "HowLongToBeat"
 
 _CATEGORY_BY_KIND: dict[str, str] = {
     "access": PLATFORM_CATEGORY,

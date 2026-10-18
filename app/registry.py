@@ -74,14 +74,14 @@ from app.services.domain.sources import media_sources_writer
 from app.services.pipelines import (
     execute_replace_single_cartoon,
     execute_replace_single_comic,
-    execute_replace_single_game,
     execute_replace_single_h_comic,
-    execute_replace_single_h_game,
     execute_replace_single_hentai,
     execute_replace_single_manga,
     execute_replace_single_movie,
     execute_replace_single_novel,
     execute_replace_single_tv_show,
+    execute_save_replace_game,
+    execute_save_replace_h_game,
 )
 
 
@@ -388,8 +388,9 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed_list=mark_game_list,
         extra_filters=_game_ownership,
         # The single Replace - IGDB, then Steam - so a pasted link is filled
-        # on save, as every other type's write hook fetches its source.
-        write_hook=execute_replace_single_game,
+        # on save, as every other type's write hook fetches its source - in
+        # its save form, which does not re-search a HowLongToBeat miss.
+        write_hook=execute_save_replace_game,
         nested_collections={
             "copies": write_game_copies,
             "sources": media_sources_writer("game"),
@@ -494,8 +495,9 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed=mark_game_catalog,
         mark_completed_list=mark_game_list,
         extra_filters=_ownership_filter(models.HGame),
-        # Game's Replace (IGDB, then Steam), then the h-game sync.
-        write_hook=execute_replace_single_h_game,
+        # Game's Replace (IGDB, then Steam), then the h-game sync - in its
+        # save form, as game's.
+        write_hook=execute_save_replace_h_game,
         nested_collections={
             "copies": write_game_copies,
             "sources": media_sources_writer("h-game"),

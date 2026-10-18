@@ -6,6 +6,7 @@ import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType, inFranchiseFamily } from "../../lib/gatedTypes";
+import { buildMediaTabs } from "../../lib/mediaTabs";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
@@ -400,22 +401,28 @@ export default function SeriesPage() {
 
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below. A series carries no type, so
-  // a tab appears purely because its list holds something.
-  const mediaTabs = useMemo(() => {
-    if (!series) return [];
-    return [
-      animeList.length && "Anime",
-      mangaList.length && "Manga",
-      novelList.length && "Novel",
-      comicList.length && "Comic",
-      gameList.length && "Game",
-      hComicList.length && "H-Comic",
-      hGameList.length && "H-Game",
-      hentaiList.length && "Hentai",
-      movieList.length && "Movies",
-      tvShowList.length && "TV Shows",
-      cartoonList.length && "Cartoons",
-    ].filter(Boolean);
+  // a tab appears purely because its list holds something. The tab's count
+  // and the hero's totals come from the same rows.
+  const {
+    tabs: mediaTabs,
+    countOf: getTabCount,
+    total: totalEntries,
+    completed: completedCount,
+  } = useMemo(() => {
+    if (!series) return buildMediaTabs([]);
+    return buildMediaTabs([
+      { label: "Anime", type: "anime", entries: animeList },
+      { label: "Manga", type: "manga", entries: mangaList },
+      { label: "Novel", type: "novel", entries: novelList },
+      { label: "Comic", type: "comic", entries: comicList },
+      { label: "Game", type: "game", entries: gameList },
+      { label: "H-Comic", type: "h-comic", entries: hComicList },
+      { label: "H-Game", type: "h-game", entries: hGameList },
+      { label: "Hentai", type: "hentai", entries: hentaiList },
+      { label: "Movies", type: "movie", entries: movieList },
+      { label: "TV Shows", type: "tv-show", entries: tvShowList },
+      { label: "Cartoons", type: "cartoon", entries: cartoonList },
+    ]);
   }, [
     series,
     animeList,
@@ -971,42 +978,9 @@ export default function SeriesPage() {
   }, [cartoonList, cartoonFilters, cartoonSort]);
 
   // ── Completion ────────────────────────────────────────────────────────────
-  const allWatchable = useMemo(
-    () => [...animeList, ...movieList, ...tvShowList, ...cartoonList],
-    [animeList, movieList, tvShowList, cartoonList],
-  );
-  // Every tab the strip can show feeds these totals: the watchable types by
-  // watching_status, and manga and novels alike by reading_status.
-  const totalEntries =
-    allWatchable.length + mangaList.length + novelList.length;
-  const completedCount =
-    allWatchable.filter((e) =>
-      COMPLETED_STATUSES.includes(e.watching_status),
-    ).length +
-    mangaList.filter((m) =>
-      COMPLETED_STATUSES.includes(m.reading_status),
-    ).length +
-    novelList.filter((n) =>
-      COMPLETED_STATUSES.includes(n.reading_status),
-    ).length;
+  // totalEntries and completedCount come from the media tab rows above.
   const completionPct =
     totalEntries > 0 ? Math.round((completedCount / totalEntries) * 100) : 0;
-
-  function getTabCount(tab) {
-    const map = {
-      Anime: animeList.length,
-      Manga: mangaList.length,
-      Novel: novelList.length,
-      Movies: movieList.length,
-      "TV Shows": tvShowList.length,
-      Cartoons: cartoonList.length,
-      Game: gameList.length,
-      "H-Comic": hComicList.length,
-      "H-Game": hGameList.length,
-      Hentai: hentaiList.length,
-    };
-    return map[tab] ?? 0;
-  }
 
   // ── loading / error ───────────────────────────────────────────────────────
   if (loading) return <HubLoading label="Loading Series Hub..." />;

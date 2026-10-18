@@ -74,13 +74,14 @@ beforeEach(() => {
 });
 
 describe("Publisher detail page", () => {
-  it("lists all four names on a Naming card, the displayed one included", async () => {
+  it("lists the names it has on a Naming card, the displayed one included", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "木棉花" });
     const naming = screen.getByText("Naming").closest("section");
-    for (const label of ["English", "Chinese", "Japanese", "Alternative"]) {
+    for (const label of ["English", "Chinese", "Japanese"]) {
       expect(within(naming).getByText(label)).toBeInTheDocument();
     }
+    expect(within(naming).queryByText("Alternative")).not.toBeInTheDocument();
     expect(within(naming).getByText("木棉花")).toBeInTheDocument();
     expect(within(naming).getByText("Muse Communication")).toBeInTheDocument();
   });

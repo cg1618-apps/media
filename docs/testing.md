@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-27
+Last verified: 2026-10-18
 
 ## What this is for
 
@@ -35,7 +35,7 @@ Frontend tests are co-located with the source they cover
 | File | Role |
 |---|---|
 | `pytest.ini` | `testpaths = tests`, `test_*.py` / `Test*` / `test_*` discovery, `addopts = -v --tb=short`. There is no `pyproject.toml`. |
-| `tests/conftest.py` | Runs before any app import. Sets `POSTGRES_DB=media_test`, `POSTGRES_USER=postgres`, a throwaway `JWT_SECRET_KEY`, `ADMIN_PASSWORD=testadmin123` via `os.environ.setdefault`. `POSTGRES_PASSWORD` is deliberately not defaulted: it comes from your `.env` (pydantic-settings) or the CI job env. |
+| `tests/conftest.py` | Runs before any app import. Sets `POSTGRES_DB=media_test`, `POSTGRES_USER=postgres`, a throwaway `JWT_SECRET_KEY`, `ADMIN_PASSWORD=testadmin123`, `APP_ENV=development` and `HLTB_ENABLED=false` via `os.environ.setdefault`. The last keeps the game write hook, which searches HowLongToBeat for any game without a link, off the live site; `tests/unit/test_hltb_client.py` switches it back on with `requests` patched out. `POSTGRES_PASSWORD` is deliberately not defaulted: it comes from your `.env` (pydantic-settings) or the CI job env. |
 | `tests/api/conftest.py` | Engine, session, client and sample-row fixtures for the API tier (see below). |
 | `frontend/vitest.config.js` | `environment: "jsdom"`, `globals: true` (so `it`/`expect` need no import), `setupFiles: ["./src/test-setup.js"]`, React plugin. |
 | `frontend/src/test-setup.js` | One line: `import "@testing-library/jest-dom"` for DOM matchers. |
