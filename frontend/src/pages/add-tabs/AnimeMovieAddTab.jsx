@@ -13,6 +13,7 @@ import {
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, getSourceValues } from "../../utils/media";
+import { getIdleSourceValues } from "../../lib/formatters";
 import {
   AIRING_STATUSES,
   MY_RATINGS,
@@ -327,6 +328,7 @@ export default function AnimeMovieAddTab({
         <Field label="Studio">
           <MultiSelect
             options={getSourceValues(sources, { kind: "studio" })}
+            idleOptions={getIdleSourceValues(sources, { kind: "studio" })}
             value={amf.studio}
             onChange={(v) => uam("studio", v)}
             placeholder="Select studio..."

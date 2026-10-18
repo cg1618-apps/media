@@ -14,6 +14,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, getSourceValues } from "../../utils/media";
+import { getIdleSourceValues } from "../../lib/formatters";
 import { WEEKDAYS } from "../../config/weekdays";
 import { broadcastTimeOptions } from "../../config/broadcastTimes";
 import {
@@ -526,6 +527,7 @@ export default function AnimeAddTab({
         <Field label="Studio">
           <MultiSelect
             options={getSourceValues(sources, { kind: "studio" })}
+            idleOptions={getIdleSourceValues(sources, { kind: "studio" })}
             value={af.studio}
             onChange={(v) => ua("studio", v)}
             placeholder="Select studio..."

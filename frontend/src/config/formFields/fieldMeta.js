@@ -178,8 +178,9 @@ export const COMMON_FIELD_META = {
   //
   // A publisher source carries a scope but no role: a publisher holds exactly
   // one role, so the media type is the whole key (publisher_scope in
-  // app/models/staff.py). A studio source carries neither - studios are
-  // unscoped, deliberately.
+  // app/models/staff.py). A studio source carries neither - studios have no
+  // declared scope; a studio field narrows only its empty box, on how the
+  // form's media type has used each studio (lib/suggestionOrder.js).
   // Splitting these is the point of the redesign: a director is an entity
   // with a profile, a genre is a vocabulary value.
   //
@@ -262,6 +263,11 @@ export const COMMON_FIELD_META = {
   },
   remark: { label: "Remark", control: "textarea", group: "Notes" },
 };
+
+// The manga Anime Studio field names the anime adaptation's studio, so it is
+// counted and scoped as an anime studio field is (lib/suggestionOrder.js),
+// not under manga - no studio is ever credited on a manga.
+export const ANIME_STUDIO_SOURCE = Object.freeze({ kind: "studio", scope: "anime" });
 
 export const TYPE_FIELD_META = {
   anime: {
@@ -558,7 +564,7 @@ export const TYPE_FIELD_META = {
     anime_studio: {
       label: "Anime Studio",
       control: "tags",
-      source: { kind: "studio" },
+      source: ANIME_STUDIO_SOURCE,
       group: "Credits",
     },
     serialization_platform: {

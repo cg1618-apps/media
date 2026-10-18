@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-14
+Last verified: 2026-10-18
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1752,6 +1752,7 @@ field's values at once.
 
 | Method | Path                        | Auth   | Description                                                                    |
 | ------ | --------------------------- | ------ | ---------------------------------------------------------------------------------- |
+| `GET`  | `/usage`                    | Public | How many visible entries of each media type use each value: `{media_type: {studio: {id: n}, publisher: {id: n}, person: {role: {id: n}}, option: {id: n}}}`, ids being the `system_id`s the studio, publisher, person and options lists carry. A count is of **entries**, not rows (a studio credited twice on one entry counts once; a vocabulary value counts every `media_tag` field of the entry together); a person is counted per role. A value no visible entry of a type uses has no key under that type. An entry hidden from the viewer by a content label is not counted, and a type the viewer lacks `media_type.<type>` for is absent — the `credit_count` rule. Two `GROUP BY` queries (`media_credit`, `media_tag`, each joined to `media`) plus the hidden-label lookup, whatever the number of values. Only the Add/Modify forms read it, to order their suggestions — see [Admin Pages](frontend/admin-pages.md#suggestion-order); every list endpoint keeps its own order. |
 | `GET`  | `/{media_type}/{entry_id}`  | Public | Returns `{credits: {role: [names...]}, tags: {field: [values...]}}` — only roles/fields with rows are included; a bare entry returns two empty maps. 400 for an unknown `media_type`, 404 if the entry doesn't exist. |
 | `PUT`  | `/{media_type}/{entry_id}`  | Admin  | Replaces the named roles/fields. Body: `{credits: {role: [names...]}, tags: {field: [values...]}}`. A role/field absent from the body is left untouched; one present with an empty list is cleared. Resolves each name to a `person`/`studio`/`publisher`/`system_option` row, creating on miss (dispatched on the role's `target`, which is a three-value axis). 400 for a role/field not valid on this `media_type`. |
 

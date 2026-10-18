@@ -223,6 +223,9 @@ export const endpoints = {
   credits: {
     get: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
     update: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
+    // Per media type, how many entries use each studio, publisher, person
+    // and vocabulary value - the Add/Modify suggestion order.
+    usage: () => "/api/credits/usage",
   },
 
   // A character's other identities (admin-only). `list` takes

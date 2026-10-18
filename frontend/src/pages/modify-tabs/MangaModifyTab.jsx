@@ -13,6 +13,8 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
+import { getIdleSourceValues } from "../../lib/formatters";
+import { ANIME_STUDIO_SOURCE } from "../../config/formFields/fieldMeta";
 import MangaNotes from "../detail/MangaNotes";
 import {
   MANGA_REGIONS,
@@ -338,7 +340,8 @@ export default function MangaModifyTab({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Anime Studio">
           <MultiSelect
-            options={getSourceValues(sources, { kind: "studio" })}
+            options={getSourceValues(sources, ANIME_STUDIO_SOURCE)}
+            idleOptions={getIdleSourceValues(sources, ANIME_STUDIO_SOURCE)}
             value={cmgf.anime_studio}
             onChange={(v) => umg("anime_studio", v)}
             placeholder="Select studio..."

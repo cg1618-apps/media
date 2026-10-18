@@ -27,6 +27,7 @@ import {
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
+import { getIdleSourceValues } from "../../lib/formatters";
 import {
   COMPLETION_LEVELS,
   GAME_COMPLETION_FLAGS,
@@ -91,6 +92,7 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
   const tagField = (key, source, placeholder) => (
     <MultiSelect
       options={getSourceValues(sources, source)}
+      idleOptions={getIdleSourceValues(sources, source)}
       value={f[key]}
       onChange={(v) => u(key, v)}
       placeholder={placeholder}

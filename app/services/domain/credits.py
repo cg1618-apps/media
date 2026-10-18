@@ -17,6 +17,7 @@ from dataclasses import field as dataclass_field
 from typing import Optional, Sequence
 from uuid import UUID
 
+import sqlalchemy as sa
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -1443,4 +1444,99 @@ def credit_summaries(
             media_types=media_types,
             restricted=bool(set(media_types) & gated),
         )
+    return out
+
+
+def credit_usage(db: Session, viewer) -> dict[str, dict]:
+    """
+    How many visible entries of each media type use each studio, publisher,
+    person (per role) and vocabulary value - what the Add and Modify forms
+    order their suggestions by, and the studio scope they filter on.
+
+        {media_type: {"studio": {id: n}, "publisher": {id: n},
+                      "person": {role: {id: n}}, "option": {id: n}}}
+
+    A count is of ENTRIES, not rows: a studio credited twice on one entry
+    counts once, and so does a vocabulary value two fields of one entry use.
+    A person is counted per role, because a person picker is per role. A
+    value no visible entry of a type uses is absent from that type rather
+    than present as 0, so "in scope for this type" is "has a key here".
+
+    Visibility is the credit_count rule (credit_summaries): an entry hidden by
+    a content label is not counted, and a media type the viewer lacks the
+    permission for is left out. Both are applied in SQL, so the answer is two
+    GROUP BY queries - one over media_credit, one over media_tag - however
+    many values there are.
+    """
+    # Imported here for the cycle credit_summaries avoids.
+    from app.services.rbac.enforcement import _hidden_by_label, hidden_label_ids
+    from app.services.rbac.permissions import media_type_perm
+    from app.utils.media_resolver import MEDIA_TABLES
+
+    allowed = [
+        media_type
+        for media_type in MEDIA_TABLES
+        if viewer is None or viewer.has(media_type_perm(media_type))
+    ]
+    if not allowed:
+        return {}
+    hidden = hidden_label_ids(db, viewer) if viewer is not None else []
+
+    def visible(query, entry_column):
+        query = query.join(models.Media, entry_column == models.Media.system_id)
+        query = query.filter(models.Media.media_type.in_(allowed))
+        if hidden:
+            query = query.filter(~_hidden_by_label(models.Media.system_id, hidden))
+        return query
+
+    # The role is a grouping key for people only: a company row groups under
+    # NULL, so the same studio under two role keys is still one distinct
+    # count of entries.
+    credit = models.MediaCredit
+    person_role = sa.case((credit.person_id.isnot(None), credit.role), else_=None)
+    credit_keys = (
+        models.Media.media_type,
+        person_role,
+        credit.person_id,
+        credit.studio_id,
+        credit.publisher_id,
+    )
+    credit_rows = (
+        visible(
+            db.query(*credit_keys, sa.func.count(sa.distinct(credit.media_id))),
+            credit.media_id,
+        )
+        .group_by(*credit_keys)
+        .all()
+    )
+    tag = models.MediaTag
+    tag_rows = (
+        visible(
+            db.query(
+                models.Media.media_type,
+                tag.option_id,
+                sa.func.count(sa.distinct(tag.media_id)),
+            ),
+            tag.media_id,
+        )
+        .group_by(models.Media.media_type, tag.option_id)
+        .all()
+    )
+
+    out: dict[str, dict] = {}
+
+    def bucket(media_type: str) -> dict:
+        return out.setdefault(
+            media_type, {"studio": {}, "publisher": {}, "person": {}, "option": {}}
+        )
+
+    for media_type, role, person_id, studio_id, publisher_id, count in credit_rows:
+        if person_id is not None:
+            bucket(media_type)["person"].setdefault(role, {})[str(person_id)] = count
+        elif studio_id is not None:
+            bucket(media_type)["studio"][str(studio_id)] = count
+        elif publisher_id is not None:
+            bucket(media_type)["publisher"][str(publisher_id)] = count
+    for media_type, option_id, count in tag_rows:
+        bucket(media_type)["option"][str(option_id)] = count
     return out

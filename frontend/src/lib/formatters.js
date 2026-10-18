@@ -1,6 +1,7 @@
 // Misc display/data helpers: length, release, progress, ratings, options, type parsing.
 import { formatReleaseDate } from "./releaseDate";
 import { arcProgressView, effectiveProgressDisplay } from "./novelUnits";
+import { byAppearances, usageCounts } from "./suggestionOrder";
 
 // The Bahamut row lives in `sources` (kind "access", bucket "main") rather
 // than the old boolean-plus-URL column pair the entry table used to carry.
@@ -45,66 +46,86 @@ export function getRatingWeight(rating) {
 /**
  * Suggestion list for one "tags" field, given its `source` descriptor from
  * fieldMeta.js and the page's fetched `sources` bag ({ options, people,
- * studios } — see lib/sources.js).
+ * studios, publishers, usage } — see lib/sources.js).
  *
  * `kind` selects where the values come from:
  *   option -> sources.options, filtered by category (+ scope and usage, when given)
  *   person -> sources.people[`${role}|${scope||""}`] — already server-filtered
- *   studio -> sources.studios, unfiltered (studios have no role/scope concept)
+ *   studio -> sources.studios, unfiltered here (studios have no role/scope
+ *             concept; the empty-box scope is getIdleSourceValues below)
  *   publisher -> sources.publishers[scope] — already server-filtered, because
  *                a publisher IS scoped to the media types it is offered on
+ *
+ * Every value is returned, whatever its scope: ensureSourceValues reads this
+ * list to decide what already exists, and a value left out would be created a
+ * second time. Where lib/suggestionOrder.js has counts for the field, the list
+ * is most-used first (ties by name); otherwise it keeps the endpoint's order.
  */
 export function getSourceValues(sources, source) {
+  return orderedSourceItems(sources, source).map((item) => item.name);
+}
+
+/**
+ * What a tags field offers before anything is typed, or undefined for "the
+ * whole list" (MultiSelect's default). Only a studio field narrows: it offers
+ * the studios credited on a visible entry of the form's media type, most
+ * credited first. Typing still reaches every studio - MultiSelect matches the
+ * typed text against getSourceValues - so one that has only worked on another
+ * type is a few letters away, after the in-scope matches. Without counts (the
+ * usage request failed) nothing narrows.
+ */
+export function getIdleSourceValues(sources, source) {
+  if (source?.kind !== "studio") return undefined;
+  const counts = usageCounts(sources, source);
+  if (!counts) return undefined;
+  return orderedSourceItems(sources, source)
+    .filter((item) => counts[item.id] > 0)
+    .map((item) => item.name);
+}
+
+function orderedSourceItems(sources, source) {
+  const items = sourceItems(sources, source);
+  const counts = usageCounts(sources, source);
+  return counts ? byAppearances(items, counts) : items;
+}
+
+// { id, name } for every value of one descriptor, in the endpoint's order.
+// Empty names are dropped: they would collide with a typed value in the
+// Set-based "already exists" check in ensureSourceValues.js. display_name is
+// computed server-side for people, studios and publishers - do not re-derive
+// it here, that would be a second source of truth.
+function sourceItems(sources, source) {
   if (!source || !sources) return [];
+  let rows = [];
+  let nameOf = (row) => row.display_name;
   if (source.kind === "option") {
-    return (sources.options || [])
-      .filter(
-        (o) =>
-          o.category === source.category &&
-          (!source.scope ||
-            !o.scopes ||
-            o.scopes.length === 0 ||
-            o.scopes.includes(source.scope)) &&
-          (!source.usage ||
-            !o.usages ||
-            o.usages.length === 0 ||
-            o.usages.includes(source.usage)),
-      )
-      .map((o) => o.value);
+    nameOf = (row) => row.value;
+    rows = (sources.options || []).filter(
+      (o) =>
+        o.category === source.category &&
+        (!source.scope ||
+          !o.scopes ||
+          o.scopes.length === 0 ||
+          o.scopes.includes(source.scope)) &&
+        (!source.usage ||
+          !o.usages ||
+          o.usages.length === 0 ||
+          o.usages.includes(source.usage)),
+    );
+  } else if (source.kind === "person") {
+    rows = sources.people?.[`${source.role}|${source.scope || ""}`] || [];
+  } else if (source.kind === "studio") {
+    rows = sources.studios || [];
+  } else if (source.kind === "publisher") {
+    // A map keyed by media type: fetchAllSources asks /api/publisher once per
+    // scope. An unscoped descriptor (the COMMON_FIELD_META fallback no live
+    // type uses) finds no key and suggests nothing, rather than falling back
+    // to every publisher.
+    rows = sources.publishers?.[source.scope] || [];
   }
-  if (source.kind === "person") {
-    // display_name is computed server-side (PersonResponse) over four name
-    // columns and a per-row choice - do not re-derive it here. Empty values
-    // are dropped for the same reason as studios: they would collide with a
-    // typed value in the Set-based "already exists" check.
-    const key = `${source.role}|${source.scope || ""}`;
-    return (sources.people?.[key] || [])
-      .map((p) => p.display_name)
-      .filter((name) => !!name);
-  }
-  if (source.kind === "studio") {
-    // display_name is computed server-side (StudioResponse) - do not
-    // re-derive it here, that would be a second source of truth. Filter out
-    // empty values so a nameless studio can't collide with a typed value in
-    // the Set-based "already exists" check in ensureSourceValues.js.
-    return (sources.studios || [])
-      .map((s) => s.display_name)
-      .filter((name) => !!name);
-  }
-  if (source.kind === "publisher") {
-    // display_name is computed server-side (PublisherResponse), exactly as it
-    // is for a studio - do not re-derive it here.
-    //
-    // Unlike studios, the bag is a map keyed by media type: fetchAllSources
-    // asks /api/publisher once per scope, so the list this returns is already
-    // narrowed to the publishers offered on this type. An unscoped descriptor
-    // (the COMMON_FIELD_META fallback no live type uses) finds no key and
-    // suggests nothing, rather than falling back to every publisher.
-    return (sources.publishers?.[source.scope] || [])
-      .map((p) => p.display_name)
-      .filter((name) => !!name);
-  }
-  return [];
+  return rows
+    .map((row) => ({ id: row.system_id, name: nameOf(row) }))
+    .filter((item) => !!item.name);
 }
 
 export function formatLength(minutes) {
