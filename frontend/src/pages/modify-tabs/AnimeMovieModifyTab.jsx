@@ -12,6 +12,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import { getSourceValues } from "../../utils/media";
+import { getIdleSourceValues } from "../../lib/formatters";
 import AnimeMovieNotes from "../detail/AnimeMovieNotes";
 import {
   AIRING_STATUSES,
@@ -224,6 +225,7 @@ export default function AnimeMovieModifyTab({
         <Field label="Studio">
           <MultiSelect
             options={getSourceValues(sources, { kind: "studio" })}
+            idleOptions={getIdleSourceValues(sources, { kind: "studio" })}
             value={amf.studio}
             onChange={(v) => uam("studio", v)}
             placeholder="Select studio..."

@@ -13,6 +13,8 @@ import {
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, parseTypes, getSourceValues } from "../../utils/media";
+import { getIdleSourceValues } from "../../lib/formatters";
+import { ANIME_STUDIO_SOURCE } from "../../config/formFields/fieldMeta";
 import {
   IS_MAIN,
   MANGA_REGIONS,
@@ -450,7 +452,8 @@ export default function MangaAddTab({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Anime Studio">
           <MultiSelect
-            options={getSourceValues(sources, { kind: "studio" })}
+            options={getSourceValues(sources, ANIME_STUDIO_SOURCE)}
+            idleOptions={getIdleSourceValues(sources, ANIME_STUDIO_SOURCE)}
             value={mgf.anime_studio}
             onChange={(v) => umg("anime_studio", v)}
             placeholder="Select studio..."

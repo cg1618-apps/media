@@ -107,6 +107,7 @@ import { CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { fetchAllSources } from "../../lib/sources";
+import { withMediaType } from "../../lib/suggestionOrder";
 import { characterTagsPayload, firstsPayload } from "../../lib/characterForm";
 import { enrichEntry } from "../../lib/enrich";
 
@@ -3419,6 +3420,10 @@ export default function Add() {
     ]),
   ].sort();
 
+  // The open tab's bag: its tags fields order by, and its studio field
+  // scopes on, this media type's counts (lib/suggestionOrder.js).
+  const formSources = withMediaType(sources, activeTab);
+
   if (sourcesLoading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -3495,7 +3500,7 @@ export default function Add() {
             allFranchises={allFranchises}
             franchiseItems={franchiseItems}
             seriesItemsForAnime={seriesItems}
-            sources={sources}
+            sources={formSources}
           />
         )}
 
@@ -3516,7 +3521,7 @@ export default function Add() {
             applyMalPick={applyAnimeMovieMalPick}
             allFranchises={allFranchises}
             franchiseItems={franchiseItems}
-            sources={sources}
+            sources={formSources}
           />
         )}
 
@@ -3537,7 +3542,7 @@ export default function Add() {
             applyTmdbPick={applyMovieTmdbPick}
             allFranchises={allFranchises}
             seriesItemsForMovie={seriesItemsForMovie}
-            sources={sources}
+            sources={formSources}
           />
         )}
 
@@ -3558,7 +3563,7 @@ export default function Add() {
             applyTmdbPick={applyTvShowTmdbPick}
             allFranchises={allFranchises}
             seriesItemsForTvShow={seriesItemsForTvShow}
-            sources={sources}
+            sources={formSources}
           />
         )}
 
@@ -3579,7 +3584,7 @@ export default function Add() {
             applyTmdbPick={applyCartoonTmdbPick}
             allFranchises={allFranchises}
             seriesItemsForCartoon={seriesItemsForCartoon}
-            sources={sources}
+            sources={formSources}
           />
         )}
 
@@ -3600,7 +3605,7 @@ export default function Add() {
             applyMalPick={applyMangaMalPick}
             allFranchises={allFranchises}
             seriesItemsForManga={seriesItemsForManga}
-            sources={sources}
+            sources={formSources}
           />
         )}
 
@@ -3622,7 +3627,7 @@ export default function Add() {
             applyOpenLibraryPick={applyNovelOpenLibraryPick}
             allFranchises={allFranchises}
             seriesItemsForNovel={seriesItemsForNovel}
-            sources={sources}
+            sources={formSources}
           />
         )}
 
@@ -3643,7 +3648,7 @@ export default function Add() {
             applyComicVinePick={applyComicVinePick}
             allFranchises={allFranchises}
             seriesItemsForComic={seriesItemsForComic}
-            sources={sources}
+            sources={formSources}
           />
         )}
 
@@ -3656,7 +3661,7 @@ export default function Add() {
             allFranchises={allFranchises}
             allGames={allGames}
             seriesItemsForGame={seriesItemsForGame}
-            sources={sources}
+            sources={formSources}
             gamesLoading={isLoading("game")}
             applyGameEntryAutofill={applyGameEntryAutofill}
             applyIgdbPick={applyGameIgdbPick}
@@ -3675,7 +3680,7 @@ export default function Add() {
             hComicsLoading={isLoading("h-comic")}
             applyHComicEntryAutofill={applyHComicEntryAutofill}
             seriesItemsForHComic={seriesItemsForHComic}
-            sources={sources}
+            sources={formSources}
           />
         )}
 
@@ -3689,7 +3694,7 @@ export default function Add() {
             allHGames={allHGames}
             hGamesLoading={isLoading("h-game")}
             seriesItemsForHGame={seriesItemsForHGame}
-            sources={sources}
+            sources={formSources}
             applyIgdbPick={applyHGameIgdbPick}
             applyHGameEntryAutofill={applyHGameEntryAutofill}
           />
@@ -3706,7 +3711,7 @@ export default function Add() {
             hentaiLoading={isLoading("hentai")}
             applyHentaiEntryAutofill={applyHentaiEntryAutofill}
             seriesItemsForHentai={seriesItemsForHentai}
-            sources={sources}
+            sources={formSources}
           />
         )}
 
@@ -3796,7 +3801,7 @@ export default function Add() {
             characterForm={characterForm}
             ucf={ucf}
             applyMalPick={applyCharacterMalPick}
-            sources={sources}
+            sources={formSources}
           />
         )}
 

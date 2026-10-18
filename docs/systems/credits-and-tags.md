@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-17
+Last verified: 2026-10-18
 
 ## What this is for
 
@@ -249,6 +249,7 @@ Sheets restore — so a Tenrai name and a hand-typed name land on the same row.
 | `credit_names` / `tag_values` | One entry, one role/field, stored order. |
 | `credits_to_sheet_value` / `tags_to_sheet_value` | `", ".join(...)` of the above. |
 | `link_values_for_entries(db, media_type, ids)` | Batch read: `{entry_id: {key: [names]}}` in a **fixed five queries** regardless of entry count (the N+1 avoider). |
+| `credit_usage(db, viewer)` | Per media type, how many visible entries use each studio, publisher, person (per role) and vocabulary value, keyed by `system_id` — the Add/Modify suggestion order. Two `GROUP BY` queries (`media_credit`, `media_tag`) plus the hidden-label lookup; label-hidden entries and types the viewer lacks are not counted. Served by `GET /api/credits/usage` ([api.md](../api.md#credits--apicredits)). |
 | `legacy_link_fields(media_type)` | `(payload_attr, "credit"/"tag", key)` triples using the legacy names. |
 | `attach_link_fields(db, media_type, entries)` | Sets the legacy-named, comma-joined attributes (`studio`, `director`, `music`, `distributor_tw`, `era` …) on ORM entries in place, like `attach_plan_flag`, plus the three linkable shapes: `credit_refs` (`{role: [{system_id, display_name, label}]}`, every type), `studio_refs` (anime and anime-movie) and `publisher_refs` (any media type whose `credit_roles_for` includes `publisher` — derived, not hand-listed). Both come out of the same batched fetch, so they cost no extra query. Called from `_factory.py` on detail (one entry) and list (many) so public pages keep reading one response. These live on `*Response` schemas only, never on Create/Update bases — a write naming them is rejected, not silently stored. |
 | `sheet_link_headers(media_type)` / `sheet_link_values` / `sheet_link_rows` | Sheets export: headers via `sheet_column_for`, appended at the **end** of each entry tab (restore matches by header name, not position). `sheet_link_rows` is the batched form Backup uses. |

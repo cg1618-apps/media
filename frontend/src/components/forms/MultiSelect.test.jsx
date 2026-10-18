@@ -42,6 +42,39 @@ describe("MultiSelect", () => {
     expect(onChange).toHaveBeenLastCalledWith("Netflix");
   });
 
+  it("offers idleOptions with an empty box, and every option once typing", async () => {
+    // Crunchyroll is an option but not idle: it must be absent until typed,
+    // and then found - the same option both ways.
+    renderPicker({ limit: null, idleOptions: ["Netflix", "Disney+"] });
+    await userEvent.click(screen.getByRole("combobox"));
+    expect(
+      screen.getAllByRole("option").map((o) => o.textContent),
+    ).toEqual(["Netflix", "Disney+"]);
+
+    await userEvent.type(screen.getByRole("combobox"), "cr");
+    expect(screen.getByRole("option", { name: "Crunchyroll" })).toBeInTheDocument();
+  });
+
+  it("puts prefix matches first while typing, keeping the given order inside each", async () => {
+    // Given order is by appearances; "st" starts two of them and is merely
+    // contained in the most used one, which therefore drops behind both.
+    renderPicker({
+      limit: null,
+      options: ["Kyoto Studio", "Studio Shaft", "Hentai Studio", "Studio Bones"],
+    });
+    await userEvent.type(screen.getByRole("combobox"), "st");
+    const matches = screen
+      .getAllByRole("option")
+      .map((o) => o.textContent)
+      .filter((text) => !text.startsWith("Add "));
+    expect(matches).toEqual([
+      "Studio Shaft",
+      "Studio Bones",
+      "Kyoto Studio",
+      "Hentai Studio",
+    ]);
+  });
+
   it("adds without limit when max is not given", async () => {
     const onChange = renderPicker({ value: "Disney+", limit: null });
     await userEvent.click(screen.getByRole("combobox"));

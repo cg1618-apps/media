@@ -27,6 +27,7 @@ import {
 } from "../../config/fieldOptions";
 import { HENTAI_SOURCES } from "../../lib/hentaiForm";
 import { getDisplayName, getSourceValues } from "../../utils/media";
+import { getIdleSourceValues } from "../../lib/formatters";
 
 export { defaultHentai } from "../../config/formFactories";
 
@@ -58,6 +59,7 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
   const tagField = (key, placeholder) => (
     <MultiSelect
       options={getSourceValues(sources, HENTAI_SOURCES[key])}
+      idleOptions={getIdleSourceValues(sources, HENTAI_SOURCES[key])}
       value={f[key]}
       onChange={(v) => u(key, v)}
       placeholder={placeholder}

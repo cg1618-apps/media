@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useId } from "react";
 
 import { isEnterKey, useEnterSubmitGuard } from "../../hooks/useEnterToAdd";
+import { rankByMatch } from "../../lib/suggest";
 import {
   SuggestAction,
   SuggestItem,
@@ -21,6 +22,12 @@ import {
 //   max: number | null        — max values that can be SELECTED (default
 //                                unlimited); picking one more replaces the
 //                                oldest, so max=1 behaves as a single select
+//   idleOptions: string[]     — what an empty box offers (default: options);
+//                                typing always searches all of `options`
+//
+// Typed text is matched exact, then prefix, then contains (lib/suggest.js's
+// rankByMatch), each tier keeping the order `options` came in - so a list
+// given most-used first stays that way inside each tier.
 //
 // The list is the shared SuggestList, anchored under the whole pill box.
 // ArrowUp/ArrowDown highlight an option and Enter adds it; Enter with nothing
@@ -37,6 +44,7 @@ export default function MultiSelect({
   placeholder = "Select...",
   limit = 10,
   max = null,
+  idleOptions,
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -75,8 +83,8 @@ export default function MultiSelect({
   const available = options.filter((o) => !selected.includes(o));
   const cap = (arr) => (limit == null ? arr : arr.slice(0, limit));
   const filtered = query
-    ? cap(available.filter((o) => cleanStr(o).includes(cleanStr(query))))
-    : cap(available);
+    ? cap(rankByMatch(available, cleanStr(query), cleanStr))
+    : cap((idleOptions ?? options).filter((o) => !selected.includes(o)));
 
   const typedText = query.trim();
   const typedKey = typedText.toLowerCase();

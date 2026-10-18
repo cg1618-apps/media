@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-17
+Last verified: 2026-10-18
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -185,6 +185,46 @@ and meme are excluded — those four have no factory in
 **Data loaded on mount.** Collections, franchises and series (read by every
 tab's pickers and by `buildAutofillPatch`), the form defaults and the
 suggestion sources — all started together, in one wave.
+
+### Suggestion order
+
+The tags fields of the Add and Modify forms (one `MultiSelect` each) order
+their suggestions by **appearances**: how many entries of the form's media
+type use the value, most first, ties alphabetical. The counts are
+`GET /api/credits/usage`, fetched once with the suggestion sources
+(`fetchAllSources`) and refetched only when those are; typing never asks the
+server anything. The tab gets the bag with its media type attached
+(`withMediaType(sources, activeTab)`), and `lib/suggestionOrder.js` picks the
+counts.
+
+| Field | Values from | Ordered by |
+| --- | --- | --- |
+| Studio (anime, anime-movie, game, h-game, hentai), manga's Anime Studio | `/api/studio/`, every studio | studio credits on entries of the type — anime for manga's Anime Studio, since it names the adaptation's studio |
+| Distributor / Publisher | `/api/publisher/?scope=<type>` (only publishers whose scope names the type) | publisher credits on the type |
+| Director, Producer, Music / Composer, and every other person field | `/api/person/?role=&scope=<type>` | credits **in that role** on the type |
+| Genre Main, Genre Sub, Label, Game Genre, the three H genres | `/api/options/`, by category | `media_tag` rows on the type, any field |
+| Every other vocabulary (platforms, imprints, themes …) | `/api/options/`, by category | unchanged: the vocabulary's own `sort_order`, which an admin curates |
+
+**A studio field scopes its empty box.** Before anything is typed it offers
+only the studios credited on a visible entry of the form's type
+(`getIdleSourceValues`): a studio that has only made hentai is not offered on
+an anime with an empty box. Typed text searches **every** studio, so that one
+is a few letters away. Publishers and people need no such rule — their lists
+are already narrowed server-side by `publisher_scope` and `person_role`, so an
+out-of-scope one is not offered even when typed.
+
+**Typed text** ranks the matches exact, then prefix, then contains (on the
+same punctuation-blind match `MultiSelect` always used), keeping the
+appearances order inside each tier — so on an anime, "st" offers the studios
+starting with it, most-credited first, then those merely containing it, and an
+uncredited studio last within its tier.
+
+When the counts cannot be read, every list keeps the order its endpoint gave
+it and a studio field offers every studio. `/defaults` reads the same bag
+without a media type attached, so only its fields whose descriptor names a
+type (people, publishers, scoped vocabularies) are ordered this way, and its
+studio fields are not narrowed. The library, search and header search pages
+never read the counts.
 
 **The twelve media lists are fetched per tab**, by `hooks/useEntryLists.js`: the
 visible tab's list goes out first, and another tab's list is fetched the first

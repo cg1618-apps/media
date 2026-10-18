@@ -53,6 +53,21 @@ def _resolve_entry(db: Session, media_type: str, entry_id: UUID, viewer):
     return entry
 
 
+@router.get("/usage", summary="How many entries of each type use each value")
+def get_credit_usage(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """
+    `{media_type: {studio, publisher, person: {role}, option}}`, each a map
+    of id to the number of visible entries of that type using it. The Add
+    and Modify forms fetch it once, beside their suggestion lists, and order
+    those lists by it; the library and search pages never read it. See
+    credits_service.credit_usage.
+    """
+    return credits_service.credit_usage(db, viewer)
+
+
 @router.get("/{media_type}/{entry_id}", summary="Get an entry's credits and tags")
 def get_credits(
     media_type: str,

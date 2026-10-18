@@ -3466,3 +3466,47 @@ the page asks.
   bucket goes through `apply_shared_visibility` exactly as
   `GET /api/character/` does - one whose every casting is on a hidden entry is
   absent.
+
+### Form suggestions are ordered by appearances on the form's media type (2026-10-18)
+
+The Add and Modify tags fields used to offer their values alphabetically
+(people, studios, publishers) or in `sort_order` (vocabularies). The owner
+asked for the most-used values first, and for a studio field's empty box to
+offer only the studios of the entry's own type.
+
+**What "appearances" counts.** The number of **entries of the form's media
+type** that use the value, among those the viewer can see — not the value's
+total across every type, and not rows. Per type because that is the scope the
+owner's studio rule already names: the studio most used on hentai is not the
+one an anime form wants first. Entries rather than rows so a value used twice
+on one entry (a studio under two role keys, a vocabulary value in two fields)
+counts once. People are counted **per role**, because a person picker is per
+role: a prolific director who once composed is not the first composer.
+Label-hidden entries and types the viewer lacks are left out, the
+`credit_count` rule, so a narrow mode cannot learn from an order what it
+cannot read. The manga form's Anime Studio field counts under anime: it names
+the adaptation's studio, and no studio is credited on a manga.
+
+**Which vocabularies.** Only the genre and label ones (Genre Main, Genre Sub,
+Label, Game Genre, the H genres). The rest — platforms, imprints, themes,
+modes — keep their admin `sort_order`, which is curated; reordering them by
+use would discard that ordering without being asked to.
+
+**How it is served.** One endpoint, `GET /api/credits/usage`, for every type
+at once: two `GROUP BY` queries (media_credit, media_tag) plus the hidden-label
+lookup, so the cost does not grow with the number of values. The forms fetch
+it once beside their suggestion lists and sort client-side, typing included.
+A separate endpoint rather than a parameter on the list endpoints because the
+library, search and entity pages read those lists in their own order, and
+the counts for one form come from several of them; the lists themselves are
+untouched.
+
+**Studio scope is the empty box only.** A studio has no declared scope (no
+`studio_scope` table, unlike `publisher_scope` and `person_role`), so "in
+scope" is read from the counts: credited on a visible entry of the type. The
+empty box offers those; typed text searches every studio, exact and prefix
+matches first, then appearances, so a studio new to the type is still
+reachable. Publishers and people keep their stricter, declared scope — an
+out-of-scope publisher is not offered even when typed — because that scope is
+an admin's statement ("a games publisher must not be suggested as an anime
+distributor"), not an inference from history.

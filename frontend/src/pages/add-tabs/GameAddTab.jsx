@@ -21,6 +21,7 @@ import {
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
+import { getIdleSourceValues } from "../../lib/formatters";
 import {
   COMPLETION_LEVELS,
   GAME_COMPLETION_FLAGS,
@@ -57,6 +58,7 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
   const tagField = (key, source, placeholder) => (
     <MultiSelect
       options={getSourceValues(sources, source)}
+      idleOptions={getIdleSourceValues(sources, source)}
       value={f[key]}
       onChange={(v) => u(key, v)}
       placeholder={placeholder}
