@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-17
+Last verified: 2026-10-18
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -179,8 +179,10 @@ matches are lifted to the top. Enter navigates to `/search?q=…[&scope=…]`; a
 result click routes to the entry's page (`/seasonal/<encoded id>` for seasons,
 `/person/:id`, `/studio/:id` and `/publisher/:id` for entities). Comic display
 names are EN-first; a person, studio or publisher row shows the
-server-resolved `display_name` and its credit count as the secondary line. **Characters are not searchable** — by design,
-there is no character scope. The `sheet` variant (the phone overlay) fills its
+server-resolved `display_name` and its credit count as the secondary line. The
+dropdown has no characters: it does not send `characters=true`, so its
+response carries no `character` bucket, and there is no character scope —
+characters are found on the `/search` page's Characters tab. The `sheet` variant (the phone overlay) fills its
 row, focuses itself, and uses a 16px input so iOS does not zoom the page on
 focus. It calls `onDone` after any search that navigates.
 
@@ -310,38 +312,50 @@ Cards cap at the total and toast "Cannot exceed total episodes/volumes/…".
 
 ### Search — `/search`
 
-File `pages/public/Search.jsx`. Reads `?q` and `?scope` (default `all`).
-`useApiQuery(["api","search"], "/api/search/", { params: { q, scope }, enabled: hasQuery })`
-→ effective key `["api","search",{q,scope}]`. The response is
-`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, game, "h-comic", "h-game", hentai, person, studio, publisher}`
+File `pages/public/Search.jsx`. Reads `?q`, `?scope` (default `all`) and
+`?tab`.
+`useApiQuery(["api","search"], "/api/search/", { params: { q, scope, characters: true }, enabled: hasQuery })`
+→ effective key `["api","search",{q,scope,characters}]`. The response is
+`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, game, "h-comic", "h-game", hentai, person, studio, publisher, character}`
 plus `related_franchises` (the franchises of the matched anime — used as
 filter pills, not name matches); the three gated buckets are left out for a
-session that cannot see the type and read as `[]`. Results are copied into local state so a
-card's `onUpdated` can replace a row without a refetch.
+session that cannot see the type and read as `[]`. `characters: true` is what
+adds the `character` bucket; this page is the only caller that sends it.
+Results are copied into local state so a card's `onUpdated` can replace a row
+without a refetch.
 
-Layout: sticky header "Search Results for “q”" + scope pill + a count line
-("n collections · n anime · …", non-empty buckets only); then, in order and
-only when the scope allows and the bucket is non-empty: **Collections**
-(`TierCard` → `/collection/{id}`), **Seasonal** (pill buttons →
-`/seasonal/{id}`), a franchise pill row (`CollapsiblePillRow`, "All Results"
-+ one per related franchise; filters franchises/series/anime by
-`franchise_id`), **Franchises** (`TierCard` labelled "{franchise_type}
-Franchise"), **Series**, **Anime** (sub-grouped TV / ONA, Movies, Other by
-`airing_type`), **Anime Movies**, **Movies**, **TV Shows**, **Cartoons**,
-**Manga**, **Novel**, **Comic**, **Game**, **H-Comic**, **H-Game**,
-**Hentai** — all `MediaCard` grids — and last
-**People**, **Studios** and **Publishers**, `PersonCard` / `StudioCard` /
-`PublisherCard` grids (`components/cards/StaffCard.jsx`, the same cards the
-three libraries use) linking to `/person/:id`, `/studio/:id` and
-`/publisher/:id`. Staff sit below every media section because a name match
-ranks below a title match; characters have no section at all, being
-unsearchable by design. The Publishers section landed with the games frontend,
-closing a gap the Publisher entity had left: the API had returned a
-`publisher` bucket and `NavSearch` had rendered it, but this page had no
-mention of publishers at all. `SCOPE_LABELS` moved to a module-level export at
-the same time so a test can assert the page and the API agree on the bucket
-keys without rendering the page. Empty query shows a "No Search Query" card.
-Admin-only behaviour comes from `MediaCard` itself.
+Layout: a sticky header "Search Results for “q”" + scope pill + a count line
+("n collections · n anime · …", non-empty buckets only), and under it a tab
+bar — `HubTabs` (`components/hub/HubChrome.jsx`), the hub pages' underline
+tabs, with one group labelled "Results" and a count on each tab:
+
+- **Media** — in order, only when the scope allows and the bucket is
+  non-empty: **Collections** (`TierCard` → `/collection/{id}`), **Seasonal**
+  (pill buttons → `/seasonal/{id}`), a franchise pill row
+  (`CollapsiblePillRow`, "All Results" + one per related franchise; filters
+  franchises/series/anime by `franchise_id`), **Franchises** (`TierCard`
+  labelled "{franchise_type} Franchise"), **Series**, **Anime** (sub-grouped
+  TV / ONA, Movies, Other by `airing_type`), **Anime Movies**, **Movies**,
+  **TV Shows**, **Cartoons**, **Manga**, **Novel**, **Comic**, **Game**,
+  **H-Comic**, **H-Game**, **Hentai** — all `MediaCard` grids.
+- **People & companies** — **People**, **Studios** and **Publishers**,
+  `PersonCard` / `StudioCard` / `PublisherCard` grids
+  (`components/cards/StaffCard.jsx`, the same cards the three libraries use)
+  linking to `/person/:id`, `/studio/:id` and `/publisher/:id`.
+- **Characters** — a `CharacterCard` grid (`components/cards/CharacterCard.jsx`,
+  the character library's card) linking to `/character/:id`. One card per
+  character: identities are not separate results.
+
+A tab with no results is not drawn, as on the hub pages, and nothing is
+drawn when every tab is empty. The active tab is `?tab=` (`media`, `people`,
+`characters`) when that tab has results, and otherwise the first tab that
+does — Media unless it is empty — so a scope naming one staff type opens on
+People & companies. Choosing a tab writes `?tab=` and keeps `q` and `scope`.
+Characters are searched at scope `all` only, so any narrower scope leaves
+that tab out. `SCOPE_LABELS` and `SEARCH_TABS` are module-level exports so a
+test can assert the page and the API agree on the keys without rendering the
+page. Empty query shows a "No Search Query" card. Admin-only behaviour comes
+from `MediaCard` itself.
 
 ### Library — `/library/:type`
 

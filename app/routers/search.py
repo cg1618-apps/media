@@ -56,11 +56,13 @@ class SearchBuckets(BaseModel):
         default=None, alias="h-game"
     )
     seasonal: List[schemas.SeasonalResponse] = []
-    # Staff. Ranked below the media buckets by the frontend, and characters are
-    # deliberately not here - see services/domain/search.py.
+    # Staff. Shown on their own tab by the search page, after the media tab.
     person: List[schemas.PersonResponse] = []
     studio: List[schemas.StudioResponse] = []
     publisher: List[schemas.PublisherResponse] = []
+    # Only when the request asks for it (`characters=true`); None otherwise,
+    # which _drop_absent leaves out, so the nav dropdown never sees the key.
+    character: Optional[List[schemas.CharacterResponse]] = None
 
     # The bucket keys the frontend uses are hyphenated media-type keys, but
     # "anime-movie" is not a Python identifier. The aliases keep the wire format
@@ -90,17 +92,24 @@ def search_everything(
     q: Optional[str] = Query(default="", description="Search text."),
     scope: Scope = Query(default=Scope("all"), description="A media type, or 'all'."),
     limit: int = Query(default=500, ge=1, le=2000, description="Cap per bucket."),
+    characters: bool = Query(
+        default=False,
+        description="Add a `character` bucket, searched at scope 'all' only.",
+    ),
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
     """
-    Every entry, group, and season whose name matches `q`.
+    Every entry, group, season, and staff record whose name matches `q` -
+    and every character too, when `characters` is true.
 
     Query and column are both stripped of case, whitespace, and punctuation
     before matching, so "re zero" finds "Re:Zero". An empty or all-punctuation
     query returns empty buckets rather than the whole collection.
     """
-    buckets, related = search(db, viewer, q or "", scope.value, limit)
+    buckets, related = search(
+        db, viewer, q or "", scope.value, limit, include_characters=characters
+    )
     return SearchResponse(
         query=q or "",
         scope=scope.value,

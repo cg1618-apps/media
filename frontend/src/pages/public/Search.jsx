@@ -2,12 +2,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import CharacterCard from "../../components/cards/CharacterCard";
 import MediaCard from "../../components/cards/MediaCard";
 import {
   PersonCard,
   PublisherCard,
   StudioCard,
 } from "../../components/cards/StaffCard";
+import { HubTabs } from "../../components/hub/HubChrome";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import CollapsibleCardGrid from "../../components/layout/CollapsibleCardGrid";
@@ -41,6 +43,23 @@ export const SCOPE_LABELS = {
   person: "Person",
   studio: "Studio",
   publisher: "Publisher",
+};
+
+// The page's three tabs, in order. `key` is the `?tab=` value; the label is
+// what the tab bar shows. Media is first, so it is the default whenever it
+// has results; a tab with nothing in it is not drawn, as on the hub pages.
+export const SEARCH_TABS = [
+  { key: "media", label: "Media" },
+  { key: "people", label: "People & companies" },
+  { key: "characters", label: "Characters" },
+];
+
+// Which tab each summary label's section sits on; anything unlisted is Media.
+const TAB_OF_SUMMARY = {
+  people: "people",
+  studios: "people",
+  publishers: "people",
+  characters: "characters",
 };
 
 const GRID_CLS =
@@ -109,9 +128,10 @@ function TierCard({ label, titles, onClick }) {
 }
 
 export default function Search() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q") || "";
   const scope = searchParams.get("scope") || "all";
+  const requestedTab = searchParams.get("tab");
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
 
@@ -122,8 +142,10 @@ export default function Search() {
   // one bucket per type. This page used to pull up to 2000 rows from each of
   // twelve tables and filter them here, which meant the whole collection
   // crossed the wire to answer a question about a handful of rows.
+  // `characters: true` adds the character bucket, which only this page asks
+  // for - the nav dropdown's answer has none.
   const searchQuery = useApiQuery(["api", "search"], "/api/search/", {
-    params: { q: query, scope },
+    params: { q: query, scope, characters: true },
     enabled: hasQuery,
   });
   const loading = hasQuery && searchQuery.isLoading;
@@ -149,6 +171,7 @@ export default function Search() {
   const [matchedPeople, setMatchedPeople] = useState([]);
   const [matchedStudios, setMatchedStudios] = useState([]);
   const [matchedPublishers, setMatchedPublishers] = useState([]);
+  const [matchedCharacters, setMatchedCharacters] = useState([]);
   const [selectedFranchise, setSelectedFranchise] = useState("all");
 
   const stickyBarRef = useRef(null);
@@ -189,6 +212,7 @@ export default function Search() {
       setMatchedPeople([]);
       setMatchedStudios([]);
       setMatchedPublishers([]);
+      setMatchedCharacters([]);
       return;
     }
     // `?? []` on every bucket: the API adding a searchable type without a
@@ -213,6 +237,7 @@ export default function Search() {
     setMatchedPeople(results.person ?? []);
     setMatchedStudios(results.studio ?? []);
     setMatchedPublishers(results.publisher ?? []);
+    setMatchedCharacters(results.character ?? []);
     // Pills are the franchises the anime results belong to, which is not the
     // same set as the franchises whose own name matched.
     setFilterPillFranchises(searchQuery.data.related_franchises);
@@ -361,7 +386,31 @@ export default function Search() {
     showPerson && ["people", matchedPeople.length],
     showStudio && ["studios", matchedStudios.length],
     showPublisher && ["publishers", matchedPublishers.length],
+    // The server fills this bucket at scope "all" only.
+    ["characters", matchedCharacters.length],
   ].filter((entry) => entry && entry[1] > 0);
+
+  // Each tab counts the sections on it, from the same summary.
+  const tabCounts = { media: 0, people: 0, characters: 0 };
+  for (const [label, count] of summaryCounts) {
+    tabCounts[TAB_OF_SUMMARY[label] ?? "media"] += count;
+  }
+  const visibleTabs = SEARCH_TABS.filter((t) => tabCounts[t.key] > 0);
+  // The URL's tab when it has results; otherwise the first tab that does -
+  // Media, unless it is empty. A scope naming one staff type leaves only the
+  // People & companies tab with anything in it, so that is where it opens.
+  const activeTab = visibleTabs.some((t) => t.key === requestedTab)
+    ? requestedTab
+    : (visibleTabs[0]?.key ?? "media");
+  const tabByLabel = Object.fromEntries(SEARCH_TABS.map((t) => [t.label, t]));
+  const selectTab = (label) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", tabByLabel[label].key);
+    setSearchParams(next);
+  };
+  const onMedia = activeTab === "media";
+  const onPeople = activeTab === "people";
+  const onCharacters = activeTab === "characters";
 
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Searching..." />;
@@ -412,6 +461,22 @@ export default function Search() {
             ))
           )}
         </p>
+        {visibleTabs.length > 0 && (
+          <div className="mt-4">
+            <HubTabs
+              groups={[
+                {
+                  label: "Results",
+                  tabs: visibleTabs.map((t) => t.label),
+                  counted: true,
+                },
+              ]}
+              activeTab={SEARCH_TABS.find((t) => t.key === activeTab)?.label}
+              onSelect={selectTab}
+              getCount={(label) => tabCounts[tabByLabel[label].key]}
+            />
+          </div>
+        )}
       </div>
 
       <div className="space-y-8">
@@ -425,7 +490,7 @@ export default function Search() {
         )}
 
         {/* Collection cards */}
-        {showCollection && matchedCollections.length > 0 && (
+        {onMedia && showCollection && matchedCollections.length > 0 && (
           <div>
             <Eyebrow as="h2" className="mb-3">Collections</Eyebrow>
             <CollapsibleCardGrid
@@ -446,7 +511,7 @@ export default function Search() {
         )}
 
         {/* Seasonal entries */}
-        {showSeasonal && matchedSeasonal.length > 0 && (
+        {onMedia && showSeasonal && matchedSeasonal.length > 0 && (
           <div>
             <Eyebrow as="h2" className="mb-3">Seasonal</Eyebrow>
             <div className="flex flex-wrap gap-2">
@@ -466,7 +531,7 @@ export default function Search() {
         )}
 
         {/* Franchise filter pills */}
-        {showFranchisePills && (
+        {onMedia && showFranchisePills && (
           <CollapsiblePillRow>
             <button
               onClick={() => setSelectedFranchise("all")}
@@ -491,7 +556,7 @@ export default function Search() {
         )}
 
         {/* Franchise cards */}
-        {showFranchise && displayFranchises.length > 0 && (
+        {onMedia && showFranchise && displayFranchises.length > 0 && (
           <div>
             <Eyebrow as="h2" className="mb-3">Franchises</Eyebrow>
             <CollapsibleCardGrid
@@ -516,7 +581,7 @@ export default function Search() {
         )}
 
         {/* Series cards */}
-        {showSeries && displaySeries.length > 0 && (
+        {onMedia && showSeries && displaySeries.length > 0 && (
           <div>
             <Eyebrow as="h2" className="mb-3">Series</Eyebrow>
             <CollapsibleCardGrid
@@ -537,7 +602,7 @@ export default function Search() {
         )}
 
         {/* Anime */}
-        {showAnime && displayAnime.length > 0 && (
+        {onMedia && showAnime && displayAnime.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -583,7 +648,7 @@ export default function Search() {
         )}
 
         {/* Anime Movies */}
-        {showAnimeMovie && matchedAnimeMovies.length > 0 && (
+        {onMedia && showAnimeMovie && matchedAnimeMovies.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -610,7 +675,7 @@ export default function Search() {
         )}
 
         {/* Movies */}
-        {showMovie && matchedMovies.length > 0 && (
+        {onMedia && showMovie && matchedMovies.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -637,7 +702,7 @@ export default function Search() {
         )}
 
         {/* TV Shows */}
-        {showTvShow && matchedTvShows.length > 0 && (
+        {onMedia && showTvShow && matchedTvShows.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -664,7 +729,7 @@ export default function Search() {
         )}
 
         {/* Cartoons */}
-        {showCartoon && matchedCartoons.length > 0 && (
+        {onMedia && showCartoon && matchedCartoons.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -691,7 +756,7 @@ export default function Search() {
         )}
 
         {/* Manga */}
-        {showManga && matchedMangas.length > 0 && (
+        {onMedia && showManga && matchedMangas.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -719,7 +784,7 @@ export default function Search() {
         )}
 
         {/* Novel */}
-        {showNovel && matchedNovels.length > 0 && (
+        {onMedia && showNovel && matchedNovels.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -746,7 +811,7 @@ export default function Search() {
         )}
 
         {/* Comic */}
-        {showComic && matchedComics.length > 0 && (
+        {onMedia && showComic && matchedComics.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -773,7 +838,7 @@ export default function Search() {
         )}
 
         {/* Game */}
-        {showGame && matchedGames.length > 0 && (
+        {onMedia && showGame && matchedGames.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -800,7 +865,7 @@ export default function Search() {
         )}
 
         {/* H-Comic */}
-        {showHComic && matchedHComics.length > 0 && (
+        {onMedia && showHComic && matchedHComics.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -827,7 +892,7 @@ export default function Search() {
         )}
 
         {/* H-Game */}
-        {showHGame && matchedHGames.length > 0 && (
+        {onMedia && showHGame && matchedHGames.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -854,7 +919,7 @@ export default function Search() {
         )}
 
         {/* Hentai */}
-        {showHentai && matchedHentai.length > 0 && (
+        {onMedia && showHentai && matchedHentai.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -880,10 +945,8 @@ export default function Search() {
           </div>
         )}
 
-        {/* People and studios, last: a search is usually about a title, so a
-            name match on a credited person or studio is the weaker answer and
-            sits below every media section. Characters are not searchable. */}
-        {showPerson && matchedPeople.length > 0 && (
+        {/* People & companies tab: people, studios, publishers. */}
+        {onPeople && showPerson && matchedPeople.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -904,7 +967,7 @@ export default function Search() {
           </div>
         )}
 
-        {showStudio && matchedStudios.length > 0 && (
+        {onPeople && showStudio && matchedStudios.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -925,7 +988,7 @@ export default function Search() {
           </div>
         )}
 
-        {showPublisher && matchedPublishers.length > 0 && (
+        {onPeople && showPublisher && matchedPublishers.length > 0 && (
           <div>
             <div
               className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
@@ -941,6 +1004,30 @@ export default function Search() {
             <div className={GRID_CLS}>
               {matchedPublishers.map((pb) => (
                 <PublisherCard key={pb.system_id} publisher={pb} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Characters tab: the character library's card, one per character.
+            An identity is not a result of its own - the search matches the
+            character's names only. */}
+        {onCharacters && matchedCharacters.length > 0 && (
+          <div>
+            <div
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
+              style={{ top: sectionHeaderTop }}
+            >
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Characters
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {matchedCharacters.length} results
+              </span>
+            </div>
+            <div className={GRID_CLS}>
+              {matchedCharacters.map((c) => (
+                <CharacterCard key={c.system_id} character={c} />
               ))}
             </div>
           </div>

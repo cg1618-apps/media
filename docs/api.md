@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-14
+Last verified: 2026-10-18
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1178,7 +1178,7 @@ list endpoints.
 
 | Method | Path | Auth   | Description                                     |
 | ------ | ---- | ------ | ----------------------------------------------- |
-| `GET`  | `/`  | Public | Every entry, group, and season matching a query. |
+| `GET`  | `/`  | Public | Every entry, group, season and staff record matching a query; characters on request. |
 
 **Query parameters**
 
@@ -1187,6 +1187,7 @@ list endpoints.
 | `q`     | `""`    | Search text. Empty or all-punctuation returns empty buckets, never the whole collection.       |
 | `scope` | `all`   | One bucket key, or `all`. An unrecognised value is a `422`.                                    |
 | `limit` | `500`   | Cap per bucket, 1–2000.                                                                        |
+| `characters` | `false` | `true` adds a `character` bucket, searched at `scope=all` only. The `/search` page sends it; the nav dropdown does not. |
 
 **Matching.** The query and every name column are lowercased and stripped of
 whitespace and punctuation before the substring test, so `re zero` finds
@@ -1197,7 +1198,7 @@ and `_` is not, which is why the `LIKE` autoescapes.
 
 **Ordering.** Within a bucket, whole-title matches come first, then the type's
 name column ascending (`comic` sorts on `comic_name_en`, `seasonal` descending;
-`person`, `studio` and `publisher` sort on
+`person`, `studio`, `publisher` and `character` sort on
 `COALESCE(name_en, name_cn, name_jp, name_alt)`,
 because their display name is a per-row choice among four nullable columns and
 no single column can order them).
@@ -1223,7 +1224,8 @@ routes.
     "anime": [...], "anime-movie": [...], "movie": [...], "tv-show": [...],
     "cartoon": [...], "manga": [...], "novel": [...], "comic": [...],
     "game": [...], "h-comic": [...], "h-game": [...], "hentai": [...],
-    "seasonal": [...], "person": [...], "studio": [...], "publisher": [...]
+    "seasonal": [...], "person": [...], "studio": [...], "publisher": [...],
+    "character": [...]
   },
   "related_franchises": [...]
 }
@@ -1252,8 +1254,21 @@ the same shared-record rule as their lists
 ([authorization.md](authorization.md#shared-records)), so a person, studio or
 publisher whose every connection is hidden is absent from its bucket, and a
 series in a label-hidden franchise is absent from the `series` bucket.
-**Characters are deliberately not searchable** — there is
-no `character` bucket and `scope=character` is a `422`.
+
+**Characters.** With `characters=true` the response carries a `character`
+bucket; without it there is no such key, so the nav dropdown never sees one.
+The bucket matches `name_en`, `name_cn`, `name_jp` and `name_alt` with the
+same normalisation and exact-first ordering as every other bucket, and is
+filled at `scope=all` only — at any other scope it is present and empty.
+`character` is not a scope: `scope=character` is a `422`. Rows are the
+`CharacterResponse` `GET /api/character/` returns, `casting_count`, the
+resolved picture, `media_types`, `restricted`, the tag lists and
+`identities` included, built by the same helper
+(`character_responses`, `app/services/domain/character_responses.py`) in
+three queries for the whole bucket. A character goes through the same
+shared-record rule as its list, so one whose every casting is on a hidden
+entry is absent. Only character names are matched: an identity's names do
+not find its character, and identities are not a bucket of their own.
 
 **Franchise expansion.** At `scope=all`, a franchise whose name matched brings
 its anime with it, so searching a franchise name finds the shows in it even when

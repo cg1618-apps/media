@@ -1,6 +1,7 @@
 // Frontend: the grid card a character, or one of its identities, is shown
-// as - one card of lib/characterCards.js. Drawn by the character library and
-// by the franchise and series hubs' Characters tab.
+// as - one card of lib/characterCards.js. Drawn by the character library, by
+// the franchise and series hubs' Characters tab, and by the search page's
+// Characters tab.
 import { Link } from "react-router-dom";
 
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
