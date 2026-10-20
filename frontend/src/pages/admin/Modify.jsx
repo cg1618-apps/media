@@ -25,6 +25,7 @@ import {
 import { fetchAllSources } from "../../lib/sources";
 import { withMediaType } from "../../lib/suggestionOrder";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
+import { genreLabelSourceFields } from "../../lib/genreLabelFields";
 import AnimeMovieNotes from "../detail/AnimeMovieNotes";
 import MovieNotes from "../detail/MovieNotes";
 import TVShowNotes from "../detail/TVShowNotes";
@@ -1542,6 +1543,7 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await ensureSourceValues(genreLabelSourceFields("anime-movie", amf, splitTags));
     await saveCredits("anime-movie", updated.system_id, amf);
     await saveCast("anime-movie", updated.system_id, amf);
     setAllAnimeMovies((prev) =>
@@ -1679,6 +1681,7 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await ensureSourceValues(genreLabelSourceFields("movie", mmf, splitTags));
     await saveCredits("movie", updated.system_id, mmf);
     setAllMovies((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
@@ -1813,6 +1816,7 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await ensureSourceValues(genreLabelSourceFields("tv-show", tvmf, splitTags));
     await saveCredits("tv-show", updated.system_id, tvmf);
     setAllTvShows((prev) =>
       prev.map((t) => (t.system_id === updated.system_id ? updated : t)),
@@ -1948,6 +1952,7 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await ensureSourceValues(genreLabelSourceFields("cartoon", cmf, splitTags));
     await saveCredits("cartoon", updated.system_id, cmf);
     setAllCartoons((prev) =>
       prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
@@ -2097,6 +2102,7 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await ensureSourceValues(genreLabelSourceFields("manga", cmgf, splitTags));
     await saveCredits("manga", updated.system_id, cmgf);
     await saveCast("manga", updated.system_id, cmgf);
     setAllMangas((prev) =>
@@ -2203,6 +2209,7 @@ export default function Modify() {
         source: { kind: "publisher", scope: "novel" },
         values: splitTags(cnvf.publisher_tw),
       },
+      ...genreLabelSourceFields("novel", cnvf, splitTags),
     ]);
 
     const payload = {
@@ -2404,6 +2411,7 @@ export default function Modify() {
         source: { kind: "option", category: "Comic Event", scope: "comic" },
         values: Array.isArray(ccmf.events) ? ccmf.events.filter(Boolean) : [],
       },
+      ...genreLabelSourceFields("comic", ccmf, splitTags),
     ]);
 
     const payload = {

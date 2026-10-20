@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for CartoonModifyTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
@@ -287,6 +288,13 @@ export default function CartoonModifyTab({
           </label>
         </Field>
       </div>
+
+      <GenreLabelFields
+        mediaType="cartoon"
+        values={cmf}
+        onChange={uc}
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-link" title="IMDb & Sources" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

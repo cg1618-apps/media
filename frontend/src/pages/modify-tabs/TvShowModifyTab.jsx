@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for TvShowModifyTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
@@ -289,6 +290,13 @@ export default function TvShowModifyTab({
           </label>
         </Field>
       </div>
+
+      <GenreLabelFields
+        mediaType="tv-show"
+        values={tvmf}
+        onChange={utv}
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-link" title="IMDb & Sources" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

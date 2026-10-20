@@ -443,6 +443,9 @@ export default function AnimeMovie() {
                   { label: "Release Date JP", value: movie.release_date_jp },
                   { label: "Release Date TW", value: movie.release_date_tw },
                 ],
+                { label: "Genre (Main)", value: movie.genre_main },
+                { label: "Genre (Sub)", value: movie.genre_sub },
+                { label: "標籤 Label", value: movie.label },
               ]}
             />
             <InfoCard

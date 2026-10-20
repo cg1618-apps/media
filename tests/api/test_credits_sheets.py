@@ -267,6 +267,42 @@ def test_movie_original_source_restores_under_its_own_new_header(db_session, mon
     ]
 
 
+GENRE_AND_LABEL_HEADERS = ("genre_main", "genre_sub", "label")
+
+
+def test_the_manga_tab_carries_genre_and_label_columns():
+    assert set(GENRE_AND_LABEL_HEADERS) <= set(sheet_link_headers("manga"))
+
+
+def test_every_parser_reads_back_the_genre_and_label_columns_its_tab_writes():
+    """
+    Pull keeps only the keys a tab's parser emits, so a header Backup writes
+    and the parser does not name is silently dropped on every Pull. Walked over
+    every entry tab rather than listed, so a type that gains one of these
+    fields cannot gain it on the Backup side only.
+    """
+    for tab in SHEET_TABS:
+        if not tab.media_type:
+            continue
+        written = set(sheet_link_headers(tab.media_type)) & set(GENRE_AND_LABEL_HEADERS)
+        parsed = set(tab.parser({}))
+        assert written <= parsed, (tab.name, written - parsed)
+
+
+def test_manga_genre_and_label_restore_from_the_sheet(db_session, monkeypatch):
+    headers = ["manga_name_cn", "genre_main", "genre_sub", "label"]
+    rows = [["新漫畫", "奇幻, 冒險", "異世界", "神作"]]
+    monkeypatch.setattr(pull, "get_all_raw_rows", lambda tab: [headers] + rows)
+
+    result = pull.execute_pull_specific(db_session, "Manga", log_action=False)
+
+    assert result["status"] == "success"
+    fresh = db_session.query(models.Manga).filter_by(manga_name_cn="新漫畫").one()
+    assert tag_values(db_session, fresh.system_id, "genre_main") == ["奇幻", "冒險"]
+    assert tag_values(db_session, fresh.system_id, "genre_sub") == ["異世界"]
+    assert tag_values(db_session, fresh.system_id, "label") == ["神作"]
+
+
 # ---------------------------------------------------------------------------
 # pull.py: System Options pk_field must be 'system_id', not the dropped 'id'
 # ---------------------------------------------------------------------------

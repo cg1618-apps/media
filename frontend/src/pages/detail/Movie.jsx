@@ -475,6 +475,9 @@ export default function Movie() {
                   { label: "Release Date TW", value: movie.release_date_tw },
                   { label: "Release Date USA", value: movie.release_date_usa },
                 ],
+                { label: "Genre (Main)", value: movie.genre_main },
+                { label: "Genre (Sub)", value: movie.genre_sub },
+                { label: "標籤 Label", value: movie.label },
               ]}
             />
           </div>

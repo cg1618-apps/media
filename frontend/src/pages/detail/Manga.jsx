@@ -670,6 +670,9 @@ export default function Manga() {
                       manga.ch_total != null ? String(manga.ch_total) : null,
                   },
                 ],
+                { label: "Genre (Main)", value: manga.genre_main },
+                { label: "Genre (Sub)", value: manga.genre_sub },
+                { label: "標籤 Label", value: manga.label },
               ]}
             />
             {/* Production Card */}

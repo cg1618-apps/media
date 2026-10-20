@@ -109,3 +109,49 @@ def test_anime_payload_carries_linkable_studio_refs(
             "display_name": "MAPPA",
         }
     ]
+
+
+def test_manga_genre_and_label_round_trip_onto_its_detail(
+    admin_client, client, manga_entry
+):
+    """
+    Genre Main, Genre Sub and Label serve every mainstream type, not only
+    anime. A write through /api/credits lands on the manga's own detail
+    response under the field key.
+    """
+    r = admin_client.put(
+        f"/api/credits/manga/{manga_entry.system_id}",
+        json={
+            "tags": {
+                "genre_main": ["奇幻", "冒險"],
+                "genre_sub": ["異世界"],
+                "label": ["神作"],
+            }
+        },
+    )
+    assert r.status_code == 200, r.text
+
+    tags = client.get(f"/api/credits/manga/{manga_entry.system_id}").json()["tags"]
+    assert tags["genre_main"] == ["奇幻", "冒險"]
+
+    body = client.get(f"/api/manga/{manga_entry.system_id}").json()
+    assert body["genre_main"] == "奇幻, 冒險"
+    assert body["genre_sub"] == "異世界"
+    assert body["label"] == "神作"
+
+
+def test_genre_main_is_still_refused_on_a_game(admin_client, db_session):
+    """Game keeps its own Game Genre vocabulary; Label is the mirror case."""
+    g = models.Game(game_name_en="Hades")
+    db_session.add(g)
+    db_session.commit()
+
+    refused = admin_client.put(
+        f"/api/credits/game/{g.system_id}", json={"tags": {"genre_main": ["奇幻"]}}
+    )
+    assert refused.status_code == 400
+
+    accepted = admin_client.put(
+        f"/api/credits/game/{g.system_id}", json={"tags": {"label": ["神作"]}}
+    )
+    assert accepted.status_code == 200, accepted.text

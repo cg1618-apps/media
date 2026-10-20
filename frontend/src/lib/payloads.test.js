@@ -55,6 +55,42 @@ describe("novel serialization_platform", () => {
   });
 });
 
+// Genre Main, Genre Sub and Label are TAG_FIELDS on seven types besides
+// anime (lib/genreLabelFields.js). The map entry is what both writes them and
+// prefills them on Modify, so one missing type is a field that saves nothing.
+describe("manga genre and label tags", () => {
+  it("are sent to the credits endpoint under their own keys", () => {
+    const payload = buildCreditsPayload("manga", {
+      genre_main: "Action, Drama",
+      genre_sub: "Isekai",
+      label: "必看",
+    });
+    expect(payload.tags).toEqual({
+      genre_main: ["Action", "Drama"],
+      genre_sub: ["Isekai"],
+      label: ["必看"],
+    });
+  });
+
+  it("come back out of a credits response, blank when the entry has none", () => {
+    const form = creditsResponseToForm("manga", {
+      tags: { genre_main: ["Action"], label: ["必看", "神作"] },
+    });
+    expect(form.genre_main).toBe("Action");
+    expect(form.genre_sub).toBe("");
+    expect(form.label).toBe("必看, 神作");
+  });
+
+  it("are mapped on every type that carries them, and not on h-comic", () => {
+    for (const type of ["anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"]) {
+      const { tags } = buildCreditsPayload(type, { genre_main: "", genre_sub: "", label: "" });
+      expect(Object.keys(tags)).toEqual(["genre_main", "genre_sub", "label"]);
+    }
+    const { tags } = buildCreditsPayload("h-comic", { genre_main: "Action", label: "x" });
+    expect(tags).toEqual({});
+  });
+});
+
 // The publisher_tw / comic_publisher vocabularies are retired: every type's
 // publisher field is now a `publisher` CREDIT resolving to a Publisher row,
 // the way game's already was. A form still posting it as a tag writes to a

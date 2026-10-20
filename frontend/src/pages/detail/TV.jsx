@@ -428,6 +428,9 @@ export default function TV() {
                   { label: "Airing Status", value: show.airing_status },
                   { label: "Release Date", value: show.release_date },
                 ],
+                { label: "Genre (Main)", value: show.genre_main },
+                { label: "Genre (Sub)", value: show.genre_sub },
+                { label: "標籤 Label", value: show.label },
               ]}
             />
           </div>

@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-10-18
+Last verified: 2026-10-20
 
 ## What this is for
 
@@ -534,9 +534,9 @@ Tier 2 category:
 
 | Key | Label | Tier 2 category | Media types |
 |---|---|---|---|
-| `genre_main` | Genre Main | `Genre Main` | anime |
-| `genre_sub` | Genre Sub | `Genre Sub` | anime |
-| `label` | 標籤 Label | `Label` | anime, game |
+| `genre_main` | Genre Main | `Genre Main` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
+| `genre_sub` | Genre Sub | `Genre Sub` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
+| `label` | 標籤 Label | `Label` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game |
 | `original_source` | Original Source | `Platform` | tv-show, cartoon, movie, h-comic |
 | `exclusive_source` | Exclusive Source | `Platform` | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | `Serialization Platform` | manga, novel |
@@ -607,10 +607,10 @@ legacy sheet header `source_official` (`LEGACY_SHEET_COLUMN`), while `movie`
 admin Add / Modify / Delete pages offer under their **Tags** sub-tab instead
 of **Options**. The split is navigation only: both sub-tabs are the same form
 over the same `system_option` rows, and nothing in the data or the API marks
-a category as a tag. The list is written out, not derived — these three happen
-to be anime's tag fields today, but what puts a category here
+a category as a tag. The list is written out, not derived — these three are the
+vocabularies every mainstream type shares, but what puts a category here
 is that its values read as tags *on* the work, while `Platform` and the
-Comic vocabularies name an outside party. A new anime-only category is therefore not automatically a tag.
+Comic vocabularies name an outside party. A new category is therefore not automatically a tag.
 
 `FILTER_ONLY_CATEGORIES`: `Franchise for Filter` and `Reference Source` (Tier
 2 categories with no `TagField` behind them — `Reference Source` instead
@@ -703,9 +703,9 @@ twenty-four in `OPTION_CATEGORIES`:
 
 | Category | Offered in (scopes) | Read by |
 |---|---|---|
-| `Genre Main` | anime | tag field `genre_main` |
-| `Genre Sub` | anime | tag field `genre_sub` |
-| `Label` | anime | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
+| `Genre Main` | per value, among the eight mainstream types (anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic) | tag field `genre_main`. One vocabulary for all eight: a value with no scope rows is offered on every type, and one scoped to several (`奇幻` on anime and manga, say) is offered on exactly those. Game is not among them - its genres are `Game Genre` |
+| `Genre Sub` | per value, among the eight mainstream types | tag field `genre_sub`; shared across the eight the same way as `Genre Main` |
+| `Label` | per value, among the eight mainstream types and game | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
 | `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie, h-comic) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
 | `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; every `game`-scoped value and `Twitter` also carry `h-game` (below); `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
 | `Serialization Platform` | manga, novel | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |

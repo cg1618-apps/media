@@ -1,4 +1,5 @@
 // Frontend: add tab page file for MangaAddTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
@@ -310,6 +311,13 @@ export default function MangaAddTab({
           </select>
         </Field>
       </div>
+
+      <GenreLabelFields
+        mediaType="manga"
+        values={mgf}
+        onChange={umg}
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-list-ol" title="Progress" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

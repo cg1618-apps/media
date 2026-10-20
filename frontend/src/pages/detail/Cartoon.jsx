@@ -444,6 +444,9 @@ export default function Cartoon() {
                         : null,
                   },
                 ],
+                { label: "Genre (Main)", value: cartoon.genre_main },
+                { label: "Genre (Sub)", value: cartoon.genre_sub },
+                { label: "標籤 Label", value: cartoon.label },
               ]}
             />
           </div>
