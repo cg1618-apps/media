@@ -8,6 +8,7 @@ import { postEventStream } from "../../api/client";
 import FxRatesEditor from "./FxRatesEditor";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType } from "../../lib/gatedTypes";
+import { entityPath } from "../../lib/entityPath";
 import { nextSeason } from "../../lib/season";
 import RemarksView, {
   countRemarks,
@@ -496,6 +497,137 @@ function CoverImageModal({
   );
 }
 
+// Remove Uncast Characters: every character with no casting, all ticked to
+// start - untick the ones to keep. The server re-checks each ticked one and
+// skips any cast since this list was drawn.
+function UncastCharactersModal({ result, onRemove, onClose, removing }) {
+  const allIds = result.characters.map((c) => c.system_id);
+  const [selected, setSelected] = useState(() => new Set(allIds));
+  const allSelected =
+    allIds.length > 0 && allIds.every((id) => selected.has(id));
+
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(allIds));
+  }
+  function toggleOne(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-black text-text">Uncast Characters</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-text-faint hover:text-text-muted transition text-lg"
+          >
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div className="p-6 flex flex-col gap-4 overflow-y-auto">
+          {result.count === 0 ? (
+            <div className="text-center py-6">
+              <i className="fas fa-check-circle text-4xl text-success block mb-3"></i>
+              <p className="font-bold text-text-muted">
+                Every character is cast on something.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-text-faint">
+                Removing a character also removes its identities and its own
+                portrait files. Untick any you want to keep.
+              </p>
+              <div className="bg-surface-2 border border-border rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-bold text-text">
+                    {result.count} character{result.count !== 1 ? "s" : ""}{" "}
+                    with no casting
+                  </p>
+                  <button
+                    onClick={toggleAll}
+                    className="text-xs text-brand hover:underline"
+                  >
+                    {allSelected ? "Deselect All" : "Select All"}
+                  </button>
+                </div>
+                <div className="max-h-80 overflow-y-auto space-y-1">
+                  {result.characters.map((c) => (
+                    <label
+                      key={c.system_id}
+                      className="flex items-center gap-2 text-xs text-text-muted cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.has(c.system_id)}
+                        onChange={() => toggleOne(c.system_id)}
+                        aria-label={c.name}
+                        className="accent-brand shrink-0"
+                      />
+                      <Link
+                        to={entityPath("character", {
+                          public_id: c.public_id,
+                          display_name: c.name,
+                        })}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="truncate hover:text-brand hover:underline"
+                      >
+                        {c.name}
+                      </Link>
+                      {c.identity_count > 0 && (
+                        <span className="font-mono bg-surface-3 px-1 rounded shrink-0">
+                          +{c.identity_count}{" "}
+                          {c.identity_count !== 1 ? "identities" : "identity"}
+                        </span>
+                      )}
+                      {c.has_photo && (
+                        <i
+                          className="fas fa-image text-text-faint shrink-0"
+                          title="Has a portrait"
+                        ></i>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 pb-5 border-t border-border pt-4">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-bold text-text-muted bg-surface-2 hover:bg-surface-3 rounded-lg transition"
+          >
+            Close
+          </button>
+          {result.count > 0 && (
+            <button
+              onClick={() => onRemove([...selected])}
+              disabled={removing || selected.size === 0}
+              className="px-4 py-2 text-sm font-bold text-white bg-danger hover:opacity-90 rounded-lg transition disabled:opacity-40 flex items-center gap-2"
+            >
+              {removing && <i className="fas fa-circle-notch fa-spin"></i>}
+              {removing ? "Removing..." : `Remove Selected (${selected.size})`}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // The Remarks and Duplicates checks, opened in place. The views are the
 // review queue's own (components/review), so the two screens cannot drift.
 function ReviewModal({ title, summary, onClose, children }) {
@@ -594,6 +726,8 @@ export default function Admin() {
   const [coverDownloading, setCoverDownloading] = useState(false);
   const [coverSetting, setCoverSetting] = useState(false);
   const [coverDeleting, setCoverDeleting] = useState(false);
+  const [uncastResult, setUncastResult] = useState(null);
+  const [uncastRemoving, setUncastRemoving] = useState(false);
 
   // Announcement & Notes state
   const [announcements, setAnnouncements] = useState([]);
@@ -908,6 +1042,43 @@ export default function Admin() {
     }
   }
 
+  async function runCheckUncastCharacters() {
+    setCalcLoading((prev) => ({ ...prev, uncastcharacters: true }));
+    try {
+      const res = await fetch(endpoints.dataControl.checkUncastCharacters(), {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Check failed.");
+      setUncastResult(data);
+    } catch (e) {
+      showToast("error", `Error: ${e.message}`);
+    } finally {
+      setCalcLoading((prev) => ({ ...prev, uncastcharacters: false }));
+    }
+  }
+
+  async function handleRemoveUncastCharacters(systemIds) {
+    setUncastRemoving(true);
+    try {
+      const res = await fetch(endpoints.dataControl.removeUncastCharacters(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ system_ids: systemIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Remove failed.");
+      showToast("success", data.message);
+      setUncastResult(null);
+      loadLogs();
+    } catch (e) {
+      showToast("error", `Error: ${e.message}`);
+    } finally {
+      setUncastRemoving(false);
+    }
+  }
+
   async function runFindDuplicates() {
     setCalcLoading((prev) => ({ ...prev, duplicates: true }));
     try {
@@ -960,6 +1131,14 @@ export default function Admin() {
 
   return (
     <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+      {uncastResult && (
+        <UncastCharactersModal
+          result={uncastResult}
+          onRemove={handleRemoveUncastCharacters}
+          onClose={() => setUncastResult(null)}
+          removing={uncastRemoving}
+        />
+      )}
       {coverCheckOpen && coverCheckResult && (
         <CoverImageModal
           result={coverCheckResult}
@@ -1374,6 +1553,22 @@ export default function Admin() {
             ) : (
               "Check & Download Covers"
             )}
+          </button>
+          <button
+            onClick={runCheckUncastCharacters}
+            disabled={!!calcLoading.uncastcharacters}
+            className="flex flex-col items-center gap-2 p-3 bg-surface-2 hover:bg-brand-soft border border-border hover:border-brand/30 rounded-xl text-xs font-bold text-text-muted hover:text-brand transition disabled:opacity-60"
+          >
+            <i className="fas fa-user-slash text-lg"></i>
+            {calcLoading.uncastcharacters ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "Remove Uncast Characters"
+            )}
+            <span className="text-[10px] font-medium text-text-faint text-center">
+              Characters cast on nothing, with their identities and portraits.
+              Review the list first.
+            </span>
           </button>
         </div>
       </div>

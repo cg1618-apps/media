@@ -2,7 +2,8 @@
 //
 // Pins the Sync Cast button: it posts to Calculate All's cast step on its own
 // and shows the server's message as its toast, like the Calculate All button
-// beside it.
+// beside it. And Remove Uncast Characters: the list opens all ticked, and the
+// remove call names only what is still ticked.
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +17,8 @@ vi.mock("../../contexts/AuthContext", () => ({
 }));
 
 const SYNC_CAST = "/api/data-control/calculate/sync-cast";
+const UNCAST_SCAN = "/api/data-control/check/uncast-characters";
+const UNCAST_REMOVE = "/api/data-control/calculate/remove-uncast-characters";
 
 let fetchMock;
 
@@ -30,6 +33,25 @@ beforeEach(() => {
           message: "Cast synced: 2 character/identity field(s) and 3 cast field(s) filled.",
           counts: {},
         }),
+      };
+    }
+    if (url === UNCAST_SCAN) {
+      return {
+        ok: true,
+        json: async () => ({
+          status: "success",
+          count: 2,
+          characters: [
+            { system_id: "a", public_id: 1, name: "Asuna", identity_count: 0, has_photo: true },
+            { system_id: "b", public_id: 2, name: "Kirito", identity_count: 2, has_photo: false },
+          ],
+        }),
+      };
+    }
+    if (url === UNCAST_REMOVE) {
+      return {
+        ok: true,
+        json: async () => ({ status: "success", message: "Removed 1 uncast character." }),
       };
     }
     // Everything the page loads on mount: season, logs, announcements, rates.
@@ -73,5 +95,30 @@ describe("Control Center Sync Cast", () => {
     ).toBeInTheDocument();
     // Let the mount-time loads settle inside the test.
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  });
+});
+
+describe("Control Center Remove Uncast Characters", () => {
+  it("removes only the characters left ticked", async () => {
+    render(
+      <MemoryRouter>
+        <Admin />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Remove Uncast Characters/ }));
+    const keep = await screen.findByRole("checkbox", { name: "Kirito" });
+    expect(screen.getByRole("checkbox", { name: "Asuna" })).toBeChecked();
+    expect(screen.getByText("+2 identities")).toBeInTheDocument();
+
+    fireEvent.click(keep);
+    fireEvent.click(screen.getByRole("button", { name: "Remove Selected (1)" }));
+
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith("success", "Removed 1 uncast character."),
+    );
+    const call = fetchMock.mock.calls.find(([url]) => url === UNCAST_REMOVE);
+    expect(call[1]).toMatchObject({ method: "POST", credentials: "include" });
+    expect(JSON.parse(call[1].body)).toEqual({ system_ids: ["a"] });
   });
 });
