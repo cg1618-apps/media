@@ -138,6 +138,17 @@ function CastRow({ row }) {
             )}
           </Fragment>
         ))}
+        {/* The row's own remark, about the character in this entry, on a
+            line of its own under the names - a voice's remark stays in
+            brackets beside its seiyuu. */}
+        {row.remark && (
+          <span
+            className="basis-full text-text-muted text-xs whitespace-pre-line"
+            data-cast-remark
+          >
+            {row.remark}
+          </span>
+        )}
       </div>
     </div>
   );

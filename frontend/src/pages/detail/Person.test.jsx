@@ -168,6 +168,7 @@ describe("Person detail page", () => {
           credited_name: null,
           character_role: "Main",
           voice_remark: "child",
+          casting_remark: "flashback only",
           display_photo_file: "character-identity/conan.webp",
         },
         {
@@ -181,6 +182,7 @@ describe("Person detail page", () => {
           credited_name: "Mysterious Boy",
           character_role: "Supporting",
           voice_remark: null,
+          casting_remark: null,
           display_photo_file: "character/shinichi.webp",
         },
       ],
@@ -203,6 +205,17 @@ describe("Person detail page", () => {
       );
       expect(screen.getByText("Main")).toBeInTheDocument();
       expect(screen.getByText("(child)")).toBeInTheDocument();
+    });
+
+    it("shows the cast row's own remark beside the voice's", async () => {
+      renderPage();
+      const card = (await screen.findByRole("link", { name: "Edogawa Conan" })).closest(
+        "[data-voiced-part]",
+      );
+      expect(within(card).getByText("flashback only")).toBeInTheDocument();
+      expect(within(card).getByText("(child)")).toBeInTheDocument();
+      // A row with no remark draws no empty line.
+      expect(document.querySelectorAll("[data-cast-remark]")).toHaveLength(1);
     });
 
     it("names an identity's character", async () => {
