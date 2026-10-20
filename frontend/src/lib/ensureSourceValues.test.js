@@ -3,6 +3,7 @@ import {
   computeMissingSourceValues,
   buildCreateRequest,
   ensureSourceValues,
+  findOutOfScopeOption,
 } from "./ensureSourceValues";
 
 const sources = {
@@ -205,5 +206,75 @@ describe("ensureSourceValues", () => {
       fetchImpl,
     );
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("scope widening for an option scoped elsewhere", () => {
+  // 奇幻 exists as a manga genre. On the movie form the movie-scoped list
+  // filters it out, so it reads as missing; creating it would 400 and leave
+  // the movie tagged with a value its dropdown never shows.
+  const scoped = {
+    options: [
+      {
+        system_id: "o1",
+        category: "Genre Main",
+        value: "奇幻",
+        sort_order: 3,
+        remark: "r",
+        scopes: ["manga"],
+        usages: [],
+        aliases: [],
+      },
+      { system_id: "o2", category: "Genre Main", value: "通用", scopes: [] },
+    ],
+  };
+  const movieGenre = { kind: "option", category: "Genre Main", scope: "movie" };
+
+  it("finds the out-of-scope option, case- and space-insensitively", () => {
+    expect(findOutOfScopeOption(movieGenre, " 奇幻 ", scoped)?.system_id).toBe(
+      "o1",
+    );
+  });
+
+  it("never treats an unscoped option as out of scope", () => {
+    // Adding a scope to an unscoped value would narrow it to one type.
+    expect(findOutOfScopeOption(movieGenre, "通用", scoped)).toBeNull();
+  });
+
+  it("ignores a field with no scope", () => {
+    expect(
+      findOutOfScopeOption({ kind: "option", category: "Genre Main" }, "奇幻", scoped),
+    ).toBeNull();
+  });
+
+  it("PUTs the option back with the field's scope added, not a create", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    await ensureSourceValues(
+      [{ source: movieGenre, values: ["奇幻", "新類型"] }],
+      scoped,
+      fetchImpl,
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const [putUrl, putInit] = fetchImpl.mock.calls.find(
+      ([, init]) => init.method === "PUT",
+    );
+    expect(putUrl).toBe("/api/options/o1");
+    expect(JSON.parse(putInit.body)).toEqual({
+      category: "Genre Main",
+      value: "奇幻",
+      sort_order: 3,
+      remark: "r",
+      scopes: ["manga", "movie"],
+      usages: [],
+      aliases: [],
+    });
+    const [, postInit] = fetchImpl.mock.calls.find(
+      ([, init]) => init.method === "POST",
+    );
+    expect(JSON.parse(postInit.body)).toEqual({
+      category: "Genre Main",
+      value: "新類型",
+      scopes: ["movie"],
+    });
   });
 });

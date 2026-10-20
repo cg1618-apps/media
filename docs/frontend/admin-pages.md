@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-18
+Last verified: 2026-10-20
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -192,6 +192,25 @@ of the stored value does not count as a new one
 It takes no default and auto-fill never copies it (`defaultable: false`,
 `autofillable: false` in `fieldMeta.js`): it is one viewer's place in one
 work.
+
+**Genres & Labels.** Anime movie, movie, TV show, cartoon, manga, novel and
+comic each carry a **Genres & Labels** section — Genre Main, Genre Sub and
+標籤 Label — on Add and Modify alike, drawn by `forms/GenreLabelFields.jsx`
+after the tab's status or classification section. Each picker offers only its
+category's values scoped to that type or to no type, so a genre added on a
+manga is not offered on a movie; anime's own three pickers are scoped to
+`anime` the same way, and game keeps its single Label scoped to `game`. The
+three are tags on the credits endpoint (`CREDITS_FIELD_MAP` in
+`lib/payloads.js`), so Modify prefills them from `GET /api/credits` and the
+save writes them with the other tags. A typed value that does not exist yet
+is created before that write, scoped to the type
+(`genreLabelSourceFields` in `lib/genreLabelFields.js`, handed to
+`ensureSourceValues`). A typed value that exists but is scoped to other types
+only — 奇幻 typed on a movie while it is a manga genre — is widened instead:
+`ensureSourceValues` PUTs the option back with the type added to its scopes.
+Widening is additive and never touches an unscoped value, which is already
+offered everywhere and would be narrowed by gaining a scope. Auto-fill from an existing entry copies Genre Main and
+Genre Sub, as anime's does, and not the label.
 
 **Data loaded on mount.** Collections, franchises and series (read by every
 tab's pickers and by `buildAutofillPatch`), the form defaults and the
@@ -585,11 +604,15 @@ Add-only `OPTION_VALUE_SUB_TABS` variant is gone. People and studios are
 On Modify and Delete, a chosen category's values are listed grouped by the
 media type each is scoped to (`forms/OptionValueGroups.jsx` over
 `lib/optionScopeGroups.js`), so a shared vocabulary such as Label reads as
-Anime's values and Game's values rather than one list. Groups follow
-`MEDIA_TYPES` order; a value with several scopes is listed under each, and
-values with no scope — offered everywhere — come last under **All types**. A
-category whose values all fall in one group renders as a plain grid with no
-heading.
+Anime's values and Game's values rather than one list. A type's group holds
+only the values scoped to that type alone, in `MEDIA_TYPES` order. A value
+scoped to two or more types is listed once, under **Shared**, in a sub-group
+headed by its exact set of types (`Anime · Manga · Novel`) — Genre Main serves
+seven types, and a copy of 奇幻 under each would bury every type's own values.
+Values with no scope — offered everywhere — come last under **All types**. A
+category whose values all fall in one type's group renders as a plain grid
+with no heading; the Shared group always keeps its headings, since they are
+the only place a value's types are shown.
 
 Below the scope and usage pickers sits `forms/AliasPicker.jsx`, repeating
 `source` + external-value rows. Its hint says the opposite of theirs on

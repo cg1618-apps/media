@@ -161,14 +161,31 @@ class TagField:
     media_types: tuple[str, ...]
 
 
+# The eight mainstream types that carry Genre Main and Genre Sub. Game is the
+# ninth ungated type and is left out on purpose: its genres come from IGDB
+# into the separate Game Genre vocabulary below. One vocabulary serves all
+# eight, so a value such as 奇幻 is one row however many types use it; which
+# types a value is OFFERED on is its system_option_scope rows, not this tuple.
+GENRE_MEDIA_TYPES: tuple[str, ...] = (
+    "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
+    "comic",
+)
+
 TAG_FIELDS: dict[str, TagField] = {
+    # Only anime has a LEGACY_SHEET_COLUMN entry for these two, and it names
+    # the field's own key; on the other seven types the header is the key
+    # through sheet_column_for's fallback.
     "genre_main": TagField(
-        "genre_main", "Genre Main", "Genre Main", ("anime",)
+        "genre_main", "Genre Main", "Genre Main", GENRE_MEDIA_TYPES
     ),
-    "genre_sub": TagField("genre_sub", "Genre Sub", "Genre Sub", ("anime",)),
-    # Viewing-experience tags (會跳OP, 很多福利, ...). No legacy column ever
-    # held these, so no LEGACY_SHEET_COLUMN entry: the sheet header is the key.
-    "label": TagField("label", "標籤 Label", "Label", ("anime", "game")),
+    "genre_sub": TagField("genre_sub", "Genre Sub", "Genre Sub", GENRE_MEDIA_TYPES),
+    # Viewing-experience tags (會跳OP, 很多福利, ...), on every type that
+    # carries the genres plus game. No legacy column ever held these, so no
+    # LEGACY_SHEET_COLUMN entry: the sheet header is the key. The gated types
+    # carry none of the three.
+    "label": TagField(
+        "label", "標籤 Label", "Label", GENRE_MEDIA_TYPES + ("game",)
+    ),
     # Where a work FIRST appeared. Multi-value: a film can open in cinemas and
     # on a streaming service the same day.
     "original_source": TagField(
@@ -281,12 +298,11 @@ FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
 # the same system_option rows - the split is navigational, nothing in the
 # data or the API distinguishes a tag category from any other.
 #
-# Listed, not derived. These three happen to be anime's tag fields today,
-# but that is a coincidence of the current vocabulary, not the
-# rule: what puts a category here is that its values read as tags ON the
-# work, while Official Source and the Comic vocabularies name an outside
-# party. A new anime-only category is not automatically a tag, so it must be
-# added here deliberately.
+# Listed, not derived. These three are the vocabularies every mainstream
+# type shares, but that is not the rule: what puts a category here is that
+# its values read as tags ON the work, while Official Source and the Comic
+# vocabularies name an outside party. A new category is not automatically a
+# tag, so it must be added here deliberately.
 TAG_CATEGORIES: tuple[str, ...] = (
     "Genre Main",
     "Genre Sub",

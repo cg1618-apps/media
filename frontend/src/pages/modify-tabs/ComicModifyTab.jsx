@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for ComicModifyTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -213,6 +214,13 @@ export default function ComicModifyTab({
           placeholder="Select or type event..."
         />
       </Field>
+
+      <GenreLabelFields
+        mediaType="comic"
+        values={ccmf}
+        onChange={ucm}
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-chart-bar" title="Status" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

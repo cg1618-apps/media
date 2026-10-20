@@ -1,4 +1,5 @@
 // Frontend: add tab page file for TvShowAddTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
@@ -380,6 +381,13 @@ export default function TvShowAddTab({
         label="Release Date"
         value={tvf.release_date}
         onChange={(v) => utf("release_date", v)}
+      />
+
+      <GenreLabelFields
+        mediaType="tv-show"
+        values={tvf}
+        onChange={utf}
+        sources={sources}
       />
 
       <SectionHeader icon="fa-link" title="Source & Links" />

@@ -471,6 +471,7 @@ export default function AnimeAddTab({
             options={getSourceValues(sources, {
               kind: "option",
               category: "Genre Main",
+              scope: "anime",
             })}
             value={af.genre_main}
             onChange={(v) => ua("genre_main", v)}
@@ -483,6 +484,7 @@ export default function AnimeAddTab({
             options={getSourceValues(sources, {
               kind: "option",
               category: "Genre Sub",
+              scope: "anime",
             })}
             value={af.genre_sub}
             onChange={(v) => ua("genre_sub", v)}
@@ -495,6 +497,7 @@ export default function AnimeAddTab({
             options={getSourceValues(sources, {
               kind: "option",
               category: "Label",
+              scope: "anime",
             })}
             value={af.label}
             onChange={(v) => ua("label", v)}

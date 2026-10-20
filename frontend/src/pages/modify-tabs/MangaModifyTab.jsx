@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for MangaModifyTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -221,6 +222,13 @@ export default function MangaModifyTab({
           </select>
         </Field>
       </div>
+
+      <GenreLabelFields
+        mediaType="manga"
+        values={cmgf}
+        onChange={umg}
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-list-ol" title="Progress" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

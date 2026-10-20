@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-18
+Last verified: 2026-10-20
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1775,9 +1775,13 @@ field's values at once.
 | `PUT`  | `/{media_type}/{entry_id}`  | Admin  | Replaces the named roles/fields. Body: `{credits: {role: [names...]}, tags: {field: [values...]}}`. A role/field absent from the body is left untouched; one present with an empty list is cleared. Resolves each name to a `person`/`studio`/`publisher`/`system_option` row, creating on miss (dispatched on the role's `target`, which is a three-value axis). 400 for a role/field not valid on this `media_type`. |
 
 `media_type` is one of the hyphenated `MEDIA_TABLES` keys (`anime`,
-`anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`).
+`anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`,
+`game`, `h-comic`, `hentai`, `h-game`).
 Valid roles/fields per media type come from `credit_roles_for()` /
-`tag_fields_for()` in `app/utils/credit_roles.py`.
+`tag_fields_for()` in `app/utils/credit_roles.py`. The tag fields
+`genre_main`, `genre_sub` and `label` are valid on the eight mainstream types
+(`anime` through `comic`); `game` takes `label` alone, and the gated types
+none of the three, so a `PUT` naming one there is a 400.
 
 ### Reading credits: the entry payload, not this endpoint
 
@@ -1787,7 +1791,8 @@ comma-joined strings under the LEGACY column names the dropped columns used
 `comic_era` tag, and so on; `sheet_column_for()` owns that mapping and the
 Sheets export uses the same one). They are attached by
 `credits.attach_link_fields()` and defined by the mixins in
-`app/schemas/link_fields.py`.
+`app/schemas/link_fields.py`. `genre_main`, `genre_sub` and `label` are served
+under those same keys on every type that carries them.
 
 This is what the public detail, library, card and statistics pages read. They
 render an entry from ONE response and must not issue a second request per row:

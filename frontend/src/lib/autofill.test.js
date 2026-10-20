@@ -75,6 +75,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       original_source: "Disney+",
       season_part: "Season 1",
       imdb_link: "https://www.imdb.com/title/tt1865718/",
+      genre_main: "Comedy",
+      genre_sub: "Mystery",
     };
 
     expect(patchFor(source, "cartoon")).toEqual({
@@ -90,6 +92,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       original_source: "Disney+",
       season_part: "Season 1",
       imdb_link: "https://www.imdb.com/title/tt1865718/",
+      genre_main: "Comedy",
+      genre_sub: "Mystery",
     });
   });
 
@@ -104,6 +108,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       series_id: "s1",
       region: "日漫",
       is_main: "本傳",
+      genre_main: "Action",
+      genre_sub: "Pirates",
     };
 
     expect(patchFor(source, "manga")).toEqual({
@@ -118,6 +124,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       series_text: "測試子系列",
       region: "日漫",
       is_main: "本傳",
+      genre_main: "Action",
+      genre_sub: "Pirates",
     });
   });
 
@@ -133,6 +141,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       region: "JP",
       type: "Light Novel",
       is_main: "本傳",
+      genre_main: "Fantasy",
+      genre_sub: "Isekai",
     };
 
     expect(patchFor(source, "novel")).toEqual({
@@ -148,6 +158,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       region: "JP",
       type: "Light Novel",
       is_main: "本傳",
+      genre_main: "Fantasy",
+      genre_sub: "Isekai",
     });
   });
 
@@ -186,6 +198,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       is_main: "本傳",
       region: "歐美劇",
       imdb_link: "https://www.imdb.com/title/tt11280740/",
+      genre_main: "Drama",
+      genre_sub: "Sci-Fi",
     };
 
     expect(patchFor(source, "tv-show")).toEqual({
@@ -200,6 +214,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       is_main: "本傳",
       region: "歐美劇",
       imdb_link: "https://www.imdb.com/title/tt11280740/",
+      genre_main: "Drama",
+      genre_sub: "Sci-Fi",
     });
   });
 
@@ -213,6 +229,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       is_main: "本傳",
       airing_status: "Finished Airing",
       movie_type: "Reality",
+      genre_main: "Sci-Fi",
+      genre_sub: "Epic",
     };
 
     expect(patchFor(source, "movie")).toEqual({
@@ -226,6 +244,8 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       is_main: "本傳",
       airing_status: "Finished Airing",
       movie_type: "Reality",
+      genre_main: "Sci-Fi",
+      genre_sub: "Epic",
     });
   });
 });

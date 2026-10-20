@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-18
+Last verified: 2026-10-20
 
 ## What this is for
 
@@ -145,9 +145,9 @@ that names a credit which does not exist.
 
 | key | label | `system_option.category` | media types |
 |---|---|---|---|
-| `genre_main` | Genre Main | Genre Main | anime |
-| `genre_sub` | Genre Sub | Genre Sub | anime |
-| `label` | 標籤 Label | Label | anime, game |
+| `genre_main` | Genre Main | Genre Main | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
+| `genre_sub` | Genre Sub | Genre Sub | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
+| `label` | 標籤 Label | Label | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game |
 | `original_source` | Original Source | Platform | tv-show, cartoon, movie, h-comic (the KR official source) |
 | `exclusive_source` | Exclusive Source | Platform | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | Serialization Platform | manga, novel |
@@ -212,7 +212,8 @@ imprint / continuity / era / events`. Because the map was already keyed by
 `(media_type, key)`, the role collapse only renamed its keys: **every sheet
 header is byte-identical to what it was before**, which `tests/unit/
 test_credit_roles.py` asserts against a hand-written table. A pair absent from the map (movie
-`source_official`, anime `label`) uses the key itself as header.
+`original_source`, `label` on every type, `genre_main` / `genre_sub` on every
+type but anime) uses the key itself as header.
 `sheet_column_for(media_type, key)` is the single accessor; the same names are
 used as the entry payload attributes (below), so the API edge, the form state
 and the sheets share one vocabulary.

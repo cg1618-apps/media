@@ -362,7 +362,52 @@ def test_tag_fields_for_comic():
         "comic_continuity",
         "comic_era",
         "comic_event",
+        "genre_main",
+        "genre_sub",
+        "label",
     }
+
+
+# The eight mainstream types that carry Genre Main, Genre Sub and Label. Game
+# is the ninth ungated type and is absent on purpose: it has its own Game
+# Genre vocabulary and carries only Label.
+GENRE_AND_LABEL_TYPES = (
+    "anime",
+    "anime-movie",
+    "movie",
+    "tv-show",
+    "cartoon",
+    "manga",
+    "novel",
+    "comic",
+)
+GENRE_AND_LABEL_FIELDS = ("genre_main", "genre_sub", "label")
+
+
+@pytest.mark.parametrize("media_type", GENRE_AND_LABEL_TYPES)
+def test_every_mainstream_type_carries_genre_and_label(media_type):
+    keys = {f.key for f in cr.tag_fields_for(media_type)}
+    assert set(GENRE_AND_LABEL_FIELDS) <= keys
+
+
+def test_game_carries_label_but_neither_genre_field():
+    keys = {f.key for f in cr.tag_fields_for("game")}
+    assert "label" in keys
+    assert "genre_main" not in keys
+    assert "genre_sub" not in keys
+
+
+@pytest.mark.parametrize("media_type", ("h-comic", "h-game", "hentai"))
+def test_no_gated_type_carries_genre_or_label(media_type):
+    keys = {f.key for f in cr.tag_fields_for(media_type)}
+    assert keys.isdisjoint(GENRE_AND_LABEL_FIELDS)
+
+
+@pytest.mark.parametrize("media_type", GENRE_AND_LABEL_TYPES[1:])
+@pytest.mark.parametrize("key", GENRE_AND_LABEL_FIELDS)
+def test_a_new_genre_or_label_column_is_headed_by_its_own_key(media_type, key):
+    """No legacy column ever held these on the seven types past anime."""
+    assert cr.sheet_column_for(media_type, key) == key
 
 
 # ---------------------------------------------------------------------------

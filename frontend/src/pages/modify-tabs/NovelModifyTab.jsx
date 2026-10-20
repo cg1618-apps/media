@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for NovelModifyTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
 import {
   countsChapters,
@@ -256,6 +257,13 @@ export default function NovelModifyTab({
           </select>
         </Field>
       </div>
+
+      <GenreLabelFields
+        mediaType="novel"
+        values={cnvf}
+        onChange={unv}
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-list-ol" title="Progress" />
       <Field label="Progress Display">

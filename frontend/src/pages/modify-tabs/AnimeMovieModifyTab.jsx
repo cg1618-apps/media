@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for AnimeMovieModifyTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
@@ -200,6 +201,13 @@ export default function AnimeMovieModifyTab({
           </label>
         </Field>
       </div>
+
+      <GenreLabelFields
+        mediaType="anime-movie"
+        values={amf}
+        onChange={uam}
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-info-circle" title="Release & Details" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
