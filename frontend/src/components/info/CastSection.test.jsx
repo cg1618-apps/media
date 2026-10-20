@@ -52,6 +52,15 @@ function mount(cast) {
 const shownNames = () =>
   screen.queryAllByRole("link").map((link) => link.textContent);
 
+it("shows a row's own remark under its names, and nothing for a row without one", () => {
+  mount([
+    { ...casting("Hero", "Main", 0), remark: "flashback only" },
+    casting("Heroine", "Main", 1),
+  ]);
+  const remarks = document.querySelectorAll("[data-cast-remark]");
+  expect([...remarks].map((el) => el.textContent)).toEqual(["flashback only"]);
+});
+
 it("shows every Main character, and only them, collapsed", () => {
   mount(CAST);
   expect(shownNames()).toEqual(["Hero", "Heroine"]);

@@ -127,6 +127,17 @@ export default function VoicedPartCard({ entry, navPath }) {
         {entry.voice_remark && (
           <span className="text-xs text-text-faint">({entry.voice_remark})</span>
         )}
+        {/* The cast row's own remark, about the character in this entry -
+            the bracketed voice_remark above is about this seiyuu's voice. */}
+        {entry.casting_remark && (
+          <span
+            className="text-xs text-text-muted line-clamp-2 whitespace-pre-line"
+            title={entry.casting_remark}
+            data-cast-remark
+          >
+            {entry.casting_remark}
+          </span>
+        )}
       </div>
       {navPath ? (
         <Link
