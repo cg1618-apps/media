@@ -40,19 +40,39 @@ const CREDITS_FIELD_MAP = {
       director: "director",
       distributor_tw: "publisher",
     },
-    tags: { exclusive_source: "exclusive_source" },
+    tags: {
+      exclusive_source: "exclusive_source",
+      genre_main: "genre_main",
+      genre_sub: "genre_sub",
+      label: "label",
+    },
   },
   movie: {
     credits: { director: "director" },
-    tags: { original_source: "original_source" },
+    tags: {
+      original_source: "original_source",
+      genre_main: "genre_main",
+      genre_sub: "genre_sub",
+      label: "label",
+    },
   },
   "tv-show": {
     credits: {},
-    tags: { original_source: "original_source" },
+    tags: {
+      original_source: "original_source",
+      genre_main: "genre_main",
+      genre_sub: "genre_sub",
+      label: "label",
+    },
   },
   cartoon: {
     credits: {},
-    tags: { original_source: "original_source" },
+    tags: {
+      original_source: "original_source",
+      genre_main: "genre_main",
+      genre_sub: "genre_sub",
+      label: "label",
+    },
   },
   manga: {
     credits: {
@@ -62,6 +82,9 @@ const CREDITS_FIELD_MAP = {
     },
     tags: {
       serialization_platform: "serialization_platform",
+      genre_main: "genre_main",
+      genre_sub: "genre_sub",
+      label: "label",
     },
   },
   novel: {
@@ -72,6 +95,9 @@ const CREDITS_FIELD_MAP = {
     },
     tags: {
       serialization_platform: "serialization_platform",
+      genre_main: "genre_main",
+      genre_sub: "genre_sub",
+      label: "label",
     },
   },
   comic: {
@@ -88,6 +114,9 @@ const CREDITS_FIELD_MAP = {
       continuity: "comic_continuity",
       era: "comic_era",
       events: "comic_event",
+      genre_main: "genre_main",
+      genre_sub: "genre_sub",
+      label: "label",
     },
   },
   // The third credit target: `publisher` resolves to a Publisher row the way

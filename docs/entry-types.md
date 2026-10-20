@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-10-18
+Last verified: 2026-10-20
 
 ## What this is for
 
@@ -295,6 +295,7 @@ style label). Vocabulary source and drift guard: [options.md](options.md#novel-u
 | Reference `main` sources | official, twitter, anilist, wiki, fandom, keyframe_staff | (same as anime) | wiki | wiki | wiki | twitter, anilist, wiki, fandom | twitter, anilist, wiki, fandom | official, wiki, fandom | SteamDB (**derived**: `derive_steamdb_source` writes it from `steam_appid` in `game_post_processing`, so every entry in a run gets it and not only the queued ones; fill-only, so a hand-entered row wins), HowLongToBeat (**searched**: `autofill_hltb_source` keeps the one exact name match, else writes nothing), Metacritic (**fetched**: the url on Steam's `appdetails` answer, normalised), Official site, Wikipedia, Fandom wiki | none seeded | SteamDB (**derived**, as for game), HowLongToBeat and Metacritic (as for game) | none seeded |
 | Publisher credit label (`credit_label("publisher", type)`) | 台灣代理商 | 台灣代理商 | — | — | — | 台灣出版商 | 台灣出版商 | 出版商 | 發行商 | — | — | — |
 | Publisher sheet header (`sheet_column_for`) | `distributor_tw` | `distributor_tw` | — | — | — | `publisher_tw` | `publisher_tw` | `publisher` | `publisher` | — | — | — |
+| Genre and label tag fields (Tier 2 `Genre Main` / `Genre Sub` / `Label`, one vocabulary each, shared) | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `genre_main`, `genre_sub`, `label` | `label` only - its genres are `game_genre` | — | — | — |
 | Origin/exclusivity tag field | `exclusive_source` (single) | `exclusive_source` (single) | `original_source` (multi) | `original_source` (multi) | `original_source` (multi) | `serialization_platform` (multi) | `serialization_platform` (multi) | — | — | `original_source` (multi) - the KR official source | — | — |
 
 `time_fin` - **Paused at** - is the six watching types' playback position,

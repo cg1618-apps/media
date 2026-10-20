@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for MovieModifyTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
@@ -235,6 +236,13 @@ export default function MovieModifyTab({
           </label>
         </Field>
       </div>
+
+      <GenreLabelFields
+        mediaType="movie"
+        values={mmf}
+        onChange={umm}
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-info-circle" title="Release & Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

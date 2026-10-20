@@ -442,6 +442,9 @@ export default function Comic() {
                         : null,
                   },
                 ],
+                { label: "Genre (Main)", value: comic.genre_main },
+                { label: "Genre (Sub)", value: comic.genre_sub },
+                { label: "標籤 Label", value: comic.label },
               ]}
             />
             {events.length > 0 && <EventsCard events={events} />}

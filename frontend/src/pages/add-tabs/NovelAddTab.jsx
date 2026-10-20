@@ -1,4 +1,5 @@
 // Frontend: add tab page file for NovelAddTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
 import {
   countsChapters,
@@ -348,6 +349,13 @@ export default function NovelAddTab({
           </select>
         </Field>
       </div>
+
+      <GenreLabelFields
+        mediaType="novel"
+        values={nvf}
+        onChange={unv}
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-list-ol" title="Progress" />
       <Field label="Progress Display" hint="Which tracker to show on the card">

@@ -57,6 +57,15 @@ export default function CastingCard({ entry, navPath, hideIdentity = false }) {
           <span className="text-xs text-text-muted truncate">as {entry.identity_name}</span>
         )
       )}
+      {entry.remark && (
+        <span
+          className="text-xs text-text-muted line-clamp-2 whitespace-pre-line"
+          title={entry.remark}
+          data-cast-remark
+        >
+          {entry.remark}
+        </span>
+      )}
       <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
         {year || "Undated"}
       </span>

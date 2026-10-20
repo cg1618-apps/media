@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-18
+Last verified: 2026-10-20
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -20,7 +20,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | `limit` / `offset` on list endpoints | collection, franchise, series, all twelve media types, watch-order lists, quote, meme, options | `limit` defaults to 500, range 1–2000; `offset` defaults to 0. |
 | `PATCH` with a raw JSON dict | collection, franchise, series, media entries, watch-order lists/items/sections, quote, meme | Handled by `apply_column_patch` (`app/routers/_patching.py`). Any of `system_id`, `id`, `created_at`, `updated_at` in the body → **422**. Keys that are not real columns of the row (relationship names, virtual fields such as `watch_next`, typos) are **silently ignored** and logged at debug level, so an older bundle sending an extra key does not break. |
 | Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it must **never** surface as a 500, or the SPA retries and creates duplicates. |
-| Personal fields are the viewer's | all twelve media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. `time_fin` (Paused at, on the six watching types) is personal the same way. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move. Until real accounts ship, a logged-out visitor resolves to the admin, so the public pages are unchanged. A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
+| Personal fields are the viewer's | all twelve media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. `time_fin` (Paused at, on the six watching types) is personal the same way. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move. A logged-out visitor has **no list**: `acting_user_id` returns None, no personal field is attached, and the status reads back `null` rather than the default, which would be a claim about a person (see [authorization.md](authorization.md), "Which LIST"). A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
 | A novel unit's `my_rating` is the reader's | `/api/novel` | Same idea one level down: served and accepted on each unit, stored in `user_novel_unit_rating`. A `null` rating stores no row. |
 | Delete returning `204` | notes, content labels, users, roles | No body. Every other delete returns a JSON `{status, message}` or the deleted row. |
 | Hidden = missing | every public read | An entry the viewer may not see answers **404** with the router's normal not-found message. |
@@ -1567,7 +1567,9 @@ seiyuu row carries the part: `character_id`, `character_name`,
 `character_public_id`; `identity_id`, `identity_name`, `identity_public_id`
 (null for the main identity); `credited_name`, what that entry calls the
 character (null for none); `character_role`, the casting's role; and
-`voice_remark`, this person's remark on that voice (`child`, `ep 13-`). Its
+`voice_remark`, this person's remark on that voice (`child`, `ep 13-`); and
+`casting_remark`, the cast row's own remark about the character in that entry
+(null for none). Its
 `display_photo_file` / `display_photo_focus` resolve as the entry's cast table
 does: the casting's own photo, else the identity's, else the character's.
 
@@ -1775,9 +1777,13 @@ field's values at once.
 | `PUT`  | `/{media_type}/{entry_id}`  | Admin  | Replaces the named roles/fields. Body: `{credits: {role: [names...]}, tags: {field: [values...]}}`. A role/field absent from the body is left untouched; one present with an empty list is cleared. Resolves each name to a `person`/`studio`/`publisher`/`system_option` row, creating on miss (dispatched on the role's `target`, which is a three-value axis). 400 for a role/field not valid on this `media_type`. |
 
 `media_type` is one of the hyphenated `MEDIA_TABLES` keys (`anime`,
-`anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`).
+`anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`,
+`game`, `h-comic`, `hentai`, `h-game`).
 Valid roles/fields per media type come from `credit_roles_for()` /
-`tag_fields_for()` in `app/utils/credit_roles.py`.
+`tag_fields_for()` in `app/utils/credit_roles.py`. The tag fields
+`genre_main`, `genre_sub` and `label` are valid on the eight mainstream types
+(`anime` through `comic`); `game` takes `label` alone, and the gated types
+none of the three, so a `PUT` naming one there is a 400.
 
 ### Reading credits: the entry payload, not this endpoint
 
@@ -1787,7 +1793,8 @@ comma-joined strings under the LEGACY column names the dropped columns used
 `comic_era` tag, and so on; `sheet_column_for()` owns that mapping and the
 Sheets export uses the same one). They are attached by
 `credits.attach_link_fields()` and defined by the mixins in
-`app/schemas/link_fields.py`.
+`app/schemas/link_fields.py`. `genre_main`, `genre_sub` and `label` are served
+under those same keys on every type that carries them.
 
 This is what the public detail, library, card and statistics pages read. They
 render an entry from ONE response and must not issue a second request per row:
@@ -1841,7 +1848,7 @@ line for line, plus one deliberate departure — see the `POST` row.
 | `GET`    | `/`                    | Public | List characters, sorted by resolved `display_name`. `?name=` does a case-insensitive substring match against all four name columns, so the cast editor's character combobox can offer suggestions without downloading the whole table. `?franchise_id=` / `?series_id=` (UUIDs; both given means both hold) keep only the characters cast on an entry of that franchise or series which the viewer may see (`filter_visible_pairs`), and narrow each character's `identities` to the ones cast on those entries - the franchise and series hubs' Characters tab. `casting_count` keeps its unscoped meaning. |
 | `GET`    | `/search-mal`      | `manage.catalog` | `?q=`, `limit`. Searches MAL characters. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
 | `GET`    | `/{system_id}`         | Public | Get one character by `public_id` or UUID. 404 if absent or hidden. |
-| `GET`    | `/{system_id}/entries` | Public | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry carries `seiyuu`: everyone who voiced the character there, in voice order, as `[{display_name, system_id, public_id, remark}]` — empty when nobody did. One entry appears **once per identity** the character is cast under in it, so each row also carries `casting_id`, `identity_id`, `identity_name` and `identity_public_id` (null for the main identity), and `credited_name`, the name the casting gives the character in that entry (null for none); `casting_id`, not the entry's `system_id`, tells two appearances apart. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
+| `GET`    | `/{system_id}/entries` | Public | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry carries `seiyuu`: everyone who voiced the character there, in voice order, as `[{display_name, system_id, public_id, remark}]` — empty when nobody did. One entry appears **once per identity** the character is cast under in it, so each row also carries `casting_id`, `identity_id`, `identity_name` and `identity_public_id` (null for the main identity), `credited_name`, the name the casting gives the character in that entry (null for none), and `remark`, the casting's own remark (null for none); `casting_id`, not the entry's `system_id`, tells two appearances apart. 404 if the character is absent or hidden; a visible character's castings on label-hidden entries are omitted, group and all. |
 | `POST`   | `/`                    | Admin  | Create a character. **Always a plain create, never find-or-create** — unlike `POST /api/person`, which safely resolves two spellings of one director onto one row. Character names carry no unique constraint (see `docs/data-model.md`): the "Yuki" of one anime and the "Yuki" of another are different characters, and silently returning the first match on a POST would fuse two unrelated casts under one `system_id`. Disambiguation happens in the cast editor's combobox instead, which lists existing matches together with the entries they already appear in and requires an explicit "Create new character named X" choice before minting a row. Body: `CharacterCreate`. A body with no name at all is 422, mirroring `ck_character_has_a_name`. `mal_id` is derived from `mal_link`, and the character is then filled from MAL (see below). `appearance` and `trait` are written once the row exists (see **Tags** below). |
 | `PUT`    | `/{system_id}`         | Admin  | Fully update a character. Body: `CharacterUpdate`. A non-null `photo_fallback_entry_id` must name an entry this character is cast on and the editor can see — 422 otherwise; a null keeps a stored choice the editor cannot see. `mal_id` is derived from `mal_link`, and the character is filled from MAL after the payload is copied (see below). `appearance` and `trait` each replace their list whole; one left out or `null` is unchanged. |
 | `PATCH`  | `/{system_id}`         | Admin  | Partially update a character — the detail page's inline rating and remark edits. Body: any subset of the `CharacterBase` columns as a JSON object; only the keys sent change. The `PUT` rules are checked before anything is written: `gender`, `my_rating` and `role` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored — except `appearance` and `trait`, which replace their lists as on `PUT` (`null` is unchanged; anything but a list of strings is a 422). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `CharacterResponse`. |

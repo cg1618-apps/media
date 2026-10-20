@@ -61,6 +61,7 @@ import ContentLabelPicker, {
 } from "../../components/forms/ContentLabelPicker";
 import { fetchJson, jsonBody } from "../../api/client";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
+import { genreLabelSourceFields } from "../../lib/genreLabelFields";
 import { useReplaceCasting } from "../../hooks/useCasting";
 import { castIdentityProblem } from "../../lib/castOrder";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
@@ -1597,6 +1598,7 @@ export default function Add() {
       "cover",
       "Entry",
     );
+    await ensureSourceValues(genreLabelSourceFields("anime-movie", amf, splitTags));
     await saveCredits("anime-movie", created.system_id, amf);
     await saveCast("anime-movie", created.system_id, amf);
 
@@ -1777,6 +1779,7 @@ export default function Add() {
       "cover",
       "Entry",
     );
+    await ensureSourceValues(genreLabelSourceFields("movie", mf, splitTags));
     await saveCredits("movie", created.system_id, mf);
     window.scrollTo(0, 0);
     showToast("success", "Movie appended successfully.");
@@ -1949,6 +1952,7 @@ export default function Add() {
       "cover",
       "Entry",
     );
+    await ensureSourceValues(genreLabelSourceFields("tv-show", tvf, splitTags));
     await saveCredits("tv-show", created.system_id, tvf);
     window.scrollTo(0, 0);
     showToast("success", "TV Show appended successfully.");
@@ -2103,6 +2107,7 @@ export default function Add() {
       "cover",
       "Entry",
     );
+    await ensureSourceValues(genreLabelSourceFields("cartoon", cf, splitTags));
     await saveCredits("cartoon", created.system_id, cf);
     window.scrollTo(0, 0);
     showToast("success", "Cartoon appended successfully.");
@@ -2272,6 +2277,7 @@ export default function Add() {
       "cover",
       "Entry",
     );
+    await ensureSourceValues(genreLabelSourceFields("manga", mgf, splitTags));
     await saveCredits("manga", created.system_id, mgf);
     await saveCast("manga", created.system_id, mgf);
     window.scrollTo(0, 0);
@@ -2384,6 +2390,7 @@ export default function Add() {
         source: { kind: "publisher", scope: "novel" },
         values: splitTags(nvf.publisher_tw),
       },
+      ...genreLabelSourceFields("novel", nvf, splitTags),
     ]);
 
     const payload = {
@@ -2607,6 +2614,7 @@ export default function Add() {
         source: { kind: "option", category: "Comic Event", scope: "comic" },
         values: Array.isArray(cmf.events) ? cmf.events.filter(Boolean) : [],
       },
+      ...genreLabelSourceFields("comic", cmf, splitTags),
     ]);
 
     const payload = {

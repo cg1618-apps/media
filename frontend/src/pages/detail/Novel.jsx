@@ -561,6 +561,9 @@ export default function Novel() {
                       novel.ch_total != null ? String(novel.ch_total) : null,
                   },
                 ],
+                { label: "Genre (Main)", value: novel.genre_main },
+                { label: "Genre (Sub)", value: novel.genre_sub },
+                { label: "標籤 Label", value: novel.label },
               ]}
             />
             {/* Production Card */}

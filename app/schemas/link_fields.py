@@ -136,6 +136,13 @@ class AnimeMovieLinkFields(AttachedFields):
     distributor_tw: Optional[str] = None
     publisher_refs: list[PublisherRef] = []
     exclusive_source: Optional[str] = None
+    # Genre Main, Genre Sub and Label. The six mainstream classes below carry
+    # them too; game carries label only and the gated types none. No legacy
+    # column held them on these types, so each is served under its own key
+    # (sheet_column_for's fallback).
+    genre_main: Optional[str] = None
+    genre_sub: Optional[str] = None
+    label: Optional[str] = None
 
 
 class MovieLinkFields(AttachedFields):
@@ -144,6 +151,9 @@ class MovieLinkFields(AttachedFields):
     # Movie never had a legacy source_official column; the tag field is
     # offered on movies, so the key is its own name.
     original_source: Optional[str] = None
+    genre_main: Optional[str] = None
+    genre_sub: Optional[str] = None
+    label: Optional[str] = None
 
 
 class TvShowLinkFields(AttachedFields):
@@ -151,11 +161,17 @@ class TvShowLinkFields(AttachedFields):
     # Legacy sheet column stays "source_official" - sheet_column_for maps the
     # renamed field key back to it.
     source_official: Optional[str] = None
+    genre_main: Optional[str] = None
+    genre_sub: Optional[str] = None
+    label: Optional[str] = None
 
 
 class CartoonLinkFields(AttachedFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     source_official: Optional[str] = None
+    genre_main: Optional[str] = None
+    genre_sub: Optional[str] = None
+    label: Optional[str] = None
 
 
 class MangaLinkFields(AttachedFields):
@@ -167,6 +183,9 @@ class MangaLinkFields(AttachedFields):
     publisher_tw: Optional[str] = None
     publisher_refs: list[PublisherRef] = []
     serialization_platform: Optional[str] = None
+    genre_main: Optional[str] = None
+    genre_sub: Optional[str] = None
+    label: Optional[str] = None
 
 
 class NovelLinkFields(AttachedFields):
@@ -178,6 +197,9 @@ class NovelLinkFields(AttachedFields):
     publisher_tw: Optional[str] = None
     publisher_refs: list[PublisherRef] = []
     serialization_platform: Optional[str] = None
+    genre_main: Optional[str] = None
+    genre_sub: Optional[str] = None
+    label: Optional[str] = None
 
 
 class ComicLinkFields(AttachedFields):
@@ -193,6 +215,9 @@ class ComicLinkFields(AttachedFields):
     continuity: Optional[str] = None
     era: Optional[str] = None
     events: Optional[str] = None
+    genre_main: Optional[str] = None
+    genre_sub: Optional[str] = None
+    label: Optional[str] = None
 
 
 class GameLinkFields(AttachedFields):

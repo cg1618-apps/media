@@ -156,6 +156,22 @@ describe("Novel detail page — units", () => {
     expect(screen.queryByText("Units")).not.toBeInTheDocument();
   });
 
+  it("shows the genre and label tags on the Information card", async () => {
+    mockFetch({
+      ...BASE_NOVEL,
+      genre_main: "Fantasy, Romance",
+      genre_sub: "Isekai",
+      label: "必看",
+    });
+    mount();
+    expect(await screen.findByText("Genre (Main)")).toBeInTheDocument();
+    expect(screen.getByText("Fantasy, Romance")).toBeInTheDocument();
+    expect(screen.getByText("Genre (Sub)")).toBeInTheDocument();
+    expect(screen.getByText("Isekai")).toBeInTheDocument();
+    expect(screen.getByText("標籤 Label")).toBeInTheDocument();
+    expect(screen.getByText("必看")).toBeInTheDocument();
+  });
+
   it('labels the original-volumes total "JP/KR"', async () => {
     mockFetch({ ...BASE_NOVEL, vol_total_original: 5 });
     mount();

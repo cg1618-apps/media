@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-10-18
+Last verified: 2026-10-20
 
 ## What this is for
 
@@ -145,9 +145,9 @@ that names a credit which does not exist.
 
 | key | label | `system_option.category` | media types |
 |---|---|---|---|
-| `genre_main` | Genre Main | Genre Main | anime |
-| `genre_sub` | Genre Sub | Genre Sub | anime |
-| `label` | 標籤 Label | Label | anime, game |
+| `genre_main` | Genre Main | Genre Main | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
+| `genre_sub` | Genre Sub | Genre Sub | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic |
+| `label` | 標籤 Label | Label | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game |
 | `original_source` | Original Source | Platform | tv-show, cartoon, movie, h-comic (the KR official source) |
 | `exclusive_source` | Exclusive Source | Platform | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | Serialization Platform | manga, novel |
@@ -212,7 +212,8 @@ imprint / continuity / era / events`. Because the map was already keyed by
 `(media_type, key)`, the role collapse only renamed its keys: **every sheet
 header is byte-identical to what it was before**, which `tests/unit/
 test_credit_roles.py` asserts against a hand-written table. A pair absent from the map (movie
-`source_official`, anime `label`) uses the key itself as header.
+`original_source`, `label` on every type, `genre_main` / `genre_sub` on every
+type but anime) uses the key itself as header.
 `sheet_column_for(media_type, key)` is the single accessor; the same names are
 used as the entry payload attributes (below), so the API edge, the form state
 and the sheets share one vocabulary.
@@ -300,13 +301,13 @@ All.
 | `GET /api/publisher/?scope=`, `GET /{id}`, `GET /{id}/entries`, `POST /`, `PUT /{id}`, `PATCH /{id}`, `DELETE /{id}`, `POST /{id}/merge` | as studio | `app/routers/publisher.py` mirrors `app/routers/studio.py` endpoint for endpoint, minus the MAL derivation and autofill (there is no MAL record to enrich a publisher from) — and minus the delete guard: `DELETE` takes no `?credits=N`, exactly as studio's does not. One deliberate divergence, below. Studio has no counterpart for the `scopes` list every publisher payload carries: `?scope=<media-type>` narrows the list to publishers offered on one type (omitted, it returns everything, including publishers holding no scope at all — the admin list page must be able to see a publisher in order to give it one); `POST` inserts scopes additively, `PUT` replaces the whole set, and merge unions both sides'. There is no `/api/publisher/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
 | `GET/POST/PUT/DELETE /api/options/...` | read public, write admin | The Tier 2 vocabulary `media_tag` points at; see [options.md](../options.md). |
 | `GET /api/character/?name=` | public | Substring match, case-insensitive, across all four name columns. Sorted by resolved `display_name`. Exists so the cast editor's character combobox never downloads the whole table. |
-| `GET /api/character/{id}`, `GET /{id}/entries` | public | As person/studio, but `/entries` groups only by media type (a character holds no role) and each entry carries `seiyuu`: everyone who voiced them there, in voice order, each as `{display_name, system_id, public_id, remark}` (empty when nobody did), and `credited_name`, the name that casting gives the character there (null for none). |
+| `GET /api/character/{id}`, `GET /{id}/entries` | public | As person/studio, but `/entries` groups only by media type (a character holds no role) and each entry carries `seiyuu`: everyone who voiced them there, in voice order, each as `{display_name, system_id, public_id, remark}` (empty when nobody did), `credited_name`, the name that casting gives the character there (null for none), and `remark`, the casting's own remark (null for none). |
 | `POST /api/character/` | admin | **Plain create — not find-or-create**, unlike `POST /api/person/` and `POST /api/studio/`. See [Character and character_casting](#character-and-character_casting) for why. |
 | `PUT /api/character/{id}` | admin | Full metadata update. `photo_fallback_entry_id` must name an entry the character is cast on and the editor can see (422); a null keeps a stored choice the editor cannot see. |
 | `PATCH /api/character/{id}` | admin | Partial update, for inline rating and remark edits; the `PUT` rules are checked first and server columns are a 422. |
 | `DELETE /api/character/{id}?castings=N` | admin | Same count-guard shape as `DELETE /api/person?credits=N`: castings cascade away, and a count that moved underneath the admin is a 409. |
 | `POST /api/character/{id}/merge` `{source_id}` | admin | Repoints every casting from source onto target, deletes the source. Where both are cast on the same entry (which would collide on `uq_character_casting`), the source's casting is dropped, its voices the target's casting lacks are appended to the target's, and the target's casting fills its blank role, credited name, remark and photo from it. Then fills the target's blank columns, as person does. The correct fix for a duplicate, since a delete would cascade the castings away. |
-| `GET /api/casting/{media_type}/{entry_id}` | public (viewer) | The entry's cast, ordered by `position`; each row carries `voices: [{person_id, person_public_id, person_name, remark}]` in voice order, and `credited_name`. Missing or hidden entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
+| `GET /api/casting/{media_type}/{entry_id}` | public (viewer) | The entry's cast, ordered by `position`; each row carries `voices: [{person_id, person_public_id, person_name, remark}]` in voice order, `credited_name` and `remark`. Missing or hidden entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
 | `PUT /api/casting/{media_type}/{entry_id}` | admin | Replaces the whole cast in submitted order, each row with its `voices: [{person_id, remark?}]` in order. `media_type` is one of `CASTING_MEDIA_TYPES` (anime, anime-movie, manga, novel, h-comic, hentai). `role` is optional - null or blank stores no role. `credited_name` is trimmed, and null or blank stores none. Rejects (422) voices on a non-voiced media type - h-comic included - one person twice in a row's voices, or a non-blank role outside `CHARACTER_ROLES`, before a row ever reaches `ck_casting_voice_scope` or `uq_casting_voice`. |
 
 **Deleting a publisher removes its logo; deleting a studio does not.** This
@@ -450,7 +451,11 @@ Four tables, and the shape is deliberate on the points recorded below.
   character - "AAA" in season 1 - and is free text, NULL for none. The cast
   slip shows it as the row's name, the identity's (else the character's) own
   name beneath it; the character and identity pages show it as "as AAA" on
-  that appearance. Character search (`GET /api/character/?name=`) does not
+  that appearance. A row's **remark** is free text about the character in
+  that entry, apart from each voice's remark: the cast slip shows it on a
+  line of its own under the row's names, and the character, identity and
+  seiyuu pages show it on that appearance's card (`casting_remark` on the
+  seiyuu payload, beside `voice_remark`). Character search (`GET /api/character/?name=`) does not
   match it: the search reads the character's own four names, and a credited
   name lives on a casting whose entry the viewer may not be allowed to see.
   `fill_character_roles` still reads every casting of the character, identity

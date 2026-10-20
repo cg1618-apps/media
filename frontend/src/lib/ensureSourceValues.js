@@ -102,8 +102,59 @@ export function buildCreateRequest(source, value) {
 }
 
 /**
+ * The existing option a scoped option field's typed value names, when that
+ * option exists but is scoped to other types only - so the field's own list
+ * filtered it out. Matched on trimmed, case-folded value, as the backend's
+ * resolve_option matches. Null for anything else: a value that does not
+ * exist, an unscoped one (already offered everywhere), or a non-option field.
+ */
+export function findOutOfScopeOption(source, value, sources) {
+  if (source.kind !== "option" || !source.scope) return null;
+  const key = String(value).trim().toLowerCase();
+  return (
+    (sources.options || []).find(
+      (o) =>
+        o.category === source.category &&
+        String(o.value).trim().toLowerCase() === key &&
+        o.scopes?.length > 0 &&
+        !o.scopes.includes(source.scope),
+    ) ?? null
+  );
+}
+
+/**
+ * The [url, init] fetch() arguments that add `scope` to an existing option.
+ *
+ * Additive only, the way POST /api/publisher widens a publisher: typing 奇幻
+ * on a movie when 奇幻 is a manga genre means it is a movie genre too. The
+ * PUT replaces the whole option, so everything else is sent back as read.
+ * Never sent for an unscoped option - adding a scope to one would NARROW it
+ * to that type, which is exactly what Ruling R27 took out of the save path.
+ */
+export function buildWidenRequest(option, scope) {
+  return [
+    endpoints.options.update(option.system_id),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: option.category,
+        value: option.value,
+        sort_order: option.sort_order ?? 0,
+        remark: option.remark ?? null,
+        scopes: [...option.scopes, scope],
+        usages: option.usages ?? [],
+        aliases: option.aliases ?? [],
+      }),
+      credentials: "include",
+    },
+  ];
+}
+
+/**
  * Creates every {source, value} pair from `fields` that doesn't already
- * exist in `sources`. Does not refresh `sources` itself — callers re-fetch
+ * exist in `sources`, or widens an existing option scoped elsewhere to the
+ * field's scope. Does not refresh `sources` itself — callers re-fetch
  * (fetchAllSources()) afterward and update their own state with the result.
  */
 export async function ensureSourceValues(fields, sources, fetchImpl = fetch) {
@@ -111,7 +162,10 @@ export async function ensureSourceValues(fields, sources, fetchImpl = fetch) {
   if (toCreate.length === 0) return;
   await Promise.all(
     toCreate.map(({ source, value }) => {
-      const [url, init] = buildCreateRequest(source, value);
+      const existing = findOutOfScopeOption(source, value, sources);
+      const [url, init] = existing
+        ? buildWidenRequest(existing, source.scope)
+        : buildCreateRequest(source, value);
       return fetchImpl(url, init);
     }),
   );

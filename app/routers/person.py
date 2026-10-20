@@ -445,6 +445,9 @@ def get_person_entries(
                 "credited_name": row.credited_name,
                 "character_role": row.role,
                 "voice_remark": voice_remarks.get(row.system_id),
+                # The cast row's own remark, about the character in this
+                # entry; voice_remark above is about this seiyuu's voice.
+                "casting_remark": row.remark,
                 "display_photo_file": photo_file,
                 "display_photo_focus": photo_focus,
             }

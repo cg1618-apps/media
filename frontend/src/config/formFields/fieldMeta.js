@@ -65,6 +65,7 @@ import {
 import { WEEKDAYS } from "../weekdays";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { HENTAI_SOURCES } from "../../lib/hentaiForm";
+import { GENRE_LABEL_FIELDS, genreLabelSource } from "../../lib/genreLabelFields";
 
 // The display_name_field choice a studio, person and character all share. ""
 // is the unset state, which falls through en -> cn -> jp -> alt; see
@@ -276,6 +277,23 @@ export const COMMON_FIELD_META = {
 // The manga Anime Studio field names the anime adaptation's studio, so it is
 // counted and scoped as an anime studio field is (lib/suggestionOrder.js),
 // not under manga - no studio is ever credited on a manga.
+// Genre Main, Genre Sub and 標籤 Label on the seven types that share them
+// (lib/genreLabelFields.js), each scoped to its own media type. Anime keeps
+// its own three entries below, game its own Label.
+function genreLabelMeta(mediaType) {
+  return Object.fromEntries(
+    GENRE_LABEL_FIELDS.map(({ key, category, label }) => [
+      key,
+      {
+        label,
+        control: "tags",
+        source: genreLabelSource(mediaType, category),
+        group: "Classification",
+      },
+    ]),
+  );
+}
+
 export const ANIME_STUDIO_SOURCE = Object.freeze({ kind: "studio", scope: "anime" });
 
 export const TYPE_FIELD_META = {
@@ -306,19 +324,19 @@ export const TYPE_FIELD_META = {
     genre_main: {
       label: "Genre Main",
       control: "tags",
-      source: { kind: "option", category: "Genre Main" },
+      source: { kind: "option", category: "Genre Main", scope: "anime" },
       group: "Classification",
     },
     genre_sub: {
       label: "Genre Sub",
       control: "tags",
-      source: { kind: "option", category: "Genre Sub" },
+      source: { kind: "option", category: "Genre Sub", scope: "anime" },
       group: "Classification",
     },
     label: {
       label: "標籤 Label",
       control: "tags",
-      source: { kind: "option", category: "Label" },
+      source: { kind: "option", category: "Label", scope: "anime" },
       group: "Classification",
     },
     ep_previous: {
@@ -389,6 +407,7 @@ export const TYPE_FIELD_META = {
   },
 
   "anime-movie": {
+    ...genreLabelMeta("anime-movie"),
     anime_movie_name_en: { label: "Name (EN)", group: "Names" },
     anime_movie_name_cn: { label: "Name (CN)", group: "Names" },
     anime_movie_name_roman: { label: "Name (Romaji)", group: "Names" },
@@ -442,6 +461,7 @@ export const TYPE_FIELD_META = {
   },
 
   movie: {
+    ...genreLabelMeta("movie"),
     movie_name_en: { label: "Name (EN)", group: "Names" },
     movie_name_cn: { label: "Name (CN)", group: "Names" },
     movie_name_alt: { label: "Name (Alt)", group: "Names" },
@@ -476,6 +496,7 @@ export const TYPE_FIELD_META = {
   },
 
   "tv-show": {
+    ...genreLabelMeta("tv-show"),
     tv_name_en: { label: "Name (EN)", group: "Names" },
     tv_name_cn: { label: "Name (CN)", group: "Names" },
     tv_name_alt: { label: "Name (Alt)", group: "Names" },
@@ -500,6 +521,7 @@ export const TYPE_FIELD_META = {
   },
 
   cartoon: {
+    ...genreLabelMeta("cartoon"),
     cartoon_name_en: { label: "Name (EN)", group: "Names" },
     cartoon_name_cn: { label: "Name (CN)", group: "Names" },
     cartoon_name_alt: { label: "Name (Alt)", group: "Names" },
@@ -529,6 +551,7 @@ export const TYPE_FIELD_META = {
   },
 
   manga: {
+    ...genreLabelMeta("manga"),
     manga_name_cn: { label: "Name (CN)", group: "Names" },
     manga_name_en: { label: "Name (EN)", group: "Names" },
     manga_name_roman: { label: "Name (Romaji)", group: "Names" },
@@ -597,6 +620,7 @@ export const TYPE_FIELD_META = {
   },
 
   novel: {
+    ...genreLabelMeta("novel"),
     novel_name_cn: { label: "Name (CN)", group: "Names" },
     novel_name_en: { label: "Name (EN)", group: "Names" },
     novel_name_roman: { label: "Name (Romaji)", group: "Names" },
@@ -689,6 +713,7 @@ export const TYPE_FIELD_META = {
   },
 
   comic: {
+    ...genreLabelMeta("comic"),
     // EN leads: Western comics are known by their English titles.
     comic_name_en: { label: "Name (EN)", group: "Names" },
     comic_name_cn: { label: "Name (CN)", group: "Names" },
@@ -1788,6 +1813,8 @@ export const BUILTIN_AUTOFILL = {
     "franchise_id",
     "studio",
     "director",
+    "genre_main",
+    "genre_sub",
   ],
   movie: [
     "movie_name_en",
@@ -1798,6 +1825,8 @@ export const BUILTIN_AUTOFILL = {
     "is_main",
     "airing_status",
     "movie_type",
+    "genre_main",
+    "genre_sub",
   ],
   "tv-show": [
     "tv_name_en",
@@ -1809,6 +1838,8 @@ export const BUILTIN_AUTOFILL = {
     "is_main",
     "region",
     "imdb_link",
+    "genre_main",
+    "genre_sub",
   ],
   cartoon: [
     "cartoon_name_en",
@@ -1821,6 +1852,8 @@ export const BUILTIN_AUTOFILL = {
     "original_source",
     "season_part",
     "imdb_link",
+    "genre_main",
+    "genre_sub",
   ],
   manga: [
     "manga_name_cn",
@@ -1832,6 +1865,8 @@ export const BUILTIN_AUTOFILL = {
     "series_id",
     "region",
     "is_main",
+    "genre_main",
+    "genre_sub",
   ],
   novel: [
     "novel_name_cn",
@@ -1844,6 +1879,8 @@ export const BUILTIN_AUTOFILL = {
     "region",
     "type",
     "is_main",
+    "genre_main",
+    "genre_sub",
   ],
   comic: [
     "comic_name_en",
@@ -1856,6 +1893,8 @@ export const BUILTIN_AUTOFILL = {
     "continuity",
     "era",
     "comic_type",
+    "genre_main",
+    "genre_sub",
   ],
   game: [
     "game_name_cn",

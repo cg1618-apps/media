@@ -1,4 +1,5 @@
 // Frontend: add tab page file for MovieAddTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
@@ -327,6 +328,13 @@ export default function MovieAddTab({
           </label>
         </Field>
       </div>
+
+      <GenreLabelFields
+        mediaType="movie"
+        values={mf}
+        onChange={umf}
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-info-circle" title="Release & Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

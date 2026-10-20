@@ -1,4 +1,5 @@
 // Frontend: add tab page file for CartoonAddTab.
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
@@ -378,6 +379,13 @@ export default function CartoonAddTab({
         label="Release Date"
         value={cf.release_date}
         onChange={(v) => uc("release_date", v)}
+      />
+
+      <GenreLabelFields
+        mediaType="cartoon"
+        values={cf}
+        onChange={uc}
+        sources={sources}
       />
 
       <SectionHeader icon="fa-link" title="Source & Links" />

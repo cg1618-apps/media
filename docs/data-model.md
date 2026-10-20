@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-18
+Last verified: 2026-10-20
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -332,7 +332,8 @@ Model: `AnimeMovies`. CHECKs: `ck_anime_movies_release_date_jp_iso`,
 | `mal_link` | String | yes | | |
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `names_dict`,
-credit/tag link fields - including `distributor_tw`, the one genuinely new
+credit/tag link fields - `genre_main` / `genre_sub` / `label` among them, each under its own key since no
+legacy column held them on this type - including `distributor_tw`, the one genuinely new
 column the publisher migration added: anime_movies never carried a distributor
 before, and it takes anime's header because the two tabs record the same fact.
 
@@ -356,7 +357,7 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 | `type_slots` | JSONB | yes | | Which favourite 3×3 grid slot this row holds, as `{gridKey: 1..9}` - see [frontend/pages.md](frontend/pages.md#statistics--statistics--completions--completions). One grid is keyed here, Movie - the favourite *movies*, which is a different grid from the favourite movie *franchises* that key "Movie" on `franchise`. |
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `director`,
-`original_source` (tag link fields; `original_source` has no
+`genre_main` / `genre_sub` / `label`, `original_source` (tag link fields; `original_source` has no
 `LEGACY_SHEET_COLUMN` entry for `movie`, so its response attribute is the
 field key itself - see the response-attribute note under
 [Virtual fields](#virtual-fields-on-media-entries)) and `sources`.
@@ -378,6 +379,7 @@ Live-action / scripted TV. Model: `TVShows`. CHECK: `ck_tv_shows_release_date_is
 | `imdb_id` / `imdb_link` | String | yes | | |
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`,
+`genre_main` / `genre_sub` / `label` (tag link fields under their own keys),
 `source_official` (the response attribute for the `original_source` tag
 field - `tv-show` kept its pre-rename sheet header, see the response-attribute
 note under [Virtual fields](#virtual-fields-on-media-entries)).
@@ -399,9 +401,10 @@ Western animation. Model: `Cartoon`. CHECK: `ck_cartoons_release_date_iso`.
 | `release_date` | String | yes | | |
 | `imdb_id` / `imdb_link` | String | yes | | |
 
-Virtual: `remark`, `watch_next`, `display_name`, `source_official` (the
-response attribute for the `original_source` tag field - `cartoon` also kept
-its pre-rename sheet header).
+Virtual: `remark`, `watch_next`, `display_name`, `genre_main` / `genre_sub` / `label` (tag link
+fields under their own keys), `source_official` (the response attribute for
+the `original_source` tag field - `cartoon` also kept its pre-rename sheet
+header).
 
 ### `manga`
 
@@ -427,8 +430,8 @@ Manga, manhwa, manhua. Model: `Manga`. CHECKs: `ck_manga_release_date_iso`,
 | `mal_link` | String | yes | | |
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
-`author_plot` / `author_draw` / `publisher_tw` / `serialization_platform`
-link fields. `serialization_platform` was a real column until Task 11 of the
+`author_plot` / `author_draw` / `publisher_tw` / `serialization_platform` /
+`genre_main` / `genre_sub` / `label` link fields. `serialization_platform` was a real column until Task 11 of the
 media-sources migration backfilled it into `media_tag` and dropped it - it is
 now a `TagField` shared with `novel` (`app/utils/credit_roles.py`).
 `publisher_tw` is the response/sheet attribute name only: since the publisher
@@ -470,8 +473,8 @@ Alembic revision `nv1u2n3i4t5s`.
 | `openlibrary_link` | String | yes | | The pasted Open Library work URL; `openlibrary_id` is derived from it |
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
-`author` / `illustrator` / `publisher_tw` / `serialization_platform` link
-fields (`publisher_tw` is the header a `publisher` credit is written under -
+`author` / `illustrator` / `publisher_tw` / `serialization_platform` /
+`genre_main` / `genre_sub` / `label` link fields (`publisher_tw` is the header a `publisher` credit is written under -
 see manga above), `units`
 (`List[NovelUnitResponse]`, populated via `selectinload`).
 
@@ -545,7 +548,7 @@ titles).
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
 `writer` / `artist` / `publisher` / `imprint` / `continuity` / `era` /
-`events` link fields. `publisher` is now a credit rather than the retired
+`events` / `genre_main` / `genre_sub` / `label` link fields. `publisher` is now a credit rather than the retired
 `comic_publisher` tag, under the same header; comic's unused `publisher_tw`
 attribute is gone.
 
