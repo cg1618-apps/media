@@ -126,6 +126,36 @@ def make_media_router(spec) -> APIRouter:
     def _names(entry) -> dict:
         return {k: getattr(entry, col) for k, col in spec.hierarchy_names.items()}
 
+    def _patch_parent_links(db: Session, entry, payload: dict) -> None:
+        """
+        Write `franchise_id` / `series_id` from a PATCH body, and take them
+        out of the body.
+
+        Both live on `media` and reach the entry through association proxies,
+        so apply_column_patch would drop them - as it would cover_image_focus
+        (_patch_cover_focus) - and a series picked on the Modify page, which
+        saves by PATCH, would never be stored. A type without series leaves
+        `series_id` in the body for apply_column_patch to ignore. Resolved as
+        PUT resolves them, and only when the body names one, so a PATCH that
+        does not touch the links never creates a franchise.
+
+        A PATCH body is not validated, so an id arrives as a string; the
+        resolver reads a string as a name, so a UUID string is parsed first.
+        """
+        links = [f for f in MEDIA_OWNED_FIELDS if spec.has_series or f != "series_id"]
+        present = [f for f in links if f in payload]
+        if not present:
+            return
+        for field in present:
+            value = payload.pop(field)
+            if isinstance(value, str):
+                try:
+                    value = uuid.UUID(value)
+                except ValueError:
+                    pass
+            setattr(entry, field, value)
+        _resolve_parents(db, entry)
+
     def _resolve_parents(db: Session, entry) -> None:
         series_id = getattr(entry, "series_id", None) if spec.has_series else None
         franchise_id, series_id = spec.resolve_hierarchy(
@@ -436,6 +466,7 @@ def make_media_router(spec) -> APIRouter:
         payload, personal = split_list_payload(spec.owner_type, payload)
         _check_family(db, payload.get("franchise_id"))
         _patch_cover_focus(entry, payload)
+        _patch_parent_links(db, entry, payload)
         apply_column_patch(entry, payload)
         _write_nested(db, entry, nested, viewer)
         _derive(db, entry)
