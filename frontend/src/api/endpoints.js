@@ -434,6 +434,7 @@ export const endpoints = {
     backup: () => "/api/data-control/backup",
     calculateAll: () => "/api/data-control/calculate/all",
     syncCast: () => "/api/data-control/calculate/sync-cast",
+    syncDisplayNames: () => "/api/data-control/calculate/sync-display-names",
     cleanScan: () => "/api/data-control/clean/scan",
     cleanApply: () => "/api/data-control/clean/apply",
     checkDuplicates: () => "/api/data-control/check/duplicates",

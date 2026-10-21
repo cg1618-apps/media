@@ -1518,6 +1518,25 @@ export default function Admin() {
               overwrites.
             </span>
           </button>
+          {/* Calculate All's CN display-name step on its own. */}
+          <button
+            onClick={() =>
+              runCalc("syncdisplaynames", endpoints.dataControl.syncDisplayNames())
+            }
+            disabled={!!calcLoading.syncdisplaynames}
+            className="flex flex-col items-center gap-2 p-3 bg-surface-2 hover:bg-brand-soft border border-border hover:border-brand/30 rounded-xl text-xs font-bold text-text-muted hover:text-brand transition disabled:opacity-60"
+          >
+            <i className="fas fa-language text-lg"></i>
+            {calcLoading.syncdisplaynames ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "CN Display Names"
+            )}
+            <span className="text-[10px] font-medium text-text-faint text-center">
+              Characters and identities on the default display name show
+              their CN name when they have one.
+            </span>
+          </button>
           <button
             onClick={runFindDuplicates}
             disabled={!!calcLoading.duplicates}
