@@ -243,6 +243,12 @@ schemas, the cover upload, the hierarchy resolver, the Fill pipeline and the
 SPA read and write them exactly as before. `cover_image_focus`, the cover's
 focal point, is a `media` column proxied onto the entry the same way.
 
+A proxy is not a column of the entry's own table either, so
+`apply_column_patch` would ignore it. The entry `PATCH` therefore writes
+`franchise_id`, `series_id` and `cover_image_focus` itself before the column
+patch runs (`app/routers/_factory.py`), and `cover_image_file` and
+`public_id` stay unwritable through `PATCH`.
+
 The one thing that changed for callers: **an association proxy cannot be used
 as a column expression**, so a query filters through the joined row -
 `db.query(Anime).join(Anime.media_row).filter(Media.franchise_id == fid)` -
