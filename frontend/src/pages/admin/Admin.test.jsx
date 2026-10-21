@@ -2,7 +2,8 @@
 //
 // Pins the Sync Cast button: it posts to Calculate All's cast step on its own
 // and shows the server's message as its toast, like the Calculate All button
-// beside it. And Remove Uncast Characters: the list opens all ticked, and the
+// beside it; CN Display Names does the same for its own step. And Remove
+// Uncast Characters: the list opens all ticked, and the
 // remove call names only what is still ticked.
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -17,6 +18,7 @@ vi.mock("../../contexts/AuthContext", () => ({
 }));
 
 const SYNC_CAST = "/api/data-control/calculate/sync-cast";
+const SYNC_DISPLAY_NAMES = "/api/data-control/calculate/sync-display-names";
 const UNCAST_SCAN = "/api/data-control/check/uncast-characters";
 const UNCAST_REMOVE = "/api/data-control/calculate/remove-uncast-characters";
 
@@ -32,6 +34,16 @@ beforeEach(() => {
           status: "success",
           message: "Cast synced: 2 character/identity field(s) and 3 cast field(s) filled.",
           counts: {},
+        }),
+      };
+    }
+    if (url === SYNC_DISPLAY_NAMES) {
+      return {
+        ok: true,
+        json: async () => ({
+          status: "success",
+          message: "Display name set to CN on 4 character(s) and 1 identity(ies).",
+          counts: { character: 4, identity: 1 },
         }),
       };
     }
@@ -95,6 +107,27 @@ describe("Control Center Sync Cast", () => {
     ).toBeInTheDocument();
     // Let the mount-time loads settle inside the test.
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  });
+});
+
+describe("Control Center CN Display Names", () => {
+  it("posts to the display-name step and toasts its message", async () => {
+    render(
+      <MemoryRouter>
+        <Admin />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /CN Display Names/ }));
+
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith(
+        "success",
+        "Display name set to CN on 4 character(s) and 1 identity(ies).",
+      ),
+    );
+    const call = fetchMock.mock.calls.find(([url]) => url === SYNC_DISPLAY_NAMES);
+    expect(call[1]).toMatchObject({ method: "POST", credentials: "include" });
   });
 });
 

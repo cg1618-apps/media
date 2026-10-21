@@ -29,6 +29,7 @@ from app.schemas.external_search import ExternalSearchResult
 from app.services.domain import casting_sync
 from app.services.domain.autofill import autofill_character_from_mal
 from app.services.domain.casting_entries import casting_entry_groups
+from app.services.domain.character_display_names import prefer_cn_display_name
 from app.services.domain.character_responses import (
     character_response,
     character_responses,
@@ -286,6 +287,7 @@ def create_character(
     db.flush()
     write_character_tags(db, character.system_id, tags)
     _derive_and_fill_from_mal(db, character)
+    prefer_cn_display_name(character)
     db.commit()
     db.refresh(character)
     return character_response(db, character, admin)
@@ -325,6 +327,7 @@ def update_character(
         setattr(character, key, value)
     write_character_tags(db, system_id, tags)
     _derive_and_fill_from_mal(db, character)
+    prefer_cn_display_name(character)
 
     db.commit()
     db.refresh(character)

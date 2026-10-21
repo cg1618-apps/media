@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-20
+Last verified: 2026-10-21
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1269,7 +1269,7 @@ with one intentional deviation - see the constraints note below.
 | `name_cn` | String | yes | | |
 | `name_jp` | String | yes | | |
 | `name_alt` | String | yes | | |
-| `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
+| `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain. NULL becomes `cn` on save and in Calculate All while `name_cn` is filled ([business-rules.md](business-rules.md) §10a) |
 | `gender` | String | yes | | GENDERS, or NULL for not set - the same vocabulary as `person.gender` |
 | `my_rating` | String | yes | | MY_RATINGS, or NULL |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. Filled from MAL's character picture for a character with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data) |
@@ -1342,7 +1342,7 @@ never held twice.
 | `public_id` | Integer | no | `nextval('character_identity_public_id_seq')` | The short id in `/identity/<public_id>/<slug>`, declared as `character.public_id` is: its own sequence, which the model names and the DEFAULT draws from, so a raw INSERT gets one too. Travels in the `Character Identity` sheet tab |
 | `character_id` | UUID | no | | FK `character.system_id` ON DELETE CASCADE, indexed. Fixed once created: no route moves an identity to another character |
 | `name_en` / `name_cn` / `name_jp` / `name_alt` | String | yes | | At least one is required |
-| `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain - the same resolution as `character.display_name_field` |
+| `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain - the same resolution, and the same NULL-to-`cn` rule, as `character.display_name_field` |
 | `gender` | String | yes | | GENDERS, or NULL meaning **the same as the character's**. Resolved on read (`display_gender` = `gender` or the character's), never copied, so editing the character's gender moves every identity that inherits it |
 | `remark` | Text | yes | | |
 | `first_mention` / `first_appearance` / `first_encounter` | Text | yes | | As on `character`, and the identity's own: NULL means unrecorded, never the character's |

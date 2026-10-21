@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-18
+Last verified: 2026-10-21
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -842,6 +842,18 @@ non-blank; otherwise it falls back through **EN → CN → JP → Alt**, returni
 `""` only if all four are empty, which the table's `ck_*_has_a_name` CHECK
 prevents. So `display_name_field` is a preference, not a guarantee: pointing it
 at an empty column silently falls back rather than blanking the row.
+
+**Characters and identities default to CN.** For `character` and
+`character_identity` only, a NULL `display_name_field` (the forms' "Default")
+does not stay NULL while `name_cn` is non-blank: it becomes `cn`. An explicit
+`en` / `jp` / `alt` is never changed, and a row with no CN name keeps the
+default. `prefer_cn_display_name` (`app/services/domain/character_display_names.py`)
+applies it on every character and identity `POST` and `PUT` - the Add and
+Modify forms - after the MAL fill; `PATCH` (the detail page's inline edits)
+does not. Calculate All's `run_sync_character_display_names` applies it to
+every row, which covers a Pull, a MAL import or a cast-editor create. So
+"Default" cannot stick on a character that has a CN name; pick EN to show the
+English one.
 
 The rule exists twice, because the pickers and the entity pages resolve names
 in the browser without a round trip: one `displayEntityName()` in
