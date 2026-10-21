@@ -42,6 +42,10 @@ from app.services.domain.alone_groups import (
     mark_alone_group_reviewed,
 )
 from app.services.domain.music_review import find_flagged_music
+from app.services.domain.uncast_characters import (
+    find_uncast_characters,
+    remove_uncast_characters,
+)
 from app.services.pipelines import fill, replace
 from app.services.pipelines.backup import BackupAlreadyRunning, start_backup
 from app.services.pipelines.clean import CleanAborted, apply_clean, scan_orphans
@@ -57,6 +61,10 @@ logger = logging.getLogger(__name__)
 
 class DownloadCoversBody(BaseModel):
     system_ids: Optional[list[str]] = None
+
+
+class RemoveUncastCharactersBody(BaseModel):
+    system_ids: list[UUID]
 
 
 router = APIRouter(
@@ -371,6 +379,39 @@ def trigger_download_missing_covers(
     body: DownloadCoversBody = DownloadCoversBody(), db: Session = Depends(get_db)
 ):
     return JSONResponse(content=bulk_download_missing_covers(db, system_ids=body.system_ids))
+
+
+@router.get("/check/uncast-characters")
+def check_uncast_characters(db: Session = Depends(get_db)):
+    # Read-only and logs nothing, like check/duplicates.
+    return JSONResponse(content=find_uncast_characters(db))
+
+
+@router.post("/calculate/remove-uncast-characters")
+def trigger_remove_uncast_characters(
+    body: RemoveUncastCharactersBody, db: Session = Depends(get_db)
+):
+    """
+    Delete the ticked characters, minus any cast since the list was drawn.
+
+    Takes the explicit list rather than "all uncast" for the reason
+    clean/apply does: the destructive call names exactly what it removes, and
+    the server re-derives whether each one still qualifies.
+    """
+    try:
+        result = remove_uncast_characters(db, body.system_ids)
+    except Exception as exc:
+        db.rollback()
+        log_data_control(
+            db, "Calculate", "Remove Uncast Characters", "Manual", "Failed",
+            error_message=str(exc),
+        )
+        raise
+    log_data_control(
+        db, "Calculate", "Remove Uncast Characters", "Manual", "Success",
+        rows_deleted=result["removed_count"],
+    )
+    return JSONResponse(content=result)
 
 
 @router.get("/check/duplicates")

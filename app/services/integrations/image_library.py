@@ -23,6 +23,7 @@ import io
 import logging
 import os
 from dataclasses import dataclass
+from typing import Optional
 
 from PIL import Image as PILImage
 from PIL import UnidentifiedImageError
@@ -196,3 +197,33 @@ def delete_file(storage_key: str, thumb_key: str) -> None:
         except Exception as exc:
             # Non-critical: the row is already gone or going. Log and continue.
             logger.error("Failed to delete library image %s: %s", key, exc)
+
+
+def drop_if_unused_download(db: Session, image) -> Optional[tuple[str, str]]:
+    """
+    Delete a DOWNLOADED image once nothing is attached to it, returning the
+    file keys to remove after the commit.
+
+    An uploaded image stays in the library when its last use goes: that is
+    what the library is for. A downloaded one cannot be reused safely - its
+    file is `covers/<owner_type>/<id>.jpg`, keyed on the owner it was fetched
+    for, so the next download for that owner overwrites it in place. Left in
+    the library it becomes an "unused" image that aliases the owner's live
+    cover, and deleting it from there deletes that cover.
+
+    Lives here rather than in the images router so a service that deletes an
+    image's owner can release it the same way the Remove button does.
+    """
+    if image is None or image.uploaded_by is not None:
+        return None
+    db.flush()
+    still_used = (
+        db.query(models.ImageAttachment)
+        .filter(models.ImageAttachment.image_id == image.system_id)
+        .first()
+    )
+    if still_used is not None:
+        return None
+    keys = (image.storage_key, image.thumb_key)
+    db.delete(image)
+    return keys

@@ -446,5 +446,8 @@ export const endpoints = {
     setCoverFields: () => "/api/data-control/calculate/set-cover-image-fields",
     downloadMissingCovers: () => "/api/data-control/calculate/download-missing-covers",
     deleteOrphanedCovers: () => "/api/data-control/calculate/delete-orphaned-covers",
+    checkUncastCharacters: () => "/api/data-control/check/uncast-characters",
+    removeUncastCharacters: () =>
+      "/api/data-control/calculate/remove-uncast-characters",
   },
 };

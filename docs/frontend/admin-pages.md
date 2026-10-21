@@ -59,7 +59,8 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
 - **Calculate & Fix.** Calculate All (`POST /api/data-control/calculate/all`),
-  Sync Cast, Find Duplicates, With Remarks and Check & Download Covers. **Sync
+  Sync Cast, Find Duplicates, With Remarks, Check & Download Covers and Remove
+  Uncast Characters. **Sync
   Cast** (`POST /api/data-control/calculate/sync-cast`,
   `endpoints.dataControl.syncCast`) runs Calculate All's cast step on its own -
   the fill-only sync between cast rows and the characters and identities
@@ -69,7 +70,14 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   spinner while it runs, the server's `message` as the toast, then the log
   reloads. Its tile carries the one-line description "Fill empty cast and
   character fields from each other — never overwrites." The rules are on
-  `/business-logic`.
+  `/business-logic`. **Remove Uncast Characters** fetches
+  `endpoints.dataControl.checkUncastCharacters` and opens a modal listing
+  every character with no casting. Every row starts ticked and links to the
+  character's page in a new tab, with its identity count and a picture icon
+  when it has a portrait. Unticking a row keeps that character. Remove
+  Selected posts the ticked ids to
+  `endpoints.dataControl.removeUncastCharacters`, toasts the server's
+  `message` and reloads the log. With nothing uncast, the modal just says so.
 - **Announcements.** Create / edit / delete the dashboard board
   (`/api/announcements/`; title is the identifier — see api.md).
 - **Current season.** Reads and writes `/api/system/config/current_season`

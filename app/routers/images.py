@@ -179,33 +179,6 @@ def _require_reachable_owner(db, viewer, owner_type, owner_id) -> None:
             raise HTTPException(status_code=404, detail="Entry not found.")
 
 
-def _drop_if_unused_download(db, image) -> Optional[tuple[str, str]]:
-    """
-    Delete a DOWNLOADED image once nothing is attached to it, returning the
-    file keys to remove after the commit.
-
-    An uploaded image stays in the library when its last use goes: that is
-    what the library is for. A downloaded one cannot be reused safely - its
-    file is `covers/<owner_type>/<id>.jpg`, keyed on the owner it was fetched
-    for, so the next download for that owner overwrites it in place. Left in
-    the library it becomes an "unused" image that aliases the owner's live
-    cover, and deleting it from there deletes that cover.
-    """
-    if image is None or image.uploaded_by is not None:
-        return None
-    db.flush()
-    still_used = (
-        db.query(models.ImageAttachment)
-        .filter(models.ImageAttachment.image_id == image.system_id)
-        .first()
-    )
-    if still_used is not None:
-        return None
-    keys = (image.storage_key, image.thumb_key)
-    db.delete(image)
-    return keys
-
-
 def _read_capped(upload: UploadFile) -> bytes:
     """
     Read the body, refusing anything over the cap.
@@ -459,7 +432,7 @@ def detach_image(
 ):
     """
     Unlink. An uploaded image stays in the library for reuse; a downloaded one
-    goes with its last attachment (`_drop_if_unused_download`).
+    goes with its last attachment (`image_library.drop_if_unused_download`).
     """
     attachment = db.get(models.ImageAttachment, attachment_id)
     if attachment is None or attachment.image_id != image_id:
@@ -471,7 +444,7 @@ def detach_image(
 
     image = db.get(models.Image, image_id)
     db.delete(attachment)
-    dropped = _drop_if_unused_download(db, image)
+    dropped = image_library.drop_if_unused_download(db, image)
     db.commit()
     if dropped:
         image_library.delete_file(*dropped)
@@ -500,7 +473,7 @@ def clear_owner_image(
     places an owner's image can live are cleared:
 
       * the attachment, if there is one - an uploaded image stays in the
-        library, a downloaded one is deleted (`_drop_if_unused_download`);
+        library, a downloaded one is deleted (`image_library.drop_if_unused_download`);
       * the mirror column (`cover_image_file` and friends);
       * the file downloaded for this owner, `covers/<owner_type>/<id>.jpg`,
         unless an image row attached somewhere else still points at it.
@@ -529,7 +502,7 @@ def clear_owner_image(
     if attachment is not None:
         image = db.get(models.Image, attachment.image_id)
         db.delete(attachment)
-        dropped = _drop_if_unused_download(db, image)
+        dropped = image_library.drop_if_unused_download(db, image)
         if dropped:
             to_delete.append(dropped)
 

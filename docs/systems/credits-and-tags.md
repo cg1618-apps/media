@@ -677,6 +677,36 @@ editor's **Import main cast from MAL**.
   Tenrai answers with no cast. The calls share the one Tenrai rate-limit
   budget ([external-apis.md](../external-apis.md#tenrai-myanimelist)).
 
+**Removing what an import left behind.** An import creates a character for
+every name on MAL's cast list. The ones not worth keeping are unlinked in the
+cast editor, and that leaves each of them a character with zero castings. The
+System page's **Remove Uncast Characters** sweeps them up
+(`app/services/domain/uncast_characters.py`):
+
+- `GET /api/data-control/check/uncast-characters` lists every character with
+  no `character_casting` row, sorted by display name, each with
+  `identity_count` and `has_photo`. It is read-only.
+- `POST /api/data-control/calculate/remove-uncast-characters`
+  `{system_ids}` deletes the listed characters **that are still uncast**. A
+  character cast since the list was drawn is skipped and counted in
+  `skipped_count`, never deleted. The list is required and names exactly what
+  is removed, as `clean/apply` does.
+- **The character is what gets swept, never an identity on its own.** An
+  identity with no casting may still belong to a character who is cast
+  elsewhere. A removed character's identities do go with it, because
+  `character_identity.character_id` cascades.
+- **Images go with their owners.** For the character and each of its
+  identities, every image attachment is removed. An uploaded image stays in the
+  library. A downloaded one is deleted with its file
+  (`image_library.drop_if_unused_download`, which the images router's Remove
+  button also uses). The owner's own download, `character/<id>.jpg` or
+  `character-identity/<id>.jpg`, is also deleted, unless an `image` row
+  attached somewhere else still points at it. Files are deleted only after the
+  commit.
+- Both routes are gated on `manage.pipelines`, as is the rest of
+  `/api/data-control`. Removal writes a `Calculate` / `Remove Uncast
+  Characters` log row with `rows_deleted`.
+
 ## A cast row and its original
 
 A cast row's **original** is the record it casts: the identity it names, else

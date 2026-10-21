@@ -1023,6 +1023,8 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | DELETE | `/calculate/delete-orphaned-covers` | — | `{"status", "deleted_count"}` | delete orphaned cover files |
 | POST | `/calculate/set-cover-image-fields` | — | `{"status", "updated_count"}` | link existing files to rows |
 | POST | `/calculate/download-missing-covers` | body `{"system_ids": [..]}` (optional; default all) | `{"status", "message"}` | re-download missing covers |
+| GET | `/check/uncast-characters` | — | `{"status", "count", "characters"}` | list characters with no casting; read-only, logs nothing |
+| POST | `/calculate/remove-uncast-characters` | body `{"system_ids": [..]}` (required) | `{"status", "message", "removed_count", "skipped_count"}`; logged `Calculate` / `Remove Uncast Characters` | delete the named characters that are still uncast, with their identities and images ([credits-and-tags.md](systems/credits-and-tags.md#mal-a-characters-link-and-a-cast-import)) |
 | GET | `/check/duplicates` | — | JSON, see section 9 | duplicate report |
 | GET | `/check/remarks` | — | JSON, see section 9 | remark report |
 | GET | `/check/music` | — | JSON, see section 9 | anime with music waiting |
