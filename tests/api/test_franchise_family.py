@@ -103,17 +103,15 @@ def test_a_mainstream_entry_cannot_be_moved_into_a_gated_franchise(
     assert stored.franchise_id == mainstream_franchise.system_id
 
 
+@pytest.mark.parametrize("method", ["put", "patch"])
 def test_a_mainstream_entry_can_be_moved_within_its_family(
-    admin_client, mainstream_franchise, db_session
+    admin_client, mainstream_franchise, db_session, method
 ):
-    """The mirror, on PUT only: PATCH never moves an entry - franchise_id is
-    on `media`, not the entry's own table, so apply_column_patch skips it. Its
-    refusal above is a guard for the day it does."""
     other = _franchise(db_session, "ACG", name="Zvornik Other")
     created = _manga(admin_client, franchise_id=str(mainstream_franchise.system_id))
     entry_id = created.json()["system_id"]
 
-    response = admin_client.put(
+    response = getattr(admin_client, method)(
         f"/api/manga/{entry_id}", json={"franchise_id": str(other.system_id)}
     )
     assert response.status_code == 200, response.text
