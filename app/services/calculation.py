@@ -62,6 +62,7 @@ from app.services.domain import (
     tv_show_post_processing,
 )
 from app.services.domain.casting_sync import fill_cast_and_characters
+from app.services.domain.character_display_names import prefer_cn_display_names
 from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import enforce_h_comic_invariants
 from app.services.domain.media_relation import seed_sequel_relations
@@ -611,6 +612,7 @@ def run_sync(db: Session) -> dict:
     run_sync_gated_labels(db)
     run_sync_size_groups(db)
     run_sync_cast(db)
+    run_sync_character_display_names(db)
     return {
         "status": "success",
         "message": "All synchronization tasks completed.",
@@ -639,6 +641,25 @@ def run_sync_cast(db: Session) -> dict:
         "message": (
             f"Cast synced: {character_side} character/identity field(s) and "
             f"{cast_side} cast field(s) filled."
+        ),
+        "counts": counts,
+    }
+
+
+def run_sync_character_display_names(db: Session) -> dict:
+    """
+    Every character and identity still on the default display name, with a
+    CN name filled in, is pointed at it
+    (app/services/domain/character_display_names.py). The form saves do the
+    same one row at a time; this is the net under a Pull or a MAL import.
+    """
+    counts = prefer_cn_display_names(db)
+    db.commit()
+    return {
+        "status": "success",
+        "message": (
+            f"Display name set to CN on {counts['character']} character(s) "
+            f"and {counts['identity']} identity(ies)."
         ),
         "counts": counts,
     }

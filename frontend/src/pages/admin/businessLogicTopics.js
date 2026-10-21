@@ -166,6 +166,12 @@ const CALCULATE_ALL = {
           ],
         },
         CAST_SYNC,
+        {
+          title: "Character display names: CN first",
+          fn: "run_sync_character_display_names",
+          summary:
+            "Every character and identity whose display name is still the default (English first) is switched to its CN name, when it has one. A display name an admin chose — EN, JP or Alt — is never touched, and a row with no CN name stays on the default. Saving a character or identity on its Add or Modify form does the same for that one row; this step catches what arrived another way, such as a Pull or a MAL import. The CN Display Names button on the Control Center runs this step on its own.",
+        },
       ],
     },
     {

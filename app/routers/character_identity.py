@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.services.domain.casting_entries import casting_entry_groups
+from app.services.domain.character_display_names import prefer_cn_display_name
 from app.services.domain.character_identities import (
     fold_into_main,
     identity_casting_count,
@@ -155,6 +156,7 @@ def create_identity(
     )
     position = 0 if last is None else last + 1
     identity = models.CharacterIdentity(**payload.model_dump(), position=position)
+    prefer_cn_display_name(identity)
     db.add(identity)
     db.commit()
     db.refresh(identity)
@@ -176,6 +178,7 @@ def update_identity(
         data.pop("position", None)
     for key, value in data.items():
         setattr(identity, key, value)
+    prefer_cn_display_name(identity)
     db.commit()
     db.refresh(identity)
     return _admin_response(db, identity, admin)

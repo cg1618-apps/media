@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-20
+Last verified: 2026-10-21
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -59,8 +59,8 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
 - **Calculate & Fix.** Calculate All (`POST /api/data-control/calculate/all`),
-  Sync Cast, Find Duplicates, With Remarks, Check & Download Covers and Remove
-  Uncast Characters. **Sync
+  Sync Cast, CN Display Names, Find Duplicates, With Remarks, Check & Download
+  Covers and Remove Uncast Characters. **Sync
   Cast** (`POST /api/data-control/calculate/sync-cast`,
   `endpoints.dataControl.syncCast`) runs Calculate All's cast step on its own -
   the fill-only sync between cast rows and the characters and identities
@@ -70,7 +70,13 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   spinner while it runs, the server's `message` as the toast, then the log
   reloads. Its tile carries the one-line description "Fill empty cast and
   character fields from each other — never overwrites." The rules are on
-  `/business-logic`. **Remove Uncast Characters** fetches
+  `/business-logic`. **CN Display Names**
+  (`POST /api/data-control/calculate/sync-display-names`,
+  `endpoints.dataControl.syncDisplayNames`) runs Calculate All's display-name
+  step on its own, through the same `runCalc`: characters and identities on
+  the default display name are switched to CN where `name_cn` is filled. Its
+  tile reads "Characters and identities on the default display name show
+  their CN name when they have one." **Remove Uncast Characters** fetches
   `endpoints.dataControl.checkUncastCharacters` and opens a modal listing
   every character with no casting. Every row starts ticked and links to the
   character's page in a new tab, with its identity count and a picture icon
@@ -1223,7 +1229,8 @@ per-entry checks, episodes before each season, the sequel-relation seed, the
 sync run (anime seasonal rows and counts, the option-scope refreshes, novel
 totals, the h-comic region rule, restricted-type labels, size groups, then the
 cast sync with its three groups - cast rows fill the character or identity,
-the original fills its cast rows, and how the original seiyuu are chosen), the
+the original fills its cast rows, and how the original seiyuu are chosen,
+then the CN display names), the
 cover check whose result is discarded, and the log row. Each step is written
 for an admin - what it changes and why - and the page states the code as it
 is, so it changes in the same commit as `app/services/calculation.py`. The

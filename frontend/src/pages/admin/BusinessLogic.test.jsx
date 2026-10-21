@@ -59,7 +59,7 @@ describe("BusinessLogic", () => {
       "bulk_check_cover_image",
       "log_data_control",
     ]);
-    // run_sync's own order, ending on the cast sync.
+    // run_sync's own order, ending on the cast sync and the CN display names.
     const sync = calculate.steps.find((s) => s.fn === "run_sync");
     expect(sync.substeps.map((s) => s.fn)).toEqual([
       "run_sync_anime",
@@ -71,6 +71,7 @@ describe("BusinessLogic", () => {
       "run_sync_gated_labels",
       "run_sync_size_groups",
       "run_sync_cast",
+      "run_sync_character_display_names",
     ]);
   });
 

@@ -33,6 +33,7 @@ from app.services.calculation import (
     bulk_set_cover_image_fields,
     run_calculate_all,
     run_sync_cast,
+    run_sync_character_display_names,
 )
 from app.services.domain import find_all_duplicates, find_all_remarks
 from app.services.domain.alone_groups import (
@@ -354,6 +355,22 @@ def trigger_sync_cast(db: Session = Depends(get_db)):
         )
         raise
     log_data_control(db, "Calculate", "Sync Cast", "Manual", "Success")
+    return JSONResponse(content=result)
+
+
+@router.post("/calculate/sync-display-names")
+def trigger_sync_display_names(db: Session = Depends(get_db)):
+    """Calculate All's CN display-name step on its own - see
+    calculation.run_sync_character_display_names."""
+    try:
+        result = run_sync_character_display_names(db)
+    except Exception as exc:
+        log_data_control(
+            db, "Calculate", "Sync Display Names", "Manual", "Failed",
+            error_message=str(exc),
+        )
+        raise
+    log_data_control(db, "Calculate", "Sync Display Names", "Manual", "Success")
     return JSONResponse(content=result)
 
 
