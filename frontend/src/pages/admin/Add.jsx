@@ -1966,7 +1966,7 @@ export default function Add() {
       ch_fin: mgf.ch_fin !== "" ? parseInt(mgf.ch_fin) : 0,
       my_rating: mgf.my_rating || null,
       mal_rating: mgf.mal_rating !== "" ? parseFloat(mgf.mal_rating) : null,
-      mal_rank: mgf.mal_rank !== "" ? parseInt(mgf.mal_rank) : null,
+      mal_rank: mgf.mal_rank || null,
       anilist_rating:
         mgf.anilist_rating !== "" ? parseInt(mgf.anilist_rating) : null,
       anilist_rank: mgf.anilist_rank !== "" ? parseInt(mgf.anilist_rank) : null,
@@ -2161,7 +2161,7 @@ export default function Add() {
       ch_fin: nvf.ch_fin !== "" ? parseFloat(nvf.ch_fin) : 0,
       my_rating: nvf.my_rating || null,
       mal_rating: nvf.mal_rating !== "" ? parseFloat(nvf.mal_rating) : null,
-      mal_rank: nvf.mal_rank !== "" ? parseInt(nvf.mal_rank) : null,
+      mal_rank: nvf.mal_rank || null,
       anilist_rating:
         nvf.anilist_rating !== "" ? parseInt(nvf.anilist_rating) : null,
       anilist_rank: nvf.anilist_rank !== "" ? parseInt(nvf.anilist_rank) : null,

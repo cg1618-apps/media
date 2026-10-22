@@ -2139,7 +2139,7 @@ export default function Modify() {
       ch_fin: cmgf.ch_fin !== "" ? parseInt(cmgf.ch_fin) : null,
       my_rating: cmgf.my_rating || null,
       mal_rating: cmgf.mal_rating !== "" ? parseFloat(cmgf.mal_rating) : null,
-      mal_rank: cmgf.mal_rank !== "" ? parseInt(cmgf.mal_rank) : null,
+      mal_rank: cmgf.mal_rank || null,
       anilist_rating:
         cmgf.anilist_rating !== "" ? parseFloat(cmgf.anilist_rating) : null,
       anilist_rank:
@@ -2321,7 +2321,7 @@ export default function Modify() {
       ch_fin: cnvf.ch_fin !== "" ? parseFloat(cnvf.ch_fin) : null,
       my_rating: cnvf.my_rating || null,
       mal_rating: cnvf.mal_rating !== "" ? parseFloat(cnvf.mal_rating) : null,
-      mal_rank: cnvf.mal_rank !== "" ? parseInt(cnvf.mal_rank) : null,
+      mal_rank: cnvf.mal_rank || null,
       anilist_rating:
         cnvf.anilist_rating !== "" ? parseFloat(cnvf.anilist_rating) : null,
       anilist_rank:

@@ -115,6 +115,20 @@ describe("Modify save keeps what the entry holds", () => {
     expect(body.anilist_popularity_rank).toBe(45);
   });
 
+  // mal_rank is a string column ("#1234" as MAL prints it); parsing it as a
+  // number turns that into NaN, which JSON sends as null.
+  it.each([
+    ["manga", "/api/manga", { manga_name_en: "M" }],
+    ["novel", "/api/novel", { novel_name_en: "N" }],
+  ])("%s keeps its MAL rank as text", async (type, listPath, names) => {
+    const { body } = await saveAndReadBody({
+      type,
+      listPath,
+      entry: { system_id: `${type}-1`, ...names, mal_rank: "#1234" },
+    });
+    expect(body.mal_rank).toBe("#1234");
+  });
+
   it("movie keeps its IMDb rating", async () => {
     const { body } = await saveAndReadBody({
       type: "movie",
