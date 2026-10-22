@@ -3,7 +3,6 @@
 import uuid
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -98,7 +97,6 @@ class Novel(Base, NameFallbackMixin):
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
 
-    is_main_entry = Column(Boolean, nullable=True)
     read_order = Column(Float, nullable=True)
 
     mal_id = Column(Integer, nullable=True)

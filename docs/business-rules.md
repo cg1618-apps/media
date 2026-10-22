@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-21
+Last verified: 2026-10-22
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -722,7 +722,7 @@ fragment of an `*_alt` list a name of its own - section 10).
 | `cartoon`         | with a franchise                       | `(franchise_id, series_id, season_part, is_main)`                           | shared name                                                                                             |
 | `manga`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
 | `novel`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
-| `comic`           | with a franchise                       | `(franchise_id, series_id, is_main_entry)`                                  | shared name **or** same non-null `comicvine_id` (two unfilled rows sharing NULL is not a match)         |
+| `comic`           | with a franchise                       | `(franchise_id, series_id)`                                                 | shared name **or** same non-null `comicvine_id` (two unfilled rows sharing NULL is not a match)         |
 | `game`            | with a franchise                       | `(franchise_id, series_id, game_type, is_main)` - a DLC shares its base game's name stem, and a remake or remaster its original's name | shared name |
 | `h_comic`         | with a franchise                       | `(franchise_id, series_id, region, series_number)` | shared name |
 | `h_game`          | with a franchise                       | `(franchise_id, series_id, game_type, is_main, series_number)` | shared name |

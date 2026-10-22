@@ -317,6 +317,8 @@ export default function MangaAddTab({
         values={mgf}
         onChange={umg}
         sources={sources}
+        franchiseId={mgf.franchise_id}
+        seriesId={mgf.series_id}
       />
 
       <SectionHeader icon="fa-list-ol" title="Progress" />

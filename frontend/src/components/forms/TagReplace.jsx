@@ -1,4 +1,4 @@
-// Frontend: form component file for TagImport.
+// Frontend: form component file for TagReplace.
 import { useEffect, useState } from "react";
 
 import { endpoints } from "../../api/endpoints";
@@ -15,32 +15,28 @@ function splitTags(value) {
     .filter(Boolean);
 }
 
-// The form's tags followed by the incoming ones it does not already hold, as
-// the comma-separated string MultiSelect edits. `added` counts the new ones.
-export function mergeTags(current, incoming) {
-  const held = splitTags(current);
-  const fresh = splitTags(incoming).filter((v) => !held.includes(v));
-  return { value: [...held, ...fresh].join(", "), added: fresh.length };
-}
-
-// "Import genres & labels from…": the other entries of the form's franchise,
-// of this media type, that carry at least one of `fields`. Picking one appends
-// its tags to the form's after the ones already there, the way the cast
-// editor's import appends rows - nothing is saved until the form is.
-// `fields` names the tag keys; `values` is the form state holding them.
-export default function TagImport({
+// "Replace genres & labels from…": the other entries of the form's series and
+// franchise, of this media type, that carry at least one of `fields` - the
+// series' first when the form has one. Picking one REPLACES each of `fields`
+// with that entry's value, clearing a field the entry has empty; nothing is
+// saved until the form is. Tags are scoped per media type
+// (lib/genreLabelFields.js), so only entries of `mediaType` are offered.
+// `what` names the fields in the picker's wording.
+export default function TagReplace({
   mediaType,
   franchiseId,
+  seriesId,
   entryId,
   fields,
-  values,
+  what = "genres & labels",
   onChange,
 }) {
   const [entries, setEntries] = useState([]);
   const [message, setMessage] = useState("");
 
   // The list endpoint already filters by franchise and returns every tag
-  // field, newest-made first, through the viewer's visibility rules.
+  // field and series_id, newest-made first, through the viewer's visibility
+  // rules. The series split is made here, from that one list.
   useEffect(() => {
     if (!franchiseId) return undefined;
     let cancelled = false;
@@ -65,22 +61,21 @@ export default function TagImport({
   const sources = franchiseId
     ? entries.filter((e) => e.system_id !== entryId && tagCount(e) > 0)
     : [];
+  const inSeries = seriesId ? sources.filter((e) => e.series_id === seriesId) : [];
+  const elsewhere = seriesId ? sources.filter((e) => e.series_id !== seriesId) : sources;
 
-  function importTags(entry) {
-    let added = 0;
-    let held = 0;
-    for (const key of fields) {
-      const merged = mergeTags(values[key], entry[key]);
-      added += merged.added;
-      held += splitTags(entry[key]).length - merged.added;
-      if (merged.added) onChange(key, merged.value);
-    }
+  function replaceTags(entry) {
+    for (const key of fields) onChange(key, splitTags(entry[key]).join(", "));
     setMessage(
-      `Imported ${added} from ${getDisplayName(entry, mediaType)}` +
-        (held ? ` (${held} already here)` : "") +
-        ". Save to keep them.",
+      `Replaced ${what} with ${getDisplayName(entry, mediaType)}'s. Save to keep them.`,
     );
   }
+
+  const option = (s) => (
+    <option key={s.system_id} value={s.system_id}>
+      {getDisplayName(s, mediaType)} ({tagCount(s)})
+    </option>
+  );
 
   if (sources.length === 0) return null;
   return (
@@ -88,18 +83,23 @@ export default function TagImport({
       <select
         className={pickerCls}
         value=""
-        aria-label="Import genres and labels from"
+        aria-label={`Replace ${what} from`}
         onChange={(e) => {
           const entry = sources.find((s) => s.system_id === e.target.value);
-          if (entry) importTags(entry);
+          if (entry) replaceTags(entry);
         }}
       >
-        <option value="">Import genres &amp; labels from…</option>
-        {sources.map((s) => (
-          <option key={s.system_id} value={s.system_id}>
-            {getDisplayName(s, mediaType)} ({tagCount(s)})
-          </option>
-        ))}
+        <option value="">Replace {what} from…</option>
+        {seriesId ? (
+          <>
+            {inSeries.length > 0 && <optgroup label="This series">{inSeries.map(option)}</optgroup>}
+            {elsewhere.length > 0 && (
+              <optgroup label="Rest of the franchise">{elsewhere.map(option)}</optgroup>
+            )}
+          </>
+        ) : (
+          elsewhere.map(option)
+        )}
       </select>
       {message && (
         <span className="text-xs text-text-muted" role="status">

@@ -60,7 +60,6 @@ export const defaultAnime = () => ({
   producer: "",
   music: "",
   distributor_tw: "",
-  is_main_entry: false,
   mal_id: "",
   mal_link: "",
   exclusive_source: "",
@@ -335,7 +334,6 @@ export const defaultComic = () => ({
   artist: "",
   release_date: "",
   end_date: "",
-  is_main_entry: false,
   read_order: "",
   // Set by the Comic Vine picker beside the link; hidden on /defaults.
   comicvine_id: "",

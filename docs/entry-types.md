@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-10-20
+Last verified: 2026-10-22
 
 ## What this is for
 
@@ -395,7 +395,7 @@ Every finder is the same rule: rows that agree exactly on the key **and** share 
 | `cartoon` | `franchise_id`, `series_id`, `season_part` (lower-cased), `is_main` | — |
 | `manga` | `franchise_id`, `series_id`, `is_main` | — |
 | `novel` | `franchise_id`, `series_id`, `is_main` | — |
-| `comic` | `franchise_id`, `series_id`, `is_main_entry` | a shared name **or** the same non-null `comicvine_id` |
+| `comic` | `franchise_id`, `series_id` | a shared name **or** the same non-null `comicvine_id` |
 | `game` | `franchise_id`, `series_id`, `game_type`, `is_main` | — |
 | `h-comic` | `franchise_id`, `series_id`, `region`, `series_number` | — |
 | `h-game` | `franchise_id`, `series_id`, `game_type`, `is_main`, `series_number` | — |

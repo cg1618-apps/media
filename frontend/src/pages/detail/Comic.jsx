@@ -182,7 +182,6 @@ export default function Comic() {
     comic.comic_type,
     comic.era,
     comic.serialization_status,
-    comic.is_main_entry ? "Main line" : null,
     yearRange,
   ]
     .filter(Boolean)
@@ -417,18 +416,7 @@ export default function Comic() {
                   { label: "Volume Label", value: comic.volume_label },
                   { label: "Continuity", value: comic.continuity },
                 ],
-                [
-                  { label: "Era", value: comic.era },
-                  {
-                    label: "Main Line",
-                    value:
-                      comic.is_main_entry == null
-                        ? null
-                        : comic.is_main_entry
-                          ? "Yes"
-                          : "No",
-                  },
-                ],
+                [{ label: "Era", value: comic.era }],
                 [
                   {
                     label: "Serialization Status",

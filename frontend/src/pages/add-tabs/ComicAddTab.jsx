@@ -306,6 +306,8 @@ export default function ComicAddTab({
         values={cmf}
         onChange={ucm}
         sources={sources}
+        franchiseId={cmf.franchise_id}
+        seriesId={cmf.series_id}
       />
 
       <SectionHeader icon="fa-chart-bar" title="Status" />
@@ -441,19 +443,6 @@ export default function ComicAddTab({
             onChange={(e) => ucm("read_order", e.target.value)}
             placeholder="1"
           />
-        </Field>
-        <Field label="Main Entry">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!cmf.is_main_entry}
-              onChange={(e) => ucm("is_main_entry", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Main line entry (not a spinoff)
-            </span>
-          </label>
         </Field>
       </div>
 

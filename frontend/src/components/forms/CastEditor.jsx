@@ -847,6 +847,72 @@ export default function CastEditor({
 
   return (
     <div className="space-y-2" ref={rootRef}>
+      {/* The toolbar sits above the rows, so it stays in reach however
+          long the cast grows. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          className="text-xs text-brand hover:underline"
+          onClick={addRow}
+        >
+          + Add cast member
+        </button>
+        {malLink && (
+          <>
+            <button
+              type="button"
+              className="text-xs text-brand hover:underline disabled:opacity-50"
+              onClick={() => importFromMal(false)}
+              disabled={malImporting !== null}
+            >
+              {malImporting === "all" ? "Importing from MAL…" : "Import from MAL"}
+            </button>
+            <button
+              type="button"
+              className="text-xs text-brand hover:underline disabled:opacity-50"
+              onClick={() => importFromMal(true)}
+              disabled={malImporting !== null}
+            >
+              {malImporting === "main"
+                ? "Importing main cast from MAL…"
+                : "Import main cast from MAL"}
+            </button>
+          </>
+        )}
+        {rows.some(hasOriginal) && (
+          <button
+            type="button"
+            className="text-xs text-brand hover:underline disabled:opacity-50"
+            onClick={() => syncFromOriginal(rows.map((_, i) => i), "all")}
+            disabled={syncing !== null}
+          >
+            {syncing === "all" ? "Syncing from originals…" : "Sync all from original"}
+          </button>
+        )}
+        {importSources.length > 0 && (
+          <select
+            className={cellCls + " text-xs py-1"}
+            value=""
+            aria-label="Import cast from"
+            onChange={(e) => {
+              const source = importSources.find((s) => s.entry_id === e.target.value);
+              if (source) importCast(source);
+            }}
+          >
+            <option value="">Import cast from…</option>
+            {importSources.map((s) => (
+              <option key={s.entry_id} value={s.entry_id}>
+                {s.display_name} ({mediaTypeLabel(s.media_type)} · {s.cast_count})
+              </option>
+            ))}
+          </select>
+        )}
+        {importMessage && (
+          <span className="text-xs text-text-muted" role="status">
+            {importMessage}
+          </span>
+        )}
+      </div>
       <SortableList ids={rowIds} onMove={move}>
         {rows.map((row, i) => {
           const asIdentity = isIdentityRow(row);
@@ -1110,70 +1176,6 @@ export default function CastEditor({
           );
         })}
       </SortableList>
-      <div className="flex flex-wrap items-center gap-3 mt-1">
-        <button
-          type="button"
-          className="text-xs text-brand hover:underline"
-          onClick={addRow}
-        >
-          + Add cast member
-        </button>
-        {malLink && (
-          <>
-            <button
-              type="button"
-              className="text-xs text-brand hover:underline disabled:opacity-50"
-              onClick={() => importFromMal(false)}
-              disabled={malImporting !== null}
-            >
-              {malImporting === "all" ? "Importing from MAL…" : "Import from MAL"}
-            </button>
-            <button
-              type="button"
-              className="text-xs text-brand hover:underline disabled:opacity-50"
-              onClick={() => importFromMal(true)}
-              disabled={malImporting !== null}
-            >
-              {malImporting === "main"
-                ? "Importing main cast from MAL…"
-                : "Import main cast from MAL"}
-            </button>
-          </>
-        )}
-        {rows.some(hasOriginal) && (
-          <button
-            type="button"
-            className="text-xs text-brand hover:underline disabled:opacity-50"
-            onClick={() => syncFromOriginal(rows.map((_, i) => i), "all")}
-            disabled={syncing !== null}
-          >
-            {syncing === "all" ? "Syncing from originals…" : "Sync all from original"}
-          </button>
-        )}
-        {importSources.length > 0 && (
-          <select
-            className={cellCls + " text-xs py-1"}
-            value=""
-            aria-label="Import cast from"
-            onChange={(e) => {
-              const source = importSources.find((s) => s.entry_id === e.target.value);
-              if (source) importCast(source);
-            }}
-          >
-            <option value="">Import cast from…</option>
-            {importSources.map((s) => (
-              <option key={s.entry_id} value={s.entry_id}>
-                {s.display_name} ({mediaTypeLabel(s.media_type)} · {s.cast_count})
-              </option>
-            ))}
-          </select>
-        )}
-        {importMessage && (
-          <span className="text-xs text-text-muted" role="status">
-            {importMessage}
-          </span>
-        )}
-      </div>
     </div>
   );
 }

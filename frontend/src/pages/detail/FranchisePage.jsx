@@ -1677,21 +1677,12 @@ export default function FranchisePage() {
                       <GroupRail label={label} count={group.anime.length} />
                       <div className={GRID_CLS}>
                         {group.anime.map((a) => (
-                          <div
+                          <MediaCard
                             key={a.system_id}
-                            className="flex flex-col gap-1"
-                          >
-                            {a.is_main_entry && (
-                              <div className="flex justify-center">
-                                <Chip>Main</Chip>
-                              </div>
-                            )}
-                            <MediaCard
-                              type="anime"
-                              data={a}
-                              onUpdated={handleAnimeUpdated}
-                            />
-                          </div>
+                            type="anime"
+                            data={a}
+                            onUpdated={handleAnimeUpdated}
+                          />
                         ))}
                       </div>
                     </section>
@@ -1701,14 +1692,12 @@ export default function FranchisePage() {
             ) : (
               <div className={GRID_CLS}>
                 {filteredAndSortedAnime.map((a) => (
-                  <div key={a.system_id} className="flex flex-col gap-1">
-                    {a.is_main_entry && (
-                      <div className="flex justify-center">
-                        <Chip>Main</Chip>
-                      </div>
-                    )}
-                    <MediaCard type="anime" data={a} onUpdated={handleAnimeUpdated} />
-                  </div>
+                  <MediaCard
+                    key={a.system_id}
+                    type="anime"
+                    data={a}
+                    onUpdated={handleAnimeUpdated}
+                  />
                 ))}
               </div>
             )}

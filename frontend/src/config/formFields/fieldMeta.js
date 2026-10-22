@@ -393,11 +393,6 @@ export const TYPE_FIELD_META = {
       source: { kind: "publisher", scope: "anime" },
       group: "Credits",
     },
-    is_main_entry: {
-      label: "Is Main Entry",
-      control: "checkbox",
-      group: "Derivation",
-    },
     exclusive_source: {
       label: "Exclusive Source",
       control: "tags",
@@ -792,13 +787,6 @@ export const TYPE_FIELD_META = {
       control: "tags",
       source: { kind: "option", category: "Comic Imprint", scope: "comic" },
       group: "Credits",
-    },
-    // is_main_entry has no COMMON_FIELD_META entry — only anime's block
-    // defines it. Copied here rather than promoting it to common.
-    is_main_entry: {
-      label: "Is Main Entry",
-      control: "checkbox",
-      group: "Derivation",
     },
     // The Fill pipeline reads comicvine_id. The Comic Vine picker on the Add
     // page writes it beside the link; for a hand-typed link Fill derives it

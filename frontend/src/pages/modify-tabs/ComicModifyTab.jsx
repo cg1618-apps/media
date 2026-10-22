@@ -220,6 +220,9 @@ export default function ComicModifyTab({
         values={ccmf}
         onChange={ucm}
         sources={sources}
+        franchiseId={ccmf.franchise_id}
+        seriesId={ccmf.series_id}
+        entryId={editingItem?.system_id}
       />
 
       <SectionHeader icon="fa-chart-bar" title="Status" />
@@ -353,19 +356,6 @@ export default function ComicModifyTab({
             onChange={(e) => ucm("read_order", e.target.value)}
             placeholder="1"
           />
-        </Field>
-        <Field label="Main Entry">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!ccmf.is_main_entry}
-              onChange={(e) => ucm("is_main_entry", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Main line entry (not a spinoff)
-            </span>
-          </label>
         </Field>
       </div>
 

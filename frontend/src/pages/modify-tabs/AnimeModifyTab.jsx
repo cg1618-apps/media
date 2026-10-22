@@ -3,7 +3,8 @@ import ComboBox from "../../components/forms/ComboBox";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
-import TagImport from "../../components/forms/TagImport";
+import TagReplace from "../../components/forms/TagReplace";
+import { GENRE_LABEL_KEYS } from "../../lib/genreLabelFields";
 import SourcesEditor from "../../components/forms/SourcesEditor";
 import ImagePicker from "../../components/forms/ImagePicker";
 import {
@@ -23,7 +24,6 @@ import {
   WATCHING_STATUSES,
   MY_RATINGS,
   IS_MAIN,
-  ANIME_IMPORTED_TAGS,
   ANIME_AIRING_TYPES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
@@ -387,12 +387,12 @@ export default function AnimeModifyTab({
           />
         </Field>
       </div>
-      <TagImport
+      <TagReplace
         mediaType="anime"
         franchiseId={af.franchise_id}
+        seriesId={af.series_id}
         entryId={editingItem?.system_id}
-        fields={ANIME_IMPORTED_TAGS}
-        values={af}
+        fields={GENRE_LABEL_KEYS}
         onChange={ua}
       />
 
@@ -494,21 +494,6 @@ export default function AnimeModifyTab({
       />
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Is Main Entry">
-          <label className="flex items-center gap-2 cursor-pointer mt-1">
-            <input
-              type="checkbox"
-              checked={!!af.is_main_entry}
-              onChange={(e) => ua("is_main_entry", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-xs font-medium text-text-muted">
-              Mark as main entry among alternatives
-            </span>
-          </label>
-        </Field>
-      </div>
       <div className="flex flex-wrap gap-6 mt-2">
         <Field label="Watch Next">
           <label className="flex items-center gap-2 cursor-pointer">

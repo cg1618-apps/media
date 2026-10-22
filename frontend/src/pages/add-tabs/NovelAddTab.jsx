@@ -355,6 +355,8 @@ export default function NovelAddTab({
         values={nvf}
         onChange={unv}
         sources={sources}
+        franchiseId={nvf.franchise_id}
+        seriesId={nvf.series_id}
       />
 
       <SectionHeader icon="fa-list-ol" title="Progress" />

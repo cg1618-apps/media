@@ -12,7 +12,7 @@ the follow with it. Nothing is backfilled; nobody follows anything yet.
 The downgrade drops the table, and with it every follow.
 
 Revision ID: w1o2follow34
-Revises: t1i2m3efin45
+Revises: d1r2opmain34
 Create Date: 2026-10-22 00:00:00.000000
 
 """
@@ -25,7 +25,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision: str = "w1o2follow34"
-down_revision: Union[str, Sequence[str], None] = "t1i2m3efin45"
+down_revision: Union[str, Sequence[str], None] = "d1r2opmain34"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -325,7 +325,6 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     broadcast_day: af.broadcast_day || null,
     broadcast_time: af.broadcast_time || null,
     my_watch_day: af.my_watch_day || null,
-    is_main_entry: af.is_main_entry || null,
     mal_id: af.mal_id !== "" ? parseInt(af.mal_id) : null,
     mal_link: af.mal_link || null,
     sources: sourcesPayload(af.sources),
