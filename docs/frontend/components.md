@@ -238,7 +238,11 @@ not drawn. The character, person and studio libraries use it for
   `H_GAME_COMPLETION_AXES` - Completion Level, All Endings, All CG and
   usefulness, the other personal answer about a playthrough), `WeeklySchedule`,
   `ComingNext` (the dashboard's next-season block; its selection is the pure
-  `selectComingNext` in `lib/comingNext.js`),
+  `selectComingNext` in `lib/comingNext.js`), `FollowedOrders` (the
+  dashboard's followed watch orders, under Coming Next), `FollowedOrderPanel`
+  (where the entry sits in the viewer's followed orders, under every entry
+  detail page's header), `FollowOrderButton` (the Follow / Following toggle),
+  `FollowedStep` (one step line shared by those two views),
   `RelationsSection` (its optional `onRows` prop is handed every row the card
   loads, so the h-comic page names the hentai its derived animation status
   comes from without a second request), `WatchOrderSection`, `WatchOrderGuide`,

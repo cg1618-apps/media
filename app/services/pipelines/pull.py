@@ -205,6 +205,14 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "franchise_id",
         "series_id",
     ),  # uq_plan_next_target
+    # One follow per user per group: the group's row is matched and repointed
+    # at the sheet's list, rather than a second row colliding with it.
+    "Watch Order Follow": (
+        "user_id",
+        "franchise_id",
+        "series_id",
+        "collection_id",
+    ),  # uq_watch_order_follow_group
     # Mints its own uuid but cites an entry id, which is the same in every
     # database. option_id IS part of the key (unlike the parent tabs above,
     # whose own uuid never appears in it): two "main" rows on the same entry
@@ -1050,7 +1058,10 @@ def execute_pull_specific(
         # to. A header that IS present and names nobody is a different thing -
         # that row's owner is unknown, so it is skipped and reported rather
         # than quietly filed under the admin.
-        if tab_name in ("Plan Next", "Seasonal"):
+        #
+        # Watch Order Follow has carried `username` from its first day, so it
+        # never reaches the fallback; it shares the block for the resolution.
+        if tab_name in ("Plan Next", "Seasonal", "Watch Order Follow"):
             username = parse_from_sheet(raw_header_dict.get("username"), str)
             if username:
                 owner_row = (

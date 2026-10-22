@@ -38,6 +38,7 @@ import {
 } from "../../components/ui/primitives";
 import { MY_RATINGS, PLAYING_STATUSES } from "../../config/fieldOptions";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
@@ -407,6 +408,9 @@ export default function HGame() {
                 </div>
               </div>
             </header>
+
+            {/* Where this entry sits in the watch orders the viewer follows. */}
+            <FollowedOrderPanel entryId={hGame.system_id} />
 
             {/* My Tracker - no stepper, as on Game. */}
             <MyTrackerCard

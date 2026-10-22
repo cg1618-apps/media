@@ -10,7 +10,9 @@ import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { entityPath } from "../../lib/entityPath";
+import { useWatchOrderFollows } from "../../api/mutations/useWatchOrderFollows";
 import { Button, Chip, Eyebrow } from "../ui/primitives";
+import FollowOrderButton, { isFollowed } from "./FollowOrderButton";
 import WatchOrderGuide, {
   MediaScopeLine,
   mediaScope,
@@ -73,7 +75,7 @@ function splitByOrigin(lists) {
  * a guard against a future long name, not a normal state - while the star and
  * the step count sit outside the truncation so they always survive.
  */
-function OrderChip({ list, active, onSelect }) {
+function OrderChip({ list, active, followed, onSelect }) {
   const name = list.list_name || "Untitled Order";
   return (
     <button
@@ -97,6 +99,15 @@ function OrderChip({ list, active, onSelect }) {
         </span>
       )}
       <span className="truncate max-w-[18rem]">{name}</span>
+      {followed && (
+        <span
+          className={`shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] ${
+            active ? "text-on-brand/80" : "text-brand"
+          }`}
+        >
+          Following
+        </span>
+      )}
       <span
         className={`shrink-0 font-mono text-[11px] ${active ? "text-on-brand/70" : "text-text-faint"}`}
       >
@@ -107,7 +118,7 @@ function OrderChip({ list, active, onSelect }) {
 }
 
 /** The chip rendering of the picker: one labelled cluster per origin group. */
-function OrderChips({ groups, selectedId, onSelect }) {
+function OrderChips({ groups, selectedId, followedId, onSelect }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       {groups.map((group, i) => (
@@ -124,6 +135,7 @@ function OrderChips({ groups, selectedId, onSelect }) {
               key={l.system_id}
               list={l}
               active={l.system_id === selectedId}
+              followed={l.system_id === followedId}
               onSelect={onSelect}
             />
           ))}
@@ -134,8 +146,10 @@ function OrderChips({ groups, selectedId, onSelect }) {
 }
 
 export default function WatchOrderSection({ franchiseId, collectionId, seriesId }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
+  // Which of this group's orders the viewer follows - at most one.
+  const follows = useWatchOrderFollows(has("self.list"));
 
   const [lists, setLists] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -230,6 +244,8 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
   const visibleLists =
     scope === "all" ? lists : lists.filter((l) => scopeKey(l) === scope);
   const groups = splitByOrigin(visibleLists);
+  const followedId =
+    lists.find((l) => isFollowed(follows.data, l.system_id))?.system_id ?? null;
 
   // Narrowing can hide whatever was open, so the filter moves the selection
   // to the first order it still offers rather than blanking the guide.
@@ -309,6 +325,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
           <OrderChips
             groups={groups}
             selectedId={selectedId}
+            followedId={followedId}
             onSelect={setSelectedId}
           />
         )}
@@ -325,7 +342,8 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
                   <option key={l.system_id} value={l.system_id}>
                     {l.is_most_recommended ? "★ " : ""}
                     {l.list_name || "Untitled Order"}
-                    {l.is_most_recommended ? " (most recommended)" : ""} —{" "}
+                    {l.is_most_recommended ? " (most recommended)" : ""}
+                    {l.system_id === followedId ? " (following)" : ""} —{" "}
                     {l.item_count} steps
                     {mediaScope(l.media_types)
                       ? ` · ${mediaScope(l.media_types).short}`
@@ -343,6 +361,9 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
             {visibleLists[0].is_most_recommended && (
               <Chip tone="brand">Most recommended</Chip>
             )}
+            {visibleLists[0].system_id === followedId && (
+              <Chip tone="brand">Following</Chip>
+            )}
             <span className="font-mono text-[11px] text-text-faint">
               {visibleLists[0].item_count} steps
             </span>
@@ -350,6 +371,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
         )}
 
         <div className="ml-auto flex items-center gap-3">
+          <FollowOrderButton list={selectedList} />
           {selectedHref && (
             <Link
               to={selectedHref}

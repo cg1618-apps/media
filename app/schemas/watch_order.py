@@ -238,3 +238,78 @@ class WatchOrderSectionSheetSync(WatchOrderSectionCreate):
     list_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+# ==========================================
+# FOLLOW
+# ==========================================
+
+
+class WatchOrderFollowStep(BaseModel):
+    """One step of a followed order, as the follower's progress sees it."""
+
+    # 1-based place in the order's reading order, over the steps the viewer
+    # can see - the "N" of "step N / total".
+    number: int
+    # "done" | "active" | "pending" - see app/services/domain/watch_order_follow.py.
+    state: str
+    media_type: Optional[str] = None
+    entry_id: Optional[UUID] = None
+    # The entry's own short id, for its /<type>/<public_id> link.
+    public_id: Optional[int] = None
+    display_name: Optional[str] = None
+    ep_start: Optional[int] = None
+    ep_end: Optional[int] = None
+    importance: Optional[str] = None
+    note: Optional[str] = None
+    # The part the step sits in, or None for an unfiled step.
+    section_name: Optional[str] = None
+
+
+class WatchOrderFollowList(BaseModel):
+    """The followed order itself, enough to name and link it."""
+
+    system_id: UUID
+    public_id: int
+    list_name: Optional[str] = None
+    auto_source: Optional[str] = None
+
+
+class WatchOrderFollowOwner(BaseModel):
+    """The group the order belongs to: a franchise, series or collection."""
+
+    tier: str
+    system_id: UUID
+    public_id: Optional[int] = None
+    display_name: Optional[str] = None
+
+
+class WatchOrderFollowSummary(BaseModel):
+    """One followed order and where the viewer stands in it."""
+
+    list: WatchOrderFollowList
+    owner: WatchOrderFollowOwner
+    done: int
+    total: int
+    # Every step in progress - there may be several.
+    now: List[WatchOrderFollowStep] = []
+    # The earliest pending step in reading order, or None when none is left.
+    up_next: Optional[WatchOrderFollowStep] = None
+
+
+class WatchOrderFollowOccurrence(BaseModel):
+    """One step naming the entry, with the steps either side of it."""
+
+    step: WatchOrderFollowStep
+    previous: Optional[WatchOrderFollowStep] = None
+    next: Optional[WatchOrderFollowStep] = None
+
+
+class WatchOrderEntryFollow(BaseModel):
+    """A followed order containing one entry: the entry detail panel's row."""
+
+    list: WatchOrderFollowList
+    owner: WatchOrderFollowOwner
+    total: int
+    # One per step that names the entry; a split run has several.
+    occurrences: List[WatchOrderFollowOccurrence] = []

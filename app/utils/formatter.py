@@ -354,6 +354,24 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_watch_order_follow_from_sheet(raw: dict) -> dict:
+    """
+    One user's follow of one watch order. user_id is not in the sheet -
+    pull.py resolves the row's `username` - and every other id is a real FK
+    whose uuid travels unchanged, so an unparseable cell becomes None and the
+    database refuses the row rather than the tab.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "list_id": _uuid_or_none(raw.get("list_id")),
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_user_media_list_from_sheet(raw: dict) -> dict:
     """
     One user's list row, keyed naturally rather than by uuid.

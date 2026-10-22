@@ -26,7 +26,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
 - [Resources page](#resources-page): resource_node
 - [Image library](#image-library): image, image_attachment
-- [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item
+- [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item, watch_order_follow
 - [Planning](#planning): plan_next
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
 - [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode, user_access_mode_denial
@@ -1932,6 +1932,28 @@ that is how a split run (A ep 1-10 → B → A ep 11-12) is expressed.
 | `importance` | String | yes | `"Normal"` | ITEM_IMPORTANCE: Essential / Recommended / Normal / Optional |
 | `note` | Text | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
+
+### `watch_order_follow`
+
+One user following one watch order. A user follows at most one order per
+group; following another of the group repoints the row, unfollowing deletes
+it. Model: `WatchOrderFollow` (`app/models/watch_order.py`). Progress through
+the order is computed on read and not stored - see
+[systems/watch-orders.md](systems/watch-orders.md#following).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | no | | FK `users.id` ON DELETE CASCADE (`fk_watch_order_follow_user`), indexed |
+| `list_id` | UUID | no | | FK `watch_order_list` ON DELETE CASCADE (`fk_watch_order_follow_list`), indexed |
+| `franchise_id` / `series_id` / `collection_id` | UUID | yes | | The followed order's owner, copied when the follow is written; each an FK to its tier, ON DELETE CASCADE |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `ck_watch_order_follow_one_owner` - exactly one owner column is
+set; `uq_watch_order_follow_group` - UNIQUE NULLS NOT DISTINCT `(user_id,
+franchise_id, series_id, collection_id)`, which is the one-per-group rule.
+The owner copy stays true because `watch_order_list`'s owner cannot be
+changed once the list exists (the list endpoints answer 400).
 
 ---
 

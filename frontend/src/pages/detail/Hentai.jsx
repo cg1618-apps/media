@@ -31,6 +31,7 @@ import StatusOptions from "../../components/ui/StatusOptions";
 import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
 import { H_COMIC_USEFULNESS, MY_RATINGS, WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useCasting } from "../../hooks/useCasting";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
@@ -391,6 +392,9 @@ export default function Hentai() {
               </div>
             </div>
           </header>
+
+          {/* Where this entry sits in the watch orders the viewer follows. */}
+          <FollowedOrderPanel entryId={hentai.system_id} />
 
           <HentaiTrackerBlock hentai={hentai} isAdmin={isAdmin} onPatch={performPatch} />
 

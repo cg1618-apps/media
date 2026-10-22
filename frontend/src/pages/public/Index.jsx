@@ -15,6 +15,8 @@ import {
 } from "../../lib/dashboardView";
 import WeeklySchedule from "../../components/tracker/WeeklySchedule";
 import ComingNext from "../../components/tracker/ComingNext";
+import FollowedOrders from "../../components/tracker/FollowedOrders";
+import { useWatchOrderFollows } from "../../api/mutations/useWatchOrderFollows";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import AnnouncementBoard from "../../components/info/AnnouncementBoard";
 import { useMediaList } from "../../hooks/useMediaList";
@@ -149,6 +151,7 @@ const TOC_ITEMS = [
   { id: "schedule-watch", label: "My Watch", level: 2 },
   { id: "schedule-broadcast", label: "Broadcast", level: 2 },
   { id: "schedule-coming", label: "Coming next", level: 2 },
+  { id: "schedule-follows", label: "Followed orders", level: 2 },
   { id: "watching", label: "Watching", level: 1 },
   { id: "watching-active", label: "Active", level: 2 },
   { id: "watching-passive", label: "Passive", level: 2 },
@@ -190,7 +193,12 @@ function DashboardTOC({ activeId, typeFilter, showComingNext }) {
 
   // A division the type filter hides has no anchor to scroll to.
   const items = TOC_ITEMS.filter(({ id }) => {
-    if (id === "schedule-coming" && !showComingNext) return false;
+    // Followed orders is gated exactly as Coming Next is.
+    if (
+      (id === "schedule-coming" || id === "schedule-follows") &&
+      !showComingNext
+    )
+      return false;
     const division = id.split("-")[0];
     return !(division in DIVISION_TYPES) || divisionShown(division, typeFilter);
   });
@@ -558,6 +566,9 @@ export default function Index() {
     endpoints.seasonal.currentSeason(),
     { enabled: showComingNext },
   );
+  // Followed watch orders are the viewer's own too, so they share the gate,
+  // and like Coming Next they stay out of the combined loading state.
+  const followsQuery = useWatchOrderFollows(showComingNext);
   // Announcements are intentionally kept out of the combined loading/error state
   // below — a failed board must never block the rest of the dashboard.
   const announcementQuery = useApiQuery(
@@ -1021,6 +1032,12 @@ export default function Index() {
                   currentSeason={thisSeason}
                   season={comingSeason}
                   today={today}
+                />
+              )}
+              {showComingNext && (
+                <FollowedOrders
+                  id="schedule-follows"
+                  follows={followsQuery.data}
                 />
               )}
             </div>

@@ -1,14 +1,14 @@
 # Watch Orders
 
-Last verified: 2026-10-02
+Last verified: 2026-10-22
 
 ## What this is for
 
-A watch order is a named, ordered guide through a group of media entries — "watch A ep 1-10, then movie B, then A ep 11-12" — owned by one franchise, series or collection. It replaced the old per-entry `watch_order` float (dropped in `alembic/versions/drop_entry_watch_order.py`), which could not span media types, hold more than one order per franchise, or split one entry across two steps. Orders come in two flavours: **hand-built** lists whose steps are stored rows, and **built-in** ("generated") lists whose steps are computed from release dates every time they are read. Guests can read every order; every write is admin-only.
+A watch order is a named, ordered guide through a group of media entries — "watch A ep 1-10, then movie B, then A ep 11-12" — owned by one franchise, series or collection. It replaced the old per-entry `watch_order` float (dropped in `alembic/versions/drop_entry_watch_order.py`), which could not span media types, hold more than one order per franchise, or split one entry across two steps. Orders come in two flavours: **hand-built** lists whose steps are stored rows, and **built-in** ("generated") lists whose steps are computed from release dates every time they are read. Guests can read every order; every write to an order is admin-only. A signed-in member may **follow** one order per group and read their progress through it — see [Following](#following).
 
 ## Model
 
-Three tables, defined in `app/models/watch_order.py`. Migrations: `alembic/versions/t3u4v5w6x7y8_add_watch_order_tables.py` (list + item), `ws1e2c3t4i5n_add_watch_order_section.py` (section), `x7y8z9a0b1c2_add_watch_order_auto_source.py`, `wo_item_importance.py`, `wo_flatten_section_order.py`, `wo_series_owner_series_and_no_builtin.py` (series owner + `collection.no_built_in_orders`).
+Three tables, defined in `app/models/watch_order.py`, plus the per-user `watch_order_follow` described under [Following](#following). Migrations: `alembic/versions/t3u4v5w6x7y8_add_watch_order_tables.py` (list + item), `ws1e2c3t4i5n_add_watch_order_section.py` (section), `x7y8z9a0b1c2_add_watch_order_auto_source.py`, `wo_item_importance.py`, `wo_flatten_section_order.py`, `wo_series_owner_series_and_no_builtin.py` (series owner + `collection.no_built_in_orders`).
 
 ### `watch_order_list` — one order
 
@@ -82,6 +82,7 @@ The same entry may appear in several items of one list (a split run). A **dangli
 | `media_type` must be a known slug and `entry_id` must exist in that table (400) — checked in the router before the write, so a bad pair is a 400 rather than a foreign-key error. | `_validate_entry`, `entry_exists` |
 | `importance` must be one of the four rungs (400). The Sheets parser instead coerces junk to "Normal" (`normalize_importance`). | `_validate_importance` |
 | Exactly one owner (400 mirrors the DB check). | `_validate_owner` |
+| The owner is fixed at creation: a `PUT` or `PATCH` naming a different `franchise_id`, `collection_id` or `series_id` is refused (400); restating the current owner is allowed. Every follow copies its order's owner, and the copy is only true while the owner never moves. | `_reject_owner_change`; `TestOwnerIsImmutable` |
 | Setting `is_default` or `is_most_recommended` on a list clears that flag on the owner's other lists. The two flags are independent. | `_enforce_single_winners`; `TestMostRecommended` |
 | Built-in lists have no item/section rows; every item/section/reorder write is refused with 400. Name, type, remark, flags and delete still work. | `_reject_if_generated`; `TestGeneratedListIsReadOnly` |
 | Built-in steps are generated on every read from `list_candidate_entries` sorted by `release_sort_key` (per-type column priority in `app/utils/release_date.py: RELEASE_PRIORITY`), then name; undated entries sink to the bottom. Positions renumber 1..N; `system_id` of a generated step is the entry id; every step is whole, "Normal", no note. | `build_release_items`; `TestReleaseOrder` |
@@ -113,7 +114,7 @@ Reads apply RBAC (`app/services/rbac/enforcement.py`): the list-detail endpoint 
 
 ## API
 
-Router: `app/routers/watch_order.py`, prefix `/api/watch-order`. Schemas: `app/schemas/watch_order.py`. Writes are `Depends(require_manage_catalog)` (401 for guests, proved throughout `tests/api/test_watch_order.py`).
+Router: `app/routers/watch_order.py`, prefix `/api/watch-order`. Schemas: `app/schemas/watch_order.py`. Writes are `Depends(require_manage_catalog)` (401 for guests, proved throughout `tests/api/test_watch_order.py`). The four follow routes are each `Depends(require_self_list)` instead and act on the caller's own rows only (`tests/api/test_watch_order_follow.py`).
 
 | Method | Path | Auth | Params / body | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
@@ -123,8 +124,8 @@ Router: `app/routers/watch_order.py`, prefix `/api/watch-order`. Schemas: `app/s
 | POST | `/lists` | admin | `WatchOrderListCreate` | `WatchOrderListResponse` | 400 owner rule; 500 on DB error |
 | POST | `/lists/release` | admin | query: one owner id, `anime_only` bool | existing or new built-in list | 400 owner rule / opted-out collection / < 2 entries |
 | POST | `/lists/release/backfill` | admin | — | `{status, created, skipped_too_small, skipped_opted_out}` | — |
-| PUT | `/lists/{id}` | admin | `WatchOrderListUpdate` (unset fields untouched) | list | 404, 400 owner |
-| PATCH | `/lists/{id}` | admin | dict, columns whitelisted by `apply_column_patch` (`app/routers/_patching.py`) | list | 404, 400 |
+| PUT | `/lists/{id}` | admin | `WatchOrderListUpdate` (unset fields untouched) | list | 404, 400 owner rule / owner change |
+| PATCH | `/lists/{id}` | admin | dict, columns whitelisted by `apply_column_patch` (`app/routers/_patching.py`) | list | 404, 400 owner change |
 | DELETE | `/lists/{id}` | admin | — | `{status, message}`; items and sections cascade; logs via `log_deleted_record` | 404 |
 | POST | `/lists/{id}/duplicate` | admin | — | new list | 404, 500 |
 | POST | `/lists/{id}/items` | admin | `WatchOrderItemCreate` (`media_type`, `entry_id`, `section_id`, `position`, `ep_start`, `ep_end`, `importance`, `note`) | `WatchOrderItemResponse` (no display data) | 404; 400 generated / bad type / missing entry / bad importance / foreign section |
@@ -136,6 +137,10 @@ Router: `app/routers/watch_order.py`, prefix `/api/watch-order`. Schemas: `app/s
 | PUT | `/sections/{id}` | admin | `WatchOrderSectionUpdate` | section | 404, 400 generated |
 | PATCH | `/sections/{id}` | admin | dict | section | 404, 400 generated |
 | DELETE | `/sections/{id}` | admin | — | `{status, message}`; steps become unfiled (SET NULL) | 404, 400 generated |
+| GET | `/follows` | `self.list` | — | `[WatchOrderFollowSummary]`: the caller's followed orders, oldest follow first, each with `list`, `owner`, `done`, `total`, `now`, `up_next` | 401 |
+| GET | `/follows/entry/{entry_id}` | `self.list` | path: an entry's `media.system_id` | `[WatchOrderEntryFollow]`: each followed order stepping through the entry, with `list`, `owner`, `total` and one `occurrences` element per step naming it (`step`, `previous`, `next`); `[]` when none does | 401, 422 bad uuid |
+| PUT | `/lists/{id}/follow` | `self.list` | — (`id` is a `public_id` or UUID) | `WatchOrderFollowSummary` for that order; replaces the caller's follow of another order in the same group; idempotent | 401, 404 |
+| DELETE | `/lists/{id}/follow` | `self.list` | — | `{status, message}` | 401, 404 order unknown or not followed |
 
 Frontend endpoint map: `frontend/src/api/endpoints.js` (`endpoints.watchOrder.*`).
 
@@ -151,15 +156,63 @@ Frontend endpoint map: `frontend/src/api/endpoints.js` (`endpoints.watchOrder.*`
 
 ## Sheets
 
-Backup writes and Pull restores three tabs, registered in `app/services/pipelines/tabs.py` in restore order **Watch Order List → Watch Order Section → Watch Order Item** (after every media tab, since items cite entries). Columns are every model column, taken dynamically by `app/services/pipelines/backup.py` (`tab.model.__table__.columns`); parsers are `parse_watch_order_list_from_sheet`, `parse_watch_order_section_from_sheet`, `parse_watch_order_item_from_sheet` in `app/utils/formatter.py`.
+Backup writes and Pull restores four tabs, registered in `app/services/pipelines/tabs.py` in restore order **Watch Order List → Watch Order Section → Watch Order Item → Watch Order Follow** (after every media tab, since items cite entries). Columns are every model column, taken dynamically by `app/services/pipelines/backup.py` (`tab.model.__table__.columns`); parsers are `parse_watch_order_list_from_sheet`, `parse_watch_order_section_from_sheet`, `parse_watch_order_item_from_sheet` in `app/utils/formatter.py`.
 
 | Tab | Restore behaviour (`app/services/pipelines/pull.py`) |
 | --- | --- |
 | Watch Order List | Owner ids are strict UUIDs (junk → None → single-owner check would fail). An id-less row is matched on `list_name` + `franchise_id` + `collection_id` and updated in place. |
 | Watch Order Section | `list_id` strict UUID; an unparseable id becomes None. |
 | Watch Order Item | `entry_id` unparseable → None (shows as a missing step); `section_id` unparseable → None (step restores unfiled); `importance` coerced via `normalize_importance` so a blank or pre-column cell restores as "Normal". Items have no natural key, so an id-less item row always inserts. |
+| Watch Order Follow | After Watch Order Item. `user_id` is dropped for `username` and resolved by Pull exactly as Plan Next's is (an unknown name skips the row and is reported). The natural key is `uq_watch_order_follow_group` - `(user_id, franchise_id, series_id, collection_id)` - so a sheet row for a group the user already follows locally repoints that row rather than colliding with it. Parser: `parse_watch_order_follow_from_sheet`. |
 
 Sheet-sync schemas (`WatchOrder*SheetSync`) live in `app/schemas/watch_order.py`.
+
+## Following
+
+A signed-in member holding `self.list` may follow a watch order. A follow is per user, and a user follows **at most one order per group** — the franchise, series or collection that owns it. Following another order of the same group replaces the first; unfollowing deletes the row. A built-in order is followed like any other.
+
+### `watch_order_follow`
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `system_id` | UUID | PK | indexed |
+| `user_id` | UUID | no | FK `users.id` ON DELETE CASCADE (`fk_watch_order_follow_user`), indexed |
+| `list_id` | UUID | no | FK `watch_order_list.system_id` ON DELETE CASCADE (`fk_watch_order_follow_list`), indexed |
+| `franchise_id` / `series_id` / `collection_id` | UUID | yes | The followed order's owner, copied at follow time. Each an FK to its tier, ON DELETE CASCADE |
+| `created_at` / `updated_at` | DateTime | yes | Taipei time |
+
+Constraints: `ck_watch_order_follow_one_owner` (`num_nonnulls(franchise_id, series_id, collection_id) = 1`) and `uq_watch_order_follow_group`, **UNIQUE NULLS NOT DISTINCT** `(user_id, franchise_id, series_id, collection_id)` — the one-per-group rule, held by the database. NULLS NOT DISTINCT because two of the three owner columns are NULL on every row. The owner is copied rather than read through `list_id` so the rule can be a constraint, and the copy stays true because a list's owner cannot change (see Rules). Migration: `alembic/versions/w1o2follow34_watch_order_follow.py`.
+
+`PUT /lists/{id}/follow` finds the caller's row for the order's group and repoints its `list_id`, or inserts one; it never deletes and re-inserts, so the unique constraint is never in question.
+
+### Progress
+
+Computed on every read, per viewer, from the viewer's own `user_media_list` rows; nothing is stored. The steps counted are exactly the ones the guide draws for that viewer — `_resolved_steps` in the router serves both the detail endpoint and the follows — so a hidden entry's step is dropped for a non-root viewer by `resolve_items`, and a built-in order's steps are generated as they are for the page (unfiltered, as noted under Viewer visibility). The rules live in `app/services/domain/watch_order_follow.py`:
+
+| State | When |
+| --- | --- |
+| **done** | The status is in a completed set (`COMPLETED_WATCH_STATUSES`, `_READ_`, `_PLAY_`), or is `Dropped` or `Temp Dropped`; **or** the step has an `ep_end` and the viewer's unit count for the entry is at least `ep_end` |
+| **active** | The status is an in-progress one — `Active Watching`, `Passive Watching`, `Active Reading`, `Passive Reading`, `Active Playing`, `Passive Playing` — and the step is not done by its range, and the range has been reached: a step whose `ep_start` is beyond the next unit (`units + 1 < ep_start`) stays pending, so the second half of a split run is not "now" while the first half is being watched |
+| **pending** | Everything else: no list row, `Might …`, `Plan to …`, `Watch When Airs`, `Paused`, `Won't …` |
+
+The unit count is `UNIT_FIELDS`: `ep_fin` for anime, TV show, cartoon and hentai; `issue_fin` for comic; `ch_fin` for manga and novel. A type with no unit count (movies, games, h-comic, h-game) is done by status alone.
+
+`done / total` counts steps. **Now** is every active step — there may be several. **Up next** is the **earliest pending step in reading order**, even when later steps are done: a skipped step is exactly what the follower needs to see. Optional steps are not skipped; the step carries its `importance` and the views show it. Each step is numbered 1..N over the steps the viewer can see.
+
+### Entry context and split runs
+
+`GET /follows/entry/{entry_id}` answers one element per followed order that steps through the entry. An entry that appears in several steps of one order (a split run) gets one **occurrence** per step, each with its own `previous` and `next`, because the two halves sit between different neighbours. Each step carries `number`, `state`, `media_type`, `entry_id`, the entry's `public_id` (for its link), `display_name`, `ep_start` / `ep_end`, `importance`, `note` and `section_name` (the part it sits in, or null).
+
+### UI
+
+| Surface | File | Notes |
+| --- | --- | --- |
+| Follow / Following toggle | `frontend/src/components/tracker/FollowOrderButton.jsx` | On `WatchOrderPage.jsx`'s header and beside the selected order in `WatchOrderSection.jsx`. The section marks the group's followed order "Following" in its chips, its dropdown and its single-order label. Drawn only for `has("self.list")` |
+| Entry detail panel | `frontend/src/components/tracker/FollowedOrderPanel.jsx` | Mounted directly under the `<header>` of all twelve entry detail pages. A brand-ruled band, deliberately not a `Slip` like Relations in the left column. "Following: order (group) · step N / total", then per occurrence the previous step, this step and the next, each with its range, importance chip, part name and note. Renders nothing when no followed order holds the entry |
+| Dashboard | `frontend/src/components/tracker/FollowedOrders.jsx` | "Followed watch orders (n)", directly under Coming Next on `/`, collapsed by default, gated on `self.list` as Coming Next is, and listed in the contents as "Followed orders" (`schedule-follows`). One row per order: group · order (linked), `done / total` with a progress rule, every **Now** step and the **Next** step, notes left to the order page |
+| Shared step line | `frontend/src/components/tracker/FollowedStep.jsx` | Used by the panel and the dashboard so a step reads the same in both; the range label is `rangeLabel` from `WatchOrderGuide.jsx` |
+
+Hooks: `frontend/src/api/mutations/useWatchOrderFollows.js` — `useWatchOrderFollows`, `useEntryFollows`, `useToggleFollow`, all under the query key prefix `["watch-order-follows"]`, which every follow or unfollow invalidates.
 
 ## Krakoan reading orders
 
@@ -171,4 +224,5 @@ Sheet-sync schemas (`WatchOrder*SheetSync`) live in `app/schemas/watch_order.py`
 - `app/utils/release_date.py` — `RELEASE_PRIORITY`, `sort_key`, `display` used by built-in orders.
 - `app/services/rbac/enforcement.py` — `apply_entry_visibility`, `drop_hidden_rows`.
 - `app/utils/data_control_utils.py` — "Watch Order" branch of `log_deleted_record`.
+- `tests/api/test_watch_order_follow.py` — following: one per group, per user, permission, every progress rule, visibility, built-in orders, entry context, Sheets.
 - `tests/api/test_watch_order.py` — the behavioural spec (≈150 tests across lists, built-ins, series owners, opt-out, candidates, parts, contiguity, duplication).
