@@ -45,9 +45,10 @@ class TestParseComicFromSheet:
         parsed = parse_comic_from_sheet({"events": "Hunted, Sinister War"})
         assert parsed["events"] == "Hunted, Sinister War"
 
-    def test_booleans_parse(self):
-        parsed = parse_comic_from_sheet({"is_main_entry": "TRUE"})
-        assert parsed["is_main_entry"] is True
+    def test_is_main_entry_is_no_longer_emitted(self):
+        # Dropped from the model; a sheet backed up before the drop still
+        # carries the header until its next Backup.
+        assert "is_main_entry" not in parse_comic_from_sheet({"is_main_entry": "TRUE"})
 
     def test_to_reread_is_no_longer_emitted(self):
         # to_reread was dropped from the Comic model - rereading tracking now

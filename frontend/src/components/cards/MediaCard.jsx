@@ -164,14 +164,6 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
           {data.region}
         </div>
       )}
-      {type === "comic" && data.is_main_entry && (
-        <div
-          className={`absolute top-1 left-1 ${OVERLAY_CLS}`}
-          title="On the main line"
-        >
-          Main
-        </div>
-      )}
       {type === "comic" && data.comic_type && (
         <div className={`absolute bottom-1 right-1 ${OVERLAY_CLS}`}>
           {data.comic_type}

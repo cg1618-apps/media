@@ -3,7 +3,6 @@
 import uuid
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -70,7 +69,6 @@ class Comic(Base, NameFallbackMixin):
     volume_label = Column(String, nullable=True)
 
     comic_type = Column(String, nullable=True)
-    is_main_entry = Column(Boolean, nullable=True)
 
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)

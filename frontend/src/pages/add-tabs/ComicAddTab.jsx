@@ -444,19 +444,6 @@ export default function ComicAddTab({
             placeholder="1"
           />
         </Field>
-        <Field label="Main Entry">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!cmf.is_main_entry}
-              onChange={(e) => ucm("is_main_entry", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Main line entry (not a spinoff)
-            </span>
-          </label>
-        </Field>
       </div>
 
       <SectionHeader icon="fa-external-link-alt" title="Sources" />

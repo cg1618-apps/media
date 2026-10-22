@@ -22,7 +22,6 @@ class ComicBase(BaseModel):
     volume_label: Optional[str] = None
 
     comic_type: Optional[str] = None
-    is_main_entry: Optional[bool] = None
 
     release_date: Optional[str] = None
     end_date: Optional[str] = None

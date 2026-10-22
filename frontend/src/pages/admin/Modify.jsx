@@ -163,7 +163,6 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     // loadCreditsIntoForm() merges them in from GET /api/credits/anime/{id}
     // once that resolves; until then they're left `undefined` on purpose (see
     // buildCreditsPayload) so an early save can't wipe credits it never saw.
-    is_main_entry: anime.is_main_entry === true,
     mal_id: anime.mal_id ?? "",
     mal_link: anime.mal_link || "",
     sources: anime.sources || [],
@@ -880,7 +879,6 @@ export default function Modify() {
       my_rating: c.my_rating || "",
       release_date: c.release_date ?? "",
       end_date: c.end_date ?? "",
-      is_main_entry: c.is_main_entry ?? false,
       read_order: c.read_order ?? "",
       comicvine_link: c.comicvine_link || "",
       sources: c.sources || [],
@@ -2472,7 +2470,6 @@ export default function Modify() {
       series_id: seriesId || null,
       volume_label: ccmf.volume_label || null,
       comic_type: ccmf.comic_type || null,
-      is_main_entry: ccmf.is_main_entry ?? false,
       release_date: ccmf.release_date || null,
       end_date: ccmf.end_date || null,
       issue_total: ccmf.issue_total !== "" ? parseInt(ccmf.issue_total) : null,
