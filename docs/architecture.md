@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-10-07
+Last verified: 2026-10-22
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -287,6 +287,18 @@ it **only if** the resolved path is inside the dist directory, is not the
 directory itself, and is a regular file; everything else (client-side routes,
 `..%2F` traversal attempts) gets `index.html`. Unit test:
 `tests/unit/test_spa_catch_all.py`.
+
+**Caching.** `index.html` is served with `Cache-Control: no-cache`, so the
+browser revalidates it on every load. Everything under `/assets/` is served by
+`HashedAssets` with `public, max-age=31536000, immutable`, because Vite names
+those files after their content hash: a name never changes meaning, and a
+deploy deletes the names the previous build used. Without the `no-cache` on
+`index.html`, a browser reusing a stale copy after a deploy requests assets
+that no longer exist - a 404 on `/assets/index-<hash>.js` in the access log -
+and draws a blank page until a hard refresh. A 404 under `/assets/` is not
+marked immutable, since the next deploy may bring that file. Other files at
+the dist root (the favicons) keep their names across builds and carry no
+cache header.
 
 ## Logging
 
