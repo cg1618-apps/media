@@ -1,18 +1,29 @@
 // Frontend: add tab page file for AnimeMovieAddTab.
-import GenreLabelFields from "../../components/forms/GenreLabelFields";
-import ComboBox from "../../components/forms/ComboBox";
-import MultiSelect from "../../components/forms/MultiSelect";
+//
+// AnimeMovieFormBody and AnimeMovieLineageFields are the whole anime movie
+// form, shared verbatim by AnimeMovieModifyTab, so the two pages lay out the
+// same fields in the same order (the detail page's). The Add wrapper adds only
+// the two search boxes on top: EntryAutofillSearch copies fields from an anime
+// movie already in the catalogue, the MAL search links the new entry to its
+// MAL record. An anime movie has a franchise but no series.
 import CastEditor from "../../components/forms/CastEditor";
+import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
+import EntryFlags from "../../components/forms/EntryFlags";
+import EntryNameFields from "../../components/forms/EntryNameFields";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
+import MalAnilistScores from "../../components/forms/MalAnilistScores";
+import MultiSelect from "../../components/forms/MultiSelect";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import SourcesEditor from "../../components/forms/SourcesEditor";
-import ImagePicker from "../../components/forms/ImagePicker";
 import {
-  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getSourceValues } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
 import {
@@ -21,11 +32,221 @@ import {
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
-import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
 export { defaultAnimeMovie } from "../../config/formFactories";
+
+const ROW2 = "grid grid-cols-1 md:grid-cols-2 gap-4";
+
+/**
+ * Every field below the franchise picker. `f` is the form state and `u` its
+ * updater; `ownerId` is the entry's id on Modify and absent on Add - the only
+ * difference between the two pages inside the body.
+ */
+export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
+  const select = (key, label, options) => (
+    <Field label={label}>
+      <select
+        className={selectCls}
+        aria-label={label}
+        value={f[key] ?? ""}
+        onChange={(e) => u(key, e.target.value)}
+      >
+        <option value="">—</option>
+        {options.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+  const tags = (key, label, source, placeholder, attrs) => (
+    <Field label={label}>
+      <MultiSelect
+        options={getSourceValues(sources, source)}
+        value={f[key]}
+        onChange={(v) => u(key, v)}
+        placeholder={placeholder}
+        {...attrs}
+      />
+    </Field>
+  );
+
+  return (
+    <>
+      <EntryNameFields f={f} u={u} prefix="anime_movie" label="Anime Movie" />
+
+      <MalAnilistScores f={f} u={u} />
+
+      <SectionHeader icon="fa-chart-bar" title="My Tracker" />
+      <div className={ROW2}>
+        <Field label="Watching Status">
+          <select
+            className={selectCls}
+            aria-label="Watching Status"
+            value={f.watching_status ?? ""}
+            onChange={(e) => u("watching_status", e.target.value)}
+          >
+            <StatusOptions statuses={WATCHING_STATUSES} />
+          </select>
+        </Field>
+        {select("my_rating", "My Rating", MY_RATINGS)}
+      </div>
+      <div className={ROW2}>
+        <Field label="Paused at">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="Paused at"
+            value={f.time_fin ?? ""}
+            onChange={(e) => u("time_fin", e.target.value)}
+            placeholder="1:10:00"
+          />
+        </Field>
+      </div>
+      <EntryFlags
+        f={f}
+        u={u}
+        flags={[
+          ["watch_next", "Watch Next", "Add to Watch Next list"],
+          ["to_rewatch", "To Rewatch", "Mark for rewatch"],
+        ]}
+      />
+
+      <SectionHeader icon="fa-info-circle" title="Information" />
+      <div className={ROW2}>{select("airing_status", "Airing Status", AIRING_STATUSES)}</div>
+      <div className={ROW2}>
+        <ReleaseDateInput
+          label="Release Date JP"
+          value={f.release_date_jp}
+          onChange={(v) => u("release_date_jp", v)}
+        />
+        <ReleaseDateInput
+          label="Release Date TW"
+          value={f.release_date_tw}
+          onChange={(v) => u("release_date_tw", v)}
+        />
+      </div>
+      <div className={ROW2}>
+        <Field label="Length (min)">
+          <input
+            className={inputCls}
+            type="number"
+            min="0"
+            aria-label="Length (min)"
+            value={f.length_min ?? ""}
+            onChange={(e) => u("length_min", e.target.value)}
+            placeholder="e.g. 120"
+          />
+        </Field>
+      </div>
+
+      <GenreLabelFields
+        mediaType="anime-movie"
+        values={f}
+        onChange={u}
+        sources={sources}
+        franchiseId={f.franchise_id}
+        entryId={ownerId}
+      />
+
+      <SectionHeader icon="fa-pen-nib" title="Production" />
+      <div className={ROW2}>
+        {tags("studio", "Studio", { kind: "studio" }, "Select studio...", {
+          idleOptions: getIdleSourceValues(sources, { kind: "studio" }),
+        })}
+        {tags(
+          "distributor_tw",
+          "Distributor TW",
+          { kind: "publisher", scope: "anime-movie" },
+          "Select distributor...",
+          { limit: null },
+        )}
+      </div>
+      <div className={ROW2}>
+        {tags(
+          "director",
+          "Director",
+          { kind: "person", role: "director", scope: "anime" },
+          "Select director...",
+        )}
+      </div>
+
+      {/* Cast: character/seiyuu/role rows, saved separately via
+          PUT /api/casting/anime-movie/{id} - never part of the entry
+          payload. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor
+        mediaType="anime-movie"
+        franchiseId={f.franchise_id}
+        malLink={f.mal_link}
+        entryId={ownerId}
+        value={f.cast}
+        onChange={(rows) => u("cast", rows)}
+      />
+
+      <SectionHeader icon="fa-external-link-alt" title="Links & Sources" />
+      <div className={ROW2}>
+        <Field label="MAL ID">
+          <input
+            className={inputCls}
+            type="number"
+            aria-label="MAL ID"
+            value={f.mal_id ?? ""}
+            onChange={(e) => u("mal_id", e.target.value)}
+            placeholder="e.g. 5114"
+          />
+        </Field>
+        <Field label="MAL Link">
+          <input
+            className={inputCls}
+            type="url"
+            aria-label="MAL Link"
+            value={f.mal_link ?? ""}
+            onChange={(e) => u("mal_link", e.target.value)}
+            placeholder="https://myanimelist.net/anime/..."
+          />
+        </Field>
+      </div>
+      <div className={ROW2}>
+        {tags(
+          "exclusive_source",
+          "Exclusive Source",
+          {
+            kind: "option",
+            category: "Platform",
+            scope: "anime-movie",
+            usage: "origin",
+          },
+          "Select exclusive platform...",
+          { limit: null, max: 1 },
+        )}
+      </div>
+      <SourcesEditor
+        value={f.sources}
+        onChange={(rows) => u("sources", rows)}
+        mediaType="anime-movie"
+        sources={sources}
+      />
+
+      <CoverRemarkFields f={f} u={u} ownerType="anime-movie" ownerId={ownerId} />
+    </>
+  );
+}
+
+/** The franchise picker, shared by both anime movie tabs. Every franchise
+ *  type is accepted, and there is no Series picker. */
+export function AnimeMovieLineageFields({ f, u, allFranchises, franchiseCollections }) {
+  return (
+    <FamilyLineageFields
+      f={f}
+      u={u}
+      allFranchises={allFranchises}
+      franchiseCollections={franchiseCollections}
+    />
+  );
+}
 
 export default function AnimeMovieAddTab({
   franchiseCollections,
@@ -36,7 +257,6 @@ export default function AnimeMovieAddTab({
   applyAnimeMovieEntryAutofill,
   applyMalPick,
   allFranchises,
-  franchiseItems,
   sources,
 }) {
   return (
@@ -60,351 +280,14 @@ export default function AnimeMovieAddTab({
         searchUrl={endpoints.animeMovie.searchMal}
         onPick={applyMalPick}
       />
-      <SectionHeader icon="fa-film" title="Titles & Naming" />
-      <Field label="Franchise">
-        <ComboBox
-          items={franchiseItems}
-          selectedId={amf.franchise_id}
-          inputText={amf.franchise_text}
-          onSelect={(id, label) => {
-            uam("franchise_id", id);
-            uam("franchise_text", label);
-          }}
-          onType={(text) => {
-            uam("franchise_text", text);
-            uam("franchise_id", null);
-          }}
-          onClear={() => {
-            uam("franchise_id", null);
-            uam("franchise_text", "");
-          }}
-          placeholder="Search or type new franchise..."
-          allowNew
-        />
-        <CollectionNote
-          franchiseId={amf.franchise_id}
-          franchiseCollections={franchiseCollections}
-        />
-      </Field>
-      <Field label="Anime Movie Name EN" required>
-        <input
-          className={inputCls}
-          value={amf.anime_movie_name_en}
-          onChange={(e) => uam("anime_movie_name_en", e.target.value)}
-          placeholder="English title"
-        />
-      </Field>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Anime Movie Name CN">
-          <input
-            className={inputCls}
-            value={amf.anime_movie_name_cn}
-            onChange={(e) => uam("anime_movie_name_cn", e.target.value)}
-            placeholder="Chinese title"
-          />
-        </Field>
-        <Field label="Anime Movie Name roman">
-          <input
-            className={inputCls}
-            value={amf.anime_movie_name_roman}
-            onChange={(e) => uam("anime_movie_name_roman", e.target.value)}
-            placeholder="Romanized title"
-          />
-        </Field>
-        <Field label="Anime Movie Name JP">
-          <input
-            className={inputCls}
-            value={amf.anime_movie_name_jp}
-            onChange={(e) => uam("anime_movie_name_jp", e.target.value)}
-            placeholder="Japanese title"
-          />
-        </Field>
-        <Field label="Anime Movie Name Alt">
-          <input
-            className={inputCls}
-            value={amf.anime_movie_name_alt}
-            onChange={(e) => uam("anime_movie_name_alt", e.target.value)}
-            placeholder="Alternative title"
-          />
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-chart-bar" title="Status & Progress" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Airing Status">
-          <select
-            className={selectCls}
-            value={amf.airing_status}
-            onChange={(e) => uam("airing_status", e.target.value)}
-          >
-            <option value="">—</option>
-            {AIRING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Watching Status">
-          <select
-            className={selectCls}
-            value={amf.watching_status}
-            onChange={(e) => uam("watching_status", e.target.value)}
-          >
-            <StatusOptions statuses={WATCHING_STATUSES} />
-          </select>
-        </Field>
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={amf.my_rating}
-            onChange={(e) => uam("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Paused at">
-          <input
-            className={inputCls}
-            type="text"
-            aria-label="Paused at"
-            value={amf.time_fin ?? ""}
-            onChange={(e) => uam("time_fin", e.target.value)}
-            placeholder="1:10:00"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="MAL Rating">
-          <input
-            className={inputCls}
-            type="number"
-            step="0.01"
-            min="0"
-            max="10"
-            value={amf.mal_rating}
-            onChange={(e) => uam("mal_rating", e.target.value)}
-            placeholder="0.00"
-          />
-        </Field>
-        <Field label="MAL Rank">
-          <input
-            className={inputCls}
-            value={amf.mal_rank}
-            onChange={(e) => uam("mal_rank", e.target.value)}
-            placeholder="#1234"
-          />
-        </Field>
-        <Field label="AniList Rating">
-          <input
-            className={inputCls}
-            type="number"
-            value={amf.anilist_rating}
-            onChange={(e) => uam("anilist_rating", e.target.value)}
-            placeholder="85"
-          />
-        </Field>
-        <Field label="AniList Rank">
-          <input
-            className={inputCls}
-            type="number"
-            value={amf.anilist_rank}
-            onChange={(e) => uam("anilist_rank", e.target.value)}
-          />
-        </Field>
-        <Field label="AniList Popularity Rank">
-          <input
-            className={inputCls}
-            type="number"
-            value={amf.anilist_popularity_rank}
-            onChange={(e) => uam("anilist_popularity_rank", e.target.value)}
-          />
-        </Field>
-      </div>
-
-      <div className="flex flex-wrap gap-6 mt-2">
-        <Field label="Watch Next">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!amf.watch_next}
-              onChange={(e) => uam("watch_next", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Add to Watch Next list
-            </span>
-          </label>
-        </Field>
-        <Field label="To Rewatch">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!amf.to_rewatch}
-              onChange={(e) => uam("to_rewatch", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Mark for rewatch
-            </span>
-          </label>
-        </Field>
-      </div>
-
-      <GenreLabelFields
-        mediaType="anime-movie"
-        values={amf}
-        onChange={uam}
-        sources={sources}
-        franchiseId={amf.franchise_id}
+      <SectionHeader icon="fa-tag" title="Titles & Naming" />
+      <AnimeMovieLineageFields
+        f={amf}
+        u={uam}
+        allFranchises={allFranchises}
+        franchiseCollections={franchiseCollections}
       />
-
-      <SectionHeader icon="fa-info-circle" title="Release & Details" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <ReleaseDateInput
-          label="Release Date JP"
-          value={amf.release_date_jp}
-          onChange={(v) => uam("release_date_jp", v)}
-        />
-        <ReleaseDateInput
-          label="Release Date TW"
-          value={amf.release_date_tw}
-          onChange={(v) => uam("release_date_tw", v)}
-        />
-        <Field label="Length (min)">
-          <input
-            className={inputCls}
-            type="number"
-            min="0"
-            value={amf.length_min}
-            onChange={(e) => uam("length_min", e.target.value)}
-            placeholder="e.g. 120"
-          />
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-video" title="Production" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Studio">
-          <MultiSelect
-            options={getSourceValues(sources, { kind: "studio" })}
-            idleOptions={getIdleSourceValues(sources, { kind: "studio" })}
-            value={amf.studio}
-            onChange={(v) => uam("studio", v)}
-            placeholder="Select studio..."
-          />
-        </Field>
-        <Field label="Director">
-          <MultiSelect
-            options={getSourceValues(sources, {
-              kind: "person",
-              role: "director",
-              scope: "anime",
-            })}
-            value={amf.director}
-            onChange={(v) => uam("director", v)}
-            placeholder="Select director..."
-          />
-        </Field>
-        <Field label="台灣代理商">
-          <MultiSelect
-            options={getSourceValues(sources, {
-              kind: "publisher",
-              scope: "anime-movie",
-            })}
-            value={amf.distributor_tw}
-            onChange={(v) => uam("distributor_tw", v)}
-            placeholder="Select distributor..."
-            limit={null}
-          />
-        </Field>
-      </div>
-
-      {/* Cast: character/seiyuu/role rows, saved separately via
-          PUT /api/casting/anime-movie/{id} once the entry exists - never
-          part of the entry payload above. */}
-      <SectionHeader icon="fa-users" title="Cast" />
-      <CastEditor
-        mediaType="anime-movie"
-        franchiseId={amf.franchise_id}
-        malLink={amf.mal_link}
-        value={amf.cast}
-        onChange={(rows) => uam("cast", rows)}
-      />
-
-      <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="MAL ID">
-          <input
-            className={inputCls}
-            type="number"
-            value={amf.mal_id}
-            onChange={(e) => uam("mal_id", e.target.value)}
-            placeholder="e.g. 5114"
-          />
-        </Field>
-        <Field label="MAL Link">
-          <input
-            className={inputCls}
-            type="url"
-            value={amf.mal_link}
-            onChange={(e) => uam("mal_link", e.target.value)}
-            placeholder="https://myanimelist.net/anime/..."
-          />
-        </Field>
-        <Field label="Exclusive Source">
-          <MultiSelect
-            options={getSourceValues(sources, {
-              kind: "option",
-              category: "Platform",
-              scope: "anime-movie",
-              usage: "origin",
-            })}
-            value={amf.exclusive_source}
-            onChange={(v) => uam("exclusive_source", v)}
-            placeholder="Select exclusive platform..."
-            limit={null}
-            max={1}
-          />
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
-      <SourcesEditor
-        value={amf.sources}
-        onChange={(rows) => uam("sources", rows)}
-        mediaType="anime-movie"
-        sources={sources}
-      />
-
-      <SectionHeader icon="fa-image" title="Cover & Notes" />
-      <Field label="Cover Image">
-        <ImagePicker
-          ownerType="anime-movie"
-          role="cover"
-          value={amf.cover_image_file}
-          focus={amf.cover_image_focus}
-          onFocusChange={(focus) => uam("cover_image_focus", focus)}
-          onChange={(key, imageId) => {
-            uam("cover_image_file", key);
-            uam("pending_image_id", imageId);
-          }}
-        />
-      </Field>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={amf.remark}
-          onChange={(e) => uam("remark", e.target.value)}
-          placeholder="Private notes..."
-        />
-      </Field>
+      <AnimeMovieFormBody f={amf} u={uam} sources={sources} />
     </div>
   );
 }

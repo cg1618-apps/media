@@ -1,18 +1,23 @@
 // Frontend: add tab page file for CartoonAddTab.
+//
+// Two boxes at the top, as on every media tab: EntryAutofillSearch copies
+// fields from a cartoon already in the catalogue, and the TMDB search under
+// it links the new entry to its IMDb id. Below them sit the lineage pickers
+// and the form body, both exported for CartoonModifyTab, so the two pages
+// render one definition of the cartoon form and differ only in the wrapper.
+import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
+import EntryFlags from "../../components/forms/EntryFlags";
+import EntryNameFields from "../../components/forms/EntryNameFields";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import GenreLabelFields from "../../components/forms/GenreLabelFields";
-import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
-import SourcesEditor from "../../components/forms/SourcesEditor";
-import ImagePicker from "../../components/forms/ImagePicker";
-import {
-  CollectionNote,
-  Field,
-  SectionHeader,
-  inputCls,
-  selectCls,
-} from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
-import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
+import SourcesEditor from "../../components/forms/SourcesEditor";
+import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
+import StatusOptions from "../../components/ui/StatusOptions";
+import { getSourceValues, parseTypes } from "../../utils/media";
 import {
   AIRING_STATUSES,
   CARTOON_AIRING_TYPES,
@@ -20,12 +25,211 @@ import {
   MY_RATINGS,
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
-import StatusOptions from "../../components/ui/StatusOptions";
-import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
-import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
 export { defaultCartoon } from "../../config/formFactories";
+
+const row2 = "grid grid-cols-1 md:grid-cols-2 gap-4";
+const row3 = "grid grid-cols-1 md:grid-cols-3 gap-4";
+
+/**
+ * Every field below the franchise/series pickers, shared verbatim by the
+ * Modify tab. `ownerId` is the cartoon's id on Modify and absent on Add - the
+ * only difference between the two pages inside the body (cover attachment
+ * and TagReplace's "this entry"). Cartoon has no to_rewatch column, so its
+ * flags row is Watch Next alone.
+ */
+export function CartoonFormBody({ f, u, sources, ownerId }) {
+  const choice = (key, label, options) => (
+    <Field label={label}>
+      <select
+        className={selectCls}
+        aria-label={label}
+        value={f[key] ?? ""}
+        onChange={(e) => u(key, e.target.value)}
+      >
+        <option value="">—</option>
+        {options.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+  const count = (key, label, placeholder, hint) => (
+    <Field label={label} hint={hint}>
+      <input
+        className={inputCls}
+        type="number"
+        min="0"
+        aria-label={label}
+        value={f[key] ?? ""}
+        onChange={(e) => u(key, e.target.value)}
+        placeholder={placeholder}
+      />
+    </Field>
+  );
+
+  return (
+    <>
+      <EntryNameFields f={f} u={u} prefix="cartoon" label="Cartoon" names={["cn", "en", "alt"]} />
+
+      <SectionHeader icon="fa-star" title="Scores" />
+      <div className={row2}>
+        <Field label="IMDb Rating" hint="e.g. 9.2">
+          <input
+            className={inputCls}
+            type="number"
+            step="0.1"
+            min="0"
+            max="10"
+            aria-label="IMDb Rating"
+            value={f.imdb_rating ?? ""}
+            onChange={(e) => u("imdb_rating", e.target.value)}
+            placeholder="9.2"
+          />
+        </Field>
+      </div>
+
+      <SectionHeader icon="fa-chart-bar" title="My Tracker" />
+      <div className={row2}>
+        <Field label="Watching Status">
+          <select
+            className={selectCls}
+            aria-label="Watching Status"
+            value={f.watching_status ?? ""}
+            onChange={(e) => u("watching_status", e.target.value)}
+          >
+            <StatusOptions statuses={WATCHING_STATUSES} />
+          </select>
+        </Field>
+        {choice("my_rating", "My Rating", MY_RATINGS)}
+      </div>
+      <div className={row3}>
+        {count("ep_fin", "Episodes Finished", "0")}
+        {count("ep_total", "Total Episodes", "10")}
+        <Field label="Paused at">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="Paused at"
+            value={f.time_fin ?? ""}
+            onChange={(e) => u("time_fin", e.target.value)}
+            placeholder="14:35"
+          />
+        </Field>
+      </div>
+      <EntryFlags f={f} u={u} flags={[["watch_next", "Watch Next", "Add to Watch Next list"]]} />
+
+      <SectionHeader icon="fa-info-circle" title="Information" />
+      <div className={row2}>
+        {choice("is_main", "Is Main", IS_MAIN)}
+        <Field label="Season">
+          <input
+            className={inputCls}
+            aria-label="Season"
+            value={f.season_part ?? ""}
+            onChange={(e) => u("season_part", e.target.value)}
+            placeholder="e.g. Season 1"
+          />
+        </Field>
+      </div>
+      <div className={row2}>
+        {choice("airing_type", "Airing Type", CARTOON_AIRING_TYPES)}
+        {choice("airing_status", "Airing Status", AIRING_STATUSES)}
+      </div>
+      <div className={row2}>
+        <ReleaseDateInput
+          label="Release Date"
+          value={f.release_date}
+          onChange={(v) => u("release_date", v)}
+        />
+        {count("length_ep_min", "Ep Length (min)", "22", "Minutes per episode")}
+      </div>
+
+      <GenreLabelFields
+        mediaType="cartoon"
+        values={f}
+        onChange={u}
+        sources={sources}
+        franchiseId={f.franchise_id}
+        seriesId={f.series_id}
+        entryId={ownerId}
+      />
+
+      <SectionHeader icon="fa-external-link-alt" title="Links & Sources" />
+      <div className={row2}>
+        <Field label="IMDb ID" hint="Full IMDb ID (e.g. tt1234567)">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="IMDb ID"
+            value={f.imdb_id ?? ""}
+            onChange={(e) => u("imdb_id", e.target.value)}
+            placeholder="tt1234567"
+          />
+        </Field>
+        <Field label="IMDb Link">
+          <input
+            className={inputCls}
+            type="url"
+            aria-label="IMDb Link"
+            value={f.imdb_link ?? ""}
+            onChange={(e) => u("imdb_link", e.target.value)}
+            placeholder="https://www.imdb.com/title/tt..."
+          />
+        </Field>
+      </div>
+      <div className={row2}>
+        <Field label="Original Source">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Platform",
+              scope: "cartoon",
+              usage: "origin",
+            })}
+            value={f.original_source ?? ""}
+            onChange={(v) => u("original_source", v)}
+            placeholder="e.g. Disney+, Cartoon Network"
+          />
+        </Field>
+      </div>
+      <SourcesEditor
+        value={f.sources}
+        onChange={(rows) => u("sources", rows)}
+        mediaType="cartoon"
+        sources={sources}
+      />
+
+      <CoverRemarkFields f={f} u={u} ownerType="cartoon" ownerId={ownerId} />
+    </>
+  );
+}
+
+/** Cartoon franchises, or untyped ones - a franchise of any other type is not offered. */
+const acceptsCartoonFranchise = (type) => !type || parseTypes(type).includes("Cartoon");
+
+/** The franchise and series pickers, shared by both cartoon tabs. */
+export function CartoonLineageFields({
+  f,
+  u,
+  allFranchises,
+  seriesItemsForCartoon,
+  franchiseCollections,
+}) {
+  return (
+    <FamilyLineageFields
+      f={f}
+      u={u}
+      accepts={acceptsCartoonFranchise}
+      allFranchises={allFranchises}
+      seriesItems={seriesItemsForCartoon}
+      franchiseCollections={franchiseCollections}
+    />
+  );
+}
 
 export default function CartoonAddTab({
   franchiseCollections,
@@ -43,11 +247,7 @@ export default function CartoonAddTab({
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
       <EntryAutofillSearch
         items={allCartoons}
-        names={(c) => [
-          c.cartoon_name_en,
-          c.cartoon_name_cn,
-          c.cartoon_name_alt,
-        ]}
+        names={(c) => [c.cartoon_name_en, c.cartoon_name_cn, c.cartoon_name_alt]}
         title={(c) => c.cartoon_name_cn || c.cartoon_name_en}
         franchises={allFranchises}
         badge={(c) => c.airing_type}
@@ -60,327 +260,15 @@ export default function CartoonAddTab({
         onPick={applyTmdbPick}
         hint="A pick looks up the IMDb id TMDB holds for it; the entry is keyed by IMDb."
       />
-      <SectionHeader icon="fa-paint-brush" title="Titles & Naming" />
-      <Field label="Franchise">
-        <ComboBox
-          items={allFranchises
-            .filter(
-              (f) =>
-                parseTypes(f.franchise_type).includes("Cartoon") ||
-                !f.franchise_type,
-            )
-            .map((f) => ({
-              id: f.system_id,
-              label: getDisplayName(f, "franchise"),
-              searchText: [
-                f.franchise_name_cn,
-                f.franchise_name_en,
-                f.franchise_name_alt,
-              ]
-                .filter(Boolean)
-                .join(" "),
-            }))}
-          selectedId={cf.franchise_id}
-          inputText={cf.franchise_text}
-          onSelect={(id, label) => {
-            uc("franchise_id", id);
-            uc("franchise_text", label);
-            uc("series_id", null);
-            uc("series_text", "");
-          }}
-          onType={(text) => {
-            uc("franchise_text", text);
-            uc("franchise_id", null);
-            uc("series_id", null);
-            uc("series_text", "");
-          }}
-          onClear={() => {
-            uc("franchise_id", null);
-            uc("franchise_text", "");
-            uc("series_id", null);
-            uc("series_text", "");
-          }}
-          placeholder="Search or type new franchise..."
-          allowNew
-        />
-        <CollectionNote
-          franchiseId={cf.franchise_id}
-          franchiseCollections={franchiseCollections}
-        />
-      </Field>
-      <Field label="Series">
-        <ComboBox
-          items={seriesItemsForCartoon}
-          selectedId={cf.series_id}
-          inputText={cf.series_text}
-          onSelect={(id, label) => {
-            uc("series_id", id);
-            uc("series_text", label);
-          }}
-          onType={(text) => {
-            uc("series_text", text);
-            uc("series_id", null);
-          }}
-          onClear={() => {
-            uc("series_id", null);
-            uc("series_text", "");
-          }}
-          placeholder="Search or type new series..."
-          allowNew
-        />
-      </Field>
-      <Field label="Cartoon Name CN">
-        <input
-          className={inputCls}
-          value={cf.cartoon_name_cn}
-          onChange={(e) => uc("cartoon_name_cn", e.target.value)}
-          placeholder="Chinese title"
-        />
-      </Field>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Cartoon Name EN">
-          <input
-            className={inputCls}
-            value={cf.cartoon_name_en}
-            onChange={(e) => uc("cartoon_name_en", e.target.value)}
-            placeholder="English title"
-          />
-        </Field>
-        <Field label="Cartoon Name Alt">
-          <input
-            className={inputCls}
-            value={cf.cartoon_name_alt}
-            onChange={(e) => uc("cartoon_name_alt", e.target.value)}
-            placeholder="Alternative title"
-          />
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-chart-bar" title="Status & Classification" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Airing Type">
-          <select
-            className={selectCls}
-            value={cf.airing_type}
-            onChange={(e) => uc("airing_type", e.target.value)}
-          >
-            <option value="">—</option>
-            {CARTOON_AIRING_TYPES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Airing Status">
-          <select
-            className={selectCls}
-            value={cf.airing_status}
-            onChange={(e) => uc("airing_status", e.target.value)}
-          >
-            <option value="">—</option>
-            {AIRING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Watching Status">
-          <select
-            className={selectCls}
-            value={cf.watching_status}
-            onChange={(e) => uc("watching_status", e.target.value)}
-          >
-            <StatusOptions statuses={WATCHING_STATUSES} />
-          </select>
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Is Main">
-          <select
-            className={selectCls}
-            value={cf.is_main}
-            onChange={(e) => uc("is_main", e.target.value)}
-          >
-            <option value="">—</option>
-            {IS_MAIN.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Total Episodes">
-          <input
-            className={inputCls}
-            type="number"
-            value={cf.ep_total}
-            onChange={(e) => uc("ep_total", e.target.value)}
-            placeholder="10"
-          />
-        </Field>
-        <Field label="Episodes Finished">
-          <input
-            className={inputCls}
-            type="number"
-            value={cf.ep_fin}
-            onChange={(e) => uc("ep_fin", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Paused at">
-          <input
-            className={inputCls}
-            type="text"
-            aria-label="Paused at"
-            value={cf.time_fin ?? ""}
-            onChange={(e) => uc("time_fin", e.target.value)}
-            placeholder="14:35"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={cf.my_rating}
-            onChange={(e) => uc("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="IMDb Rating" hint="e.g. 9.2">
-          <input
-            className={inputCls}
-            value={cf.imdb_rating}
-            onChange={(e) => uc("imdb_rating", e.target.value)}
-            placeholder="9.2"
-          />
-        </Field>
-        <Field label="Ep Length (min)" hint="Minutes per episode">
-          <input
-            className={inputCls}
-            type="number"
-            value={cf.length_ep_min}
-            onChange={(e) => uc("length_ep_min", e.target.value)}
-            placeholder="22"
-          />
-        </Field>
-      </div>
-      <div className="flex flex-wrap gap-6 mt-2">
-        <Field label="Watch Next">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!cf.watch_next}
-              onChange={(e) => uc("watch_next", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Add to Watch Next list
-            </span>
-          </label>
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-film" title="Classification & Production" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Original Source">
-          <MultiSelect
-            options={getSourceValues(sources, {
-              kind: "option",
-              category: "Platform",
-              scope: "cartoon",
-              usage: "origin",
-            })}
-            value={cf.original_source}
-            onChange={(v) => uc("original_source", v)}
-            placeholder="e.g. Disney+, Cartoon Network"
-          />
-        </Field>
-        <Field label="Season Part">
-          <input
-            className={inputCls}
-            value={cf.season_part}
-            onChange={(e) => uc("season_part", e.target.value)}
-            placeholder="e.g. Season 1"
-          />
-        </Field>
-      </div>
-      <ReleaseDateInput
-        label="Release Date"
-        value={cf.release_date}
-        onChange={(v) => uc("release_date", v)}
+      <SectionHeader icon="fa-tag" title="Titles & Naming" />
+      <CartoonLineageFields
+        f={cf}
+        u={uc}
+        allFranchises={allFranchises}
+        seriesItemsForCartoon={seriesItemsForCartoon}
+        franchiseCollections={franchiseCollections}
       />
-
-      <GenreLabelFields
-        mediaType="cartoon"
-        values={cf}
-        onChange={uc}
-        sources={sources}
-        franchiseId={cf.franchise_id}
-        seriesId={cf.series_id}
-      />
-
-      <SectionHeader icon="fa-link" title="Source & Links" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="IMDb ID" hint="Full IMDb ID (e.g. tt1234567)">
-          <input
-            className={inputCls}
-            type="text"
-            value={cf.imdb_id}
-            onChange={(e) => uc("imdb_id", e.target.value)}
-            placeholder="tt1234567"
-          />
-        </Field>
-        <Field label="IMDb Link">
-          <input
-            className={inputCls}
-            type="url"
-            value={cf.imdb_link}
-            onChange={(e) => uc("imdb_link", e.target.value)}
-            placeholder="https://www.imdb.com/title/tt..."
-          />
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
-      <SourcesEditor
-        value={cf.sources}
-        onChange={(rows) => uc("sources", rows)}
-        mediaType="cartoon"
-        sources={sources}
-      />
-
-      <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image">
-        <ImagePicker
-          ownerType="cartoon"
-          role="cover"
-          value={cf.cover_image_file}
-          focus={cf.cover_image_focus}
-          onFocusChange={(focus) => uc("cover_image_focus", focus)}
-          onChange={(key, imageId) => {
-            uc("cover_image_file", key);
-            uc("pending_image_id", imageId);
-          }}
-        />
-      </Field>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={cf.remark}
-          onChange={(e) => uc("remark", e.target.value)}
-          placeholder="Private notes..."
-        />
-      </Field>
+      <CartoonFormBody f={cf} u={uc} sources={sources} />
     </div>
   );
 }

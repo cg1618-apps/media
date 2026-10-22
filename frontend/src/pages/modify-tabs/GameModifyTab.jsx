@@ -1,9 +1,9 @@
 // Frontend: modify tab page file for GameModifyTab.
 //
-// The comic pair keeps two near-identical copies of the same fields; this one
-// does not. GameAddTab exports its field body and lineage pickers, so the two
-// tabs share one definition and cannot drift — Modify adds the ribbon section
-// above the form and the entry's Structured Notes below it.
+// GameAddTab exports its field body and lineage pickers, so the Add and
+// Modify tabs share one definition and cannot drift. Modify hands the body the
+// entry's id and adds the entry's Structured Notes below it; the franchise
+// ribbon above the card is Modify.jsx's.
 import { SectionHeader } from "../../components/forms/FormField";
 import { GameFormBody, GameLineageFields } from "../add-tabs/GameAddTab";
 import GameNotes from "../detail/GameNotes";
@@ -20,7 +20,7 @@ export default function GameModifyTab({
 }) {
   return (
     <>
-      <SectionHeader icon="fa-gamepad" title="Titles & Naming" />
+      <SectionHeader icon="fa-tag" title="Titles & Naming" />
       <GameLineageFields
         f={cgmf}
         u={ugm}

@@ -157,8 +157,16 @@ API notes from Phase 0 that Phase 1 must use:
 - Add wrapper prop names from 0b must be kept: `all<T>`, `<t>Loading`, `apply<T>EntryAutofill`. For example `allAnime`/`animeLoading`/`applyAnimeEntryAutofill`, `allMangas`/`mangasLoading`, `allTvShows`/`tvShowsLoading`.
 - Modify: one `FranchiseRibbon` above the card for every type. Manga/Comic tabs no longer take `ribbonSection`. Anime/AnimeMovie modify tabs receive `allFranchises`.
 
-**Next: Phase 1.** Run four agents in parallel on disjoint files: Anime/AnimeMovie/Manga · Movie/TV/Cartoon · Novel/Comic · Game/HGame/HComic/Hentai. The Comic agent must add an Add-submit test showing that `comicvine_id` is sent without a link.
+**Phase 1 is done and committed.** All 12 types have a shared `<T>FormBody` + `<T>LineageFields` in the add-tab file, and every Modify tab is a thin wrapper over them. Vitest 2747 passed, eslint 0 errors, build OK. `pages/admin/Add.comic.test.jsx` proves `comicvine_id` is sent without a link. Also fixed: Manga and Novel saves on both pages sent `mal_rank` through `parseInt`, so a text rank ("#1234", the column is a String) saved as null; they now send it as typed, like anime (`Modify.save.test.jsx`).
 
-**Then Phase 2.** Besides the doc pages listed above, update `docs/entry-types.md:289` (comic NAMING_CONFIGS is now cn, en, alt) and the "seven GENRE_LABEL_TYPES" mentions (`docs/frontend/components.md`, the `GenreLabelFields.jsx` and test headers). Also change `NAMING_LABELS.roman` in `lib/naming.js` from "Roman" to "Romaji", so the detail NamingCard matches the forms.
+Left over from Phase 1, for Phase 2:
+- `franchiseItems` is no longer read by `<AnimeAddTab>`/`<AnimeMovieAddTab>` (Add.jsx) or `<AnimeModifyTab>`/`<AnimeMovieModifyTab>` (Modify.jsx) — remove at those call sites (Add's Series tab may still use `franchiseItems` itself).
+- Modify.jsx imports `AnimeMovieNotes`, `MovieNotes`, `TVShowNotes`, `CartoonNotes`, `MangaNotes` without using them, and has an unused `isLoading` (eslint warnings, already there before Phase 1) — remove.
+- One spelling: `EntryNameFields` defaults to "Romanised title"; NovelAddTab passes "Romanized title". Pick one.
+- `MalAnilistScores` dropped Novel Add's MAL hints ("e.g. 8.5", placeholders "8.5"/"100"); its MAL Rating placeholder is "0.00". Accepted as is unless the owner says otherwise.
+- `NovelModifyTab` still passes `NovelNotes` a `novel={{ system_id }}` stub rather than `editingItem`; the others pass the entry. Align if NovelNotes reads nothing else.
+- Single fields sit in the left half of a 2-col row everywhere (agents' choice, consistent across types). Gated types without Label use the title "Genres".
+
+**Next: Phase 2.** Besides the doc pages listed above, update `docs/entry-types.md:289` (comic NAMING_CONFIGS is now cn, en, alt) and the "seven GENRE_LABEL_TYPES" mentions (`docs/frontend/components.md`, the `GenreLabelFields.jsx` and test headers). Also change `NAMING_LABELS.roman` in `lib/naming.js` from "Roman" to "Romaji", so the detail NamingCard matches the forms.
 
 Gotcha: on Windows, a parallel vitest run can silently skip files with an `UNKNOWN ... open ...Temp...` error. Run with `--no-file-parallelism` when the counts look short.

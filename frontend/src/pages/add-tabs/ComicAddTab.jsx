@@ -1,18 +1,25 @@
 // Frontend: add tab page file for ComicAddTab.
+//
+// ComicFormBody and ComicLineageFields are the comic's one form, shared by
+// this tab and ComicModifyTab (the Game pattern): the two pages differ only in
+// the boxes above the form here, the Structured Notes below it there, and the
+// `ownerId` Modify passes in.
 import GenreLabelFields from "../../components/forms/GenreLabelFields";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
-import ImagePicker from "../../components/forms/ImagePicker";
+import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import EntryFlags from "../../components/forms/EntryFlags";
+import EntryNameFields from "../../components/forms/EntryNameFields";
+import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import {
-  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
-import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
+import { getSourceValues, parseTypes } from "../../utils/media";
 import {
   COMIC_TYPES,
   MANGA_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
@@ -35,18 +42,60 @@ const eventsToArray = (s) =>
     .map((x) => x.trim())
     .filter(Boolean);
 
-export default function ComicAddTab({
-  franchiseCollections,
-  cmf,
-  ucm,
-  allComics,
-  comicsLoading = false,
-  applyComicEntryAutofill,
-  applyComicVinePick,
+const FLAGS = [
+  ["read_next", "Read Next", "Add to Read Next list"],
+  ["to_reread", "To Reread", "Mark for reread"],
+];
+
+// A comic sits in a Comic franchise, or an untyped one.
+const acceptsComicFranchise = (type) =>
+  !type || parseTypes(type).includes("Comic");
+
+function SelectInput({ f, u, name, label, options }) {
+  return (
+    <Field label={label}>
+      <select
+        className={selectCls}
+        value={f[name] ?? ""}
+        onChange={(e) => u(name, e.target.value)}
+      >
+        <option value="">—</option>
+        {options.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+
+/** The franchise and series pickers, shared by both comic tabs. */
+export function ComicLineageFields({
+  f,
+  u,
   allFranchises,
   seriesItemsForComic,
-  sources,
+  franchiseCollections,
 }) {
+  return (
+    <FamilyLineageFields
+      f={f}
+      u={u}
+      accepts={acceptsComicFranchise}
+      allFranchises={allFranchises}
+      seriesItems={seriesItemsForComic ?? []}
+      franchiseCollections={franchiseCollections}
+    />
+  );
+}
+
+/**
+ * Every field below the franchise/series pickers, shared verbatim by the
+ * Modify tab. `ownerId` is the comic's id on Modify and absent on Add - the
+ * only difference the body knows about (cover attach and tag replace).
+ */
+export function ComicFormBody({ f, u, sources, ownerId }) {
   // Free-text ComboBoxes over a source: the typed value is the value, so
   // `selectedId` is only set when it matches a known suggestion.
   const optionCombo = (source, key, placeholder) => {
@@ -54,11 +103,11 @@ export default function ComicAddTab({
     return (
       <ComboBox
         items={options.map((v) => ({ id: v, label: v }))}
-        selectedId={options.includes(cmf[key]) ? cmf[key] : null}
-        inputText={cmf[key] || ""}
-        onSelect={(id) => ucm(key, id)}
-        onType={(text) => ucm(key, text)}
-        onClear={() => ucm(key, "")}
+        selectedId={options.includes(f[key]) ? f[key] : null}
+        inputText={f[key] || ""}
+        onSelect={(id) => u(key, id)}
+        onType={(text) => u(key, text)}
+        onClear={() => u(key, "")}
         placeholder={placeholder}
         allowNew
       />
@@ -66,150 +115,85 @@ export default function ComicAddTab({
   };
 
   return (
-    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      <EntryAutofillSearch
-        items={allComics}
-        names={(c) => [
-          c.comic_name_en,
-          c.comic_name_cn,
-          c.comic_name_alt,
-        ]}
-        title={(c) => c.comic_name_en || c.comic_name_cn}
-        franchises={allFranchises}
-        badge={(c) => c.comic_type}
-        onPick={applyComicEntryAutofill}
-        loading={comicsLoading}
+    <>
+      <EntryNameFields
+        f={f}
+        u={u}
+        prefix="comic"
+        label="Comic"
+        names={["cn", "en", "alt"]}
       />
-      <ExternalSearchBox
-        source="Comic Vine"
-        searchUrl={endpoints.comic.searchComicVine}
-        onPick={applyComicVinePick}
-        submitOnEnter
-        hint="Searches on Enter, not as you type: Comic Vine allows 200 requests an hour."
-      />
-      <SectionHeader icon="fa-book" title="Titles & Naming" />
-      <Field label="Franchise">
-        <ComboBox
-          items={allFranchises
-            .filter(
-              (f) =>
-                parseTypes(f.franchise_type).includes("Comic") ||
-                !f.franchise_type,
-            )
-            .map((f) => ({
-              id: f.system_id,
-              label: getDisplayName(f, "franchise"),
-              searchText: [
-                f.franchise_name_en,
-                f.franchise_name_cn,
-                f.franchise_name_roman,
-                f.franchise_name_jp,
-                f.franchise_name_alt,
-              ]
-                .filter(Boolean)
-                .join(" "),
-            }))}
-          selectedId={cmf.franchise_id}
-          inputText={cmf.franchise_text}
-          onSelect={(id, label) => {
-            ucm("franchise_id", id);
-            ucm("franchise_text", label);
-            ucm("series_id", null);
-            ucm("series_text", "");
-          }}
-          onType={(text) => {
-            ucm("franchise_text", text);
-            ucm("franchise_id", null);
-            ucm("series_id", null);
-            ucm("series_text", "");
-          }}
-          onClear={() => {
-            ucm("franchise_id", null);
-            ucm("franchise_text", "");
-            ucm("series_id", null);
-            ucm("series_text", "");
-          }}
-          placeholder="Search or type new franchise..."
-          allowNew
-        />
-        <CollectionNote
-          franchiseId={cmf.franchise_id}
-          franchiseCollections={franchiseCollections}
-        />
-      </Field>
-      <Field label="Series">
-        <ComboBox
-          items={seriesItemsForComic}
-          selectedId={cmf.series_id}
-          inputText={cmf.series_text}
-          onSelect={(id, label) => {
-            ucm("series_id", id);
-            ucm("series_text", label);
-          }}
-          onType={(text) => {
-            ucm("series_text", text);
-            ucm("series_id", null);
-          }}
-          onClear={() => {
-            ucm("series_id", null);
-            ucm("series_text", "");
-          }}
-          placeholder="Search or type new series..."
-          allowNew
-        />
-      </Field>
-      <Field label="Comic Name EN">
-        <input
-          className={inputCls}
-          value={cmf.comic_name_en}
-          onChange={(e) => ucm("comic_name_en", e.target.value)}
-          placeholder="English title"
-        />
-      </Field>
+
+      <SectionHeader icon="fa-chart-bar" title="My Tracker" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Comic Name CN">
+        <Field label="Reading Status">
+          <select
+            className={selectCls}
+            value={f.reading_status ?? ""}
+            onChange={(e) => u("reading_status", e.target.value)}
+          >
+            <StatusOptions statuses={READING_STATUSES} />
+          </select>
+        </Field>
+        <SelectInput f={f} u={u} name="my_rating" label="My Rating" options={MY_RATINGS} />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Issues Finished">
           <input
             className={inputCls}
-            value={cmf.comic_name_cn}
-            onChange={(e) => ucm("comic_name_cn", e.target.value)}
-            placeholder="Chinese title"
+            type="number"
+            min="0"
+            value={f.issue_fin ?? ""}
+            onChange={(e) => u("issue_fin", e.target.value)}
+            placeholder="0"
           />
         </Field>
-        <Field label="Comic Name Alt">
+        <Field label="Total Issues" hint="Leave blank if unknown or ongoing">
           <input
             className={inputCls}
-            value={cmf.comic_name_alt}
-            onChange={(e) => ucm("comic_name_alt", e.target.value)}
-            placeholder="Alternative title"
+            type="number"
+            min="0"
+            value={f.issue_total ?? ""}
+            onChange={(e) => u("issue_total", e.target.value)}
+            placeholder="0"
           />
         </Field>
       </div>
+      <EntryFlags f={f} u={u} flags={FLAGS} />
+
+      <SectionHeader icon="fa-info-circle" title="Information" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SelectInput f={f} u={u} name="comic_type" label="Comic Type" options={COMIC_TYPES} />
         <Field label="Volume Label" hint="e.g. Vol. 5 (2018)">
           <input
             className={inputCls}
-            value={cmf.volume_label}
-            onChange={(e) => ucm("volume_label", e.target.value)}
+            value={f.volume_label ?? ""}
+            onChange={(e) => u("volume_label", e.target.value)}
             placeholder="Vol. 5 (2018)"
           />
         </Field>
-        <Field label="Comic Type">
-          <select
-            className={selectCls}
-            value={cmf.comic_type}
-            onChange={(e) => ucm("comic_type", e.target.value)}
-          >
-            <option value="">—</option>
-            {COMIC_TYPES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
       </div>
-
-      <SectionHeader icon="fa-sitemap" title="Classification" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SelectInput
+          f={f}
+          u={u}
+          name="serialization_status"
+          label="Serialization Status"
+          options={SERIALIZATION_STATUSES}
+        />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ReleaseDateInput
+          label="Release Date"
+          value={f.release_date}
+          onChange={(v) => u("release_date", v)}
+        />
+        <ReleaseDateInput
+          label="End Date"
+          value={f.end_date}
+          onChange={(v) => u("end_date", v)}
+        />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Continuity">
           {optionCombo(
@@ -233,85 +217,23 @@ export default function ComicAddTab({
             category: "Comic Event",
             scope: "comic",
           })}
-          value={eventsToString(cmf.events)}
-          onChange={(v) => ucm("events", eventsToArray(v))}
+          value={eventsToString(f.events)}
+          onChange={(v) => u("events", eventsToArray(v))}
           placeholder="Select or type event..."
         />
       </Field>
 
       <GenreLabelFields
         mediaType="comic"
-        values={cmf}
-        onChange={ucm}
+        values={f}
+        onChange={u}
         sources={sources}
-        franchiseId={cmf.franchise_id}
-        seriesId={cmf.series_id}
+        franchiseId={f.franchise_id}
+        seriesId={f.series_id}
+        entryId={ownerId}
       />
 
-      <SectionHeader icon="fa-chart-bar" title="Status" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Serialization Status">
-          <select
-            className={selectCls}
-            value={cmf.serialization_status}
-            onChange={(e) => ucm("serialization_status", e.target.value)}
-          >
-            <option value="">—</option>
-            {SERIALIZATION_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Reading Status">
-          <select
-            className={selectCls}
-            value={cmf.reading_status}
-            onChange={(e) => ucm("reading_status", e.target.value)}
-          >
-            <StatusOptions statuses={READING_STATUSES} />
-          </select>
-        </Field>
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={cmf.my_rating}
-            onChange={(e) => ucm("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-list-ol" title="Progress" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Issues Finished">
-          <input
-            className={inputCls}
-            type="number"
-            value={cmf.issue_fin}
-            onChange={(e) => ucm("issue_fin", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Total Issues" hint="Leave blank if unknown or ongoing">
-          <input
-            className={inputCls}
-            type="number"
-            value={cmf.issue_total}
-            onChange={(e) => ucm("issue_total", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-pen-nib" title="Credits" />
+      <SectionHeader icon="fa-pen-nib" title="Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Writer">
           <MultiSelect
@@ -320,8 +242,8 @@ export default function ComicAddTab({
               role: "author",
               scope: "comic",
             })}
-            value={cmf.writer}
-            onChange={(v) => ucm("writer", v)}
+            value={f.writer ?? ""}
+            onChange={(v) => u("writer", v)}
             placeholder="Select or type writer..."
           />
         </Field>
@@ -332,8 +254,8 @@ export default function ComicAddTab({
               role: "illustrator",
               scope: "comic",
             })}
-            value={cmf.artist}
-            onChange={(v) => ucm("artist", v)}
+            value={f.artist ?? ""}
+            onChange={(v) => u("artist", v)}
             placeholder="Select or type artist..."
           />
         </Field>
@@ -357,105 +279,101 @@ export default function ComicAddTab({
           )}
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ReleaseDateInput
-          label="Release Date"
-          value={cmf.release_date}
-          onChange={(v) => ucm("release_date", v)}
-        />
-        <ReleaseDateInput
-          label="End Date"
-          value={cmf.end_date}
-          onChange={(v) => ucm("end_date", v)}
-        />
-      </div>
 
-      <SectionHeader icon="fa-link" title="Relational & Timeline" />
+      <SectionHeader icon="fa-link" title="Read Order" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Read Order" hint="e.g. 1, 1.5, 2">
           <input
             className={inputCls}
             type="number"
             step="any"
-            value={cmf.read_order}
-            onChange={(e) => ucm("read_order", e.target.value)}
+            min="0"
+            value={f.read_order ?? ""}
+            onChange={(e) => u("read_order", e.target.value)}
             placeholder="1"
           />
         </Field>
       </div>
 
-      <SectionHeader icon="fa-external-link-alt" title="Sources" />
-      <Field
-        label="Comic Vine Link"
-        hint="Volume URL — Fill Comic pulls publisher, credits, issue count and the cover from it"
-      >
-        <input
-          className={inputCls}
-          value={cmf.comicvine_link}
-          onChange={(e) => ucm("comicvine_link", e.target.value)}
-          placeholder="https://comicvine.gamespot.com/.../4050-2127/"
-        />
-      </Field>
+      <SectionHeader icon="fa-external-link-alt" title="Links & Sources" />
+      {/* The id travels as typed on both pages - the save path never derives
+          it from the link - so a link-less comic can still carry one. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Comic Vine ID" hint="The volume's Comic Vine id">
+          <input
+            className={inputCls}
+            type="number"
+            min="0"
+            aria-label="Comic Vine ID"
+            value={f.comicvine_id ?? ""}
+            onChange={(e) => u("comicvine_id", e.target.value)}
+            placeholder="2127"
+          />
+        </Field>
+        <Field
+          label="Comic Vine Link"
+          hint="Volume URL — Fill Comic pulls publisher, credits, issue count and the cover from it"
+        >
+          <input
+            className={inputCls}
+            aria-label="Comic Vine Link"
+            value={f.comicvine_link ?? ""}
+            onChange={(e) => u("comicvine_link", e.target.value)}
+            placeholder="https://comicvine.gamespot.com/.../4050-2127/"
+          />
+        </Field>
+      </div>
       <SourcesEditor
-        value={cmf.sources}
-        onChange={(rows) => ucm("sources", rows)}
+        value={f.sources}
+        onChange={(rows) => u("sources", rows)}
         mediaType="comic"
         sources={sources}
       />
 
-      <SectionHeader icon="fa-flag" title="Flags" />
-      <div className="flex flex-wrap gap-6 mt-2">
-        <Field label="Read Next">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!cmf.read_next}
-              onChange={(e) => ucm("read_next", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Add to Read Next list
-            </span>
-          </label>
-        </Field>
-        <Field label="To Reread">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!cmf.to_reread}
-              onChange={(e) => ucm("to_reread", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Mark for reread
-            </span>
-          </label>
-        </Field>
-      </div>
+      <CoverRemarkFields f={f} u={u} ownerType="comic" ownerId={ownerId} />
+    </>
+  );
+}
 
-      <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image">
-        <ImagePicker
-          ownerType="comic"
-          role="cover"
-          value={cmf.cover_image_file}
-          focus={cmf.cover_image_focus}
-          onFocusChange={(focus) => ucm("cover_image_focus", focus)}
-          onChange={(key, imageId) => {
-            ucm("cover_image_file", key);
-            ucm("pending_image_id", imageId);
-          }}
-        />
-      </Field>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={cmf.remark}
-          onChange={(e) => ucm("remark", e.target.value)}
-          placeholder="Private notes..."
-        />
-      </Field>
+export default function ComicAddTab({
+  franchiseCollections,
+  cmf,
+  ucm,
+  allComics,
+  comicsLoading = false,
+  applyComicEntryAutofill,
+  applyComicVinePick,
+  allFranchises,
+  seriesItemsForComic,
+  sources,
+}) {
+  return (
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
+      <EntryAutofillSearch
+        items={allComics}
+        names={(c) => [c.comic_name_en, c.comic_name_cn, c.comic_name_alt]}
+        title={(c) => c.comic_name_en || c.comic_name_cn}
+        franchises={allFranchises}
+        badge={(c) => c.comic_type}
+        onPick={applyComicEntryAutofill}
+        loading={comicsLoading}
+      />
+      <ExternalSearchBox
+        source="Comic Vine"
+        searchUrl={endpoints.comic.searchComicVine}
+        onPick={applyComicVinePick}
+        submitOnEnter
+        hint="Searches on Enter, not as you type: Comic Vine allows 200 requests an hour."
+      />
+      <SectionHeader icon="fa-tag" title="Titles & Naming" />
+      <ComicLineageFields
+        f={cmf}
+        u={ucm}
+        allFranchises={allFranchises}
+        seriesItemsForComic={seriesItemsForComic}
+        franchiseCollections={franchiseCollections}
+      />
+      <ComicFormBody f={cmf} u={ucm} sources={sources} />
     </div>
   );
 }
