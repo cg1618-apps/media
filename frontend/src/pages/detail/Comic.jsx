@@ -5,6 +5,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import {
   getCoverUrl,
@@ -366,6 +367,9 @@ export default function Comic() {
               </div>
             </div>
           </header>
+
+          {/* Where this entry sits in the watch orders the viewer follows. */}
+          <FollowedOrderPanel entryId={comic.system_id} />
 
           {/* My Tracker — comic tracks issues only, so the shared single-counter
               card fits without a comic-specific tracker block. */}

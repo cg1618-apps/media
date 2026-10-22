@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-10-18
+Last verified: 2026-10-22
 
 ## What this is for
 
@@ -1114,6 +1114,7 @@ missing from the twenty-first.
 | `Viewer.has()` (`services/rbac/resolver.py`) | the rule itself |
 | `AuthContext.has()` (`frontend/src/contexts/AuthContext.jsx`) | mirrors it. **Both halves or neither** — with only the server half, the nav advertises Plan, Seasonal and Statistics to an account the API answers 401 |
 | `/api/me/*`, `/api/plan-next/*`, `/api/seasonal/*` | all three prefixes are gated on `self.list` at the router, so a route added later is covered by default. An admin gets 401 |
+| `/api/watch-order/follows*`, `/api/watch-order/lists/{id}/follow` | gated on `self.list` **per route** (`require_self_list` in `routers/watch_order.py`), because the rest of that router is public reads and catalogue writes. An admin gets 401. The SPA asks `has("self.list")` before drawing the follow toggle, the entry panel or the dashboard section, and before fetching for them |
 | Nested game `copies` | skipped, not refused, for a viewer without `self.list` (`services/domain/game_copies.py`). A copy is personal ownership written through a **catalogue** route, so failing the whole Game edit would refuse a legitimate catalogue change. The SPA hides the editor, so this is the second stop |
 | `navigation.js`, `App.jsx` | both ask `self.list`, so the personal pages disappear from an admin's nav with no change of their own — the payoff of putting the rule in `has()` |
 

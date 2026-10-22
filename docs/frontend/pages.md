@@ -274,7 +274,7 @@ tracker divisions):
 | Anchor | Division | What it shows |
 |---|---|---|
 | `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only here; CRUD is on `/system`. |
-| `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. |
+| `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed watch orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next — see [../systems/watch-orders.md](../systems/watch-orders.md#following). |
 | `#watching` | Watching (Anime · TV Show · Cartoon) | sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
@@ -1013,7 +1013,11 @@ Top to bottom:
    AniList's score is an integer on its own 0–100 scale and MAL's is 0–10)
    on Anime,
    AnimeMovie, Manga, Novel (Movie has an inline IMDb block; TV/Cartoon/Comic
-   none), the tracker, `NamingCard`, `InfoCard "Information"`, on Manga, Novel, Movie, TV and
+   none), then — directly under the header, on all twelve entry types —
+   `FollowedOrderPanel` (the viewer's followed watch orders that step
+   through this entry: order, group, step N / total, previous and next step;
+   nothing when none does, or for a viewer without `self.list`), the tracker,
+   `NamingCard`, `InfoCard "Information"`, on Manga, Novel, Movie, TV and
    Cartoon a **Genres** card (`GenresCard`: Genre (Main), Genre (Sub) and
    標籤 Label in a card of their own, directly after Information and not
    repeated inside it, left out when none of the three is set), `InfoCard
