@@ -120,6 +120,7 @@ export const defaultMovie = () => ({
   airing_status: "Finished Airing",
   watching_status: "Might Watch",
   my_rating: "",
+  imdb_rating: "",
   time_fin: "",
   movie_type: "Reality",
   is_main: "本傳",

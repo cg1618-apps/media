@@ -13,7 +13,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
-import { getDisplayName, getSourceValues } from "../../utils/media";
+import { getSourceValues } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
 import {
   AIRING_STATUSES,
@@ -21,7 +21,7 @@ import {
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
@@ -31,14 +31,9 @@ export default function AnimeMovieAddTab({
   franchiseCollections,
   amf,
   uam,
-  amFillQuery,
-  setAmFillQuery,
-  amFillOpen,
-  setAmFillOpen,
-  amFillRef,
-  amFillResults,
-  amFillLoading,
-  applyAnimeMovieAutofill,
+  allAnimeMovies,
+  animeMoviesLoading = false,
+  applyAnimeMovieEntryAutofill,
   applyMalPick,
   allFranchises,
   franchiseItems,
@@ -46,69 +41,20 @@ export default function AnimeMovieAddTab({
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      {/* Auto-fill search */}
-      <div ref={amFillRef} className="relative mb-4">
-        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
-          <i className="fas fa-magic text-brand text-sm"></i>
-          <input
-            type="text"
-            value={amFillQuery}
-            onChange={(e) => {
-              setAmFillQuery(e.target.value);
-              setAmFillOpen(true);
-            }}
-            onFocus={() => setAmFillOpen(true)}
-            disabled={amFillLoading}
-          placeholder="Auto-fill from existing entry — type a name to search..."
-            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
-            autoComplete="off"
-          />
-          {amFillQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setAmFillQuery("");
-                setAmFillOpen(false);
-              }}
-              className="text-text-faint hover:text-text-muted"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-        {amFillOpen && amFillLoading && (
-          <SuggestList anchorRef={amFillRef}>
-            <SuggestNote>
-              <i className="fas fa-spinner fa-spin"></i>
-              Loading entries to search from…
-            </SuggestNote>
-          </SuggestList>
-        )}
-        {amFillOpen && amFillResults.length > 0 && (
-          <SuggestList anchorRef={amFillRef}>
-            {amFillResults.map((m) => {
-              const f = allFranchises.find(
-                (x) => x.system_id === m.franchise_id,
-              );
-              return (
-                <SuggestItem
-                  key={m.system_id}
-                  truncate={false}
-                  onPick={() => applyAnimeMovieAutofill(m)}
-                >
-                  <div className="text-sm font-bold text-text">
-                    {m.anime_movie_name_cn || m.anime_movie_name_en}
-                  </div>
-                  <div className="text-xs text-text-faint">
-                    {f ? getDisplayName(f, "franchise") : "Standalone"}
-                  </div>
-                </SuggestItem>
-              );
-            })}
-          </SuggestList>
-        )}
-      </div>
-
+      <EntryAutofillSearch
+        items={allAnimeMovies}
+        names={(m) => [
+          m.anime_movie_name_en,
+          m.anime_movie_name_cn,
+          m.anime_movie_name_roman,
+          m.anime_movie_name_jp,
+          m.anime_movie_name_alt,
+        ]}
+        title={(m) => m.anime_movie_name_cn || m.anime_movie_name_en}
+        franchises={allFranchises}
+        onPick={applyAnimeMovieEntryAutofill}
+        loading={animeMoviesLoading}
+      />
       <ExternalSearchBox
         source="MAL"
         searchUrl={endpoints.animeMovie.searchMal}

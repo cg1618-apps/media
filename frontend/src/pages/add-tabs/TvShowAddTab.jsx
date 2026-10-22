@@ -21,7 +21,7 @@ import {
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
@@ -31,14 +31,9 @@ export default function TvShowAddTab({
   franchiseCollections,
   tvf,
   utf,
-  tvFillQuery,
-  setTvFillQuery,
-  tvFillOpen,
-  setTvFillOpen,
-  tvFillRef,
-  tvFillResults,
-  tvFillLoading,
-  applyTvShowAutofill,
+  allTvShows,
+  tvShowsLoading = false,
+  applyTvShowEntryAutofill,
   applyTmdbPick,
   allFranchises,
   seriesItemsForTvShow,
@@ -46,76 +41,19 @@ export default function TvShowAddTab({
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      {/* Auto-fill search */}
-      <div ref={tvFillRef} className="relative mb-4">
-        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
-          <i className="fas fa-magic text-brand text-sm"></i>
-          <input
-            type="text"
-            value={tvFillQuery}
-            onChange={(e) => {
-              setTvFillQuery(e.target.value);
-              setTvFillOpen(true);
-            }}
-            onFocus={() => setTvFillOpen(true)}
-            disabled={tvFillLoading}
-          placeholder="Auto-fill from existing entry — type a name to search..."
-            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
-            autoComplete="off"
-          />
-          {tvFillQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setTvFillQuery("");
-                setTvFillOpen(false);
-              }}
-              className="text-text-faint hover:text-text-muted"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-        {tvFillOpen && tvFillLoading && (
-          <SuggestList anchorRef={tvFillRef}>
-            <SuggestNote>
-              <i className="fas fa-spinner fa-spin"></i>
-              Loading entries to search from…
-            </SuggestNote>
-          </SuggestList>
-        )}
-        {tvFillOpen && tvFillResults.length > 0 && (
-          <SuggestList anchorRef={tvFillRef}>
-            {tvFillResults.map((t) => {
-              const f = allFranchises.find(
-                (x) => x.system_id === t.franchise_id,
-              );
-              return (
-                <SuggestItem
-                  key={t.system_id}
-                  truncate={false}
-                  onPick={() => applyTvShowAutofill(t)}
-                >
-                  <div className="flex items-center gap-2">
-                    {t.region && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint shrink-0">
-                        {t.region}
-                      </span>
-                    )}
-                    <span className="text-sm font-bold text-text">
-                      {t.tv_name_cn || t.tv_name_en}
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-faint">
-                    {f ? getDisplayName(f, "franchise") : "Standalone"}
-                  </div>
-                </SuggestItem>
-              );
-            })}
-          </SuggestList>
-        )}
-      </div>
-
+      <EntryAutofillSearch
+        items={allTvShows}
+        names={(t) => [
+          t.tv_name_en,
+          t.tv_name_cn,
+          t.tv_name_alt,
+        ]}
+        title={(t) => t.tv_name_cn || t.tv_name_en}
+        franchises={allFranchises}
+        badge={(t) => t.region}
+        onPick={applyTvShowEntryAutofill}
+        loading={tvShowsLoading}
+      />
       <ExternalSearchBox
         source="TMDB"
         searchUrl={endpoints.tvShow.searchTmdb}

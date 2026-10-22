@@ -33,13 +33,10 @@ export default function MangaModifyTab({
   allFranchises,
   seriesItemsForManga,
   editingItem,
-  ribbonSection,
   sources,
 }) {
   return (
     <>
-      {ribbonSection}
-
       <SectionHeader icon="fa-book" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox

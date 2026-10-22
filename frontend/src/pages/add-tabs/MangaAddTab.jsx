@@ -24,7 +24,7 @@ import {
   READING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
@@ -34,14 +34,9 @@ export default function MangaAddTab({
   franchiseCollections,
   mgf,
   umg,
-  mangaFillQuery,
-  setMangaFillQuery,
-  mangaFillOpen,
-  setMangaFillOpen,
-  mangaFillRef,
-  mangaFillResults,
-  mangaFillLoading,
-  applyMangaAutofill,
+  allMangas,
+  mangasLoading = false,
+  applyMangaEntryAutofill,
   applyMalPick,
   allFranchises,
   seriesItemsForManga,
@@ -49,76 +44,21 @@ export default function MangaAddTab({
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      {/* Auto-fill search */}
-      <div ref={mangaFillRef} className="relative mb-4">
-        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
-          <i className="fas fa-magic text-brand text-sm"></i>
-          <input
-            type="text"
-            value={mangaFillQuery}
-            onChange={(e) => {
-              setMangaFillQuery(e.target.value);
-              setMangaFillOpen(true);
-            }}
-            onFocus={() => setMangaFillOpen(true)}
-            disabled={mangaFillLoading}
-          placeholder="Auto-fill from existing entry — type a name to search..."
-            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
-            autoComplete="off"
-          />
-          {mangaFillQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setMangaFillQuery("");
-                setMangaFillOpen(false);
-              }}
-              className="text-text-faint hover:text-text-muted"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-        {mangaFillOpen && mangaFillLoading && (
-          <SuggestList anchorRef={mangaFillRef}>
-            <SuggestNote>
-              <i className="fas fa-spinner fa-spin"></i>
-              Loading entries to search from…
-            </SuggestNote>
-          </SuggestList>
-        )}
-        {mangaFillOpen && mangaFillResults.length > 0 && (
-          <SuggestList anchorRef={mangaFillRef}>
-            {mangaFillResults.map((m) => {
-              const f = allFranchises.find(
-                (x) => x.system_id === m.franchise_id,
-              );
-              return (
-                <SuggestItem
-                  key={m.system_id}
-                  truncate={false}
-                  onPick={() => applyMangaAutofill(m)}
-                >
-                  <div className="flex items-center gap-2">
-                    {m.region && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint shrink-0">
-                        {m.region}
-                      </span>
-                    )}
-                    <span className="text-sm font-bold text-text">
-                      {m.manga_name_cn || m.manga_name_en}
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-faint">
-                    {f ? getDisplayName(f, "franchise") : "Standalone"}
-                  </div>
-                </SuggestItem>
-              );
-            })}
-          </SuggestList>
-        )}
-      </div>
-
+      <EntryAutofillSearch
+        items={allMangas}
+        names={(m) => [
+          m.manga_name_cn,
+          m.manga_name_en,
+          m.manga_name_roman,
+          m.manga_name_jp,
+          m.manga_name_alt,
+        ]}
+        title={(m) => m.manga_name_cn || m.manga_name_en}
+        franchises={allFranchises}
+        badge={(m) => m.region}
+        onPick={applyMangaEntryAutofill}
+        loading={mangasLoading}
+      />
       <ExternalSearchBox
         source="MAL"
         searchUrl={endpoints.manga.searchMal}

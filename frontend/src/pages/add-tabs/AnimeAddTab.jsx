@@ -14,7 +14,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getDisplayName, getSourceValues } from "../../utils/media";
+import { getSourceValues } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
 import { WEEKDAYS } from "../../config/weekdays";
 import { broadcastTimeOptions } from "../../config/broadcastTimes";
@@ -29,7 +29,7 @@ import {
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
@@ -39,14 +39,9 @@ export default function AnimeAddTab({
   franchiseCollections,
   af,
   ua,
-  fillQuery,
-  setFillQuery,
-  fillOpen,
-  setFillOpen,
-  fillRef,
-  fillResults,
-  fillLoading,
-  applyAutofill,
+  allAnime,
+  animeLoading = false,
+  applyAnimeEntryAutofill,
   applyMalPick,
   allFranchises,
   franchiseItems,
@@ -55,76 +50,21 @@ export default function AnimeAddTab({
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      {/* Auto-fill search */}
-      <div ref={fillRef} className="relative mb-4">
-        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
-          <i className="fas fa-magic text-brand text-sm"></i>
-          <input
-            type="text"
-            value={fillQuery}
-            onChange={(e) => {
-              setFillQuery(e.target.value);
-              setFillOpen(true);
-            }}
-            onFocus={() => setFillOpen(true)}
-            disabled={fillLoading}
-          placeholder="Auto-fill from existing entry — type a name to search..."
-            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
-            autoComplete="off"
-          />
-          {fillQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setFillQuery("");
-                setFillOpen(false);
-              }}
-              className="text-text-faint hover:text-text-muted"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-        {fillOpen && fillLoading && (
-          <SuggestList anchorRef={fillRef}>
-            <SuggestNote>
-              <i className="fas fa-spinner fa-spin"></i>
-              Loading entries to search from…
-            </SuggestNote>
-          </SuggestList>
-        )}
-        {fillOpen && fillResults.length > 0 && (
-          <SuggestList anchorRef={fillRef}>
-            {fillResults.map((a) => {
-              const f = allFranchises.find(
-                (x) => x.system_id === a.franchise_id,
-              );
-              return (
-                <SuggestItem
-                  key={a.system_id}
-                  truncate={false}
-                  onPick={() => applyAutofill(a)}
-                >
-                  <div className="flex items-center gap-2">
-                    {a.airing_type && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint shrink-0">
-                        {a.airing_type}
-                      </span>
-                    )}
-                    <span className="text-sm font-bold text-text">
-                      {a.anime_name_cn || a.anime_name_en}
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-faint">
-                    {f ? getDisplayName(f, "franchise") : "Standalone"}
-                  </div>
-                </SuggestItem>
-              );
-            })}
-          </SuggestList>
-        )}
-      </div>
-
+      <EntryAutofillSearch
+        items={allAnime}
+        names={(a) => [
+          a.anime_name_en,
+          a.anime_name_cn,
+          a.anime_name_roman,
+          a.anime_name_jp,
+          a.anime_name_alt,
+        ]}
+        title={(a) => a.anime_name_cn || a.anime_name_en}
+        franchises={allFranchises}
+        badge={(a) => a.airing_type}
+        onPick={applyAnimeEntryAutofill}
+        loading={animeLoading}
+      />
       <ExternalSearchBox
         source="MAL"
         searchUrl={endpoints.anime.searchMal}

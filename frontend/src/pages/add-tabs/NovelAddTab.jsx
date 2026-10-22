@@ -29,7 +29,7 @@ import {
   READING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
@@ -39,14 +39,9 @@ export default function NovelAddTab({
   franchiseCollections,
   nvf,
   unv,
-  novelFillQuery,
-  setNovelFillQuery,
-  novelFillOpen,
-  setNovelFillOpen,
-  novelFillRef,
-  novelFillResults,
-  novelFillLoading,
-  applyNovelAutofill,
+  allNovels,
+  novelsLoading = false,
+  applyNovelEntryAutofill,
   applyMalPick,
   applyOpenLibraryPick,
   allFranchises,
@@ -60,76 +55,21 @@ export default function NovelAddTab({
   const publisherItems = publisherOptions.map((v) => ({ id: v, label: v }));
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      {/* Auto-fill search */}
-      <div ref={novelFillRef} className="relative mb-4">
-        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
-          <i className="fas fa-magic text-brand text-sm"></i>
-          <input
-            type="text"
-            value={novelFillQuery}
-            onChange={(e) => {
-              setNovelFillQuery(e.target.value);
-              setNovelFillOpen(true);
-            }}
-            onFocus={() => setNovelFillOpen(true)}
-            disabled={novelFillLoading}
-          placeholder="Auto-fill from existing entry — type a name to search..."
-            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
-            autoComplete="off"
-          />
-          {novelFillQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setNovelFillQuery("");
-                setNovelFillOpen(false);
-              }}
-              className="text-text-faint hover:text-text-muted"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-        {novelFillOpen && novelFillLoading && (
-          <SuggestList anchorRef={novelFillRef}>
-            <SuggestNote>
-              <i className="fas fa-spinner fa-spin"></i>
-              Loading entries to search from…
-            </SuggestNote>
-          </SuggestList>
-        )}
-        {novelFillOpen && novelFillResults.length > 0 && (
-          <SuggestList anchorRef={novelFillRef}>
-            {novelFillResults.map((n) => {
-              const f = allFranchises.find(
-                (x) => x.system_id === n.franchise_id,
-              );
-              return (
-                <SuggestItem
-                  key={n.system_id}
-                  truncate={false}
-                  onPick={() => applyNovelAutofill(n)}
-                >
-                  <div className="flex items-center gap-2">
-                    {n.region && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint shrink-0">
-                        {n.region}
-                      </span>
-                    )}
-                    <span className="text-sm font-bold text-text">
-                      {n.novel_name_cn || n.novel_name_en}
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-faint">
-                    {f ? getDisplayName(f, "franchise") : "Standalone"}
-                  </div>
-                </SuggestItem>
-              );
-            })}
-          </SuggestList>
-        )}
-      </div>
-
+      <EntryAutofillSearch
+        items={allNovels}
+        names={(n) => [
+          n.novel_name_cn,
+          n.novel_name_en,
+          n.novel_name_roman,
+          n.novel_name_jp,
+          n.novel_name_alt,
+        ]}
+        title={(n) => n.novel_name_cn || n.novel_name_en}
+        franchises={allFranchises}
+        badge={(n) => n.region}
+        onPick={applyNovelEntryAutofill}
+        loading={novelsLoading}
+      />
       <ExternalSearchBox
         source="MAL"
         searchUrl={endpoints.novel.searchMal}

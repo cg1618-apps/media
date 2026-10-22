@@ -1,7 +1,9 @@
 // Frontend: info component file for GenresCard.
 //
-// The "Genres" InfoCard of the types that carry the three shared
-// classification tags (GENRE_LABEL_TYPES in lib/genreLabelFields.js):
+// The "Genres" InfoCard of the movie, TV, cartoon, manga and novel detail
+// pages - five of the types that carry the three shared classification tags
+// (GENRE_LABEL_TYPES in lib/genreLabelFields.js; anime, anime movie and comic
+// carry them too but their pages do not draw this card):
 // Genre (Main) and Genre (Sub) side by side, 標籤 Label below - the card the
 // game page draws for its own Genre / Theme / Label, set apart from the
 // Information card so the tags are not read as facts about the release.

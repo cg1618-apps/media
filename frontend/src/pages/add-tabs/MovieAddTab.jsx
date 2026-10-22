@@ -21,7 +21,7 @@ import {
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
@@ -31,14 +31,9 @@ export default function MovieAddTab({
   franchiseCollections,
   mf,
   umf,
-  movieFillQuery,
-  setMovieFillQuery,
-  movieFillOpen,
-  setMovieFillOpen,
-  movieFillRef,
-  movieFillResults,
-  movieFillLoading,
-  applyMovieAutofill,
+  allMovies,
+  moviesLoading = false,
+  applyMovieEntryAutofill,
   applyTmdbPick,
   allFranchises,
   seriesItemsForMovie,
@@ -46,76 +41,19 @@ export default function MovieAddTab({
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      {/* Auto-fill search */}
-      <div ref={movieFillRef} className="relative mb-4">
-        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
-          <i className="fas fa-magic text-brand text-sm"></i>
-          <input
-            type="text"
-            value={movieFillQuery}
-            onChange={(e) => {
-              setMovieFillQuery(e.target.value);
-              setMovieFillOpen(true);
-            }}
-            onFocus={() => setMovieFillOpen(true)}
-            disabled={movieFillLoading}
-          placeholder="Auto-fill from existing entry — type a name to search..."
-            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
-            autoComplete="off"
-          />
-          {movieFillQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setMovieFillQuery("");
-                setMovieFillOpen(false);
-              }}
-              className="text-text-faint hover:text-text-muted"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-        {movieFillOpen && movieFillLoading && (
-          <SuggestList anchorRef={movieFillRef}>
-            <SuggestNote>
-              <i className="fas fa-spinner fa-spin"></i>
-              Loading entries to search from…
-            </SuggestNote>
-          </SuggestList>
-        )}
-        {movieFillOpen && movieFillResults.length > 0 && (
-          <SuggestList anchorRef={movieFillRef}>
-            {movieFillResults.map((m) => {
-              const f = allFranchises.find(
-                (x) => x.system_id === m.franchise_id,
-              );
-              return (
-                <SuggestItem
-                  key={m.system_id}
-                  truncate={false}
-                  onPick={() => applyMovieAutofill(m)}
-                >
-                  <div className="flex items-center gap-2">
-                    {m.movie_type && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint shrink-0">
-                        {m.movie_type}
-                      </span>
-                    )}
-                    <span className="text-sm font-bold text-text">
-                      {m.movie_name_cn || m.movie_name_en}
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-faint">
-                    {f ? getDisplayName(f, "franchise") : "Standalone"}
-                  </div>
-                </SuggestItem>
-              );
-            })}
-          </SuggestList>
-        )}
-      </div>
-
+      <EntryAutofillSearch
+        items={allMovies}
+        names={(m) => [
+          m.movie_name_en,
+          m.movie_name_cn,
+          m.movie_name_alt,
+        ]}
+        title={(m) => m.movie_name_cn || m.movie_name_en}
+        franchises={allFranchises}
+        badge={(m) => m.movie_type}
+        onPick={applyMovieEntryAutofill}
+        loading={moviesLoading}
+      />
       <ExternalSearchBox
         source="TMDB"
         searchUrl={endpoints.movie.searchTmdb}

@@ -38,7 +38,6 @@ export default function ComicModifyTab({
   allFranchises,
   seriesItemsForComic,
   editingItem,
-  ribbonSection,
   sources,
 }) {
   // Free-text ComboBoxes over a source: the typed value is the value, so
@@ -61,8 +60,6 @@ export default function ComicModifyTab({
 
   return (
     <>
-      {ribbonSection}
-
       <SectionHeader icon="fa-book" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox

@@ -21,7 +21,7 @@ import {
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
@@ -31,14 +31,9 @@ export default function CartoonAddTab({
   franchiseCollections,
   cf,
   uc,
-  cartoonFillQuery,
-  setCartoonFillQuery,
-  cartoonFillOpen,
-  setCartoonFillOpen,
-  cartoonFillRef,
-  cartoonFillResults,
-  cartoonFillLoading,
-  applyCartoonAutofill,
+  allCartoons,
+  cartoonsLoading = false,
+  applyCartoonEntryAutofill,
   applyTmdbPick,
   allFranchises,
   seriesItemsForCartoon,
@@ -46,76 +41,19 @@ export default function CartoonAddTab({
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      {/* Auto-fill search */}
-      <div ref={cartoonFillRef} className="relative mb-4">
-        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
-          <i className="fas fa-magic text-brand text-sm"></i>
-          <input
-            type="text"
-            value={cartoonFillQuery}
-            onChange={(e) => {
-              setCartoonFillQuery(e.target.value);
-              setCartoonFillOpen(true);
-            }}
-            onFocus={() => setCartoonFillOpen(true)}
-            disabled={cartoonFillLoading}
-          placeholder="Auto-fill from existing entry — type a name to search..."
-            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
-            autoComplete="off"
-          />
-          {cartoonFillQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setCartoonFillQuery("");
-                setCartoonFillOpen(false);
-              }}
-              className="text-text-faint hover:text-text-muted"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-        {cartoonFillOpen && cartoonFillLoading && (
-          <SuggestList anchorRef={cartoonFillRef}>
-            <SuggestNote>
-              <i className="fas fa-spinner fa-spin"></i>
-              Loading entries to search from…
-            </SuggestNote>
-          </SuggestList>
-        )}
-        {cartoonFillOpen && cartoonFillResults.length > 0 && (
-          <SuggestList anchorRef={cartoonFillRef}>
-            {cartoonFillResults.map((c) => {
-              const f = allFranchises.find(
-                (x) => x.system_id === c.franchise_id,
-              );
-              return (
-                <SuggestItem
-                  key={c.system_id}
-                  truncate={false}
-                  onPick={() => applyCartoonAutofill(c)}
-                >
-                  <div className="flex items-center gap-2">
-                    {c.airing_type && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint shrink-0">
-                        {c.airing_type}
-                      </span>
-                    )}
-                    <span className="text-sm font-bold text-text">
-                      {c.cartoon_name_cn || c.cartoon_name_en}
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-faint">
-                    {f ? getDisplayName(f, "franchise") : "Standalone"}
-                  </div>
-                </SuggestItem>
-              );
-            })}
-          </SuggestList>
-        )}
-      </div>
-
+      <EntryAutofillSearch
+        items={allCartoons}
+        names={(c) => [
+          c.cartoon_name_en,
+          c.cartoon_name_cn,
+          c.cartoon_name_alt,
+        ]}
+        title={(c) => c.cartoon_name_cn || c.cartoon_name_en}
+        franchises={allFranchises}
+        badge={(c) => c.airing_type}
+        onPick={applyCartoonEntryAutofill}
+        loading={cartoonsLoading}
+      />
       <ExternalSearchBox
         source="TMDB"
         searchUrl={endpoints.cartoon.searchTmdb}

@@ -20,7 +20,7 @@ import {
   READING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
@@ -39,14 +39,9 @@ export default function ComicAddTab({
   franchiseCollections,
   cmf,
   ucm,
-  comicFillQuery,
-  setComicFillQuery,
-  comicFillOpen,
-  setComicFillOpen,
-  comicFillRef,
-  comicFillResults,
-  comicFillLoading,
-  applyComicAutofill,
+  allComics,
+  comicsLoading = false,
+  applyComicEntryAutofill,
   applyComicVinePick,
   allFranchises,
   seriesItemsForComic,
@@ -72,76 +67,19 @@ export default function ComicAddTab({
 
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      {/* Auto-fill search */}
-      <div ref={comicFillRef} className="relative mb-4">
-        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
-          <i className="fas fa-magic text-brand text-sm"></i>
-          <input
-            type="text"
-            value={comicFillQuery}
-            onChange={(e) => {
-              setComicFillQuery(e.target.value);
-              setComicFillOpen(true);
-            }}
-            onFocus={() => setComicFillOpen(true)}
-            disabled={comicFillLoading}
-          placeholder="Auto-fill from existing entry — type a name to search..."
-            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
-            autoComplete="off"
-          />
-          {comicFillQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setComicFillQuery("");
-                setComicFillOpen(false);
-              }}
-              className="text-text-faint hover:text-text-muted"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-        {comicFillOpen && comicFillLoading && (
-          <SuggestList anchorRef={comicFillRef}>
-            <SuggestNote>
-              <i className="fas fa-spinner fa-spin"></i>
-              Loading entries to search from…
-            </SuggestNote>
-          </SuggestList>
-        )}
-        {comicFillOpen && comicFillResults.length > 0 && (
-          <SuggestList anchorRef={comicFillRef}>
-            {comicFillResults.map((c) => {
-              const f = allFranchises.find(
-                (x) => x.system_id === c.franchise_id,
-              );
-              return (
-                <SuggestItem
-                  key={c.system_id}
-                  truncate={false}
-                  onPick={() => applyComicAutofill(c)}
-                >
-                  <div className="flex items-center gap-2">
-                    {c.comic_type && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint shrink-0">
-                        {c.comic_type}
-                      </span>
-                    )}
-                    <span className="text-sm font-bold text-text">
-                      {c.comic_name_en || c.comic_name_cn}
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-faint">
-                    {f ? getDisplayName(f, "franchise") : "Standalone"}
-                  </div>
-                </SuggestItem>
-              );
-            })}
-          </SuggestList>
-        )}
-      </div>
-
+      <EntryAutofillSearch
+        items={allComics}
+        names={(c) => [
+          c.comic_name_en,
+          c.comic_name_cn,
+          c.comic_name_alt,
+        ]}
+        title={(c) => c.comic_name_en || c.comic_name_cn}
+        franchises={allFranchises}
+        badge={(c) => c.comic_type}
+        onPick={applyComicEntryAutofill}
+        loading={comicsLoading}
+      />
       <ExternalSearchBox
         source="Comic Vine"
         searchUrl={endpoints.comic.searchComicVine}
