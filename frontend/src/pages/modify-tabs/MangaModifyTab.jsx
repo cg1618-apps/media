@@ -228,6 +228,9 @@ export default function MangaModifyTab({
         values={cmgf}
         onChange={umg}
         sources={sources}
+        franchiseId={cmgf.franchise_id}
+        seriesId={cmgf.series_id}
+        entryId={editingItem?.system_id}
       />
 
       <SectionHeader icon="fa-list-ol" title="Progress" />

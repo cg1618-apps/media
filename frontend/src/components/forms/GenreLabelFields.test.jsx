@@ -3,7 +3,7 @@
 // not be offered on a movie, while an unscoped one is offered on both.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import GenreLabelFields from "./GenreLabelFields";
 
@@ -37,6 +37,10 @@ async function openPicker(index) {
 }
 
 describe("GenreLabelFields", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("renders the three pickers under their labels", () => {
     renderFields("movie");
     expect(screen.getByText("Genre Main")).toBeInTheDocument();
@@ -65,6 +69,39 @@ describe("GenreLabelFields", () => {
     expect(offered).toContain("必看");
     expect(offered).not.toContain("Action");
     expect(offered).not.toContain("Isekai");
+  });
+
+  it("offers to replace all three from another entry of the franchise", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve([
+            { system_id: "m1", movie_name_cn: "前作", genre_main: "Action", label: "必看" },
+          ]),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const onChange = vi.fn();
+    render(
+      <GenreLabelFields
+        mediaType="movie"
+        values={{ genre_main: "Drama", genre_sub: "Noir", label: "" }}
+        onChange={onChange}
+        sources={SOURCES}
+        franchiseId="f1"
+        entryId="m2"
+      />,
+    );
+
+    const picker = await screen.findByLabelText("Replace genres & labels from");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/movies/?franchise_id=f1");
+    await userEvent.selectOptions(picker, "m1");
+    expect(Object.fromEntries(onChange.mock.calls)).toEqual({
+      genre_main: "Action",
+      genre_sub: "",
+      label: "必看",
+    });
   });
 
   it("reports a pick under the field's form key", async () => {

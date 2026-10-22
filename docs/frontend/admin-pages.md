@@ -226,6 +226,14 @@ Widening is additive and never touches an unscoped value, which is already
 offered everywhere and would be narrowed by gaining a scope. Auto-fill from an existing entry copies Genre Main and
 Genre Sub, as anime's does, and not the label.
 
+Below the three pickers, **Replace genres & labels from…** (`forms/TagReplace.jsx`)
+lists the other entries of the form's series, then of the rest of its
+franchise, of the same type; picking one overwrites all three fields with that
+entry's, clearing any it has empty, and nothing is saved until the form is.
+Anime offers the same picker below its own three. Game offers it for its Genre
+and Label, and h-game, h-comic and hentai for their genres, as **Replace genres
+from…**.
+
 **Data loaded on mount.** Collections, franchises and series (read by every
 tab's pickers and by `buildAutofillPatch`), the form defaults and the
 suggestion sources — all started together, in one wave.

@@ -306,6 +306,8 @@ export default function ComicAddTab({
         values={cmf}
         onChange={ucm}
         sources={sources}
+        franchiseId={cmf.franchise_id}
+        seriesId={cmf.series_id}
       />
 
       <SectionHeader icon="fa-chart-bar" title="Status" />

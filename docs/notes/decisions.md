@@ -3564,3 +3564,27 @@ anywhere; the downgrade puts the columns back empty.
   them. Pull discards the column and names it once per tab in the run's
   unresolved references, as it does for any header that is no longer a
   column.
+
+### Genres and labels are replaced from a series or franchise entry, on every tagged type (2026-10-22)
+
+The anime-only import of 2026-10-04 became **Replace genres & labels from…**
+(`forms/TagReplace.jsx`), offered wherever an entry carries classification
+tags.
+
+- **Replaced, not appended.** Picking a source overwrites each field with the
+  source's value, clearing one the source has empty. The use is "this entry is
+  tagged like that one", and a merge left the old tags behind to be removed by
+  hand. Nothing is saved until the form is, so a wrong pick costs nothing; the
+  wording says "Replace" so the overwrite is not a surprise.
+- **Series first, then the franchise.** An entry of the same series is the
+  likeliest match, so it leads, under its own `<optgroup>`. The split is made
+  in the browser from the one franchise list (`series_id` is on every row), so
+  there is still no new endpoint.
+- **Same media type only.** Tags are scoped per type (`lib/genreLabelFields.js`),
+  so another type's values would not be offered by this form's pickers.
+- **Every type with tags.** The seven `GENRE_LABEL_TYPES` get it through
+  `GenreLabelFields`; anime keeps its own placement. Game replaces Genre and
+  Label; h-game its Genre and three H genres; h-comic and hentai their three H
+  genres, worded "Replace genres from…" as they carry no label. Game's Theme,
+  Mode, Combat Mode and Platform are left out: the picker is about genres and
+  labels, and those describe the game's play rather than its kind.

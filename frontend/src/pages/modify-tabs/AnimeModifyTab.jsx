@@ -3,7 +3,8 @@ import ComboBox from "../../components/forms/ComboBox";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
-import TagImport from "../../components/forms/TagImport";
+import TagReplace from "../../components/forms/TagReplace";
+import { GENRE_LABEL_KEYS } from "../../lib/genreLabelFields";
 import SourcesEditor from "../../components/forms/SourcesEditor";
 import ImagePicker from "../../components/forms/ImagePicker";
 import {
@@ -23,7 +24,6 @@ import {
   WATCHING_STATUSES,
   MY_RATINGS,
   IS_MAIN,
-  ANIME_IMPORTED_TAGS,
   ANIME_AIRING_TYPES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
@@ -387,12 +387,12 @@ export default function AnimeModifyTab({
           />
         </Field>
       </div>
-      <TagImport
+      <TagReplace
         mediaType="anime"
         franchiseId={af.franchise_id}
+        seriesId={af.series_id}
         entryId={editingItem?.system_id}
-        fields={ANIME_IMPORTED_TAGS}
-        values={af}
+        fields={GENRE_LABEL_KEYS}
         onChange={ua}
       />
 

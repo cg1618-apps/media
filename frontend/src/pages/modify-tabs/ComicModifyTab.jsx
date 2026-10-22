@@ -220,6 +220,9 @@ export default function ComicModifyTab({
         values={ccmf}
         onChange={ucm}
         sources={sources}
+        franchiseId={ccmf.franchise_id}
+        seriesId={ccmf.series_id}
+        entryId={editingItem?.system_id}
       />
 
       <SectionHeader icon="fa-chart-bar" title="Status" />

@@ -21,6 +21,7 @@ import ImagePicker from "../../components/forms/ImagePicker";
 import MultiSelect from "../../components/forms/MultiSelect";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import TagReplace from "../../components/forms/TagReplace";
 import StatusOptions from "../../components/ui/StatusOptions";
 import {
   H_COMIC_ANIMATION_STATUSES,
@@ -196,6 +197,15 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
           )}
         </Field>
       </div>
+      <TagReplace
+        mediaType="h-comic"
+        franchiseId={f.franchise_id}
+        seriesId={f.series_id}
+        entryId={ownerId}
+        fields={["h_genre_plot", "h_genre_appearance", "h_genre_relation"]}
+        what="genres"
+        onChange={u}
+      />
 
       <SectionHeader icon="fa-pen-nib" title="Credits" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
