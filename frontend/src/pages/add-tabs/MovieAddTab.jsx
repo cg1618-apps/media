@@ -334,6 +334,8 @@ export default function MovieAddTab({
         values={mf}
         onChange={umf}
         sources={sources}
+        franchiseId={mf.franchise_id}
+        seriesId={mf.series_id}
       />
 
       <SectionHeader icon="fa-info-circle" title="Release & Production" />

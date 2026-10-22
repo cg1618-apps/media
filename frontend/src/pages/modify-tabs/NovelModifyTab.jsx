@@ -263,6 +263,9 @@ export default function NovelModifyTab({
         values={cnvf}
         onChange={unv}
         sources={sources}
+        franchiseId={cnvf.franchise_id}
+        seriesId={cnvf.series_id}
+        entryId={editingItem?.system_id}
       />
 
       <SectionHeader icon="fa-list-ol" title="Progress" />

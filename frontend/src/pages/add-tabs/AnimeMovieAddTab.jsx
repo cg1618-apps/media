@@ -315,6 +315,7 @@ export default function AnimeMovieAddTab({
         values={amf}
         onChange={uam}
         sources={sources}
+        franchiseId={amf.franchise_id}
       />
 
       <SectionHeader icon="fa-info-circle" title="Release & Details" />

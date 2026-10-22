@@ -388,6 +388,8 @@ export default function TvShowAddTab({
         values={tvf}
         onChange={utf}
         sources={sources}
+        franchiseId={tvf.franchise_id}
+        seriesId={tvf.series_id}
       />
 
       <SectionHeader icon="fa-link" title="Source & Links" />

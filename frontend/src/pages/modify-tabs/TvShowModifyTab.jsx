@@ -296,6 +296,9 @@ export default function TvShowModifyTab({
         values={tvmf}
         onChange={utv}
         sources={sources}
+        franchiseId={tvmf.franchise_id}
+        seriesId={tvmf.series_id}
+        entryId={editingItem?.system_id}
       />
 
       <SectionHeader icon="fa-link" title="IMDb & Sources" />

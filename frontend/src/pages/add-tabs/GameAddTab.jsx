@@ -11,6 +11,7 @@ import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import TagReplace from "../../components/forms/TagReplace";
 import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
@@ -246,6 +247,14 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
           )}
         </Field>
       </div>
+      <TagReplace
+        mediaType="game"
+        franchiseId={f.franchise_id}
+        seriesId={f.series_id}
+        entryId={ownerId}
+        fields={["game_genre", "label"]}
+        onChange={u}
+      />
 
       {/* Rating sits directly under Classification: the verdicts on a game -
           mine and the public's - read before its play state does. My rating
