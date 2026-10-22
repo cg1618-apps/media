@@ -92,9 +92,12 @@ import { enrichEntry } from "../../lib/enrich";
 import ContentLabelPicker, {
   FRANCHISE_SCOPE_NOTE,
   LABELLABLE_TABS,
+  entryHiddenFromSession,
+  labelsAdded,
   saveEntryLabels,
   saveFranchiseLabels,
 } from "../../components/forms/ContentLabelPicker";
+import { useAuth } from "../../contexts/AuthContext";
 import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
 import { castIdentityProblem, orderLoadedCast } from "../../lib/castOrder";
 import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
@@ -309,6 +312,15 @@ export default function Modify() {
   // Content labels are the same eight keys for every media type, so they
   // live on the page rather than in each per-type form object.
   const [contentLabels, setContentLabels] = useState([]);
+  // The set the picker loaded for the open entry, so a save can tell which
+  // labels it is adding (handleSave's confirm).
+  const loadedLabels = useRef([]);
+  // The entry whose labels are still to be written. saveCredits records it
+  // once the entry itself has saved, and handleSave writes the labels LAST:
+  // a label can hide the entry from this session's own mode, and every
+  // request after that - cast, enrichment, the reload - would answer 404.
+  const pendingLabels = useRef(null);
+  const auth = useAuth();
   // An entity deep link (?type=character|person|studio|publisher) opens on its tab from the
   // first paint; the tab itself loads the id (entityDeepLink below).
   const [activeTab, setActiveTab] = useState(() => {
@@ -410,6 +422,17 @@ export default function Modify() {
           : "Entry saved, but credits/tags failed to save.",
       );
     }
+    // Written by handleSave once every other step has run - see pendingLabels.
+    pendingLabels.current = { mediaType, entryId };
+  }
+
+  // The deferred half of saveCredits: write the open entry's labels, then say
+  // so if they hid the entry from the mode this session is in.
+  async function savePendingLabels() {
+    const pending = pendingLabels.current;
+    pendingLabels.current = null;
+    if (!pending) return;
+    const { mediaType, entryId } = pending;
     try {
       await saveEntryLabels(mediaType, entryId, contentLabels);
     } catch {
@@ -419,6 +442,16 @@ export default function Modify() {
         "error",
         "Entry saved, but its content labels failed to save.",
       );
+      return;
+    }
+    loadedLabels.current = contentLabels;
+    if (await entryHiddenFromSession(mediaType, entryId)) {
+      const mode = auth.modes.find((m) => m.is_active);
+      showToast(
+        "warning",
+        `Saved. Its content labels hide it in your current mode${mode ? ` (${mode.label})` : ""} - switch mode to see it again.`,
+      );
+      closeEditor();
     }
   }
 
@@ -1169,6 +1202,22 @@ export default function Modify() {
       showToast("warning", castProblem);
       return;
     }
+    // The browser is not told which labels a mode carries, so this cannot say
+    // whether the admin's OWN mode will lose the entry - only that a new label
+    // hides it from every mode without it. savePendingLabels reports the
+    // outcome once the save has run.
+    const added = LABELLABLE_TABS.includes(editingType)
+      ? labelsAdded(loadedLabels.current, contentLabels)
+      : [];
+    if (
+      added.length > 0 &&
+      !window.confirm(
+        `Adding the content label ${added.join(", ")} hides ${editingType === "franchise" ? "this franchise and every entry in it" : "this entry"} from every access mode that does not carry it - possibly the one you are in now. Save anyway?`,
+      )
+    ) {
+      return;
+    }
+    pendingLabels.current = null;
     setSubmitting(true);
     try {
       if (editingType === "anime") await saveAnime();
@@ -1187,6 +1236,7 @@ export default function Modify() {
       else if (editingType === "h-game") await saveHGame();
       else if (editingType === "hentai") await saveHentai();
       else if (editingType === "options") await saveOption();
+      await savePendingLabels();
     } catch (e) {
       showToast("error", e?.message || "Request failed");
     } finally {
@@ -4533,6 +4583,9 @@ export default function Modify() {
                   }
                   value={contentLabels}
                   onChange={setContentLabels}
+                  onLoaded={(keys) => {
+                    loadedLabels.current = keys;
+                  }}
                   required={
                     editingType === "franchise"
                       ? requiredLabelsForFranchiseType(ff.franchise_type)

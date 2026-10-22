@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-10-20
+Last verified: 2026-10-22
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -369,7 +369,10 @@ not drawn. The character, person and studio libraries use it for
   from Add's list while Add's submit wrote labels anyway. Its `required` prop
   draws a gated type's required label checked and locked, and
   `saveEntryLabels` / `saveFranchiseLabels(id, keys, franchiseType)` add it
-  back to the set they send),
+  back to the set they send. `onLoaded` reports the set as loaded, before any
+  edit; `labelsAdded(loaded, chosen)` and
+  `entryHiddenFromSession(type, id)` are what Modify's Save uses to confirm an
+  added label and to report one that hid the entry — see `admin-pages.md`),
   `SourcesEditor` (the one shared editor for every Add
   and Modify tab's `sources` field, replacing eight copy-pasted
   `source_other` editors; produces `access` rows for `main`/`other`/

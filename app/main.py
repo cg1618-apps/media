@@ -236,9 +236,30 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Serve Vite build output (production only — frontend_dist/ is created by docker build)
 FRONTEND_DIST = Path("frontend_dist")
+
+# Vite names every file under /assets/ after its content hash, so a name never
+# changes meaning and can be cached for good - while a deploy deletes the names
+# an older index.html points at. index.html is therefore revalidated on every
+# load (INDEX_CACHE_CONTROL, in serve_spa): a browser reusing a stale copy asks
+# for assets that no longer exist and draws a blank page.
+HASHED_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"
+INDEX_CACHE_CONTROL = "no-cache"
+
+
+class HashedAssets(StaticFiles):
+    """StaticFiles for content-hashed names: a hit is cached for a year, a miss
+    is not, since the next deploy may bring that file."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = HASHED_ASSET_CACHE_CONTROL
+        return response
+
+
 if FRONTEND_DIST.exists():
     app.mount(
-        "/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="vite-assets"
+        "/assets", HashedAssets(directory=FRONTEND_DIST / "assets"), name="vite-assets"
     )
 
 
@@ -340,4 +361,4 @@ async def serve_spa(full_path: str):
         and candidate.is_file()
     ):
         return FileResponse(candidate)
-    return FileResponse(index)
+    return FileResponse(index, headers={"Cache-Control": INDEX_CACHE_CONTROL})
