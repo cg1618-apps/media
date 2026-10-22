@@ -10,6 +10,7 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import {
   publisherLabel,
@@ -674,11 +675,9 @@ export default function Manga() {
                       manga.ch_total != null ? String(manga.ch_total) : null,
                   },
                 ],
-                { label: "Genre (Main)", value: manga.genre_main },
-                { label: "Genre (Sub)", value: manga.genre_sub },
-                { label: "標籤 Label", value: manga.label },
               ]}
             />
+            <GenresCard item={manga} />
             {/* Production Card */}
             {(manga.author_plot ||
               manga.author_draw ||

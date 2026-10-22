@@ -156,7 +156,7 @@ describe("Novel detail page — units", () => {
     expect(screen.queryByText("Units")).not.toBeInTheDocument();
   });
 
-  it("shows the genre and label tags on the Information card", async () => {
+  it("shows the genre and label tags on the Genres card", async () => {
     mockFetch({
       ...BASE_NOVEL,
       genre_main: "Fantasy, Romance",
