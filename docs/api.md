@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-21
+Last verified: 2026-10-22
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -594,7 +594,8 @@ h-game keeps it.
 ## Watch Order — `/api/watch-order`
 
 Named, ordered, cross-media-type viewing guides owned by a franchise or a
-collection. Reads are public; every write is admin-only. These replaced the
+collection. Reads are public; every write to an order is admin-only, and a
+member's own follows are written under `self.list`. These replaced the
 per-entry `watch_order` Float column, which has been dropped.
 
 | Method   | Path                          | Auth   | Description                                                                                                                                        |
@@ -605,14 +606,18 @@ per-entry `watch_order` Float column, which has been dropped.
 | `POST`   | `/lists`                      | Admin  | Create an order. Body: `WatchOrderListCreate`. 400 unless exactly one owner is given.                                                               |
 | `POST`   | `/lists/release`              | Admin  | Give one owner a built-in order (`franchise_id`, `collection_id` or `series_id`; `anime_only=true` for the anime variant). Idempotent per kind. 400 below 2 entries in scope, or for a collection that opts out. |
 | `POST`   | `/lists/release/backfill`     | Admin  | Give every franchise, series and collection its built-in orders, skipping owners that already have them, those below 2 entries, and opted-out collections. Safe to re-run; returns `created`, `skipped_too_small` and `skipped_opted_out`. |
-| `PUT`    | `/lists/{system_id}`          | Admin  | Full update. Body: `WatchOrderListUpdate`.                                                                                                         |
-| `PATCH`  | `/lists/{system_id}`          | Admin  | Partial update (inline edits). Body: raw JSON dict.                                                                                                |
+| `PUT`    | `/lists/{system_id}`          | Admin  | Full update. Body: `WatchOrderListUpdate`. 400 if it names a different owner - an order's owner is fixed at creation.                              |
+| `PATCH`  | `/lists/{system_id}`          | Admin  | Partial update (inline edits). Body: raw JSON dict. 400 if it names a different owner.                                                             |
 | `DELETE` | `/lists/{system_id}`          | Admin  | Delete an order. Items cascade; the media entries are untouched. Logs to `deleted_record` as type "Watch Order".                                    |
 | `POST`   | `/lists/{system_id}/duplicate` | Admin | Copy an order and its steps into a new, editable list named `"<name> (Copy)"`. Keeps the owner, type, note and `sort_index`; clears `is_default` and `is_most_recommended`; always sets `auto_source` to null. A built-in source has its generated steps written out as real rows. 404 on an unknown id. |
 | `POST`   | `/lists/{system_id}/items`    | Admin  | Add a step. Appends unless `position` is given. Body: `WatchOrderItemCreate`. 400 on an unknown media type or a nonexistent entry.                  |
 | `PUT`    | `/items/{item_id}`            | Admin  | Full update of one step. Body: `WatchOrderItemUpdate`.                                                                                             |
 | `PATCH`  | `/items/{item_id}`            | Admin  | Partial update (episode range, optional flag, note). Body: raw JSON dict.                                                                          |
 | `DELETE` | `/items/{item_id}`            | Admin  | Remove one step.                                                                                                                                   |
+| `GET`    | `/follows`                    | `self.list` | The caller's followed orders, each a `WatchOrderFollowSummary`: `list`, `owner` (`tier`, `system_id`, `public_id`, `display_name`), `done`, `total`, `now` (every active step) and `up_next` (the earliest pending step, or null). |
+| `GET`    | `/follows/entry/{entry_id}`   | `self.list` | The followed orders that step through one entry (`media.system_id`), each a `WatchOrderEntryFollow`: `list`, `owner`, `total` and one `occurrences` element per step naming the entry, with `step`, `previous` and `next`. `[]` when none does. |
+| `PUT`    | `/lists/{system_id}/follow`   | `self.list` | Follow the order (`public_id` or UUID), replacing the caller's follow of another order in the same group. Idempotent. Answers the order's `WatchOrderFollowSummary`. 404 on an unknown order. |
+| `DELETE` | `/lists/{system_id}/follow`   | `self.list` | Unfollow. 404 when the order is unknown or not followed. |
 | `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N, and optionally re-file each step into a part. Body: `WatchOrderReorder` (`item_ids`, optional `section_ids`, optional `section_positions`). 400 unless the payload names every item of the list exactly once, if `section_positions` names a part twice or misses one, or if the order would split a part. |
 
 `WatchOrderReorder.section_ids` is optional and runs parallel to `item_ids` —
@@ -658,6 +663,16 @@ A built-in order is refused when the scope holds fewer than **2** entries — a
 franchise that is a single movie, TV series or novel has nothing to order —
 and when the franchise belongs to a collection with `no_built_in_orders` set
 (迪士尼, whose members are unrelated standalone works).
+
+**Following.** The four follow routes are gated on `self.list` (401 otherwise,
+an admin account included) and read or write only the caller's own
+`watch_order_follow` rows. A user follows at most one order per franchise,
+series or collection, held by the database (`uq_watch_order_follow_group`).
+Each step in a follow response is a `WatchOrderFollowStep`: `number` (1-based
+over the steps the viewer can see), `state` (`done` / `active` / `pending`),
+`media_type`, `entry_id`, `public_id`, `display_name`, `ep_start`, `ep_end`,
+`importance`, `note` and `section_name`. The state rules are in
+[systems/watch-orders.md](systems/watch-orders.md#progress).
 
 **Single-winner flags.** `is_default` (opens first) and `is_most_recommended`
 (the one to follow) are independent, and each is limited to one list per owner:

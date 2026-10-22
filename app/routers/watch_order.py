@@ -22,6 +22,7 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
+from app.services.domain import watch_order_follow as follow_progress
 from app.services.domain.watch_order import (
     ITEM_IMPORTANCE,
     MEDIA_TYPE_MODELS,
@@ -33,7 +34,13 @@ from app.services.domain.watch_order import (
     resolve_items,
 )
 from app.services.rbac.enforcement import entry_visible
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.permissions import PERM_SELF_LIST
+from app.services.rbac.resolver import (
+    Viewer,
+    get_viewer,
+    require_manage_catalog,
+    require_permission,
+)
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -128,6 +135,34 @@ def _validate_owner(franchise_id, collection_id, series_id=None) -> None:
                 "collection or series."
             ),
         )
+
+
+_OWNER_COLUMNS = ("franchise_id", "collection_id", "series_id")
+
+
+def _reject_owner_change(db_list: models.WatchOrderList, update_data: dict) -> None:
+    """
+    A list's owner is fixed when it is created.
+
+    Each watch_order_follow copies its list's owner so that "one followed
+    order per group" can be a database constraint; that copy is only true
+    while the owner never moves. Nothing in the SPA moves one either - an
+    order for another group is created under that group. Restating the
+    current owner (a PUT echoing the list back) is allowed.
+    """
+    for column in _OWNER_COLUMNS:
+        if column not in update_data:
+            continue
+        incoming = update_data[column]
+        current = getattr(db_list, column)
+        if (str(incoming) if incoming else None) != (str(current) if current else None):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "A watch order's franchise, collection or series cannot be "
+                    "changed. Create the order under the new owner instead."
+                ),
+            )
 
 
 def _validate_entry(db: Session, media_type, entry_id, viewer) -> None:
@@ -557,6 +592,39 @@ def get_watch_order_lists(
     return [_serialize(row, summaries.get(row.system_id)) for row in rows]
 
 
+def _resolved_steps(
+    db: Session, db_list: models.WatchOrderList, viewer
+) -> List[dict]:
+    """
+    The order's steps, resolved and in reading order, as the guide draws them.
+
+    One function for the detail endpoint and for a follower's progress, so the
+    two always count the same steps.
+    """
+    # Any built-in kind, not just the cross-type one.
+    if db_list.auto_source in BUILT_IN_KINDS:
+        # Generated on read, so entries added since last time are simply there.
+        scope = _generated_scope(db, db_list)
+        return build_release_items(
+            db,
+            scope["franchise_ids"],
+            db_list.system_id,
+            series_ids=scope["series_ids"],
+            media_types=scope["media_types"],
+        )
+    items = (
+        db.query(models.WatchOrderItem)
+        .filter(models.WatchOrderItem.list_id == db_list.system_id)
+        .order_by(models.WatchOrderItem.position.asc().nullslast())
+        .all()
+    )
+    # Reading order is `position` alone, which the query above already
+    # applied. Parts do not sort the guide - they are drawn around runs of
+    # adjacent steps sharing a section_id, so a part reads wherever its
+    # steps read and an unfiled step can sit between two parts.
+    return resolve_items(db, items, viewer)
+
+
 @router.get(
     "/lists/{system_id}",
     response_model=schemas.WatchOrderListDetailResponse,
@@ -576,29 +644,7 @@ def get_watch_order_list(
         .all()
     )
 
-    # Any built-in kind, not just the cross-type one.
-    if db_list.auto_source in BUILT_IN_KINDS:
-        # Generated on read, so entries added since last time are simply there.
-        scope = _generated_scope(db, db_list)
-        resolved = build_release_items(
-            db,
-            scope["franchise_ids"],
-            db_list.system_id,
-            series_ids=scope["series_ids"],
-            media_types=scope["media_types"],
-        )
-    else:
-        items = (
-            db.query(models.WatchOrderItem)
-            .filter(models.WatchOrderItem.list_id == db_list.system_id)
-            .order_by(models.WatchOrderItem.position.asc().nullslast())
-            .all()
-        )
-        # Reading order is `position` alone, which the query above already
-        # applied. Parts do not sort the guide - they are drawn around runs of
-        # adjacent steps sharing a section_id, so a part reads wherever its
-        # steps read and an unfiled step can sit between two parts.
-        resolved = resolve_items(db, items, viewer)
+    resolved = _resolved_steps(db, db_list, viewer)
 
     payload = _serialize(
         db_list,
@@ -1003,6 +1049,7 @@ def update_watch_order_list(
     db_list = _get_list_or_404(db, system_id)
 
     update_data = payload.model_dump(exclude_unset=True)
+    _reject_owner_change(db_list, update_data)
     for key, value in update_data.items():
         setattr(db_list, key, value)
 
@@ -1029,6 +1076,7 @@ def patch_watch_order_list(
     """Partially updates a watch order (used for quick inline edits)."""
     db_list = _get_list_or_404(db, system_id)
 
+    _reject_owner_change(db_list, payload)
     apply_column_patch(db_list, payload)
 
     _validate_owner(db_list.franchise_id, db_list.collection_id, db_list.series_id)
@@ -1516,3 +1564,224 @@ def delete_watch_order_section(
         "status": "success",
         "message": "Watch order section deleted; its steps are now ungrouped.",
     }
+
+
+# ==========================================
+# FOLLOWS
+# ==========================================
+#
+# A member follows at most one order per group and reads where they stand in
+# it. Every route needs `self.list` - the capability a plan queue or a
+# personal list needs - and acts on the caller's own rows only, so an
+# administrative account, which holds no self.* grant, is refused like a
+# guest. require_permission answers 401, never 403.
+
+require_self_list = require_permission(PERM_SELF_LIST)
+
+_OWNER_TIERS = (
+    ("franchise_id", "franchise", models.Franchise),
+    ("series_id", "series", models.Series),
+    ("collection_id", "collection", models.Collection),
+)
+
+
+def _owner_of(db: Session, db_list: models.WatchOrderList) -> dict:
+    """The group an order belongs to, named for display and for a link."""
+    for column, tier, model in _OWNER_TIERS:
+        owner_id = getattr(db_list, column)
+        if owner_id is None:
+            continue
+        owner = db.get(model, owner_id)
+        return {
+            "tier": tier,
+            "system_id": owner_id,
+            "public_id": getattr(owner, "public_id", None),
+            "display_name": getattr(owner, "display_name", None),
+        }
+    # Unreachable while ck_watch_order_list_single_owner holds.
+    raise HTTPException(status_code=500, detail="Watch order has no owner.")
+
+
+def _follow_steps(db: Session, db_list: models.WatchOrderList, viewer) -> List[dict]:
+    """
+    The order's steps as the viewer sees them, each with its state.
+
+    Only the fields a follower's views draw are kept; the entries' public_id
+    and the parts' names are looked up once for the whole order.
+    """
+    resolved = _resolved_steps(db, db_list, viewer)
+    entry_ids = {s["entry_id"] for s in resolved if s.get("entry_id")}
+    public_ids = {}
+    if entry_ids:
+        public_ids = dict(
+            db.query(models.Media.system_id, models.Media.public_id)
+            .filter(models.Media.system_id.in_(list(entry_ids)))
+            .all()
+        )
+    section_names = dict(
+        db.query(
+            models.WatchOrderSection.system_id, models.WatchOrderSection.section_name
+        )
+        .filter(models.WatchOrderSection.list_id == db_list.system_id)
+        .all()
+    )
+    steps = [
+        {
+            "media_type": s.get("media_type"),
+            "entry_id": s.get("entry_id"),
+            "public_id": public_ids.get(s.get("entry_id")),
+            "display_name": s.get("display_name"),
+            "ep_start": s.get("ep_start"),
+            "ep_end": s.get("ep_end"),
+            "importance": s.get("importance"),
+            "note": s.get("note"),
+            "section_name": section_names.get(s.get("section_id")),
+        }
+        for s in resolved
+    ]
+    rows = follow_progress.list_rows_for(db, viewer.user_id, entry_ids)
+    return follow_progress.annotate_states(steps, rows)
+
+
+def _follow_heading(db: Session, db_list: models.WatchOrderList) -> dict:
+    return {
+        "list": {
+            "system_id": db_list.system_id,
+            "public_id": db_list.public_id,
+            "list_name": db_list.list_name,
+            "auto_source": db_list.auto_source,
+        },
+        "owner": _owner_of(db, db_list),
+    }
+
+
+def _follow_summary(db: Session, db_list: models.WatchOrderList, viewer) -> dict:
+    states = _follow_steps(db, db_list, viewer)
+    return {**_follow_heading(db, db_list), **follow_progress.summarize(states)}
+
+
+def _followed_lists(db: Session, user_id) -> List[models.WatchOrderList]:
+    """The caller's followed orders, oldest follow first."""
+    return (
+        db.query(models.WatchOrderList)
+        .join(
+            models.WatchOrderFollow,
+            models.WatchOrderFollow.list_id == models.WatchOrderList.system_id,
+        )
+        .filter(models.WatchOrderFollow.user_id == user_id)
+        .order_by(models.WatchOrderFollow.created_at.asc())
+        .all()
+    )
+
+
+@router.get(
+    "/follows",
+    response_model=List[schemas.WatchOrderFollowSummary],
+    summary="My Followed Watch Orders",
+)
+def get_my_follows(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_self_list),
+):
+    """Every order the caller follows, with done / total, now and up next."""
+    return [
+        _follow_summary(db, db_list, viewer)
+        for db_list in _followed_lists(db, viewer.user_id)
+    ]
+
+
+@router.get(
+    "/follows/entry/{entry_id}",
+    response_model=List[schemas.WatchOrderEntryFollow],
+    summary="My Followed Watch Orders Containing an Entry",
+)
+def get_my_follows_for_entry(
+    entry_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_self_list),
+):
+    """
+    The followed orders that step through `entry_id`, each occurrence with the
+    steps either side of it. Empty when no followed order contains the entry.
+    """
+    contexts = []
+    for db_list in _followed_lists(db, viewer.user_id):
+        states = _follow_steps(db, db_list, viewer)
+        occurrences = follow_progress.occurrences_of(states, entry_id)
+        if not occurrences:
+            continue
+        contexts.append(
+            {
+                **_follow_heading(db, db_list),
+                "total": len(states),
+                "occurrences": occurrences,
+            }
+        )
+    return contexts
+
+
+@router.put(
+    "/lists/{system_id}/follow",
+    response_model=schemas.WatchOrderFollowSummary,
+    summary="Follow Watch Order",
+)
+def follow_watch_order(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_self_list),
+):
+    """
+    Follows the order, replacing whichever order of the same group the caller
+    followed before. Idempotent: following the followed order changes nothing.
+    """
+    db_list = _get_list_or_404(db, system_id)
+    owner = {column: getattr(db_list, column) for column in _OWNER_COLUMNS}
+
+    existing = (
+        db.query(models.WatchOrderFollow)
+        .filter(
+            models.WatchOrderFollow.user_id == viewer.user_id,
+            *(
+                getattr(models.WatchOrderFollow, column).is_(None)
+                if value is None
+                else getattr(models.WatchOrderFollow, column) == value
+                for column, value in owner.items()
+            ),
+        )
+        .first()
+    )
+    if existing is None:
+        db.add(
+            models.WatchOrderFollow(
+                user_id=viewer.user_id, list_id=db_list.system_id, **owner
+            )
+        )
+    elif existing.list_id != db_list.system_id:
+        # The group's one row is repointed rather than deleted and inserted
+        # again, so uq_watch_order_follow_group is never in question.
+        existing.list_id = db_list.system_id
+        existing.updated_at = get_taipei_now()
+    db.commit()
+    return _follow_summary(db, db_list, viewer)
+
+
+@router.delete("/lists/{system_id}/follow", summary="Unfollow Watch Order")
+def unfollow_watch_order(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_self_list),
+):
+    """Stops following the order. 404 when the caller does not follow it."""
+    db_list = _get_list_or_404(db, system_id)
+    deleted = (
+        db.query(models.WatchOrderFollow)
+        .filter(
+            models.WatchOrderFollow.user_id == viewer.user_id,
+            models.WatchOrderFollow.list_id == db_list.system_id,
+        )
+        .delete(synchronize_session=False)
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Not following this order.")
+    db.commit()
+    return {"status": "success", "message": "Unfollowed."}

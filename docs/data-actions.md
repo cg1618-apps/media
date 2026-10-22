@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-21
+Last verified: 2026-10-22
 
 ## What this is for
 
@@ -31,7 +31,7 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (52 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (53 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -88,13 +88,13 @@ Users            ->  before  User Media List   (user_media_list.user_id)
 Media            ->  before  User Media List   (user_media_list.media_id)
 Media            ->  before  the twelve media tabs (detail.system_id -> media)
 Collection -> Franchise -> Series -> Media
-Watch Order List -> Watch Order Section -> Watch Order Item
+Watch Order List -> Watch Order Section -> Watch Order Item -> Watch Order Follow
 Person / Studio / Publisher / Character / Content Label -> the media tabs
 Character -> Character Identity -> Character Casting
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
-`Seasonal`, `Game Copy` and `Game Choice Mark` all carry a NOT NULL `user_id`. The enforcement is
+`Seasonal`, `Watch Order Follow`, `Game Copy` and `Game Choice Mark` all carry a NOT NULL `user_id`. The enforcement is
 `tests/api/test_sheet_restore_order.py`; move the tab rather than weaken the
 test.
 
@@ -142,18 +142,19 @@ test.
 | 38 | `Watch Order List` | `WatchOrderList` |  |
 | 39 | `Watch Order Section` | `WatchOrderSection` |  |
 | 40 | `Watch Order Item` | `WatchOrderItem` |  |
-| 41 | `Media Relation` | `MediaRelation` |  |
-| 42 | `Plan Next` | `PlanNext` |  |
-| 43 | `Quote` | `Quote` |  |
-| 44 | `Character Casting` | `CharacterCasting` |  |
-| 45 | `Character Casting Voice` | `CharacterCastingVoice` |  |
-| 46 | `Meme` | `Meme` |  |
-| 47 | `Note` | `Note` |  |
-| 48 | `Resources` | `ResourceNode` |  |
-| 49 | `Media Source` | `MediaSource` |  |
-| 50 | `Media Content Label` | `MediaContentLabel` |  |
-| 51 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 52 | `Seasonal` | `Seasonal` |  |
+| 41 | `Watch Order Follow` | `WatchOrderFollow` |  |
+| 42 | `Media Relation` | `MediaRelation` |  |
+| 43 | `Plan Next` | `PlanNext` |  |
+| 44 | `Quote` | `Quote` |  |
+| 45 | `Character Casting` | `CharacterCasting` |  |
+| 46 | `Character Casting Voice` | `CharacterCastingVoice` |  |
+| 47 | `Meme` | `Meme` |  |
+| 48 | `Note` | `Note` |  |
+| 49 | `Resources` | `ResourceNode` |  |
+| 50 | `Media Source` | `MediaSource` |  |
+| 51 | `Media Content Label` | `MediaContentLabel` |  |
+| 52 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 53 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -201,8 +202,8 @@ next Pull. Pull drops one leading apostrophe if a cell still carries it
 rule in [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)
 runs on a restore.
 
-**`Plan Next` and `Seasonal`** drop `user_id` for `username` too, for the same
-reason. Pull falls back to `_restore_owner_id` — the **installation owner**:
+**`Plan Next`, `Seasonal` and `Watch Order Follow`** drop `user_id` for `username` too, for the same
+reason (the follow tab has carried `username` from its first day, so it never meets the fallback below). Pull falls back to `_restore_owner_id` — the **installation owner**:
 `users.is_installation_owner`, else the alphabetically-first non-root
 account, else the first account — **only** when the header is absent
 altogether, which means a sheet written before the column existed and in which

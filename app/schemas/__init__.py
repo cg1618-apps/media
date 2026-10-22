@@ -266,6 +266,10 @@ from app.schemas.tv_show import (
 )
 from app.schemas.watch_order import (
     WatchOrderCandidate,
+    WatchOrderEntryFollow,
+    WatchOrderFollowOccurrence,
+    WatchOrderFollowStep,
+    WatchOrderFollowSummary,
     WatchOrderItemBase,
     WatchOrderItemCreate,
     WatchOrderItemResolved,
@@ -450,6 +454,10 @@ __all__ = [
     "WatchOrderSectionUpdate",
     "WatchOrderSectionResponse",
     "WatchOrderSectionSheetSync",
+    "WatchOrderEntryFollow",
+    "WatchOrderFollowOccurrence",
+    "WatchOrderFollowStep",
+    "WatchOrderFollowSummary",
     "RelationKindResponse",
     "MediaRelationCreate",
     "MediaRelationUpdate",

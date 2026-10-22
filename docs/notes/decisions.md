@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-18
+Last verified: 2026-10-22
 
 ## What this is for
 
@@ -3542,3 +3542,58 @@ so nothing else about the gate moves.
 - **The mainstream boundary is unchanged.** `"ACG, H-Game"`, `"Game, H-Game"`
   and an h-game written into an `ACG` or `Game` franchise are still refused
   (422), so no gated entry reaches a public group.
+
+### Following a watch order: the owner is copied, so the owner cannot move (2026-10-22)
+
+A member follows at most one watch order per group (franchise, series or
+collection). The rule could live in the router alone - "delete my other
+follows in this group, then insert" - or in the database. It lives in the
+database: `watch_order_follow` copies the order's owner onto the row and
+`uq_watch_order_follow_group` is UNIQUE NULLS NOT DISTINCT over the user and
+the three owner columns, the shape `plan_next` already uses.
+
+A copy is only sound if the original cannot change, and a list's owner could:
+`PUT` and `PATCH /api/watch-order/lists/{id}` accepted new owner columns, and
+nothing in the SPA ever sent one. So the owner is now fixed at creation and
+both endpoints answer 400 when a body names a different one (restating the
+current owner, as a `PUT` echoing the list does, is allowed).
+
+Rejected:
+
+- **No copy; one-per-group checked in the router.** Correct on the follow
+  path, but an admin moving an order into another group would leave a member
+  following two orders of that group with nothing to say so.
+- **Keep the owner movable and re-sync the follows on every move.** Three
+  write paths (`PUT`, `PATCH`, a Pull that rewrites list rows), each needing
+  to repoint follows and resolve the collision a move can create - which of
+  the member's two follows wins has no good answer. Making the owner
+  immutable removes the case instead of answering it.
+- **A composite foreign key `(list_id, owner columns)` with ON UPDATE
+  CASCADE.** Under MATCH SIMPLE a key with any NULL column is not checked at
+  all, and two of the three owner columns are NULL on every row, so the
+  constraint would hold nothing. A generated non-null owner column on the list
+  would make it work, at the cost of a column Pull and PATCH would both have
+  to learn to skip.
+
+The remaining hole is a hand-edited sheet: a Pull writes a list row as the
+sheet has it, owner included. Every list's uuid is minted once with its owner
+and the owner never changes on either machine, so an ordinary Backup / Pull
+round trip cannot move one.
+
+Four smaller choices, made with the feature:
+
+- **Progress counts the steps the page draws.** `_resolved_steps` serves both
+  the detail endpoint and the follows, so the guide and "step N / total" never
+  disagree about a hidden entry or a built-in order's generated steps.
+- **A ranged step is "active" only once reached.** The rule as specified: active when
+  the status is in progress and the step is not done by its range. Read
+  literally, both halves of a split run (A ep 1-10, A ep 11-12) are "now"
+  while ep 3 is playing. A step whose `ep_start` lies beyond the next unit is
+  pending instead, so "Now" is the half being watched and "Up next" can name
+  the other.
+- **A split run shows every occurrence.** The entry panel draws one
+  previous / this / next block per step naming the entry, since each half
+  sits between different neighbours; folding them would lose one half's
+  neighbours.
+- **Follows travel in the Sheets backup**, as `plan_next` does: tab
+  `Watch Order Follow`, `user_id` dropped for `username`.

@@ -52,7 +52,7 @@ export const supportsEpisodeRange = (mediaType) =>
 const RANGE_UNITS = { manga: "Ch", novel: "Ch", comic: "#" };
 
 /** "Ep 1-10", "Ep 5", "Ch 1-40", "# 1-12" — or nothing when the step is the whole entry. */
-function rangeLabel(item) {
+export function rangeLabel(item) {
   if (item.ep_start == null && item.ep_end == null) return null;
   const unit = RANGE_UNITS[item.media_type] || "Ep";
   if (item.ep_start != null && item.ep_end != null) {

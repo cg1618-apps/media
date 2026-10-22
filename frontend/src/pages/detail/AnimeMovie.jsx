@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
@@ -329,6 +330,9 @@ export default function AnimeMovie() {
               anilistPopularityRank={movie.anilist_popularity_rank}
             />
           </header>
+
+          {/* Where this entry sits in the watch orders the viewer follows. */}
+          <FollowedOrderPanel entryId={movie.system_id} />
 
           {/* My Tracker Block */}
           <Slip title="My tracker">

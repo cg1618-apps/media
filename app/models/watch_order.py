@@ -272,3 +272,94 @@ class WatchOrderSection(Base):
     @property
     def display_name(self) -> str:
         return self.section_name or "Untitled Section"
+
+
+class WatchOrderFollow(Base):
+    """
+    One user following one watch order.
+
+    The row's existence is the follow; unfollowing deletes it. A user follows
+    at most ONE order per group (the franchise, series or collection that owns
+    the order), and following another order of the same group replaces the
+    first.
+
+    The owner is COPIED onto the row - exactly one of franchise_id, series_id
+    and collection_id, the same disjoint set the list carries - so that rule
+    is a database constraint rather than a check in the router:
+    uq_watch_order_follow_group is UNIQUE NULLS NOT DISTINCT over the user and
+    the three owner columns. NULLS NOT DISTINCT because two of the three are
+    NULL on every row, and the default would make every row unique.
+
+    The copy is sound because a list's owner never changes: the list
+    endpoints refuse an owner change (see _reject_owner_change in
+    routers/watch_order.py), so the owner written here at follow time stays
+    the list's owner for as long as both rows exist. Every foreign key
+    cascades: deleting the user, the order or its owner takes the follow
+    with it.
+    """
+
+    __tablename__ = "watch_order_follow"
+    __table_args__ = (
+        CheckConstraint(
+            "num_nonnulls(franchise_id, series_id, collection_id) = 1",
+            name="ck_watch_order_follow_one_owner",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "franchise_id",
+            "series_id",
+            "collection_id",
+            name="uq_watch_order_follow_group",
+            postgresql_nulls_not_distinct=True,
+        ),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE", name="fk_watch_order_follow_user"),
+        nullable=False,
+        index=True,
+    )
+    list_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "watch_order_list.system_id",
+            ondelete="CASCADE",
+            name="fk_watch_order_follow_list",
+        ),
+        nullable=False,
+        index=True,
+    )
+    franchise_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "franchise.system_id",
+            ondelete="CASCADE",
+            name="fk_watch_order_follow_franchise",
+        ),
+        nullable=True,
+    )
+    series_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "series.system_id",
+            ondelete="CASCADE",
+            name="fk_watch_order_follow_series",
+        ),
+        nullable=True,
+    )
+    collection_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "collection.system_id",
+            ondelete="CASCADE",
+            name="fk_watch_order_follow_collection",
+        ),
+        nullable=True,
+    )
+
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

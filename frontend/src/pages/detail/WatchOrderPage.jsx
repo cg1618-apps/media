@@ -9,6 +9,7 @@ import { Link, useParams } from "react-router-dom";
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowOrderButton from "../../components/tracker/FollowOrderButton";
 import WatchOrderGuide, {
   MediaScopeLine,
 } from "../../components/tracker/WatchOrderGuide";
@@ -162,6 +163,7 @@ export default function WatchOrderPage() {
           <span className="ml-auto font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
             {list.item_count} steps
           </span>
+          <FollowOrderButton list={list} />
         </div>
       </header>
 
