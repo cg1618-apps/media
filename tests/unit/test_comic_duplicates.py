@@ -39,7 +39,6 @@ def _comic(**kwargs):
     kwargs.setdefault("system_id", uuid.uuid4())
     kwargs.setdefault("franchise_id", FRANCHISE)
     kwargs.setdefault("series_id", SERIES)
-    kwargs.setdefault("is_main_entry", True)
     return Comic(**kwargs)
 
 
@@ -84,10 +83,10 @@ class TestFindDuplicateComic:
         ]
         assert find_duplicate_comic(_StubSession(rows)) == []
 
-    def test_different_is_main_entry_are_not_compared(self):
+    def test_different_franchises_are_not_compared(self):
         rows = [
-            _comic(comic_name_en="Avengers", is_main_entry=True),
-            _comic(comic_name_en="Avengers", is_main_entry=False),
+            _comic(comic_name_en="Avengers", franchise_id=uuid.uuid4()),
+            _comic(comic_name_en="Avengers", franchise_id=uuid.uuid4()),
         ]
         assert find_duplicate_comic(_StubSession(rows)) == []
 
@@ -109,7 +108,7 @@ class TestFindDuplicateComic:
         assert row["comic_name_en"] == "Avengers"
         assert row["comic_name_cn"] == "復仇者"
         assert row["comicvine_id"] == 7
-        assert row["is_main_entry"] is True
+        assert "is_main_entry" not in row
         assert row["franchise_id"] == str(FRANCHISE)
         assert row["series_id"] == str(SERIES)
 

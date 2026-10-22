@@ -176,7 +176,7 @@ def test_various_value_types_are_accepted(admin_client):
         "defaults": {
             "watching_status": "Paused",
             "ep_total": 12,
-            "is_main_entry": True,
+            "watch_next": True,
             "remark": None,
         }
     }

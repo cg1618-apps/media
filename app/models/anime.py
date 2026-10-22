@@ -3,7 +3,6 @@
 import uuid
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -73,7 +72,6 @@ class Anime(Base, NameFallbackMixin):
     airing_type = Column(String, nullable=True)
     airing_status = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
-    is_main_entry = Column(Boolean, nullable=True)
 
     ep_previous = Column(Integer, nullable=True)
     ep_total = Column(Integer, nullable=True)

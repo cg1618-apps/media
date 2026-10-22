@@ -2625,7 +2625,6 @@ export default function Add() {
       series_id: seriesId || null,
       volume_label: cmf.volume_label || null,
       comic_type: cmf.comic_type || null,
-      is_main_entry: cmf.is_main_entry ?? false,
       release_date: cmf.release_date || null,
       end_date: cmf.end_date || null,
       issue_total:

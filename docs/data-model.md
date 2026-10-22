@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-21
+Last verified: 2026-10-22
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -296,7 +296,6 @@ Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
 | `airing_type` | String | yes | | ANIME_AIRING_TYPES |
 | `airing_status` | String | yes | | AiringStatus |
 | `is_main` | String | yes | | IS_MAIN (本傳/外傳/...) |
-| `is_main_entry` | Boolean | yes | | Marks the representative entry of its group. |
 | `ep_previous` | Integer | yes | | Episodes accumulated by prequels; **derived** by `derive_ep_previous_all_anime` after Fill/Replace. |
 | `ep_total` | Integer | yes | | |
 | `ep_special` | Float | yes | | The episode number a special sits at (0, 14.5) - a position, not a count. Part of the duplicate key. |
@@ -471,7 +470,6 @@ Alembic revision `nv1u2n3i4t5s`.
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `release_date` / `end_date` | String | yes | | |
-| `is_main_entry` | Boolean | yes | | |
 | `read_order` | Float | yes | | Manual ordering within the group |
 | `mal_id` | Integer | yes | | |
 | `mal_link` | String | yes | | |
@@ -544,7 +542,6 @@ titles).
 | `comic_name_en` / `_cn` / `_alt` | String | yes | | |
 | `volume_label` | String | yes | | Run designator: "Vol. 5", "(2018)", "Legacy". Free text - Marvel run labels are not consistently numbered. |
 | `comic_type` | String | yes | | COMIC_TYPES (Ongoing / Limited / One-Shot / Annual) |
-| `is_main_entry` | Boolean | yes | | Part of the duplicate key (comic has no `is_main` string) |
 | `release_date` / `end_date` | String | yes | | |
 | `issue_total` | Integer | yes | | Also the entry's own size-bucket measure |
 | `serialization_status` | String | yes | | Same idiom as manga/novel; no dedicated tuple in `constants.py` |

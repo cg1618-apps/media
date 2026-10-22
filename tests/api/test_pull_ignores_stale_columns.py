@@ -156,3 +156,33 @@ def test_a_current_column_is_still_stored(db, sheets):
 
     stored = db.query(models.Anime).filter_by(anime_name_cn="正常").one()
     assert stored.ep_total == 12
+
+
+@pytest.mark.parametrize(
+    "tab, model, name_column",
+    [
+        ("Anime", models.Anime, "anime_name_cn"),
+        ("Comic", models.Comic, "comic_name_cn"),
+        ("Novel", models.Novel, "novel_name_cn"),
+    ],
+)
+def test_a_sheet_still_carrying_is_main_entry_pulls(db, sheets, tab, model, name_column):
+    """
+    is_main_entry was dropped from anime, comic and novel; the relation kind
+    `alternative` replaced it. A sheet backed up before that still carries the
+    header until its next Backup, and must pull: the row is stored, the value
+    is discarded, and the header is named once in the run's report.
+    """
+    assert "is_main_entry" not in {c.name for c in model.__table__.columns}
+    sheets({
+        tab: [
+            ["system_id", name_column, "is_main_entry"],
+            [str(uuid.uuid4()), "主線舊表頭", "TRUE"],
+        ]
+    })
+
+    result = pull.execute_pull_specific(db, tab, log_action=False)
+
+    assert result["status"] == "success"
+    db.query(model).filter(getattr(model, name_column) == "主線舊表頭").one()
+    assert any("is_main_entry" in ref for ref in result["unresolved_refs"])

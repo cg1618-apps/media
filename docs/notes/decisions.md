@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-18
+Last verified: 2026-10-22
 
 ## What this is for
 
@@ -3542,3 +3542,25 @@ so nothing else about the gate moves.
 - **The mainstream boundary is unchanged.** `"ACG, H-Game"`, `"Game, H-Game"`
   and an h-game written into an `ACG` or `Game` franchise are still refused
   (422), so no gated entry reaches a public group.
+
+### The main-entry flag is removed; the `alternative` relation replaces it (2026-10-22)
+
+`is_main_entry` was a Boolean on anime, comic and novel ("Mark as main entry
+among alternatives"; on a comic, "main line, not a spinoff"). The relation
+system made it redundant: the `alternative` kind in
+`app/utils/relation_kinds.py` says which entries are alternatives of one
+another, between the two entries themselves. The owner dropped the flag from
+every type: the three columns, by `d1r2opmain34`, the form checkboxes, the
+comic card's "Main" badge, the anime "Main" chip on the franchise and series
+pages, and the comic detail page's Main Line field. The values are not carried
+anywhere; the downgrade puts the columns back empty.
+
+- **The comic duplicate key loses it.** It was `(franchise_id, series_id,
+  is_main_entry)`, so a main-line run and a spinoff of the same name in one
+  series were never compared. The key is now `(franchise_id, series_id)`,
+  like movie's; the Comic Vine id still tells two runs apart when it differs.
+- **An old sheet still pulls.** The Google Sheet carries an `is_main_entry`
+  column on the Anime, Comic and Novel tabs until the next Backup rewrites
+  them. Pull discards the column and names it once per tab in the run's
+  unresolved references, as it does for any header that is no longer a
+  column.

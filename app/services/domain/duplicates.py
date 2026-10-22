@@ -194,11 +194,11 @@ def _same_run(a: Comic, b: Comic) -> bool:
 
 
 def find_duplicate_comic(db: Session) -> list[list[dict]]:
-    """Same franchise, series, main-entry flag + (a shared name OR the same Comic Vine volume)."""
+    """Same franchise and series + (a shared name OR the same Comic Vine volume)."""
     return _find(
         _with_franchise(db, Comic),
-        key=lambda c: (str(c.franchise_id), _ref(c.series_id), c.is_main_entry),
-        fields=("franchise_id", "series_id", "is_main_entry", "comicvine_id",
+        key=lambda c: (str(c.franchise_id), _ref(c.series_id)),
+        fields=("franchise_id", "series_id", "comicvine_id",
                 "comic_name_en", "comic_name_cn", "comic_name_alt"),
         match=_same_run,
     )

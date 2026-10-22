@@ -611,21 +611,6 @@ export default function AnimeAddTab({
       />
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Is Main Entry">
-          <label className="flex items-center gap-2 cursor-pointer mt-1">
-            <input
-              type="checkbox"
-              checked={!!af.is_main_entry}
-              onChange={(e) => ua("is_main_entry", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-xs font-medium text-text-muted">
-              Mark as main entry among alternatives
-            </span>
-          </label>
-        </Field>
-      </div>
       <div className="flex flex-wrap gap-6 mt-2">
         <Field label="Watch Next">
           <label className="flex items-center gap-2 cursor-pointer">
