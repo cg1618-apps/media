@@ -9,6 +9,7 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
@@ -444,11 +445,9 @@ export default function Cartoon() {
                         : null,
                   },
                 ],
-                { label: "Genre (Main)", value: cartoon.genre_main },
-                { label: "Genre (Sub)", value: cartoon.genre_sub },
-                { label: "標籤 Label", value: cartoon.label },
               ]}
             />
+            <GenresCard item={cartoon} />
           </div>
 
           {/* Remarks */}

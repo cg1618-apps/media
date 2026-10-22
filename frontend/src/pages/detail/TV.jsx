@@ -9,6 +9,7 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
@@ -428,11 +429,9 @@ export default function TV() {
                   { label: "Airing Status", value: show.airing_status },
                   { label: "Release Date", value: show.release_date },
                 ],
-                { label: "Genre (Main)", value: show.genre_main },
-                { label: "Genre (Sub)", value: show.genre_sub },
-                { label: "標籤 Label", value: show.label },
               ]}
             />
+            <GenresCard item={show} />
           </div>
 
           {/* Remarks */}

@@ -8,6 +8,7 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
@@ -475,11 +476,9 @@ export default function Movie() {
                   { label: "Release Date TW", value: movie.release_date_tw },
                   { label: "Release Date USA", value: movie.release_date_usa },
                 ],
-                { label: "Genre (Main)", value: movie.genre_main },
-                { label: "Genre (Sub)", value: movie.genre_sub },
-                { label: "標籤 Label", value: movie.label },
               ]}
             />
+            <GenresCard item={movie} />
           </div>
 
           {/* Remarks */}
