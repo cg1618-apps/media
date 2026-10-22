@@ -35,7 +35,7 @@ export default function MovieModifyTab({
           other on Save Changes. */}
       <MovieNotes
         key={editingItem?.system_id}
-        movie={{ system_id: editingItem?.system_id }}
+        movie={editingItem ?? {}}
         isAdmin={true}
         hideSections={["remark"]}
       />

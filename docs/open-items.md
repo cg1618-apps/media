@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-10-20
+Last verified: 2026-10-23
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -174,7 +174,8 @@ nothing else is in flight, and not before.
 
 | Item | Where |
 |---|---|
-| The anime-movie Director picker reads the `anime` scope, so an anime movie's own directors never appear | `AnimeMovieAddTab.jsx:302` and `AnimeMovieModifyTab.jsx:233` pass `scope: "anime"` while `fieldMeta.js:374` declares `anime-movie` |
+| The anime-movie Director picker reads the `anime` scope, so an anime movie's own directors never appear | `AnimeMovieFormBody` (`AnimeMovieAddTab.jsx:171`, rendered by both Add and Modify) passes `scope: "anime"` while `fieldMeta.js:430` declares `anime-movie` |
+| Add and Modify each build the movie, TV show, cartoon, manga, novel and comic save payloads inline, so a field added to a type's form must be added to two payloads by hand (anime, anime movie and the gated types already share theirs) | `submit<Type>` in `Add.jsx`, `save<Type>` in `Modify.jsx`; the shared ones live in `lib/payloads.js` |
 | Games and comics are absent from the cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` |
 | No Games tab | `FutureReleases.jsx` |
 | `/defaults` shows an inert auto-fill column for Game | `frontend/src/config/formFields/fieldMeta.js` |

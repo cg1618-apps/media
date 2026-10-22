@@ -35,7 +35,7 @@ export default function CartoonModifyTab({
           other on Save Changes. */}
       <CartoonNotes
         key={editingItem?.system_id}
-        cartoon={{ system_id: editingItem?.system_id }}
+        cartoon={editingItem ?? {}}
         isAdmin={true}
         hideSections={["remark"]}
       />

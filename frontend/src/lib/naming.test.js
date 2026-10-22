@@ -78,7 +78,7 @@ describe("hentai names", () => {
     expect(getNamingFields({}, "hentai").map((f) => f.label)).toEqual([
       "Chinese",
       "English",
-      "Roman",
+      "Romaji",
       "Japanese",
       "Alternative",
     ]);

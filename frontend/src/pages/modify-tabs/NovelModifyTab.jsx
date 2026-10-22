@@ -38,7 +38,7 @@ export default function NovelModifyTab({
           singleton note row, and two editors for one row overwrite each
           other on Save Changes. */}
       <NovelNotes
-        novel={{ system_id: editingItem?.system_id }}
+        novel={editingItem ?? {}}
         isAdmin={true}
         hideSections={["remark"]}
       />

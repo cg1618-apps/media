@@ -53,7 +53,6 @@ describe("Add tabs render ImagePicker instead of a hand-typed storage key", () =
         allAnime={[]}
         applyAnimeEntryAutofill={() => {}}
         allFranchises={[]}
-        franchiseItems={[]}
         seriesItemsForAnime={[]}
         sources={{}}
       />,

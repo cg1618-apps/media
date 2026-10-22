@@ -72,7 +72,7 @@ const NAMING_LABELS = {
   en: "English",
   jp: "Japanese",
   kr: "Korean",
-  roman: "Roman",
+  roman: "Romaji",
   alt: "Alternative",
 };
 

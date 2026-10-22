@@ -26,11 +26,6 @@ import { fetchAllSources } from "../../lib/sources";
 import { withMediaType } from "../../lib/suggestionOrder";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
 import { genreLabelSourceFields } from "../../lib/genreLabelFields";
-import AnimeMovieNotes from "../detail/AnimeMovieNotes";
-import MovieNotes from "../detail/MovieNotes";
-import TVShowNotes from "../detail/TVShowNotes";
-import CartoonNotes from "../detail/CartoonNotes";
-import MangaNotes from "../detail/MangaNotes";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import OptionValueGroups from "../../components/forms/OptionValueGroups";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
@@ -288,7 +283,7 @@ export default function Modify() {
   // Entry lists are fetched per tab, not all twelve up front - see
   // hooks/useEntryLists.js. The aliases below keep every reader in this file
   // reading the same names it always has.
-  const { lists, ensure, setList, isLoading } = useEntryLists();
+  const { lists, ensure, setList } = useEntryLists();
   const allAnime = lists.anime;
   const allCollections = lists.collection;
   const allFranchises = lists.franchise;
@@ -3862,7 +3857,6 @@ export default function Modify() {
                 franchiseCollections={franchiseCollections}
                 af={af}
                 ua={ua}
-                franchiseItems={franchiseItems}
                 allFranchises={allFranchises}
                 seriesItemsForAnime={seriesItemsForAnime}
                 sources={formSources}
@@ -3922,7 +3916,6 @@ export default function Modify() {
                 franchiseCollections={franchiseCollections}
                 amf={amf}
                 uam={uam}
-                franchiseItems={franchiseItems}
                 allFranchises={allFranchises}
                 sources={formSources}
                 editingItem={editingItem}

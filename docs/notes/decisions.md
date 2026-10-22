@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-22
+Last verified: 2026-10-23
 
 ## What this is for
 
@@ -3643,3 +3643,36 @@ tags.
   genres, worded "Replace genres from…" as they carry no label. Game's Theme,
   Mode, Combat Mode and Platform are left out: the picker is about genres and
   labels, and those describe the game's play rather than its kind.
+
+### One form body per media type, laid out like the detail page (2026-10-23)
+
+The Add and Modify forms of the twelve media types had grown apart: the older
+types kept two near-identical files per type, so a field added to one page was
+missing on the other (Modify could not edit the AniList ranks or a movie's IMDb
+rating, and saved the anime ranks back as null), and every type ordered its
+sections its own way. Game was the exception, with one `GameFormBody` that both
+tabs render. Every type now follows game.
+
+- **One body per type, so Add and Modify cannot drift.**
+  `pages/add-tabs/<Type>AddTab.jsx` exports `<Type>FormBody` and
+  `<Type>LineageFields`; the Modify tab imports them. A field exists on both
+  pages or on neither, and `pages/add-tabs/FormLayout.test.jsx` asserts that
+  the two pages label the same fields in the same order.
+- **The differences live in the wrappers, plus `ownerId`.** The Add wrapper
+  adds the auto-fill and external search boxes; the Modify wrapper adds
+  Structured Notes, and the page draws the franchise ribbon above the card.
+  Validation, duplicate checks, enrichment, labels and starting state stay in
+  `Add.jsx` / `Modify.jsx`. Inside a body, `ownerId` (the entry's id, absent on
+  Add) is the only difference, and it only says which entry the pickers belong
+  to.
+- **Rejected: a mode flag in the bodies.** A body taking `mode="add" |
+  "modify"` would let each page grow its own fields again behind a
+  conditional, which is the drift this removes, only harder to see. `ownerId`
+  is not a mode: it carries data the pickers need and changes no layout.
+- **The section order mirrors the detail page.** Titles & Naming, Scores, My
+  Tracker, Information, Genres & Labels, Production, Cast, the type's extras,
+  Links & Sources, Cover & Remark - what the admin reads on the entry is where
+  they edit it, and every type uses the same titles and icons. Names put CN
+  top-left, as the naming card does (comic's naming card moved to CN-first
+  for it; its display name stays EN-first, as the backend's is), and the
+  romanised name is "Romaji" on the forms and the naming card alike.

@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-10-18
+Last verified: 2026-10-23
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -131,6 +131,15 @@ counts). `h1` is display by default.
    the file, and an IGDB search result on the game Add tab, which is not
    stored at all. `src/focus-images.test.js` guards this. Quote and meme
    images are drawn uncropped, so they carry no focus.
+10. **Entry forms follow the detail page.** Every media type's Add and Modify
+    form is one shared body, with its sections in the order the detail page
+    reads and the same title and icon on every type (`SectionHeader`). Names
+    put CN top-left, then EN; the romanised name is labelled **Romaji**; each
+    progress count sits beside its total; a lone field keeps the left half of
+    its row; the plan flags close My Tracker. A new field goes where the
+    detail page shows it, in the body, so both pages gain it. The section list
+    is in [Admin Pages](admin-pages.md#entry-form-layout), and
+    `pages/add-tabs/FormLayout.test.jsx` guards it.
 
 ## Primitives (`components/ui/primitives.jsx`)
 

@@ -56,7 +56,6 @@ function Harness({ mode, initial }) {
           applyAnimeEntryAutofill={() => {}}
           applyMalPick={() => {}}
           allFranchises={FRANCHISES}
-          franchiseItems={[]}
           seriesItemsForAnime={[{ id: "s1", label: "Old Series" }]}
           sources={SOURCES}
         />
@@ -65,7 +64,6 @@ function Harness({ mode, initial }) {
           franchiseCollections={{}}
           af={form}
           ua={u}
-          franchiseItems={[]}
           allFranchises={FRANCHISES}
           seriesItemsForAnime={[{ id: "s1", label: "Old Series" }]}
           sources={SOURCES}

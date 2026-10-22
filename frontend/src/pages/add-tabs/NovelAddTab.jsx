@@ -132,7 +132,6 @@ export function NovelFormBody({ f, u, sources, ownerId }) {
         prefix="novel"
         label="Novel"
         names={["cn", "en", "roman", "jp", "alt"]}
-        placeholders={{ roman: "Romanized title" }}
       />
 
       <MalAnilistScores f={f} u={u} />

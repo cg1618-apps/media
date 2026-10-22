@@ -25,7 +25,7 @@ const NAME_LABELS = {
 const DEFAULT_PLACEHOLDERS = {
   cn: "Chinese title",
   en: "English title",
-  roman: "Romanised title",
+  roman: "Romanized title",
   jp: "Japanese title",
   kr: "Korean title",
   alt: "Alternative title",

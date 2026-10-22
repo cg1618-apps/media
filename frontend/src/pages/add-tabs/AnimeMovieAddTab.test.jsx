@@ -54,7 +54,6 @@ function Harness({ mode, initial }) {
           applyAnimeMovieEntryAutofill={() => {}}
           applyMalPick={() => {}}
           allFranchises={FRANCHISES}
-          franchiseItems={[]}
           sources={SOURCES}
         />
       ) : (
@@ -62,7 +61,6 @@ function Harness({ mode, initial }) {
           franchiseCollections={{}}
           amf={form}
           uam={u}
-          franchiseItems={[]}
           allFranchises={FRANCHISES}
           sources={SOURCES}
           editingItem={{ system_id: "am-7" }}

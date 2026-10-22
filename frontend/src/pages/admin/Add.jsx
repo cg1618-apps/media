@@ -3244,7 +3244,6 @@ export default function Add() {
             applyAnimeEntryAutofill={applyAnimeEntryAutofill}
             applyMalPick={applyAnimeMalPick}
             allFranchises={allFranchises}
-            franchiseItems={franchiseItems}
             seriesItemsForAnime={seriesItems}
             sources={formSources}
           />
@@ -3261,7 +3260,6 @@ export default function Add() {
             applyAnimeMovieEntryAutofill={applyAnimeMovieEntryAutofill}
             applyMalPick={applyAnimeMovieMalPick}
             allFranchises={allFranchises}
-            franchiseItems={franchiseItems}
             sources={formSources}
           />
         )}

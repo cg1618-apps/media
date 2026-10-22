@@ -1,5 +1,5 @@
-// Frontend: the Genre Main / Genre Sub / 標籤 Label section the seven
-// non-anime types share. The scope is the point: a value scoped to manga must
+// Frontend: the Genre Main / Genre Sub / 標籤 Label section the eight
+// GENRE_LABEL_TYPES share. The scope is the point: a value scoped to manga must
 // not be offered on a movie, while an unscoped one is offered on both.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
