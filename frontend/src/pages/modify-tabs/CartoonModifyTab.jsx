@@ -294,6 +294,9 @@ export default function CartoonModifyTab({
         values={cmf}
         onChange={uc}
         sources={sources}
+        franchiseId={cmf.franchise_id}
+        seriesId={cmf.series_id}
+        entryId={editingItem?.system_id}
       />
 
       <SectionHeader icon="fa-link" title="IMDb & Sources" />

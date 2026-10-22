@@ -161,6 +161,18 @@ it("renders one row per cast member", async () => {
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 
+it("puts the toolbar above the cast rows", async () => {
+  const rows = [row({ character_name: "A" })];
+  render(<CastEditor mediaType="anime" value={rows} onChange={vi.fn()} />);
+
+  const add = screen.getByRole("button", { name: "+ Add cast member" });
+  const firstRow = screen.getAllByLabelText("Remove")[0];
+  expect(
+    add.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
 it("gives every cell at most one width utility", async () => {
   // jsdom lays nothing out, so this pins the mechanism of the defect rather
   // than the picture: a shared `w-full` beside the Role select's own `w-28`

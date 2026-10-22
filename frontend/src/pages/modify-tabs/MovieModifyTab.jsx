@@ -242,6 +242,9 @@ export default function MovieModifyTab({
         values={mmf}
         onChange={umm}
         sources={sources}
+        franchiseId={mmf.franchise_id}
+        seriesId={mmf.series_id}
+        entryId={editingItem?.system_id}
       />
 
       <SectionHeader icon="fa-info-circle" title="Release & Production" />

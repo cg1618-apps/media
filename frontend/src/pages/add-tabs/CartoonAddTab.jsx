@@ -386,6 +386,8 @@ export default function CartoonAddTab({
         values={cf}
         onChange={uc}
         sources={sources}
+        franchiseId={cf.franchise_id}
+        seriesId={cf.series_id}
       />
 
       <SectionHeader icon="fa-link" title="Source & Links" />

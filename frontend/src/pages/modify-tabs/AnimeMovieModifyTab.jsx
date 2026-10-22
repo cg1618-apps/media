@@ -207,6 +207,8 @@ export default function AnimeMovieModifyTab({
         values={amf}
         onChange={uam}
         sources={sources}
+        franchiseId={amf.franchise_id}
+        entryId={editingItem?.system_id}
       />
 
       <SectionHeader icon="fa-info-circle" title="Release & Details" />

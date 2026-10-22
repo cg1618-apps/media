@@ -17,6 +17,7 @@ import ChoiceChips from "../../components/forms/ChoiceChips";
 import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import TagReplace from "../../components/forms/TagReplace";
 import ImagePicker from "../../components/forms/ImagePicker";
 import {
   Field,
@@ -242,6 +243,15 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
           )}
         </Field>
       </div>
+      <TagReplace
+        mediaType="h-game"
+        franchiseId={f.franchise_id}
+        seriesId={f.series_id}
+        entryId={ownerId}
+        fields={["game_genre", "h_genre_plot", "h_genre_appearance", "h_genre_relation"]}
+        what="genres"
+        onChange={u}
+      />
 
       {/* The fixed vocabularies. Language is one answer; the rest are sets,
           where None and Unknown are two different answers (ChoiceChips).
