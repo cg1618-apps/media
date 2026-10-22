@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-21
+Last verified: 2026-10-22
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -799,11 +799,27 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   card. Game, h-comic, h-game and hentai use `FranchiseRibbon`
   (`components/forms/`), with the chip badged by game type (game, h-game) or
   region (h-comic). Anime movie has none.
-- **Save.** `PUT` the entry → `saveCredits` → labels (a franchise saves its
-  own set the same way, through `saveFranchiseLabels`) → for **anime, anime
-  movie, cartoon and manga**, enrichment via `lib/enrich.js`; the page then
-  shows the *enriched* row (not the pre-enrichment one) and warns if
-  enrichment failed. Other types save without enrichment.
+- **Save.** `PATCH` the entry → `saveCredits` → cast, for the types that have
+  one → for **anime, anime movie, cartoon and manga**, enrichment via
+  `lib/enrich.js`, after which the page shows the *enriched* row (not the
+  pre-enrichment one) and warns if enrichment failed → **content labels,
+  last**. Other types save without enrichment. A franchise saves its own
+  label set through `saveFranchiseLabels`.
+- **Labels go last because a label can hide the entry from the session that
+  saves it.** An admin is narrowed by their active access mode like anyone
+  else, and a hidden entry answers 404, so a label written mid-save would
+  fail every later step — the cast, the enrichment, the reload. `saveCredits`
+  only records the entry (`pendingLabels`), and `handleSave` writes the set
+  once the type's own save has run.
+- **Adding a label asks first.** When the ticked set holds a label the entry
+  (or franchise) did not carry when it was opened — `labelsAdded` against the
+  set the picker reported through `onLoaded` — Save asks for confirmation
+  before anything is written. It cannot say whether the admin's *own* mode
+  will lose the entry: `/api/auth/me` deliberately does not publish which
+  labels a mode carries. So after the labels are written, the page reads the
+  entry once more (`entryHiddenFromSession`); a 404 there means the save hid
+  it, and the page says so, naming the active mode, and closes the editor.
+  Any other failure of that read is not taken as hidden.
 - **Game tab.** `GameModifyTab.jsx` renders `GameAddTab`'s exported
   `GameLineageFields` and `GameFormBody` rather than keeping its own copy, so
   the two tabs cannot drift; the only differences are the franchise ribbon

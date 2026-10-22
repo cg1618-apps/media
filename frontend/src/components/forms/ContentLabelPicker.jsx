@@ -46,6 +46,9 @@ export default function ContentLabelPicker({
   // required label (lib/gatedTypes.js). Drawn checked and locked; the savers
   // below add them to the set, so they need not be in `value`.
   required = [],
+  // Called with the set as loaded, before any edit - Modify keeps it to tell
+  // which labels a save is ADDING (labelsAdded).
+  onLoaded,
 }) {
   const [labels, setLabels] = useState([]);
   const [failed, setFailed] = useState(false);
@@ -69,8 +72,13 @@ export default function ContentLabelPicker({
     // Clear the previous selection first: a failed fetch must not leave those
     // labels behind to be saved onto this one.
     onChange([]);
+    onLoaded?.([]);
     fetchJson(url)
-      .then((keys) => alive && onChange(keys))
+      .then((keys) => {
+        if (!alive) return;
+        onChange(keys);
+        onLoaded?.(keys);
+      })
       .catch(() => alive && setFailed(true));
     return () => {
       alive = false;
@@ -171,6 +179,29 @@ export async function saveFranchiseLabels(franchiseId, labelKeys, franchiseType)
     endpoints.contentLabels.forFranchise(franchiseId),
     withRequired(labelKeys, requiredLabelsForFranchiseType(franchiseType)),
   );
+}
+
+// The keys `chosen` holds that `loaded` did not: the labels a save would add.
+// Only an added label can newly hide an entry; removing one never narrows.
+export function labelsAdded(loaded, chosen) {
+  const before = new Set(loaded || []);
+  return (chosen || []).filter((key) => !before.has(key));
+}
+
+// Whether a label save just hid the entry from this session's own mode. The
+// browser is never told which labels a mode carries (/me leaves them out on
+// purpose), so the answer comes from reading the entry: a hidden entry
+// answers 404, exactly as a missing one does. Any other failure proves
+// nothing, so it reads as "not hidden" rather than raising a false alarm.
+export async function entryHiddenFromSession(mediaType, entryId) {
+  try {
+    const res = await fetch(endpoints.resource(mediaType).detail(entryId), {
+      credentials: "include",
+    });
+    return res.status === 404;
+  } catch {
+    return false;
+  }
 }
 
 function withRequired(labelKeys, required) {
