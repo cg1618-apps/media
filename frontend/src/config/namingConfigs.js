@@ -32,9 +32,11 @@ export const NAMING_CONFIGS = {
     "novel_name_jp",
     "novel_name_alt",
   ],
-  // EN first: Western comics are known by their English titles. Every other
-  // type leads with CN.
-  comic: ["comic_name_en", "comic_name_cn", "comic_name_alt"],
+  // CN first on the naming card, like every other type. The display and
+  // sort names still lead with EN (getDisplayName / getSortName in
+  // lib/naming.js, Comic.display_name on the backend): Western comics are
+  // known by their English titles, so EN is what a list shows.
+  comic: ["comic_name_cn", "comic_name_en", "comic_name_alt"],
   game: [
     "game_name_cn",
     "game_name_en",

@@ -110,3 +110,82 @@ describe("GameAddTab is_main", () => {
     expect(values).toEqual(["", "Main", "Remake", "Remaster"]);
   });
 });
+
+// The form's layout, read off the DOM: section headers carry
+// data-form-section, and each field's label is a <label> under the last
+// header before it.
+const sectionTitles = (container) =>
+  [...container.querySelectorAll("[data-form-section]")].map((el) =>
+    el.getAttribute("data-form-section"),
+  );
+const labelsBySection = (container) => {
+  const out = {};
+  let current = null;
+  for (const el of container.querySelectorAll("[data-form-section], label")) {
+    if (el.hasAttribute("data-form-section")) {
+      current = el.getAttribute("data-form-section");
+      out[current] = [];
+    } else if (current) {
+      out[current].push(el.textContent.trim());
+    }
+  }
+  return out;
+};
+
+describe("GameAddTab layout", () => {
+  it("renders the canonical sections in order", () => {
+    const { container } = renderTab();
+    expect(sectionTitles(container)).toEqual([
+      "Titles & Naming",
+      "Scores",
+      "My Tracker",
+      "Information",
+      "Genres & Labels",
+      "Production",
+      "Prices",
+      "Copies",
+      "Links & Sources",
+      "Cover & Remark",
+    ]);
+  });
+
+  it("lists the names CN first, with Romaji beside JP", () => {
+    const { container } = renderTab();
+    const names = labelsBySection(container)["Titles & Naming"].filter((l) =>
+      l.startsWith("Game Name"),
+    );
+    expect(names).toEqual([
+      "Game Name CN",
+      "Game Name EN",
+      "Game Name Romaji",
+      "Game Name JP",
+      "Game Name Alt",
+    ]);
+  });
+
+  it("puts the release date under Information and keeps Prices to prices", () => {
+    const { container } = renderTab();
+    const sections = labelsBySection(container);
+    expect(sections["Information"]).toContain("Release Date");
+    expect(sections["Prices"]).toEqual([
+      "MSRP (US)",
+      "MSRP (JP)",
+      "MSRP (TW)",
+      "Current Price (US)",
+      "Current Price (JP)",
+      "Current Price (TW)",
+    ]);
+  });
+
+  it("ends My Tracker with the plan flags", () => {
+    const { container } = renderTab();
+    const tracker = labelsBySection(container)["My Tracker"];
+    expect(tracker.slice(0, 2)).toEqual(["Playing Status", "My Rating"]);
+    expect(tracker.slice(-4)).toEqual([
+      "Play Next",
+      "Add to Play Next list",
+      "To Replay",
+      "Mark for replay",
+    ]);
+  });
+});

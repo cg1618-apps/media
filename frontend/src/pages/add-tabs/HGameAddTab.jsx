@@ -18,7 +18,9 @@ import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
 import TagReplace from "../../components/forms/TagReplace";
-import ImagePicker from "../../components/forms/ImagePicker";
+import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import EntryFlags from "../../components/forms/EntryFlags";
+import EntryNameFields from "../../components/forms/EntryNameFields";
 import {
   Field,
   SectionHeader,
@@ -107,6 +109,7 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         className={inputCls}
         type="number"
         step="any"
+        min="0"
         aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}
@@ -165,20 +168,48 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
 
   return (
     <>
-      {text("h_game_name_cn", "H-Game Name CN", "Chinese title")}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {text("h_game_name_en", "H-Game Name EN", "English title")}
-        {text("h_game_name_roman", "H-Game Name Romaji", "Romanised title")}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {text("h_game_name_jp", "H-Game Name JP", "Japanese title")}
-        {text("h_game_name_alt", "H-Game Name Alt", "Alternative title")}
-      </div>
+      <EntryNameFields f={f} u={u} prefix="h_game" label="H-Game" />
 
-      <SectionHeader icon="fa-sitemap" title="Classification" />
+      <SectionHeader icon="fa-chart-bar" title="My Tracker" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {select("game_type", "Game Type", GAME_TYPES)}
+        <Field label="Playing Status">
+          <select
+            className={selectCls}
+            aria-label="Playing Status"
+            value={f.playing_status ?? ""}
+            onChange={(e) => u("playing_status", e.target.value)}
+          >
+            <StatusOptions statuses={PLAYING_STATUSES} />
+          </select>
+        </Field>
+        {select("my_rating", "My Rating", MY_RATINGS)}
+        {/* Personal, like the rating: how useful it was to me. */}
+        {select("usefulness", "Usefulness", H_COMIC_USEFULNESS)}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {num("achievements_earned", "Achievements Earned")}
+        {num("achievements_total", "Achievements Total")}
+        {tristate("steam_progress_sync", "Steam Progress Sync", "Off: Steam never writes achievements here")}
+      </div>
+      {/* The completion ladder and two vocabulary axes beside it, as on Game. */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {select("completion_level", "Completion Level", COMPLETION_LEVELS)}
+        {select("all_endings", "All Endings", GAME_COMPLETION_FLAGS, "Separate axis from completion level")}
+        {select("all_cg", "All CG", GAME_COMPLETION_FLAGS, "Every CG unlocked")}
+      </div>
+      <EntryFlags
+        f={f}
+        u={u}
+        flags={[
+          ["play_next", "Play Next", "Add to Play Next list"],
+          ["to_replay", "To Replay", "Mark for replay"],
+        ]}
+      />
+
+      <SectionHeader icon="fa-info-circle" title="Information" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {select("is_main", "Main / Remake", GAME_IS_MAIN)}
+        {select("game_type", "Game Type", GAME_TYPES)}
         {/* A base game only makes sense for a DLC, expansion or bundle -
             ck_h_game_base_no_parent rejects one on a Base Game row. */}
         <Field
@@ -200,10 +231,30 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
           />
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {select("release_status", "Release Status", GAME_RELEASE_STATUSES)}
+        <ReleaseDateInput
+          label="Release Date"
+          value={f.release_date}
+          onChange={(v) => u("release_date", v)}
+        />
+        {text("current_patch", "Current Patch", "1.0.2", "e.g. 1.0.2")}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {num("hltb_main", "HLTB Main", "Hours, filled from IGDB")}
+        {num("hltb_main_extra", "HLTB Main + Extra", "Hours")}
+        {num("hltb_completionist", "HLTB Completionist", "Hours")}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {select("playstyle", "Play Style", H_GAME_PLAYSTYLES)}
         {num("series_number", "Series Number", "Its place in its series")}
+        {select("language_availability", "Language", H_GAME_LANGUAGE_AVAILABILITY)}
       </div>
+      {/* Where it is sold, set by hand - not Game's hardware Platform tag,
+          and never filled from IGDB. */}
+      {choices("platform", "Platform", H_GAME_PLATFORMS, "Where it is sold")}
+
+      <SectionHeader icon="fa-tags" title="Genres" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Genre">
           {tagField(
@@ -253,75 +304,24 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         onChange={u}
       />
 
-      {/* The fixed vocabularies. Language is one answer; the rest are sets,
-          where None and Unknown are two different answers (ChoiceChips).
-          Dialogue audio and sound effect share one vocabulary. Platform is where it is sold, set by hand -
-          not Game's hardware Platform tag, and never filled from IGDB. */}
-      <SectionHeader icon="fa-layer-group" title="Content" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {select("language_availability", "Language", H_GAME_LANGUAGE_AVAILABILITY)}
-      </div>
-      {choices("dialogue_audio", "Dialogue Audio", H_GAME_AUDIO_AVAILABILITY, "Which parts are voiced")}
-      {choices("sound_effect", "Sound Effect", H_GAME_AUDIO_AVAILABILITY, "Which parts have sound effects")}
-      {choices("h_presentation", "H 演出形式", H_GAME_H_PRESENTATIONS)}
+      {/* The fixed sets, in the detail page's order. None and Unknown are two
+          different answers (ChoiceChips). Dialogue audio and sound effect
+          share one vocabulary. */}
+      <SectionHeader icon="fa-layer-group" title="Presentation" />
       {choices("art_style", "Art Style", H_GAME_ART_STYLES, "What the game looks like")}
       {choices("h_art_style", "H 演出 Art Style", H_GAME_H_ART_STYLES, "What the H scenes look like")}
-      {choices("platform", "Platform", H_GAME_PLATFORMS, "Where it is sold")}
+      {choices("h_presentation", "H 演出形式", H_GAME_H_PRESENTATIONS)}
+      {choices("dialogue_audio", "Dialogue Audio", H_GAME_AUDIO_AVAILABILITY, "Which parts are voiced")}
+      {choices("sound_effect", "Sound Effect", H_GAME_AUDIO_AVAILABILITY, "Which parts have sound effects")}
 
-      <SectionHeader icon="fa-star" title="Rating" />
+      <SectionHeader icon="fa-pen-nib" title="Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {select("my_rating", "My Rating", MY_RATINGS)}
-        {/* Personal, like the rating: how useful it was to me. */}
-        {select("usefulness", "Usefulness", H_COMIC_USEFULNESS)}
-      </div>
-
-      <SectionHeader icon="fa-chart-bar" title="Status" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {select("release_status", "Release Status", GAME_RELEASE_STATUSES)}
-        <Field label="Playing Status">
-          <select
-            className={selectCls}
-            aria-label="Playing Status"
-            value={f.playing_status}
-            onChange={(e) => u("playing_status", e.target.value)}
-          >
-            <StatusOptions statuses={PLAYING_STATUSES} />
-          </select>
+        <Field label="Developer" hint="A studio row, quick-created if new">
+          {tagField("studio", { kind: "studio" }, "Select or type developer...")}
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {select("completion_level", "Completion Level", COMPLETION_LEVELS)}
-        {text("current_patch", "Current Patch", "1.0.2", "e.g. 1.0.2")}
-      </div>
-      {/* Two vocabulary axes beside the ladder above, as on Game. */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {select("all_endings", "All Endings", GAME_COMPLETION_FLAGS, "Separate axis from completion level")}
-        {select("all_cg", "All CG", GAME_COMPLETION_FLAGS, "Every CG unlocked")}
-        {tristate("steam_progress_sync", "Steam Progress Sync", "Off: Steam never writes achievements here")}
-      </div>
 
-      <SectionHeader icon="fa-list-ol" title="Progress" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {num("achievements_earned", "Achievements Earned")}
-        {num("achievements_total", "Achievements Total")}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {num("hltb_main", "HLTB Main", "Hours, filled from IGDB")}
-        {num("hltb_main_extra", "HLTB Main + Extra", "Hours")}
-        {num("hltb_completionist", "HLTB Completionist", "Hours")}
-      </div>
-
-      <SectionHeader icon="fa-pen-nib" title="Credits" />
-      <Field label="Developer" hint="A studio row, quick-created if new">
-        {tagField("studio", { kind: "studio" }, "Select or type developer...")}
-      </Field>
-
-      <SectionHeader icon="fa-calendar" title="Release & Prices" />
-      <ReleaseDateInput
-        label="Release Date"
-        value={f.release_date}
-        onChange={(v) => u("release_date", v)}
-      />
+      <SectionHeader icon="fa-tag" title="Prices" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {num("price_original_us", "MSRP (US)")}
         {num("price_original_jp", "MSRP (JP)")}
@@ -347,7 +347,7 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         </>
       )}
 
-      <SectionHeader icon="fa-external-link-alt" title="Sources" />
+      <SectionHeader icon="fa-external-link-alt" title="Links & Sources" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field
           label="IGDB ID"
@@ -355,9 +355,10 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         >
           <input
             type="number"
+            min="0"
             className={inputCls}
             aria-label="IGDB ID"
-            value={f.igdb_id}
+            value={f.igdb_id ?? ""}
             onChange={(e) => u("igdb_id", e.target.value)}
             placeholder="119133"
           />
@@ -368,9 +369,10 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         <Field label="Steam AppID" hint="Steam fills prices and achievements from it">
           <input
             type="number"
+            min="0"
             className={inputCls}
             aria-label="Steam AppID"
-            value={f.steam_appid}
+            value={f.steam_appid ?? ""}
             onChange={(e) => u("steam_appid", e.target.value)}
             placeholder="1245620"
           />
@@ -391,50 +393,7 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         showAccess={false}
       />
 
-      <SectionHeader icon="fa-flag" title="Flags" />
-      <div className="flex flex-wrap gap-6 mt-2">
-        {[
-          ["play_next", "Play Next", "Add to Play Next list"],
-          ["to_replay", "To Replay", "Mark for replay"],
-        ].map(([key, label, caption]) => (
-          <Field key={key} label={label}>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!f[key]}
-                onChange={(e) => u(key, e.target.checked)}
-                className="w-4 h-4 rounded accent-brand"
-              />
-              <span className="text-sm font-medium text-text-muted">{caption}</span>
-            </label>
-          </Field>
-        ))}
-      </div>
-
-      <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image">
-        <ImagePicker
-          ownerType="h-game"
-          ownerId={ownerId}
-          role="cover"
-          value={f.cover_image_file}
-          focus={f.cover_image_focus}
-          onFocusChange={(focus) => u("cover_image_focus", focus)}
-          onChange={(key, imageId) => {
-            u("cover_image_file", key);
-            u("pending_image_id", ownerId ? null : imageId);
-          }}
-        />
-      </Field>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={f.remark}
-          onChange={(e) => u("remark", e.target.value)}
-          placeholder="Private notes..."
-        />
-      </Field>
+      <CoverRemarkFields f={f} u={u} ownerType="h-game" ownerId={ownerId} />
     </>
   );
 }
@@ -494,7 +453,7 @@ export default function HGameAddTab({
         searchUrl={endpoints.hGame.searchIgdb}
         onPick={applyIgdbPick}
       />
-      <SectionHeader icon="fa-gamepad" title="Titles & Naming" />
+      <SectionHeader icon="fa-tag" title="Titles & Naming" />
       <HGameLineageFields
         f={hgf}
         u={uhg}

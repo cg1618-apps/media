@@ -1,19 +1,29 @@
 // Frontend: add tab page file for MangaAddTab.
-import GenreLabelFields from "../../components/forms/GenreLabelFields";
-import ComboBox from "../../components/forms/ComboBox";
-import MultiSelect from "../../components/forms/MultiSelect";
+//
+// MangaFormBody and MangaLineageFields are the whole manga form, shared
+// verbatim by MangaModifyTab, so the two pages lay out the same fields in the
+// same order (the detail page's). The Add wrapper adds only the two search
+// boxes on top: EntryAutofillSearch copies fields from a manga already in the
+// catalogue, the MAL search links the new entry to its MAL record.
 import CastEditor from "../../components/forms/CastEditor";
+import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
+import EntryFlags from "../../components/forms/EntryFlags";
+import EntryNameFields from "../../components/forms/EntryNameFields";
+import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
+import GenreLabelFields from "../../components/forms/GenreLabelFields";
+import MalAnilistScores from "../../components/forms/MalAnilistScores";
+import MultiSelect from "../../components/forms/MultiSelect";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import SourcesEditor from "../../components/forms/SourcesEditor";
-import ImagePicker from "../../components/forms/ImagePicker";
 import {
-  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
-import { getDisplayName, parseTypes, getSourceValues } from "../../utils/media";
+import { getSourceValues, parseTypes } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
 import { ANIME_STUDIO_SOURCE } from "../../config/formFields/fieldMeta";
 import {
@@ -24,496 +34,189 @@ import {
   READING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-import { SuggestItem, SuggestList, SuggestNote } from "../../components/forms/SuggestList";
-import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
 export { defaultManga } from "../../config/formFactories";
 
-export default function MangaAddTab({
-  franchiseCollections,
-  mgf,
-  umg,
-  mangaFillQuery,
-  setMangaFillQuery,
-  mangaFillOpen,
-  setMangaFillOpen,
-  mangaFillRef,
-  mangaFillResults,
-  mangaFillLoading,
-  applyMangaAutofill,
-  applyMalPick,
-  allFranchises,
-  seriesItemsForManga,
-  sources,
-}) {
-  return (
-    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
-      {/* Auto-fill search */}
-      <div ref={mangaFillRef} className="relative mb-4">
-        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
-          <i className="fas fa-magic text-brand text-sm"></i>
-          <input
-            type="text"
-            value={mangaFillQuery}
-            onChange={(e) => {
-              setMangaFillQuery(e.target.value);
-              setMangaFillOpen(true);
-            }}
-            onFocus={() => setMangaFillOpen(true)}
-            disabled={mangaFillLoading}
-          placeholder="Auto-fill from existing entry — type a name to search..."
-            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
-            autoComplete="off"
-          />
-          {mangaFillQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setMangaFillQuery("");
-                setMangaFillOpen(false);
-              }}
-              className="text-text-faint hover:text-text-muted"
-            >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
-        </div>
-        {mangaFillOpen && mangaFillLoading && (
-          <SuggestList anchorRef={mangaFillRef}>
-            <SuggestNote>
-              <i className="fas fa-spinner fa-spin"></i>
-              Loading entries to search from…
-            </SuggestNote>
-          </SuggestList>
-        )}
-        {mangaFillOpen && mangaFillResults.length > 0 && (
-          <SuggestList anchorRef={mangaFillRef}>
-            {mangaFillResults.map((m) => {
-              const f = allFranchises.find(
-                (x) => x.system_id === m.franchise_id,
-              );
-              return (
-                <SuggestItem
-                  key={m.system_id}
-                  truncate={false}
-                  onPick={() => applyMangaAutofill(m)}
-                >
-                  <div className="flex items-center gap-2">
-                    {m.region && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint shrink-0">
-                        {m.region}
-                      </span>
-                    )}
-                    <span className="text-sm font-bold text-text">
-                      {m.manga_name_cn || m.manga_name_en}
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-faint">
-                    {f ? getDisplayName(f, "franchise") : "Standalone"}
-                  </div>
-                </SuggestItem>
-              );
-            })}
-          </SuggestList>
-        )}
-      </div>
+const ROW2 = "grid grid-cols-1 md:grid-cols-2 gap-4";
+const ROW3 = "grid grid-cols-1 md:grid-cols-3 gap-4";
 
-      <ExternalSearchBox
-        source="MAL"
-        searchUrl={endpoints.manga.searchMal}
-        onPick={applyMalPick}
+/** A manga sits in an ACG or Manga franchise, or an untyped one. */
+const acceptsMangaFranchise = (type) => {
+  const types = parseTypes(type);
+  return !type || types.includes("ACG") || types.includes("Manga");
+};
+
+/**
+ * Every field below the franchise/series pickers. `f` is the form state and
+ * `u` its updater; `ownerId` is the entry's id on Modify and absent on Add -
+ * the only difference between the two pages inside the body.
+ */
+export function MangaFormBody({ f, u, sources, ownerId }) {
+  const select = (key, label, options) => (
+    <Field label={label}>
+      <select
+        className={selectCls}
+        aria-label={label}
+        value={f[key] ?? ""}
+        onChange={(e) => u(key, e.target.value)}
+      >
+        <option value="">—</option>
+        {options.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+  const count = (key, label) => (
+    <Field label={label}>
+      <input
+        className={inputCls}
+        type="number"
+        min="0"
+        aria-label={label}
+        value={f[key] ?? ""}
+        onChange={(e) => u(key, e.target.value)}
+        placeholder="0"
       />
-      <SectionHeader icon="fa-book" title="Titles & Naming" />
-      <Field label="Franchise">
-        <ComboBox
-          items={allFranchises
-            .filter(
-              (f) =>
-                parseTypes(f.franchise_type).includes("ACG") ||
-                parseTypes(f.franchise_type).includes("Manga") ||
-                !f.franchise_type,
-            )
-            .map((f) => ({
-              id: f.system_id,
-              label: getDisplayName(f, "franchise"),
-              searchText: [
-                f.franchise_name_cn,
-                f.franchise_name_en,
-                f.franchise_name_jp,
-                f.franchise_name_roman,
-                f.franchise_name_alt,
-              ]
-                .filter(Boolean)
-                .join(" "),
-            }))}
-          selectedId={mgf.franchise_id}
-          inputText={mgf.franchise_text}
-          onSelect={(id, label) => {
-            umg("franchise_id", id);
-            umg("franchise_text", label);
-            umg("series_id", null);
-            umg("series_text", "");
-          }}
-          onType={(text) => {
-            umg("franchise_text", text);
-            umg("franchise_id", null);
-            umg("series_id", null);
-            umg("series_text", "");
-          }}
-          onClear={() => {
-            umg("franchise_id", null);
-            umg("franchise_text", "");
-            umg("series_id", null);
-            umg("series_text", "");
-          }}
-          placeholder="Search or type new franchise..."
-          allowNew
-        />
-        <CollectionNote
-          franchiseId={mgf.franchise_id}
-          franchiseCollections={franchiseCollections}
-        />
-      </Field>
-      <Field label="Series">
-        <ComboBox
-          items={seriesItemsForManga}
-          selectedId={mgf.series_id}
-          inputText={mgf.series_text}
-          onSelect={(id, label) => {
-            umg("series_id", id);
-            umg("series_text", label);
-          }}
-          onType={(text) => {
-            umg("series_text", text);
-            umg("series_id", null);
-          }}
-          onClear={() => {
-            umg("series_id", null);
-            umg("series_text", "");
-          }}
-          placeholder="Search or type new series..."
-          allowNew
-        />
-      </Field>
-      <Field label="Manga Name CN">
-        <input
-          className={inputCls}
-          value={mgf.manga_name_cn}
-          onChange={(e) => umg("manga_name_cn", e.target.value)}
-          placeholder="Chinese title"
-        />
-      </Field>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Manga Name EN">
-          <input
-            className={inputCls}
-            value={mgf.manga_name_en}
-            onChange={(e) => umg("manga_name_en", e.target.value)}
-            placeholder="English title"
-          />
-        </Field>
-        <Field label="Manga Name Alt">
-          <input
-            className={inputCls}
-            value={mgf.manga_name_alt}
-            onChange={(e) => umg("manga_name_alt", e.target.value)}
-            placeholder="Alternative title"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Manga Name Roman">
-          <input
-            className={inputCls}
-            value={mgf.manga_name_roman}
-            onChange={(e) => umg("manga_name_roman", e.target.value)}
-            placeholder="Romanized title"
-          />
-        </Field>
-        <Field label="Manga Name JP">
-          <input
-            className={inputCls}
-            value={mgf.manga_name_jp}
-            onChange={(e) => umg("manga_name_jp", e.target.value)}
-            placeholder="Japanese title"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Region">
-          <select
-            className={selectCls}
-            value={mgf.region}
-            onChange={(e) => umg("region", e.target.value)}
-          >
-            <option value="">—</option>
-            {MANGA_REGIONS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Is Main">
-          <select
-            className={selectCls}
-            value={mgf.is_main}
-            onChange={(e) => umg("is_main", e.target.value)}
-          >
-            <option value="">—</option>
-            {IS_MAIN.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
+    </Field>
+  );
+  const tags = (key, label, source, placeholder, attrs) => (
+    <Field label={label}>
+      <MultiSelect
+        options={getSourceValues(sources, source)}
+        value={f[key]}
+        onChange={(v) => u(key, v)}
+        placeholder={placeholder}
+        {...attrs}
+      />
+    </Field>
+  );
 
-      <SectionHeader icon="fa-chart-bar" title="Status" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Serialization Status">
-          <select
-            className={selectCls}
-            value={mgf.serialization_status}
-            onChange={(e) => umg("serialization_status", e.target.value)}
-          >
-            <option value="">—</option>
-            {MANGA_SERIALIZATION_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
+  return (
+    <>
+      <EntryNameFields f={f} u={u} prefix="manga" label="Manga" />
+
+      <MalAnilistScores f={f} u={u} />
+
+      <SectionHeader icon="fa-chart-bar" title="My Tracker" />
+      <div className={ROW2}>
         <Field label="Reading Status">
           <select
             className={selectCls}
-            value={mgf.reading_status}
-            onChange={(e) => umg("reading_status", e.target.value)}
+            aria-label="Reading Status"
+            value={f.reading_status ?? ""}
+            onChange={(e) => u("reading_status", e.target.value)}
           >
             <StatusOptions statuses={READING_STATUSES} />
           </select>
         </Field>
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={mgf.my_rating}
-            onChange={(e) => umg("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {select("my_rating", "My Rating", MY_RATINGS)}
+      </div>
+      <div className={ROW2}>
+        {count("ch_fin", "Ch Finished")}
+        {count("ch_total", "Ch Total")}
+      </div>
+      <div className={ROW3}>
+        {count("vol_fin", "Vol Finished")}
+        {count("vol_total", "Vol Total")}
+        {count("vol_fin_page", "Vol Fin Page")}
+      </div>
+      <EntryFlags
+        f={f}
+        u={u}
+        flags={[
+          ["read_next", "Read Next", "Add to Read Next list"],
+          ["to_reread", "To Reread", "Mark for reread"],
+        ]}
+      />
+
+      <SectionHeader icon="fa-info-circle" title="Information" />
+      <div className={ROW2}>
+        {select("region", "Region", MANGA_REGIONS)}
+        {select("is_main", "Is Main", IS_MAIN)}
+      </div>
+      <div className={ROW2}>
+        {select(
+          "serialization_status",
+          "Serialization Status",
+          MANGA_SERIALIZATION_STATUSES,
+        )}
+      </div>
+      <div className={ROW2}>
+        <ReleaseDateInput
+          label="Release Date"
+          value={f.release_date}
+          onChange={(v) => u("release_date", v)}
+        />
+        <ReleaseDateInput
+          label="End Date"
+          value={f.end_date}
+          onChange={(v) => u("end_date", v)}
+        />
       </div>
 
       <GenreLabelFields
         mediaType="manga"
-        values={mgf}
-        onChange={umg}
+        values={f}
+        onChange={u}
         sources={sources}
-        franchiseId={mgf.franchise_id}
-        seriesId={mgf.series_id}
+        franchiseId={f.franchise_id}
+        seriesId={f.series_id}
+        entryId={ownerId}
       />
 
-      <SectionHeader icon="fa-list-ol" title="Progress" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Ch Total">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.ch_total}
-            onChange={(e) => umg("ch_total", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Ch Finished">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.ch_fin}
-            onChange={(e) => umg("ch_fin", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
+      <SectionHeader icon="fa-pen-nib" title="Production" />
+      <div className={ROW2}>
+        {tags(
+          "author_plot",
+          "Author (Plot)",
+          { kind: "person", role: "author", scope: "manga" },
+          "Select plot author...",
+        )}
+        {tags(
+          "author_draw",
+          "Author (Art)",
+          { kind: "person", role: "illustrator", scope: "manga" },
+          "Select art author...",
+        )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Vol Total">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.vol_total}
-            onChange={(e) => umg("vol_total", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Vol Finished">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.vol_fin}
-            onChange={(e) => umg("vol_fin", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Vol Fin Page">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.vol_fin_page}
-            onChange={(e) => umg("vol_fin_page", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-star" title="Scores" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="MAL Rating" hint="e.g. 8.5">
-          <input
-            className={inputCls}
-            type="number"
-            step="0.01"
-            value={mgf.mal_rating}
-            onChange={(e) => umg("mal_rating", e.target.value)}
-            placeholder="8.5"
-          />
-        </Field>
-        <Field label="MAL Rank">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.mal_rank}
-            onChange={(e) => umg("mal_rank", e.target.value)}
-            placeholder="100"
-          />
-        </Field>
-        <Field label="AniList Rating">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.anilist_rating}
-            onChange={(e) => umg("anilist_rating", e.target.value)}
-            placeholder="85"
-          />
-        </Field>
-        <Field label="AniList Rank">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.anilist_rank}
-            onChange={(e) => umg("anilist_rank", e.target.value)}
-          />
-        </Field>
-        <Field label="AniList Popularity Rank">
-          <input
-            className={inputCls}
-            type="number"
-            value={mgf.anilist_popularity_rank}
-            onChange={(e) => umg("anilist_popularity_rank", e.target.value)}
-          />
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-pen-nib" title="Authors & Production" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Author (Plot)">
-          <MultiSelect
-            options={getSourceValues(sources, {
-              kind: "person",
-              role: "author",
-              scope: "manga",
-            })}
-            value={mgf.author_plot}
-            onChange={(v) => umg("author_plot", v)}
-            placeholder="Select plot author..."
-          />
-        </Field>
-        <Field label="Author (Art)">
-          <MultiSelect
-            options={getSourceValues(sources, {
-              kind: "person",
-              role: "illustrator",
-              scope: "manga",
-            })}
-            value={mgf.author_draw}
-            onChange={(v) => umg("author_draw", v)}
-            placeholder="Select art author..."
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ReleaseDateInput
-          label="Release Date"
-          value={mgf.release_date}
-          onChange={(v) => umg("release_date", v)}
-        />
-        <ReleaseDateInput
-          label="End Date"
-          value={mgf.end_date}
-          onChange={(v) => umg("end_date", v)}
-        />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Anime Studio">
-          <MultiSelect
-            options={getSourceValues(sources, ANIME_STUDIO_SOURCE)}
-            idleOptions={getIdleSourceValues(sources, ANIME_STUDIO_SOURCE)}
-            value={mgf.anime_studio}
-            onChange={(v) => umg("anime_studio", v)}
-            placeholder="Select studio..."
-          />
-        </Field>
-        <Field label="Serialization Platform">
-          <MultiSelect
-            options={getSourceValues(sources, {
-              kind: "option",
-              category: "Serialization Platform",
-              scope: "manga",
-            })}
-            value={mgf.serialization_platform}
-            onChange={(v) => umg("serialization_platform", v)}
-            placeholder="e.g. 週刊少年ジャンプ"
-          />
-        </Field>
-        <Field label="Publisher TW">
-          <MultiSelect
-            options={getSourceValues(sources, {
-              kind: "publisher",
-              scope: "manga",
-            })}
-            value={mgf.publisher_tw}
-            onChange={(v) => umg("publisher_tw", v)}
-            placeholder="Select publisher..."
-          />
-        </Field>
+      <div className={ROW2}>
+        {tags(
+          "publisher_tw",
+          "Publisher TW",
+          { kind: "publisher", scope: "manga" },
+          "Select publisher...",
+        )}
+        {tags("anime_studio", "Anime Studio", ANIME_STUDIO_SOURCE, "Select studio...", {
+          idleOptions: getIdleSourceValues(sources, ANIME_STUDIO_SOURCE),
+        })}
       </div>
 
       {/* Cast: character/role rows (no seiyuu column - nobody voices anyone
-          in a manga), saved separately via PUT /api/casting/manga/{id} once
-          the entry exists - never part of the entry payload above. */}
+          in a manga), saved separately via PUT /api/casting/manga/{id} -
+          never part of the entry payload. */}
       <SectionHeader icon="fa-users" title="Cast" />
       <CastEditor
         mediaType="manga"
-        franchiseId={mgf.franchise_id}
-        malLink={mgf.mal_link}
-        value={mgf.cast}
-        onChange={(v) => umg("cast", v)}
+        franchiseId={f.franchise_id}
+        malLink={f.mal_link}
+        entryId={ownerId}
+        value={f.cast}
+        onChange={(v) => u("cast", v)}
       />
 
-      <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <SectionHeader icon="fa-external-link-alt" title="Links & Sources" />
+      <div className={ROW2}>
         <Field label="MAL ID">
           <input
             className={inputCls}
             type="number"
-            value={mgf.mal_id}
-            onChange={(e) => umg("mal_id", e.target.value)}
+            aria-label="MAL ID"
+            value={f.mal_id ?? ""}
+            onChange={(e) => u("mal_id", e.target.value)}
             placeholder="12345"
           />
         </Field>
@@ -521,74 +224,96 @@ export default function MangaAddTab({
           <input
             className={inputCls}
             type="url"
-            value={mgf.mal_link}
-            onChange={(e) => umg("mal_link", e.target.value)}
+            aria-label="MAL Link"
+            value={f.mal_link ?? ""}
+            onChange={(e) => u("mal_link", e.target.value)}
             placeholder="https://myanimelist.net/manga/..."
           />
         </Field>
       </div>
-
-      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      <div className={ROW2}>
+        {tags(
+          "serialization_platform",
+          "Serialization Platform",
+          { kind: "option", category: "Serialization Platform", scope: "manga" },
+          "e.g. 週刊少年ジャンプ",
+        )}
+      </div>
       <SourcesEditor
-        value={mgf.sources}
-        onChange={(rows) => umg("sources", rows)}
+        value={f.sources}
+        onChange={(rows) => u("sources", rows)}
         mediaType="manga"
         sources={sources}
       />
 
-      <SectionHeader icon="fa-flag" title="Flags" />
-      <div className="flex flex-wrap gap-6 mt-2">
-        <Field label="Read Next">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!mgf.read_next}
-              onChange={(e) => umg("read_next", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Add to Read Next list
-            </span>
-          </label>
-        </Field>
-        <Field label="To Reread">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!mgf.to_reread}
-              onChange={(e) => umg("to_reread", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Mark for reread
-            </span>
-          </label>
-        </Field>
-      </div>
+      <CoverRemarkFields f={f} u={u} ownerType="manga" ownerId={ownerId} />
+    </>
+  );
+}
 
-      <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image">
-        <ImagePicker
-          ownerType="manga"
-          role="cover"
-          value={mgf.cover_image_file}
-          focus={mgf.cover_image_focus}
-          onFocusChange={(focus) => umg("cover_image_focus", focus)}
-          onChange={(key, imageId) => {
-            umg("cover_image_file", key);
-            umg("pending_image_id", imageId);
-          }}
-        />
-      </Field>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={mgf.remark}
-          onChange={(e) => umg("remark", e.target.value)}
-          placeholder="Private notes..."
-        />
-      </Field>
+/** The franchise and series pickers, shared by both manga tabs. */
+export function MangaLineageFields({
+  f,
+  u,
+  allFranchises,
+  seriesItemsForManga,
+  franchiseCollections,
+}) {
+  return (
+    <FamilyLineageFields
+      f={f}
+      u={u}
+      accepts={acceptsMangaFranchise}
+      allFranchises={allFranchises}
+      seriesItems={seriesItemsForManga ?? []}
+      franchiseCollections={franchiseCollections}
+    />
+  );
+}
+
+export default function MangaAddTab({
+  franchiseCollections,
+  mgf,
+  umg,
+  allMangas,
+  mangasLoading = false,
+  applyMangaEntryAutofill,
+  applyMalPick,
+  allFranchises,
+  seriesItemsForManga,
+  sources,
+}) {
+  return (
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
+      <EntryAutofillSearch
+        items={allMangas}
+        names={(m) => [
+          m.manga_name_cn,
+          m.manga_name_en,
+          m.manga_name_roman,
+          m.manga_name_jp,
+          m.manga_name_alt,
+        ]}
+        title={(m) => m.manga_name_cn || m.manga_name_en}
+        franchises={allFranchises}
+        badge={(m) => m.region}
+        onPick={applyMangaEntryAutofill}
+        loading={mangasLoading}
+      />
+      <ExternalSearchBox
+        source="MAL"
+        searchUrl={endpoints.manga.searchMal}
+        onPick={applyMalPick}
+      />
+      <SectionHeader icon="fa-tag" title="Titles & Naming" />
+      <MangaLineageFields
+        f={mgf}
+        u={umg}
+        allFranchises={allFranchises}
+        seriesItemsForManga={seriesItemsForManga}
+        franchiseCollections={franchiseCollections}
+      />
+      <MangaFormBody f={mgf} u={umg} sources={sources} />
     </div>
   );
 }

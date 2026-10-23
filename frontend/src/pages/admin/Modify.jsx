@@ -26,11 +26,6 @@ import { fetchAllSources } from "../../lib/sources";
 import { withMediaType } from "../../lib/suggestionOrder";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
 import { genreLabelSourceFields } from "../../lib/genreLabelFields";
-import AnimeMovieNotes from "../detail/AnimeMovieNotes";
-import MovieNotes from "../detail/MovieNotes";
-import TVShowNotes from "../detail/TVShowNotes";
-import CartoonNotes from "../detail/CartoonNotes";
-import MangaNotes from "../detail/MangaNotes";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import OptionValueGroups from "../../components/forms/OptionValueGroups";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
@@ -47,6 +42,7 @@ import NovelModifyTab from "../modify-tabs/NovelModifyTab";
 import ComicModifyTab from "../modify-tabs/ComicModifyTab";
 import GameModifyTab from "../modify-tabs/GameModifyTab";
 import FranchiseRibbon from "../../components/forms/FranchiseRibbon";
+import { toIntId } from "../../lib/externalPick";
 import HComicModifyTab from "../modify-tabs/HComicModifyTab";
 import { H_COMIC_FRANCHISE_TYPE } from "../add-tabs/HComicAddTab";
 import HGameModifyTab from "../modify-tabs/HGameModifyTab";
@@ -152,6 +148,10 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     mal_rating: anime.mal_rating ?? "",
     mal_rank: anime.mal_rank || "",
     anilist_rating: anime.anilist_rating || "",
+    // buildAnimePayload sends these; left out of the form they would go out
+    // as null and the PATCH would wipe them.
+    anilist_rank: anime.anilist_rank ?? "",
+    anilist_popularity_rank: anime.anilist_popularity_rank ?? "",
     release_season: anime.release_season || "",
     release_date: anime.release_date || "",
     broadcast_day: anime.broadcast_day || "",
@@ -245,6 +245,9 @@ function movieToForm(movie, allFranchises, defaults) {
     mal_rating: movie.mal_rating ?? "",
     mal_rank: movie.mal_rank || "",
     anilist_rating: movie.anilist_rating || "",
+    // See animeToForm: buildAnimeMoviePayload sends both.
+    anilist_rank: movie.anilist_rank ?? "",
+    anilist_popularity_rank: movie.anilist_popularity_rank ?? "",
     release_date_jp: movie.release_date_jp || "",
     release_date_tw: movie.release_date_tw || "",
     length_min: movie.length_min ?? "",
@@ -262,6 +265,17 @@ function movieToForm(movie, allFranchises, defaults) {
   };
 }
 
+// Movie franchises that only collect unrelated films (by name, in any of
+// the three name columns). Their editor shows no sibling ribbon.
+const CATCH_ALL_MOVIE_FRANCHISE_NAMES = ["獨立電影", "影集", "Disney", "Marvel"];
+
+function isCatchAllMovieFranchise(franchiseId, allFranchises) {
+  const f = allFranchises.find((x) => x.system_id === franchiseId);
+  return [f?.franchise_name_cn, f?.franchise_name_en, f?.franchise_name_alt]
+    .filter(Boolean)
+    .some((n) => CATCH_ALL_MOVIE_FRANCHISE_NAMES.includes(n));
+}
+
 export default function Modify() {
   const { showToast } = useToast();
   const [searchParams] = useSearchParams();
@@ -269,7 +283,7 @@ export default function Modify() {
   // Entry lists are fetched per tab, not all twelve up front - see
   // hooks/useEntryLists.js. The aliases below keep every reader in this file
   // reading the same names it always has.
-  const { lists, ensure, setList, isLoading } = useEntryLists();
+  const { lists, ensure, setList } = useEntryLists();
   const allAnime = lists.anime;
   const allCollections = lists.collection;
   const allFranchises = lists.franchise;
@@ -663,6 +677,7 @@ export default function Modify() {
       airing_status: m.airing_status || "",
       watching_status: m.watching_status || md("movie").watching_status,
       my_rating: m.my_rating || "",
+      imdb_rating: m.imdb_rating || "",
       time_fin: m.time_fin || "",
       is_main: m.is_main || "",
       movie_type: m.movie_type || "",
@@ -784,6 +799,8 @@ export default function Modify() {
       mal_rating: m.mal_rating ?? "",
       mal_rank: m.mal_rank ?? "",
       anilist_rating: m.anilist_rating ?? "",
+      anilist_rank: m.anilist_rank ?? "",
+      anilist_popularity_rank: m.anilist_popularity_rank ?? "",
       // author_plot, author_draw, publisher_tw, serialization_platform: see
       // the comment in animeToForm - loaded from GET /api/credits/manga/{id}
       // via loadCreditsIntoForm(), not here. anime_studio is a real column
@@ -835,6 +852,8 @@ export default function Modify() {
       mal_rating: n.mal_rating ?? "",
       mal_rank: n.mal_rank ?? "",
       anilist_rating: n.anilist_rating ?? "",
+      anilist_rank: n.anilist_rank ?? "",
+      anilist_popularity_rank: n.anilist_popularity_rank ?? "",
       // author, illustrator, publisher_tw: see the comment in animeToForm -
       // loaded from GET /api/credits/novel/{id} via loadCreditsIntoForm().
       release_date: n.release_date ?? "",
@@ -880,6 +899,7 @@ export default function Modify() {
       release_date: c.release_date ?? "",
       end_date: c.end_date ?? "",
       read_order: c.read_order ?? "",
+      comicvine_id: c.comicvine_id ?? "",
       comicvine_link: c.comicvine_link || "",
       sources: c.sources || [],
       read_next: c.read_next ?? false,
@@ -1338,6 +1358,7 @@ export default function Modify() {
       return;
     }
     const updated = await res.json();
+    await ensureSourceValues(genreLabelSourceFields("anime", af, splitTags));
     await saveCredits("anime", updated.system_id, af);
     await saveCast("anime", updated.system_id, af);
     setAllAnime((prev) =>
@@ -1692,6 +1713,7 @@ export default function Modify() {
       airing_status: mmf.airing_status || null,
       watching_status: mmf.watching_status || md("movie").watching_status,
       my_rating: mmf.my_rating || null,
+      imdb_rating: mmf.imdb_rating || null,
       time_fin: mmf.time_fin || null,
       movie_type: mmf.movie_type || null,
       length_min: mmf.length_min !== "" ? parseInt(mmf.length_min) : null,
@@ -2112,9 +2134,15 @@ export default function Modify() {
       ch_fin: cmgf.ch_fin !== "" ? parseInt(cmgf.ch_fin) : null,
       my_rating: cmgf.my_rating || null,
       mal_rating: cmgf.mal_rating !== "" ? parseFloat(cmgf.mal_rating) : null,
-      mal_rank: cmgf.mal_rank !== "" ? parseInt(cmgf.mal_rank) : null,
+      mal_rank: cmgf.mal_rank || null,
       anilist_rating:
         cmgf.anilist_rating !== "" ? parseFloat(cmgf.anilist_rating) : null,
+      anilist_rank:
+        cmgf.anilist_rank !== "" ? parseInt(cmgf.anilist_rank) : null,
+      anilist_popularity_rank:
+        cmgf.anilist_popularity_rank !== ""
+          ? parseInt(cmgf.anilist_popularity_rank)
+          : null,
       release_date: cmgf.release_date || null,
       end_date: cmgf.end_date || null,
       anime_studio: cmgf.anime_studio || null,
@@ -2288,9 +2316,15 @@ export default function Modify() {
       ch_fin: cnvf.ch_fin !== "" ? parseFloat(cnvf.ch_fin) : null,
       my_rating: cnvf.my_rating || null,
       mal_rating: cnvf.mal_rating !== "" ? parseFloat(cnvf.mal_rating) : null,
-      mal_rank: cnvf.mal_rank !== "" ? parseInt(cnvf.mal_rank) : null,
+      mal_rank: cnvf.mal_rank || null,
       anilist_rating:
         cnvf.anilist_rating !== "" ? parseFloat(cnvf.anilist_rating) : null,
+      anilist_rank:
+        cnvf.anilist_rank !== "" ? parseInt(cnvf.anilist_rank) : null,
+      anilist_popularity_rank:
+        cnvf.anilist_popularity_rank !== ""
+          ? parseInt(cnvf.anilist_popularity_rank)
+          : null,
       release_date: cnvf.release_date || null,
       end_date: cnvf.end_date || null,
       read_order: cnvf.read_order !== "" ? parseFloat(cnvf.read_order) : null,
@@ -2479,6 +2513,9 @@ export default function Modify() {
       reading_status: ccmf.reading_status || md("comic").reading_status,
       read_order: ccmf.read_order !== "" ? parseFloat(ccmf.read_order) : null,
       my_rating: ccmf.my_rating || null,
+      // Editable on its own here: the id is what Fill runs on, so it is sent
+      // whether or not a link sits beside it. A non-number sends null.
+      comicvine_id: toIntId(ccmf.comicvine_id) || null,
       comicvine_link: ccmf.comicvine_link || null,
       sources: (ccmf.sources || [])
         .filter((s) => (s.name || "").trim())
@@ -3290,170 +3327,6 @@ export default function Modify() {
     ? sources.options.filter((o) => o.category === optCatFilter)
     : [];
 
-  const animeRibbonSection = (() => {
-    const animeRibbon =
-      editingType === "anime" && af.franchise_id
-        ? allAnime.filter(
-            (a) =>
-              a.franchise_id === af.franchise_id &&
-              a.system_id !== editingItem?.system_id,
-          )
-        : [];
-    if (!animeRibbon.length) return null;
-    const bySeries = {};
-    const noSeries = [];
-    for (const a of animeRibbon) {
-      if (a.series_id) {
-        (bySeries[a.series_id] = bySeries[a.series_id] || []).push(a);
-      } else noSeries.push(a);
-    }
-    const sortByEn = (x, y) =>
-      (
-        x.anime_name_en ||
-        x.anime_name_cn ||
-        x.anime_name_roman ||
-        ""
-      ).localeCompare(
-        y.anime_name_en || y.anime_name_cn || y.anime_name_roman || "",
-      );
-    Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
-    noSeries.sort(sortByEn);
-    const renderChip = (a) => (
-      <button
-        key={a.system_id}
-        type="button"
-        onClick={() => openEditor(a, "anime")}
-        className="flex items-center gap-1.5 px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
-      >
-        {a.airing_type && (
-          <span className="text-[9px] font-black text-text-faint shrink-0">
-            {a.airing_type}
-          </span>
-        )}
-        {a.anime_name_cn || a.anime_name_en || "Unknown"}
-      </button>
-    );
-    return (
-      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
-          Other entries in this franchise
-        </p>
-        {Object.entries(bySeries).map(([sid, entries]) => {
-          const s = allSeries.find((x) => x.system_id === sid);
-          return (
-            <div key={sid}>
-              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
-                {s ? getDisplayName(s, "series") : "Series"}
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {entries.map(renderChip)}
-              </div>
-            </div>
-          );
-        })}
-        {noSeries.length > 0 && (
-          <div>
-            {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
-                No Series
-              </p>
-            )}
-            <div className="flex gap-2 flex-wrap">
-              {noSeries.map(renderChip)}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  })();
-
-  const movieRibbonSection = (() => {
-    const EXCLUDED_MOVIE_FRANCHISE_NAMES = [
-      "獨立電影",
-      "影集",
-      "Disney",
-      "Marvel",
-    ];
-    if (editingType !== "movie" || !mmf.franchise_id) return null;
-    const franchise = allFranchises.find(
-      (f) => f.system_id === mmf.franchise_id,
-    );
-    if (!franchise) return null;
-    const names = [
-      franchise.franchise_name_cn,
-      franchise.franchise_name_en,
-      franchise.franchise_name_alt,
-    ].filter(Boolean);
-    if (names.some((n) => EXCLUDED_MOVIE_FRANCHISE_NAMES.includes(n)))
-      return null;
-    const movieRibbon = allMovies.filter(
-      (m) =>
-        m.franchise_id === mmf.franchise_id &&
-        m.system_id !== editingItem?.system_id,
-    );
-    if (!movieRibbon.length) return null;
-    const bySeries = {};
-    const noSeries = [];
-    for (const m of movieRibbon) {
-      if (m.series_id) {
-        (bySeries[m.series_id] = bySeries[m.series_id] || []).push(m);
-      } else noSeries.push(m);
-    }
-    const sortByEn = (x, y) =>
-      (
-        x.movie_name_en ||
-        x.movie_name_cn ||
-        x.movie_name_alt ||
-        ""
-      ).localeCompare(
-        y.movie_name_en || y.movie_name_cn || y.movie_name_alt || "",
-      );
-    Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
-    noSeries.sort(sortByEn);
-    const renderChip = (m) => (
-      <button
-        key={m.system_id}
-        type="button"
-        onClick={() => openEditor(m, "movie")}
-        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
-      >
-        {m.movie_name_cn || m.movie_name_en || m.movie_name_alt || "Unknown"}
-      </button>
-    );
-    return (
-      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
-          Other entries in this franchise
-        </p>
-        {Object.entries(bySeries).map(([sid, entries]) => {
-          const s = allSeries.find((x) => x.system_id === sid);
-          return (
-            <div key={sid}>
-              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
-                {s ? getDisplayName(s, "series") : "Series"}
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {entries.map(renderChip)}
-              </div>
-            </div>
-          );
-        })}
-        {noSeries.length > 0 && (
-          <div>
-            {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
-                No Series
-              </p>
-            )}
-            <div className="flex gap-2 flex-wrap">
-              {noSeries.map(renderChip)}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  })();
-
   // franchise system_id -> the name of the collection it belongs to, so every
   // tab with a franchise picker can name the wider grouping.
   const franchiseCollections = Object.fromEntries(
@@ -3622,359 +3495,45 @@ export default function Modify() {
       .join(" "),
   }));
 
-  const tvRibbonSection = (() => {
-    const tvRibbon =
-      editingType === "tv-show" && tvmf.franchise_id
-        ? allTvShows.filter(
-            (t) =>
-              t.franchise_id === tvmf.franchise_id &&
-              t.system_id !== editingItem?.system_id,
-          )
-        : [];
-    if (!tvRibbon.length) return null;
-    const bySeries = {};
-    const noSeries = [];
-    for (const t of tvRibbon) {
-      if (t.series_id) {
-        (bySeries[t.series_id] = bySeries[t.series_id] || []).push(t);
-      } else noSeries.push(t);
-    }
-    const sortByEn = (x, y) =>
-      (x.tv_name_en || x.tv_name_cn || x.tv_name_alt || "").localeCompare(
-        y.tv_name_en || y.tv_name_cn || y.tv_name_alt || "",
-      );
-    Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
-    noSeries.sort(sortByEn);
-    const renderChip = (t) => (
-      <button
-        key={t.system_id}
-        type="button"
-        onClick={() => openEditor(t, "tv-show")}
-        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
-      >
-        {t.tv_name_cn || t.tv_name_en || t.tv_name_alt || "Unknown"}
-      </button>
-    );
-    return (
-      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
-          Other entries in this franchise
-        </p>
-        {Object.entries(bySeries).map(([sid, entries]) => {
-          const s = allSeries.find((x) => x.system_id === sid);
-          return (
-            <div key={sid}>
-              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
-                {s ? getDisplayName(s, "series") : "Series"}
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {entries.map(renderChip)}
-              </div>
-            </div>
-          );
-        })}
-        {noSeries.length > 0 && (
-          <div>
-            {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
-                No Series
-              </p>
-            )}
-            <div className="flex gap-2 flex-wrap">
-              {noSeries.map(renderChip)}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  })();
-
-  const cartoonRibbonSection = (() => {
-    const cartoonRibbon = cmf.franchise_id
-      ? allCartoons.filter(
-          (c) =>
-            c.franchise_id === cmf.franchise_id &&
-            c.system_id !== editingItem?.system_id,
-        )
-      : [];
-    if (!cartoonRibbon.length) return null;
-    const bySeries = {};
-    const noSeries = [];
-    for (const c of cartoonRibbon) {
-      if (c.series_id) {
-        (bySeries[c.series_id] = bySeries[c.series_id] || []).push(c);
-      } else noSeries.push(c);
-    }
-    const sortByEn = (x, y) =>
-      (
-        x.cartoon_name_en ||
-        x.cartoon_name_cn ||
-        x.cartoon_name_alt ||
-        ""
-      ).localeCompare(
-        y.cartoon_name_en || y.cartoon_name_cn || y.cartoon_name_alt || "",
-      );
-    Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
-    noSeries.sort(sortByEn);
-    const renderChip = (c) => (
-      <button
-        key={c.system_id}
-        type="button"
-        onClick={() => openEditor(c, "cartoon")}
-        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
-      >
-        {c.cartoon_name_cn ||
-          c.cartoon_name_en ||
-          c.cartoon_name_alt ||
-          "Unknown"}
-      </button>
-    );
-    return (
-      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
-          Other entries in this franchise
-        </p>
-        {Object.entries(bySeries).map(([sid, entries]) => {
-          const s = allSeries.find((x) => x.system_id === sid);
-          return (
-            <div key={sid}>
-              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
-                {s ? getDisplayName(s, "series") : "Series"}
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {entries.map(renderChip)}
-              </div>
-            </div>
-          );
-        })}
-        {noSeries.length > 0 && (
-          <div>
-            {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
-                No Series
-              </p>
-            )}
-            <div className="flex gap-2 flex-wrap">
-              {noSeries.map(renderChip)}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  })();
-
-  const mangaRibbonSection = (() => {
-    const mangaRibbon = cmgf.franchise_id
-      ? allMangas.filter(
-          (m) =>
-            m.franchise_id === cmgf.franchise_id &&
-            m.system_id !== editingItem?.system_id,
-        )
-      : [];
-    if (!mangaRibbon.length) return null;
-    const bySeries = {};
-    const noSeries = [];
-    for (const m of mangaRibbon) {
-      if (m.series_id) {
-        (bySeries[m.series_id] = bySeries[m.series_id] || []).push(m);
-      } else noSeries.push(m);
-    }
-    const sortByName = (x, y) =>
-      (
-        x.manga_name_cn ||
-        x.manga_name_en ||
-        x.manga_name_alt ||
-        ""
-      ).localeCompare(
-        y.manga_name_cn || y.manga_name_en || y.manga_name_alt || "",
-      );
-    Object.values(bySeries).forEach((arr) => arr.sort(sortByName));
-    noSeries.sort(sortByName);
-    const renderChip = (m) => (
-      <button
-        key={m.system_id}
-        type="button"
-        onClick={() => openEditor(m, "manga")}
-        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
-      >
-        {m.manga_name_cn || m.manga_name_en || m.manga_name_alt || "Unknown"}
-      </button>
-    );
-    return (
-      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
-          Other entries in this franchise
-        </p>
-        {Object.entries(bySeries).map(([sid, entries]) => {
-          const s = allSeries.find((x) => x.system_id === sid);
-          return (
-            <div key={sid}>
-              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
-                {s ? getDisplayName(s, "series") : "Series"}
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {entries.map(renderChip)}
-              </div>
-            </div>
-          );
-        })}
-        {noSeries.length > 0 && (
-          <div>
-            {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
-                No Series
-              </p>
-            )}
-            <div className="flex gap-2 flex-wrap">
-              {noSeries.map(renderChip)}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  })();
-
-  const novelRibbonSection = (() => {
-    const novelRibbon = cnvf.franchise_id
-      ? allNovels.filter(
-          (n) =>
-            n.franchise_id === cnvf.franchise_id &&
-            n.system_id !== editingItem?.system_id,
-        )
-      : [];
-    if (!novelRibbon.length) return null;
-    const bySeries = {};
-    const noSeries = [];
-    for (const n of novelRibbon) {
-      if (n.series_id) {
-        (bySeries[n.series_id] = bySeries[n.series_id] || []).push(n);
-      } else noSeries.push(n);
-    }
-    const sortByName = (x, y) =>
-      (
-        x.novel_name_cn ||
-        x.novel_name_en ||
-        x.novel_name_alt ||
-        ""
-      ).localeCompare(
-        y.novel_name_cn || y.novel_name_en || y.novel_name_alt || "",
-      );
-    Object.values(bySeries).forEach((arr) => arr.sort(sortByName));
-    noSeries.sort(sortByName);
-    const renderChip = (n) => (
-      <button
-        key={n.system_id}
-        type="button"
-        onClick={() => openEditor(n, "novel")}
-        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
-      >
-        {n.novel_name_cn || n.novel_name_en || n.novel_name_alt || "Unknown"}
-      </button>
-    );
-    return (
-      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
-          Other entries in this franchise
-        </p>
-        {Object.entries(bySeries).map(([sid, entries]) => {
-          const s = allSeries.find((x) => x.system_id === sid);
-          return (
-            <div key={sid}>
-              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
-                {s ? getDisplayName(s, "series") : "Series"}
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {entries.map(renderChip)}
-              </div>
-            </div>
-          );
-        })}
-        {noSeries.length > 0 && (
-          <div>
-            {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
-                No Series
-              </p>
-            )}
-            <div className="flex gap-2 flex-wrap">
-              {noSeries.map(renderChip)}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  })();
-
-  const comicRibbonSection = (() => {
-    const comicRibbon = ccmf.franchise_id
-      ? allComics.filter(
-          (c) =>
-            c.franchise_id === ccmf.franchise_id &&
-            c.system_id !== editingItem?.system_id,
-        )
-      : [];
-    if (!comicRibbon.length) return null;
-    const bySeries = {};
-    const noSeries = [];
-    for (const c of comicRibbon) {
-      if (c.series_id) {
-        (bySeries[c.series_id] = bySeries[c.series_id] || []).push(c);
-      } else noSeries.push(c);
-    }
-    const sortByName = (x, y) =>
-      (
-        x.comic_name_en ||
-        x.comic_name_cn ||
-        x.comic_name_alt ||
-        ""
-      ).localeCompare(
-        y.comic_name_en || y.comic_name_cn || y.comic_name_alt || "",
-      );
-    Object.values(bySeries).forEach((arr) => arr.sort(sortByName));
-    noSeries.sort(sortByName);
-    const renderChip = (c) => (
-      <button
-        key={c.system_id}
-        type="button"
-        onClick={() => openEditor(c, "comic")}
-        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
-      >
-        {c.comic_name_en || c.comic_name_cn || c.comic_name_alt || "Unknown"}
-      </button>
-    );
-    return (
-      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
-          Other entries in this franchise
-        </p>
-        {Object.entries(bySeries).map(([sid, entries]) => {
-          const s = allSeries.find((x) => x.system_id === sid);
-          return (
-            <div key={sid}>
-              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
-                {s ? getDisplayName(s, "series") : "Series"}
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {entries.map(renderChip)}
-              </div>
-            </div>
-          );
-        })}
-        {noSeries.length > 0 && (
-          <div>
-            {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
-                No Series
-              </p>
-            )}
-            <div className="flex gap-2 flex-wrap">
-              {noSeries.map(renderChip)}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  })();
+  // The editor's "Other entries in this franchise" ribbon: which list its
+  // siblings come from, the open form's franchise, and the chip badge. Read
+  // from the form, so re-picking the franchise updates the ribbon at once.
+  const ribbonProps = {
+    anime: {
+      entries: allAnime,
+      franchiseId: af.franchise_id,
+      badge: (a) => a.airing_type,
+    },
+    "anime-movie": { entries: allAnimeMovies, franchiseId: amf.franchise_id },
+    movie: {
+      entries: allMovies,
+      // A catch-all franchise's "siblings" are unrelated films.
+      franchiseId: isCatchAllMovieFranchise(mmf.franchise_id, allFranchises)
+        ? null
+        : mmf.franchise_id,
+    },
+    "tv-show": { entries: allTvShows, franchiseId: tvmf.franchise_id },
+    cartoon: { entries: allCartoons, franchiseId: cmf.franchise_id },
+    manga: { entries: allMangas, franchiseId: cmgf.franchise_id },
+    novel: { entries: allNovels, franchiseId: cnvf.franchise_id },
+    comic: { entries: allComics, franchiseId: ccmf.franchise_id },
+    game: {
+      entries: allGames,
+      franchiseId: cgmf.franchise_id,
+      badge: (g) => g.game_type,
+    },
+    "h-comic": {
+      entries: allHComics,
+      franchiseId: chcf.franchise_id,
+      badge: (h) => h.region,
+    },
+    "h-game": {
+      entries: allHGames,
+      franchiseId: chgf.franchise_id,
+      badge: (g) => g.game_type,
+    },
+    hentai: { entries: allHentai, franchiseId: chtf.franchise_id },
+  }[editingType];
 
   const tabDefs = [...ADMIN_TABS, FAV3X3_TAB];
 
@@ -4274,63 +3833,13 @@ export default function Modify() {
             </span>
           </div>
 
-          {/* Anime ribbon — grouped by series */}
-          {editingType === "anime" && animeRibbonSection}
-
-          {/* Movie ribbon — grouped by series */}
-          {editingType === "movie" && movieRibbonSection}
-
-          {/* TV Show ribbon — grouped by series */}
-          {editingType === "tv-show" && tvRibbonSection}
-
-          {/* Cartoon ribbon — grouped by series */}
-          {editingType === "cartoon" && cartoonRibbonSection}
-
-          {/* Novel ribbon — grouped by series */}
-          {editingType === "novel" && novelRibbonSection}
-
-          {/* Game and the three gated types share one ribbon component. */}
-          {editingType === "game" && (
+          {ribbonProps && (
             <FranchiseRibbon
-              entries={allGames}
-              type="game"
-              franchiseId={cgmf.franchise_id}
+              {...ribbonProps}
+              type={editingType}
               excludeId={editingItem.system_id}
               allSeries={allSeries}
-              badge={(g) => g.game_type}
-              onOpen={(g) => openEditor(g, "game")}
-            />
-          )}
-          {editingType === "h-comic" && (
-            <FranchiseRibbon
-              entries={allHComics}
-              type="h-comic"
-              franchiseId={chcf.franchise_id}
-              excludeId={editingItem.system_id}
-              allSeries={allSeries}
-              badge={(h) => h.region}
-              onOpen={(h) => openEditor(h, "h-comic")}
-            />
-          )}
-          {editingType === "h-game" && (
-            <FranchiseRibbon
-              entries={allHGames}
-              type="h-game"
-              franchiseId={chgf.franchise_id}
-              excludeId={editingItem.system_id}
-              allSeries={allSeries}
-              badge={(g) => g.game_type}
-              onOpen={(g) => openEditor(g, "h-game")}
-            />
-          )}
-          {editingType === "hentai" && (
-            <FranchiseRibbon
-              entries={allHentai}
-              type="hentai"
-              franchiseId={chtf.franchise_id}
-              excludeId={editingItem.system_id}
-              allSeries={allSeries}
-              onOpen={(h) => openEditor(h, "hentai")}
+              onOpen={(e) => openEditor(e, editingType)}
             />
           )}
 
@@ -4348,7 +3857,7 @@ export default function Modify() {
                 franchiseCollections={franchiseCollections}
                 af={af}
                 ua={ua}
-                franchiseItems={franchiseItems}
+                allFranchises={allFranchises}
                 seriesItemsForAnime={seriesItemsForAnime}
                 sources={formSources}
                 editingItem={editingItem}
@@ -4407,7 +3916,7 @@ export default function Modify() {
                 franchiseCollections={franchiseCollections}
                 amf={amf}
                 uam={uam}
-                franchiseItems={franchiseItems}
+                allFranchises={allFranchises}
                 sources={formSources}
                 editingItem={editingItem}
               />
@@ -4461,7 +3970,6 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForManga={seriesItemsForManga}
                 editingItem={editingItem}
-                ribbonSection={mangaRibbonSection}
                 sources={formSources}
               />
             )}
@@ -4488,7 +3996,6 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForComic={seriesItemsForComic}
                 editingItem={editingItem}
-                ribbonSection={comicRibbonSection}
                 sources={formSources}
               />
             )}

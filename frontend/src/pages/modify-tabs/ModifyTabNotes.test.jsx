@@ -48,7 +48,6 @@ const common = {
   franchiseCollections: [],
   allFranchises: [],
   editingItem: { system_id: "e1" },
-  ribbonSection: null,
   sources: [],
 };
 

@@ -1,8 +1,9 @@
 // Frontend: modify tab page file for HGameModifyTab.
 //
 // Renders HGameAddTab's lineage pickers and field body, so the Add and Modify
-// forms of the type are one definition. Modify adds the ribbon above the
-// form and the entry's Structured Notes below it.
+// forms of the type are one definition. Modify hands the body the entry's id
+// and adds the entry's Structured Notes below it; the franchise ribbon above
+// the card is Modify.jsx's.
 import { SectionHeader } from "../../components/forms/FormField";
 import HGameNotes from "../detail/HGameNotes";
 import { HGameFormBody, HGameLineageFields } from "../add-tabs/HGameAddTab";
@@ -19,7 +20,7 @@ export default function HGameModifyTab({
 }) {
   return (
     <>
-      <SectionHeader icon="fa-gamepad" title="Titles & Naming" />
+      <SectionHeader icon="fa-tag" title="Titles & Naming" />
       <HGameLineageFields
         f={chgf}
         u={uhg}

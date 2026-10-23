@@ -4,8 +4,8 @@
 // The box, its query and whether its dropdown is open live here rather than
 // in Add.jsx, so a tab needs only the entries to search and what to do with
 // the one picked. Add.jsx still decides WHICH fields a pick copies
-// (buildAutofillPatch over the /defaults configuration). The markup matches
-// the older tabs, which inline the same box, so the two read as one control.
+// (buildAutofillPatch over the /defaults configuration). Every media Add tab
+// renders it, so the box reads as one control everywhere.
 import { useEffect, useRef, useState } from "react";
 
 import { cleanString, getDisplayName } from "../../utils/media";

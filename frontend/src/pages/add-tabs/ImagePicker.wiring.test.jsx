@@ -50,15 +50,9 @@ describe("Add tabs render ImagePicker instead of a hand-typed storage key", () =
         franchiseCollections={{}}
         af={defaultAnime()}
         ua={() => {}}
-        fillQuery=""
-        setFillQuery={() => {}}
-        fillOpen={false}
-        setFillOpen={() => {}}
-        fillRef={{ current: null }}
-        fillResults={[]}
-        applyAutofill={() => {}}
+        allAnime={[]}
+        applyAnimeEntryAutofill={() => {}}
         allFranchises={[]}
-        franchiseItems={[]}
         seriesItemsForAnime={[]}
         sources={{}}
       />,

@@ -10,7 +10,22 @@ import NovelModifyTab from "./NovelModifyTab";
 
 // NovelNotes fetches on mount and is not what these tests are about.
 vi.mock("../detail/NovelNotes", () => ({
-  default: () => <div data-testid="novel-notes" />,
+  default: (props) => (
+    <div data-testid="novel-notes" data-owner-id={props.novel?.system_id} />
+  ),
+}));
+
+// Stand-ins that expose what the shared body hands them: the owner the cover
+// is attached to and the entry the cast is saved under.
+vi.mock("../../components/forms/ImagePicker", () => ({
+  default: (props) => (
+    <div data-testid="image-picker" data-owner-id={props.ownerId ?? ""} />
+  ),
+}));
+vi.mock("../../components/forms/CastEditor", () => ({
+  default: (props) => (
+    <div data-testid="cast-editor" data-entry-id={props.entryId ?? ""} />
+  ),
 }));
 
 // The Cover Image field is now an ImagePicker, which reads react-query hooks
@@ -157,5 +172,95 @@ describe("NovelModifyTab — Open Library fields", () => {
       target: { value: "" },
     });
     expect(unv).toHaveBeenCalledWith("openlibrary_id", "");
+  });
+});
+
+// The body is NovelAddTab's NovelFormBody; Modify adds only Structured Notes
+// below it, and passes the entry's id as the owner.
+describe("NovelModifyTab — the shared body", () => {
+  const sections = (container) =>
+    [...container.querySelectorAll("[data-form-section]")].map(
+      (el) => el.dataset.formSection,
+    );
+
+  it("renders the canonical sections in order, then Structured Notes", () => {
+    const { container } = renderNovel(<NovelModifyTab {...props("Novel")} />);
+    expect(sections(container)).toEqual([
+      "Titles & Naming",
+      "Scores",
+      "My Tracker",
+      "Information",
+      "Genres & Labels",
+      "Production",
+      "Cast",
+      "Read Order",
+      "Units",
+      "Links & Sources",
+      "Cover & Remark",
+      "Structured Notes",
+    ]);
+  });
+
+  it("puts CN first and labels the romanised name Romaji", () => {
+    renderNovel(<NovelModifyTab {...props("Novel")} />);
+    const names = screen
+      .getAllByLabelText(/^Novel Name /)
+      .map((el) => el.getAttribute("aria-label"));
+    expect(names).toEqual([
+      "Novel Name CN",
+      "Novel Name EN",
+      "Novel Name Romaji",
+      "Novel Name JP",
+      "Novel Name Alt",
+    ]);
+  });
+
+  it("edits the AniList ranks", () => {
+    const unv = vi.fn();
+    renderNovel(<NovelModifyTab {...props("Novel")} unv={unv} />);
+    fireEvent.change(screen.getByLabelText("AniList Rank"), {
+      target: { value: "12" },
+    });
+    fireEvent.change(screen.getByLabelText("AniList Popularity Rank"), {
+      target: { value: "34" },
+    });
+    expect(unv).toHaveBeenCalledWith("anilist_rank", "12");
+    expect(unv).toHaveBeenCalledWith("anilist_popularity_rank", "34");
+  });
+
+  it("carries none of Add's search boxes", () => {
+    renderNovel(<NovelModifyTab {...props("Novel")} />);
+    expect(
+      screen.queryByRole("textbox", { name: "Auto-fill from existing entry" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Search MAL" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "Search Open Library" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("passes the entry's id to the cover, the cast and the notes", () => {
+    renderNovel(<NovelModifyTab {...props("Novel")} />);
+    expect(screen.getByTestId("image-picker")).toHaveAttribute("data-owner-id", "n1");
+    expect(screen.getByTestId("cast-editor")).toHaveAttribute("data-entry-id", "n1");
+    expect(screen.getByTestId("novel-notes")).toHaveAttribute("data-owner-id", "n1");
+  });
+
+  it("clears the series when the franchise changes", () => {
+    const unv = vi.fn();
+    const p = props("Novel");
+    p.cnvf.series_id = "s1";
+    renderNovel(<NovelModifyTab {...p} unv={unv} />);
+    fireEvent.change(screen.getByRole("combobox", { name: "Franchise" }), {
+      target: { value: "New" },
+    });
+    expect(unv).toHaveBeenCalledWith("series_id", null);
+    expect(unv).toHaveBeenCalledWith("series_text", "");
+  });
+
+  it("writes nothing on mount", () => {
+    const unv = vi.fn();
+    renderNovel(<NovelModifyTab {...props("Novel")} unv={unv} />);
+    expect(unv).not.toHaveBeenCalled();
   });
 });

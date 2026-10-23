@@ -4,7 +4,7 @@
 //
 // A type's group holds only the values scoped to that type ALONE. A value
 // scoped to several types is listed once, in the Shared group, under a
-// sub-group for its exact set of types - Genre Main serves seven types, and
+// sub-group for its exact set of types - Genre Main serves eight types, and
 // listing 奇幻 under each of them would bury every type's own values under
 // copies. A value with no scopes is offered everywhere (system_option_scope),
 // so it gets a group of its own, last.

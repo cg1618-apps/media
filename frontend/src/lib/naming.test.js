@@ -78,7 +78,7 @@ describe("hentai names", () => {
     expect(getNamingFields({}, "hentai").map((f) => f.label)).toEqual([
       "Chinese",
       "English",
-      "Roman",
+      "Romaji",
       "Japanese",
       "Alternative",
     ]);
@@ -103,5 +103,22 @@ describe("h-comic names", () => {
     expect(labels("JP")).not.toContain("Korean");
     expect(labels("KR")).toContain("Korean");
     expect(labels("KR")).not.toContain("Japanese");
+  });
+});
+
+describe("comic names", () => {
+  const comic = { comic_name_cn: "蝙蝠俠", comic_name_en: "Batman", comic_name_alt: "The Bat" };
+
+  it("lists the naming card CN first, like every other type", () => {
+    expect(getNamingFields(comic, "comic").map((f) => f.label)).toEqual([
+      "Chinese",
+      "English",
+      "Alternative",
+    ]);
+  });
+
+  it("still displays and sorts by the English name, as the server does", () => {
+    expect(getDisplayName(comic, "comic")).toBe("Batman");
+    expect(getSortName(comic, "comic")).toBe("Batman");
   });
 });

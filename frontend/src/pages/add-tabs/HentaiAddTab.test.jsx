@@ -62,7 +62,7 @@ describe("HentaiAddTab", () => {
       "Hentai Name CN",
       "Hentai Name EN",
       "Hentai Name Alt",
-      "Hentai Name Roman",
+      "Hentai Name Romaji",
       "Hentai Name JP",
       "Source Material",
       "Originality",
@@ -150,5 +150,86 @@ describe("HentaiAddTab - auto-fill from an existing entry", () => {
     await userEvent.click(screen.getByRole("option", { name: /既有條目/ }));
 
     expect(onPick).toHaveBeenCalledWith(entries[0]);
+  });
+});
+
+// The form's layout, read off the DOM: section headers carry
+// data-form-section, and each field's label is a <label> under the last
+// header before it.
+const sectionTitles = (container) =>
+  [...container.querySelectorAll("[data-form-section]")].map((el) =>
+    el.getAttribute("data-form-section"),
+  );
+const labelsBySection = (container) => {
+  const out = {};
+  let current = null;
+  for (const el of container.querySelectorAll("[data-form-section], label")) {
+    if (el.hasAttribute("data-form-section")) {
+      current = el.getAttribute("data-form-section");
+      out[current] = [];
+    } else if (current) {
+      out[current].push(el.textContent.trim());
+    }
+  }
+  return out;
+};
+
+describe("HentaiAddTab layout", () => {
+  it("renders the canonical sections in order", () => {
+    const { container } = renderTab();
+    expect(sectionTitles(container)).toEqual([
+      "Titles & Naming",
+      "My Tracker",
+      "Information",
+      "Genres",
+      "Production",
+      "Cast",
+      "Links & Sources",
+      "Cover & Remark",
+    ]);
+  });
+
+  it("lists the names CN first, labelled Romaji", () => {
+    const { container } = renderTab();
+    const names = labelsBySection(container)["Titles & Naming"].filter((l) =>
+      l.startsWith("Hentai Name"),
+    );
+    expect(names).toEqual([
+      "Hentai Name CN",
+      "Hentai Name EN",
+      "Hentai Name Romaji",
+      "Hentai Name JP",
+      "Hentai Name Alt",
+    ]);
+  });
+
+  it("pairs finished before total in My Tracker and ends it with the flags", () => {
+    const { container } = renderTab();
+    const tracker = labelsBySection(container)["My Tracker"];
+    expect(tracker.slice(0, 6)).toEqual([
+      "Watching Status",
+      "My Rating",
+      "Usefulness",
+      "Episodes Finished",
+      "Total Episodes",
+      "Paused at",
+    ]);
+    expect(tracker.slice(-4)).toEqual([
+      "Watch Next",
+      "Add to Watch Next list",
+      "To Rewatch",
+      "Mark for rewatch",
+    ]);
+  });
+
+  it("puts the airing status, release date and classification under Information", () => {
+    const { container } = renderTab();
+    expect(labelsBySection(container)["Information"]).toEqual([
+      "Airing Status",
+      "Release Date",
+      "Source Material",
+      "Originality",
+      "Series Number",
+    ]);
   });
 });
