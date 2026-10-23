@@ -236,7 +236,7 @@ describe("h-comic payloads", () => {
     expect(body.region).toBe("KR");
     expect(body.ch_total).toBe(12);
     expect(body.ch_behind).toBeNull();
-    expect(body.page_fin).toBe(0);
+    expect(body.page_fin).toBeNull();
     expect(body.reading_status).toBe("Might Read");
     expect(body.sources).toEqual([
       { kind: "access", bucket: "other", name: "Site", url: null, available: null },
@@ -702,5 +702,21 @@ describe("manga, novel and comic bodies", () => {
     expect(comicFieldsPayload({ comicvine_id: "2127" }).comicvine_id).toBe(2127);
     expect(comicFieldsPayload({ comicvine_id: "x" }).comicvine_id).toBeNull();
     expect(comicFieldsPayload({ comicvine_id: "" }).comicvine_id).toBeNull();
+  });
+});
+
+// A blank "finished" count is "not recorded", not zero watched or read - on
+// every type, not only the ones whose bodies are built above.
+describe("blank finished counts on the other bodies", () => {
+  it("anime sends a blank finished episode count as null", () => {
+    expect(buildAnimePayload({ ep_fin: "" }).ep_fin).toBeNull();
+    expect(buildAnimePayload({ ep_fin: "0" }).ep_fin).toBe(0);
+  });
+
+  it("h-comic sends blank finished page and chapter counts as null", () => {
+    const body = hComicFieldsPayload({ region: "KR", page_fin: "", ch_fin: "" });
+    expect(body.page_fin).toBeNull();
+    expect(body.ch_fin).toBeNull();
+    expect(hComicFieldsPayload({ region: "JP", page_fin: "0" }).page_fin).toBe(0);
   });
 });
