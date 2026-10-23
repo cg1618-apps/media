@@ -1325,14 +1325,18 @@ export default function Admin() {
                 ...(canSeeHentai
                   ? [{ label: "Hentai", url: "/api/data-control/fill/hentai" }]
                   : []),
-                // The only non-media type here: a studio fills its logo and
+                // A non-media type: a studio fills its logo and
                 // founding facts from MAL's producer record. Replace has no
                 // Studio row to match - see PipelineSpec.fill_only.
                 { label: "Studio", url: "/api/data-control/fill/studio" },
-                // The other entity: a person holding the seiyuu role fills
+                // A person holding the seiyuu role fills
                 // from MAL's people record. Only seiyuu - no other person
                 // is filled. Fill All runs it too.
                 { label: "Seiyuu", url: "/api/data-control/fill/seiyuu" },
+                // A character with a MAL link fills its names and portrait
+                // from MAL's character record, in Fill All too. Identities
+                // have no MAL record, so only the character row is filled.
+                { label: "Character", url: "/api/data-control/fill/character" },
               ]}
               streamRunning={streamRunning === "fill"}
               onStart={(url) => startStream(url, "fill")}

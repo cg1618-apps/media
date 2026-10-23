@@ -52,10 +52,12 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   **Hentai** buttons (`/fill/hentai`, `/replace/hentai`) are gated the same
   way too; both fetch Tenrai's airing status, release date and cover over the
   hentai table, then AniDB's for whatever MAL left blank, and both are fill-only - Replace completes what is blank and
-  overwrites nothing. The Fill box ends on the two entity buttons, which have
+  overwrites nothing. The Fill box ends on the three entity buttons, which have
   no Replace twin: **Studio** (`/fill/studio`, a studio's logo and founding
-  facts from MAL's producer record) and **Seiyuu** (`/fill/seiyuu`, the people
-  holding the seiyuu role, from MAL's people record). Fill All runs both.
+  facts from MAL's producer record) **Seiyuu** (`/fill/seiyuu`, the people
+  holding the seiyuu role, from MAL's people record) and **Character**
+  (`/fill/character`, characters with a MAL link, from MAL's character
+  record). Fill All runs all three.
 - **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
   cover-image maintenance endpoints are plain JSON calls with a busy state.
 - **Calculate & Fix.** Calculate All (`POST /api/data-control/calculate/all`),
@@ -274,9 +276,10 @@ region updater, which re-suggests restricted sources.
 `lib/payloads.js` (`<type>FieldsPayload`, or `buildAnimePayload` /
 `buildAnimeMoviePayload`), then add the franchise and series ids they
 resolved, so a field added to a form is added to one payload, not two. A
-blank finished count — manga's volumes, pages and chapters read, novel's
-volumes, arcs and chapters read, comic's issues read — is sent as `null`
-("not recorded") from both pages, and reads back as `0`.
+blank finished count — episodes watched, manga's volumes, pages and chapters
+read, novel's volumes, arcs and chapters read, comic's issues read, h-comic's
+pages or chapters read — is sent as `null` ("not recorded") from both pages,
+on every type.
 
 **Sections**, in the detail page's order, with the same title and icon on
 every type; a type leaves out what it lacks:

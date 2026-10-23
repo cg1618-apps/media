@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-10-18
+Last verified: 2026-10-23
 
 ## What this is for
 
@@ -294,7 +294,7 @@ Deliberately dropped: `birthday`, `website_url` and `about` — the person table
 
 ### Mapping for `character` — `map_tenrai_to_character_data`
 
-MAL's character record, fetched for a character with a `mal_id` by `POST` / `PUT /api/character` (`PATCH` re-derives `mal_id` from `mal_link` but does not fetch). There is no Fill pipeline for characters.
+MAL's character record, fetched for a character with a `mal_id` by `POST` / `PUT /api/character` (`PATCH` re-derives `mal_id` from `mal_link` but does not fetch), and by the Character Fill (`POST /api/data-control/fill/character`, in Fill All) for every character with a `mal_id` and a blank fillable column. An identity has no MAL link, so it is never fetched for.
 
 | Tenrai field | Column | Rule |
 |---|---|---|
@@ -306,7 +306,7 @@ MAL's character record, fetched for a character with a `mal_id` by `POST` / `PUT
 
 Deliberately dropped: `about` — the character table has no column for it.
 
-`autofill_character_from_mal(character)` is **fill-only for every column**. Unlike the person autofill there is no name-collision check: character names are not unique (Decision G). It runs inside the character write request, after the payload is copied and the row flushed (the portrait is stored under the `system_id`), so it swallows and logs every failure.
+`autofill_character_from_mal(character)` is **fill-only for every column**. Unlike the person autofill there is no name-collision check: character names are not unique (Decision G). On save it runs inside the character write request, after the payload is copied and the row flushed (the portrait is stored under the `system_id`), so it swallows and logs every failure.
 
 ### Mapping for a cast — `map_tenrai_cast`
 
@@ -1260,6 +1260,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` + `autofill_from_anilist` when `mal_link` is present, else `autofill_novel_from_openlibrary` alone (nothing for AniList to key on without a `mal_id`) | 1 s | Tenrai **or** Open Library, plus AniList on the Tenrai branch |
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `seiyuu` | `apply_extract_mal_id_person` (every person) | `autofill_person_from_mal`, for a person holding the `seiyuu` role with a `mal_id` and a blank fillable column; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
+| `character` | `apply_extract_mal_id_character` | `autofill_character_from_mal`, for a character with a `mal_id` and a blank fillable column; identities are not walked; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
 | `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`), then `autofill_hltb_source` (not repeating a miss), then `autofill_cover_from_steam` and `autofill_cover_from_steam_header` while the cover is still empty; in Fill All; Replace (bulk, single, write hook) runs all five, IGDB fill-only; bulk and single retry a HowLongToBeat miss, the write hook does not | `STEAM_PAUSE` (0.5 s), plus HowLongToBeat's own 1 s spacing | IGDB (+ Twitch for the token), Steam, HowLongToBeat |
 | `h-comic` | `apply_extract_mal_id_manga_novel` | `_fill_h_comic`: `autofill_h_comic_from_mal` - manga's record, the columns `h_comic` has - then `autofill_h_comic_from_ehentai` - the cover and illustrator MAL left empty (see [E-Hentai](#e-hentai)); all fill-only; no AniList; in Fill All and Replace All, and Replace (`apply_single_replace_h_comic`) runs the same order and also selects entries linked only to E-Hentai | 1 s | Tenrai, E-Hentai |

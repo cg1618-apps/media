@@ -308,7 +308,7 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     is_main: af.is_main || null,
     ep_previous: af.ep_previous !== "" ? parseInt(af.ep_previous) : null,
     ep_total: af.ep_total !== "" ? parseInt(af.ep_total) : null,
-    ep_fin: af.ep_fin !== "" ? parseInt(af.ep_fin) : 0,
+    ep_fin: af.ep_fin !== "" ? parseInt(af.ep_fin, 10) : null,
     time_fin: af.time_fin || null,
     ep_special: af.ep_special !== "" ? parseFloat(af.ep_special) : null,
     my_rating: af.my_rating || null,
@@ -441,10 +441,11 @@ export function gameFieldsPayload(f) {
 // holds and this module cannot see. Without one, the type's built-in default
 // stands - the value the server's DEFAULT_STATUS also falls back to.
 //
-// A blank "finished" count (manga vol_fin / vol_fin_page / ch_fin, novel
-// vol_fin / arc_fin / ch_fin, comic issue_fin) is sent as null, not 0: blank
-// is "not recorded". The list row stores the null, and every read serves it
-// as 0 (LIST_FIELD_DEFAULTS in app/services/domain/user_list.py).
+// A blank "finished" count is sent as null, not 0: blank is "not recorded".
+// That holds on every type - ep_fin on the watching types, h-comic's
+// page_fin / ch_fin, and the counts below. The list row stores the null, and
+// every read serves it as 0 (LIST_FIELD_DEFAULTS in
+// app/services/domain/user_list.py).
 
 const float = (v) => (v === "" || v == null ? null : parseFloat(v));
 
@@ -702,8 +703,8 @@ export function hComicFieldsPayload(f) {
     reading_status: f.reading_status || "Might Read",
     my_rating: f.my_rating || null,
     usefulness: f.usefulness || null,
-    page_fin: int(f.page_fin) ?? 0,
-    ch_fin: int(f.ch_fin) ?? 0,
+    page_fin: int(f.page_fin),
+    ch_fin: int(f.ch_fin),
     sources: sourcesPayload(f.sources),
     read_next: f.read_next ?? false,
     to_reread: f.to_reread ?? false,

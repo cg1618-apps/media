@@ -79,6 +79,16 @@ PERSON_FIELDS_TO_FILL = [
     "photo_file",
 ]
 
+# What the Tenrai characters endpoint fills on a character: the same as a
+# seiyuu's. name_cn is absent on purpose - MAL carries no Chinese name.
+CHARACTER_FIELDS_TO_FILL = [
+    "mal_link",
+    "name_en",
+    "name_jp",
+    "name_alt",
+    "photo_file",
+]
+
 # What Tenrai (and then AniDB) fills on a hentai, and nothing else.
 HENTAI_FIELDS_TO_FILL = [
     "airing_status",

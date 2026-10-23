@@ -9,6 +9,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Character,
     Comic,
     Hentai,
     Manga,
@@ -24,6 +25,7 @@ from app.utils.utils import (
     ANIME_MOVIE_FIELDS_TO_FILL,
     CARTOON_MOVIE_FIELDS_TO_FILL,
     CARTOON_TV_FIELDS_TO_FILL,
+    CHARACTER_FIELDS_TO_FILL,
     COMIC_FIELDS_TO_FILL,
     COMIC_LINK_FIELDS_TO_FILL,
     GAME_FIELDS_TO_FILL,
@@ -477,6 +479,20 @@ def has_missing_values_studio(studio: Studio) -> bool:
     """
     for field in STUDIO_FIELDS_TO_FILL:
         val = getattr(studio, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False
+
+
+def has_missing_values_character(character: Character) -> bool:
+    """
+    Returns True if any Tenrai-fillable Character column is blank.
+
+    The Character Fill pairs this with a mal_id check: a character with no
+    MAL id has no source to fill from, however empty it is.
+    """
+    for field in CHARACTER_FIELDS_TO_FILL:
+        val = getattr(character, field, None)
         if val is None or str(val).strip() == "":
             return True
     return False
