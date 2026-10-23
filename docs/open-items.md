@@ -174,7 +174,6 @@ nothing else is in flight, and not before.
 
 | Item | Where |
 |---|---|
-| The anime-movie Director picker reads the `anime` scope, so an anime movie's own directors never appear | `AnimeMovieFormBody` (`AnimeMovieAddTab.jsx:171`, rendered by both Add and Modify) passes `scope: "anime"` while `fieldMeta.js:430` declares `anime-movie` |
 | Games and comics are absent from the cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` |
 | No Games tab | `FutureReleases.jsx` |
 | `/defaults` shows an inert auto-fill column for Game | `frontend/src/config/formFields/fieldMeta.js` |
