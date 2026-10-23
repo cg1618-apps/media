@@ -28,10 +28,10 @@ class MangaBase(BaseModel):
     reading_status: str = "Might Read"
 
     vol_total: Optional[int] = None
-    vol_fin: int = 0
-    vol_fin_page: int = 0
+    vol_fin: Optional[int] = 0
+    vol_fin_page: Optional[int] = 0
     ch_total: Optional[int] = None
-    ch_fin: int = 0
+    ch_fin: Optional[int] = 0
 
     my_rating: Optional[str] = None
     mal_rating: Optional[float] = None

@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-22
+Last verified: 2026-10-23
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -988,8 +988,12 @@ being silently swallowed into a list row where it means nothing.
 **Reading zero and never opening it are the same thing.** `vol_fin`,
 `vol_fin_page`, `ch_fin`, `arc_fin`, `ch_fin_in_arc` and `issue_fin` were
 `NOT NULL DEFAULT 0` on their detail tables and are nullable here, so an entry
-with no list row reads them back as `0` (`LIST_FIELD_DEFAULTS`) rather than
-None - the value the column always held. `page_fin` follows the same rule. `ep_fin` is deliberately excluded: it
+with no list row - or a row holding NULL - reads them back as `0`
+(`LIST_FIELD_DEFAULTS`) rather than None, the value the column always held.
+`page_fin` follows the same rule. NULL is a value these columns do hold: the
+Add and Modify forms send a blank finished count as `null` ("not recorded"),
+and the manga, novel and comic schemas accept it (`Optional[...] = 0`) on
+`POST` and `PUT` as `PATCH` always did. `ep_fin` is deliberately excluded: it
 was nullable on `anime` / `tv_shows` / `cartoons`, so None is a value it always
 could have had, and hentai reads it the same way.
 

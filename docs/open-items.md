@@ -174,7 +174,6 @@ nothing else is in flight, and not before.
 
 | Item | Where |
 |---|---|
-| Add and Modify each build the movie, TV show, cartoon, manga, novel and comic save payloads inline, so a field added to a type's form must be added to two payloads by hand (anime, anime movie and the gated types already share theirs) | `submit<Type>` in `Add.jsx`, `save<Type>` in `Modify.jsx`; the shared ones live in `lib/payloads.js` |
 | Games and comics are absent from the cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` |
 | No Games tab | `FutureReleases.jsx` |
 | `/defaults` shows an inert auto-fill column for Game | `frontend/src/config/formFields/fieldMeta.js` |

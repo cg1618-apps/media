@@ -4,11 +4,17 @@ import {
   buildAnimeMoviePayload,
   buildAnimePayload,
   buildCreditsPayload,
+  cartoonFieldsPayload,
+  comicFieldsPayload,
   creditsResponseToForm,
   gameFieldsPayload,
   hComicFieldsPayload,
   hGameFieldsPayload,
   hentaiFieldsPayload,
+  mangaFieldsPayload,
+  movieFieldsPayload,
+  novelFieldsPayload,
+  tvShowFieldsPayload,
 } from "./payloads";
 
 describe("source rows in the payload", () => {
@@ -510,5 +516,191 @@ describe("time_fin (Paused at)", () => {
     expect(buildAnimePayload({ time_fin: "" }).time_fin).toBeNull();
     expect(buildAnimeMoviePayload({}).time_fin).toBeNull();
     expect(hentaiFieldsPayload({ time_fin: "" }).time_fin).toBeNull();
+  });
+});
+
+// One body per type, shared by Add's create and Modify's save. The franchise
+// and series ids are the caller's - it may have just created them - so they
+// are never in the body built here.
+describe("movie, tv show and cartoon bodies", () => {
+  it.each([
+    ["movie", movieFieldsPayload],
+    ["tv show", tvShowFieldsPayload],
+    ["cartoon", cartoonFieldsPayload],
+  ])("%s leaves the franchise and series to the caller", (_, build) => {
+    const body = build({ franchise_id: "f1", series_id: "s1" });
+    expect("franchise_id" in body).toBe(false);
+    expect("series_id" in body).toBe(false);
+  });
+
+  it.each([
+    ["movie", movieFieldsPayload],
+    ["tv show", tvShowFieldsPayload],
+    ["cartoon", cartoonFieldsPayload],
+  ])("%s falls back to the default status it is given", (_, build) => {
+    expect(build({ watching_status: "" }, { defaultStatus: "Watching" }).watching_status).toBe(
+      "Watching",
+    );
+    expect(build({ watching_status: "" }).watching_status).toBe("Might Watch");
+    expect(
+      build({ watching_status: "Completed" }, { defaultStatus: "Watching" })
+        .watching_status,
+    ).toBe("Completed");
+  });
+
+  it("movie sends its IMDb fields as typed and its length as a number", () => {
+    const body = movieFieldsPayload({
+      movie_name_en: "Mv",
+      imdb_rating: "7.8",
+      imdb_id: "tt0111161",
+      length_min: "142",
+      sources: [{ name: " Site " }],
+    });
+    expect(body.movie_name_en).toBe("Mv");
+    expect(body.imdb_rating).toBe("7.8");
+    expect(body.imdb_id).toBe("tt0111161");
+    expect(body.length_min).toBe(142);
+    expect(body.sources).toEqual([
+      { kind: "access", bucket: "other", name: "Site", url: null, available: null },
+    ]);
+  });
+
+  it.each([
+    ["tv show", tvShowFieldsPayload],
+    ["cartoon", cartoonFieldsPayload],
+  ])("%s sends a blank episode count as null", (_, build) => {
+    const body = build({ ep_total: "", ep_fin: "" });
+    expect(body.ep_total).toBeNull();
+    expect(body.ep_fin).toBeNull();
+    expect(build({ ep_total: "12", ep_fin: "3" })).toMatchObject({
+      ep_total: 12,
+      ep_fin: 3,
+    });
+  });
+
+  it("cartoon sends its episode length as a number", () => {
+    expect(cartoonFieldsPayload({ length_ep_min: "22" }).length_ep_min).toBe(22);
+    expect(cartoonFieldsPayload({ length_ep_min: "" }).length_ep_min).toBeNull();
+  });
+});
+
+describe("manga, novel and comic bodies", () => {
+  it.each([
+    ["manga", mangaFieldsPayload],
+    ["novel", novelFieldsPayload],
+    ["comic", comicFieldsPayload],
+  ])("%s leaves the franchise and series to the caller", (_, build) => {
+    const body = build({ franchise_id: "f1", series_id: "s1" });
+    expect("franchise_id" in body).toBe(false);
+    expect("series_id" in body).toBe(false);
+  });
+
+  it.each([
+    ["manga", mangaFieldsPayload],
+    ["novel", novelFieldsPayload],
+    ["comic", comicFieldsPayload],
+  ])("%s falls back to the default status it is given", (_, build) => {
+    expect(build({ reading_status: "" }, { defaultStatus: "Reading" }).reading_status).toBe(
+      "Reading",
+    );
+    expect(build({ reading_status: "" }).reading_status).toBe("Might Read");
+  });
+
+  // A blank "finished" count is "not recorded", not zero chapters read.
+  it("manga sends blank finished counts as null", () => {
+    const body = mangaFieldsPayload({ vol_fin: "", vol_fin_page: "", ch_fin: "" });
+    expect(body.vol_fin).toBeNull();
+    expect(body.vol_fin_page).toBeNull();
+    expect(body.ch_fin).toBeNull();
+  });
+
+  it("manga sends typed counts as whole numbers", () => {
+    const body = mangaFieldsPayload({
+      vol_total: "10",
+      vol_fin: "3",
+      vol_fin_page: "12",
+      ch_total: "90",
+      ch_fin: "0",
+    });
+    expect(body).toMatchObject({
+      vol_total: 10,
+      vol_fin: 3,
+      vol_fin_page: 12,
+      ch_total: 90,
+      ch_fin: 0,
+    });
+  });
+
+  it("novel sends blank finished counts as null", () => {
+    const body = novelFieldsPayload({ vol_fin: "", arc_fin: "", ch_fin: "" });
+    expect(body.vol_fin).toBeNull();
+    expect(body.arc_fin).toBeNull();
+    expect(body.ch_fin).toBeNull();
+  });
+
+  it("novel keeps a half volume", () => {
+    const body = novelFieldsPayload({ vol_fin: "2.5", arc_fin: "1", ch_fin: "40" });
+    expect(body).toMatchObject({ vol_fin: 2.5, arc_fin: 1, ch_fin: 40 });
+  });
+
+  it("comic sends a blank finished issue count as null", () => {
+    expect(comicFieldsPayload({ issue_fin: "" }).issue_fin).toBeNull();
+    expect(comicFieldsPayload({ issue_fin: "7", issue_total: "12" })).toMatchObject({
+      issue_fin: 7,
+      issue_total: 12,
+    });
+  });
+
+  // mal_rank is a string column ("#1234" as MAL prints it).
+  it.each([
+    ["manga", mangaFieldsPayload],
+    ["novel", novelFieldsPayload],
+  ])("%s sends its MAL rank as typed", (_, build) => {
+    expect(build({ mal_rank: "#1234" }).mal_rank).toBe("#1234");
+    expect(build({ mal_rank: "" }).mal_rank).toBeNull();
+  });
+
+  // anilist_rating is an int column on both (0-100).
+  it.each([
+    ["manga", mangaFieldsPayload],
+    ["novel", novelFieldsPayload],
+  ])("%s sends its AniList fields as whole numbers", (_, build) => {
+    expect(
+      build({
+        anilist_rating: "78",
+        anilist_rank: "120",
+        anilist_popularity_rank: "45",
+      }),
+    ).toMatchObject({
+      anilist_rating: 78,
+      anilist_rank: 120,
+      anilist_popularity_rank: 45,
+    });
+  });
+
+  it("novel drops empty unit rows and numbers the rest", () => {
+    const body = novelFieldsPayload({
+      units: [
+        { unit_kind: "volume", unit_key: "", name_cn: "", name_en: "", remark: "", ch_count: "" },
+        { unit_kind: "volume", unit_key: "1", name_cn: "", name_en: "", remark: "", ch_count: "8" },
+      ],
+    });
+    expect(body.units).toEqual([
+      {
+        unit_kind: "volume",
+        unit_key: "1",
+        name_cn: "",
+        name_en: "",
+        remark: "",
+        ch_count: 8,
+        position: 1,
+      },
+    ]);
+  });
+
+  it("comic sends its Comic Vine id as typed, link or no link", () => {
+    expect(comicFieldsPayload({ comicvine_id: "2127" }).comicvine_id).toBe(2127);
+    expect(comicFieldsPayload({ comicvine_id: "x" }).comicvine_id).toBeNull();
+    expect(comicFieldsPayload({ comicvine_id: "" }).comicvine_id).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-// Build request payloads from anime / anime-movie form state.
+// Build request payloads from the entry forms' state.
 
 import {
   H_GAME_ART_STYLES,
@@ -421,6 +421,237 @@ export function gameFieldsPayload(f) {
       })),
     play_next: f.play_next ?? false,
     to_replay: f.to_replay ?? false,
+    cover_image_file: f.cover_image_file || null,
+    cover_image_focus: f.cover_image_focus || null,
+    remark: f.remark || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Movie, TV show, cartoon, manga, novel, comic
+// ---------------------------------------------------------------------------
+//
+// One body per type, built the same way by Add's create and Modify's save.
+// Like game's, each is the entry's own fields only: the franchise and series
+// ids are the caller's, which resolves (and may have just created) them first
+// and spreads them over the result.
+//
+// The status default is the caller's too, passed in as `defaultStatus`: it is
+// whatever /defaults configured for the type (resolveDefaults), which the page
+// holds and this module cannot see. Without one, the type's built-in default
+// stands - the value the server's DEFAULT_STATUS also falls back to.
+//
+// A blank "finished" count (manga vol_fin / vol_fin_page / ch_fin, novel
+// vol_fin / arc_fin / ch_fin, comic issue_fin) is sent as null, not 0: blank
+// is "not recorded". The list row stores the null, and every read serves it
+// as 0 (LIST_FIELD_DEFAULTS in app/services/domain/user_list.py).
+
+const float = (v) => (v === "" || v == null ? null : parseFloat(v));
+
+export function movieFieldsPayload(f, { defaultStatus } = {}) {
+  return {
+    movie_name_en: f.movie_name_en || null,
+    movie_name_cn: f.movie_name_cn || null,
+    movie_name_alt: f.movie_name_alt || null,
+    is_main: f.is_main || null,
+    airing_status: f.airing_status || null,
+    watching_status: f.watching_status || defaultStatus || "Might Watch",
+    my_rating: f.my_rating || null,
+    time_fin: f.time_fin || null,
+    // A string column (OMDb's "7.8"), sent as typed like TV and cartoon's.
+    imdb_rating: f.imdb_rating || null,
+    movie_type: f.movie_type || null,
+    length_min: int(f.length_min),
+    release_date_usa: f.release_date_usa || null,
+    release_date_tw: f.release_date_tw || null,
+    // IMDb ids are strings ("tt..."), sent as typed.
+    imdb_id: f.imdb_id || null,
+    imdb_link: f.imdb_link || null,
+    sources: sourcesPayload(f.sources),
+    watch_next: f.watch_next ?? null,
+    to_rewatch: f.to_rewatch ?? false,
+    cover_image_file: f.cover_image_file || null,
+    cover_image_focus: f.cover_image_focus || null,
+    remark: f.remark || null,
+  };
+}
+
+export function tvShowFieldsPayload(f, { defaultStatus } = {}) {
+  return {
+    tv_name_en: f.tv_name_en || null,
+    tv_name_cn: f.tv_name_cn || null,
+    tv_name_alt: f.tv_name_alt || null,
+    season_part: f.season_part || null,
+    region: f.region || null,
+    is_main: f.is_main || null,
+    airing_status: f.airing_status || null,
+    watching_status: f.watching_status || defaultStatus || "Might Watch",
+    ep_total: int(f.ep_total),
+    ep_fin: int(f.ep_fin),
+    time_fin: f.time_fin || null,
+    my_rating: f.my_rating || null,
+    imdb_rating: f.imdb_rating || null,
+    release_date: f.release_date || null,
+    imdb_id: f.imdb_id || null,
+    imdb_link: f.imdb_link || null,
+    sources: sourcesPayload(f.sources),
+    watch_next: f.watch_next ?? null,
+    to_rewatch: f.to_rewatch ?? false,
+    cover_image_file: f.cover_image_file || null,
+    cover_image_focus: f.cover_image_focus || null,
+    remark: f.remark || null,
+  };
+}
+
+export function cartoonFieldsPayload(f, { defaultStatus } = {}) {
+  return {
+    cartoon_name_en: f.cartoon_name_en || null,
+    cartoon_name_cn: f.cartoon_name_cn || null,
+    cartoon_name_alt: f.cartoon_name_alt || null,
+    season_part: f.season_part || null,
+    airing_type: f.airing_type || null,
+    airing_status: f.airing_status || null,
+    watching_status: f.watching_status || defaultStatus || "Might Watch",
+    is_main: f.is_main || null,
+    ep_total: int(f.ep_total),
+    ep_fin: int(f.ep_fin),
+    time_fin: f.time_fin || null,
+    my_rating: f.my_rating || null,
+    imdb_rating: f.imdb_rating || null,
+    length_ep_min: int(f.length_ep_min),
+    release_date: f.release_date || null,
+    imdb_id: f.imdb_id || null,
+    imdb_link: f.imdb_link || null,
+    sources: sourcesPayload(f.sources),
+    watch_next: f.watch_next ?? null,
+    cover_image_file: f.cover_image_file || null,
+    cover_image_focus: f.cover_image_focus || null,
+    remark: f.remark || null,
+  };
+}
+
+export function mangaFieldsPayload(f, { defaultStatus } = {}) {
+  return {
+    manga_name_cn: f.manga_name_cn || null,
+    manga_name_en: f.manga_name_en || null,
+    manga_name_roman: f.manga_name_roman || null,
+    manga_name_jp: f.manga_name_jp || null,
+    manga_name_alt: f.manga_name_alt || null,
+    region: f.region || null,
+    serialization_status: f.serialization_status || null,
+    reading_status: f.reading_status || defaultStatus || "Might Read",
+    is_main: f.is_main || null,
+    vol_total: int(f.vol_total),
+    vol_fin: int(f.vol_fin),
+    vol_fin_page: int(f.vol_fin_page),
+    ch_total: int(f.ch_total),
+    ch_fin: int(f.ch_fin),
+    my_rating: f.my_rating || null,
+    mal_rating: float(f.mal_rating),
+    // A string column ("#1234" as MAL prints it), sent as typed.
+    mal_rank: f.mal_rank || null,
+    // AniList's score is a whole number out of 100 - an int column.
+    anilist_rating: int(f.anilist_rating),
+    anilist_rank: int(f.anilist_rank),
+    anilist_popularity_rank: int(f.anilist_popularity_rank),
+    release_date: f.release_date || null,
+    end_date: f.end_date || null,
+    anime_studio: f.anime_studio || null,
+    mal_id: int(f.mal_id),
+    mal_link: f.mal_link || null,
+    sources: sourcesPayload(f.sources),
+    read_next: f.read_next ?? false,
+    to_reread: f.to_reread ?? false,
+    cover_image_file: f.cover_image_file || null,
+    cover_image_focus: f.cover_image_focus || null,
+    remark: f.remark || null,
+  };
+}
+
+/**
+ * Novel counts are floats throughout - a half volume is a real position.
+ * `units` follows NovelUnitWrite's nested-collection contract: rows the
+ * payload omits are deleted, so a row with nothing in it is dropped here.
+ */
+export function novelFieldsPayload(f, { defaultStatus } = {}) {
+  return {
+    novel_name_cn: f.novel_name_cn || null,
+    novel_name_en: f.novel_name_en || null,
+    novel_name_roman: f.novel_name_roman || null,
+    novel_name_jp: f.novel_name_jp || null,
+    novel_name_alt: f.novel_name_alt || null,
+    region: f.region || null,
+    type: f.type || null,
+    version: f.version || null,
+    is_main: f.is_main || null,
+    serialization_status: f.serialization_status || null,
+    reading_status: f.reading_status || defaultStatus || "Might Read",
+    progress_display: f.progress_display || null,
+    vol_total_original: float(f.vol_total_original),
+    vol_total_tw: float(f.vol_total_tw),
+    vol_fin: float(f.vol_fin),
+    arc_total: float(f.arc_total),
+    arc_fin: float(f.arc_fin),
+    ch_total: float(f.ch_total),
+    ch_fin: float(f.ch_fin),
+    my_rating: f.my_rating || null,
+    mal_rating: float(f.mal_rating),
+    mal_rank: f.mal_rank || null,
+    anilist_rating: int(f.anilist_rating),
+    anilist_rank: int(f.anilist_rank),
+    anilist_popularity_rank: int(f.anilist_popularity_rank),
+    release_date: f.release_date || null,
+    end_date: f.end_date || null,
+    read_order: float(f.read_order),
+    units: (f.units || [])
+      .filter(
+        (u) =>
+          (u.unit_key && u.unit_key.trim()) ||
+          (u.name_cn && u.name_cn.trim()) ||
+          (u.name_en && u.name_en.trim()) ||
+          (u.remark && u.remark.trim()) ||
+          u.ch_count !== "",
+      )
+      .map((u, i) => ({
+        ...u,
+        position: i + 1,
+        ch_count: u.ch_count === "" ? null : Number(u.ch_count),
+      })),
+    mal_id: int(f.mal_id),
+    mal_link: f.mal_link || null,
+    openlibrary_link: f.openlibrary_link || null,
+    openlibrary_id: f.openlibrary_id || null,
+    sources: sourcesPayload(f.sources),
+    read_next: f.read_next ?? false,
+    to_reread: f.to_reread ?? false,
+    cover_image_file: f.cover_image_file || null,
+    cover_image_focus: f.cover_image_focus || null,
+    remark: f.remark || null,
+  };
+}
+
+export function comicFieldsPayload(f, { defaultStatus } = {}) {
+  return {
+    comic_name_en: f.comic_name_en || null,
+    comic_name_cn: f.comic_name_cn || null,
+    comic_name_alt: f.comic_name_alt || null,
+    volume_label: f.volume_label || null,
+    comic_type: f.comic_type || null,
+    release_date: f.release_date || null,
+    end_date: f.end_date || null,
+    issue_total: int(f.issue_total),
+    issue_fin: int(f.issue_fin),
+    serialization_status: f.serialization_status || null,
+    reading_status: f.reading_status || defaultStatus || "Might Read",
+    read_order: float(f.read_order),
+    my_rating: f.my_rating || null,
+    // Editable on its own, beside the link or without one: the id is what
+    // Fill runs on, so it travels as typed. A non-number sends null.
+    comicvine_id: int(f.comicvine_id) || null,
+    comicvine_link: f.comicvine_link || null,
+    sources: sourcesPayload(f.sources),
+    read_next: f.read_next ?? false,
+    to_reread: f.to_reread ?? false,
     cover_image_file: f.cover_image_file || null,
     cover_image_focus: f.cover_image_focus || null,
     remark: f.remark || null,
