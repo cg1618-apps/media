@@ -22,7 +22,17 @@ vi.mock("../detail/AnimeMovieNotes", () => ({
   default: (props) => <div data-testid="notes" data-owner-id={props.movie?.system_id} />,
 }));
 
-const SOURCES = { options: [], studios: [], publishers: {}, people: {} };
+// A director under each scope, so the Director picker can only offer the
+// anime-movie one by reading its own scope.
+const SOURCES = {
+  options: [],
+  studios: [],
+  publishers: {},
+  people: {
+    "director|anime-movie": [{ system_id: "p-am", display_name: "Movie Director" }],
+    "director|anime": [{ system_id: "p-a", display_name: "Series Director" }],
+  },
+};
 const FRANCHISES = [
   { system_id: "f1", franchise_name_en: "ACG Franchise", franchise_type: "ACG" },
   { system_id: "f2", franchise_name_en: "Film Franchise", franchise_type: "Movie" },
@@ -155,6 +165,17 @@ describe("Anime movie form", () => {
     expect(screen.getByTestId("cast-editor").dataset.entryId).toBe("am-7");
     expect(screen.getByTestId("notes").dataset.ownerId).toBe("am-7");
   });
+
+  it.each(["add", "modify"])(
+    "%s offers anime-movie directors, not anime ones",
+    async (mode) => {
+      const user = userEvent.setup();
+      renderTab(mode);
+      await user.click(screen.getByPlaceholderText("Select director..."));
+      expect(await screen.findByRole("option", { name: "Movie Director" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "Series Director" })).not.toBeInTheDocument();
+    },
+  );
 
   it("offers every franchise type and writes no series keys on a pick", async () => {
     const user = userEvent.setup();

@@ -168,7 +168,7 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
         {tags(
           "director",
           "Director",
-          { kind: "person", role: "director", scope: "anime" },
+          { kind: "person", role: "director", scope: "anime-movie" },
           "Select director...",
         )}
       </div>
