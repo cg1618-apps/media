@@ -165,12 +165,52 @@ it("puts the toolbar above the cast rows", async () => {
   const rows = [row({ character_name: "A" })];
   render(<CastEditor mediaType="anime" value={rows} onChange={vi.fn()} />);
 
-  const add = screen.getByRole("button", { name: "+ Add cast member" });
+  const [add] = screen.getAllByRole("button", { name: "+ Add cast member" });
   const firstRow = screen.getAllByLabelText("Remove")[0];
   expect(
     add.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
+it("offers a second Add under the last row once there is one", async () => {
+  const { unmount } = render(<CastEditor mediaType="anime" value={[]} onChange={vi.fn()} />);
+  expect(screen.getAllByRole("button", { name: "+ Add cast member" })).toHaveLength(1);
+  unmount();
+
+  render(<CastEditor mediaType="anime" value={[row({ character_name: "A" })]} onChange={vi.fn()} />);
+  const adds = screen.getAllByRole("button", { name: "+ Add cast member" });
+  expect(adds).toHaveLength(2);
+  const lastRow = screen.getAllByLabelText("Remove").at(-1);
+  expect(
+    adds[1].compareDocumentPosition(lastRow) & Node.DOCUMENT_POSITION_PRECEDING,
+  ).toBeTruthy();
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
+it.each([
+  ["toolbar", 0],
+  ["bottom", 1],
+])("appends a row from the %s Add and focuses its Character box", async (_, which) => {
+  const onChangeSpy = vi.fn();
+  render(
+    <Controlled
+      mediaType="anime"
+      initialRows={[row({ character_name: "A" }), row({ character_name: "B", position: 1 })]}
+      onChangeSpy={onChangeSpy}
+    />,
+  );
+  await userEvent.click(screen.getAllByRole("button", { name: "+ Add cast member" })[which]);
+
+  const rows = onChangeSpy.mock.calls.at(-1)[0];
+  expect(rows.map((r) => [r.character_name, r.position])).toEqual([
+    ["A", 0],
+    ["B", 1],
+    ["", 2],
+  ]);
+  const characterBoxes = screen.getAllByPlaceholderText("Character name...");
+  expect(characterBoxes).toHaveLength(3);
+  expect(characterBoxes[2]).toHaveFocus();
 });
 
 it("gives every cell at most one width utility", async () => {

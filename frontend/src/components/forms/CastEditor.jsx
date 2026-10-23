@@ -310,12 +310,33 @@ export default function CastEditor({
     onChange(next);
   };
 
-  const addRow = () => onChange([...rows, emptyRow(rows.length)]);
+  // A row added by either button below lands where the admin types next:
+  // the cell named here (a `data-*-cell` attribute and a row index) is
+  // focused once the parent has rendered it, and its row scrolled into view.
+  const rootRef = useRef(null);
+  const pendingFocus = useRef(null);
+  useLayoutEffect(() => {
+    const target = pendingFocus.current;
+    if (target == null) return;
+    const cell = rootRef.current?.querySelector(`[${target.cell}="${target.index}"]`);
+    const input = cell?.querySelector("input");
+    if (!input) return;
+    pendingFocus.current = null;
+    cell.closest("[data-testid='cast-row']")?.scrollIntoView?.({ block: "nearest" });
+    input.focus({ preventScroll: true });
+  });
+
+  // Appended, since position is the billing order, then its Character box
+  // focused, so the admin never scrolls to find the row they just added.
+  const addRow = () => {
+    const next = [...latestRows.current, emptyRow(latestRows.current.length)];
+    latestRows.current = next;
+    pendingFocus.current = { cell: "data-character-cell", index: next.length - 1 };
+    onChange(next);
+  };
 
   // Inserts an identity row of row i's character directly after it, then
-  // focuses its Identity box once the parent has rendered it.
-  const rootRef = useRef(null);
-  const focusIdentityOf = useRef(null);
+  // focuses its Identity box.
   const addIdentityRow = (i) => {
     const current = latestRows.current;
     const next = [
@@ -324,19 +345,9 @@ export default function CastEditor({
       ...current.slice(i + 1),
     ].map((r, k) => ({ ...r, position: k }));
     latestRows.current = next;
-    focusIdentityOf.current = i + 1;
+    pendingFocus.current = { cell: "data-identity-cell", index: i + 1 };
     onChange(next);
   };
-  useLayoutEffect(() => {
-    const target = focusIdentityOf.current;
-    if (target == null) return;
-    const input = rootRef.current?.querySelector(
-      `[data-identity-cell="${target}"] input`,
-    );
-    if (!input) return;
-    focusIdentityOf.current = null;
-    input.focus();
-  });
 
   // Other entries of this franchise with a cast to import. Refetched when the
   // form's franchise changes; a form with no franchise has none.
@@ -989,7 +1000,7 @@ export default function CastEditor({
                   </>
                 ) : (
                   <>
-                    <div className={NAME_CELL} aria-label="Character">
+                    <div className={NAME_CELL} aria-label="Character" data-character-cell={i}>
                       <ComboBox
                         items={characterItems(row, i)}
                         selectedId={row.character_id || null}
@@ -1176,6 +1187,17 @@ export default function CastEditor({
           );
         })}
       </SortableList>
+      {/* A second Add under the last row, where the admin just finished
+          typing, so adding several in a row needs no trip to the toolbar. */}
+      {rows.length > 0 && (
+        <button
+          type="button"
+          className="text-xs text-brand hover:underline"
+          onClick={addRow}
+        >
+          + Add cast member
+        </button>
+      )}
     </div>
   );
 }
