@@ -269,6 +269,15 @@ is created as; enrichment; content labels; the starting state (`freshForm`
 plus `/defaults` on Add, `<type>ToForm` on Modify); and h-comic's Add-only
 region updater, which re-suggests restricted sources.
 
+**One save body per type, too.** Add's `submit<Type>` and Modify's
+`save<Type>` build the entry body through the same function in
+`lib/payloads.js` (`<type>FieldsPayload`, or `buildAnimePayload` /
+`buildAnimeMoviePayload`), then add the franchise and series ids they
+resolved, so a field added to a form is added to one payload, not two. A
+blank finished count — manga's volumes, pages and chapters read, novel's
+volumes, arcs and chapters read, comic's issues read — is sent as `null`
+("not recorded") from both pages, and reads back as `0`.
+
 **Sections**, in the detail page's order, with the same title and icon on
 every type; a type leaves out what it lacks:
 

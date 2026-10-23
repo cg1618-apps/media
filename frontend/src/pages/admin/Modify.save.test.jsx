@@ -129,6 +129,21 @@ describe("Modify save keeps what the entry holds", () => {
     expect(body.mal_rank).toBe("#1234");
   });
 
+  // A count the entry does not hold loads as blank and saves as null - "not
+  // recorded" - on every reading type, comic's issue count included.
+  it.each([
+    ["manga", "/api/manga", { manga_name_en: "M" }, ["vol_fin", "vol_fin_page", "ch_fin"]],
+    ["novel", "/api/novel", { novel_name_en: "N" }, ["vol_fin", "arc_fin", "ch_fin"]],
+    ["comic", "/api/comic", { comic_name_en: "C" }, ["issue_fin"]],
+  ])("%s sends a blank finished count as null", async (type, listPath, names, counts) => {
+    const { body } = await saveAndReadBody({
+      type,
+      listPath,
+      entry: { system_id: `${type}-1`, ...names },
+    });
+    for (const key of counts) expect(body[key]).toBeNull();
+  });
+
   it("movie keeps its IMDb rating", async () => {
     const { body } = await saveAndReadBody({
       type: "movie",

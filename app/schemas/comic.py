@@ -27,7 +27,7 @@ class ComicBase(BaseModel):
     end_date: Optional[str] = None
 
     issue_total: Optional[int] = None
-    issue_fin: int = 0
+    issue_fin: Optional[int] = 0
     serialization_status: Optional[str] = None
     reading_status: str = "Might Read"
     read_order: Optional[float] = None

@@ -58,10 +58,12 @@ DEFAULT_STATUS: dict[str, str] = {
 
 # The counters that were NOT NULL DEFAULT 0 on their detail table. On
 # user_media_list every field is nullable, so an entry the viewer has no row
-# for would otherwise read back None where the column always said 0 - and the
-# response schemas still declare them `int`, not `int | None`. "Read zero
-# chapters" and "never opened it" are the same thing today; inventing a
-# distinction here would be a data change dressed up as a move.
+# for - or a row holding NULL, which is what a blank count on the Add or
+# Modify form saves - would otherwise read back None where the column always
+# said 0. The schemas accept None on the way in (`Optional[...] = 0`), and
+# every read serves it as 0: "read zero chapters" and "never recorded" read
+# the same, and inventing a distinction here would be a data change dressed
+# up as a move.
 #
 # `ep_fin` is deliberately absent: it was nullable on the anime, tv_shows and
 # cartoons tables, so None is a value it always could have had - and hentai
