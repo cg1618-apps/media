@@ -4,11 +4,13 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import {
   publisherLabel,
@@ -475,6 +477,9 @@ export default function Novel() {
             />
           </header>
 
+          {/* Where this entry sits in the watch orders the viewer follows. */}
+          <FollowedOrderPanel entryId={novel.system_id} />
+
           {/* My Tracker Block */}
           <NovelTrackerBlock
             novel={novel}
@@ -561,11 +566,9 @@ export default function Novel() {
                       novel.ch_total != null ? String(novel.ch_total) : null,
                   },
                 ],
-                { label: "Genre (Main)", value: novel.genre_main },
-                { label: "Genre (Sub)", value: novel.genre_sub },
-                { label: "標籤 Label", value: novel.label },
               ]}
             />
+            <GenresCard item={novel} />
             {/* Production Card */}
             {(novel.author ||
               novel.illustrator ||

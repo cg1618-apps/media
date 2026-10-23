@@ -1,5 +1,5 @@
 // Frontend: page component file for Add.
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
@@ -7,10 +7,16 @@ import {
   buildAnimePayload,
   buildAnimeMoviePayload,
   buildCreditsPayload,
+  cartoonFieldsPayload,
+  comicFieldsPayload,
   gameFieldsPayload,
   hComicFieldsPayload,
   hGameFieldsPayload,
   hentaiFieldsPayload,
+  mangaFieldsPayload,
+  movieFieldsPayload,
+  novelFieldsPayload,
+  tvShowFieldsPayload,
 } from "../../utils/media";
 import { clearedForRegion } from "../../lib/hComicRegion";
 import { mergeHComicAutofill } from "../../lib/restrictedSources";
@@ -173,46 +179,6 @@ export default function Add() {
     setLastAddedName(name);
     setLastCreated(null);
   };
-
-  // Auto-fill search
-  const [fillQuery, setFillQuery] = useState("");
-  const [fillOpen, setFillOpen] = useState(false);
-  const fillRef = useRef(null);
-
-  // Cartoon auto-fill search
-  const [cartoonFillQuery, setCartoonFillQuery] = useState("");
-  const [cartoonFillOpen, setCartoonFillOpen] = useState(false);
-  const cartoonFillRef = useRef(null);
-
-  // Anime Movie auto-fill search
-  const [amFillQuery, setAmFillQuery] = useState("");
-  const [amFillOpen, setAmFillOpen] = useState(false);
-  const amFillRef = useRef(null);
-
-  // Movie auto-fill search
-  const [movieFillQuery, setMovieFillQuery] = useState("");
-  const [movieFillOpen, setMovieFillOpen] = useState(false);
-  const movieFillRef = useRef(null);
-
-  // TV Show auto-fill search
-  const [tvFillQuery, setTvFillQuery] = useState("");
-  const [tvFillOpen, setTvFillOpen] = useState(false);
-  const tvFillRef = useRef(null);
-
-  // Manga auto-fill search
-  const [mangaFillQuery, setMangaFillQuery] = useState("");
-  const [mangaFillOpen, setMangaFillOpen] = useState(false);
-  const mangaFillRef = useRef(null);
-
-  // Novel auto-fill search
-  const [novelFillQuery, setNovelFillQuery] = useState("");
-  const [novelFillOpen, setNovelFillOpen] = useState(false);
-  const novelFillRef = useRef(null);
-
-  // Comic auto-fill search
-  const [comicFillQuery, setComicFillQuery] = useState("");
-  const [comicFillOpen, setComicFillOpen] = useState(false);
-  const comicFillRef = useRef(null);
 
   // Modals (callbacks stored in state)
   const [duplicateModal, setDuplicateModal] = useState(null); // {name, onProceed, onCancel}
@@ -444,181 +410,6 @@ export default function Add() {
     load();
   }, []);
 
-  useEffect(() => {
-    function handleClick(e) {
-      if (fillRef.current && !fillRef.current.contains(e.target))
-        setFillOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (cartoonFillRef.current && !cartoonFillRef.current.contains(e.target))
-        setCartoonFillOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (amFillRef.current && !amFillRef.current.contains(e.target))
-        setAmFillOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (movieFillRef.current && !movieFillRef.current.contains(e.target))
-        setMovieFillOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (tvFillRef.current && !tvFillRef.current.contains(e.target))
-        setTvFillOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (mangaFillRef.current && !mangaFillRef.current.contains(e.target))
-        setMangaFillOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (novelFillRef.current && !novelFillRef.current.contains(e.target))
-        setNovelFillOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (comicFillRef.current && !comicFillRef.current.contains(e.target))
-        setComicFillOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  // Auto-fill results
-  const fillResults = fillQuery
-    ? allAnime
-        .filter((a) =>
-          [
-            a.anime_name_en,
-            a.anime_name_cn,
-            a.anime_name_roman,
-            a.anime_name_jp,
-            a.anime_name_alt,
-          ].some((n) => n && cleanString(n).includes(cleanString(fillQuery))),
-        )
-        .slice(0, 10)
-    : [];
-
-  const amFillResults = amFillQuery
-    ? allAnimeMovies
-        .filter((m) =>
-          [
-            m.anime_movie_name_en,
-            m.anime_movie_name_cn,
-            m.anime_movie_name_roman,
-            m.anime_movie_name_jp,
-            m.anime_movie_name_alt,
-          ].some((n) => n && cleanString(n).includes(cleanString(amFillQuery))),
-        )
-        .slice(0, 10)
-    : [];
-
-  const cartoonFillResults = cartoonFillQuery
-    ? allCartoons
-        .filter((c) =>
-          [c.cartoon_name_en, c.cartoon_name_cn, c.cartoon_name_alt].some(
-            (n) => n && cleanString(n).includes(cleanString(cartoonFillQuery)),
-          ),
-        )
-        .slice(0, 10)
-    : [];
-
-  const mangaFillResults = mangaFillQuery
-    ? allMangas
-        .filter((m) =>
-          [
-            m.manga_name_cn,
-            m.manga_name_en,
-            m.manga_name_roman,
-            m.manga_name_jp,
-            m.manga_name_alt,
-          ].some(
-            (n) => n && cleanString(n).includes(cleanString(mangaFillQuery)),
-          ),
-        )
-        .slice(0, 10)
-    : [];
-
-  const novelFillResults = novelFillQuery
-    ? allNovels
-        .filter((n) =>
-          [
-            n.novel_name_cn,
-            n.novel_name_en,
-            n.novel_name_roman,
-            n.novel_name_jp,
-            n.novel_name_alt,
-          ].some(
-            (name) =>
-              name && cleanString(name).includes(cleanString(novelFillQuery)),
-          ),
-        )
-        .slice(0, 10)
-    : [];
-
-  const comicFillResults = comicFillQuery
-    ? allComics
-        .filter((c) =>
-          [c.comic_name_en, c.comic_name_cn, c.comic_name_alt].some(
-            (name) =>
-              name && cleanString(name).includes(cleanString(comicFillQuery)),
-          ),
-        )
-        .slice(0, 10)
-    : [];
-
-  const movieFillResults = movieFillQuery
-    ? allMovies
-        .filter((m) =>
-          [m.movie_name_en, m.movie_name_cn, m.movie_name_alt].some(
-            (n) => n && cleanString(n).includes(cleanString(movieFillQuery)),
-          ),
-        )
-        .slice(0, 10)
-    : [];
-
-  const tvFillResults = tvFillQuery
-    ? allTvShows
-        .filter((t) =>
-          [t.tv_name_en, t.tv_name_cn, t.tv_name_alt].some(
-            (n) => n && cleanString(n).includes(cleanString(tvFillQuery)),
-          ),
-        )
-        .slice(0, 10)
-    : [];
-
   // One auto-fill handler per tab. Which fields get copied comes from the
   // admin's /defaults configuration, falling back to the built-in field sets.
   // `merge` folds the patch into the form; a tab whose fields depend on each
@@ -635,17 +426,6 @@ export default function Add() {
       setter((p) => merge(p, patch));
       showToast("success", "Auto-filled fields from existing entry.");
     };
-  // The older tabs hold their search box's state here, so a pick also has to
-  // clear it; the gated tabs' EntryAutofillSearch clears itself.
-  const makeApply = (setter, type, setQuery, setOpen) => {
-    const apply = applyEntryAutofill(setter, type);
-    return (item) => {
-      apply(item);
-      setQuery("");
-      setOpen(false);
-    };
-  };
-
   const applyHComicEntryAutofill = applyEntryAutofill(
     setHcf,
     "h-comic",
@@ -655,44 +435,14 @@ export default function Add() {
   const applyHGameEntryAutofill = applyEntryAutofill(setHgf, "h-game");
   const applyHentaiEntryAutofill = applyEntryAutofill(setHtf, "hentai");
 
-  const applyAutofill = makeApply(setAf, "anime", setFillQuery, setFillOpen);
-  const applyAnimeMovieAutofill = makeApply(
-    setAmf,
-    "anime-movie",
-    setAmFillQuery,
-    setAmFillOpen,
-  );
-  const applyCartoonAutofill = makeApply(
-    setCf,
-    "cartoon",
-    setCartoonFillQuery,
-    setCartoonFillOpen,
-  );
-  const applyMangaAutofill = makeApply(
-    setMgf,
-    "manga",
-    setMangaFillQuery,
-    setMangaFillOpen,
-  );
-  const applyNovelAutofill = makeApply(
-    setNvf,
-    "novel",
-    setNovelFillQuery,
-    setNovelFillOpen,
-  );
-  const applyComicAutofill = makeApply(
-    setCmf,
-    "comic",
-    setComicFillQuery,
-    setComicFillOpen,
-  );
-  const applyMovieAutofill = makeApply(
-    setMf,
-    "movie",
-    setMovieFillQuery,
-    setMovieFillOpen,
-  );
-  // Game draws the shared EntryAutofillSearch, like the gated tabs.
+  const applyAnimeEntryAutofill = applyEntryAutofill(setAf, "anime");
+  const applyAnimeMovieEntryAutofill = applyEntryAutofill(setAmf, "anime-movie");
+  const applyMovieEntryAutofill = applyEntryAutofill(setMf, "movie");
+  const applyTvShowEntryAutofill = applyEntryAutofill(setTvf, "tv-show");
+  const applyCartoonEntryAutofill = applyEntryAutofill(setCf, "cartoon");
+  const applyMangaEntryAutofill = applyEntryAutofill(setMgf, "manga");
+  const applyNovelEntryAutofill = applyEntryAutofill(setNvf, "novel");
+  const applyComicEntryAutofill = applyEntryAutofill(setCmf, "comic");
   const applyGameEntryAutofill = applyEntryAutofill(setGmf, "game");
 
   // The external search under each tab's auto-fill box (ExternalSearchBox).
@@ -781,13 +531,6 @@ export default function Add() {
     });
   const applyGameIgdbPick = igdbPick(setGmf, "game_name_en");
   const applyHGameIgdbPick = igdbPick(setHgf, "h_game_name_en");
-
-  const applyTvShowAutofill = makeApply(
-    setTvf,
-    "tv-show",
-    setTvFillQuery,
-    setTvFillOpen,
-  );
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -987,6 +730,7 @@ export default function Add() {
       "cover",
       "Entry",
     );
+    await ensureSourceValues(genreLabelSourceFields("anime", af, splitTags));
     await saveCredits("anime", created.system_id, af);
     await saveCast("anime", created.system_id, af);
 
@@ -1725,36 +1469,11 @@ export default function Add() {
     }
 
     const payload = {
-      movie_name_en: mf.movie_name_en || null,
-      movie_name_cn: mf.movie_name_cn || null,
-      movie_name_alt: mf.movie_name_alt || null,
+      ...movieFieldsPayload(mf, {
+        defaultStatus: freshForm("movie").watching_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      is_main: mf.is_main || null,
-      airing_status: mf.airing_status || null,
-      watching_status: mf.watching_status || freshForm("movie").watching_status,
-      my_rating: mf.my_rating || null,
-      time_fin: mf.time_fin || null,
-      movie_type: mf.movie_type || null,
-      length_min: mf.length_min !== "" ? parseInt(mf.length_min) : null,
-      release_date_usa: mf.release_date_usa || null,
-      release_date_tw: mf.release_date_tw || null,
-      imdb_id: mf.imdb_id !== "" ? mf.imdb_id : null,
-      imdb_link: mf.imdb_link || null,
-      sources: (mf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      watch_next: mf.watch_next ?? null,
-      to_rewatch: mf.to_rewatch ?? false,
-      cover_image_file: mf.cover_image_file || null,
-      cover_image_focus: mf.cover_image_focus || null,
-      remark: mf.remark || null,
     };
 
     const res = await fetch("/api/movies/", {
@@ -1895,39 +1614,11 @@ export default function Add() {
     }
 
     const payload = {
-      tv_name_en: tvf.tv_name_en || null,
-      tv_name_cn: tvf.tv_name_cn || null,
-      tv_name_alt: tvf.tv_name_alt || null,
+      ...tvShowFieldsPayload(tvf, {
+        defaultStatus: freshForm("tv-show").watching_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      season_part: tvf.season_part || null,
-      region: tvf.region || null,
-      is_main: tvf.is_main || null,
-      airing_status: tvf.airing_status || null,
-      watching_status:
-        tvf.watching_status || freshForm("tv-show").watching_status,
-      ep_total: tvf.ep_total !== "" ? parseInt(tvf.ep_total) : null,
-      ep_fin: tvf.ep_fin !== "" ? parseInt(tvf.ep_fin) : null,
-      time_fin: tvf.time_fin || null,
-      my_rating: tvf.my_rating || null,
-      imdb_rating: tvf.imdb_rating || null,
-      release_date: tvf.release_date || null,
-      imdb_id: tvf.imdb_id !== "" ? tvf.imdb_id : null,
-      imdb_link: tvf.imdb_link || null,
-      sources: (tvf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      watch_next: tvf.watch_next ?? null,
-      to_rewatch: tvf.to_rewatch ?? false,
-      cover_image_file: tvf.cover_image_file || null,
-      cover_image_focus: tvf.cover_image_focus || null,
-      remark: tvf.remark || null,
     };
 
     const res = await fetch("/api/tv-shows/", {
@@ -2049,40 +1740,11 @@ export default function Add() {
     }
 
     const payload = {
-      cartoon_name_en: cf.cartoon_name_en || null,
-      cartoon_name_cn: cf.cartoon_name_cn || null,
-      cartoon_name_alt: cf.cartoon_name_alt || null,
+      ...cartoonFieldsPayload(cf, {
+        defaultStatus: freshForm("cartoon").watching_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      season_part: cf.season_part || null,
-      airing_type: cf.airing_type || null,
-      airing_status: cf.airing_status || null,
-      watching_status:
-        cf.watching_status || freshForm("cartoon").watching_status,
-      is_main: cf.is_main || null,
-      ep_total: cf.ep_total !== "" ? parseInt(cf.ep_total) : null,
-      ep_fin: cf.ep_fin !== "" ? parseInt(cf.ep_fin) : null,
-      time_fin: cf.time_fin || null,
-      my_rating: cf.my_rating || null,
-      imdb_rating: cf.imdb_rating || null,
-      length_ep_min:
-        cf.length_ep_min !== "" ? parseInt(cf.length_ep_min) : null,
-      release_date: cf.release_date || null,
-      imdb_id: cf.imdb_id !== "" ? cf.imdb_id : null,
-      imdb_link: cf.imdb_link || null,
-      sources: (cf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      watch_next: cf.watch_next ?? null,
-      cover_image_file: cf.cover_image_file || null,
-      cover_image_focus: cf.cover_image_focus || null,
-      remark: cf.remark || null,
     };
 
     const res = await fetch("/api/cartoon/", {
@@ -2208,51 +1870,11 @@ export default function Add() {
     }
 
     const payload = {
-      manga_name_cn: mgf.manga_name_cn || null,
-      manga_name_en: mgf.manga_name_en || null,
-      manga_name_roman: mgf.manga_name_roman || null,
-      manga_name_jp: mgf.manga_name_jp || null,
-      manga_name_alt: mgf.manga_name_alt || null,
+      ...mangaFieldsPayload(mgf, {
+        defaultStatus: freshForm("manga").reading_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      region: mgf.region || null,
-      serialization_status: mgf.serialization_status || null,
-      reading_status: mgf.reading_status || freshForm("manga").reading_status,
-      is_main: mgf.is_main || null,
-      vol_total: mgf.vol_total !== "" ? parseInt(mgf.vol_total) : null,
-      vol_fin: mgf.vol_fin !== "" ? parseInt(mgf.vol_fin) : 0,
-      vol_fin_page: mgf.vol_fin_page !== "" ? parseInt(mgf.vol_fin_page) : 0,
-      ch_total: mgf.ch_total !== "" ? parseInt(mgf.ch_total) : null,
-      ch_fin: mgf.ch_fin !== "" ? parseInt(mgf.ch_fin) : 0,
-      my_rating: mgf.my_rating || null,
-      mal_rating: mgf.mal_rating !== "" ? parseFloat(mgf.mal_rating) : null,
-      mal_rank: mgf.mal_rank !== "" ? parseInt(mgf.mal_rank) : null,
-      anilist_rating:
-        mgf.anilist_rating !== "" ? parseInt(mgf.anilist_rating) : null,
-      anilist_rank: mgf.anilist_rank !== "" ? parseInt(mgf.anilist_rank) : null,
-      anilist_popularity_rank:
-        mgf.anilist_popularity_rank !== ""
-          ? parseInt(mgf.anilist_popularity_rank)
-          : null,
-      release_date: mgf.release_date || null,
-      end_date: mgf.end_date || null,
-      anime_studio: mgf.anime_studio || null,
-      mal_id: mgf.mal_id !== "" ? parseInt(mgf.mal_id) : null,
-      mal_link: mgf.mal_link || null,
-      sources: (mgf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      read_next: mgf.read_next ?? false,
-      to_reread: mgf.to_reread ?? false,
-      cover_image_file: mgf.cover_image_file || null,
-      cover_image_focus: mgf.cover_image_focus || null,
-      remark: mgf.remark || null,
     };
 
     const res = await fetch("/api/manga/", {
@@ -2394,76 +2016,11 @@ export default function Add() {
     ]);
 
     const payload = {
-      novel_name_cn: nvf.novel_name_cn || null,
-      novel_name_en: nvf.novel_name_en || null,
-      novel_name_roman: nvf.novel_name_roman || null,
-      novel_name_jp: nvf.novel_name_jp || null,
-      novel_name_alt: nvf.novel_name_alt || null,
+      ...novelFieldsPayload(nvf, {
+        defaultStatus: freshForm("novel").reading_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      region: nvf.region || null,
-      type: nvf.type || null,
-      version: nvf.version || null,
-      is_main: nvf.is_main || null,
-      serialization_status: nvf.serialization_status || null,
-      reading_status: nvf.reading_status || freshForm("novel").reading_status,
-      progress_display: nvf.progress_display || null,
-      vol_total_original:
-        nvf.vol_total_original !== ""
-          ? parseFloat(nvf.vol_total_original)
-          : null,
-      vol_total_tw:
-        nvf.vol_total_tw !== "" ? parseFloat(nvf.vol_total_tw) : null,
-      vol_fin: nvf.vol_fin !== "" ? parseFloat(nvf.vol_fin) : 0,
-      arc_total: nvf.arc_total !== "" ? parseFloat(nvf.arc_total) : null,
-      arc_fin: nvf.arc_fin !== "" ? parseFloat(nvf.arc_fin) : 0,
-      ch_total: nvf.ch_total !== "" ? parseFloat(nvf.ch_total) : null,
-      ch_fin: nvf.ch_fin !== "" ? parseFloat(nvf.ch_fin) : 0,
-      my_rating: nvf.my_rating || null,
-      mal_rating: nvf.mal_rating !== "" ? parseFloat(nvf.mal_rating) : null,
-      mal_rank: nvf.mal_rank !== "" ? parseInt(nvf.mal_rank) : null,
-      anilist_rating:
-        nvf.anilist_rating !== "" ? parseInt(nvf.anilist_rating) : null,
-      anilist_rank: nvf.anilist_rank !== "" ? parseInt(nvf.anilist_rank) : null,
-      anilist_popularity_rank:
-        nvf.anilist_popularity_rank !== ""
-          ? parseInt(nvf.anilist_popularity_rank)
-          : null,
-      release_date: nvf.release_date || null,
-      end_date: nvf.end_date || null,
-      read_order: nvf.read_order !== "" ? parseFloat(nvf.read_order) : null,
-      units: (nvf.units || [])
-        .filter(
-          (u) =>
-            (u.unit_key && u.unit_key.trim()) ||
-            (u.name_cn && u.name_cn.trim()) ||
-            (u.name_en && u.name_en.trim()) ||
-            (u.remark && u.remark.trim()) ||
-            u.ch_count !== "",
-        )
-        .map((u, i) => ({
-          ...u,
-          position: i + 1,
-          ch_count: u.ch_count === "" ? null : Number(u.ch_count),
-        })),
-      mal_id: nvf.mal_id !== "" ? parseInt(nvf.mal_id) : null,
-      mal_link: nvf.mal_link || null,
-      openlibrary_link: nvf.openlibrary_link || null,
-      openlibrary_id: nvf.openlibrary_id || null,
-      sources: (nvf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      read_next: nvf.read_next ?? false,
-      to_reread: nvf.to_reread ?? false,
-      cover_image_file: nvf.cover_image_file || null,
-      cover_image_focus: nvf.cover_image_focus || null,
-      remark: nvf.remark || null,
     };
 
     const res = await fetch("/api/novel/", {
@@ -2618,40 +2175,11 @@ export default function Add() {
     ]);
 
     const payload = {
-      comic_name_en: cmf.comic_name_en || null,
-      comic_name_cn: cmf.comic_name_cn || null,
-      comic_name_alt: cmf.comic_name_alt || null,
+      ...comicFieldsPayload(cmf, {
+        defaultStatus: freshForm("comic").reading_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      volume_label: cmf.volume_label || null,
-      comic_type: cmf.comic_type || null,
-      is_main_entry: cmf.is_main_entry ?? false,
-      release_date: cmf.release_date || null,
-      end_date: cmf.end_date || null,
-      issue_total:
-        cmf.issue_total !== "" ? parseInt(cmf.issue_total, 10) : null,
-      issue_fin: cmf.issue_fin !== "" ? parseInt(cmf.issue_fin, 10) : 0,
-      serialization_status: cmf.serialization_status || null,
-      reading_status: cmf.reading_status || freshForm("comic").reading_status,
-      read_order: cmf.read_order !== "" ? parseFloat(cmf.read_order) : null,
-      my_rating: cmf.my_rating || null,
-      // The picker sets the id with the link; it travels only beside one.
-      comicvine_id: cmf.comicvine_link ? toIntId(cmf.comicvine_id) || null : null,
-      comicvine_link: cmf.comicvine_link || null,
-      sources: (cmf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      read_next: cmf.read_next ?? false,
-      to_reread: cmf.to_reread ?? false,
-      cover_image_file: cmf.cover_image_file || null,
-      cover_image_focus: cmf.cover_image_focus || null,
-      remark: cmf.remark || null,
     };
 
     const res = await fetch("/api/comic/", {
@@ -3499,17 +3027,11 @@ export default function Add() {
             franchiseCollections={franchiseCollections}
             af={af}
             ua={ua}
-            fillQuery={fillQuery}
-            setFillQuery={setFillQuery}
-            fillOpen={fillOpen}
-            fillLoading={isLoading("anime")}
-            setFillOpen={setFillOpen}
-            fillRef={fillRef}
-            fillResults={fillResults}
-            applyAutofill={applyAutofill}
+            allAnime={allAnime}
+            animeLoading={isLoading("anime")}
+            applyAnimeEntryAutofill={applyAnimeEntryAutofill}
             applyMalPick={applyAnimeMalPick}
             allFranchises={allFranchises}
-            franchiseItems={franchiseItems}
             seriesItemsForAnime={seriesItems}
             sources={formSources}
           />
@@ -3521,17 +3043,11 @@ export default function Add() {
             franchiseCollections={franchiseCollections}
             amf={amf}
             uam={uam}
-            amFillQuery={amFillQuery}
-            setAmFillQuery={setAmFillQuery}
-            amFillOpen={amFillOpen}
-            amFillLoading={isLoading("anime-movie")}
-            setAmFillOpen={setAmFillOpen}
-            amFillRef={amFillRef}
-            amFillResults={amFillResults}
-            applyAnimeMovieAutofill={applyAnimeMovieAutofill}
+            allAnimeMovies={allAnimeMovies}
+            animeMoviesLoading={isLoading("anime-movie")}
+            applyAnimeMovieEntryAutofill={applyAnimeMovieEntryAutofill}
             applyMalPick={applyAnimeMovieMalPick}
             allFranchises={allFranchises}
-            franchiseItems={franchiseItems}
             sources={formSources}
           />
         )}
@@ -3542,14 +3058,9 @@ export default function Add() {
             franchiseCollections={franchiseCollections}
             mf={mf}
             umf={umf}
-            movieFillQuery={movieFillQuery}
-            setMovieFillQuery={setMovieFillQuery}
-            movieFillOpen={movieFillOpen}
-            movieFillLoading={isLoading("movie")}
-            setMovieFillOpen={setMovieFillOpen}
-            movieFillRef={movieFillRef}
-            movieFillResults={movieFillResults}
-            applyMovieAutofill={applyMovieAutofill}
+            allMovies={allMovies}
+            moviesLoading={isLoading("movie")}
+            applyMovieEntryAutofill={applyMovieEntryAutofill}
             applyTmdbPick={applyMovieTmdbPick}
             allFranchises={allFranchises}
             seriesItemsForMovie={seriesItemsForMovie}
@@ -3563,14 +3074,9 @@ export default function Add() {
             franchiseCollections={franchiseCollections}
             tvf={tvf}
             utf={utf}
-            tvFillQuery={tvFillQuery}
-            setTvFillQuery={setTvFillQuery}
-            tvFillOpen={tvFillOpen}
-            tvFillLoading={isLoading("tv-show")}
-            setTvFillOpen={setTvFillOpen}
-            tvFillRef={tvFillRef}
-            tvFillResults={tvFillResults}
-            applyTvShowAutofill={applyTvShowAutofill}
+            allTvShows={allTvShows}
+            tvShowsLoading={isLoading("tv-show")}
+            applyTvShowEntryAutofill={applyTvShowEntryAutofill}
             applyTmdbPick={applyTvShowTmdbPick}
             allFranchises={allFranchises}
             seriesItemsForTvShow={seriesItemsForTvShow}
@@ -3584,14 +3090,9 @@ export default function Add() {
             franchiseCollections={franchiseCollections}
             cf={cf}
             uc={uc}
-            cartoonFillQuery={cartoonFillQuery}
-            setCartoonFillQuery={setCartoonFillQuery}
-            cartoonFillOpen={cartoonFillOpen}
-            cartoonFillLoading={isLoading("cartoon")}
-            setCartoonFillOpen={setCartoonFillOpen}
-            cartoonFillRef={cartoonFillRef}
-            cartoonFillResults={cartoonFillResults}
-            applyCartoonAutofill={applyCartoonAutofill}
+            allCartoons={allCartoons}
+            cartoonsLoading={isLoading("cartoon")}
+            applyCartoonEntryAutofill={applyCartoonEntryAutofill}
             applyTmdbPick={applyCartoonTmdbPick}
             allFranchises={allFranchises}
             seriesItemsForCartoon={seriesItemsForCartoon}
@@ -3605,14 +3106,9 @@ export default function Add() {
             franchiseCollections={franchiseCollections}
             mgf={mgf}
             umg={umg}
-            mangaFillQuery={mangaFillQuery}
-            setMangaFillQuery={setMangaFillQuery}
-            mangaFillOpen={mangaFillOpen}
-            mangaFillLoading={isLoading("manga")}
-            setMangaFillOpen={setMangaFillOpen}
-            mangaFillRef={mangaFillRef}
-            mangaFillResults={mangaFillResults}
-            applyMangaAutofill={applyMangaAutofill}
+            allMangas={allMangas}
+            mangasLoading={isLoading("manga")}
+            applyMangaEntryAutofill={applyMangaEntryAutofill}
             applyMalPick={applyMangaMalPick}
             allFranchises={allFranchises}
             seriesItemsForManga={seriesItemsForManga}
@@ -3626,14 +3122,9 @@ export default function Add() {
             franchiseCollections={franchiseCollections}
             nvf={nvf}
             unv={unv}
-            novelFillQuery={novelFillQuery}
-            setNovelFillQuery={setNovelFillQuery}
-            novelFillOpen={novelFillOpen}
-            novelFillLoading={isLoading("novel")}
-            setNovelFillOpen={setNovelFillOpen}
-            novelFillRef={novelFillRef}
-            novelFillResults={novelFillResults}
-            applyNovelAutofill={applyNovelAutofill}
+            allNovels={allNovels}
+            novelsLoading={isLoading("novel")}
+            applyNovelEntryAutofill={applyNovelEntryAutofill}
             applyMalPick={applyNovelMalPick}
             applyOpenLibraryPick={applyNovelOpenLibraryPick}
             allFranchises={allFranchises}
@@ -3648,14 +3139,9 @@ export default function Add() {
             franchiseCollections={franchiseCollections}
             cmf={cmf}
             ucm={ucm}
-            comicFillQuery={comicFillQuery}
-            setComicFillQuery={setComicFillQuery}
-            comicFillOpen={comicFillOpen}
-            comicFillLoading={isLoading("comic")}
-            setComicFillOpen={setComicFillOpen}
-            comicFillRef={comicFillRef}
-            comicFillResults={comicFillResults}
-            applyComicAutofill={applyComicAutofill}
+            allComics={allComics}
+            comicsLoading={isLoading("comic")}
+            applyComicEntryAutofill={applyComicEntryAutofill}
             applyComicVinePick={applyComicVinePick}
             allFranchises={allFranchises}
             seriesItemsForComic={seriesItemsForComic}

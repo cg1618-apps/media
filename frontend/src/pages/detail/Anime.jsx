@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
@@ -384,6 +385,9 @@ export default function Anime() {
               anilistPopularityRank={anime.anilist_popularity_rank}
             />
           </header>
+
+          {/* Where this entry sits in the watch orders the viewer follows. */}
+          <FollowedOrderPanel entryId={anime.system_id} />
 
           {/* My Tracker Block */}
           <MyTrackerCard

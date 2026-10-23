@@ -152,6 +152,11 @@ export const endpoints = {
     candidates: () => "/api/watch-order/candidates",
     createRelease: () => "/api/watch-order/lists/release",
     backfillRelease: () => "/api/watch-order/lists/release/backfill",
+    // The caller's own follows; PUT follows (replacing the group's previous
+    // one), DELETE unfollows.
+    follows: () => "/api/watch-order/follows",
+    followsForEntry: (entryId) => `/api/watch-order/follows/entry/${entryId}`,
+    follow: (listId) => `/api/watch-order/lists/${listId}/follow`,
   },
 
   mediaRelation: {

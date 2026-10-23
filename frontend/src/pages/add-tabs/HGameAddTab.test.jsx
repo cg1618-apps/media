@@ -161,3 +161,94 @@ describe("HGameAddTab is_main", () => {
     expect(latest.is_main).toBe("Remaster");
   });
 });
+
+// The form's layout, read off the DOM: section headers carry
+// data-form-section, and each field's label is a <label> under the last
+// header before it.
+const sectionTitles = (container) =>
+  [...container.querySelectorAll("[data-form-section]")].map((el) =>
+    el.getAttribute("data-form-section"),
+  );
+const labelsBySection = (container) => {
+  const out = {};
+  let current = null;
+  for (const el of container.querySelectorAll("[data-form-section], label")) {
+    if (el.hasAttribute("data-form-section")) {
+      current = el.getAttribute("data-form-section");
+      out[current] = [];
+    } else if (current) {
+      out[current].push(el.textContent.trim());
+    }
+  }
+  return out;
+};
+
+describe("HGameAddTab layout", () => {
+  it("renders the canonical sections in order", () => {
+    const { container } = renderTab();
+    expect(sectionTitles(container)).toEqual([
+      "Titles & Naming",
+      "My Tracker",
+      "Information",
+      "Genres",
+      "Presentation",
+      "Production",
+      "Prices",
+      "Copies",
+      "Links & Sources",
+      "Cover & Remark",
+    ]);
+  });
+
+  it("lists the names CN first, with Romaji beside JP", () => {
+    const { container } = renderTab();
+    const names = labelsBySection(container)["Titles & Naming"].filter((l) =>
+      l.startsWith("H-Game Name"),
+    );
+    expect(names).toEqual([
+      "H-Game Name CN",
+      "H-Game Name EN",
+      "H-Game Name Romaji",
+      "H-Game Name JP",
+      "H-Game Name Alt",
+    ]);
+  });
+
+  it("puts the release date and platform under Information and keeps Prices to prices", () => {
+    const { container } = renderTab();
+    const sections = labelsBySection(container);
+    expect(sections["Information"]).toContain("Release Date");
+    expect(sections["Information"]).toContain("Platform");
+    expect(sections["Prices"]).toEqual([
+      "MSRP (US)",
+      "MSRP (JP)",
+      "MSRP (TW)",
+      "Current Price (US)",
+      "Current Price (JP)",
+      "Current Price (TW)",
+    ]);
+  });
+
+  it("orders Presentation as the detail page does", () => {
+    const { container } = renderTab();
+    expect(labelsBySection(container)["Presentation"]).toEqual([
+      "Art Style",
+      "H 演出 Art Style",
+      "H 演出形式",
+      "Dialogue Audio",
+      "Sound Effect",
+    ]);
+  });
+
+  it("ends My Tracker with the plan flags", () => {
+    const { container } = renderTab();
+    const tracker = labelsBySection(container)["My Tracker"];
+    expect(tracker.slice(0, 3)).toEqual(["Playing Status", "My Rating", "Usefulness"]);
+    expect(tracker.slice(-4)).toEqual([
+      "Play Next",
+      "Add to Play Next list",
+      "To Replay",
+      "Mark for replay",
+    ]);
+  });
+});

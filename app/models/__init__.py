@@ -74,6 +74,7 @@ from app.models.tv_show import TVShows
 from app.models.user_media_list import UserMediaList
 from app.models.user_novel_unit_rating import UserNovelUnitRating
 from app.models.watch_order import (
+    WatchOrderFollow,
     WatchOrderItem,
     WatchOrderList,
     WatchOrderSection,
@@ -116,6 +117,7 @@ __all__ = [
     "WatchOrderList",
     "WatchOrderItem",
     "WatchOrderSection",
+    "WatchOrderFollow",
     "MediaRelation",
     "Person",
     "PersonRole",

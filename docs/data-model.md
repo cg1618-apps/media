@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-21
+Last verified: 2026-10-23
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -26,7 +26,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
 - [Resources page](#resources-page): resource_node
 - [Image library](#image-library): image, image_attachment
-- [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item
+- [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item, watch_order_follow
 - [Planning](#planning): plan_next
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
 - [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode, user_access_mode_denial
@@ -296,7 +296,6 @@ Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
 | `airing_type` | String | yes | | ANIME_AIRING_TYPES |
 | `airing_status` | String | yes | | AiringStatus |
 | `is_main` | String | yes | | IS_MAIN (本傳/外傳/...) |
-| `is_main_entry` | Boolean | yes | | Marks the representative entry of its group. |
 | `ep_previous` | Integer | yes | | Episodes accumulated by prequels; **derived** by `derive_ep_previous_all_anime` after Fill/Replace. |
 | `ep_total` | Integer | yes | | |
 | `ep_special` | Float | yes | | The episode number a special sits at (0, 14.5) - a position, not a count. Part of the duplicate key. |
@@ -471,7 +470,6 @@ Alembic revision `nv1u2n3i4t5s`.
 | `anilist_rank` | Integer | yes | | AniList all-time rated rank |
 | `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `release_date` / `end_date` | String | yes | | |
-| `is_main_entry` | Boolean | yes | | |
 | `read_order` | Float | yes | | Manual ordering within the group |
 | `mal_id` | Integer | yes | | |
 | `mal_link` | String | yes | | |
@@ -544,7 +542,6 @@ titles).
 | `comic_name_en` / `_cn` / `_alt` | String | yes | | |
 | `volume_label` | String | yes | | Run designator: "Vol. 5", "(2018)", "Legacy". Free text - Marvel run labels are not consistently numbered. |
 | `comic_type` | String | yes | | COMIC_TYPES (Ongoing / Limited / One-Shot / Annual) |
-| `is_main_entry` | Boolean | yes | | Part of the duplicate key (comic has no `is_main` string) |
 | `release_date` / `end_date` | String | yes | | |
 | `issue_total` | Integer | yes | | Also the entry's own size-bucket measure |
 | `serialization_status` | String | yes | | Same idiom as manga/novel; no dedicated tuple in `constants.py` |
@@ -991,8 +988,12 @@ being silently swallowed into a list row where it means nothing.
 **Reading zero and never opening it are the same thing.** `vol_fin`,
 `vol_fin_page`, `ch_fin`, `arc_fin`, `ch_fin_in_arc` and `issue_fin` were
 `NOT NULL DEFAULT 0` on their detail tables and are nullable here, so an entry
-with no list row reads them back as `0` (`LIST_FIELD_DEFAULTS`) rather than
-None - the value the column always held. `page_fin` follows the same rule. `ep_fin` is deliberately excluded: it
+with no list row - or a row holding NULL - reads them back as `0`
+(`LIST_FIELD_DEFAULTS`) rather than None, the value the column always held.
+`page_fin` follows the same rule. NULL is a value these columns do hold: the
+Add and Modify forms send a blank finished count as `null` ("not recorded"),
+and the manga, novel and comic schemas accept it (`Optional[...] = 0`) on
+`POST` and `PUT` as `PATCH` always did. `ep_fin` is deliberately excluded: it
 was nullable on `anime` / `tv_shows` / `cartoons`, so None is a value it always
 could have had, and hentai reads it the same way.
 
@@ -1935,6 +1936,28 @@ that is how a split run (A ep 1-10 → B → A ep 11-12) is expressed.
 | `importance` | String | yes | `"Normal"` | ITEM_IMPORTANCE: Essential / Recommended / Normal / Optional |
 | `note` | Text | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
+
+### `watch_order_follow`
+
+One user following one watch order. A user follows at most one order per
+group; following another of the group repoints the row, unfollowing deletes
+it. Model: `WatchOrderFollow` (`app/models/watch_order.py`). Progress through
+the order is computed on read and not stored - see
+[systems/watch-orders.md](systems/watch-orders.md#following).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | no | | FK `users.id` ON DELETE CASCADE (`fk_watch_order_follow_user`), indexed |
+| `list_id` | UUID | no | | FK `watch_order_list` ON DELETE CASCADE (`fk_watch_order_follow_list`), indexed |
+| `franchise_id` / `series_id` / `collection_id` | UUID | yes | | The followed order's owner, copied when the follow is written; each an FK to its tier, ON DELETE CASCADE |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `ck_watch_order_follow_one_owner` - exactly one owner column is
+set; `uq_watch_order_follow_group` - UNIQUE NULLS NOT DISTINCT `(user_id,
+franchise_id, series_id, collection_id)`, which is the one-per-group rule.
+The owner copy stays true because `watch_order_list`'s owner cannot be
+changed once the list exists (the list endpoints answer 400).
 
 ---
 

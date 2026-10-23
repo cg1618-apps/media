@@ -32,9 +32,14 @@ export function CollectionNote({ franchiseId, franchiseCollections }) {
   );
 }
 
+// `data-form-section` carries the title so a test can read a form's section
+// order without depending on the header's markup.
 export function SectionHeader({ icon, title }) {
   return (
-    <div className="flex items-center gap-2 pb-2 border-b border-border mt-6 mb-4">
+    <div
+      data-form-section={title}
+      className="flex items-center gap-2 pb-2 border-b border-border mt-6 mb-4"
+    >
       <i className={`fas ${icon} text-brand text-sm`}></i>
       <span className="text-xs font-black text-text-muted uppercase tracking-widest">
         {title}

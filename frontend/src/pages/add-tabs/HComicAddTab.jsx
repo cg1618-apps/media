@@ -17,10 +17,13 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import ImagePicker from "../../components/forms/ImagePicker";
+import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
+import EntryFlags from "../../components/forms/EntryFlags";
+import EntryNameFields from "../../components/forms/EntryNameFields";
 import MultiSelect from "../../components/forms/MultiSelect";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import TagReplace from "../../components/forms/TagReplace";
 import StatusOptions from "../../components/ui/StatusOptions";
 import {
   H_COMIC_ANIMATION_STATUSES,
@@ -57,28 +60,31 @@ function Options({ values }) {
   );
 }
 
-/** The region select. Rendered first by both tabs. */
+/** The region select, in the left half of its own row. Rendered first by
+ *  both tabs. */
 export function HComicRegionField({ f, u }) {
   return (
-    <Field
-      label="Region"
-      required
-      hint="JP counts pages, KR counts chapters - the rest of the form follows"
-    >
-      <select
-        className={selectCls}
-        aria-label="Region"
-        value={f.region}
-        onChange={(e) => u("region", e.target.value)}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Field
+        label="Region"
+        required
+        hint="JP counts pages, KR counts chapters - the rest of the form follows"
       >
-        <option value="">Choose a region…</option>
-        {H_COMIC_REGIONS.map((r) => (
-          <option key={r} value={r}>
-            {r}
-          </option>
-        ))}
-      </select>
-    </Field>
+        <select
+          className={selectCls}
+          aria-label="Region"
+          value={f.region ?? ""}
+          onChange={(e) => u("region", e.target.value)}
+        >
+          <option value="">Choose a region…</option>
+          {H_COMIC_REGIONS.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+      </Field>
+    </div>
   );
 }
 
@@ -86,7 +92,7 @@ export function HComicRegionField({ f, u }) {
  * Every field below the region and the lineage pickers, shared verbatim by
  * the Modify tab. `ownerId` is passed by the Modify tab only, where the row
  * exists; without it a picked cover waits in `pending_image_id` for the Add
- * page to attach once the entry is saved.
+ * page to attach once the entry is saved (CoverRemarkFields).
  */
 export function HComicFormBody({ f, u, sources, ownerId }) {
   const shows = (field) => showsField(f.region, field);
@@ -105,21 +111,11 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
       <input
         className={inputCls}
         type="number"
+        min="0"
         aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}
         placeholder="0"
-      />
-    </Field>
-  );
-  const text = (key, label, placeholder) => (
-    <Field label={label}>
-      <input
-        className={inputCls}
-        aria-label={label}
-        value={f[key] ?? ""}
-        onChange={(e) => u(key, e.target.value)}
-        placeholder={placeholder}
       />
     </Field>
   );
@@ -138,41 +134,96 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
 
   return (
     <>
-      {text("h_comic_name_cn", "H-Comic Name CN", "Chinese title")}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {text("h_comic_name_en", "H-Comic Name EN", "English title")}
-        {text("h_comic_name_alt", "H-Comic Name Alt", "Alternative title")}
-      </div>
-      {/* The region's own name only. The other one is kept if it was ever
-          filled in, but not shown. */}
-      {shows("h_comic_name_jp") && text("h_comic_name_jp", "H-Comic Name JP", "Japanese title")}
-      {shows("h_comic_name_kr") && text("h_comic_name_kr", "H-Comic Name KR", "Korean title")}
+      {/* The region's own native name only. The other one is kept if it was
+          ever filled in, but not shown. */}
+      <EntryNameFields
+        f={f}
+        u={u}
+        prefix="h_comic"
+        label="H-Comic"
+        names={["cn", "en", "jp", "kr", "alt"]}
+        shows={shows}
+      />
 
-      <SectionHeader icon="fa-sitemap" title="Classification" />
+      <SectionHeader icon="fa-chart-bar" title="My Tracker" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {select("serialization_status", "Serialization Status", MANGA_SERIALIZATION_STATUSES)}
-        {shows("originality") && select("originality", "Originality", H_COMIC_ORIGINALITY)}
-        {shows("animation_status") &&
-          (isDerivedAnimationStatus(f) ? (
-            // Derived while a hentai adapts this h-comic: the server refuses
-            // any other value, and the payload leaves it out
-            // (hComicFieldsPayload), so it is shown, not offered.
-            <Field
-              label="Animation Status"
-              hint="Derived from a linked hentai adaptation - remove the relation to set it by hand"
-            >
-              <input
-                className={inputCls}
-                aria-label="Animation Status"
-                value={f.animation_status || ""}
-                readOnly
-                disabled
-              />
-            </Field>
-          ) : (
-            select("animation_status", "Animation Status", H_COMIC_ANIMATION_STATUSES)
-          ))}
+        <Field label="Reading Status">
+          <select
+            className={selectCls}
+            aria-label="Reading Status"
+            value={f.reading_status ?? ""}
+            onChange={(e) => u("reading_status", e.target.value)}
+          >
+            <StatusOptions statuses={READING_STATUSES} />
+          </select>
+        </Field>
+        {select("my_rating", "My Rating", MY_RATINGS)}
+        {select("usefulness", "Usefulness", H_COMIC_USEFULNESS)}
       </div>
+      {/* JP counts pages, KR chapters; neither until a region is chosen. */}
+      {f.region && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {shows("page_fin") && num("page_fin", "Pages Read")}
+          {shows("page_total") && num("page_total", "Page Total")}
+          {shows("ch_fin") && num("ch_fin", "Chapters Read")}
+          {shows("ch_total") && num("ch_total", "Chapter Total")}
+        </div>
+      )}
+      <EntryFlags
+        f={f}
+        u={u}
+        flags={[
+          ["read_next", "Read Next", "Add to Read Next list"],
+          ["to_reread", "To Reread", "Mark for reread"],
+        ]}
+      />
+
+      <SectionHeader icon="fa-info-circle" title="Information" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {select("serialization_status", "Serialization Status", MANGA_SERIALIZATION_STATUSES)}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ReleaseDateInput
+          label="Release Date"
+          value={f.release_date}
+          onChange={(v) => u("release_date", v)}
+        />
+        <ReleaseDateInput label="End Date" value={f.end_date} onChange={(v) => u("end_date", v)} />
+      </div>
+      {shows("ch_behind") && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {num("ch_behind", "Chapters Behind Official", "Set by hand")}
+        </div>
+      )}
+      {(shows("originality") || shows("animation_status") || shows("series_number")) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {shows("originality") && select("originality", "Originality", H_COMIC_ORIGINALITY)}
+          {shows("animation_status") &&
+            (isDerivedAnimationStatus(f) ? (
+              // Derived while a hentai adapts this h-comic: the server refuses
+              // any other value, and the payload leaves it out
+              // (hComicFieldsPayload), so it is shown, not offered.
+              <Field
+                label="Animation Status"
+                hint="Derived from a linked hentai adaptation - remove the relation to set it by hand"
+              >
+                <input
+                  className={inputCls}
+                  aria-label="Animation Status"
+                  value={f.animation_status || ""}
+                  readOnly
+                  disabled
+                />
+              </Field>
+            ) : (
+              select("animation_status", "Animation Status", H_COMIC_ANIMATION_STATUSES)
+            ))}
+          {shows("series_number") &&
+            num("series_number", "Series Number", "Its place in its series")}
+        </div>
+      )}
+
+      <SectionHeader icon="fa-tags" title="Genres" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Genre Plot">
           {tagField(
@@ -196,8 +247,17 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
           )}
         </Field>
       </div>
+      <TagReplace
+        mediaType="h-comic"
+        franchiseId={f.franchise_id}
+        seriesId={f.series_id}
+        entryId={ownerId}
+        fields={["h_genre_plot", "h_genre_appearance", "h_genre_relation"]}
+        what="genres"
+        onChange={u}
+      />
 
-      <SectionHeader icon="fa-pen-nib" title="Credits" />
+      <SectionHeader icon="fa-pen-nib" title="Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Club" hint="A person holding the Club role, quick-created if new">
           {tagField(
@@ -215,93 +275,16 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         </Field>
       </div>
       {shows("author") && (
-        <Field label="Author">
-          {tagField(
-            "author",
-            { kind: "person", role: "author", scope: "h-comic" },
-            "Select or type author..."
-          )}
-        </Field>
-      )}
-
-      <SectionHeader icon="fa-chart-bar" title="Status & Progress" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Reading Status">
-          <select
-            className={selectCls}
-            aria-label="Reading Status"
-            value={f.reading_status}
-            onChange={(e) => u("reading_status", e.target.value)}
-          >
-            <StatusOptions statuses={READING_STATUSES} />
-          </select>
-        </Field>
-        {select("my_rating", "My Rating", MY_RATINGS)}
-        {select("usefulness", "Usefulness", H_COMIC_USEFULNESS)}
-      </div>
-      {f.region && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {shows("page_total") && num("page_total", "Page Total")}
-          {shows("page_fin") && num("page_fin", "Pages Read")}
-          {shows("series_number") &&
-            num("series_number", "Series Number", "Its place in its series")}
-          {shows("ch_total") && num("ch_total", "Chapter Total")}
-          {shows("ch_fin") && num("ch_fin", "Chapters Read")}
-          {shows("ch_behind") && num("ch_behind", "Chapters Behind Official", "Set by hand")}
-        </div>
-      )}
-
-      <SectionHeader icon="fa-calendar" title="Release" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ReleaseDateInput
-          label="Release Date"
-          value={f.release_date}
-          onChange={(v) => u("release_date", v)}
-        />
-        <ReleaseDateInput label="End Date" value={f.end_date} onChange={(v) => u("end_date", v)} />
-      </div>
-
-      {/* The MAL id is not typed in: the write hook derives it from the
-          link, and Tenrai fills the serialization status, the dates, the
-          cover and a finished KR entry's chapter total from it where they
-          are blank. The E-Hentai gallery is the second fill source, after
-          MAL: the cover and the illustrator, where still blank. */}
-      <SectionHeader icon="fa-external-link-alt" title="Links" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
-          <Field label="MAL Link">
-            <input
-              className={inputCls}
-              type="url"
-              aria-label="MAL Link"
-              value={f.mal_link ?? ""}
-              onChange={(e) => u("mal_link", e.target.value)}
-              placeholder="https://myanimelist.net/manga/..."
-            />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Author">
+            {tagField(
+              "author",
+              { kind: "person", role: "author", scope: "h-comic" },
+              "Select or type author..."
+            )}
           </Field>
         </div>
-        <Field label="MAL ID" hint="Derived from the link on save">
-          <input
-            className={inputCls}
-            aria-label="MAL ID"
-            value={f.mal_link ? (f.mal_id ?? "") : ""}
-            readOnly
-            disabled
-          />
-        </Field>
-        <div className="md:col-span-2">
-          <Field label="E-Hentai Link">
-            <input
-              className={inputCls}
-              type="url"
-              aria-label="E-Hentai Link"
-              value={f.ehentai_link ?? ""}
-              onChange={(e) => u("ehentai_link", e.target.value)}
-              placeholder="https://e-hentai.org/g/.../.../"
-            />
-          </Field>
-        </div>
-      </div>
+      )}
 
       {/* Characters are real character rows, cast without a seiyuu - the
           cast is saved through PUT /api/casting/h-comic/{id} once the entry
@@ -316,7 +299,43 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         entryId={ownerId}
       />
 
-      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      {/* The MAL id is not typed in: the write hook derives it from the
+          link, and Tenrai fills the serialization status, the dates, the
+          cover and a finished KR entry's chapter total from it where they
+          are blank. The E-Hentai gallery is the second fill source, after
+          MAL: the cover and the illustrator, where still blank. */}
+      <SectionHeader icon="fa-external-link-alt" title="Links & Sources" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="MAL Link">
+          <input
+            className={inputCls}
+            type="url"
+            aria-label="MAL Link"
+            value={f.mal_link ?? ""}
+            onChange={(e) => u("mal_link", e.target.value)}
+            placeholder="https://myanimelist.net/manga/..."
+          />
+        </Field>
+        <Field label="MAL ID" hint="Derived from the link on save">
+          <input
+            className={inputCls}
+            aria-label="MAL ID"
+            value={f.mal_link ? (f.mal_id ?? "") : ""}
+            readOnly
+            disabled
+          />
+        </Field>
+      </div>
+      <Field label="E-Hentai Link">
+        <input
+          className={inputCls}
+          type="url"
+          aria-label="E-Hentai Link"
+          value={f.ehentai_link ?? ""}
+          onChange={(e) => u("ehentai_link", e.target.value)}
+          placeholder="https://e-hentai.org/g/.../.../"
+        />
+      </Field>
       {shows("original_source") && (
         <Field label="Official Source" hint="Where the work is officially serialised">
           {tagField(
@@ -334,50 +353,7 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
         restrictedSources={restrictedSourcesFor("h-comic", f.region, picks)}
       />
 
-      <SectionHeader icon="fa-flag" title="Flags" />
-      <div className="flex flex-wrap gap-6 mt-2">
-        {[
-          ["read_next", "Read Next", "Add to Read Next list"],
-          ["to_reread", "To Reread", "Mark for reread"],
-        ].map(([key, label, text]) => (
-          <Field key={key} label={label}>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!f[key]}
-                onChange={(e) => u(key, e.target.checked)}
-                className="w-4 h-4 rounded accent-brand"
-              />
-              <span className="text-sm font-medium text-text-muted">{text}</span>
-            </label>
-          </Field>
-        ))}
-      </div>
-
-      <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image">
-        <ImagePicker
-          ownerType="h-comic"
-          ownerId={ownerId}
-          role="cover"
-          value={f.cover_image_file}
-          focus={f.cover_image_focus}
-          onFocusChange={(focus) => u("cover_image_focus", focus)}
-          onChange={(key, imageId) => {
-            u("cover_image_file", key);
-            u("pending_image_id", ownerId ? null : imageId);
-          }}
-        />
-      </Field>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={f.remark}
-          onChange={(e) => u("remark", e.target.value)}
-          placeholder="Private notes..."
-        />
-      </Field>
+      <CoverRemarkFields f={f} u={u} ownerType="h-comic" ownerId={ownerId} />
     </>
   );
 }
@@ -443,7 +419,7 @@ export default function HComicAddTab({
         onPick={applyHComicEntryAutofill}
         loading={hComicsLoading}
       />
-      <SectionHeader icon="fa-book" title="Titles & Naming" />
+      <SectionHeader icon="fa-tag" title="Titles & Naming" />
       <HComicRegionField f={hcf} u={setRegion} />
       <HComicLineageFields
         f={hcf}

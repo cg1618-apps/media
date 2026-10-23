@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-22
+Last verified: 2026-10-23
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -196,9 +196,9 @@ starting values are configurable on `/defaults`. Only options, alias, quote
 and meme are excluded — those four have no factory in
 `config/formFactories.js`.
 
-**Paused at** (`time_fin`) is a free-text input on the six watching types'
-Add and Modify forms - anime, TV show and cartoon beside Episodes Finished,
-movie and anime movie beside My Rating, hentai beside its episode pair. It
+**Paused at** (`time_fin`) is a free-text input in the My Tracker section of
+the six watching types' forms - beside the episode pair on anime, TV show,
+cartoon and hentai, under status and rating on movie and anime movie. It
 posts as typed, a blank as `null`; the server strips it and clears it when
 `ep_fin` goes up or the entry becomes Completed, and the Modify form's echo
 of the stored value does not count as a new one
@@ -207,13 +207,13 @@ It takes no default and auto-fill never copies it (`defaultable: false`,
 `autofillable: false` in `fieldMeta.js`): it is one viewer's place in one
 work.
 
-**Genres & Labels.** Anime movie, movie, TV show, cartoon, manga, novel and
-comic each carry a **Genres & Labels** section — Genre Main, Genre Sub and
-標籤 Label — on Add and Modify alike, drawn by `forms/GenreLabelFields.jsx`
-after the tab's status or classification section. Each picker offers only its
+**Genres & Labels.** Anime, anime movie, movie, TV show, cartoon, manga,
+novel and comic each carry a **Genres & Labels** section — Genre Main, Genre
+Sub and 標籤 Label — drawn by `forms/GenreLabelFields.jsx` after Information
+(`GENRE_LABEL_TYPES` in `lib/genreLabelFields.js`). Each picker offers only its
 category's values scoped to that type or to no type, so a genre added on a
-manga is not offered on a movie; anime's own three pickers are scoped to
-`anime` the same way, and game keeps its single Label scoped to `game`. The
+manga is not offered on a movie; game keeps its own Genre, Theme and Label,
+the Label scoped to `game`. The
 three are tags on the credits endpoint (`CREDITS_FIELD_MAP` in
 `lib/payloads.js`), so Modify prefills them from `GET /api/credits` and the
 save writes them with the other tags. A typed value that does not exist yet
@@ -226,9 +226,88 @@ Widening is additive and never touches an unscoped value, which is already
 offered everywhere and would be narrowed by gaining a scope. Auto-fill from an existing entry copies Genre Main and
 Genre Sub, as anime's does, and not the label.
 
+Below the three pickers, **Replace genres & labels from…** (`forms/TagReplace.jsx`)
+lists the other entries of the form's series, then of the rest of its
+franchise, of the same type; picking one overwrites all three fields with that
+entry's, clearing any it has empty, and nothing is saved until the form is.
+Game offers it for its Genre
+and Label, and h-game, h-comic and hentai for their genres, as **Replace genres
+from…**.
+
 **Data loaded on mount.** Collections, franchises and series (read by every
 tab's pickers and by `buildAutofillPatch`), the form defaults and the
 suggestion sources — all started together, in one wave.
+
+### Entry form layout
+
+Each of the twelve media types has **one form body**, shared by its Add and
+Modify tabs. `pages/add-tabs/<Type>AddTab.jsx` exports `<Type>FormBody` (every
+field below the franchise pickers) and `<Type>LineageFields` (the franchise and
+series pickers: `FamilyLineageFields` with the type's franchise filter); its
+default export is the Add wrapper, and `pages/modify-tabs/<Type>ModifyTab.jsx`
+imports both. So the two pages show the same fields, in the same order, with
+the same labels, and a field added to one appears on the other.
+
+The pages differ only in their wrappers and in `ownerId`:
+
+- **Add wrapper** — a card holding the auto-fill box (`EntryAutofillSearch`)
+  and the type's external search box(es), then the **Titles & Naming** header,
+  the lineage fields and the body.
+- **Modify wrapper** — the **Titles & Naming** header, the lineage fields, the
+  body with `ownerId` (the open entry's `system_id`), then **Structured
+  Notes**. The franchise ribbon sits above the card, drawn by `Modify.jsx`.
+- **`ownerId`** is the only thing a body does differently between the pages:
+  it goes to `ImagePicker` (and decides whether an upload is held as
+  `pending_image_id` until the entry exists), to `CastEditor`'s `entryId`, and
+  to `TagReplace` / `GenreLabelFields` as `entryId`, so an entry is never
+  offered as its own source. Game and h-game also pass the entry to leave out
+  of their Base Game picker. There is no mode flag.
+
+What stays in the pages, never in a body: Add's name requirement and its
+duplicate check (anime, anime movie, movie, TV show); the type a new franchise
+is created as; enrichment; content labels; the starting state (`freshForm`
+plus `/defaults` on Add, `<type>ToForm` on Modify); and h-comic's Add-only
+region updater, which re-suggests restricted sources.
+
+**One save body per type, too.** Add's `submit<Type>` and Modify's
+`save<Type>` build the entry body through the same function in
+`lib/payloads.js` (`<type>FieldsPayload`, or `buildAnimePayload` /
+`buildAnimeMoviePayload`), then add the franchise and series ids they
+resolved, so a field added to a form is added to one payload, not two. A
+blank finished count — manga's volumes, pages and chapters read, novel's
+volumes, arcs and chapters read, comic's issues read — is sent as `null`
+("not recorded") from both pages, and reads back as `0`.
+
+**Sections**, in the detail page's order, with the same title and icon on
+every type; a type leaves out what it lacks:
+
+1. **Titles & Naming** (`fa-tag`) — h-comic's region first; franchise | series
+   (anime movie: franchise only); names, CN always top-left: `cn | en`, then
+   `roman | jp` where the type has them (h-comic: its region's JP or KR name),
+   then `alt` full width. The romanised name is labelled **Romaji** everywhere.
+2. **Scores** (`fa-star`) — MAL and AniList, IMDb, or Metacritic.
+3. **My Tracker** (`fa-chart-bar`) — status | my rating (| usefulness on the
+   gated types), each progress count beside its total (`ep_fin | ep_total`,
+   `ch_fin | ch_total`, …), Paused at, the type's extras, and the flags row
+   last.
+4. **Information** (`fa-info-circle`) — classification, status, release dates,
+   lone totals and lengths.
+5. **Genres & Labels** (`fa-tags`; **Genres** on the gated types, which carry
+   no Label), with the **Replace … from…** picker below; h-game adds
+   **Presentation** (`fa-layer-group`).
+6. **Production** (`fa-pen-nib`) — the studio, publisher and people credits.
+7. **Cast** (`fa-users`).
+8. Type extras — **Prices** and **Copies** (game, h-game), **Read Order**
+   (novel, comic), **Units** (novel).
+9. **Links & Sources** (`fa-external-link-alt`) — each external id beside its
+   link, the official or exclusive source, then the Sources editor.
+10. **Cover & Remark** (`fa-image`).
+11. **Structured Notes** — Modify only.
+
+`SectionHeader` carries its title as `data-form-section`, and
+`pages/add-tabs/FormLayout.test.jsx` renders every type's Add and Modify tab
+and asserts the section order and that both pages label the same fields in
+the same order.
 
 ### Suggestion order
 
@@ -304,10 +383,10 @@ non-media row (collection, person, …) is added.
 novel, comic, game, h-comic, h-game, hentai).** Typing filters that tab's list
 client-side; picking a row copies its fields into the form (`lib/autofill.js`,
 driven by `config/formFields/fieldMeta.js` and the auto-fill ticks on
-`/defaults`). Nothing is fetched from external APIs by this box. The game and
-gated tabs draw it with `EntryAutofillSearch`, which holds its own query and
-dropdown, and hand a pick to `applyEntryAutofill` in `Add.jsx`; the older
-tabs inline the same markup and keep that state in `Add.jsx`. On h-comic a
+`/defaults`). Nothing is fetched from external APIs by this box. Every tab
+draws it with `EntryAutofillSearch`, which holds its own query and dropdown,
+and hands a pick to its `apply<Type>EntryAutofill` handler, built in `Add.jsx`
+by `applyEntryAutofill(setForm, type)`. On h-comic a
 copied region carries the untouched suggested restricted sources over to it
 (`mergeHComicAutofill`), as choosing the region by hand does, unless the
 sources were copied too.
@@ -381,8 +460,8 @@ enter the IMDb link by hand.
 
 **Comic Vine writes `comicvine_id` too.** The save path does not derive it
 from `comicvine_link` (only Fill does), so the pick sets it, the form carries
-it (`defaultComic`; hidden on `/defaults`), and `submitComic` sends it beside
-the link, and only beside one, so a cleared link never leaves an orphan id.
+it (`defaultComic`; hidden on `/defaults`) in a **Comic Vine ID** input beside
+the link, and both pages send it as typed, with or without a link.
 
 **Franchise / series pickers.** `ComboBox` over the loaded lists; "create new"
 opens `FranchiseCreateModal` / `CreateNewEntityModal`, which POST the group
@@ -408,12 +487,6 @@ copies), and under it the IGDB `ExternalSearchBox`
 (`GET /api/game/search-igdb?q=&limit=10`). IGDB is Fill's only handle on a
 game, so the admin links the right entry here before saving.
 
-Its sections run Classification → **Rating** → Status → Progress → Credits →
-Release & Prices → Copies → Sources → Flags → Notes. Rating holds `my_rating`
-and the two Metacritic scores together, which is why the registry groups all
-three under `Ratings` (`fieldMeta.js`) rather than leaving `my_rating` in the
-shared `Status` group — /defaults reads those groups and is meant to match.
-
 An IGDB pick (`applyGameIgdbPick` in `Add.jsx`) always sets `igdb_id` and
 `igdb_link`, and fills `game_name_en` **only when the admin left it blank**.
 Nothing else is copied — the rest is Fill Game's job.
@@ -436,14 +509,17 @@ coerces both to ints
 (`lib/payloads.js`); `fieldMeta.js` marks them `defaultable: false`, since an
 identifier is per-entry by definition.
 
-The rest of the form is `GameFormBody`, exported from the same file: the five
-names, classification (game type, **Main / Remake** - `is_main` over
-`GAME_IS_MAIN`, starting on Main - plus a **Base Game** `ComboBox` that never
-offers the row being edited — `ck_games_not_self_parent` — and the four game
-vocabularies), status, progress and the three HLTB tiers, credits (Developer is
-a **studio** row, Publisher a **publisher** row; director and composer are
-people scoped to `game`), release date and the six price fields, **Copies**,
-sources, flags and notes. Submit needs a CN or EN name, `POST /api/game/` then
+The rest of the form is `GameFormBody`, exported from the same file, in the
+canonical order (see "Entry form layout" above): the five names; the two
+Metacritic scores; status, rating, hours, achievements, completion and the
+Play Next / To Replay flags; Information - **Main / Remake** (`is_main` over
+`GAME_IS_MAIN`, starting on Main), game type, a **Base Game** `ComboBox`
+that never offers the row being edited (`ck_games_not_self_parent`), release
+status, release date, current patch, the three HLTB tiers and the platform,
+mode and combat vocabularies; Genre, Theme and Label; Production (Developer
+is a **studio** row, Publisher a **publisher** row; director and composer are
+people scoped to `game`); the six **Prices**; **Copies**; the IGDB and Steam
+ids and links with the sources; cover and remark. Submit needs a CN or EN name, `POST /api/game/` then
 `saveCredits`; **games are never enriched on Add** — the toast is a plain "Game
 appended successfully."
 
@@ -495,18 +571,20 @@ hentai - and a new franchise typed there is created as `H-Game`
 (`H_GAME_FRANCHISE_TYPE`); the server refuses an h-game in a mainstream
 franchise. The **Base Game**
 picker offers h-games only (the self-FK is on `h_game`) and never the row
-being edited. The body has the five names; classification (game type, Main /
-Remake, base game, **play style**, series number, Genre and Theme scoped to `h-game`, and
-the three H Genre fields); a **Content** section - **Language** (one choice),
-**Animation** (yes / no / unset) and three `ChoiceChips` lists, **Audio**, **H
-演出形式** and **Platform** (where it is sold; not Game's hardware Platform
-tag, and never filled from IGDB), each with None (`[]`) and Unknown (`null`)
-as separate answers; rating and **usefulness**; status, completion level,
-current patch, **All Endings**, **All CG** and Steam progress sync;
-achievements and the three HLTB tiers; one credit, the **Developer** (a studio
-row); release date and the six prices; **Copies** (Game's `GameCopiesEditor`,
-gated on `self.list` as on Game); IGDB id and link, Steam appid and link, and
-the two **DLsite** links; sources, flags and notes. No hours played,
+being edited. The body has the five names; My Tracker - status, rating and
+**usefulness**, achievements and Steam progress sync, completion level, **All
+Endings** and **All CG**, the flags; Information - Main / Remake, game type,
+base game, release status, release date, current patch, the three HLTB tiers,
+**play style**, series number, **Language** (one choice) and **Platform**
+(`ChoiceChips`: where it is sold; not Game's hardware Platform tag, and never
+filled from IGDB); **Genres** - Genre and Theme scoped to `h-game` and the
+three H Genre fields; **Presentation** - art style, H 演出 art style, H
+演出形式, dialogue audio and sound effect, each a `ChoiceChips` list with None
+(`[]`) and Unknown (`null`) as separate answers; one credit, the
+**Developer** (a studio row); the six prices; **Copies** (Game's
+`GameCopiesEditor`, gated on `self.list` as on Game); IGDB id and link, Steam
+appid and link, the two **DLsite** links and the sources; cover and remark.
+No hours played,
 Metacritic, All Achievements or All Collected - `h_game` has none of them.
 Submit needs a CN or EN name, quick-creates the developer and tag values
 through `hGameSourceFields`, then `POST /api/h-game/`, the credits and the
@@ -622,7 +700,7 @@ Anime's values and Game's values rather than one list. A type's group holds
 only the values scoped to that type alone, in `MEDIA_TYPES` order. A value
 scoped to two or more types is listed once, under **Shared**, in a sub-group
 headed by its exact set of types (`Anime · Manga · Novel`) — Genre Main serves
-seven types, and a copy of 奇幻 under each would bury every type's own values.
+eight types, and a copy of 奇幻 under each would bury every type's own values.
 Values with no scope — offered everywhere — come last under **All types**. A
 category whose values all fall in one type's group renders as a plain grid
 with no heading; the Shared group always keeps its headings, since they are
@@ -794,11 +872,11 @@ only land in its own grid. The swap is a draft until **Save Grid**.
 - **Other entries in this franchise.** Above the editor card, a media entry
   in a franchise gets a ribbon of that franchise's other entries of the same
   type, grouped by series (a "No Series" group last), each a chip that opens
-  its editor. Anime, movie, TV show, cartoon and novel build it inline in
-  `Modify.jsx`; manga and comic build it there too but draw it inside the
-  card. Game, h-comic, h-game and hentai use `FranchiseRibbon`
-  (`components/forms/`), with the chip badged by game type (game, h-game) or
-  region (h-comic). Anime movie has none.
+  its editor. Every media type draws it with `FranchiseRibbon`
+  (`components/forms/`); `Modify.jsx` picks the list, the franchise and the
+  chip badge per type, from the open form, so re-picking the franchise
+  updates the ribbon at once. A movie in a catch-all franchise
+  (`isCatchAllMovieFranchise`) gets none: its "siblings" are unrelated films.
 - **Save.** `PATCH` the entry → `saveCredits` → cast, for the types that have
   one → for **anime, anime movie, cartoon and manga**, enrichment via
   `lib/enrich.js`, after which the page shows the *enriched* row (not the
@@ -821,13 +899,11 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   it, and the page says so, naming the active mode, and closes the editor.
   Any other failure of that read is not taken as hidden.
 - **Game tab.** `GameModifyTab.jsx` renders `GameAddTab`'s exported
-  `GameLineageFields` and `GameFormBody` rather than keeping its own copy, so
-  the two tabs cannot drift; the only differences are the franchise ribbon
-  Modify puts above the card, the Structured Notes below the form, and `excludeGameId`, which drops the row being edited from
-  its own Base Game picker. This is a deliberate divergence from the **comic**
-  pair, which still keeps two near-identical files. The Modify tab has **no IGDB
-  search box** — identification happens once, on Add — and it saves with
-  `PATCH /api/game/{id}`, without enrichment.
+  `GameLineageFields` and `GameFormBody`, like every media tab (see "Entry
+  form layout" under /add); besides the entry's id it passes `excludeGameId`,
+  which drops the row being edited from its own Base Game picker. The Modify
+  tab has **no IGDB search box** — identification happens once, on Add — and
+  it saves with `PATCH /api/game/{id}`, without enrichment.
 - **H-Comic tab.** `HComicModifyTab.jsx` renders `HComicAddTab`'s exported
   `HComicRegionField`, `HComicLineageFields` and `HComicFormBody`, the game
   pattern. It loads the cast like the other cast-carrying tabs, and saves with
@@ -849,9 +925,9 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   as `Hentai`. It saves with `PATCH /api/hentai/{id}`, then credits and
   labels, without enrichment.
 - **Structured Notes.** Every media type's tab ends with the entry's notes
-  page (`<Type>Notes`). On the Comic, Game, H-Comic, H-Game and Hentai tabs it
-  sits below the form body, with the whole open row as the owner, so the KR-only 亮點 Highlights appears on a KR h-comic alone.
-  `remark` is hidden there, as on every other type's tab: the form's Remark
+  page (`<Type>Notes`) under a **Structured Notes** header, below the form
+  body, with the whole open row as the owner, so the KR-only 亮點 Highlights
+  appears on a KR h-comic alone. `remark` is hidden there: the form's Remark
   field writes the same singleton row. Highlights groups show in their stored
   order; reordering them is the detail page's.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles

@@ -4,10 +4,12 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
@@ -357,6 +359,9 @@ export default function Movie() {
             </div>
           </header>
 
+          {/* Where this entry sits in the watch orders the viewer follows. */}
+          <FollowedOrderPanel entryId={movie.system_id} />
+
           {/* My Tracker Block */}
           <Slip title="My tracker">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -475,11 +480,9 @@ export default function Movie() {
                   { label: "Release Date TW", value: movie.release_date_tw },
                   { label: "Release Date USA", value: movie.release_date_usa },
                 ],
-                { label: "Genre (Main)", value: movie.genre_main },
-                { label: "Genre (Sub)", value: movie.genre_sub },
-                { label: "標籤 Label", value: movie.label },
               ]}
             />
+            <GenresCard item={movie} />
           </div>
 
           {/* Remarks */}

@@ -9,7 +9,7 @@ import { releaseScore } from "../../../lib/releaseDate";
 import { READING_STATUS_GROUP, parseTypes } from "../../../utils/media";
 
 // EN leads for comics, matching Comic.display_name on the backend and
-// NAMING_CONFIGS. Every other library type leads with CN.
+// getDisplayName (lib/naming.js). Every other library type leads with CN.
 function getTitle(c) {
   return c.comic_name_en || c.comic_name_cn || c.comic_name_alt || "";
 }

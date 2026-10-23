@@ -56,11 +56,11 @@ describe("resolveDefaults", () => {
 
   it("coerces stored values to the form-state type", () => {
     const resolved = resolveDefaults("anime", {
-      anime: { defaults: { ep_total: 12, is_main_entry: "yes", remark: null } },
+      anime: { defaults: { ep_total: 12, watch_next: "yes", remark: null } },
     });
 
     expect(resolved.ep_total).toBe("12");
-    expect(resolved.is_main_entry).toBe(true);
+    expect(resolved.watch_next).toBe(true);
     expect(resolved.remark).toBe("");
   });
 

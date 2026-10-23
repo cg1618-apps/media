@@ -5,6 +5,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import {
   getCoverUrl,
@@ -181,7 +182,6 @@ export default function Comic() {
     comic.comic_type,
     comic.era,
     comic.serialization_status,
-    comic.is_main_entry ? "Main line" : null,
     yearRange,
   ]
     .filter(Boolean)
@@ -368,6 +368,9 @@ export default function Comic() {
             </div>
           </header>
 
+          {/* Where this entry sits in the watch orders the viewer follows. */}
+          <FollowedOrderPanel entryId={comic.system_id} />
+
           {/* My Tracker — comic tracks issues only, so the shared single-counter
               card fits without a comic-specific tracker block. */}
           <MyTrackerCard
@@ -413,18 +416,7 @@ export default function Comic() {
                   { label: "Volume Label", value: comic.volume_label },
                   { label: "Continuity", value: comic.continuity },
                 ],
-                [
-                  { label: "Era", value: comic.era },
-                  {
-                    label: "Main Line",
-                    value:
-                      comic.is_main_entry == null
-                        ? null
-                        : comic.is_main_entry
-                          ? "Yes"
-                          : "No",
-                  },
-                ],
+                [{ label: "Era", value: comic.era }],
                 [
                   {
                     label: "Serialization Status",

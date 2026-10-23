@@ -10,6 +10,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
@@ -457,6 +458,9 @@ export default function Game() {
                 </div>
               </div>
             </header>
+
+            {/* Where this entry sits in the watch orders the viewer follows. */}
+            <FollowedOrderPanel entryId={game.system_id} />
 
             {/* My Tracker — no stepper: a game has no unit to count off, so the
               playtime and achievement figures live in GameProgress below. */}

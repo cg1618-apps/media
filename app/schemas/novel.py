@@ -69,11 +69,11 @@ class NovelBase(BaseModel):
 
     vol_total_original: Optional[float] = None
     vol_total_tw: Optional[float] = None
-    vol_fin: float = 0
+    vol_fin: Optional[float] = 0
     arc_total: Optional[float] = None
-    arc_fin: float = 0
+    arc_fin: Optional[float] = 0
     ch_total: Optional[float] = None
-    ch_fin: float = 0
+    ch_fin: Optional[float] = 0
     ch_fin_in_arc: float = 0
     progress_display: Optional[str] = None
 
@@ -87,7 +87,6 @@ class NovelBase(BaseModel):
     release_date: Optional[str] = None
     end_date: Optional[str] = None
 
-    is_main_entry: Optional[bool] = None
     read_order: Optional[float] = None
 
     mal_id: Optional[int] = None

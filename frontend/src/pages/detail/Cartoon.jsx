@@ -4,11 +4,13 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
@@ -376,6 +378,9 @@ export default function Cartoon() {
             </div>
           </header>
 
+          {/* Where this entry sits in the watch orders the viewer follows. */}
+          <FollowedOrderPanel entryId={cartoon.system_id} />
+
           {/* My Tracker Block */}
           <MyTrackerCard
             epFin={epFin}
@@ -444,11 +449,9 @@ export default function Cartoon() {
                         : null,
                   },
                 ],
-                { label: "Genre (Main)", value: cartoon.genre_main },
-                { label: "Genre (Sub)", value: cartoon.genre_sub },
-                { label: "標籤 Label", value: cartoon.label },
               ]}
             />
+            <GenresCard item={cartoon} />
           </div>
 
           {/* Remarks */}

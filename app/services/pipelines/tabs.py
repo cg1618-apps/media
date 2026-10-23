@@ -297,6 +297,16 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Watch Order List", models.WatchOrderList, f.parse_watch_order_list_from_sheet),
     SheetTab("Watch Order Section", models.WatchOrderSection, f.parse_watch_order_section_from_sheet),
     SheetTab("Watch Order Item", models.WatchOrderItem, f.parse_watch_order_item_from_sheet),
+    # Per-user, like Plan Next: user_id is dropped for `username`. After
+    # Watch Order List, which list_id names, and after the three tiers the
+    # copied owner columns name.
+    SheetTab(
+        "Watch Order Follow",
+        models.WatchOrderFollow,
+        f.parse_watch_order_follow_from_sheet,
+        drop_columns=("user_id",),
+        extra_columns=(("username", _row_username),),
+    ),
     # FK-less (media_type, id) pairs: both endpoints must already exist.
     SheetTab("Media Relation", models.MediaRelation, f.parse_media_relation_from_sheet),
     # The sheet keeps the (scope, target_id) pair a human reads during an

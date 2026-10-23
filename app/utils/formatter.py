@@ -354,6 +354,24 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_watch_order_follow_from_sheet(raw: dict) -> dict:
+    """
+    One user's follow of one watch order. user_id is not in the sheet -
+    pull.py resolves the row's `username` - and every other id is a real FK
+    whose uuid travels unchanged, so an unparseable cell becomes None and the
+    database refuses the row rather than the tab.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "list_id": _uuid_or_none(raw.get("list_id")),
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_user_media_list_from_sheet(raw: dict) -> dict:
     """
     One user's list row, keyed naturally rather than by uuid.
@@ -659,7 +677,6 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "genre_main": parse_from_sheet(raw.get("genre_main"), str),
         "genre_sub": parse_from_sheet(raw.get("genre_sub"), str),
         "label": parse_from_sheet(raw.get("label"), str),
-        "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
@@ -916,7 +933,6 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
-        "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
         "read_order": parse_from_sheet(raw.get("read_order"), float),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
@@ -978,7 +994,6 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         "continuity": parse_from_sheet(raw.get("continuity"), str),
         "era": parse_from_sheet(raw.get("era"), str),
         "events": parse_from_sheet(raw.get("events"), str),
-        "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
         "writer": parse_from_sheet(raw.get("writer"), str),
         "artist": parse_from_sheet(raw.get("artist"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),

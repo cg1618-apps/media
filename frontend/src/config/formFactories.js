@@ -60,7 +60,6 @@ export const defaultAnime = () => ({
   producer: "",
   music: "",
   distributor_tw: "",
-  is_main_entry: false,
   mal_id: "",
   mal_link: "",
   exclusive_source: "",
@@ -121,6 +120,7 @@ export const defaultMovie = () => ({
   airing_status: "Finished Airing",
   watching_status: "Might Watch",
   my_rating: "",
+  imdb_rating: "",
   time_fin: "",
   movie_type: "Reality",
   is_main: "本傳",
@@ -335,7 +335,6 @@ export const defaultComic = () => ({
   artist: "",
   release_date: "",
   end_date: "",
-  is_main_entry: false,
   read_order: "",
   // Set by the Comic Vine picker beside the link; hidden on /defaults.
   comicvine_id: "",

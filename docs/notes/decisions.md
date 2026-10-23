@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-18
+Last verified: 2026-10-23
 
 ## What this is for
 
@@ -3542,3 +3542,137 @@ so nothing else about the gate moves.
 - **The mainstream boundary is unchanged.** `"ACG, H-Game"`, `"Game, H-Game"`
   and an h-game written into an `ACG` or `Game` franchise are still refused
   (422), so no gated entry reaches a public group.
+
+### Following a watch order: the owner is copied, so the owner cannot move (2026-10-22)
+
+A member follows at most one watch order per group (franchise, series or
+collection). The rule could live in the router alone - "delete my other
+follows in this group, then insert" - or in the database. It lives in the
+database: `watch_order_follow` copies the order's owner onto the row and
+`uq_watch_order_follow_group` is UNIQUE NULLS NOT DISTINCT over the user and
+the three owner columns, the shape `plan_next` already uses.
+
+A copy is only sound if the original cannot change, and a list's owner could:
+`PUT` and `PATCH /api/watch-order/lists/{id}` accepted new owner columns, and
+nothing in the SPA ever sent one. So the owner is now fixed at creation and
+both endpoints answer 400 when a body names a different one (restating the
+current owner, as a `PUT` echoing the list does, is allowed).
+
+Rejected:
+
+- **No copy; one-per-group checked in the router.** Correct on the follow
+  path, but an admin moving an order into another group would leave a member
+  following two orders of that group with nothing to say so.
+- **Keep the owner movable and re-sync the follows on every move.** Three
+  write paths (`PUT`, `PATCH`, a Pull that rewrites list rows), each needing
+  to repoint follows and resolve the collision a move can create - which of
+  the member's two follows wins has no good answer. Making the owner
+  immutable removes the case instead of answering it.
+- **A composite foreign key `(list_id, owner columns)` with ON UPDATE
+  CASCADE.** Under MATCH SIMPLE a key with any NULL column is not checked at
+  all, and two of the three owner columns are NULL on every row, so the
+  constraint would hold nothing. A generated non-null owner column on the list
+  would make it work, at the cost of a column Pull and PATCH would both have
+  to learn to skip.
+
+The remaining hole is a hand-edited sheet: a Pull writes a list row as the
+sheet has it, owner included. Every list's uuid is minted once with its owner
+and the owner never changes on either machine, so an ordinary Backup / Pull
+round trip cannot move one.
+
+Four smaller choices, made with the feature:
+
+- **Progress counts the steps the page draws.** `_resolved_steps` serves both
+  the detail endpoint and the follows, so the guide and "step N / total" never
+  disagree about a hidden entry or a built-in order's generated steps.
+- **A ranged step is "active" only once reached.** The rule as specified: active when
+  the status is in progress and the step is not done by its range. Read
+  literally, both halves of a split run (A ep 1-10, A ep 11-12) are "now"
+  while ep 3 is playing. A step whose `ep_start` lies beyond the next unit is
+  pending instead, so "Now" is the half being watched and "Up next" can name
+  the other.
+- **A split run shows every occurrence.** The entry panel draws one
+  previous / this / next block per step naming the entry, since each half
+  sits between different neighbours; folding them would lose one half's
+  neighbours.
+- **Follows travel in the Sheets backup**, as `plan_next` does: tab
+  `Watch Order Follow`, `user_id` dropped for `username`.
+
+### The main-entry flag is removed; the `alternative` relation replaces it (2026-10-22)
+
+`is_main_entry` was a Boolean on anime, comic and novel ("Mark as main entry
+among alternatives"; on a comic, "main line, not a spinoff"). The relation
+system made it redundant: the `alternative` kind in
+`app/utils/relation_kinds.py` says which entries are alternatives of one
+another, between the two entries themselves. The owner dropped the flag from
+every type: the three columns, by `d1r2opmain34`, the form checkboxes, the
+comic card's "Main" badge, the anime "Main" chip on the franchise and series
+pages, and the comic detail page's Main Line field. The values are not carried
+anywhere; the downgrade puts the columns back empty.
+
+- **The comic duplicate key loses it.** It was `(franchise_id, series_id,
+  is_main_entry)`, so a main-line run and a spinoff of the same name in one
+  series were never compared. The key is now `(franchise_id, series_id)`,
+  like movie's; the Comic Vine id still tells two runs apart when it differs.
+- **An old sheet still pulls.** The Google Sheet carries an `is_main_entry`
+  column on the Anime, Comic and Novel tabs until the next Backup rewrites
+  them. Pull discards the column and names it once per tab in the run's
+  unresolved references, as it does for any header that is no longer a
+  column.
+
+### Genres and labels are replaced from a series or franchise entry, on every tagged type (2026-10-22)
+
+The anime-only import of 2026-10-04 became **Replace genres & labels from…**
+(`forms/TagReplace.jsx`), offered wherever an entry carries classification
+tags.
+
+- **Replaced, not appended.** Picking a source overwrites each field with the
+  source's value, clearing one the source has empty. The use is "this entry is
+  tagged like that one", and a merge left the old tags behind to be removed by
+  hand. Nothing is saved until the form is, so a wrong pick costs nothing; the
+  wording says "Replace" so the overwrite is not a surprise.
+- **Series first, then the franchise.** An entry of the same series is the
+  likeliest match, so it leads, under its own `<optgroup>`. The split is made
+  in the browser from the one franchise list (`series_id` is on every row), so
+  there is still no new endpoint.
+- **Same media type only.** Tags are scoped per type (`lib/genreLabelFields.js`),
+  so another type's values would not be offered by this form's pickers.
+- **Every type with tags.** The seven `GENRE_LABEL_TYPES` get it through
+  `GenreLabelFields`; anime keeps its own placement. Game replaces Genre and
+  Label; h-game its Genre and three H genres; h-comic and hentai their three H
+  genres, worded "Replace genres from…" as they carry no label. Game's Theme,
+  Mode, Combat Mode and Platform are left out: the picker is about genres and
+  labels, and those describe the game's play rather than its kind.
+
+### One form body per media type, laid out like the detail page (2026-10-23)
+
+The Add and Modify forms of the twelve media types had grown apart: the older
+types kept two near-identical files per type, so a field added to one page was
+missing on the other (Modify could not edit the AniList ranks or a movie's IMDb
+rating, and saved the anime ranks back as null), and every type ordered its
+sections its own way. Game was the exception, with one `GameFormBody` that both
+tabs render. Every type now follows game.
+
+- **One body per type, so Add and Modify cannot drift.**
+  `pages/add-tabs/<Type>AddTab.jsx` exports `<Type>FormBody` and
+  `<Type>LineageFields`; the Modify tab imports them. A field exists on both
+  pages or on neither, and `pages/add-tabs/FormLayout.test.jsx` asserts that
+  the two pages label the same fields in the same order.
+- **The differences live in the wrappers, plus `ownerId`.** The Add wrapper
+  adds the auto-fill and external search boxes; the Modify wrapper adds
+  Structured Notes, and the page draws the franchise ribbon above the card.
+  Validation, duplicate checks, enrichment, labels and starting state stay in
+  `Add.jsx` / `Modify.jsx`. Inside a body, `ownerId` (the entry's id, absent on
+  Add) is the only difference, and it only says which entry the pickers belong
+  to.
+- **Rejected: a mode flag in the bodies.** A body taking `mode="add" |
+  "modify"` would let each page grow its own fields again behind a
+  conditional, which is the drift this removes, only harder to see. `ownerId`
+  is not a mode: it carries data the pickers need and changes no layout.
+- **The section order mirrors the detail page.** Titles & Naming, Scores, My
+  Tracker, Information, Genres & Labels, Production, Cast, the type's extras,
+  Links & Sources, Cover & Remark - what the admin reads on the entry is where
+  they edit it, and every type uses the same titles and icons. Names put CN
+  top-left, as the naming card does (comic's naming card moved to CN-first
+  for it; its display name stays EN-first, as the backend's is), and the
+  romanised name is "Romaji" on the forms and the naming card alike.

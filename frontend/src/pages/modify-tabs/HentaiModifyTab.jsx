@@ -1,8 +1,9 @@
 // Frontend: modify tab page file for HentaiModifyTab.
 //
 // Renders HentaiAddTab's lineage pickers and field body, so the Add and
-// Modify forms of the type are one definition. Modify adds
-// the ribbon above the form and the entry's Structured Notes below it.
+// Modify forms of the type are one definition. Modify hands the body the
+// entry's id and adds the entry's Structured Notes below it; the franchise
+// ribbon above the card is Modify.jsx's.
 import { SectionHeader } from "../../components/forms/FormField";
 import HentaiNotes from "../detail/HentaiNotes";
 import { HentaiFormBody, HentaiLineageFields } from "../add-tabs/HentaiAddTab";
@@ -18,7 +19,7 @@ export default function HentaiModifyTab({
 }) {
   return (
     <>
-      <SectionHeader icon="fa-tv" title="Titles & Naming" />
+      <SectionHeader icon="fa-tag" title="Titles & Naming" />
       <HentaiLineageFields
         f={chtf}
         u={uht}

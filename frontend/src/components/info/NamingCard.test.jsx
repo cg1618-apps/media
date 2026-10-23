@@ -19,7 +19,7 @@ describe("NamingCard", () => {
     );
     expect(screen.getByText("Chinese")).toBeInTheDocument();
     expect(screen.getByText("Attack on Titan")).toBeInTheDocument();
-    expect(screen.queryByText("Roman")).not.toBeInTheDocument();
+    expect(screen.queryByText("Romaji")).not.toBeInTheDocument();
     expect(screen.queryByText("Japanese")).not.toBeInTheDocument();
     expect(screen.queryByText("Alternative")).not.toBeInTheDocument();
     expect(screen.queryByText("—")).not.toBeInTheDocument();

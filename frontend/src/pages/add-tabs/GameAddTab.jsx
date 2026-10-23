@@ -5,15 +5,22 @@
 // links the new entry to its IGDB record - the IGDB id it stores is Fill's
 // only handle on the game. Everything else comes from the Fill pipeline, and
 // the base game has its own picker below.
+//
+// The field body and the lineage pickers are exported and rendered by
+// GameModifyTab too, so the two pages share one form in the canonical
+// entry-form section order.
 import ComboBox from "../../components/forms/ComboBox";
+import CoverRemarkFields from "../../components/forms/CoverRemarkFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
+import EntryFlags from "../../components/forms/EntryFlags";
+import EntryNameFields from "../../components/forms/EntryNameFields";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
+import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
-import ImagePicker from "../../components/forms/ImagePicker";
+import TagReplace from "../../components/forms/TagReplace";
 import {
-  CollectionNote,
   Field,
   SectionHeader,
   inputCls,
@@ -37,16 +44,28 @@ import { useAuth } from "../../contexts/AuthContext";
 
 export { defaultGame } from "../../config/formFactories";
 
+function Options({ values }) {
+  return (
+    <>
+      <option value="">—</option>
+      {values.map((v) => (
+        <option key={v} value={v}>
+          {v}
+        </option>
+      ))}
+    </>
+  );
+}
+
 /**
  * Every field below the franchise/series pickers, shared verbatim by the
  * Modify tab. `f` is the form state and `u` its updater, so the two pages
  * differ only in which state object they hand in.
+ *
+ * `ownerId` is only passed by GameModifyTab, where the game row already
+ * exists. Without it a picked cover waits in `pending_image_id` for the Add
+ * page to attach once the game is saved (CoverRemarkFields).
  */
-// `ownerId` is only passed by GameModifyTab, where the game row already
-// exists - see ImagePicker's own module comment on why a brand-new (Add tab)
-// row has nothing to attach to yet. When it is absent (the Add tab), the
-// picked image cannot be attached until the game is saved, so its id is kept
-// as `pending_image_id` for GameAddTab's caller to attach afterward.
 export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }) {
   const { has } = useAuth();
   const canOwnCopies = has("self.list");
@@ -55,6 +74,8 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
   const baseGameChoices = excludeGameId
     ? allGames.filter((g) => g.system_id !== excludeGameId)
     : allGames;
+  const baseGame = baseGameChoices.find((g) => g.system_id === f.base_game_id);
+
   const tagField = (key, source, placeholder) => (
     <MultiSelect
       options={getSourceValues(sources, source)}
@@ -64,100 +85,122 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
       placeholder={placeholder}
     />
   );
-
   const num = (key, label, hint) => (
     <Field label={label} hint={hint}>
       <input
         className={inputCls}
         type="number"
         step="any"
+        min="0"
+        aria-label={label}
         value={f[key] ?? ""}
         onChange={(e) => u(key, e.target.value)}
         placeholder="0"
       />
     </Field>
   );
+  const text = (key, label, placeholder, hint) => (
+    <Field label={label} hint={hint}>
+      <input
+        className={inputCls}
+        aria-label={label}
+        value={f[key] ?? ""}
+        onChange={(e) => u(key, e.target.value)}
+        placeholder={placeholder}
+      />
+    </Field>
+  );
+  const select = (key, label, values, hint) => (
+    <Field label={label} hint={hint}>
+      <select
+        className={selectCls}
+        aria-label={label}
+        value={f[key] ?? ""}
+        onChange={(e) => u(key, e.target.value)}
+      >
+        <Options values={values} />
+      </select>
+    </Field>
+  );
 
   return (
     <>
-      <Field label="Game Name CN">
-        <input
-          className={inputCls}
-          value={f.game_name_cn}
-          onChange={(e) => u("game_name_cn", e.target.value)}
-          placeholder="Chinese title"
-        />
-      </Field>
+      <EntryNameFields f={f} u={u} prefix="game" label="Game" />
+
+      {/* Metacritic's own figures; my rating is in My Tracker. */}
+      <SectionHeader icon="fa-star" title="Scores" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Game Name EN">
-          <input
-            className={inputCls}
-            value={f.game_name_en}
-            onChange={(e) => u("game_name_en", e.target.value)}
-            placeholder="English title"
-          />
-        </Field>
-        <Field label="Game Name Romaji">
-          <input
-            className={inputCls}
-            value={f.game_name_roman}
-            onChange={(e) => u("game_name_roman", e.target.value)}
-            placeholder="Romanised title"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Game Name JP">
-          <input
-            className={inputCls}
-            value={f.game_name_jp}
-            onChange={(e) => u("game_name_jp", e.target.value)}
-            placeholder="Japanese title"
-          />
-        </Field>
-        <Field label="Game Name Alt">
-          <input
-            className={inputCls}
-            value={f.game_name_alt}
-            onChange={(e) => u("game_name_alt", e.target.value)}
-            placeholder="Alternative title"
-          />
-        </Field>
+        {num("metacritic_score", "Metacritic", "Critic metascore, 0-100")}
+        {num("metacritic_user_score", "Metacritic User", "User score, 0-10")}
       </div>
 
-      <SectionHeader icon="fa-sitemap" title="Classification" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Game Type">
+      <SectionHeader icon="fa-chart-bar" title="My Tracker" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Playing Status">
           <select
             className={selectCls}
-            value={f.game_type}
-            onChange={(e) => u("game_type", e.target.value)}
+            aria-label="Playing Status"
+            value={f.playing_status ?? ""}
+            onChange={(e) => u("playing_status", e.target.value)}
           >
-            <option value="">—</option>
-            {GAME_TYPES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={PLAYING_STATUSES} />
           </select>
         </Field>
+        {select("my_rating", "My Rating", MY_RATINGS)}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {num("hours_played", "Hours Played")}
+        {num("achievements_earned", "Achievements Earned")}
+        {num("achievements_total", "Achievements Total")}
+        <Field label="Steam Progress Sync" hint="Off: Steam never writes playtime here">
+          <select
+            className={selectCls}
+            aria-label="Steam Progress Sync"
+            value={f.steam_progress_sync ?? ""}
+            onChange={(e) => u("steam_progress_sync", e.target.value)}
+          >
+            <option value="">—</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </Field>
+      </div>
+      {/* The completion ladder, then three vocabulary axes independent of it
+          and of each other. "All Achievements" is not read from the counts
+          above. "Inapplicable" is for a game that has none of that thing at
+          all - no endings to see, no achievement list, nothing to collect -
+          which is a different answer from "No" and from leaving it blank. */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {select("completion_level", "Completion Level", COMPLETION_LEVELS)}
+        {select(
+          "all_endings",
+          "All Endings",
+          GAME_COMPLETION_FLAGS,
+          "Separate axis from completion level",
+        )}
+        {select("all_achievements", "All Achievements", GAME_COMPLETION_FLAGS)}
+        {select(
+          "all_collected",
+          "All Collected",
+          GAME_COMPLETION_FLAGS,
+          "Every in-game collectible",
+        )}
+      </div>
+      <EntryFlags
+        f={f}
+        u={u}
+        flags={[
+          ["play_next", "Play Next", "Add to Play Next list"],
+          ["to_replay", "To Replay", "Mark for replay"],
+        ]}
+      />
+
+      <SectionHeader icon="fa-info-circle" title="Information" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* GAME_IS_MAIN - a label of its own, independent of game_type and of
             the Remake / Remaster relation kinds. */}
-        <Field label="Main / Remake">
-          <select
-            className={selectCls}
-            aria-label="Main / Remake"
-            value={f.is_main ?? ""}
-            onChange={(e) => u("is_main", e.target.value)}
-          >
-            <option value="">—</option>
-            {GAME_IS_MAIN.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {select("is_main", "Main / Remake", GAME_IS_MAIN)}
+        {select("game_type", "Game Type", GAME_TYPES)}
         {/* A base game only makes sense for a DLC, expansion or bundle -
             ck_games_base_no_parent rejects one on a Base Game row. */}
         <Field
@@ -183,16 +226,7 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
                 .join(" "),
             }))}
             selectedId={f.base_game_id}
-            inputText={
-              baseGameChoices.find((g) => g.system_id === f.base_game_id)
-                ? getDisplayName(
-                    baseGameChoices.find(
-                      (g) => g.system_id === f.base_game_id,
-                    ),
-                    "game",
-                  )
-                : ""
-            }
+            inputText={baseGame ? getDisplayName(baseGame, "game") : ""}
             onSelect={(id) => u("base_game_id", id)}
             onType={() => u("base_game_id", null)}
             onClear={() => u("base_game_id", null)}
@@ -201,20 +235,20 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Genre">
-          {tagField(
-            "game_genre",
-            { kind: "option", category: "Game Genre", scope: "game" },
-            "Select or type genre...",
-          )}
-        </Field>
-        <Field label="Theme">
-          {tagField(
-            "game_theme",
-            { kind: "option", category: "Game Theme", scope: "game" },
-            "Select or type theme...",
-          )}
-        </Field>
+        {select("release_status", "Release Status", GAME_RELEASE_STATUSES)}
+        <ReleaseDateInput
+          label="Release Date"
+          value={f.release_date}
+          onChange={(v) => u("release_date", v)}
+        />
+        {text("current_patch", "Current Patch", "1.6.2", "e.g. 1.6.2")}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {num("hltb_main", "HLTB Main", "Hours, filled from IGDB")}
+        {num("hltb_main_extra", "HLTB Main + Extra", "Hours")}
+        {num("hltb_completionist", "HLTB Completionist", "Hours")}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Platform" hint="Which platform the game is on">
           {tagField(
             "game_platform",
@@ -222,8 +256,6 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
             "PlayStation, PC...",
           )}
         </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Mode">
           {tagField(
             "game_mode",
@@ -238,162 +270,42 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
             "PvE, PvP...",
           )}
         </Field>
-        <Field label="Label">
+      </div>
+
+      <SectionHeader icon="fa-tags" title="Genres & Labels" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Genre">
           {tagField(
-            "label",
-            { kind: "option", category: "Label", scope: "game" },
-            "Select or type label...",
+            "game_genre",
+            { kind: "option", category: "Game Genre", scope: "game" },
+            "Select or type genre...",
+          )}
+        </Field>
+        <Field label="Theme">
+          {tagField(
+            "game_theme",
+            { kind: "option", category: "Game Theme", scope: "game" },
+            "Select or type theme...",
           )}
         </Field>
       </div>
+      <Field label="Label">
+        {tagField(
+          "label",
+          { kind: "option", category: "Label", scope: "game" },
+          "Select or type label...",
+        )}
+      </Field>
+      <TagReplace
+        mediaType="game"
+        franchiseId={f.franchise_id}
+        seriesId={f.series_id}
+        entryId={ownerId}
+        fields={["game_genre", "label"]}
+        onChange={u}
+      />
 
-      {/* Rating sits directly under Classification: the verdicts on a game -
-          mine and the public's - read before its play state does. My rating
-          is the S..F scale; the two Metacritic figures are Metacritic's own. */}
-      <SectionHeader icon="fa-star" title="Rating" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={f.my_rating}
-            onChange={(e) => u("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        {num("metacritic_score", "Metacritic", "Critic metascore, 0-100")}
-        {num("metacritic_user_score", "Metacritic User", "User score, 0-10")}
-      </div>
-
-      <SectionHeader icon="fa-chart-bar" title="Status" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Release Status">
-          <select
-            className={selectCls}
-            value={f.release_status}
-            onChange={(e) => u("release_status", e.target.value)}
-          >
-            <option value="">—</option>
-            {GAME_RELEASE_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Playing Status">
-          <select
-            className={selectCls}
-            value={f.playing_status}
-            onChange={(e) => u("playing_status", e.target.value)}
-          >
-            <StatusOptions statuses={PLAYING_STATUSES} />
-          </select>
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Completion Level">
-          <select
-            className={selectCls}
-            value={f.completion_level}
-            onChange={(e) => u("completion_level", e.target.value)}
-          >
-            <option value="">—</option>
-            {COMPLETION_LEVELS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Current Patch" hint="e.g. 1.6.2">
-          <input
-            className={inputCls}
-            value={f.current_patch}
-            onChange={(e) => u("current_patch", e.target.value)}
-            placeholder="1.6.2"
-          />
-        </Field>
-      </div>
-      {/* Three vocabulary axes, independent of the ladder above and of each
-          other. "All Achievements" is not read from the counts below.
-          "Inapplicable" is for a game that has none of that thing at all -
-          no endings to see, no achievement list, nothing to collect - which
-          is a different answer from "No" and from leaving it blank. */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Field label="All Endings" hint="Separate axis from completion level">
-          <select
-            className={selectCls}
-            value={f.all_endings}
-            onChange={(e) => u("all_endings", e.target.value)}
-          >
-            <option value="">—</option>
-            {GAME_COMPLETION_FLAGS.map((flag) => (
-              <option key={flag} value={flag}>
-                {flag}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="All Achievements">
-          <select
-            className={selectCls}
-            value={f.all_achievements}
-            onChange={(e) => u("all_achievements", e.target.value)}
-          >
-            <option value="">—</option>
-            {GAME_COMPLETION_FLAGS.map((flag) => (
-              <option key={flag} value={flag}>
-                {flag}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="All Collected" hint="Every in-game collectible">
-          <select
-            className={selectCls}
-            value={f.all_collected}
-            onChange={(e) => u("all_collected", e.target.value)}
-          >
-            <option value="">—</option>
-            {GAME_COMPLETION_FLAGS.map((flag) => (
-              <option key={flag} value={flag}>
-                {flag}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Steam Progress Sync" hint="Off: Steam never writes playtime here">
-          <select
-            className={selectCls}
-            value={f.steam_progress_sync}
-            onChange={(e) => u("steam_progress_sync", e.target.value)}
-          >
-            <option value="">—</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-list-ol" title="Progress" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {num("hours_played", "Hours Played")}
-        {num("achievements_earned", "Achievements Earned")}
-        {num("achievements_total", "Achievements Total")}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {num("hltb_main", "HLTB Main", "Hours, filled from IGDB")}
-        {num("hltb_main_extra", "HLTB Main + Extra", "Hours")}
-        {num("hltb_completionist", "HLTB Completionist", "Hours")}
-      </div>
-
-      <SectionHeader icon="fa-pen-nib" title="Credits" />
+      <SectionHeader icon="fa-pen-nib" title="Production" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Developer" hint="A studio row, quick-created if new">
           {tagField("studio", { kind: "studio" }, "Select or type developer...")}
@@ -423,12 +335,7 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
         </Field>
       </div>
 
-      <SectionHeader icon="fa-calendar" title="Release & Prices" />
-      <ReleaseDateInput
-        label="Release Date"
-        value={f.release_date}
-        onChange={(v) => u("release_date", v)}
-      />
+      <SectionHeader icon="fa-tag" title="Prices" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {num("price_original_us", "MSRP (US)")}
         {num("price_original_jp", "MSRP (JP)")}
@@ -461,47 +368,41 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
         </>
       )}
 
-      <SectionHeader icon="fa-external-link-alt" title="Sources" />
+      <SectionHeader icon="fa-external-link-alt" title="Links & Sources" />
       {/* The id, not the link, is what Fill runs on. The public IGDB URL
           carries a slug, so nothing can derive one from the other - both are
           typed, or both come from the picker on the Add page. */}
-      <Field
-        label="IGDB ID"
-        hint="Fill Game pulls genres, themes, companies, time-to-beat and the parent game from it — the link alone is not enough"
-      >
-        <input
-          type="number"
-          className={inputCls}
-          value={f.igdb_id}
-          onChange={(e) => u("igdb_id", e.target.value)}
-          placeholder="119133"
-        />
-      </Field>
-      <Field label="IGDB Link">
-        <input
-          className={inputCls}
-          value={f.igdb_link}
-          onChange={(e) => u("igdb_link", e.target.value)}
-          placeholder="https://www.igdb.com/games/elden-ring"
-        />
-      </Field>
-      <Field label="Steam AppID" hint="Reserved for the Steam sync">
-        <input
-          type="number"
-          className={inputCls}
-          value={f.steam_appid}
-          onChange={(e) => u("steam_appid", e.target.value)}
-          placeholder="1245620"
-        />
-      </Field>
-      <Field label="Steam Link">
-        <input
-          className={inputCls}
-          value={f.steam_link}
-          onChange={(e) => u("steam_link", e.target.value)}
-          placeholder="https://store.steampowered.com/app/1245620/"
-        />
-      </Field>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field
+          label="IGDB ID"
+          hint="Fill Game pulls genres, themes, companies, time-to-beat and the parent game from it — the link alone is not enough"
+        >
+          <input
+            type="number"
+            min="0"
+            className={inputCls}
+            aria-label="IGDB ID"
+            value={f.igdb_id ?? ""}
+            onChange={(e) => u("igdb_id", e.target.value)}
+            placeholder="119133"
+          />
+        </Field>
+        {text("igdb_link", "IGDB Link", "https://www.igdb.com/games/elden-ring")}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Steam AppID" hint="Reserved for the Steam sync">
+          <input
+            type="number"
+            min="0"
+            className={inputCls}
+            aria-label="Steam AppID"
+            value={f.steam_appid ?? ""}
+            onChange={(e) => u("steam_appid", e.target.value)}
+            placeholder="1245620"
+          />
+        </Field>
+        {text("steam_link", "Steam Link", "https://store.steampowered.com/app/1245620/")}
+      </div>
       {/* No access group: where a game can be played is the Platform tag,
           and which copy was bought is the Copies editor. */}
       <SourcesEditor
@@ -512,65 +413,13 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
         showAccess={false}
       />
 
-      <SectionHeader icon="fa-flag" title="Flags" />
-      <div className="flex flex-wrap gap-6 mt-2">
-        <Field label="Play Next">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!f.play_next}
-              onChange={(e) => u("play_next", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Add to Play Next list
-            </span>
-          </label>
-        </Field>
-        <Field label="To Replay">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!f.to_replay}
-              onChange={(e) => u("to_replay", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">
-              Mark for replay
-            </span>
-          </label>
-        </Field>
-      </div>
-
-      <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image">
-        <ImagePicker
-          ownerType="game"
-          ownerId={ownerId}
-          role="cover"
-          value={f.cover_image_file}
-          focus={f.cover_image_focus}
-          onFocusChange={(focus) => u("cover_image_focus", focus)}
-          onChange={(key, imageId) => {
-            u("cover_image_file", key);
-            u("pending_image_id", ownerId ? null : imageId);
-          }}
-        />
-      </Field>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={f.remark}
-          onChange={(e) => u("remark", e.target.value)}
-          placeholder="Private notes..."
-        />
-      </Field>
+      <CoverRemarkFields f={f} u={u} ownerType="game" ownerId={ownerId} />
     </>
   );
 }
 
-/** The franchise and series pickers, shared by both game tabs. */
+/** The franchise and series pickers, shared by both game tabs: Game and
+ *  untyped franchises only. */
 export function GameLineageFields({
   f,
   u,
@@ -579,78 +428,14 @@ export function GameLineageFields({
   franchiseCollections,
 }) {
   return (
-    <>
-      <Field label="Franchise">
-        <ComboBox
-          items={allFranchises
-            .filter(
-              (fr) =>
-                parseTypes(fr.franchise_type).includes("Game") ||
-                !fr.franchise_type,
-            )
-            .map((fr) => ({
-              id: fr.system_id,
-              label: getDisplayName(fr, "franchise"),
-              searchText: [
-                fr.franchise_name_en,
-                fr.franchise_name_cn,
-                fr.franchise_name_roman,
-                fr.franchise_name_jp,
-                fr.franchise_name_alt,
-              ]
-                .filter(Boolean)
-                .join(" "),
-            }))}
-          selectedId={f.franchise_id}
-          inputText={f.franchise_text}
-          onSelect={(id, label) => {
-            u("franchise_id", id);
-            u("franchise_text", label);
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          onType={(text) => {
-            u("franchise_text", text);
-            u("franchise_id", null);
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          onClear={() => {
-            u("franchise_id", null);
-            u("franchise_text", "");
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          placeholder="Search or type new franchise..."
-          allowNew
-        />
-        <CollectionNote
-          franchiseId={f.franchise_id}
-          franchiseCollections={franchiseCollections}
-        />
-      </Field>
-      <Field label="Series">
-        <ComboBox
-          items={seriesItemsForGame}
-          selectedId={f.series_id}
-          inputText={f.series_text}
-          onSelect={(id, label) => {
-            u("series_id", id);
-            u("series_text", label);
-          }}
-          onType={(text) => {
-            u("series_text", text);
-            u("series_id", null);
-          }}
-          onClear={() => {
-            u("series_id", null);
-            u("series_text", "");
-          }}
-          placeholder="Search or type new series..."
-          allowNew
-        />
-      </Field>
-    </>
+    <FamilyLineageFields
+      f={f}
+      u={u}
+      accepts={(type) => !type || parseTypes(type).includes("Game")}
+      allFranchises={allFranchises}
+      seriesItems={seriesItemsForGame}
+      franchiseCollections={franchiseCollections}
+    />
   );
 }
 
@@ -690,7 +475,7 @@ export default function GameAddTab({
         searchUrl={endpoints.game.searchIgdb}
         onPick={applyIgdbPick}
       />
-      <SectionHeader icon="fa-gamepad" title="Titles & Naming" />
+      <SectionHeader icon="fa-tag" title="Titles & Naming" />
       <GameLineageFields
         f={gmf}
         u={ugm}

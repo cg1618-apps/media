@@ -2,9 +2,8 @@
 // Modify editor listing the entry's siblings, grouped by series, each a chip
 // that opens that entry's editor.
 //
-// Used by the game, h-comic, h-game and hentai editors. The seven older types
-// build the same ribbon inline in Modify.jsx; the markup here matches theirs,
-// so the two read as one control.
+// Every media editor on Modify renders it, above the editor card; Modify.jsx
+// decides per type which list, which franchise and which chip badge.
 import { getDisplayName } from "../../utils/media";
 
 export default function FranchiseRibbon({

@@ -4,11 +4,13 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import { useAuth } from "../../contexts/AuthContext";
+import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import {
   publisherLabel,
@@ -605,6 +607,9 @@ export default function Manga() {
             />
           </header>
 
+          {/* Where this entry sits in the watch orders the viewer follows. */}
+          <FollowedOrderPanel entryId={manga.system_id} />
+
           {/* My Tracker Block */}
           <MangaTrackerBlock
             manga={manga}
@@ -670,11 +675,9 @@ export default function Manga() {
                       manga.ch_total != null ? String(manga.ch_total) : null,
                   },
                 ],
-                { label: "Genre (Main)", value: manga.genre_main },
-                { label: "Genre (Sub)", value: manga.genre_sub },
-                { label: "標籤 Label", value: manga.label },
               ]}
             />
+            <GenresCard item={manga} />
             {/* Production Card */}
             {(manga.author_plot ||
               manga.author_draw ||

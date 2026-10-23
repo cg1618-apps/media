@@ -277,9 +277,9 @@ export const COMMON_FIELD_META = {
 // The manga Anime Studio field names the anime adaptation's studio, so it is
 // counted and scoped as an anime studio field is (lib/suggestionOrder.js),
 // not under manga - no studio is ever credited on a manga.
-// Genre Main, Genre Sub and 標籤 Label on the seven types that share them
-// (lib/genreLabelFields.js), each scoped to its own media type. Anime keeps
-// its own three entries below, game its own Label.
+// Genre Main, Genre Sub and 標籤 Label (lib/genreLabelFields.js), each scoped
+// to its own media type, for the GENRE_LABEL_TYPES other than anime. Anime
+// keeps its own three entries below, game its own Label.
 function genreLabelMeta(mediaType) {
   return Object.fromEntries(
     GENRE_LABEL_FIELDS.map(({ key, category, label }) => [
@@ -392,11 +392,6 @@ export const TYPE_FIELD_META = {
       control: "tags",
       source: { kind: "publisher", scope: "anime" },
       group: "Credits",
-    },
-    is_main_entry: {
-      label: "Is Main Entry",
-      control: "checkbox",
-      group: "Derivation",
     },
     exclusive_source: {
       label: "Exclusive Source",
@@ -792,13 +787,6 @@ export const TYPE_FIELD_META = {
       control: "tags",
       source: { kind: "option", category: "Comic Imprint", scope: "comic" },
       group: "Credits",
-    },
-    // is_main_entry has no COMMON_FIELD_META entry — only anime's block
-    // defines it. Copied here rather than promoting it to common.
-    is_main_entry: {
-      label: "Is Main Entry",
-      control: "checkbox",
-      group: "Derivation",
     },
     // The Fill pipeline reads comicvine_id. The Comic Vine picker on the Add
     // page writes it beside the link; for a hand-typed link Fill derives it
