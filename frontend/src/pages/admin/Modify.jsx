@@ -8,11 +8,17 @@ import {
   buildAnimePayload,
   buildAnimeMoviePayload,
   buildCreditsPayload,
+  cartoonFieldsPayload,
+  comicFieldsPayload,
   creditsResponseToForm,
   gameFieldsPayload,
   hComicFieldsPayload,
   hGameFieldsPayload,
   hentaiFieldsPayload,
+  mangaFieldsPayload,
+  movieFieldsPayload,
+  novelFieldsPayload,
+  tvShowFieldsPayload,
 } from "../../utils/media";
 import { clearedForRegion } from "../../lib/hComicRegion";
 import { hComicSourceFields } from "../../lib/hComicForm";
@@ -42,7 +48,6 @@ import NovelModifyTab from "../modify-tabs/NovelModifyTab";
 import ComicModifyTab from "../modify-tabs/ComicModifyTab";
 import GameModifyTab from "../modify-tabs/GameModifyTab";
 import FranchiseRibbon from "../../components/forms/FranchiseRibbon";
-import { toIntId } from "../../lib/externalPick";
 import HComicModifyTab from "../modify-tabs/HComicModifyTab";
 import { H_COMIC_FRANCHISE_TYPE } from "../add-tabs/HComicAddTab";
 import HGameModifyTab from "../modify-tabs/HGameModifyTab";
@@ -1704,37 +1709,11 @@ export default function Modify() {
       setAllSeries((prev) => [...prev, ns]);
     }
     const payload = {
-      movie_name_en: mmf.movie_name_en || null,
-      movie_name_cn: mmf.movie_name_cn || null,
-      movie_name_alt: mmf.movie_name_alt || null,
+      ...movieFieldsPayload(mmf, {
+        defaultStatus: md("movie").watching_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      is_main: mmf.is_main || null,
-      airing_status: mmf.airing_status || null,
-      watching_status: mmf.watching_status || md("movie").watching_status,
-      my_rating: mmf.my_rating || null,
-      imdb_rating: mmf.imdb_rating || null,
-      time_fin: mmf.time_fin || null,
-      movie_type: mmf.movie_type || null,
-      length_min: mmf.length_min !== "" ? parseInt(mmf.length_min) : null,
-      release_date_usa: mmf.release_date_usa || null,
-      release_date_tw: mmf.release_date_tw || null,
-      imdb_id: mmf.imdb_id !== "" ? mmf.imdb_id : null,
-      imdb_link: mmf.imdb_link || null,
-      sources: (mmf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      watch_next: mmf.watch_next ?? null,
-      to_rewatch: mmf.to_rewatch ?? false,
-      cover_image_file: mmf.cover_image_file || null,
-      cover_image_focus: mmf.cover_image_focus || null,
-      remark: mmf.remark || null,
     };
     const res = await fetch(`/api/movies/${editingItem.system_id}`, {
       method: "PUT",
@@ -1838,38 +1817,11 @@ export default function Modify() {
       setAllSeries((prev) => [...prev, ns]);
     }
     const payload = {
-      tv_name_cn: tvmf.tv_name_cn || null,
-      tv_name_en: tvmf.tv_name_en || null,
-      tv_name_alt: tvmf.tv_name_alt || null,
+      ...tvShowFieldsPayload(tvmf, {
+        defaultStatus: md("tv-show").watching_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      season_part: tvmf.season_part || null,
-      region: tvmf.region || null,
-      is_main: tvmf.is_main || null,
-      airing_status: tvmf.airing_status || null,
-      watching_status: tvmf.watching_status || md("tv-show").watching_status,
-      ep_total: tvmf.ep_total !== "" ? parseInt(tvmf.ep_total) : null,
-      ep_fin: tvmf.ep_fin !== "" ? parseInt(tvmf.ep_fin) : null,
-      time_fin: tvmf.time_fin || null,
-      my_rating: tvmf.my_rating || null,
-      imdb_rating: tvmf.imdb_rating || null,
-      release_date: tvmf.release_date || null,
-      imdb_id: tvmf.imdb_id !== "" ? tvmf.imdb_id : null,
-      imdb_link: tvmf.imdb_link || null,
-      sources: (tvmf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      watch_next: tvmf.watch_next ?? null,
-      to_rewatch: tvmf.to_rewatch ?? false,
-      cover_image_file: tvmf.cover_image_file || null,
-      cover_image_focus: tvmf.cover_image_focus || null,
-      remark: tvmf.remark || null,
     };
     const res = await fetch(`/api/tv-shows/${editingItem.system_id}`, {
       method: "PUT",
@@ -1973,39 +1925,11 @@ export default function Modify() {
       setAllSeries((prev) => [...prev, ns]);
     }
     const payload = {
-      cartoon_name_cn: cmf.cartoon_name_cn || null,
-      cartoon_name_en: cmf.cartoon_name_en || null,
-      cartoon_name_alt: cmf.cartoon_name_alt || null,
+      ...cartoonFieldsPayload(cmf, {
+        defaultStatus: md("cartoon").watching_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      season_part: cmf.season_part || null,
-      airing_type: cmf.airing_type || null,
-      airing_status: cmf.airing_status || null,
-      watching_status: cmf.watching_status || md("cartoon").watching_status,
-      is_main: cmf.is_main || null,
-      ep_total: cmf.ep_total !== "" ? parseInt(cmf.ep_total) : null,
-      ep_fin: cmf.ep_fin !== "" ? parseInt(cmf.ep_fin) : null,
-      time_fin: cmf.time_fin || null,
-      my_rating: cmf.my_rating || null,
-      imdb_rating: cmf.imdb_rating || null,
-      length_ep_min:
-        cmf.length_ep_min !== "" ? parseInt(cmf.length_ep_min) : null,
-      release_date: cmf.release_date || null,
-      imdb_id: cmf.imdb_id !== "" ? cmf.imdb_id : null,
-      imdb_link: cmf.imdb_link || null,
-      sources: (cmf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      watch_next: cmf.watch_next ?? null,
-      cover_image_file: cmf.cover_image_file || null,
-      cover_image_focus: cmf.cover_image_focus || null,
-      remark: cmf.remark || null,
     };
     const res = await fetch(`/api/cartoon/${editingItem.system_id}`, {
       method: "PATCH",
@@ -2115,53 +2039,11 @@ export default function Modify() {
       setAllSeries((prev) => [...prev, ns]);
     }
     const payload = {
-      manga_name_cn: cmgf.manga_name_cn || null,
-      manga_name_en: cmgf.manga_name_en || null,
-      manga_name_roman: cmgf.manga_name_roman || null,
-      manga_name_jp: cmgf.manga_name_jp || null,
-      manga_name_alt: cmgf.manga_name_alt || null,
+      ...mangaFieldsPayload(cmgf, {
+        defaultStatus: md("manga").reading_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      region: cmgf.region || null,
-      serialization_status: cmgf.serialization_status || null,
-      reading_status: cmgf.reading_status || md("manga").reading_status,
-      is_main: cmgf.is_main || null,
-      vol_total: cmgf.vol_total !== "" ? parseInt(cmgf.vol_total) : null,
-      vol_fin: cmgf.vol_fin !== "" ? parseInt(cmgf.vol_fin) : null,
-      vol_fin_page:
-        cmgf.vol_fin_page !== "" ? parseInt(cmgf.vol_fin_page) : null,
-      ch_total: cmgf.ch_total !== "" ? parseInt(cmgf.ch_total) : null,
-      ch_fin: cmgf.ch_fin !== "" ? parseInt(cmgf.ch_fin) : null,
-      my_rating: cmgf.my_rating || null,
-      mal_rating: cmgf.mal_rating !== "" ? parseFloat(cmgf.mal_rating) : null,
-      mal_rank: cmgf.mal_rank || null,
-      anilist_rating:
-        cmgf.anilist_rating !== "" ? parseFloat(cmgf.anilist_rating) : null,
-      anilist_rank:
-        cmgf.anilist_rank !== "" ? parseInt(cmgf.anilist_rank) : null,
-      anilist_popularity_rank:
-        cmgf.anilist_popularity_rank !== ""
-          ? parseInt(cmgf.anilist_popularity_rank)
-          : null,
-      release_date: cmgf.release_date || null,
-      end_date: cmgf.end_date || null,
-      anime_studio: cmgf.anime_studio || null,
-      mal_id: cmgf.mal_id !== "" ? parseInt(cmgf.mal_id) : null,
-      mal_link: cmgf.mal_link || null,
-      sources: (cmgf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      read_next: cmgf.read_next ?? false,
-      to_reread: cmgf.to_reread ?? false,
-      cover_image_file: cmgf.cover_image_file || null,
-      cover_image_focus: cmgf.cover_image_focus || null,
-      remark: cmgf.remark || null,
     };
     const res = await fetch(`/api/manga/${editingItem.system_id}`, {
       method: "PATCH",
@@ -2289,77 +2171,11 @@ export default function Modify() {
     ]);
 
     const payload = {
-      novel_name_cn: cnvf.novel_name_cn || null,
-      novel_name_en: cnvf.novel_name_en || null,
-      novel_name_roman: cnvf.novel_name_roman || null,
-      novel_name_jp: cnvf.novel_name_jp || null,
-      novel_name_alt: cnvf.novel_name_alt || null,
+      ...novelFieldsPayload(cnvf, {
+        defaultStatus: md("novel").reading_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      region: cnvf.region || null,
-      type: cnvf.type || null,
-      version: cnvf.version || null,
-      is_main: cnvf.is_main || null,
-      serialization_status: cnvf.serialization_status || null,
-      reading_status: cnvf.reading_status || md("novel").reading_status,
-      progress_display: cnvf.progress_display || null,
-      vol_total_original:
-        cnvf.vol_total_original !== ""
-          ? parseFloat(cnvf.vol_total_original)
-          : null,
-      vol_total_tw:
-        cnvf.vol_total_tw !== "" ? parseFloat(cnvf.vol_total_tw) : null,
-      vol_fin: cnvf.vol_fin !== "" ? parseFloat(cnvf.vol_fin) : null,
-      arc_total: cnvf.arc_total !== "" ? parseFloat(cnvf.arc_total) : null,
-      arc_fin: cnvf.arc_fin !== "" ? parseFloat(cnvf.arc_fin) : null,
-      ch_total: cnvf.ch_total !== "" ? parseFloat(cnvf.ch_total) : null,
-      ch_fin: cnvf.ch_fin !== "" ? parseFloat(cnvf.ch_fin) : null,
-      my_rating: cnvf.my_rating || null,
-      mal_rating: cnvf.mal_rating !== "" ? parseFloat(cnvf.mal_rating) : null,
-      mal_rank: cnvf.mal_rank || null,
-      anilist_rating:
-        cnvf.anilist_rating !== "" ? parseFloat(cnvf.anilist_rating) : null,
-      anilist_rank:
-        cnvf.anilist_rank !== "" ? parseInt(cnvf.anilist_rank) : null,
-      anilist_popularity_rank:
-        cnvf.anilist_popularity_rank !== ""
-          ? parseInt(cnvf.anilist_popularity_rank)
-          : null,
-      release_date: cnvf.release_date || null,
-      end_date: cnvf.end_date || null,
-      read_order: cnvf.read_order !== "" ? parseFloat(cnvf.read_order) : null,
-      units: (cnvf.units || [])
-        .filter(
-          (u) =>
-            (u.unit_key && u.unit_key.trim()) ||
-            (u.name_cn && u.name_cn.trim()) ||
-            (u.name_en && u.name_en.trim()) ||
-            (u.remark && u.remark.trim()) ||
-            u.ch_count !== "",
-        )
-        .map((u, i) => ({
-          ...u,
-          position: i + 1,
-          ch_count: u.ch_count === "" ? null : Number(u.ch_count),
-        })),
-      mal_id: cnvf.mal_id !== "" ? parseInt(cnvf.mal_id) : null,
-      mal_link: cnvf.mal_link || null,
-      openlibrary_link: cnvf.openlibrary_link || null,
-      openlibrary_id: cnvf.openlibrary_id || null,
-      sources: (cnvf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      read_next: cnvf.read_next ?? false,
-      to_reread: cnvf.to_reread ?? false,
-      cover_image_file: cnvf.cover_image_file || null,
-      cover_image_focus: cnvf.cover_image_focus || null,
-      remark: cnvf.remark || null,
     };
     const res = await fetch(`/api/novel/${editingItem.system_id}`, {
       method: "PATCH",
@@ -2497,40 +2313,11 @@ export default function Modify() {
     ]);
 
     const payload = {
-      comic_name_en: ccmf.comic_name_en || null,
-      comic_name_cn: ccmf.comic_name_cn || null,
-      comic_name_alt: ccmf.comic_name_alt || null,
+      ...comicFieldsPayload(ccmf, {
+        defaultStatus: md("comic").reading_status,
+      }),
       franchise_id: franchiseId || null,
       series_id: seriesId || null,
-      volume_label: ccmf.volume_label || null,
-      comic_type: ccmf.comic_type || null,
-      release_date: ccmf.release_date || null,
-      end_date: ccmf.end_date || null,
-      issue_total: ccmf.issue_total !== "" ? parseInt(ccmf.issue_total) : null,
-      // NOT NULL in the database, so this one falls back to 0, never null.
-      issue_fin: ccmf.issue_fin !== "" ? parseInt(ccmf.issue_fin) : 0,
-      serialization_status: ccmf.serialization_status || null,
-      reading_status: ccmf.reading_status || md("comic").reading_status,
-      read_order: ccmf.read_order !== "" ? parseFloat(ccmf.read_order) : null,
-      my_rating: ccmf.my_rating || null,
-      // Editable on its own here: the id is what Fill runs on, so it is sent
-      // whether or not a link sits beside it. A non-number sends null.
-      comicvine_id: toIntId(ccmf.comicvine_id) || null,
-      comicvine_link: ccmf.comicvine_link || null,
-      sources: (ccmf.sources || [])
-        .filter((s) => (s.name || "").trim())
-        .map((s) => ({
-          kind: s.kind || "access",
-          bucket: s.bucket || "other",
-          name: s.name.trim(),
-          url: (s.url || "").trim() || null,
-          available: s.available ?? null,
-        })),
-      read_next: ccmf.read_next ?? false,
-      to_reread: ccmf.to_reread ?? false,
-      cover_image_file: ccmf.cover_image_file || null,
-      cover_image_focus: ccmf.cover_image_focus || null,
-      remark: ccmf.remark || null,
     };
     const res = await fetch(`/api/comic/${editingItem.system_id}`, {
       method: "PATCH",

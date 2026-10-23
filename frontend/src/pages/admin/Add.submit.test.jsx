@@ -142,6 +142,45 @@ describe("Add page — what a save sends", () => {
     vi.unstubAllGlobals();
   });
 
+  // A blank "finished" count is "not recorded": it goes out as null, as
+  // Modify's save sends it, never as 0.
+  it.each([
+    ["manga", "Manga", "manga_name_en", ["vol_fin", "vol_fin_page", "ch_fin"]],
+    ["novel", "Novel", "novel_name_en", ["vol_fin", "arc_fin", "ch_fin"]],
+    ["comic", "Comic", "comic_name_en", ["issue_fin"]],
+  ])("%s sends a blank finished count as null", async (type, label, nameKey, counts) => {
+    const fetchMock = mockFetch(
+      type,
+      { system_id: `${type}-src`, [nameKey]: "Source Entry" },
+      { system_id: `${type}-1`, [nameKey]: "New Entry" },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await autofillAndSave({
+      label,
+      sourceName: "Source Entry",
+      patch: {
+        [nameKey]: "New Entry",
+        franchise_id: "f1",
+        franchise_text: "Test Franchise",
+        ...Object.fromEntries(counts.map((k) => [k, ""])),
+      },
+    });
+
+    let call;
+    await waitFor(() => {
+      call = fetchMock.mock.calls.find(
+        ([url, opts]) =>
+          String(url) === endpoints.resource(type).list() &&
+          opts?.method === "POST",
+      );
+      expect(call).toBeTruthy();
+    });
+    const body = JSON.parse(call[1].body);
+    for (const key of counts) expect(body[key]).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
   it("anime creates a typed genre and label it does not know yet, scoped to anime", async () => {
     const fetchMock = mockFetch(
       "anime",
