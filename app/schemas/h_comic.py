@@ -59,8 +59,8 @@ class HComicBase(BaseModel):
     # Personal - split off onto user_media_list by the router.
     reading_status: str = "Might Read"
     my_rating: Optional[str] = None
-    page_fin: int = 0
-    ch_fin: int = 0
+    page_fin: Optional[int] = 0
+    ch_fin: Optional[int] = 0
     usefulness: Optional[str] = None
     completed_at: Optional[datetime] = None
 

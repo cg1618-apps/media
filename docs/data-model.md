@@ -991,11 +991,13 @@ being silently swallowed into a list row where it means nothing.
 with no list row - or a row holding NULL - reads them back as `0`
 (`LIST_FIELD_DEFAULTS`) rather than None, the value the column always held.
 `page_fin` follows the same rule. NULL is a value these columns do hold: the
-Add and Modify forms send a blank finished count as `null` ("not recorded"),
-and the manga, novel and comic schemas accept it (`Optional[...] = 0`) on
-`POST` and `PUT` as `PATCH` always did. `ep_fin` is deliberately excluded: it
-was nullable on `anime` / `tv_shows` / `cartoons`, so None is a value it always
-could have had, and hentai reads it the same way.
+Add and Modify forms send a blank finished count as `null` ("not recorded") on
+every type, and the manga, novel, comic and h-comic schemas accept it
+(`Optional[...] = 0`) on `POST` and `PUT` as `PATCH` always did. `ep_fin` is
+deliberately excluded from the read-back-as-`0` rule: it was nullable on
+`anime` / `tv_shows` / `cartoons`, so None is a value it always could have had,
+and hentai reads it the same way. Its schemas already declared it
+`Optional[int] = 0`, and a blank one is sent as `null` too.
 
 ### `user_novel_unit_rating`
 

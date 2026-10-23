@@ -274,9 +274,10 @@ region updater, which re-suggests restricted sources.
 `lib/payloads.js` (`<type>FieldsPayload`, or `buildAnimePayload` /
 `buildAnimeMoviePayload`), then add the franchise and series ids they
 resolved, so a field added to a form is added to one payload, not two. A
-blank finished count — manga's volumes, pages and chapters read, novel's
-volumes, arcs and chapters read, comic's issues read — is sent as `null`
-("not recorded") from both pages, and reads back as `0`.
+blank finished count — episodes watched, manga's volumes, pages and chapters
+read, novel's volumes, arcs and chapters read, comic's issues read, h-comic's
+pages or chapters read — is sent as `null` ("not recorded") from both pages,
+on every type.
 
 **Sections**, in the detail page's order, with the same title and icon on
 every type; a type leaves out what it lacks:
