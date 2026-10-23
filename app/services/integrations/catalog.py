@@ -16,8 +16,8 @@ behind that, and they are the reason the catalog exists:
     guards on top of being overwrite fields: steam_progress_sync=False skips
     both outright, and a zero or unknown value never overwrites a real one -
     see autofill_game_from_steam.
-  * Per MEDIA TYPE - which pipelines exist at all. Comic, Studio and Seiyuu have no
-    bulk Replace; Comic is out of Fill All to protect its hourly quota. Game's
+  * Per MEDIA TYPE - which pipelines exist at all. Comic, Studio, Seiyuu and
+    Character have no bulk Replace; Comic is out of Fill All to protect its hourly quota. Game's
     Replace runs both its sources, IGDB fill-only - nothing in an IGDB record
     drifts, but it can supply the appid Steam keys off.
 
@@ -1304,6 +1304,54 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     ),
                     Write("birthday", "none", "never", "the person table has no column for it"),
                     Write("website_url", "none", "never", "the person table has no column for it"),
+                    Write(
+                        "photo_file",
+                        "image",
+                        "if-empty",
+                        "not MAL's question-mark placeholder",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    Coverage(
+        key="character",
+        keyed_by="mal_id",
+        combination="single",
+        requests_per_entry="1",
+        note=(
+            "MAL's character URL is /character/<id>/<slug>, which needs its own id "
+            "pattern. Only the character row is filled: an identity has no MAL "
+            "record of its own. Strictly fill-only, with no Replace, and no "
+            "name-collision check - character names are not unique. It also runs "
+            "inside the character write request, so every failure is logged and "
+            "swallowed."
+        ),
+        sources=(
+            SourceBlock(
+                source="tenrai",
+                writes=(
+                    Write("mal_link", "column", "fill-only"),
+                    Write(
+                        "name_en",
+                        "column",
+                        "fill-only",
+                        "MAL's name with a single \"Family, Given\" turned to "
+                        "\"Given Family\"",
+                    ),
+                    Write(
+                        "name_jp",
+                        "column",
+                        "fill-only",
+                        "the kanji name with every space removed",
+                    ),
+                    Write(
+                        "name_alt",
+                        "column",
+                        "fill-only",
+                        "the nicknames joined with \", \"",
+                    ),
+                    Write("about", "none", "never", "the character table has no column for it"),
                     Write(
                         "photo_file",
                         "image",
