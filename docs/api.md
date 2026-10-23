@@ -1934,8 +1934,10 @@ On `POST` and `PUT` a character with a `mal_id` is then filled from Tenrai's
 western order), a blank `name_jp` (`name_kanji`, with its spaces removed), a blank `name_alt` (the
 nicknames, comma-joined) and the photo when `cover_needs_download` says so.
 There is no name-collision check, unlike a person: character names are not
-unique. A Tenrai failure is logged and swallowed, so it never fails the save
-([external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data)).
+unique. A Tenrai failure is logged and swallowed, so it never fails the save.
+The bulk equivalent is `POST /api/data-control/fill/character`; the field
+mapping is in
+[external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data).
 
 **`identities`** — `IdentityResponse[]` in `position` order, `[]` when the
 character has none, always present; the character itself is the main identity
@@ -2218,6 +2220,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/fill/hentai`      | Fill `airing_status`, `release_date`, `ep_total` and the cover (plus the Official site / Twitter reference rows) from Tenrai for every hentai with a MAL id that is missing one of the four, then from AniDB for whatever is still blank - also for a hentai with only an AniDB link, while AniDB is enabled - fill-only, 1 s between entries and 4 s between AniDB requests; an AniDB error answer (a ban) stops the run with the rest reported as skipped; then `run_sync_hentai` (system options) and `run_sync_gated_labels`. Streams SSE progress. Part of Fill All. |
 | `POST` | `/fill/studio`      | Fill missing logo, MAL link, founding date, Japanese name and website for every studio that has a MAL id, from Tenrai's producers endpoint. Fill-only; there is no `/replace/studio`. Streams SSE progress. |
 | `POST` | `/fill/seiyuu`      | Fill missing photo, MAL link, English, Japanese and alternate names for every person holding the `seiyuu` role that has a MAL id, from Tenrai's people endpoint. Nobody without the seiyuu role is filled. Fill-only; there is no `/replace/seiyuu`. Part of Fill All. Streams SSE progress. |
+| `POST` | `/fill/character`   | Fill missing photo, MAL link, English, Japanese and alternate names for every character that has a MAL id, from Tenrai's characters endpoint. Identities have no MAL link and are not filled. Fill-only; there is no `/replace/character`. Part of Fill All. Streams SSE progress. |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
 ### Replace

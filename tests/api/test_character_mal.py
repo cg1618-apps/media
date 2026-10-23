@@ -1,5 +1,6 @@
 """
-A character's MAL link, the fill it drives, and building a cast from MAL.
+A character's MAL link, the fill it drives - on save and as the Character
+Fill pipeline - and building a cast from MAL.
 
 Tenrai and the picture download are patched at the names the code under test
 imports them by, so these exercise the real router -> autofill and router ->
@@ -14,8 +15,12 @@ import uuid
 import pytest
 
 from app import models
+from app.main import app
 from app.services.domain import autofill as autofill_module
 from app.services.domain import mal_cast as mal_cast_module
+from app.services.domain.checking import has_missing_values_character
+from app.services.pipelines import runner as runner_module
+from app.services.pipelines.specs import FILL_ALL, PIPELINES, REPLACE_ALL
 from app.utils.formatter import parse_character_from_sheet
 from app.utils.tenrai_utils import map_tenrai_cast, map_tenrai_to_character_data
 from app.utils.utils import extract_mal_id_character
@@ -96,6 +101,11 @@ def character_calls(monkeypatch, no_downloads):
         return EDWARD
 
     monkeypatch.setattr(autofill_module, "fetch_tenrai_character_data", fake_fetch)
+
+    async def no_pause(_seconds):
+        return None
+
+    monkeypatch.setattr(runner_module.asyncio, "sleep", no_pause)
     return calls
 
 
@@ -194,6 +204,82 @@ def test_patch_derives_the_id_without_fetching(admin_client, character_calls):
     assert r.status_code == 200, r.text
     assert r.json()["mal_id"] == 11
     assert character_calls == []
+
+
+# --- the Character Fill pipeline ----------------------------------------------
+
+
+def _character(db_session, **columns):
+    character = models.Character(system_id=uuid.uuid4(), **columns)
+    db_session.add(character)
+    db_session.flush()
+    return character
+
+
+def _routes():
+    return {(m, r.path) for r in app.routes for m in getattr(r, "methods", ())}
+
+
+def test_the_fill_route_exists_and_replace_does_not():
+    r = _routes()
+    assert ("POST", "/api/data-control/fill/character") in r
+    assert ("POST", "/api/data-control/replace/character") not in r
+
+
+def test_character_joins_fill_all_but_not_replace_all():
+    assert PIPELINES["character"] in FILL_ALL
+    assert PIPELINES["character"] not in REPLACE_ALL
+
+
+def test_a_character_with_a_mal_id_and_gaps_is_eligible(db_session):
+    character = _character(db_session, name_en="Ed", mal_id=11)
+    assert PIPELINES["character"].fill_eligible(db_session, character) is True
+
+
+def test_a_character_without_a_mal_id_is_refused(db_session):
+    """
+    The row has gaps - the mirror assertion proves it - so only the missing
+    mal_id can be what refuses.
+    """
+    character = _character(db_session, name_en="Ed")
+    assert has_missing_values_character(character) is True
+    assert PIPELINES["character"].fill_eligible(db_session, character) is False
+
+
+def test_a_filled_character_is_no_longer_eligible(db_session):
+    """name_cn is left blank: MAL has no Chinese name, so it is no gap."""
+    character = _character(
+        db_session,
+        name_en="Edward Elric",
+        name_jp="エドワード・エルリック",
+        name_alt="Ed",
+        photo_file="c.jpg",
+        mal_link=EDWARD_LINK,
+        mal_id=11,
+    )
+    assert PIPELINES["character"].fill_eligible(db_session, character) is False
+
+
+def test_the_pipeline_fills_linked_characters_only(admin_client, db_session, character_calls):
+    linked = _character(db_session, name_en="Ed", mal_link=EDWARD_LINK)
+    unlinked = _character(db_session, name_en="Al")
+    db_session.commit()
+    linked_id, unlinked_id = linked.system_id, unlinked.system_id
+
+    response = admin_client.post("/api/data-control/fill/character")
+    assert response.status_code == 200
+    assert "success" in response.text
+
+    db_session.expire_all()
+    filled = db_session.get(models.Character, linked_id)
+    # The id is derived from the link by the run itself, then filled.
+    assert filled.mal_id == 11
+    assert filled.name_en == "Ed"
+    assert filled.name_jp == "エドワード・エルリック"
+    assert filled.photo_file == f"character/{linked_id}.jpg"
+    untouched = db_session.get(models.Character, unlinked_id)
+    assert untouched.name_jp is None
+    assert character_calls == [11]
 
 
 # --- building a cast from MAL -------------------------------------------------
