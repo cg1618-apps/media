@@ -18,6 +18,7 @@ from app.schemas.note import section_out, sections_out
 from app.utils import note_sections as ns
 
 GROUPABLE = (
+    "controls",
     "classes",
     "skills",
     "weapons_and_gear",

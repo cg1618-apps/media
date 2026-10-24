@@ -104,7 +104,7 @@ def test_only_structured_sections_nest():
 
 def test_field_helpers_split_columns_from_the_blob():
     controls = section_by_key("controls")
-    assert set(column_field_map(controls)) == {"title", "content", "links"}
+    assert set(column_field_map(controls)) == {"kind", "title", "content", "links"}
     # controls maps every field onto a column, so it stores no blob at all.
     assert json_fields(controls) == ()
     assert field_by_key(controls, "control").column == "title"
@@ -114,10 +114,10 @@ def test_field_helpers_split_columns_from_the_blob():
 # --- controls, the first structured section -------------------------------
 
 
-def test_controls_is_structured_with_an_optional_control():
+def test_controls_is_structured_with_an_optional_type_and_control():
     section = section_by_key("controls")
     assert section.shape == SHAPE_STRUCTURED
-    assert [f.key for f in section.fields] == ["control", "description", "links"]
+    assert [f.key for f in section.fields] == ["type", "control", "description", "links"]
     assert not any(f.required for f in section.fields)
     assert field_by_key(section, "links").type == FIELD_LINKS
 
@@ -126,6 +126,7 @@ def test_sections_endpoint_serialises_the_spec():
     out = section_out(section_by_key("controls"), "game")
     assert out.shape == SHAPE_STRUCTURED
     assert [(f.key, f.column, f.type) for f in out.fields] == [
+        ("type", "kind", "select"),
         ("control", "title", "text"),
         ("description", "content", "textarea"),
         ("links", "links", "links"),
