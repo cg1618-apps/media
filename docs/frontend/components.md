@@ -204,7 +204,8 @@ not drawn. The character, person and studio libraries use it for
   earned against the total, drawn only when there is a total, and its meta
   line is the play style and language; a hentai, one entry being one
   episode, has no progress line, and its meta line is the release year and
-  airing status. On `variant="future"` the status
+  airing status; a TV show's meta line is its release date (`TBD` without
+  one) and airing status - the season is not on the card. On `variant="future"` the status
   select comes from `FUTURE_STATUS_OPTIONS`, keyed on the same axis, and the
   bolt from `BOLT_RELEASE`, which names the column that says a title is still
   unreleased — `airing_status` for the watched types, `release_status` for a
