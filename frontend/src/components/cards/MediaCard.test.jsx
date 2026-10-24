@@ -302,6 +302,38 @@ describe("MediaCard - which outside score the card shows", () => {
   });
 });
 
+// A TV show's library line is the release date and the airing status, as a
+// cartoon's leads with its date. The season is not on the card.
+describe("MediaCard — TV show library line", () => {
+  it("shows the release date beside the airing status, not the season", async () => {
+    mockAuthFetch();
+    const { container } = mount(
+      {
+        system_id: "t1",
+        tv_name_cn: "七王國的騎士",
+        season_part: "Season 1",
+        release_date: "2026-01-18",
+        airing_status: "Finished Airing",
+      },
+      "tv-show",
+    );
+    await screen.findByText("七王國的騎士");
+    expect(screen.getByText("2026-01-18")).toBeInTheDocument();
+    expect(screen.getByText("Finished Airing")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("Season 1");
+  });
+
+  it("shows TBD when the show has no release date", async () => {
+    mockAuthFetch();
+    mount(
+      { system_id: "t2", tv_name_cn: "未定", release_date: null, airing_status: "Not Yet Aired" },
+      "tv-show",
+    );
+    await screen.findByText("未定");
+    expect(screen.getByText("TBD")).toBeInTheDocument();
+  });
+});
+
 describe("MediaCard — hentai progress", () => {
   it("counts episodes as a cartoon card does", async () => {
     mockAuthFetch();
