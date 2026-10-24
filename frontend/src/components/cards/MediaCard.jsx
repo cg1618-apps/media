@@ -197,9 +197,7 @@ function LibraryMeta({ type, data, scoreField }) {
   if (type === "tv-show") {
     return (
       <MetaLine>
-        {data.season_part && (
-          <span className="truncate pr-1">{data.season_part}</span>
-        )}
+        <span className="truncate pr-1">{data.release_date || "TBD"}</span>
         {data.airing_status && (
           <span className="shrink-0 truncate">{data.airing_status}</span>
         )}

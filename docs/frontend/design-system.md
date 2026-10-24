@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-10-23
+Last verified: 2026-10-24
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -224,7 +224,7 @@ ANIME  /  <title>                                  ← Eyebrow breadcrumb
 
 Cards (`components/cards/*.jsx`): cover with a thin ink spine on the left
 carrying the media type; the rating stamp top-right; title in display
-face below; one mono line for season/year and count; no hover zoom, the
+face below; one mono line for date or year and count; no hover zoom, the
 border darkens on hover.
 
 Library and list pages: the filter bar is a flat strip on the canvas;
