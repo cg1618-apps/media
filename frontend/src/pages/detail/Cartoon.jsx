@@ -182,6 +182,10 @@ export default function Cartoon() {
     cartoon.imdb_rating && cartoon.imdb_rating !== "N/A"
       ? cartoon.imdb_rating
       : "—";
+  const showScore =
+    cartoon.imdb_series_rating && cartoon.imdb_series_rating !== "N/A"
+      ? cartoon.imdb_series_rating
+      : null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
@@ -360,11 +364,20 @@ export default function Cartoon() {
             {/* IMDb score: display figures on a hairline */}
             <div className="flex flex-wrap items-end gap-8 border-t border-b border-border py-3">
               <div>
-                <Eyebrow>IMDb score</Eyebrow>
+                <Eyebrow>{showScore ? "IMDb · this season" : "IMDb score"}</Eyebrow>
                 <div className="font-display text-3xl font-semibold text-text leading-none mt-1">
                   {imdbScore}
                 </div>
               </div>
+              {/* The whole show's rating, every season of it alike. */}
+              {showScore && (
+                <div>
+                  <Eyebrow>IMDb · whole show</Eyebrow>
+                  <div className="font-display text-3xl font-semibold text-text-muted leading-none mt-1">
+                    {showScore}
+                  </div>
+                </div>
+              )}
               {/* Absent, not blanked: an em-dash would announce a
                   withheld date. See ScoreBlock for the shared version. */}
               {cartoon.updated_at && (

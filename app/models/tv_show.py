@@ -63,7 +63,9 @@ class TVShows(Base, NameFallbackMixin):
 
     ep_total = Column(Integer, nullable=True)
 
+    # A season's own rating (its episodes' mean); the show's is beside it.
     imdb_rating = Column(String, nullable=True)
+    imdb_series_rating = Column(String, nullable=True)
     release_date = Column(String, nullable=True)
 
     imdb_id = Column(String, nullable=True)

@@ -82,6 +82,7 @@ def map_imdb_to_tv_show_data(
     tmdb_raw: Optional[Dict[str, Any]],
     tmdb_season_raw: Optional[Dict[str, Any]],
     omdb_raw: Optional[Dict[str, Any]],
+    omdb_season_raw: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Merges show-level TMDB, season-level TMDB, and OMDb data for a TVShows entry.
@@ -98,7 +99,7 @@ def map_imdb_to_tv_show_data(
             merged["cover_image_url"] = fallback_url
 
     if omdb_raw is not None:
-        merged.update(map_omdb_to_tv_data(omdb_raw))
+        merged.update(map_omdb_to_tv_data(omdb_raw, omdb_season_raw))
 
     return merged
 
@@ -107,6 +108,7 @@ def map_imdb_to_cartoon_data(
     tmdb_raw: Optional[Dict[str, Any]],
     tmdb_season_raw: Optional[Dict[str, Any]],
     omdb_raw: Optional[Dict[str, Any]],
+    omdb_season_raw: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Merges show-level TMDB, season-level TMDB, and OMDb data for a Cartoon entry.
@@ -129,6 +131,6 @@ def map_imdb_to_cartoon_data(
             merged["length_ep_min"] = run_times[0]
 
     if omdb_raw is not None:
-        merged.update(map_omdb_to_tv_data(omdb_raw))
+        merged.update(map_omdb_to_tv_data(omdb_raw, omdb_season_raw))
 
     return merged

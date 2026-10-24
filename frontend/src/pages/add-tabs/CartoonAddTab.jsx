@@ -77,7 +77,9 @@ export function CartoonFormBody({ f, u, sources, ownerId }) {
 
       <SectionHeader icon="fa-star" title="Scores" />
       <div className={row2}>
-        <Field label="IMDb Rating" hint="e.g. 9.2">
+        {/* This season's rating, and the whole show's beside it. Fill
+            computes the first from the season's episodes. */}
+        <Field label="IMDb Rating" hint="this season">
           <input
             className={inputCls}
             type="number"
@@ -88,6 +90,19 @@ export function CartoonFormBody({ f, u, sources, ownerId }) {
             value={f.imdb_rating ?? ""}
             onChange={(e) => u("imdb_rating", e.target.value)}
             placeholder="9.2"
+          />
+        </Field>
+        <Field label="IMDb Show Rating" hint="the whole show">
+          <input
+            className={inputCls}
+            type="number"
+            step="0.1"
+            min="0"
+            max="10"
+            aria-label="IMDb Show Rating"
+            value={f.imdb_series_rating ?? ""}
+            onChange={(e) => u("imdb_series_rating", e.target.value)}
+            placeholder="9.0"
           />
         </Field>
       </div>

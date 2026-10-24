@@ -183,9 +183,10 @@ not drawn. The character, person and studio libraries use it for
   libraries; see [FilterPanel](#filterpanel)) with its
   `FilterToggleButton` (the "Filters" button and active-chip count), `libraryColumns.jsx` (column and sort factories:
   `franchiseColumn`, `airingStatusColumn`, `myRatingColumn`, `malRatingColumn`,
-  `imdbRatingColumn`, `watchButtonColumn`, `readButtonColumn`,
+  `imdbRatingColumn` (any IMDb field - TV shows and cartoons add one for
+  `imdb_series_rating`), `watchButtonColumn`, `readButtonColumn`,
   `planFlagColumn`, `myRatingSort`, `malRatingSort`, `imdbRatingSort`,
-  `usefulnessSort`),
+  `imdbSeriesRatingSort`, `usefulnessSort`),
   `GroupedEntryPage`, `CollapsibleCardGrid`, `CollapsiblePillRow`,
   `AdminTabBar`, `FittedName`, `TierBadge`.
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs`,

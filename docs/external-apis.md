@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-10-23
+Last verified: 2026-10-24
 
 ## What this is for
 
@@ -8,7 +8,7 @@ The app never asks you to type metadata that a public database already knows. Th
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
-Twelve fields are overwritten on every run, not three: `mal_rating`, `mal_rank`, `imdb_rating`, `anilist_rating`, `anilist_rank`, `anilist_popularity_rank`, plus games' `metacritic_score`, `price_current_us`, `price_current_jp`, `price_current_tw`, `hours_played` and `achievements_earned`. Everything else is fill-only, written only when the column is `None` (or, for the two progress columns, guarded further — see [Steam](#steam)). The three AniList columns are overwrite fields at the column level but fill-only **per value**: a fetched `None` never blanks a real score or rank, because AniList can resolve an id to a stub record with nothing in it — see [AniList](#anilist).
+Thirteen fields are overwritten on every run: `mal_rating`, `mal_rank`, `imdb_rating`, `imdb_series_rating`, `anilist_rating`, `anilist_rank`, `anilist_popularity_rank`, plus games' `metacritic_score`, `price_current_us`, `price_current_jp`, `price_current_tw`, `hours_played` and `achievements_earned`. Everything else is fill-only, written only when the column is `None` (or, for the two progress columns, guarded further — see [Steam](#steam)). The three AniList columns are overwrite fields at the column level but fill-only **per value**: a fetched `None` never blanks a real score or rank, because AniList can resolve an id to a stub record with nothing in it — see [AniList](#anilist).
 
 A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in code or tests is a stale name for the same thing, not a second client.
 
@@ -42,7 +42,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 | Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel`, `studio`, `person` (seiyuu only), `character`, `h_comic`, `hentai` |
 | AniList | `https://graphql.anilist.co` | none | `app/services/integrations/anilist.py` | `app/utils/anilist_utils.py` | `anime`, `anime_movies`, `manga`, `novel` |
 | TMDB | `https://api.themoviedb.org/3` | `settings.tmdb_api_key` ← `TMDB_API_KEY` | `app/services/integrations/tmdb.py` | `app/utils/tmdb_utils.py` | `movies`, `tv_shows`, `cartoons` |
-| OMDb | `http://www.omdbapi.com` | `settings.omdb_api_key` ← `OMDB_API_KEY` | `app/services/integrations/omdb.py` | `app/utils/omdb_utils.py` | `imdb_rating` on the three above |
+| OMDb | `http://www.omdbapi.com` | `settings.omdb_api_key` ← `OMDB_API_KEY` | `app/services/integrations/omdb.py` | `app/utils/omdb_utils.py` | `imdb_rating` on the three above, `imdb_series_rating` on TV shows and TV cartoons |
 | Comic Vine | `https://comicvine.gamespot.com/api` | `settings.comicvine_api_key` ← `COMICVINE_API_KEY` | `app/services/integrations/comicvine.py` | `app/utils/comicvine_utils.py` | `comic` |
 | Open Library | `https://openlibrary.org` | none | `app/services/integrations/openlibrary.py` | `app/utils/openlibrary_utils.py` | `novel` (no MAL link) |
 | IGDB | `https://api.igdb.com/v4` (token from `https://id.twitch.tv/oauth2/token`) | `settings.igdb_client_id` ← `IGDB_CLIENT_ID` **and** `settings.igdb_client_secret` ← `IGDB_CLIENT_SECRET` | `app/services/integrations/igdb.py` | `app/utils/igdb_utils.py` | `games` |
@@ -381,21 +381,22 @@ TMDB (The Movie Database) is reached through its **Find** endpoint, so the looku
 
 ## OMDb
 
-OMDb is called for one thing TMDB does not expose: the IMDb rating.
+OMDb is called for the one thing TMDB does not expose: IMDb ratings. A movie gets the title's. A TV show or TV cartoon entry is one season, so it gets two: the season's own in `imdb_rating`, and the whole show's in `imdb_series_rating`.
 
 | Item | Value |
 |---|---|
-| Endpoint | `GET http://www.omdbapi.com/?i={imdb_id}&apikey={key}` |
+| Endpoint | `GET http://www.omdbapi.com/?i={imdb_id}&apikey={key}` (`fetch_omdb_data`); for a season, `GET …?i={imdb_id}&Season={n}&apikey={key}` (`fetch_omdb_season_data`), which lists the season's episodes, each with its own `imdbRating`. Both go through one `_fetch`, so they share the quota, the retries and the failure handling. |
 | Rate limiter | `OMDbRateLimiter`: 1000 requests per 86400 s — a free-tier daily quota tracker. Because it is in-memory it only counts requests made by this process since it started. |
 | Extra failure | A body with `"Response": "False"` (title not found) logs a warning and returns `None`. |
-| Mapping | `map_omdb_to_movie_data` / `map_omdb_to_tv_data`: `imdbRating` → `imdb_rating`, stripped string; `"N/A"` → `None`. |
-| Write rule | **Overwrite**: every IMDb autofill sets `imdb_rating` whenever the fetched value is not `None`, regardless of what was there. |
+| Mapping | `map_omdb_to_movie_data`: `imdbRating` → `imdb_rating`, stripped string; `"N/A"` → `None`. `map_omdb_to_tv_data`: `imdbRating` → `imdb_series_rating`, and `season_rating(season listing)` → `imdb_rating` - the season's rule is `business-rules.md` §10c. |
+| Season number | `_parse_season_number(season_part)`: the `N` of `Season N`, and 1 for anything else - the same number the TMDB season call uses. The season lookup is skipped when OMDb did not find the title, and a failed one leaves the season unrated rather than failing the autofill. |
+| Write rule | **Overwrite**: every IMDb autofill sets `imdb_rating` and `imdb_series_rating` whenever the fetched value is not `None`, regardless of what was there. |
 
 ## IMDb orchestration (TMDB + OMDb together)
 
 `app/services/integrations/imdb.py` — `fetch_imdb_data(imdb_id)` calls `fetch_tmdb_data` then `fetch_omdb_data`, each in its own `try/except`, so one source failing (including a `RetryError`) does not stop the other. It returns `{"tmdb_raw": …, "omdb_raw": …}` with `None` for whichever failed. `app/utils/imdb_utils.py` then merges: `map_imdb_to_movie_data`, `map_imdb_to_tv_show_data`, `map_imdb_to_cartoon_data` apply the TMDB mapper first and the OMDb mapper last (OMDb wins on the only overlapping key, `imdb_rating`).
 
-Requests per entry: movies make 3 (Find, movie details, OMDb); TV shows and TV cartoons make 4 (plus the season call).
+Requests per entry: movies make 3 (Find, movie details, OMDb); TV shows and TV cartoons make 5 (plus TMDB's season call and OMDb's).
 
 Cartoons route on `airing_type`: `"Movie"` takes the movie path, `"TV"` the season path, anything else is skipped entirely (`specs.py` also excludes them from Fill eligibility and from bulk Replace).
 
@@ -1254,8 +1255,8 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `anime` | `apply_extract_mal_id_anime` | `autofill_anime_from_mal`, `autofill_from_anilist` | `MAL_PAUSE` (1 s) | Tenrai, AniList |
 | `anime-movie` | `apply_extract_mal_id_anime` | `autofill_anime_movie_from_mal`, `autofill_from_anilist` | 1 s | Tenrai, AniList |
 | `movie` | `apply_extract_imdb_id` | `autofill_movie_from_imdb` | none | TMDB, OMDb |
-| `tv-show` | `apply_extract_imdb_id` | `autofill_tv_show_from_imdb` | none | TMDB (+ season), OMDb |
-| `cartoon` | `apply_extract_imdb_id` | `autofill_cartoon_from_imdb` (only `airing_type` in `{"Movie", "TV"}`) | none | TMDB (+ season for TV), OMDb |
+| `tv-show` | `apply_extract_imdb_id` | `autofill_tv_show_from_imdb` | none | TMDB (+ season), OMDb (+ season) |
+| `cartoon` | `apply_extract_imdb_id` | `autofill_cartoon_from_imdb` (only `airing_type` in `{"Movie", "TV"}`) | none | TMDB (+ season for TV), OMDb (+ season for TV) |
 | `manga` | `apply_extract_mal_id_manga_novel` | `autofill_manga_from_mal`, `autofill_from_anilist` | 1 s | Tenrai, AniList |
 | `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` + `autofill_from_anilist` when `mal_link` is present, else `autofill_novel_from_openlibrary` alone (nothing for AniList to key on without a `mal_id`) | 1 s | Tenrai **or** Open Library, plus AniList on the Tenrai branch |
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |

@@ -548,6 +548,16 @@ describe("movie, tv show and cartoon bodies", () => {
     ).toBe("Completed");
   });
 
+  it.each([
+    ["tv show", tvShowFieldsPayload],
+    ["cartoon", cartoonFieldsPayload],
+  ])("%s sends the season's and the show's IMDb rating apart", (_, build) => {
+    const body = build({ imdb_rating: "7.5", imdb_series_rating: "8.9" });
+    expect(body.imdb_rating).toBe("7.5");
+    expect(body.imdb_series_rating).toBe("8.9");
+    expect(build({ imdb_series_rating: "" }).imdb_series_rating).toBeNull();
+  });
+
   it("movie sends its IMDb fields as typed and its length as a number", () => {
     const body = movieFieldsPayload({
       movie_name_en: "Mv",

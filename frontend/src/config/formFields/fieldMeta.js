@@ -178,6 +178,7 @@ export const COMMON_FIELD_META = {
     group: "Ratings",
   },
   imdb_rating: { label: "IMDb Rating", group: "Ratings" },
+  imdb_series_rating: { label: "IMDb Show Rating", group: "Ratings" },
 
   // ---- Credits ---------------------------------------------------------
   // Where a tags control gets its suggestions. `kind` selects the endpoint:
