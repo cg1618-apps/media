@@ -1131,13 +1131,20 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # button or stick a line of advice is ABOUT, so it reads as a name
         # rather than as the first words of the description. Optional, because
         # plenty of control notes are about the scheme as a whole.
+        #
+        # The type is optional too, and free text for the reason
+        # `_named_thing_fields` gives: movement / combat / menus is one game's
+        # split, not every game's. It only matters once the list is long
+        # enough to want reading a group at a time, hence `groupable_by`.
         key="controls",
         shape=SHAPE_STRUCTURED,
         label="操作 Controls",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
         group="guides",
+        groupable_by="type",
         fields=(
+            NoteField(key="type", label="Type", type=FIELD_SELECT, column="kind"),
             NoteField(
                 key="control",
                 label="Control",
