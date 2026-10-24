@@ -464,10 +464,11 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
         key="tv-show",
         keyed_by="imdb_id",
         combination="merged",
-        requests_per_entry="4",
+        requests_per_entry="5",
         note=(
-            "A fourth call fetches the one season this entry is, taken from "
-            "season_part."
+            "Two more calls fetch the one season this entry is, taken from "
+            "season_part: TMDB's for its dates, episodes and poster, OMDb's "
+            "for its episodes' ratings."
         ),
         sources=(
             SourceBlock(
@@ -502,7 +503,22 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             ),
             SourceBlock(
                 source="omdb",
-                writes=(Write("imdb_rating", "column", "overwrite"),),
+                writes=(
+                    Write(
+                        "imdb_rating",
+                        "column",
+                        "overwrite",
+                        "the season's own: the mean of its episodes' ratings from a "
+                        "season lookup, or the show's when it has one season; "
+                        "left as it is when neither applies",
+                    ),
+                    Write(
+                        "imdb_series_rating",
+                        "column",
+                        "overwrite",
+                        "the show's rating, every season of it alike",
+                    ),
+                ),
             ),
         ),
     ),
@@ -510,7 +526,7 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
         key="cartoon",
         keyed_by="imdb_id",
         combination="merged",
-        requests_per_entry="3 for a Movie, 4 for a TV cartoon",
+        requests_per_entry="3 for a Movie, 5 for a TV cartoon",
         note=(
             "Routes on airing_type: Movie takes the movie path, TV the season "
             "path, anything else is skipped entirely."
@@ -550,7 +566,22 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             ),
             SourceBlock(
                 source="omdb",
-                writes=(Write("imdb_rating", "column", "overwrite"),),
+                writes=(
+                    Write(
+                        "imdb_rating",
+                        "column",
+                        "overwrite",
+                        "the season's own: the mean of its episodes' ratings from a "
+                        "season lookup, or the show's when it has one season; "
+                        "left as it is when neither applies",
+                    ),
+                    Write(
+                        "imdb_series_rating",
+                        "column",
+                        "overwrite",
+                        "the show's rating, every season of it alike",
+                    ),
+                ),
             ),
         ),
     ),

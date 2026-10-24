@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-23
+Last verified: 2026-10-24
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -545,8 +545,8 @@ in `app/utils/utils.py`.
 | Anime       | `airing_type, airing_status, release_date, release_season, mal_rating, mal_rank, ep_total, cover_image_file` | `Not Yet Aired` entries ignore missing `mal_rating`/`mal_rank`. `ep_previous` is *added* as missing only when it is `None` **and** the entry is TV/ONA with no `ep_special` and a non-blank `season_part` (the same eligibility as section 3). Because Tenrai cannot supply `ep_previous`, an anime whose only gap is that field is re-fetched on every run. `official_link`/`twitter_link` are gone from this list on purpose: Fill now writes them as `media_source` reference rows, and the columns themselves were dropped, so naming a dropped column here would make every anime read as permanently missing. |
 | Anime Movie | `airing_status, release_date_jp, mal_rating, mal_rank, cover_image_file`                       | `Not Yet Aired` ignores rating/rank. `ep_total` is **not** required (and autofill never writes it). Same `official_link`/`twitter_link` exclusion as Anime.                                                                                                                                                                                       |
 | Movie       | `length_min, airing_status, release_date_usa, imdb_rating, cover_image_file`                                              | Plus `MOVIE_LINK_FIELDS_TO_FILL = [("credit","director")]`: the entry is also missing if it has no `director` credit row in `media_credit`.                                                                                                                                                |
-| TV Show     | `airing_status, release_date, imdb_rating, ep_total, cover_image_file`                                                    |                                                                                                                                                                                                                                                                                         |
-| Cartoon     | TV: `airing_status, release_date, imdb_rating, ep_total, cover_image_file`; Movie: same minus `ep_total`                   | List chosen by `airing_type == "Movie"`; every other type uses the TV list. The Fill spec additionally requires `airing_type in {TV, Movie}` before queueing.                                                                                                                          |
+| TV Show     | `airing_status, release_date, imdb_rating, imdb_series_rating, ep_total, cover_image_file`                                |                                                                                                                                                                                                                                                                                         |
+| Cartoon     | TV: `airing_status, release_date, imdb_rating, imdb_series_rating, ep_total, cover_image_file`; Movie: `airing_status, release_date, imdb_rating, cover_image_file` | List chosen by `airing_type == "Movie"`; every other type uses the TV list. The Fill spec additionally requires `airing_type in {TV, Movie}` before queueing.                                                                                                                          |
 | Manga       | `serialization_status, release_date, end_date, mal_rating, mal_rank, cover_image_file`                                     | When `serialization_status == "完結"`, also missing if **both** `vol_total` and `ch_total` are `None`. One missing total alone does not trigger a fetch.                                                                                                                                 |
 | Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
 | Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `publisher` credit — Comic Vine's publisher resolves to a `publisher` entity, not a tag. Imprint, continuity, era and events and `end_date` are manual and never required — Comic Vine does not model them.                                                          |
@@ -911,6 +911,31 @@ and a ranking that disagrees between pages is the kind of bug nobody reports
 and everybody sees - keep them in step, or move them onto the endpoint.
 
 ---
+
+## 10c. A season's IMDb rating (`app/utils/omdb_utils.py`)
+
+A TV show or `TV` cartoon entry is one season, and IMDb rates only the whole
+show and each episode - it publishes no season rating. So the entry holds two:
+
+- **`imdb_series_rating`** - the whole show's, as IMDb gives it. Every season
+  of a show carries the same one. It belongs to the IMDb title the entry's
+  `imdb_id` names, which is why it lives on the entry rather than on a
+  franchise or series: those are this catalogue's own grouping, and an IMDb
+  show lines up with a series in one place and a franchise in another.
+- **`imdb_rating`** - the season's own (`season_rating`): the plain mean of
+  its episodes' ratings, to one decimal. Unrated episodes (`N/A`) are left
+  out. It is unweighted because OMDb's season listing carries no vote counts,
+  and fetching them costs a request per episode.
+
+A season with no rated episode has no rating, except in a show with one
+season, where the season and the show are the same thing and it takes the
+show's. It never otherwise borrows the show's rating: that is what would make
+every season read alike. Both are overwritten on every Fill and Replace that
+computes them, so a season still airing follows its episodes.
+
+Episode ratings come from the viewers who rate single episodes, who tend to be
+the show's fans, so a season's rating usually sits above the show's. Compare
+seasons with seasons.
 
 ## 11. Remark as a note (`remark_field.py`)
 

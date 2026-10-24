@@ -135,6 +135,7 @@ TV_SHOW_FIELDS_TO_FILL = [
     "airing_status",
     "release_date",
     "imdb_rating",
+    "imdb_series_rating",
     "ep_total",
     "cover_image_file",
 ]
@@ -143,6 +144,7 @@ CARTOON_TV_FIELDS_TO_FILL = [
     "airing_status",
     "release_date",
     "imdb_rating",
+    "imdb_series_rating",
     "ep_total",
     "cover_image_file",
 ]

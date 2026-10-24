@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-10-22
+Last verified: 2026-10-24
 
 ## What this is for
 
@@ -972,8 +972,8 @@ are no longer columns.
 | `ANIME_MOVIE_FIELDS_TO_FILL` | `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `cover_image_file` (same `official_link`/`twitter_link` exclusion) |
 | `MOVIE_FIELDS_TO_FILL` | `length_min`, `airing_status`, `release_date_usa`, `imdb_rating`, `cover_image_file` |
 | `MOVIE_LINK_FIELDS_TO_FILL` | `("credit", "director")` |
-| `TV_SHOW_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file` |
-| `CARTOON_TV_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file` |
+| `TV_SHOW_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `imdb_series_rating`, `ep_total`, `cover_image_file` |
+| `CARTOON_TV_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `imdb_series_rating`, `ep_total`, `cover_image_file` |
 | `CARTOON_MOVIE_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `cover_image_file` |
 | `MANGA_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
 | `NOVEL_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |

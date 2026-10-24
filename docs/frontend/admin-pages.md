@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-23
+Last verified: 2026-10-24
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -288,7 +288,9 @@ every type; a type leaves out what it lacks:
    (anime movie: franchise only); names, CN always top-left: `cn | en`, then
    `roman | jp` where the type has them (h-comic: its region's JP or KR name),
    then `alt` full width. The romanised name is labelled **Romaji** everywhere.
-2. **Scores** (`fa-star`) — MAL and AniList, IMDb, or Metacritic.
+2. **Scores** (`fa-star`) — MAL and AniList, IMDb, or Metacritic. A TV show or
+   cartoon has two IMDb fields: **IMDb Rating** (this season) and **IMDb Show
+   Rating** (the whole show).
 3. **My Tracker** (`fa-chart-bar`) — status | my rating (| usefulness on the
    gated types), each progress count beside its total (`ep_fin | ep_total`,
    `ch_fin | ch_total`, …), Paused at, the type's extras, and the flags row

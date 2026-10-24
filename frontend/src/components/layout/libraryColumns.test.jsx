@@ -3,7 +3,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import {
   anilistPopularitySort,
   anilistRatingSort,
+  imdbRatingColumn,
   imdbRatingSort,
+  imdbSeriesRatingSort,
   malRatingSort,
   usefulnessSort,
   planFlagColumn,
@@ -38,6 +40,26 @@ it("rating sorts put the highest first and unrated last", () => {
   expect([...rows].sort(malRatingSort.compare).map((r) => r.mal_rating)).toEqual(["8.9", "7.1", null]);
   const movies = [{ imdb_rating: "N/A" }, { imdb_rating: "8.0" }, { imdb_rating: "6.5" }];
   expect([...movies].sort(imdbRatingSort.compare).map((r) => r.imdb_rating)).toEqual(["8.0", "6.5", "N/A"]);
+});
+
+// A season entry carries its own rating and the whole show's; the show sort
+// and column read the show's, not the season's.
+it("the IMDb show sort and column read the whole show's rating", () => {
+  const seasons = [
+    { imdb_rating: "9.0", imdb_series_rating: "7.0" },
+    { imdb_rating: "6.0", imdb_series_rating: "8.5" },
+    { imdb_rating: "8.0", imdb_series_rating: null },
+  ];
+  expect([...seasons].sort(imdbSeriesRatingSort.compare).map((r) => r.imdb_series_rating)).toEqual([
+    "8.5",
+    "7.0",
+    null,
+  ]);
+  const column = imdbRatingColumn({ field: "imdb_series_rating", key: "imdb_show", header: "Show" });
+  expect(column.header).toBe("Show");
+  render(<>{column.render(seasons[0])}</>);
+  expect(screen.getByText("7.0")).toBeInTheDocument();
+  expect(screen.queryByText("9.0")).toBeNull();
 });
 
 it("the usefulness sort follows the vocabulary's order, most useful first and unset last", () => {

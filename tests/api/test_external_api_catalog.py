@@ -144,6 +144,12 @@ def test_imdb_rating_is_overwritten_and_comes_from_omdb():
     assert _rule_for("movie", "omdb", "imdb_rating") == "overwrite"
 
 
+@pytest.mark.parametrize("key", ["tv-show", "cartoon"])
+def test_a_season_entry_gets_its_own_and_the_show_imdb_rating(key):
+    assert _rule_for(key, "omdb", "imdb_rating") == "overwrite"
+    assert _rule_for(key, "omdb", "imdb_series_rating") == "overwrite"
+
+
 def test_only_volatile_numbers_are_ever_overwritten():
     """
     The overwrite set is small on purpose: a rating, a rank, a live price and
@@ -160,6 +166,7 @@ def test_only_volatile_numbers_are_ever_overwritten():
         "mal_rating",
         "mal_rank",
         "imdb_rating",
+        "imdb_series_rating",
         "metacritic_score",
         "price_current_us",
         "price_current_jp",

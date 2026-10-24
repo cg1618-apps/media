@@ -3,6 +3,7 @@ import {
   franchiseColumn,
   imdbRatingColumn,
   imdbRatingSort,
+  imdbSeriesRatingSort,
   myRatingColumn,
   myRatingSort,
   planFlagColumn,
@@ -70,6 +71,7 @@ const TV_LIBRARY_CONFIG = {
     },
     myRatingSort,
     imdbRatingSort,
+    imdbSeriesRatingSort,
   ],
 
   tableColumns: [
@@ -107,6 +109,7 @@ const TV_LIBRARY_CONFIG = {
     },
     myRatingColumn(),
     imdbRatingColumn(),
+    imdbRatingColumn({ field: "imdb_series_rating", key: "imdb_show", header: "Show" }),
     watchButtonColumn(),
     planFlagColumn("watch_next", "Watch Next"),
     planFlagColumn("to_rewatch", "To Rewatch"),

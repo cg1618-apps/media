@@ -83,15 +83,26 @@ export function malRatingColumn({ hidden = "lg" } = {}) {
   };
 }
 
-export function imdbRatingColumn() {
+function imdbValue(item, field) {
+  const value = item[field];
+  return value && value !== "N/A" ? value : null;
+}
+
+// On a TV show or cartoon, imdb_rating is the season's own and
+// imdb_series_rating the whole show's; each gets a column of its own.
+export function imdbRatingColumn({
+  field = "imdb_rating",
+  key = "imdb",
+  header = "IMDb",
+} = {}) {
   return {
-    key: "imdb",
-    header: "IMDb",
+    key,
+    header,
     thClass: HIDDEN.lg,
     tdClass: `text-xs text-center ${HIDDEN.lg}`,
     render: (item) =>
-      item.imdb_rating && item.imdb_rating !== "N/A" ? (
-        <span className="font-mono text-text tabular-nums">{item.imdb_rating}</span>
+      imdbValue(item, field) ? (
+        <span className="font-mono text-text tabular-nums">{imdbValue(item, field)}</span>
       ) : (
         "-"
       ),
@@ -271,7 +282,11 @@ export const anilistPopularitySort = {
 export const imdbRatingSort = {
   key: "imdb_rating",
   label: "IMDb Rating",
-  compare: numericDesc((x) =>
-    x.imdb_rating && x.imdb_rating !== "N/A" ? parseFloat(x.imdb_rating) : -1
-  ),
+  compare: numericDesc((x) => parseFloat(imdbValue(x, "imdb_rating") ?? -1)),
+};
+
+export const imdbSeriesRatingSort = {
+  key: "imdb_series_rating",
+  label: "IMDb Show Rating",
+  compare: numericDesc((x) => parseFloat(imdbValue(x, "imdb_series_rating") ?? -1)),
 };

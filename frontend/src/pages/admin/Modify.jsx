@@ -727,6 +727,7 @@ export default function Modify() {
       time_fin: t.time_fin || "",
       my_rating: t.my_rating || "",
       imdb_rating: t.imdb_rating || "",
+      imdb_series_rating: t.imdb_series_rating || "",
       release_date: t.release_date || "",
       imdb_id: t.imdb_id ?? "",
       imdb_link: t.imdb_link || "",
@@ -762,6 +763,7 @@ export default function Modify() {
       time_fin: c.time_fin || "",
       my_rating: c.my_rating || "",
       imdb_rating: c.imdb_rating || "",
+      imdb_series_rating: c.imdb_series_rating || "",
       length_ep_min: c.length_ep_min ?? "",
       // original_source: see the comment in animeToForm - loaded from
       // GET /api/credits/cartoon/{id} via loadCreditsIntoForm(), not here.

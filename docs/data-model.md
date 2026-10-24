@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-23
+Last verified: 2026-10-24
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -379,7 +379,8 @@ Live-action / scripted TV. Model: `TVShows`. CHECK: `ck_tv_shows_release_date_is
 | `airing_status` | String | yes | | |
 | `is_main` | String | yes | | |
 | `ep_total` | Integer | yes | | |
-| `imdb_rating` | String | yes | | |
+| `imdb_rating` | String | yes | | This season's own: the mean of its episodes' ratings (see `business-rules.md` §10c) |
+| `imdb_series_rating` | String | yes | | The whole show's, every season of it alike |
 | `release_date` | String | yes | | |
 | `imdb_id` / `imdb_link` | String | yes | | |
 
@@ -402,7 +403,8 @@ Western animation. Model: `Cartoon`. CHECK: `ck_cartoons_release_date_iso`.
 | `is_main` | String | yes | | |
 | `ep_total` | Integer | yes | | |
 | `length_ep_min` | Integer | yes | | Minutes per episode |
-| `imdb_rating` | String | yes | | |
+| `imdb_rating` | String | yes | | A `TV` cartoon's is this season's own (see `business-rules.md` §10c); any other's is the title's |
+| `imdb_series_rating` | String | yes | | The whole show's on a `TV` cartoon; empty on any other |
 | `release_date` | String | yes | | |
 | `imdb_id` / `imdb_link` | String | yes | | |
 
