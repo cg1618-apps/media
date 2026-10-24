@@ -3,6 +3,7 @@ import {
   franchiseColumn,
   imdbRatingColumn,
   imdbRatingSort,
+  imdbSeriesRatingSort,
   myRatingColumn,
   myRatingSort,
   watchButtonColumn,
@@ -81,6 +82,7 @@ const CARTOON_LIBRARY_CONFIG = {
     },
     myRatingSort,
     imdbRatingSort,
+    imdbSeriesRatingSort,
   ],
 
   tableColumns: [
@@ -129,6 +131,7 @@ const CARTOON_LIBRARY_CONFIG = {
     },
     myRatingColumn(),
     imdbRatingColumn(),
+    imdbRatingColumn({ field: "imdb_series_rating", key: "imdb_show", header: "Show" }),
     watchButtonColumn(),
   ],
 };

@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-10-23
+Last verified: 2026-10-24
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -183,9 +183,10 @@ not drawn. The character, person and studio libraries use it for
   libraries; see [FilterPanel](#filterpanel)) with its
   `FilterToggleButton` (the "Filters" button and active-chip count), `libraryColumns.jsx` (column and sort factories:
   `franchiseColumn`, `airingStatusColumn`, `myRatingColumn`, `malRatingColumn`,
-  `imdbRatingColumn`, `watchButtonColumn`, `readButtonColumn`,
+  `imdbRatingColumn` (any IMDb field - TV shows and cartoons add one for
+  `imdb_series_rating`), `watchButtonColumn`, `readButtonColumn`,
   `planFlagColumn`, `myRatingSort`, `malRatingSort`, `imdbRatingSort`,
-  `usefulnessSort`),
+  `imdbSeriesRatingSort`, `usefulnessSort`),
   `GroupedEntryPage`, `CollapsibleCardGrid`, `CollapsiblePillRow`,
   `AdminTabBar`, `FittedName`, `TierBadge`.
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs`,
@@ -203,7 +204,8 @@ not drawn. The character, person and studio libraries use it for
   earned against the total, drawn only when there is a total, and its meta
   line is the play style and language; a hentai, one entry being one
   episode, has no progress line, and its meta line is the release year and
-  airing status. On `variant="future"` the status
+  airing status; a TV show's meta line is its release date (`TBD` without
+  one) and airing status - the season is not on the card. On `variant="future"` the status
   select comes from `FUTURE_STATUS_OPTIONS`, keyed on the same axis, and the
   bolt from `BOLT_RELEASE`, which names the column that says a title is still
   unreleased — `airing_status` for the watched types, `release_status` for a

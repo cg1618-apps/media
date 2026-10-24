@@ -40,6 +40,7 @@ from app.services.integrations.image_manager import (
     download_cover_image,
 )
 from app.services.integrations.imdb import fetch_imdb_data
+from app.services.integrations.omdb import fetch_omdb_season_data
 from app.services.integrations.openlibrary import fetch_openlibrary_work
 from app.services.integrations.steam import (
     fetch_owned_games,
@@ -776,6 +777,29 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
         )
 
 
+def _fetch_omdb_season(imdb_id: str, season_part: Optional[str], omdb_raw) -> Optional[dict]:
+    """
+    The OMDb season listing for the season this entry is, which a season's
+    own rating is computed from. Skipped when OMDb did not find the title;
+    a failure leaves the season unrated rather than failing the autofill.
+    """
+    if omdb_raw is None:
+        return None
+    try:
+        return fetch_omdb_season_data(imdb_id, _parse_season_number(season_part))
+    except Exception as e:
+        logger.error("OMDb season fetch failed for IMDb ID %s: %s", imdb_id, e)
+        return None
+
+
+def _write_imdb_ratings(entry, mapped: dict) -> None:
+    """Overwrites the season's and the show's IMDb rating with whichever was fetched."""
+    for field in ("imdb_rating", "imdb_series_rating"):
+        fetched = mapped.get(field)
+        if fetched is not None:
+            setattr(entry, field, fetched)
+
+
 def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
     """
     Fetches TMDB + OMDb season data for a single TVShows entry and fills/overwrites fields.
@@ -796,7 +820,11 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
                 season_number = _parse_season_number(tv_show.season_part)
                 tmdb_season_raw = fetch_tmdb_tv_season_data(tmdb_id, season_number)
 
-        mapped = map_imdb_to_tv_show_data(tmdb_raw, tmdb_season_raw, omdb_raw)
+        omdb_season_raw = _fetch_omdb_season(tv_show.imdb_id, tv_show.season_part, omdb_raw)
+
+        mapped = map_imdb_to_tv_show_data(
+            tmdb_raw, tmdb_season_raw, omdb_raw, omdb_season_raw
+        )
 
         # Fill-only fields
         if tv_show.release_date is None:
@@ -806,10 +834,7 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
             if fetched_ep_total:
                 tv_show.ep_total = fetched_ep_total
 
-        # Always overwrite imdb_rating if fetched
-        fetched_rating = mapped.get("imdb_rating")
-        if fetched_rating is not None:
-            tv_show.imdb_rating = fetched_rating
+        _write_imdb_ratings(tv_show, mapped)
 
         # Derive airing_status (fill-only)
         if tv_show.airing_status is None:
@@ -900,7 +925,13 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
                     season_number = _parse_season_number(cartoon.season_part)
                     tmdb_season_raw = fetch_tmdb_tv_season_data(tmdb_id, season_number)
 
-            mapped = map_imdb_to_cartoon_data(tmdb_raw, tmdb_season_raw, omdb_raw)
+            omdb_season_raw = _fetch_omdb_season(
+                cartoon.imdb_id, cartoon.season_part, omdb_raw
+            )
+
+            mapped = map_imdb_to_cartoon_data(
+                tmdb_raw, tmdb_season_raw, omdb_raw, omdb_season_raw
+            )
 
             if cartoon.release_date is None:
                 cartoon.release_date = mapped.get("release_date")
@@ -909,9 +940,7 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
                 if fetched_ep_total:
                     cartoon.ep_total = fetched_ep_total
 
-            fetched_rating = mapped.get("imdb_rating")
-            if fetched_rating is not None:
-                cartoon.imdb_rating = fetched_rating
+            _write_imdb_ratings(cartoon, mapped)
 
             if cartoon.airing_status is None:
                 derived_status = _derive_tv_season_airing_status(

@@ -33,6 +33,7 @@ class TVShowBase(BaseModel):
 
     my_rating: Optional[str] = None
     imdb_rating: Optional[str] = None
+    imdb_series_rating: Optional[str] = None
     release_date: Optional[str] = None
 
     imdb_id: Optional[str] = None

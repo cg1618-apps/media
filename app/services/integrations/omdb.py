@@ -2,7 +2,8 @@
 omdb.py
 Handles all HTTP interactions with the OMDb (Open Movie Database) API.
 Strictly responsible for fetching raw external JSON data.
-Used solely to retrieve IMDb rating, which TMDB does not provide.
+Used solely to retrieve IMDb ratings - a title's, and a season's episodes' -
+which TMDB does not provide.
 """
 
 import logging
@@ -68,15 +69,11 @@ class RateLimitExceeded(Exception):
     ),
     reraise=False,
 )
-def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
+def _fetch(params: Dict[str, Any], what: str) -> Optional[Dict[str, Any]]:
     """
-    Fetches title data from OMDb by IMDb ID (e.g. 'tt1234567').
-    Used to retrieve imdb_rating, which TMDB does not provide.
-    Includes daily quota tracking and exponential backoff retry.
+    One OMDb request, counted against the daily quota and retried with
+    exponential backoff. `what` names the lookup in the log lines.
     """
-    if not imdb_id:
-        return None
-
     api_key = settings.omdb_api_key
     if not api_key:
         logger.error("OMDB_API_KEY environment variable is not set.")
@@ -84,24 +81,24 @@ def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
 
     omdb_rate_limiter.wait_if_needed()
 
-    params = {"i": imdb_id, "apikey": api_key}
-
     try:
-        response = requests.get(OMDB_BASE_URL, params=params, timeout=15)
+        response = requests.get(
+            OMDB_BASE_URL, params={**params, "apikey": api_key}, timeout=15
+        )
 
         if response.status_code == 401:
             logger.error("OMDb API key is invalid or unauthorized.")
             return None
 
         if response.status_code == 429:
-            logger.warning("OMDb Rate Limit (429) for IMDb ID %s.", imdb_id)
+            logger.warning("OMDb Rate Limit (429) for %s.", what)
             raise RateLimitExceeded("429 Too Many Requests")
 
         if response.status_code >= 500:
             logger.warning(
-                "OMDb server error (%s) for IMDb ID %s — skipping retries.",
+                "OMDb server error (%s) for %s — skipping retries.",
                 response.status_code,
-                imdb_id,
+                what,
             )
             return None
 
@@ -110,11 +107,31 @@ def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
         data = response.json()
 
         if data.get("Response") == "False":
-            logger.warning("OMDb: Title not found for IMDb ID %s: %s", imdb_id, data.get('Error'))
+            logger.warning("OMDb: nothing found for %s: %s", what, data.get("Error"))
             return None
 
         return data
 
     except requests.exceptions.RequestException as e:
-        logger.error("Network/Timeout Error connecting to OMDb for IMDb ID %s: %s", imdb_id, e)
+        logger.error("Network/Timeout Error connecting to OMDb for %s: %s", what, e)
         raise
+
+
+def fetch_omdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetches title data from OMDb by IMDb ID (e.g. 'tt1234567').
+    Used to retrieve imdb_rating, which TMDB does not provide.
+    """
+    if not imdb_id:
+        return None
+    return _fetch({"i": imdb_id}, f"IMDb ID {imdb_id}")
+
+
+def fetch_omdb_season_data(imdb_id: str, season: int) -> Optional[Dict[str, Any]]:
+    """
+    Fetches one season of a series from OMDb: its `Episodes`, each carrying
+    its own imdbRating. A season's rating is computed from these.
+    """
+    if not imdb_id:
+        return None
+    return _fetch({"i": imdb_id, "Season": season}, f"IMDb ID {imdb_id} season {season}")

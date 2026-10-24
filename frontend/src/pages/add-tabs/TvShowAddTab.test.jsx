@@ -116,6 +116,14 @@ describe("TvShowAddTab", () => {
     expect(lastForm.imdb_rating).toBe("7.8");
   });
 
+  it("edits the whole show's IMDb rating beside the season's", async () => {
+    const user = userEvent.setup();
+    renderTab();
+    await user.type(screen.getByRole("spinbutton", { name: "IMDb Show Rating" }), "8.4");
+    expect(lastForm.imdb_series_rating).toBe("8.4");
+    expect(lastForm.imdb_rating).not.toBe("8.4");
+  });
+
   it("takes the release date as free text, so a year alone is valid", async () => {
     const user = userEvent.setup();
     renderTab();
