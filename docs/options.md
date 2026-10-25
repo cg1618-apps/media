@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-10-24
+Last verified: 2026-10-25
 
 ## What this is for
 
@@ -301,7 +301,7 @@ out. What the three gated types keep is in
 | `speculation` | text_links | 猜測 Speculation | same as foreshadowing | analysis_group | |
 | `easter_eggs` | text_links | 彩蛋/致敬 Easter Eggs/References | every entry type but h-comic, hentai, h-game; series, franchise | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
-| `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description |
+| `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description; groupable by type |
 | `controls` | structured | 操作 Controls | game, h-game | guides | Fields: type (`kind`, free text), control (`title`), description (`content`), links; groupable by type |
 | `guide_notes` | text | 攻略筆記 Guide Notes | game, h-game | guides | no links |
 | `trivia` | text_links | 小知識 Trivia | game | guides | |
@@ -313,8 +313,8 @@ out. What the three gated types keep is in
 | `weapons_and_gear` | structured | 武器&裝備 Weapons & Gear | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
 | `items` | structured | 道具 Items | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
 | `collectibles` | structured | 收集物 Collectibles | game, h-game | gear | type, name, variant, description, links, collect status (default `not collected`); groupable by type |
-| `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group, name, alias, description |
-| `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`) |
+| `characters_guide` | structured | 角色 Characters | game, h-game | compendium | group, name, alias, description; groupable by group |
+| `enemies` | structured | 敵人 Enemies | game, h-game | compendium | tier, region, name, alias, description, beaten status (default `to beat`); groupable by tier |
 | `game_terms` | structured | 遊戲名詞 Game Terms | game, h-game | compendium | name (CN), alt name, description |
 | `player_terms` | structured | 玩家術語 Player Terms | game | compendium | name (CN), alt name, description |
 | `main_plot` | structured | 主線劇情 Main Plot | game | story | chapter (`locator`, optional), description, links |
@@ -347,7 +347,7 @@ out. What the three gated types keep is in
 | `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS`; `takes_links` (URL-string links) |
 | `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
-| `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status |
+| `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status; groupable by type |
 | `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | name, description, links |
 | `resources` | name_links | Resources | All | standalone | optional free-text Group in `kind` (`kind_is_group`) |
 | `questions` | episode_text | Questions | All but h-comic, hentai | standalone | description required everywhere |

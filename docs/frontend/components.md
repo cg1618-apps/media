@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-10-24
+Last verified: 2026-10-25
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -639,8 +639,8 @@ not drawn. The character, person and studio libraries use it for
   flat list, where they are. The
   provider passes both in from the owner page; `NotesContext` also drops a
   section whose `owner_where` the owner row fails (`ownerMatches`). A section
-  with `groupable_by` gets a **Group by type** toggle (`SectionCard`'s
-  `actions`) over the same grouped view, one group per `select` value; its
+  with `groupable_by` gets a **Group by** toggle named after that field -
+  *Group by type*, *Group by tier* - (`SectionCard`'s `actions`) over the same grouped view, one group per `select` value; its
   groups and rows move by their grips - a row only within its own group
   (`movedRow` in `groupedRows.js`) - and each move goes to `onReorder` as the
   section's whole row order, grouped - nothing else stores the group order.
