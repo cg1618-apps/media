@@ -1,8 +1,8 @@
 """
 Two registry additions for the game guide and the 評論 card.
 
-`groupable_by`: 技能 Skills and the three 物品 sections may be READ one group
-per Type. It is a read-view choice the reader toggles, not a layout the
+`groupable_by`: the game sections with an optional Type (or Group, or Tier)
+may be READ one group per value. It is a read-view choice the reader toggles, not a layout the
 registry imposes, so it is declared apart from `group_by` (which always
 groups, and orders its groups by a column on the owner).
 
@@ -17,30 +17,39 @@ import pytest
 from app.schemas.note import section_out, sections_out
 from app.utils import note_sections as ns
 
-GROUPABLE = (
-    "controls",
-    "classes",
-    "skills",
-    "weapons_and_gear",
-    "items",
-    "collectibles",
-    "ng_carried_over",
-    "ng_reset",
-    "ng_before_starting",
-)
+# Each groupable section and the `select` field it groups by. Most name
+# `type`; 角色 Characters groups by its Group and 敵人 Enemies by its Tier,
+# which are the same kind of optional, free-text bucket under another name.
+GROUPABLE = {
+    "gameplay_systems": "type",
+    "controls": "type",
+    "classes": "type",
+    "skills": "type",
+    "weapons_and_gear": "type",
+    "items": "type",
+    "collectibles": "type",
+    "characters_guide": "group",
+    "enemies": "tier",
+    "ng_carried_over": "type",
+    "ng_reset": "type",
+    "ng_before_starting": "type",
+    "mods_and_tools": "type",
+}
 
 
 # --- groupable_by ---------------------------------------------------------
 
 
-@pytest.mark.parametrize("key", GROUPABLE)
-def test_the_named_thing_sections_can_be_grouped_by_type(key):
+@pytest.mark.parametrize("key,field_key", GROUPABLE.items())
+def test_the_sections_with_an_optional_bucket_can_be_grouped_by_it(key, field_key):
     section = ns.section_by_key(key)
-    assert section.groupable_by == "type"
-    field = next(f for f in section.fields if f.key == "type")
+    assert section.groupable_by == field_key
+    field = next(f for f in section.fields if f.key == field_key)
     assert field.type == ns.FIELD_SELECT and field.column == "kind"
-    assert section_out(section, "game").groupable_by == "type"
-    assert section_out(section, "h-game").groupable_by == "type"
+    # Optional: grouping is how the list is read, never a field a row must fill.
+    assert not field.required and field.default is None
+    assert section_out(section, "game").groupable_by == field_key
+    assert section_out(section, "h-game").groupable_by == field_key
 
 
 def test_no_other_section_is_groupable():
@@ -48,6 +57,9 @@ def test_no_other_section_is_groupable():
         GROUPABLE
     )
     assert section_out(ns.section_by_key("advantages"), "game").groupable_by is None
+    # Saves' checkpoint is a select on `kind` too, but every row has one (it
+    # defaults to "regular"), so it is a property of a save, not a bucket.
+    assert ns.section_by_key("saves").groupable_by is None
 
 
 def test_groupable_by_must_name_one_of_the_sections_select_fields():

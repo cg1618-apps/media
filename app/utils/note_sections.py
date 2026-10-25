@@ -1125,6 +1125,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="guides",
         fields=_term_fields(typed=True),
+        groupable_by="type",
     ),
     NoteSection(
         # The first structured section, and the smallest: a control is the
@@ -1430,6 +1431,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 column="content",
             ),
         ),
+        # A cast read one faction at a time, like Skills one type at a time.
+        groupable_by="group",
     ),
     NoteSection(
         key="enemies",
@@ -1464,6 +1467,8 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 default="to beat",
             ),
         ),
+        # Bosses apart from the trash, without a second section for each.
+        groupable_by="tier",
     ),
     NoteSection(
         # The game's own vocabulary - mechanics, currencies, jargon - as a
@@ -1899,6 +1904,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
                 options=MOD_STATUSES,
             ),
         ),
+        groupable_by="type",
     ),
     NoteSection(
         # A pointer to somebody else's walkthrough. It sat inside the 攻略

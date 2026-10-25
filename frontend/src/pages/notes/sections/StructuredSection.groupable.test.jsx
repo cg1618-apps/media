@@ -121,6 +121,18 @@ describe("groupable_by", () => {
     expect(headers()).toEqual([]);
   });
 
+  it("names the toggle after the field it groups by", () => {
+    // 敵人 Enemies groups by its Tier, 角色 Characters by its Group.
+    const tiered = {
+      ...SKILLS,
+      groupable_by: "tier",
+      fields: SKILLS.fields.map((f) => (f.key === "type" ? { ...f, key: "tier", label: "Tier" } : f)),
+    };
+    renderSkills(tiered);
+    expect(screen.getByRole("button", { name: "Group by tier" })).toHaveAttribute("aria-pressed", "true");
+    expect(headers()).toEqual(["Magic", "Combat", expect.any(String)]);
+  });
+
   it("offers no toggle to a section without groupable_by", () => {
     renderSkills({ ...SKILLS, groupable_by: null });
     expect(screen.queryByRole("button", { name: "Group by type" })).toBeNull();
