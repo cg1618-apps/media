@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-23
+Last verified: 2026-10-28
 
 ## What this is for
 
@@ -3686,3 +3686,38 @@ tabs render. Every type now follows game.
   top-left, as the naming card does (comic's naming card moved to CN-first
   for it; its display name stays EN-first, as the backend's is), and the
   romanised name is "Romaji" on the forms and the naming card alike.
+
+### Current prices are dropped; achievements get their own vocabulary (2026-10-28)
+
+The owner reshaped the game vocabularies in one revision, `g1a2mevocab34`.
+
+- **`price_current_us` / `_jp` / `_tw` are dropped from `games` and
+  `h_game`.** They held Steam's `final` price - what a sale had moved the list
+  price to on the day Fill or Replace last ran. Nothing calculated with them:
+  they were only displayed, and a displayed sale price is wrong as soon as the
+  sale ends. The list price
+  (`price_original_*`, Steam's `initial`) is stable and serves every
+  statistic - the spend page prices a copy at it - so it alone stays. Steam's
+  `final` is still in the answer Steam sends and is deliberately not mapped.
+  The values are not carried anywhere; the downgrade puts the columns back
+  empty. An older sheet still heads the three columns on the Game and H-Game
+  tabs until the next Backup: Pull discards them and names each once in the
+  run's unresolved references, as for any header that is no longer a column.
+- **`all_achievements` has its own vocabulary, `GAME_ACHIEVEMENT_FLAGS`:
+  `Fully`, `Yes`, `No`, `Inapplicable`.** The owner records "every
+  achievement except the hidden ones" (`Yes`) separately from "every one,
+  hidden included" (`Fully`), which one shared flag could not say. The other
+  completion axes (endings, collectibles, CG) have no hidden tier, so
+  `GAME_COMPLETION_FLAGS` is left as it is rather than given a value that
+  means nothing on three of its four columns. `Fully` leads because the
+  vocabulary reads from the most complete answer down. No row held `Yes`,
+  so nothing was rewritten.
+- **Ownership `Free` is removed; acquisition `Free` stays.** The two answered
+  overlapping questions - "do I have it" and "how did I get it" - and a game
+  claimed for nothing is simply owned. No row carried ownership `Free`.
+- **Storefront `Physical` is renamed `Physical Store`**, so it does not read
+  as the copy format `Physical` in the same row. The revision rewrites the
+  copy rows and the stored game / h-game form defaults; Pull reads an older
+  backup's `Physical` as `Physical Store`.
+- **Copy format gains `Key Card`**: a boxed copy that holds only a download
+  code, physical in the hand and digital in what it delivers.

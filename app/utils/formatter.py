@@ -29,9 +29,9 @@ from app.utils import release_date
 # character.role, kept only when it is one of CHARACTER_ROLES.
 from app.utils.character_roles import normalize_character_role
 
-# The vocabulary the three game completion axes carry. Imported so the sheet
+# The vocabularies the game completion axes carry. Imported so the sheet
 # parser and the API cannot disagree about what a valid value is.
-from app.utils.constants import GAME_COMPLETION_FLAGS
+from app.utils.constants import GAME_ACHIEVEMENT_FLAGS, GAME_COMPLETION_FLAGS
 
 # Character and person gender / my_rating, folded the way the revision that
 # closed those vocabularies folded the stored rows.
@@ -174,11 +174,15 @@ def _focus_from_sheet(val: Any) -> Optional[str]:
         return None
 
 
-def parse_completion_flag(val_str: Any) -> Optional[str]:
+def parse_completion_flag(
+    val_str: Any, vocabulary: tuple[str, ...] = GAME_COMPLETION_FLAGS
+) -> Optional[str]:
     """
-    Parses one of games.all_endings / all_achievements / all_collected.
+    Parses one of games.all_endings / all_collected, h_game.all_endings /
+    all_cg, or - with GAME_ACHIEVEMENT_FLAGS as the vocabulary -
+    games.all_achievements.
 
-    These are a GAME_COMPLETION_FLAGS vocabulary, not booleans, because
+    These are a vocabulary, not booleans, because
     "Inapplicable" - the game has no endings at all - is a different answer
     from "No", and both differ from the blank "not recorded yet" (None).
 
@@ -193,7 +197,7 @@ def parse_completion_flag(val_str: Any) -> Optional[str]:
         return None
 
     raw = str(val_str).strip()
-    for flag in GAME_COMPLETION_FLAGS:
+    for flag in vocabulary:
         if raw.casefold() == flag.casefold():
             return flag
 
@@ -1044,7 +1048,9 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "base_game_id": parse_from_sheet(raw.get("base_game_id"), UUID),
         "completion_level": parse_from_sheet(raw.get("completion_level"), str),
         "all_endings": parse_completion_flag(raw.get("all_endings")),
-        "all_achievements": parse_completion_flag(raw.get("all_achievements")),
+        "all_achievements": parse_completion_flag(
+            raw.get("all_achievements"), GAME_ACHIEVEMENT_FLAGS
+        ),
         "all_collected": parse_completion_flag(raw.get("all_collected")),
         "steam_progress_sync": parse_from_sheet(raw.get("steam_progress_sync"), bool),
         "achievements_earned": parse_from_sheet(raw.get("achievements_earned"), int),
@@ -1061,9 +1067,6 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "price_original_us": parse_from_sheet(raw.get("price_original_us"), Decimal),
         "price_original_jp": parse_from_sheet(raw.get("price_original_jp"), Decimal),
         "price_original_tw": parse_from_sheet(raw.get("price_original_tw"), Decimal),
-        "price_current_us": parse_from_sheet(raw.get("price_current_us"), Decimal),
-        "price_current_jp": parse_from_sheet(raw.get("price_current_jp"), Decimal),
-        "price_current_tw": parse_from_sheet(raw.get("price_current_tw"), Decimal),
         "metacritic_score": parse_from_sheet(raw.get("metacritic_score"), int),
         "metacritic_user_score": parse_from_sheet(
             raw.get("metacritic_user_score"), float
@@ -1259,9 +1262,6 @@ def parse_h_game_from_sheet(raw: dict) -> dict:
         "price_original_us": parse_from_sheet(raw.get("price_original_us"), Decimal),
         "price_original_jp": parse_from_sheet(raw.get("price_original_jp"), Decimal),
         "price_original_tw": parse_from_sheet(raw.get("price_original_tw"), Decimal),
-        "price_current_us": parse_from_sheet(raw.get("price_current_us"), Decimal),
-        "price_current_jp": parse_from_sheet(raw.get("price_current_jp"), Decimal),
-        "price_current_tw": parse_from_sheet(raw.get("price_current_tw"), Decimal),
         "language_availability": _single_choice_from_sheet(
             raw.get("language_availability"), "language_availability"
         ),
@@ -1322,6 +1322,16 @@ def parse_person_membership_from_sheet(raw: dict) -> dict:
     }
 
 
+# A storefront value a sheet backed up before its rename still holds.
+_LEGACY_STOREFRONTS = {"Physical": "Physical Store"}
+
+
+def _storefront_from_sheet(val: Any) -> Optional[str]:
+    """game_copy.storefront, with a renamed value read as its new name."""
+    storefront = parse_from_sheet(val, str)
+    return _LEGACY_STOREFRONTS.get(storefront, storefront)
+
+
 def parse_game_copy_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Game Copy sheet into typed data ready for
@@ -1333,7 +1343,7 @@ def parse_game_copy_from_sheet(raw: dict) -> dict:
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "game_id": _uuid_or_none(raw.get("game_id")),
-        "storefront": parse_from_sheet(raw.get("storefront"), str),
+        "storefront": _storefront_from_sheet(raw.get("storefront")),
         "ownership": parse_from_sheet(raw.get("ownership"), str),
         "copy_format": parse_from_sheet(raw.get("copy_format"), str),
         "acquisition": parse_from_sheet(raw.get("acquisition"), str),

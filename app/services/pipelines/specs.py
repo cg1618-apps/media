@@ -430,8 +430,9 @@ PIPELINES: dict[str, PipelineSpec] = {
         # ~200 requests/5 minutes: stop when the window is gone rather than
         # block, the same bargain Comic Vine makes with its hourly quota.
         budget=steam_store_rate_limiter.has_capacity,
-        # Both sources, as Fill: IGDB fill-only, then Steam, whose current
-        # prices and Metacritic score are what Replace overwrites. An entry
+        # Both sources, as Fill: IGDB fill-only, then Steam, whose Metacritic
+        # score and playtime / achievement progress are what Replace
+        # overwrites. An entry
         # linked to either source is selected; the Steam budget gates every
         # entry, since IGDB can hand Steam an appid mid-run.
         replace_select=_linked(

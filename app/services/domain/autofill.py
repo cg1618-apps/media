@@ -1513,7 +1513,8 @@ def autofill_h_game_from_dlsite(h_game, db: Session) -> None:
         )
 
 
-# Written only when the column is empty.
+# Written only when the column is empty. The list price is Steam's `initial`,
+# which a sale does not move; the sale price itself is not kept anywhere.
 STEAM_FILL_ONLY_COLUMNS = (
     "price_original_us",
     "price_original_jp",
@@ -1521,13 +1522,9 @@ STEAM_FILL_ONLY_COLUMNS = (
     "achievements_total",
 )
 
-# Rewritten on every run. These are what the game Replace exists for.
-STEAM_OVERWRITE_COLUMNS = (
-    "price_current_us",
-    "price_current_jp",
-    "price_current_tw",
-    "metacritic_score",
-)
+# Rewritten on every run. With the two progress columns below, this is what
+# the game Replace exists for.
+STEAM_OVERWRITE_COLUMNS = ("metacritic_score",)
 
 
 def autofill_game_from_steam(game, db: Session) -> None:
@@ -1542,9 +1539,9 @@ def autofill_game_from_steam(game, db: Session) -> None:
     Steam cover separately, through autofill_cover_from_steam. `metacritic_user_score` is
     deliberately absent — Steam does not publish it.
 
-    Unlike the IGDB half this is not fill-only. The current prices and the
-    Metacritic score are rewritten on every run, which is what makes a bulk
-    Replace worth having for games. The Metacritic page link that rides on
+    Unlike the IGDB half this is not fill-only. The Metacritic score and the
+    two progress columns are rewritten on every run, which is what makes a
+    bulk Replace worth having for games. The Metacritic page link that rides on
     the same answer is the exception: it is a reference row, written only
     when the entry has none (_write_metacritic_source).
 

@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-24
+Last verified: 2026-10-28
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -574,7 +574,7 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `base_game_id` | UUID | yes | | Self-FK `games.system_id` ON DELETE **SET NULL** - deleting a base game must not delete the DLC rows bought separately. Deliberately nullable even for a DLC: a DLC is often entered before its base game exists, and a link filled in later beats a write that fails on entry order. |
 | `completion_level` | String | yes | | COMPLETION_LEVELS (Main Story / Main + Extras / Post-game / Completionist). Independent of `playing_status`. |
 | `all_endings` | String | yes | | GAME_COMPLETION_FLAGS (Yes / No / Inapplicable), orthogonal to `completion_level`. `NULL` is the fourth state, "not recorded yet"; `Inapplicable` is the game having no endings at all, which is an answer rather than an absence of one |
-| `all_achievements` | String | yes | | GAME_COMPLETION_FLAGS. **Stored, never derived** from the counts below - a game often publishes no achievement list to count against, which is what `Inapplicable` records |
+| `all_achievements` | String | yes | | GAME_ACHIEVEMENT_FLAGS (Fully / Yes / No / Inapplicable): `Fully` is every achievement including the hidden ones, `Yes` every one except them, `NULL` "not recorded yet". Its own vocabulary, not GAME_COMPLETION_FLAGS, because the hidden ones are a question the other axes do not have. **Stored, never derived** from the counts below - a game often publishes no achievement list to count against, which is what `Inapplicable` records |
 | `all_collected` | String | yes | | GAME_COMPLETION_FLAGS: every in-game collectible found, or `Inapplicable` for a game that hides none |
 | `steam_progress_sync` | Boolean | yes | | A tristate boolean, and the one flag here that is NOT a completion axis - it is about the source, not the game, so it kept its type when the three above became a vocabulary. `NULL`/`true` = Steam is the authority for `hours_played` and `achievements_earned`; `false` blocks Steam from writing either, for a game owned on Steam but played elsewhere. Governs those two columns only - prices and the Metacritic score ignore it entirely. |
 | `achievements_earned` / `achievements_total` | Integer | yes | | A count, independent of `all_achievements`. `achievements_earned` is Steam-fillable and overwrite, guarded by `steam_progress_sync` and a zero/unknown check - see [external-apis.md](external-apis.md#steam); `achievements_total` is fill-only. |
@@ -583,7 +583,7 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `current_patch` | String | yes | | What is installed, not what changed in it: "1.6.1", "Update 7" |
 | `hours_played` | Float | yes | | Steam-fillable, overwrite, guarded by `steam_progress_sync` and a zero/unknown check (minutes ÷ 60 from `GetOwnedGames`) - see [external-apis.md](external-apis.md#steam) |
 | `hltb_main` / `hltb_main_extra` / `hltb_completionist` | Float | yes | | The three public time-to-beat tiers, sourced from IGDB (HowLongToBeat publishes no official API) |
-| `price_original_us` / `_jp` / `_tw`, `price_current_us` / `_jp` / `_tw` | Numeric(10,2) | yes | | The game's **market** prices. What I paid is per-copy, on `game_copy`. The first `Numeric` columns in the schema. Steam-fillable: `price_original_*` is the undiscounted list price (fill-only), `price_current_*` is overwritten on every run - what a sale moves. |
+| `price_original_us` / `_jp` / `_tw` | Numeric(10,2) | yes | | The game's **list price** (MSRP) per region - Steam's undiscounted `initial` price, Steam-fillable and fill-only. What I paid is per-copy, on `game_copy`. No sale price is stored: it is stale as soon as the sale ends, and the list price alone serves every statistic. |
 | `metacritic_score` | Integer | yes | | Metacritic's critic metascore, out of 100. Steam-fillable, overwrite |
 | `metacritic_user_score` | Float | yes | | Metacritic's user score, out of 10. A second column rather than a second reading of the first: the two scales differ, and neither is `my_rating` |
 | `igdb_id` / `igdb_link` | Integer / String | yes | | The external pair Fill fetches on. `igdb_id` is what Fill runs on and is typed in or set by the IGDB picker; `apply_extract_igdb_id` recovers it only from an `api.igdb.com` link, never from the public slug URL - see [data-actions.md](data-actions.md). |
@@ -622,9 +622,9 @@ joined on its own table's `system_id`.
 | `system_id` | UUID | no | uuid4 | PK |
 | `game_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE (`game_copy_game_id_fkey`), indexed (`ix_game_copy_game`). A game's or an h-game's id |
 | `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed (`ix_game_copy_user`). Whose purchase this is. A copy is a purchase record, not a fact about the game, so two people own two rows for the same edition - and `uq_game_copy_row` leads with this column. |
-| `storefront` | String | yes | | GAME_STOREFRONTS |
-| `ownership` | String | yes | | GAME_OWNERSHIP_KINDS (Owned / Wishlist / Subscription / Free / Not Owned) |
-| `copy_format` | String | yes | | GAME_COPY_FORMATS (Digital / Physical) |
+| `storefront` | String | yes | | GAME_STOREFRONTS (Steam / Nintendo eShop / PlayStation Store / Xbox Store / GOG / Epic Games Store / Physical Store / Other) |
+| `ownership` | String | yes | | GAME_OWNERSHIP_KINDS (Owned / Wishlist / Subscription / Not Owned). Whether I have it, not how I got it: a copy claimed for nothing is `Owned` with `acquisition` `Free` |
+| `copy_format` | String | yes | | GAME_COPY_FORMATS (Digital / Physical / Key Card). A key card is a boxed copy holding only a download code |
 | `acquisition` | String | yes | | GAME_ACQUISITION_KINDS (Bought / Gifted / Free / Bundled / Subscription) |
 | `price_paid` | Numeric(10,2) | yes | | What **I** paid |
 | `price_currency` | String | yes | | |
@@ -648,7 +648,7 @@ filter dropped.
 
 A game's **ownership is derived from these rows and stored nowhere**:
 `derive_game_ownership` (`app/services/domain/game_copies.py`) returns the
-first of Owned -> Subscription -> Free -> Wishlist -> Not Owned that any copy
+first of Owned -> Subscription -> Wishlist -> Not Owned that any copy
 carries, and `None` when there are no copies. The rows are written as a
 nested collection by `write_game_copies`, on the `write_novel_units` contract:
 a row with a `system_id` is updated, one without is inserted, one the payload
@@ -824,7 +824,7 @@ CHECK, matching `games`; they are checked on every write path
 | `steam_progress_sync` | Boolean | yes | | As on `games`: `False` stops Steam writing `achievements_earned` |
 | `achievements_earned` / `achievements_total` | Integer | yes | | Steam-fillable |
 | `hltb_main` / `_main_extra` / `_completionist` | Float | yes | | IGDB time-to-beat, fill-only |
-| `price_original_us` / `_jp` / `_tw`, `price_current_us` / `_jp` / `_tw` | Numeric(10,2) | yes | | Market prices, Steam-fillable as on `games` |
+| `price_original_us` / `_jp` / `_tw` | Numeric(10,2) | yes | | List prices (MSRP), Steam-fillable and fill-only as on `games` |
 | `language_availability` | String | yes | | H_GAME_LANGUAGE_AVAILABILITY (官方中文 / 非官方中文 / 中文補丁 / 無中文) |
 | `dialogue_audio` | JSONB | yes | | Which parts are voiced: a list over H_GAME_AUDIO_AVAILABILITY (一般對話 / H場景), in vocabulary order. `[]` is "none", null "unknown" |
 | `sound_effect` | JSONB | yes | | Which parts have sound effects: a list over the same vocabulary |

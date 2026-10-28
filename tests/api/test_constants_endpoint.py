@@ -132,6 +132,12 @@ def test_serves_the_seven_other_game_vocabularies(client):
     assert body["game_acquisition"] == list(c.GAME_ACQUISITION_KINDS)
 
 
+def test_serves_the_two_completion_vocabularies(client):
+    body = client.get("/api/constants").json()
+    assert body["game_completion_flag"] == ["Yes", "No", "Inapplicable"]
+    assert body["game_achievement_flag"] == ["Fully", "Yes", "No", "Inapplicable"]
+
+
 def test_serves_the_h_comic_vocabularies_to_unrestricted(admin_client):
     body = admin_client.get("/api/constants").json()
     assert body["h_comic_region"] == list(c.H_COMIC_REGIONS)

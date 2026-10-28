@@ -1366,8 +1366,8 @@ export default function Admin() {
                 { label: "Manga", url: "/api/data-control/replace/manga" },
                 { label: "Novel", url: "/api/data-control/replace/novel" },
                 // Replace for games runs IGDB (fill-only - nothing in it
-                // drifts) and then Steam: the live prices, the Metacritic
-                // score, and this collection's own playtime.
+                // drifts) and then Steam: the Metacritic score and this
+                // collection's own playtime and achievements.
                 { label: "Game", url: "/api/data-control/replace/game" },
                 // Manga's Tenrai fields, still fill-only.
                 ...(canSeeHComic

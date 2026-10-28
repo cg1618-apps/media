@@ -63,9 +63,6 @@ class HGameBase(BaseModel):
     price_original_us: Optional[Decimal] = None
     price_original_jp: Optional[Decimal] = None
     price_original_tw: Optional[Decimal] = None
-    price_current_us: Optional[Decimal] = None
-    price_current_jp: Optional[Decimal] = None
-    price_current_tw: Optional[Decimal] = None
 
     language_availability: Optional[str] = None
     # Lists over their vocabularies, in vocabulary order. None is unknown,

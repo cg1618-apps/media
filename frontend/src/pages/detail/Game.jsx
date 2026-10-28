@@ -612,20 +612,6 @@ export default function Game() {
                       value: money(game.price_original_tw, "TWD"),
                     },
                   ],
-                  [
-                    {
-                      label: "Current (US)",
-                      value: money(game.price_current_us, "USD"),
-                    },
-                    {
-                      label: "Current (JP)",
-                      value: money(game.price_current_jp, "JPY"),
-                    },
-                    {
-                      label: "Current (TW)",
-                      value: money(game.price_current_tw, "TWD"),
-                    },
-                  ],
                 ]}
               />
               <InfoCard

@@ -223,9 +223,6 @@ describe("HGameAddTab layout", () => {
       "MSRP (US)",
       "MSRP (JP)",
       "MSRP (TW)",
-      "Current Price (US)",
-      "Current Price (JP)",
-      "Current Price (TW)",
     ]);
   });
 

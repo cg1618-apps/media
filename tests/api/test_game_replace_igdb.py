@@ -38,12 +38,9 @@ STEAM = {
     "metacritic_score": 96,
     "achievements_total": None,
     "is_free": False,
-    "price_original_us": None,
-    "price_current_us": Decimal("35.99"),
+    "price_original_us": Decimal("59.99"),
     "price_original_jp": None,
-    "price_current_jp": None,
     "price_original_tw": None,
-    "price_current_tw": None,
 }
 
 
@@ -107,7 +104,7 @@ class TestSingleReplaceRunsBothSources:
         assert entry.release_date == "2022-02-25"
         assert entry.hltb_main == 5.0
         assert entry.steam_appid == 1245620
-        assert entry.price_current_us == Decimal("35.99")
+        assert entry.price_original_us == Decimal("59.99")
         # Three storefront regions, then one more storefront call: the entry
         # is still coverless (neither IGDB nor the capsule has one here), so
         # Steam's header image is asked for last.
@@ -138,7 +135,7 @@ class TestSingleReplaceRunsBothSources:
 
         apply_single_replace_game(db_session, entry)
 
-        assert entry.price_current_us == Decimal("35.99")
+        assert entry.price_original_us == Decimal("59.99")
         assert all(source == "steam" for source, _ in calls)
 
     def test_the_route_runs_igdb(self, key, admin_client, db_session, calls):
