@@ -1367,7 +1367,8 @@ converted into the copy's, so it shows under that currency and meets the rest
 in the converted totals. Bought and Should spend cover the same copies, so the
 two subtract to what waiting for a sale was worth; only a bought copy whose
 game has no list price in any region is counted under the column rather than
-priced at zero.
+priced at zero. The System page's Bought Copies Without a List Price lists
+those copies, so they can be found and filled in.
 
 The **Value** card is cost per hour, and a title counts only when it has
 logged hours, a convertible price and a list price of its own. The last of

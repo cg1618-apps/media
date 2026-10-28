@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-23
+Last verified: 2026-10-28
 
 ## What this is for
 
@@ -960,7 +960,7 @@ None of them writes a log row; the reviewed action writes the one column.
 | Column | Values used |
 |---|---|
 | `action_main` | `Fill`, `Replace`, `Pull`, `Backup`, `Calculate` |
-| `action_specific` | `Fill {label}`, `Fill All`, `Replace {label}`, `Replace All`, `Replace for single {label} entry`, `Pull {tab_name}`, `Pull All`, `Backup`, `Calculate All` |
+| `action_specific` | `Fill {label}`, `Fill All`, `Replace {label}`, `Replace All`, `Replace for single {label} entry`, `Pull {tab_name}`, `Pull All`, `Backup`, `Calculate All`, `Sync Cast`, `Sync Display Names`, `Remove Uncast Characters`, `Zero Free Games' List Price` |
 | `type` | `Manual` (a button on the admin page) or `Auto` (Backup at the end of Fill/Replace All; write hooks) |
 | `status` | `Success`, `Aborted`, `Failed` |
 | `rows_added` / `rows_updated` | Pull counts; Fill/Replace put the processed count in `rows_updated` |
@@ -982,7 +982,8 @@ Who logs:
 | single Replace (route or write hook) | never (`log_action=False` in both callers) |
 | Pull of one tab | one row |
 | Pull All | one `Pull All` row **plus** one row per tab (tabs run with `log_action=True`) |
-| Backup, Calculate All | one row |
+| Backup, Calculate All, Sync Cast, Sync Display Names | one row |
+| Remove Uncast Characters, Zero Free Games' List Price | one row; `rows_deleted` / `rows_updated` is how many it changed |
 | cover maintenance, checks | nothing |
 
 ---
@@ -1028,6 +1029,9 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | POST | `/calculate/download-missing-covers` | body `{"system_ids": [..]}` (optional; default all) | `{"status", "message"}` | re-download missing covers |
 | GET | `/check/uncast-characters` | — | `{"status", "count", "characters"}` | list characters with no casting; read-only, logs nothing |
 | POST | `/calculate/remove-uncast-characters` | body `{"system_ids": [..]}` (required) | `{"status", "message", "removed_count", "skipped_count"}`; logged `Calculate` / `Remove Uncast Characters` | delete the named characters that are still uncast, with their identities and images ([credits-and-tags.md](systems/credits-and-tags.md#mal-a-characters-link-and-a-cast-import)) |
+| GET | `/check/free-games-with-list-price` | — | `{"status", "count", "entries"}` | list the games and h-games the caller holds a Free copy of whose list price is not 0 in all three regions; read-only, logs nothing (`find_free_games_with_list_price`, `app/services/domain/game_price_checks.py`) |
+| POST | `/calculate/zero-free-games-list-price` | body `{"system_ids": [..]}` (required) | `{"status", "message", "updated_count", "skipped_count"}`; logged `Calculate` / `Zero Free Games' List Price` | set the three `price_original_*` to 0 on the named entries that still qualify (`zero_free_games_list_price`) |
+| GET | `/check/bought-copies-without-list-price` | — | `{"status", "count", "copies"}` | list the caller's Bought copies whose game has no list price in any region; read-only, logs nothing (`find_bought_copies_without_list_price`) |
 | GET | `/check/duplicates` | — | JSON, see section 9 | duplicate report |
 | GET | `/check/remarks` | — | JSON, see section 9 | remark report |
 | GET | `/check/music` | — | JSON, see section 9 | anime with music waiting |

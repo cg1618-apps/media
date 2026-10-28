@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-24
+Last verified: 2026-10-28
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -449,6 +449,33 @@ games with at least one copy row saying that word, which is a slightly wider
 question than "the derived value equals it" for a game holding several kinds
 of copy. `GameResponse` declares an `ownership` field, but **no read path
 populates it today**, so it is `null` in every response.
+
+### A list price and the copies held
+
+A game's list price is its three `price_original_us` / `_jp` / `_tw`
+columns, the undiscounted storefront price. Two System page checks compare
+it with the signed-in account's own copies
+(`app/services/domain/game_price_checks.py`), across games and h-games
+alike, and they read zero differently on purpose:
+
+- **A Free copy's game should read exactly 0 in all three regions.** A
+  blank region is a column nobody filled, not a recorded "costs nothing",
+  so Free Games With a List Price lists any game held Free whose three
+  prices are not all 0, and its fix sets all three to 0. The fix re-checks
+  each ticked game first and skips one no longer held Free or already 0.
+  A 0 survives Steam: `price_original_*` is fill-only, written only while
+  the column is NULL, and Backup and Pull carry `0.00` through the sheet.
+- **A Bought copy's game has no list price when every region is NULL or
+  0** — the game spend block's `listPrice` rule, where a zero list price on
+  a bought game is a column never filled in. Bought Copies Without a List
+  Price lists every such copy; it writes nothing, because there is no
+  price to supply on the admin's behalf. It lists a bought copy with no
+  `price_paid` too, which the spend block does not count, since its game
+  is missing the same figure.
+
+Both read only the caller's copies, like every other personal-data check:
+a copy is a purchase record and belongs to whoever bought it. The fix
+still writes the game's own columns, which are catalogue facts.
 
 ---
 
