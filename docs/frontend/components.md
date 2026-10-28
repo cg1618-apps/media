@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-10-25
+Last verified: 2026-10-28
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -44,7 +44,7 @@ src/
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
 | `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker and Picker Defaults; the defs and `initial` are read once, so a caller whose defs change remounts. `useEntityFilterState(filterDefs, data)` beside it is the entity libraries' (character, person, studio, publisher) form: `initial` is `defaultEntityFilters(filterDefs)`, and it adds `isDefault` (`sameFilters` against that default) so the page hands `FilterPanel` its `resetFilters` only once the state has moved off it. |
 | `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs, its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none), and `defaultWeighted` (true unless saved off). Shared by the picker and Picker Defaults. |
-| `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
+| `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). A stored select value its options do not offer is skipped, so it cannot sit hidden behind a blank select and be posted. Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
 | `pages/plan/usePlanData` | The Plan page's lists (franchise, series and the twelve entry types - `h-comic`, `h-game` and `hentai` each fetched only for a session that can see it) plus `["plan-next"]`. |
 
