@@ -39,7 +39,9 @@ THUMB_SUBDIR = "library/thumbs"
 
 # The long edge a stored image is capped at, and the long edge of its
 # thumbnail. A cover is displayed at a few hundred pixels; 2000 leaves room to
-# zoom without storing a 12-megapixel phone photo forever.
+# zoom without storing a 12-megapixel phone photo forever. THUMB_EDGE is also
+# the size of a cover's thumbnail (image_manager.cover_thumbnail): a list card
+# is about 200 CSS px wide, so 400 stays sharp on a 2x screen.
 MAX_EDGE = 2000
 THUMB_EDGE = 400
 
@@ -82,6 +84,42 @@ def _decode(raw: bytes) -> PILImage.Image:
         raise ImageValidationError(f"The image could not be read: {exc}") from exc
 
 
+def to_rgb(image: PILImage.Image) -> PILImage.Image:
+    """
+    The image as plain RGB, ready to be written as a JPEG.
+
+    RGB because JPEG has no alpha channel; a transparent PNG would otherwise
+    raise on save. The white background is what transparency flattens onto.
+    """
+    if image.mode in ("RGBA", "LA", "P"):
+        backdrop = PILImage.new("RGB", image.size, (255, 255, 255))
+        converted = image.convert("RGBA")
+        backdrop.paste(converted, mask=converted.split()[-1])
+        return backdrop
+    if image.mode != "RGB":
+        return image.convert("RGB")
+    return image
+
+
+def _encode_jpeg(image: PILImage.Image) -> bytes:
+    buf = io.BytesIO()
+    image.save(buf, format="JPEG", quality=JPEG_QUALITY, optimize=True)
+    return buf.getvalue()
+
+
+def thumbnail_jpeg(image: PILImage.Image) -> bytes:
+    """
+    The JPEG thumbnail of `image`: its long edge capped at THUMB_EDGE, aspect
+    kept. The one thumbnail recipe in the application - library uploads and
+    the cover route's `?size=thumb` both come through here, so a list card
+    gets the same size whichever kind of image it shows. The caller's image is
+    not modified.
+    """
+    thumbnail = to_rgb(image).copy()
+    thumbnail.thumbnail((THUMB_EDGE, THUMB_EDGE), PILImage.LANCZOS)
+    return _encode_jpeg(thumbnail)
+
+
 def normalize_image(raw: bytes) -> NormalizedImage:
     """
     Validate, re-encode to JPEG, cap the dimensions, build a thumbnail.
@@ -97,33 +135,16 @@ def normalize_image(raw: bytes) -> NormalizedImage:
     deliberately does not - it decodes to different pixels than its source,
     so content addressing cannot bridge the two.
     """
-    image = _decode(raw)
-
-    # RGB because JPEG has no alpha channel; a transparent PNG would otherwise
-    # raise on save. The white background is what transparency flattens onto.
-    if image.mode in ("RGBA", "LA", "P"):
-        backdrop = PILImage.new("RGB", image.size, (255, 255, 255))
-        converted = image.convert("RGBA")
-        backdrop.paste(converted, mask=converted.split()[-1])
-        image = backdrop
-    elif image.mode != "RGB":
-        image = image.convert("RGB")
+    image = to_rgb(_decode(raw))
 
     if max(image.size) > MAX_EDGE:
         image.thumbnail((MAX_EDGE, MAX_EDGE), PILImage.LANCZOS)
 
-    buf = io.BytesIO()
-    image.save(buf, format="JPEG", quality=JPEG_QUALITY, optimize=True)
-    jpeg = buf.getvalue()
-
-    thumbnail = image.copy()
-    thumbnail.thumbnail((THUMB_EDGE, THUMB_EDGE), PILImage.LANCZOS)
-    thumb_buf = io.BytesIO()
-    thumbnail.save(thumb_buf, format="JPEG", quality=JPEG_QUALITY, optimize=True)
+    jpeg = _encode_jpeg(image)
 
     return NormalizedImage(
         jpeg=jpeg,
-        thumb=thumb_buf.getvalue(),
+        thumb=thumbnail_jpeg(image),
         width=image.width,
         height=image.height,
         checksum=hashlib.sha256(jpeg).hexdigest(),

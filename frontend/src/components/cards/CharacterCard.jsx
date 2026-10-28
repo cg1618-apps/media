@@ -4,7 +4,7 @@
 // Characters tab.
 import { Link } from "react-router-dom";
 
-import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import { Chip, RatingStamp } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
@@ -68,7 +68,7 @@ export default function CharacterCard({ character }) {
             />
           )}
           <LazyImage
-            src={coverUrl}
+            src={thumbUrl(coverUrl)}
             alt="Photo"
             className="w-full h-full object-cover"
             style={focusStyle(
@@ -95,7 +95,7 @@ export default function CharacterCard({ character }) {
           <>
             <span className="flex items-center gap-1.5 min-w-0">
               <LazyImage
-                src={getCoverUrl(character.character_photo_file)}
+                src={thumbUrl(getCoverUrl(character.character_photo_file))}
                 alt=""
                 className="w-[18px] h-[18px] shrink-0 rounded-full object-cover border border-border-strong"
                 style={focusStyle(character.character_photo_focus)}

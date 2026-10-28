@@ -1,7 +1,7 @@
 // Frontend: card component file for FranchiseCard.
 import { Link } from "react-router-dom";
 import { entityPath } from "../../lib/entityPath";
-import { focusStyle } from "../../lib/covers";
+import { focusStyle, thumbUrl } from "../../lib/covers";
 import { FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, RatingStamp } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
@@ -42,7 +42,7 @@ export default function FranchiseCard({ franchise, cover }) {
             className="absolute top-1.5 right-1.5 z-10"
           />
           <LazyImage
-            src={cover?.url ?? FALLBACK_SVG}
+            src={thumbUrl(cover?.url ?? FALLBACK_SVG)}
             alt="Cover"
             className="w-full h-full object-cover"
             style={focusStyle(cover?.focus)}

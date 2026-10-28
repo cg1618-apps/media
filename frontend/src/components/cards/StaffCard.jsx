@@ -7,7 +7,7 @@
 // credit count under the name, is the same card.
 import { Link } from "react-router-dom";
 
-import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import { RatingStamp } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
@@ -56,7 +56,7 @@ function StaffCard({
             className="absolute top-1.5 right-1.5 z-10"
           />
           <LazyImage
-            src={coverUrl}
+            src={thumbUrl(coverUrl)}
             alt={imageAlt}
             className="w-full h-full object-cover"
             style={focusStyle(imageFocus)}

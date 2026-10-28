@@ -10,7 +10,7 @@
 // sequel read across and an adaptation read down.
 import { Handle, Position } from "@xyflow/react";
 
-import { getCoverUrl, focusStyle } from "../../lib/covers";
+import { getCoverUrl, focusStyle, thumbUrl } from "../../lib/covers";
 import {
   MIDDLE_SOURCE,
   MIDDLE_TARGET,
@@ -99,7 +99,7 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
         </div>
       ) : (
         <LazyImage
-          src={getCoverUrl(cover_image_file)}
+          src={thumbUrl(getCoverUrl(cover_image_file))}
           alt=""
           className="h-12 w-9 shrink-0 rounded-md object-cover"
           style={focusStyle(cover_image_focus)}

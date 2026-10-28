@@ -19,7 +19,7 @@ import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType } from "../../lib/gatedTypes";
-import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
 import { useDragSensors } from "../ui/Sortable";
 import {
@@ -283,7 +283,7 @@ function ItemRow({
         ) : (
           <>
             <LazyImage
-              src={getCoverUrl(item.cover_image_file)}
+              src={thumbUrl(getCoverUrl(item.cover_image_file))}
               alt=""
 
               onError={(e) => {

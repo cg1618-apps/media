@@ -1,6 +1,6 @@
 // Frontend: statistics page file for StatsFavoriteGrids.
 import { Link } from "react-router-dom";
-import { FALLBACK_SVG, focusStyle } from "../../lib/covers";
+import { FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import {
   favoriteCover,
   favoriteName,
@@ -50,7 +50,7 @@ function FavoriteGrid({ grid, rows, covers }) {
               >
                 <div className="aspect-[3/4] bg-surface-2">
                   <LazyImage
-                    src={cover.url}
+                    src={thumbUrl(cover.url)}
                     alt={name}
                     className="w-full h-full object-cover"
                     style={focusStyle(cover.focus)}

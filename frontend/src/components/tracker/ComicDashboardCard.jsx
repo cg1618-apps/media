@@ -10,7 +10,7 @@ import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
 import LazyImage from "../ui/LazyImage";
-import { focusStyle } from "../../lib/covers";
+import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center w-16 px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -103,7 +103,7 @@ export default function ComicDashboardCard({
               </div>
             )}
             <LazyImage
-              src={imageUrl}
+              src={thumbUrl(imageUrl)}
               alt="Cover"
               className="w-full h-full object-cover"
               style={focusStyle(comic.cover_image_focus)}

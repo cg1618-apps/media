@@ -7,7 +7,7 @@
 // what the card is when that is not obvious ("Character").
 import { Link } from "react-router-dom";
 
-import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import LazyImage from "../ui/LazyImage";
 
@@ -33,7 +33,7 @@ export default function IdentityCard({ identity, to, label }) {
     >
       <div className="bg-surface-2 overflow-hidden" style={{ aspectRatio: "2/3" }}>
         <LazyImage
-          src={getCoverUrl(identity.display_photo_file)}
+          src={thumbUrl(getCoverUrl(identity.display_photo_file))}
           alt=""
           className="w-full h-full object-cover"
           style={focusStyle(identity.display_photo_focus)}

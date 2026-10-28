@@ -128,7 +128,11 @@ counts). `h1` is display by default.
    `LazyImage.jsx`. The library grids also draw their cards a batch at a
    time - 60, then 60 more as the end of the grid nears the screen - through
    `hooks/useIncrementalList.js`, so a library of hundreds mounts sixty
-   images, not all of them.
+   images, not all of them. And anything drawn at card size or smaller - a
+   library card, a tracker row, a cast face, a relation node - asks for the
+   small version through `thumbUrl(url)` from `lib/covers.js`: a cover's
+   `?size=thumb` (400px on the long edge), or a library upload's
+   `library/thumbs/` copy. A detail page's own cover keeps the original.
 9. **Cropped images keep their focal point.** An owner's image - an entry's
    cover, a person's or character's photo, a studio's or publisher's logo, a
    cast photo - is drawn cropped with `object-cover`, which shows the centre

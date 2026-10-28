@@ -24,7 +24,7 @@ import {
   MEDIA_CONFIG,
   getNovelProgress,
 } from "../../utils/media";
-import { focusStyle } from "../../lib/covers";
+import { focusStyle, thumbUrl } from "../../lib/covers";
 import { Chip, RatingStamp } from "../ui/primitives";
 import PlatformIcons from "./PlatformIcons";
 import LazyImage from "../ui/LazyImage";
@@ -720,7 +720,7 @@ export default function MediaCard({
             scoreField={scoreField}
           />
           <LazyImage
-            src={imageUrl}
+            src={thumbUrl(imageUrl)}
             alt={title}
 
             className="w-full h-full object-cover"

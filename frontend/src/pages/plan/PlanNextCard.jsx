@@ -4,7 +4,7 @@
 // scopes now sit side by side in the same bucket and would otherwise be
 // indistinguishable.
 import { Link } from "react-router-dom";
-import { FALLBACK_SVG, entryCover, focusStyle } from "../../lib/covers";
+import { FALLBACK_SVG, entryCover, focusStyle, thumbUrl } from "../../lib/covers";
 import { SCOPE_LABELS } from "../../config/planNextGroups";
 import LazyImage from "../../components/ui/LazyImage";
 
@@ -28,7 +28,7 @@ export default function PlanNextCard({ row }) {
     <>
       <div className="relative aspect-[3/4] bg-surface-2 overflow-hidden">
         <LazyImage
-          src={cover.url}
+          src={thumbUrl(cover.url)}
           alt={row.display_name || ""}
           onError={(e) => {
             e.currentTarget.src = FALLBACK_SVG;

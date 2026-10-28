@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import { sortCast } from "../../lib/castOrder";
 import { entityPath } from "../../lib/entityPath";
-import { focusStyle } from "../../lib/covers";
+import { focusStyle, thumbUrl } from "../../lib/covers";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { Button, Chip, Slip } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
@@ -61,7 +61,7 @@ function CastRow({ row }) {
         data-identity-thumb={asIdentity || undefined}
       >
         <LazyImage
-          src={getCoverUrl(row.display_photo_file)}
+          src={thumbUrl(getCoverUrl(row.display_photo_file))}
           alt=""
           className="w-full h-full object-cover"
           style={focusStyle(row.display_photo_focus)}

@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-09-27
+Last verified: 2026-10-28
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -318,4 +318,4 @@ Details of the tiers and fixtures are in `testing.md`.
 | API tests fail with `password authentication failed` | `POSTGRES_PASSWORD` in `.env` does not match the server. |
 | The app fails to connect with `password authentication failed`, but `POSTGRES_PASSWORD` is right | A leftover `DATABASE_URL` in `.env`. It is honoured **verbatim** whenever it is set, so a placeholder or a copied cloud URL wins over the `POSTGRES_*` parts. Comment `DATABASE_URL` out for local dev; `settings.sqlalchemy_database_url` (checklist step 1) shows which URL is actually in use. |
 | `/` on :8000 returns "Frontend not built" | Run `cd frontend && npm run build`. |
-| Covers not showing | Covers are files in `static/covers/<owner_type>/`, served at `/static/covers/<owner_type>/<id>.jpg`, and that is the only storage there is. Make sure the pipeline has downloaded them (Data Control > Calculate > **download missing covers**), and that `scripts/migrate_cover_layout.py` has been run if `static/covers/` still holds loose `<uuid>.jpg` files. |
+| Covers not showing | Covers are files in `static/covers/<owner_type>/`, served at `/api/covers/<owner_type>/<id>.jpg` (behind the visibility gate - a cover of an entry your session cannot see is a 404), and that is the only storage there is. `static/covers/thumbs/` is the thumbnail cache behind `?size=thumb`; deleting it is safe, it rebuilds on demand. Make sure the pipeline has downloaded them (Data Control > Calculate > **download missing covers**), and that `scripts/migrate_cover_layout.py` has been run if `static/covers/` still holds loose `<uuid>.jpg` files. |
