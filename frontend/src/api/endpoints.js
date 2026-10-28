@@ -455,5 +455,11 @@ export const endpoints = {
     checkUncastCharacters: () => "/api/data-control/check/uncast-characters",
     removeUncastCharacters: () =>
       "/api/data-control/calculate/remove-uncast-characters",
+    checkFreeGamesWithListPrice: () =>
+      "/api/data-control/check/free-games-with-list-price",
+    zeroFreeGamesListPrice: () =>
+      "/api/data-control/calculate/zero-free-games-list-price",
+    checkBoughtCopiesWithoutListPrice: () =>
+      "/api/data-control/check/bought-copies-without-list-price",
   },
 };
