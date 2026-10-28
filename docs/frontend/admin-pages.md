@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-24
+Last verified: 2026-10-28
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -1144,7 +1144,10 @@ defaults for that type. No image field takes a default - `cover_image_file`,
 default would stamp one picture (or one crop) on every new record - and `useFormDefaults` skips a stored value for
 any field marked `defaultable: false`, so one saved before the field became
 undefaultable stops applying rather than lingering where the page cannot
-clear it. Note `coerce: "tristate"` is implemented but unused
+clear it. It likewise skips a stored value for a `control: "select"` field
+whose options do not include it - a gender saved as `Female`, outside
+`GENDERS` - because the select shows such a value as blank while the form
+would still post it and be refused with a 422. Note `coerce: "tristate"` is implemented but unused
 by any field.
 
 **Restricted Prefill** sits under the Sources field on every type that has

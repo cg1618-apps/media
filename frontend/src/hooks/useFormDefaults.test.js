@@ -83,6 +83,27 @@ describe("resolveDefaults", () => {
     expect(resolved.country).toBe("Japan");
   });
 
+  it("drops a select default its vocabulary no longer offers", () => {
+    // "Female" was saved before gender became GENDERS. The select cannot
+    // show it - it reads as "—" - yet it would be posted and refused with a
+    // 422. A value the vocabulary does offer beside it still applies.
+    const resolved = resolveDefaults("character", {
+      character: { defaults: { gender: "Female", role: "Main" } },
+    });
+
+    expect(resolved.gender).toBe("");
+    expect(resolved.role).toBe("Main");
+  });
+
+  it("keeps a select default its vocabulary offers, labelled options included", () => {
+    const resolved = resolveDefaults("character", {
+      character: { defaults: { gender: "女", display_name_field: "cn" } },
+    });
+
+    expect(resolved.gender).toBe("女");
+    expect(resolved.display_name_field).toBe("cn");
+  });
+
   it("resolves the entity forms, which are not media entries", () => {
     const resolved = resolveDefaults("studio", {
       studio: { defaults: { country: "Japan", removed_field: "x" } },
