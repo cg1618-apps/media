@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-10-24
+Last verified: 2026-10-28
 
 ## What this is for
 
@@ -8,7 +8,7 @@ The app never asks you to type metadata that a public database already knows. Th
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
-Thirteen fields are overwritten on every run: `mal_rating`, `mal_rank`, `imdb_rating`, `imdb_series_rating`, `anilist_rating`, `anilist_rank`, `anilist_popularity_rank`, plus games' `metacritic_score`, `price_current_us`, `price_current_jp`, `price_current_tw`, `hours_played` and `achievements_earned`. Everything else is fill-only, written only when the column is `None` (or, for the two progress columns, guarded further — see [Steam](#steam)). The three AniList columns are overwrite fields at the column level but fill-only **per value**: a fetched `None` never blanks a real score or rank, because AniList can resolve an id to a stub record with nothing in it — see [AniList](#anilist).
+Ten fields are overwritten on every run: `mal_rating`, `mal_rank`, `imdb_rating`, `imdb_series_rating`, `anilist_rating`, `anilist_rank`, `anilist_popularity_rank`, plus games' `metacritic_score`, `hours_played` and `achievements_earned`. Everything else is fill-only, written only when the column is `None` (or, for the two progress columns, guarded further — see [Steam](#steam)). The three AniList columns are overwrite fields at the column level but fill-only **per value**: a fetched `None` never blanks a real score or rank, because AniList can resolve an id to a stub record with nothing in it — see [AniList](#anilist).
 
 A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in code or tests is a stale name for the same thing, not a second client.
 
@@ -620,7 +620,7 @@ is no hourly quota to protect.
 
 ## Steam
 
-Steam fills the columns IGDB cannot: live prices, the Metacritic critic score,
+Steam fills the columns IGDB cannot: list prices, the Metacritic critic score,
 the achievement total, and — for this collection specifically — hours played
 and achievements earned. It never writes `steam_appid` or `steam_link`
 itself; those are IGDB's job (see [IGDB](#igdb) and the mapping table there) —
@@ -816,7 +816,7 @@ it never touches the alias layer. `header_image` is not mapped here: it is a cov
 | `metacritic.url` (as `metacritic_url`, via `metacritic_link_for`) | the `Metacritic` reference `media_source` row | fill-only (`upsert_main_source`) | canonical `/game/<slug>/`; also written on an h-game |
 | — | `metacritic_user_score` | never | not published by Steam; stays hand-typed |
 | `price_overview.initial` | `price_original_{us,jp,tw}` | fill-only | list price, not the launch price |
-| `price_overview.final` | `price_current_{us,jp,tw}` | overwrite | the number a sale moves |
+| `price_overview.final` | nothing | never | the number a sale moves; stale as soon as the sale ends, so it is not kept |
 | `achievements.total` | `achievements_total` | fill-only | absent for many games |
 | `playtime_forever` (from `GetOwnedGames`, minutes ÷ 60) | `hours_played` | overwrite, guarded | see below |
 | unlocked count (from `GetPlayerAchievements`) | `achievements_earned` | overwrite, guarded | see below; not requested at all for an app the library does not list |
@@ -831,7 +831,7 @@ app 1245620: USD `5999` → $59.99, JPY `902000` → ¥9,020, TWD `179000` →
 NT$1,790. `map_steam_to_game_data` also asserts the returned `currency`
 matches what the requested `cc` should answer in (USD / JPY / TWD) and drops
 that region's prices with a warning on a mismatch, so a silent region
-redirect can never write a US price into `price_current_jp`.
+redirect can never write a US price into `price_original_jp`.
 
 **Absent prices are normal.** A free or unreleased game has no
 `price_overview` at all; the price columns stay `null` and `is_free` is
@@ -877,7 +877,8 @@ Refreshing what is already there is Replace's job: **game's Replace**,
 `replace_select = _linked(Game, Game.steam_appid, Game.steam_link,
 Game.igdb_id, Game.igdb_link)`, runs `autofill_game_from_igdb` (fill-only,
 so it only fills gaps) and then `autofill_game_from_steam`, which overwrites
-the current prices and the Metacritic score.
+the Metacritic score and the two progress columns; the list prices stay
+fill-only.
 
 ## HowLongToBeat
 

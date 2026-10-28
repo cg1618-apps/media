@@ -531,11 +531,6 @@ export default function HGame() {
                     { label: "MSRP (JP)", value: money(hGame.price_original_jp, "JPY") },
                     { label: "MSRP (TW)", value: money(hGame.price_original_tw, "TWD") },
                   ],
-                  [
-                    { label: "Current (US)", value: money(hGame.price_current_us, "USD") },
-                    { label: "Current (JP)", value: money(hGame.price_current_jp, "JPY") },
-                    { label: "Current (TW)", value: money(hGame.price_current_tw, "TWD") },
-                  ],
                 ]}
               />
               <InfoCard

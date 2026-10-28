@@ -53,37 +53,40 @@ class TestPrices:
     def test_two_implied_decimals_are_removed(self):
         mapped = map_steam_to_game_data(payloads())
         assert mapped["price_original_us"] == Decimal("59.99")
-        assert mapped["price_current_us"] == Decimal("35.99")
+
+    def test_the_sale_price_is_not_mapped(self):
+        """Only `initial` - the list price - has a column. `final` moves with
+        every sale and nothing calculates with it."""
+        mapped = map_steam_to_game_data(payloads())
+        assert not any(key.startswith("price_current_") for key in mapped)
+        assert Decimal("35.99") not in mapped.values()
 
     def test_yen_uses_the_same_divisor(self):
         """Verified against the live storefront: JPY carries the multiplier too."""
         mapped = map_steam_to_game_data(payloads())
         assert mapped["price_original_jp"] == Decimal("9000.00")
-        assert mapped["price_current_jp"] == Decimal("4500.00")
 
     def test_every_region_lands_in_its_own_columns(self):
         mapped = map_steam_to_game_data(payloads())
-        assert mapped["price_current_tw"] == Decimal("899.00")
+        assert mapped["price_original_tw"] == Decimal("1790.00")
 
     def test_a_region_answering_in_the_wrong_currency_is_dropped(self):
         """A redirect must not write a US price into the JP column."""
         wrong = {"price_overview": {"currency": "USD", "initial": 5999, "final": 3599}}
         mapped = map_steam_to_game_data(payloads(jp=wrong))
         assert mapped["price_original_jp"] is None
-        assert mapped["price_current_jp"] is None
-        assert mapped["price_current_us"] == Decimal("35.99")
+        assert mapped["price_original_us"] == Decimal("59.99")
 
     def test_a_free_game_has_no_prices_at_all(self):
         free = {"is_free": True, "metacritic": {"score": 80}}
         mapped = map_steam_to_game_data({"us": free})
         assert mapped["is_free"] is True
         assert mapped["price_original_us"] is None
-        assert mapped["price_current_us"] is None
 
     def test_a_missing_region_is_not_an_error(self):
         mapped = map_steam_to_game_data({"us": payloads()["us"]})
-        assert mapped["price_current_jp"] is None
-        assert mapped["price_current_us"] == Decimal("35.99")
+        assert mapped["price_original_jp"] is None
+        assert mapped["price_original_us"] == Decimal("59.99")
 
 
 class TestNonPriceFields:
@@ -101,7 +104,7 @@ class TestNonPriceFields:
     def test_an_empty_payload_set_maps_to_all_none(self):
         mapped = map_steam_to_game_data({})
         assert mapped["metacritic_score"] is None
-        assert mapped["price_current_us"] is None
+        assert mapped["price_original_us"] is None
 
 
 class TestHeaderImage:

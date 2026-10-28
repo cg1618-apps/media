@@ -523,7 +523,7 @@ that never offers the row being edited (`ck_games_not_self_parent`), release
 status, release date, current patch, the three HLTB tiers and the platform,
 mode and combat vocabularies; Genre, Theme and Label; Production (Developer
 is a **studio** row, Publisher a **publisher** row; director and composer are
-people scoped to `game`); the six **Prices**; **Copies**; the IGDB and Steam
+people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; the IGDB and Steam
 ids and links with the sources; cover and remark. Submit needs a CN or EN name, `POST /api/game/` then
 `saveCredits`; **games are never enriched on Add** — the toast is a plain "Game
 appended successfully."

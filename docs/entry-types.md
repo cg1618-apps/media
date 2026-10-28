@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-10-23
+Last verified: 2026-10-28
 
 ## What this is for
 
@@ -370,7 +370,7 @@ Buckets are stored on franchise and series as two JSONB maps keyed by media type
 | Bulk Replace selects | rows with `mal_id` or `mal_link` | rows with `mal_id` or `mal_link` | rows with `imdb_id` or `imdb_link` | rows with `imdb_id` or `imdb_link` | TV/Movie rows with `imdb_id` or `imdb_link` | rows with `mal_id` or `mal_link` | rows with `mal_id` or `mal_link` | **no bulk Replace** (`replace=None`) | rows with `steam_appid`, `steam_link`, `igdb_id` or `igdb_link` (IGDB fill-only, then Steam) | rows with `mal_id`, `mal_link` or `ehentai_link` | as game | rows with `mal_id`, `mal_link`, `anidb_id` or `anidb_link` |
 | In Fill All / Replace All | yes / yes | yes / yes | yes / yes | yes / yes | yes / yes | yes / yes | yes / yes | **no / no** (`in_fill_all=False`, `in_replace_all=False`) | yes / yes | yes / yes | yes / yes | yes / yes |
 
-`PIPELINES["game"]` shipped with this backend as a spec that fetched nothing - registration demands one, since `MEDIA_TABLES` membership is asserted by `test_sheet_tabs` and by the data-control route builder - and gained its IGDB Fill immediately afterwards, in its own plan. **Game now has a bulk Replace**, its first: IGDB still carries no score or rank that drifts, so Replace runs `autofill_game_from_steam` only, re-fetching the live prices, the Metacritic score and this collection's own playtime. See [external-apis.md](external-apis.md#steam) for the full mapping, the request budget, and the `steam_progress_sync` lock.
+`PIPELINES["game"]` shipped with this backend as a spec that fetched nothing - registration demands one, since `MEDIA_TABLES` membership is asserted by `test_sheet_tabs` and by the data-control route builder - and gained its IGDB Fill immediately afterwards, in its own plan. **Game now has a bulk Replace**, its first: IGDB still carries no score or rank that drifts, so Replace runs `autofill_game_from_steam` only, re-fetching the Metacritic score and this collection's own playtime and achievements; the list prices are fill-only. See [external-apis.md](external-apis.md#steam) for the full mapping, the request budget, and the `steam_progress_sync` lock.
 
 `PIPELINES["h-comic"]` reads Tenrai's manga record - manga's endpoint and mapper - for the columns `h_comic` has: `serialization_status`, `release_date` and `end_date` (fill-only), the cover (downloaded only when the entry has none), and `ch_total` on a KR entry once its serialization is `完結`. MAL reports no page count, so `page_total` is never filled, and there are no rating columns to write. The gallery in `ehentai_link` is a second source, run after Tenrai: `autofill_h_comic_from_ehentai` fills the cover and, from the gallery's `artist:` tags, the illustrator (繪師) credit, only where they are still empty; an entry with only an E-Hentai link is filled too. It writes no date and no name - see [external-apis.md](external-apis.md#e-hentai). Every run and the single-entry write hook end in `run_sync_h_comic`, which clears each region's unused columns, and `run_sync_gated_labels`, which keeps the `h-comic` label on every entry and every `H-Comic` franchise.
 

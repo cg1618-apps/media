@@ -138,6 +138,8 @@ def _constants() -> dict[str, list[str]]:
         "game_type": list(c.GAME_TYPES),
         "completion_level": list(c.COMPLETION_LEVELS),
         "game_completion_flag": list(c.GAME_COMPLETION_FLAGS),
+        # games.all_achievements only: the completion flags plus "Fully".
+        "game_achievement_flag": list(c.GAME_ACHIEVEMENT_FLAGS),
         "game_release_status": list(c.GAME_RELEASE_STATUSES),
         # The four game_copy vocabularies. Prefixed game_ where the column
         # name alone (storefront, ownership, acquisition) would say nothing

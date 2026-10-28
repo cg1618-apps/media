@@ -136,9 +136,6 @@ class HGame(Base, NameFallbackMixin):
     price_original_us = Column(Numeric(10, 2), nullable=True)
     price_original_jp = Column(Numeric(10, 2), nullable=True)
     price_original_tw = Column(Numeric(10, 2), nullable=True)
-    price_current_us = Column(Numeric(10, 2), nullable=True)
-    price_current_jp = Column(Numeric(10, 2), nullable=True)
-    price_current_tw = Column(Numeric(10, 2), nullable=True)
 
     # One of H_GAME_LANGUAGE_AVAILABILITY.
     language_availability = Column(String, nullable=True)

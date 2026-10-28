@@ -186,3 +186,34 @@ def test_a_sheet_still_carrying_is_main_entry_pulls(db, sheets, tab, model, name
     assert result["status"] == "success"
     db.query(model).filter(getattr(model, name_column) == "主線舊表頭").one()
     assert any("is_main_entry" in ref for ref in result["unresolved_refs"])
+
+
+@pytest.mark.parametrize(
+    "tab, model, name_column",
+    [
+        ("Game", models.Game, "game_name_cn"),
+        ("H-Game", models.HGame, "h_game_name_cn"),
+    ],
+)
+def test_a_sheet_still_carrying_current_prices_pulls(db, sheets, tab, model, name_column):
+    """
+    price_current_us / _jp / _tw were dropped from games and h_game. A sheet
+    backed up before that still heads them; the row is stored with its MSRP,
+    the current price is discarded, and each header is named once.
+    """
+    assert "price_current_us" not in {c.name for c in model.__table__.columns}
+    sheets({
+        tab: [
+            ["system_id", name_column, "price_original_us", "price_current_us",
+             "price_current_jp", "price_current_tw"],
+            [str(uuid.uuid4()), "舊售價", "59.99", "19.99", "", ""],
+        ]
+    })
+
+    result = pull.execute_pull_specific(db, tab, log_action=False)
+
+    assert result["status"] == "success"
+    row = db.query(model).filter(getattr(model, name_column) == "舊售價").one()
+    assert str(row.price_original_us) == "59.99"
+    for header in ("price_current_us", "price_current_jp", "price_current_tw"):
+        assert any(header in ref for ref in result["unresolved_refs"])

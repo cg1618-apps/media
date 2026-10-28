@@ -31,6 +31,8 @@ import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
 import {
   COMPLETION_LEVELS,
+  GAME_ACHIEVEMENT_FLAGS,
+  GAME_ACHIEVEMENT_HINT,
   GAME_COMPLETION_FLAGS,
   GAME_IS_MAIN,
   GAME_RELEASE_STATUSES,
@@ -167,7 +169,8 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
       </div>
       {/* The completion ladder, then three vocabulary axes independent of it
           and of each other. "All Achievements" is not read from the counts
-          above. "Inapplicable" is for a game that has none of that thing at
+          above, and reads its own vocabulary: "Fully" counts the hidden
+          achievements, "Yes" all but those. "Inapplicable" is for a game that has none of that thing at
           all - no endings to see, no achievement list, nothing to collect -
           which is a different answer from "No" and from leaving it blank. */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -178,7 +181,12 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
           GAME_COMPLETION_FLAGS,
           "Separate axis from completion level",
         )}
-        {select("all_achievements", "All Achievements", GAME_COMPLETION_FLAGS)}
+        {select(
+          "all_achievements",
+          "All Achievements",
+          GAME_ACHIEVEMENT_FLAGS,
+          GAME_ACHIEVEMENT_HINT,
+        )}
         {select(
           "all_collected",
           "All Collected",
@@ -340,11 +348,6 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
         {num("price_original_us", "MSRP (US)")}
         {num("price_original_jp", "MSRP (JP)")}
         {num("price_original_tw", "MSRP (TW)")}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {num("price_current_us", "Current Price (US)")}
-        {num("price_current_jp", "Current Price (JP)")}
-        {num("price_current_tw", "Current Price (TW)")}
       </div>
 
       {/* A copy is a personal-ownership row that happens to be edited from a

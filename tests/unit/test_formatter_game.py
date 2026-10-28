@@ -3,6 +3,7 @@
 from app.utils.formatter import (
     parse_game_copy_from_sheet,
     parse_game_from_sheet,
+    parse_h_game_from_sheet,
     parse_system_option_alias_from_sheet,
 )
 
@@ -34,10 +35,28 @@ def test_a_franchise_name_survives_as_a_string_for_the_resolver():
 
 def test_numeric_columns_are_typed():
     parsed = parse_game_from_sheet(
-        {"hours_played": "32.5", "achievements_earned": "12", "price_current_us": "19.99"}
+        {"hours_played": "32.5", "achievements_earned": "12", "price_original_us": "19.99"}
     )
     assert parsed["hours_played"] == 32.5
     assert parsed["achievements_earned"] == 12
+    assert str(parsed["price_original_us"]) == "19.99"
+
+
+def test_an_older_sheets_current_prices_are_not_read():
+    """price_current_* is gone from both tables; a sheet backed up before
+    that still heads the columns, and the parser must not hand them on."""
+    row = {"game_name_en": "Hades", "price_current_us": "19.99"}
+    assert "price_current_us" not in parse_game_from_sheet(row)
+    assert "price_current_us" not in parse_h_game_from_sheet(row)
+
+
+def test_game_copy_reads_the_old_physical_storefront_as_physical_store():
+    """A backup taken before the rename still says Physical."""
+    assert (
+        parse_game_copy_from_sheet({"storefront": "Physical"})["storefront"]
+        == "Physical Store"
+    )
+    assert parse_game_copy_from_sheet({"storefront": "Steam"})["storefront"] == "Steam"
 
 
 def test_game_copy_parses_its_fk_strictly():
@@ -72,6 +91,20 @@ def test_the_completion_flags_parse_as_a_four_state_vocabulary():
     assert parsed["all_endings"] == "Yes"
     assert parsed["all_achievements"] == "No"
     assert parsed["all_collected"] == "Inapplicable"
+
+
+def test_all_achievements_reads_its_own_vocabulary():
+    """Fully (hidden ones too) is an achievements answer only."""
+    parsed = parse_game_from_sheet(
+        {"all_achievements": "fully", "all_endings": "Fully"}
+    )
+    assert parsed["all_achievements"] == "Fully"
+    assert parsed["all_endings"] is None
+    assert parse_game_from_sheet({"all_achievements": "Yes"})["all_achievements"] == "Yes"
+    assert (
+        parse_game_from_sheet({"all_achievements": "banana"})["all_achievements"]
+        is None
+    )
 
 
 def test_a_blank_completion_flag_is_still_unknown():

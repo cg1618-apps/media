@@ -152,8 +152,8 @@ def test_a_season_entry_gets_its_own_and_the_show_imdb_rating(key):
 
 def test_only_volatile_numbers_are_ever_overwritten():
     """
-    The overwrite set is small on purpose: a rating, a rank, a live price and
-    this collection's own progress. Everything else is fill-only, so nothing a
+    The overwrite set is small on purpose: a rating, a rank and this
+    collection's own progress. Everything else is fill-only, so nothing a
     person typed is ever rewritten by a pipeline.
     """
     overwritten = {
@@ -168,9 +168,6 @@ def test_only_volatile_numbers_are_ever_overwritten():
         "imdb_rating",
         "imdb_series_rating",
         "metacritic_score",
-        "price_current_us",
-        "price_current_jp",
-        "price_current_tw",
         "hours_played",
         "achievements_earned",
         "anilist_rating",

@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-10-25
+Last verified: 2026-10-28
 
 ## What this is for
 
@@ -109,10 +109,11 @@ type it serves is seeable.
 | `GAME_IS_MAIN` | `Main`, `Remake`, `Remaster` | `games.is_main`, `h_game.is_main` - the game types' own `is_main` vocabulary in place of `IS_MAIN`. A plain label with no tie to the `remake` / `remaster` relation kinds. **Enforced** on both types: a write naming anything else is a 422 (on h-game's tracker PATCH too), and the Sheets parser drops an unknown cell to NULL. The Add form starts a new entry on `Main` | `game_is_main` |
 | `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`, `h_game.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | `completion_level` |
 | `GAME_RELEASE_STATUSES` | `Rumored`, `Unreleased`, `Early Access`, `Released`, `Ongoing`, `Discontinued`, `Cancelled` | `games.release_status`, `h_game.release_status` | `game_release_status` |
-| `GAME_COMPLETION_FLAGS` | `Yes`, `No`, `Inapplicable` | `games.all_endings`, `games.all_achievements`, `games.all_collected`, `h_game.all_endings`, `h_game.all_cg`. `NULL` is outside the vocabulary and means "not recorded yet"; `Inapplicable` means the game has none of that thing to find. `games.steam_progress_sync` is **not** one of these - it is a boolean lock on Steam writes | `game_completion_flag` |
-| `GAME_STOREFRONTS` | `Steam`, `Nintendo eShop`, `PlayStation Store`, `Xbox Store`, `GOG`, `Epic Games Store`, `Physical`, `Other` | `game_copy.storefront` | `game_storefront` |
-| `GAME_OWNERSHIP_KINDS` | `Owned`, `Wishlist`, `Subscription`, `Free`, `Not Owned` | `game_copy.ownership`; also the precedence order `derive_game_ownership` reads | `game_ownership` |
-| `GAME_COPY_FORMATS` | `Digital`, `Physical` | `game_copy.copy_format` | `game_copy_format` |
+| `GAME_COMPLETION_FLAGS` | `Yes`, `No`, `Inapplicable` | `games.all_endings`, `games.all_collected`, `h_game.all_endings`, `h_game.all_cg`. `NULL` is outside the vocabulary and means "not recorded yet"; `Inapplicable` means the game has none of that thing to find. `games.steam_progress_sync` is **not** one of these - it is a boolean lock on Steam writes | `game_completion_flag` |
+| `GAME_ACHIEVEMENT_FLAGS` | `Fully`, `Yes`, `No`, `Inapplicable` | `games.all_achievements` only (h-game has no such column). `Fully` is every achievement including the hidden ones, `Yes` every one except them; `No`, `Inapplicable` and `NULL` mean what they mean on `GAME_COMPLETION_FLAGS`. A Sheets Pull reads it case-insensitively and maps an older backup's `TRUE` / `FALSE` to `Yes` / `No` | `game_achievement_flag` |
+| `GAME_STOREFRONTS` | `Steam`, `Nintendo eShop`, `PlayStation Store`, `Xbox Store`, `GOG`, `Epic Games Store`, `Physical Store`, `Other` | `game_copy.storefront`. A Sheets Pull reads an older backup's `Physical` as `Physical Store` | `game_storefront` |
+| `GAME_OWNERSHIP_KINDS` | `Owned`, `Wishlist`, `Subscription`, `Not Owned` | `game_copy.ownership` - whether I have the game, not how I got it: a copy claimed for nothing is `Owned`, with `Free` as its acquisition. `derive_game_ownership` reads them in the precedence Owned -> Subscription -> Wishlist -> Not Owned | `game_ownership` |
+| `GAME_COPY_FORMATS` | `Digital`, `Physical`, `Key Card` | `game_copy.copy_format`. `Key Card` is a boxed copy that holds only a download code | `game_copy_format` |
 | `GAME_ACQUISITION_KINDS` | `Bought`, `Gifted`, `Free`, `Bundled`, `Subscription` | `game_copy.acquisition` | `game_acquisition` |
 | `MANGA_SERIALIZATION_STATUSES` | `連載中`, `停更`, `腰斬`, `完結` | `manga.serialization_status`, `h_comic.serialization_status` | `manga_serialization_status` |
 | `NOVEL_SERIALIZATION_STATUSES` | `連載中`, `連載中 (不穩定)`, `連載中 (有生之年)`, `停更`, `完結`, `腰斬`, `可能更多`, `未出` | `novel.serialization_status`; `完結` gates the volume/chapter checks | `novel_serialization_status` |
@@ -133,9 +134,10 @@ type it serves is seeable.
 | `H_GAME_H_ART_STYLES` | `2D`, `Live2D`, `2.5D`, `3D模型`, `Live-action-like`, `Live-action`, `null`, `unknown` | `h_game.h_art_style` (H 演出 art style), a JSONB list kept in this order. What the H scenes look like, beside `art_style`; `null` and `unknown` are options the owner picks, stored as those strings - not the column's null | `h_game_h_art_style` |
 | `H_GAME_PLATFORMS` | `Steam`, `DLsite`, `Nintendo`, `Other` | `h_game.platform`, a JSONB list kept in this order; hand-set, never filled from IGDB, and unrelated to the `game_platform` tag field | `h_game_platform` |
 
-**All nine game lists reach `/api/constants`.** `get_constants()`
+**All eleven game lists reach `/api/constants`.** `get_constants()`
 (`app/routers/constants.py`) returns `playing_status`, `game_type`,
-`game_is_main`, `completion_level`, `game_release_status`, `game_storefront`,
+`game_is_main`, `completion_level`, `game_completion_flag`,
+`game_achievement_flag`, `game_release_status`, `game_storefront`,
 `game_ownership`, `game_copy_format` and `game_acquisition`. The four
 `game_copy` vocabularies are prefixed `game_` because the column name alone
 (storefront, ownership, acquisition) would not say which table it belongs to
@@ -150,13 +152,10 @@ under `hentai_source_material`. Every h-game vocabulary is checked on every
 write path - a value outside it is a 422 through the API, and dropped (logged)
 by the Sheets parser.
 
-Only `playing_status` and `game_is_main` are wired into the frontend fallback
-map, though. They are the game lists in `CONSTANTS_FALLBACK` in
-`frontend/src/config/fieldOptions.js`, so they are the ones `applyConstants()`
-overwrites from the endpoint; `GAME_TYPES`, `COMPLETION_LEVELS`,
-`GAME_RELEASE_STATUSES`, `GAME_COMPLETION_FLAGS` and the four `game_copy`
-arrays are still hand-maintained literals in that file, kept matching
-`constants.py` by hand.
+All eleven are wired into `CONSTANTS_FALLBACK` in
+`frontend/src/config/fieldOptions.js`, so `applyConstants()` overwrites each
+from the endpoint and the literals in that file are only the pre-fetch
+fallback.
 
 `/api/constants` also serves four keys from other modules:
 `watch_order_importance` ([below](#watch-order-built-ins-appservicesdomainwatch_orderpy)),

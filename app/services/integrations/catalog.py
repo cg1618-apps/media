@@ -6,12 +6,12 @@ the pipeline at Tenrai, so what did it just change? Two different answers hide
 behind that, and they are the reason the catalog exists:
 
   * Per FIELD - the write rule. Nearly every column is fill-only, written only
-    when it is None. Nine are overwritten on every run, and the set is still
-    deliberately small and shaped, not arbitrary: the three ratings
-    (mal_rating, mal_rank, imdb_rating), the Metacritic score, the three
-    current prices (price_current_us/jp/tw), and the two personal-progress
-    columns (hours_played, achievements_earned). Those nine ARE "what gets
-    replaced" - everything else stays fill-only, so a pipeline never rewrites
+    when it is None. A few are overwritten on every run, and the set is
+    deliberately small and shaped, not arbitrary: the ratings and ranks
+    (mal_rating, mal_rank, imdb_rating, imdb_series_rating and AniList's
+    three), the Metacritic score, and the two personal-progress columns
+    (hours_played, achievements_earned). Those ARE "what gets replaced" -
+    everything else stays fill-only, so a pipeline never rewrites
     something a person typed by hand. The two progress columns carry extra
     guards on top of being overwrite fields: steam_progress_sync=False skips
     both outright, and a zero or unknown value never overwrites a real one -
@@ -898,14 +898,6 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     ),
                     Write("price_original_jp", "column", "fill-only"),
                     Write("price_original_tw", "column", "fill-only"),
-                    Write(
-                        "price_current_us",
-                        "column",
-                        "overwrite",
-                        "what it costs today; this is what a game Replace is for",
-                    ),
-                    Write("price_current_jp", "column", "overwrite"),
-                    Write("price_current_tw", "column", "overwrite"),
                     Write("achievements_total", "column", "fill-only"),
                     Write(
                         "hours_played",
@@ -1133,9 +1125,6 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     Write("price_original_us", "column", "fill-only"),
                     Write("price_original_jp", "column", "fill-only"),
                     Write("price_original_tw", "column", "fill-only"),
-                    Write("price_current_us", "column", "overwrite"),
-                    Write("price_current_jp", "column", "overwrite"),
-                    Write("price_current_tw", "column", "overwrite"),
                     Write("achievements_total", "column", "fill-only"),
                     Write(
                         "achievements_earned",

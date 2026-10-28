@@ -43,11 +43,8 @@ STEAM = {
     "achievements_total": 42,
     "is_free": False,
     "price_original_us": Decimal("59.99"),
-    "price_current_us": Decimal("35.99"),
     "price_original_jp": Decimal("9000.00"),
-    "price_current_jp": Decimal("4500.00"),
     "price_original_tw": Decimal("1790.00"),
-    "price_current_tw": Decimal("899.00"),
 }
 
 
@@ -144,7 +141,9 @@ def test_steam_writes_prices_and_achievements_only(db_session, patched):
     entry = _h_game(db_session, igdb_id=None, steam_appid=1245620)
     autofill_game_from_steam(entry, db_session)
     assert entry.price_original_us == Decimal("59.99")
-    assert entry.price_current_jp == Decimal("4500.00")
+    assert entry.price_original_jp == Decimal("9000.00")
+    # The sale price has no column to land in.
+    assert "price_current_jp" not in vars(entry)
     assert entry.achievements_total == 42
     assert entry.achievements_earned == 7
     # No such columns on h_game: nothing was set as a stray attribute.
@@ -192,5 +191,5 @@ def test_single_replace_runs_steam(db_session, patched):
     entry = _h_game(db_session, igdb_id=None, steam_link="https://store.steampowered.com/app/1245620/")
     apply_single_replace_game(db_session, entry)
     assert entry.steam_appid == 1245620
-    assert entry.price_current_us == Decimal("35.99")
+    assert entry.price_original_us == Decimal("59.99")
     assert find_main_source(db_session, entry.system_id, "reference", STEAMDB_VALUE) is not None
