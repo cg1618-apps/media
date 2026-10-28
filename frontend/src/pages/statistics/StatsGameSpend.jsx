@@ -52,8 +52,8 @@ function SpendColumn({ column }) {
         </dl>
       )}
 
-      {/* A purchase whose game has no recorded list price in that currency
-          contributes nothing above, so the column's copy count would differ
+      {/* A purchase whose game has no list price in any region contributes
+          nothing above, so the column's copy count would differ
           from Bought's with nothing to say why. */}
       {unpriced > 0 && (
         <p className="mt-3 font-mono text-[11px] text-text-faint">

@@ -1867,6 +1867,16 @@ was paid.
   recorded one, which is the same failure the FX-rate guard already exists to
   prevent.
 
+  **Superseded for Should spend (2026-10-28).** Dropping those copies made
+  Should spend smaller than Bought whenever many purchases were in a currency
+  their game had no list price in, so the column no longer subtracted at all.
+  A bought copy now falls back to another region's list price (US, then JP,
+  then TW), **kept in that region's currency** rather than converted into the
+  copy's, so no per-currency figure is invented and the currencies meet only
+  in the converted totals, where every rate is one the owner entered. The
+  Value card keeps the own-currency rule: it asks whether a title was bought
+  at a real price, not what the collection is worth.
+
 ### H-Comic, the first gated type (spec: 2026-09-23 h-comic-design)
 
 A tenth media type for adult comics, seen in the `unrestricted` access mode
