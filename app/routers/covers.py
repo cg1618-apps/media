@@ -18,6 +18,7 @@ that unguessable is not the same as guarded.
 """
 
 import os
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -26,9 +27,14 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.dependencies import get_db
-from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
+from app.services.integrations.image_manager import (
+    COVER_DIR,
+    COVER_OWNERS,
+    cover_thumbnail,
+)
+from app.services.rbac.cover_viewer import get_cover_viewer
 from app.services.rbac.enforcement import entry_visible
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer
 from app.services.rbac.shared_visibility import (
     ENTITY_OWNER_MODELS,
     IDENTITY_OWNER,
@@ -49,6 +55,9 @@ router = APIRouter(prefix="/api/covers", tags=["Images"])
 CACHE_CONTROL = "private, max-age=86400"
 
 NOT_FOUND = "Cover image not found"
+
+# The one `size` the route recognises.
+THUMB = "thumb"
 
 
 def _owner_hidden(
@@ -91,8 +100,10 @@ def get_cover_image(
     owner_type: str,
     filename: str,
     request: Request,
+    size: Optional[str] = None,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    # Cached for a few seconds per session: see rbac/cover_viewer.py.
+    viewer: Viewer = Depends(get_cover_viewer),
 ):
     """
     One cover image, or 404.
@@ -100,10 +111,18 @@ def get_cover_image(
     404 and never 403, for the same reason every gated router here does it: a
     hidden entry has to be indistinguishable from a missing one, or the status
     code becomes the existence oracle the gate was meant to close. A bad owner
-    type, an unparseable id, an absent file and a refusal all answer
-    identically.
+    type, an unparseable id, an unknown `size`, an absent file and a refusal
+    all answer identically.
+
+    `?size=thumb` serves the cover scaled to the library's thumbnail edge
+    (`image_manager.cover_thumbnail`) - what a list card shows. Absent, it
+    serves the original. Any other value is a 404 rather than a silent
+    original, so a typo in the frontend shows up as a broken image instead of
+    quietly downloading every full-size cover again.
     """
     if owner_type not in COVER_OWNERS:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    if size is not None and size != THUMB:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
 
     stem, _, extension = filename.rpartition(".")
@@ -124,12 +143,20 @@ def get_cover_image(
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail=NOT_FOUND)
 
+    # Only after the gate: a refused request generates and caches nothing.
+    if size == THUMB:
+        path = cover_thumbnail(path)
+
     # Revalidation after max-age expires, so a browser holding a still-current
     # cover pays a 304 rather than the bytes. Derived from the file rather than
     # its content: hashing every cover on every request would cost more than
-    # the transfer it saves.
+    # the transfer it saves. The thumbnail's tag is suffixed so it can never
+    # equal the original's - a thumbnail carries its cover's mtime, and a
+    # small cover is served as its own thumbnail, so the stat alone could
+    # collide.
     stat = os.stat(path)
-    etag = f'"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+    variant = f"-{THUMB}" if size == THUMB else ""
+    etag = f'"{stat.st_mtime_ns:x}-{stat.st_size:x}{variant}"'
     if request.headers.get("if-none-match") == etag:
         return Response(
             status_code=304, headers={"ETag": etag, "Cache-Control": CACHE_CONTROL}

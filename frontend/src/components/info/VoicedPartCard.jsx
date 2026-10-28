@@ -11,10 +11,11 @@
 // Every link is a sibling, never nested - an <a> inside an <a> is invalid.
 import { Link } from "react-router-dom";
 
-import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
 import { Chip } from "../ui/primitives";
+import LazyImage from "../ui/LazyImage";
 
 export default function VoicedPartCard({ entry, navPath }) {
   const asIdentity = Boolean(entry.identity_id);
@@ -43,9 +44,8 @@ export default function VoicedPartCard({ entry, navPath }) {
       }`}
       style={{ aspectRatio: "2/3" }}
     >
-      <img
-        loading="lazy"
-        src={getCoverUrl(entry.display_photo_file)}
+      <LazyImage
+        src={thumbUrl(getCoverUrl(entry.display_photo_file))}
         alt={ownName}
         className="w-full h-full object-cover"
         style={focusStyle(entry.display_photo_focus)}
@@ -58,9 +58,8 @@ export default function VoicedPartCard({ entry, navPath }) {
   const entryLine = (
     <>
       <div className="w-6 shrink-0 bg-surface-2 overflow-hidden" style={{ aspectRatio: "2/3" }}>
-        <img
-          loading="lazy"
-          src={getCoverUrl(entry.cover_image_file)}
+        <LazyImage
+          src={thumbUrl(getCoverUrl(entry.cover_image_file))}
           alt=""
           className="w-full h-full object-cover"
           style={focusStyle(entry.cover_image_focus)}

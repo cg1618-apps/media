@@ -8,6 +8,7 @@
 import { Link } from "react-router-dom";
 import { FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { Eyebrow, Slip, RatingStamp, ProgressRule } from "../ui/primitives";
+import LazyImage from "../ui/LazyImage";
 
 /**
  * The card grid every hub lays its entries out on - member franchises on the
@@ -110,8 +111,7 @@ export function HeroCover({ cover, spine, id, rating, done, total, pct }) {
           className="absolute top-2 right-2 z-10"
         />
         <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
-          <img
-            loading="lazy"
+          <LazyImage
             src={cover?.url ?? FALLBACK_SVG}
             alt="Cover"
             className="w-full h-full object-cover"

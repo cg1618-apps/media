@@ -16,6 +16,7 @@ import { Eyebrow } from "../../components/ui/primitives";
 import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
 import { useAuth } from "../../contexts/AuthContext";
 import { useEntityFilterState } from "../../hooks/useFilterState";
+import { useIncrementalList } from "../../hooks/useIncrementalList";
 import { applyFilterDefs } from "../../lib/libraryFilters";
 import { publisherFilterDefs } from "../../lib/entityFilters";
 
@@ -81,6 +82,10 @@ export default function PublisherLibrary() {
 
     return result;
   }, [allPublishers, searchQuery, currentSort, filterDefs, filters]);
+
+  // Search, filter and sort see every item; the grid draws them a batch at a
+  // time, so a long library does not mount every card - and its cover - at once.
+  const { visible, hasMore, sentinelRef } = useIncrementalList(filteredAndSorted);
 
   const narrowed = searchQuery !== "" || activeFilterCount > 0;
   // The empty state's way out: no search and no filter, not the default -
@@ -210,11 +215,14 @@ export default function PublisherLibrary() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {filteredAndSorted.map((publisher) => (
-              <PublisherCard key={publisher.system_id} publisher={publisher} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {visible.map((publisher) => (
+                <PublisherCard key={publisher.system_id} publisher={publisher} />
+              ))}
+            </div>
+            {hasMore && <div ref={sentinelRef} aria-hidden="true" />}
+          </>
         )}
       </div>
     </div>

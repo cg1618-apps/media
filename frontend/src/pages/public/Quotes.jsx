@@ -15,6 +15,7 @@ import QuoteForm, {
   emptyQuote,
   toQuotePayload,
 } from "../../components/forms/QuoteForm";
+import LazyImage from "../../components/ui/LazyImage";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useAuth } from "../../contexts/AuthContext";
 import { visibleByType } from "../../lib/gatedTypes";
@@ -161,8 +162,7 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
 
           {imageUrl && (
             <div className="mt-2">
-              <img
-                loading="lazy"
+              <LazyImage
                 src={imageUrl}
                 alt=""
                 className="max-h-56 border border-border"

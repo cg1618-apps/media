@@ -1,7 +1,7 @@
-// Guard: every cropped image honours its focal point. An <img> drawn with
+// Guard: every cropped image honours its focal point. An image drawn with
 // object-cover shows only part of the picture, and without an
 // object-position that part is the centre - a portrait cover cropped to a
-// square loses the face at the top. So a cropped <img> either sets a style=
+// square loses the face at the top. So a cropped <LazyImage> either sets a style=
 // (which carries focusStyle(...) from lib/covers.js) or says, with
 // data-focus="none", that it is not an owner's image and has no focus to
 // apply. See docs/frontend/design-system.md, rule 9.
@@ -19,17 +19,18 @@ function* walk(dir) {
   }
 }
 
-// Every <img ...> tag, up to the ">" that closes it. A regex cannot do this:
+// Every <LazyImage ...> tag - and any raw <img ...>, which lazy-images.test.js
+// refuses anyway - up to the ">" that closes it. A regex cannot do this:
 // an attribute like onError={(e) => ...} holds a ">" of its own, so the scan
 // skips over {...} expressions, quoted strings and comments while looking for
 // the end.
 function* imgTags(text) {
-  const opener = /<img\b/g;
+  const opener = /<(?:LazyImage|img)\b/g;
   let m;
   while ((m = opener.exec(text))) {
     let depth = 0;
     let quote = null;
-    let i = m.index + 4;
+    let i = m.index + m[0].length;
     for (; i < text.length; i++) {
       const c = text[i];
       if (quote) {

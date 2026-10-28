@@ -9,6 +9,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { DndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useDragSensors } from "../../components/ui/Sortable";
+import LazyImage from "../../components/ui/LazyImage";
 import { MEDIA_CONFIG } from "../../utils/media";
 import { FALLBACK_SVG, NO_COVER, focusStyle } from "../../lib/covers";
 import {
@@ -146,8 +147,7 @@ function RowPickerModal({
                   >
                     <div className="relative rounded-t-xl overflow-hidden bg-surface-2">
                       <div className="aspect-[3/4]">
-                        <img
-                          loading="lazy"
+                        <LazyImage
                           src={cover.url}
                           alt={name}
                           className="w-full h-full object-cover"
@@ -202,8 +202,7 @@ function SlotCard({ slot, name, cover, onOpen }) {
     >
       <div className="relative rounded-xl overflow-hidden border border-border shadow-sm bg-surface-2 group-hover:border-brand transition-colors">
         <div className="aspect-[3/4]">
-          <img
-            loading="lazy"
+          <LazyImage
             src={cover.url}
             alt={name || ""}
             className="w-full h-full object-cover"
@@ -289,8 +288,7 @@ function RankListItem({ slot, name, cover, onKeySwap, registerRow }) {
       {name ? (
         <>
           <div className="w-7 h-9 rounded overflow-hidden shrink-0 border border-border">
-            <img
-              loading="lazy"
+            <LazyImage
               src={cover.url}
               alt=""
               className="w-full h-full object-cover"

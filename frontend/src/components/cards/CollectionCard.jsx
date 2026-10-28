@@ -1,9 +1,10 @@
 // Frontend: card component file for CollectionCard.
 import { Link } from "react-router-dom";
 import { entityPath } from "../../lib/entityPath";
-import { focusStyle } from "../../lib/covers";
+import { focusStyle, thumbUrl } from "../../lib/covers";
 import { FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, RatingStamp } from "../ui/primitives";
+import LazyImage from "../ui/LazyImage";
 
 // `cover` is the resolved { url, focus } from lib/covers.js.
 export default function CollectionCard({ collection, cover, memberCount }) {
@@ -45,9 +46,8 @@ export default function CollectionCard({ collection, cover, memberCount }) {
               {memberCount}
             </div>
           )}
-          <img
-            loading="lazy"
-            src={cover?.url ?? FALLBACK_SVG}
+          <LazyImage
+            src={thumbUrl(cover?.url ?? FALLBACK_SVG)}
             alt="Cover"
             className="w-full h-full object-cover"
             style={focusStyle(cover?.focus)}

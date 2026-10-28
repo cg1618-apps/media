@@ -6,8 +6,9 @@
 import { Link } from "react-router-dom";
 
 import MediaLoadingState from "./MediaLoadingState";
-import { getCoverUrl, focusStyle } from "../../lib/covers";
+import { getCoverUrl, focusStyle, thumbUrl } from "../../lib/covers";
 import { Chip, Eyebrow } from "../ui/primitives";
+import LazyImage from "../ui/LazyImage";
 
 export const controlCls =
   "bg-surface border border-border-strong text-text text-xs px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand";
@@ -170,9 +171,8 @@ export default function GroupedEntryPage({
                           </span>
                         </div>
                       ) : (
-                        <img
-                          loading="lazy"
-                          src={getCoverUrl(group.cover_image_file)}
+                        <LazyImage
+                          src={thumbUrl(getCoverUrl(group.cover_image_file))}
                           alt=""
                           className="w-9 h-12 object-cover shrink-0 border border-border"
                           style={focusStyle(group.cover_image_focus)}

@@ -12,6 +12,7 @@ import QuoteForm, {
 } from "../../components/forms/QuoteForm";
 import QuoteEntryPicker from "../../components/forms/QuoteEntryPicker";
 import { inputCls } from "../../components/forms/FormField";
+import LazyImage from "../../components/ui/LazyImage";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
@@ -175,8 +176,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
                     </span>
                   </div>
                   {imageUrl && (
-                    <img
-                      loading="lazy"
+                    <LazyImage
                       src={imageUrl}
                       alt=""
                       className="mt-2 max-h-32 rounded-lg border border-border"

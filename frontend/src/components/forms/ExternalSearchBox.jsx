@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { fetchJson } from "../../api/client";
 import { isEnterKey, useEnterSubmitGuard } from "../../hooks/useEnterToAdd";
 import { SuggestAction, SuggestItem, SuggestList, SuggestNote } from "./SuggestList";
+import LazyImage from "../ui/LazyImage";
 
 export const EXTERNAL_SEARCH_DEBOUNCE_MS = 350;
 export const EXTERNAL_SEARCH_MIN_CHARS = 2;
@@ -212,8 +213,7 @@ export default function ExternalSearchBox({
               <SuggestItem key={r.external_id} truncate={false} onPick={() => pick(r)}>
                 <div className="flex items-center gap-3">
                   {r.cover_url ? (
-                    <img
-                      loading="lazy"
+                    <LazyImage
                       src={r.cover_url}
                       alt={r.title}
                       className="w-8 h-11 object-cover rounded shrink-0"

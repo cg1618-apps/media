@@ -29,6 +29,7 @@ import {
   tagCls,
   useEntryCap,
 } from "./ui";
+import LazyImage from "../../../components/ui/LazyImage";
 
 export default function MemeSection({
   label,
@@ -164,8 +165,7 @@ export default function MemeSection({
               <div className="flex gap-2 items-start">
                 <div className="flex-1 space-y-1">
                   {imageUrl && (
-                    <img
-                      loading="lazy"
+                    <LazyImage
                       src={imageUrl}
                       alt=""
                       className="mb-1 max-h-40 border border-border"

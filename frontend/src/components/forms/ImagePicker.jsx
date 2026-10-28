@@ -55,6 +55,7 @@ import {
 } from "../../hooks/useImages";
 import { Button, Chip } from "../ui/primitives";
 import FocusPicker from "./FocusPicker";
+import LazyImage from "../ui/LazyImage";
 
 const PAGE_SIZE = 60;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -197,16 +198,14 @@ export default function ImagePicker({
       <div className="min-w-0">
         <div className="flex items-center gap-1">
           {value ? (
-            <img
-              loading="lazy"
+            <LazyImage
               src={previewUrl}
               alt="Current image"
               className="w-8 h-8 rounded object-cover shrink-0 border border-border"
               style={focusStyle(focus)}
             />
           ) : fallback?.file ? (
-            <img
-              loading="lazy"
+            <LazyImage
               src={getCoverUrl(fallback.file)}
               alt="Fallback image"
               title="None of its own - showing the one it falls back to"
@@ -276,8 +275,7 @@ export default function ImagePicker({
   return (
     <div className="space-y-2">
       {value && (
-        <img
-          loading="lazy"
+        <LazyImage
           src={previewUrl}
           alt="Current image"
           className="max-h-40 rounded-lg border border-border"
@@ -515,8 +513,7 @@ function LibraryModal({ onSelect, onClose }) {
                     not on this machine
                   </span>
                 ) : (
-                  <img
-                    loading="lazy"
+                  <LazyImage
                     src={getCoverUrl(image.thumb_key || image.storage_key)}
                     alt=""
                     className="h-full w-full object-cover"

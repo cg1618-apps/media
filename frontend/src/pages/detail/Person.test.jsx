@@ -201,7 +201,7 @@ describe("Person detail page", () => {
       );
       expect(screen.getByAltText("Edogawa Conan")).toHaveAttribute(
         "src",
-        "/api/covers/character-identity/conan.webp",
+        "/api/covers/character-identity/conan.webp?size=thumb",
       );
       expect(screen.getByText("Main")).toBeInTheDocument();
       expect(screen.getByText("(child)")).toBeInTheDocument();

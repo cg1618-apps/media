@@ -79,6 +79,16 @@ class Viewer:
     # When the active mode stops applying and the session returns to the
     # account's default. None when the session is already in the default.
     mode_expires_at: Optional[datetime] = None
+    # ------------------------------------------------------------------
+    # The hiding state, PRECOMPUTED. None means "not precomputed - ask the
+    # database", which is every viewer resolve_viewer returns. Only
+    # cover_viewer.get_cover_viewer fills these in, so that the hundred cover
+    # requests one library page fires pay for them once rather than each.
+    # enforcement.hidden_label_ids and shared_visibility._hiding read them
+    # when present; nothing else may.
+    # ------------------------------------------------------------------
+    hidden_labels: Optional[tuple[UUID, ...]] = None
+    hidden_gated: Optional[frozenset[str]] = None
 
     def has(self, permission: str) -> bool:
         """

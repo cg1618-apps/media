@@ -1,6 +1,6 @@
 // Frontend: statistics page file for StatsFavoriteGrids.
 import { Link } from "react-router-dom";
-import { FALLBACK_SVG, focusStyle } from "../../lib/covers";
+import { FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import {
   favoriteCover,
   favoriteName,
@@ -11,6 +11,7 @@ import {
 import { visibleFavoriteGrids } from "../../config/favoriteGrids";
 import { useAuth } from "../../contexts/AuthContext";
 import { RatingStamp, Slip } from "../../components/ui/primitives";
+import LazyImage from "../../components/ui/LazyImage";
 
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
@@ -48,9 +49,8 @@ function FavoriteGrid({ grid, rows, covers }) {
                 className="group relative overflow-hidden border border-border hover:border-text transition-colors"
               >
                 <div className="aspect-[3/4] bg-surface-2">
-                  <img
-                    loading="lazy"
-                    src={cover.url}
+                  <LazyImage
+                    src={thumbUrl(cover.url)}
                     alt={name}
                     className="w-full h-full object-cover"
                     style={focusStyle(cover.focus)}

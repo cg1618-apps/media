@@ -8,8 +8,9 @@ import { Link } from "react-router-dom";
 
 import { ADMIN_TABS } from "../../config/adminTabs";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
-import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { Chip, Eyebrow } from "../ui/primitives";
+import LazyImage from "../ui/LazyImage";
 
 const TYPE_LABELS = {
   anime: "Anime",
@@ -274,10 +275,10 @@ function StepRow({ item, index, roomy }) {
         {index}
       </span>
 
-      <img
-        src={getCoverUrl(item.cover_image_file)}
+      <LazyImage
+        src={thumbUrl(getCoverUrl(item.cover_image_file))}
         alt=""
-        loading="lazy"
+
         onError={(e) => {
           e.currentTarget.src = FALLBACK_SVG;
         }}

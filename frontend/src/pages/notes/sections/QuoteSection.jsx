@@ -28,6 +28,7 @@ import {
   tagCls,
   useEntryCap,
 } from "./ui";
+import LazyImage from "../../../components/ui/LazyImage";
 
 export default function QuoteSection({
   label,
@@ -195,8 +196,7 @@ export default function QuoteSection({
                     ))}
                   </div>
                   {imageUrl && (
-                    <img
-                      loading="lazy"
+                    <LazyImage
                       src={imageUrl}
                       alt=""
                       className="mt-1 max-h-40 border border-border"

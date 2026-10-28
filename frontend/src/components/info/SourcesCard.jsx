@@ -6,6 +6,7 @@
 // colours appear - Other and Restricted rows, being free text, have none and
 // keep an empty slot so every name in a section lines up.
 import { Slip } from "../ui/primitives";
+import LazyImage from "../ui/LazyImage";
 import { FALLBACK_SVG } from "../../lib/covers";
 import { sourceIconUrl } from "../../lib/sourceIcons";
 
@@ -35,13 +36,13 @@ function SourceIcon({ src, cover = false }) {
   if (!src) return <span className="w-4 h-4 shrink-0" aria-hidden="true" />;
   const fit = cover ? "object-cover" : "bg-white object-contain";
   return (
-    <img
+    <LazyImage
       src={src}
       alt=""
       aria-hidden="true"
       data-testid="source-icon"
       className={`w-4 h-4 shrink-0 rounded-sm ${fit}`}
-      loading="lazy"
+
     />
   );
 }

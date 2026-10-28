@@ -7,6 +7,7 @@
 // remark-gfm adds autolinked bare URLs, tables, strikethrough and task lists.
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import LazyImage from "../ui/LazyImage";
 
 const REMARK_PLUGINS = [remarkGfm];
 
@@ -19,7 +20,12 @@ function ExternalLink({ node: _node, children, ...props }) {
   );
 }
 
-const COMPONENTS = { a: ExternalLink };
+// An image in a body is drawn like every other image on the site.
+function MarkdownImage({ node: _node, ...props }) {
+  return <LazyImage {...props} />;
+}
+
+const COMPONENTS = { a: ExternalLink, img: MarkdownImage };
 
 // Descendant styling in tokens only - there is no typography plugin, and
 // theme-tokens.test.js refuses hard-coded greys.

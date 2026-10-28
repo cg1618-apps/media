@@ -35,6 +35,7 @@ import {
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
@@ -142,8 +143,7 @@ export default function Character() {
               className="relative flex-1 min-w-0 bg-surface-2 overflow-hidden"
               style={{ aspectRatio: "2/3" }}
             >
-              <img
-                loading="lazy"
+              <LazyImage
                 src={photoUrl}
                 alt={`${name} photo`}
                 className="w-full h-full object-cover"
