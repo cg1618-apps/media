@@ -276,7 +276,7 @@ GAME_IS_MAIN: tuple[str, ...] = ("Main", "Remake", "Remaster")
 # How deep a finish went. Deliberately a ladder of content depth only: whether
 # every ending was seen, every achievement earned and every collectible found
 # (games.all_endings / all_achievements / all_collected, which carry
-# GAME_COMPLETION_FLAGS below) and how many achievements were earned
+# GAME_COMPLETION_FLAGS and GAME_ACHIEVEMENT_FLAGS below) and how many achievements were earned
 # (games.achievements_*) are separate axes, because they move independently of
 # this one. Speedrun and glitch categories are out of scope.
 COMPLETION_LEVELS: tuple[str, ...] = (
@@ -286,15 +286,23 @@ COMPLETION_LEVELS: tuple[str, ...] = (
     "Completionist",
 )
 
-# The three completion axes - games.all_endings / all_achievements /
-# all_collected. NULL is the fourth state and stays out of the vocabulary: it
-# means "not recorded yet", which is what an unanswered question looks like.
-# "Inapplicable" is the answer itself - the game ships no endings, publishes no
-# achievements, hides no collectibles - and is why these are not booleans.
+# The completion axes - games.all_endings / all_collected, h_game.all_endings
+# / all_cg. NULL is the fourth state and stays out of the vocabulary: it means
+# "not recorded yet", which is what an unanswered question looks like.
+# "Inapplicable" is the answer itself - the game ships no endings, hides no
+# collectibles - and is why these are not booleans.
 #
 # games.steam_progress_sync is NOT one of these. It reads as a boolean lock on
 # Steam writes (autofill.py tests it with `is False`) and keeps its own shape.
 GAME_COMPLETION_FLAGS: tuple[str, ...] = ("Yes", "No", "Inapplicable")
+
+# games.all_achievements, which answers one question more than the axes above:
+# whether the hidden achievements were earned too. "Fully" is every
+# achievement including the hidden ones, "Yes" every one except them. "No",
+# "Inapplicable" (the game publishes no achievements) and NULL ("not recorded
+# yet") mean what they mean on GAME_COMPLETION_FLAGS. h_game has no
+# all_achievements column.
+GAME_ACHIEVEMENT_FLAGS: tuple[str, ...] = ("Fully", "Yes", "No", "Inapplicable")
 
 # A lifecycle ladder, ordered from "does not exist yet" to "over". "Released"
 # is out and static; "Ongoing" is out and still receiving content or running
@@ -318,17 +326,20 @@ GAME_STOREFRONTS: tuple[str, ...] = (
     "Xbox Store",
     "GOG",
     "Epic Games Store",
-    "Physical",
+    "Physical Store",
     "Other",
 )
+# Whether I have the game, not how I got it: a copy claimed for nothing is
+# Owned, and "Free" is its acquisition (GAME_ACQUISITION_KINDS).
 GAME_OWNERSHIP_KINDS: tuple[str, ...] = (
     "Owned",
     "Wishlist",
     "Subscription",
-    "Free",
     "Not Owned",
 )
-GAME_COPY_FORMATS: tuple[str, ...] = ("Digital", "Physical")
+# "Key Card" is a boxed copy that holds only a download code - physical in
+# the hand, digital in what it delivers, so it is neither of the other two.
+GAME_COPY_FORMATS: tuple[str, ...] = ("Digital", "Physical", "Key Card")
 GAME_ACQUISITION_KINDS: tuple[str, ...] = (
     "Bought",
     "Gifted",

@@ -638,8 +638,9 @@ Replace runs both sources too** (`replace_select = _linked(Game,
 Game.steam_appid, Game.steam_link, Game.igdb_id, Game.igdb_link)`,
 `in_replace_all=True`): IGDB first and still fill-only — nothing in an IGDB
 record drifts, so Replace keeps what is set, as the MAL Replace keeps
-everything but its scores — then Steam, whose current prices and Metacritic
-score are what Replace overwrites, then the HowLongToBeat search, retried
+everything but its scores — then Steam, whose Metacritic score and two
+progress columns are what Replace overwrites (its list prices are
+fill-only), then the HowLongToBeat search, retried
 here for a game whose last search missed - except from the save write hook,
 which runs the spec's `save_replace` and skips a remembered miss. IGDB runs because it can supply the appid
 Steam keys off, so one Replace (or one press of the detail page's Autofill

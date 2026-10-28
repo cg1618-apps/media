@@ -117,11 +117,11 @@ def derive_game_ownership(entry) -> Optional[str]:
     """
     One word for "do I have this", derived rather than stored.
 
-    Owned wins over everything, then Subscription, then Free, then Wishlist.
-    Nothing to keep in sync: the copy rows are the only truth.
+    Owned wins over everything, then Subscription, then Wishlist, then Not
+    Owned. Nothing to keep in sync: the copy rows are the only truth.
     """
     kinds = {c.ownership for c in (entry.copies or []) if c.ownership}
-    for kind in ("Owned", "Subscription", "Free", "Wishlist", "Not Owned"):
+    for kind in ("Owned", "Subscription", "Wishlist", "Not Owned"):
         if kind in kinds:
             return kind
     return None

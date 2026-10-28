@@ -57,7 +57,8 @@ class GameBase(BaseModel):
 
     playing_status: str = "Might Play"
     completion_level: Optional[str] = None
-    # GAME_COMPLETION_FLAGS; None is the unrecorded fourth state.
+    # all_endings / all_collected carry GAME_COMPLETION_FLAGS, all_achievements
+    # GAME_ACHIEVEMENT_FLAGS; None is the unrecorded state.
     all_endings: Optional[str] = None
     all_achievements: Optional[str] = None
     all_collected: Optional[str] = None
@@ -77,9 +78,6 @@ class GameBase(BaseModel):
     price_original_us: Optional[Decimal] = None
     price_original_jp: Optional[Decimal] = None
     price_original_tw: Optional[Decimal] = None
-    price_current_us: Optional[Decimal] = None
-    price_current_jp: Optional[Decimal] = None
-    price_current_tw: Optional[Decimal] = None
 
     # Critics out of 100, users out of 10 - see the model for why they are two
     # columns rather than one.

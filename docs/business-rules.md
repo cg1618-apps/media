@@ -406,7 +406,7 @@ other and none derived from `playing_status`:
 | --- | --- | --- |
 | Depth of content | `completion_level` (`Main Story` → `Main + Extras` → `Post-game` → `Completionist`) | A ladder of how much of the game was played. Independent of `playing_status`: `Active Playing` **plus** `Main Story` is the ordinary state of having rolled credits and still playing for achievements. |
 | Endings | `all_endings` (GAME_COMPLETION_FLAGS) | Orthogonal to the ladder: every ending can be seen on a main-story-only run, and missed on a Completionist one. `Inapplicable` for a game with no endings to see. |
-| Achievements, judged | `all_achievements` (GAME_COMPLETION_FLAGS) | Deliberately not derived from the counts below. The counts are frequently unknown - a row entered before the numbers were looked up, which is `NULL`, or a platform that publishes no achievement list, which is `Inapplicable` - so "did I get them all" is answered directly. |
+| Achievements, judged | `all_achievements` (GAME_ACHIEVEMENT_FLAGS: `Fully` → `Yes` → `No`, or `Inapplicable`) | Deliberately not derived from the counts below. The counts are frequently unknown - a row entered before the numbers were looked up, which is `NULL`, or a platform that publishes no achievement list, which is `Inapplicable` - so "did I get them all" is answered directly. `Fully` is every achievement including the hidden ones, `Yes` every one except them. |
 | Collectibles | `all_collected` (GAME_COMPLETION_FLAGS) | Every in-game collectible gathered. A Completionist run can still miss one, and a game with nothing to collect is `Inapplicable`. |
 | Achievements, counted | `achievements_earned` / `achievements_total` | A number the platform keeps, not a judgement about content. |
 
@@ -440,8 +440,10 @@ the other eight types:
 A game has no `ownership` column. `derive_game_ownership(entry)`
 (`app/services/domain/game_copies.py`) reads the entry's `game_copy` rows and
 returns the first kind any of them carries, in the fixed precedence
-**Owned → Subscription → Free → Wishlist → Not Owned**, or `None` when there
+**Owned → Subscription → Wishlist → Not Owned**, or `None` when there
 are no copies. Nothing to keep in sync: the copy rows are the only truth.
+`Free` is not an ownership: a copy claimed for nothing is `Owned`, and how it
+was got is its `acquisition` (`Free`).
 
 The list filter `?ownership=` (registry `extra_filters=_game_ownership`) is
 therefore an `EXISTS` over `game_copy`, not a column comparison — it asks for

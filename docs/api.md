@@ -397,7 +397,7 @@ for a row whose `ownership` equals the value passed. A game with a Wishlist
 copy on one store and an Owned copy on another therefore matches **both**
 `?ownership=Owned` and `?ownership=Wishlist`. The `ownership` field on
 `GameResponse` (the single word `derive_game_ownership` computes, precedence
-Owned → Subscription → Free → Wishlist → Not Owned) is declared but **not
+Owned → Subscription → Wishlist → Not Owned) is declared but **not
 populated by any read path yet**, so it comes back `null`.
 
 `steam_appid` / `steam_link` are reserved columns for the deferred Steam
@@ -1346,6 +1346,9 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `anime_airing_type`, `cartoon_airing_type`, `franchise_type`,
 `franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `game_is_main`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
+`playing_status`, `game_type`, `completion_level`, `game_completion_flag`,
+`game_achievement_flag`, `game_release_status`, `game_storefront`,
+`game_ownership`, `game_copy_format`, `game_acquisition`,
 `manga_serialization_status`, `novel_serialization_status`, `day_of_week`,
 `music_status`, `music_type_status`, `watch_order_importance`, `h_comic_region`,
 `h_comic_originality`, `h_comic_animation_status`, `h_comic_usefulness`,
@@ -1407,10 +1410,10 @@ only into an empty column), `overwrite` (rewritten every run), `conditional`
 (fill-only behind a further gate), `if-absent` (a credit / tag / source row
 added only when none exists), `if-empty` (an image downloaded only when there
 is no file), `never` (mapped but deliberately not stored). Only `overwrite`
-can change something already there, and only nine fields carry it: the three
-ratings `mal_rating`, `mal_rank` and `imdb_rating`; the game `metacritic_score`;
-the three current prices `price_current_us`, `price_current_jp`,
-`price_current_tw`; and the two personal-progress columns `hours_played` and
+can change something already there, and only ten fields carry it: the ratings
+and ranks `mal_rating`, `mal_rank`, `imdb_rating`, `imdb_series_rating`,
+`anilist_rating`, `anilist_rank` and `anilist_popularity_rank`; the game
+`metacritic_score`; and the two personal-progress columns `hours_played` and
 `achievements_earned` (the latter two carry extra guards on top — see
 [external-apis.md](external-apis.md#steam)).
 
@@ -2241,7 +2244,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/replace/manga/{entry_id}`             | Replace metadata for a single manga entry by UUID. Returns JSON.                     |
 | `POST` | `/replace/novel`                        | Replace metadata for all novels that have a MAL ID. Streams SSE progress.            |
 | `POST` | `/replace/novel/{entry_id}`             | Replace metadata for a single novel entry by UUID. Returns JSON.                     |
-| `POST` | `/replace/game`                         | Replace for every game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam (overwrites the current prices and the Metacritic score). Stops cleanly when the Steam storefront budget is spent. Streams SSE progress. Part of Replace All. |
+| `POST` | `/replace/game`                         | Replace for every game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam (overwrites the Metacritic score and the two progress columns; the list prices are fill-only). Stops cleanly when the Steam storefront budget is spent. Streams SSE progress. Part of Replace All. |
 | `POST` | `/replace/game/{entry_id}`              | The same for one game — the detail page's Autofill button — then `run_sync_game`. Returns JSON. |
 | `POST` | `/replace/comic/{entry_id}`             | Runs the Replace write hook for a single comic entry. Fetches nothing — comics are manual-entry, so there is no external record to reconcile against; it exists only so the write is logged like every other type's. Returns JSON. |
 | `POST` | `/replace/h-comic`                      | Replace for every h-comic with a `mal_id`, `mal_link` or `ehentai_link`: the same Tenrai then E-Hentai fields as Fill, still fill-only, so it completes what is blank and overwrites nothing. Streams SSE progress. Part of Replace All. |

@@ -328,9 +328,6 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         {num("price_original_tw", "MSRP (TW)")}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {num("price_current_us", "Current Price (US)")}
-        {num("price_current_jp", "Current Price (JP)")}
-        {num("price_current_tw", "Current Price (TW)")}
       </div>
 
       {/* Game's purchase records - the same game_copy rows, gated on

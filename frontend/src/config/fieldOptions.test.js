@@ -96,6 +96,21 @@ describe("admin-form vocabularies served from /api/constants", () => {
     expect(CONSTANTS_FALLBACK.h_game_platform).toEqual(["Steam", "DLsite", "Nintendo", "Other"]);
   });
 
+  it("carries the game copy and completion vocabularies", () => {
+    expect(CONSTANTS_FALLBACK.game_storefront).toContain("Physical Store");
+    expect(CONSTANTS_FALLBACK.game_storefront).not.toContain("Physical");
+    expect(CONSTANTS_FALLBACK.game_ownership).not.toContain("Free");
+    expect(CONSTANTS_FALLBACK.game_acquisition).toContain("Free");
+    expect(CONSTANTS_FALLBACK.game_copy_format).toEqual(["Digital", "Physical", "Key Card"]);
+    expect(CONSTANTS_FALLBACK.game_completion_flag).toEqual(["Yes", "No", "Inapplicable"]);
+    expect(CONSTANTS_FALLBACK.game_achievement_flag).toEqual([
+      "Fully",
+      "Yes",
+      "No",
+      "Inapplicable",
+    ]);
+  });
+
   it("carries the game-only is_main vocabulary beside the shared one", () => {
     expect(CONSTANTS_FALLBACK.game_is_main).toEqual(["Main", "Remake", "Remaster"]);
     expect(CONSTANTS_FALLBACK.is_main).toEqual(["本傳", "外傳", "前傳", "後傳", "總集篇"]);

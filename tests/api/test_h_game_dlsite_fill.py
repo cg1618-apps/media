@@ -60,7 +60,6 @@ STEAM = {
     "achievements_total": 42,
     "is_free": False,
     "price_original_us": Decimal("59.99"),
-    "price_current_us": Decimal("35.99"),
 }
 
 

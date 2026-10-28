@@ -171,10 +171,19 @@ describe("GameAddTab layout", () => {
       "MSRP (US)",
       "MSRP (JP)",
       "MSRP (TW)",
-      "Current Price (US)",
-      "Current Price (JP)",
-      "Current Price (TW)",
     ]);
+  });
+
+  it("offers All Achievements its own vocabulary, Fully first", () => {
+    renderTab();
+    const values = [...screen.getByLabelText("All Achievements").options].map(
+      (o) => o.value,
+    );
+    expect(values).toEqual(["", "Fully", "Yes", "No", "Inapplicable"]);
+    const endings = [...screen.getByLabelText("All Endings").options].map(
+      (o) => o.value,
+    );
+    expect(endings).toEqual(["", "Yes", "No", "Inapplicable"]);
   });
 
   it("ends My Tracker with the plan flags", () => {
