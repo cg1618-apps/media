@@ -8,8 +8,9 @@
 // This module is also the sanitization layer. The backend validates only the
 // shape of what it stores — it deliberately does not mirror the ~280 field
 // names, since that would guarantee drift. Instead, stored keys that no longer
-// exist in a factory are dropped here, and values are coerced to match the
-// factory value's type before they ever reach form state.
+// exist in a factory are dropped here, values are coerced to match the
+// factory value's type, and a select's value its options no longer offer is
+// dropped, before any of them reach form state.
 
 import { FORM_FACTORIES } from "../config/formFactories";
 import { BUILTIN_AUTOFILL, getFieldMap } from "../config/formFields";
@@ -37,6 +38,19 @@ export function coerceToShape(builtIn, value) {
 }
 
 /**
+ * Whether a select field's options include `value` ("" is always allowed -
+ * it is unset). Options are plain strings or { value, label }. Any field
+ * that is not a select with a fixed option list takes anything.
+ */
+function offersValue(meta, value) {
+  if (meta?.control !== "select" || !Array.isArray(meta.options)) return true;
+  if (value === "") return true;
+  return meta.options.some(
+    (o) => String(o && typeof o === "object" ? o.value : o) === value,
+  );
+}
+
+/**
  * Builds a blank form for `type`, with any configured overrides applied.
  * `config` is the keyed map returned by GET /api/form-defaults/ (or {}).
  */
@@ -54,7 +68,11 @@ export function resolveDefaults(type, config) {
     // Saved before the field stopped taking a default: /defaults no longer
     // shows it, so it could never be cleared there.
     if (fieldMap[key]?.defaultable === false) continue;
-    resolved[key] = coerceToShape(base[key], value);
+    const coerced = coerceToShape(base[key], value);
+    // Saved before its vocabulary changed: the select cannot show it, so it
+    // would read as blank and still be posted - and refused.
+    if (!offersValue(fieldMap[key], coerced)) continue;
+    resolved[key] = coerced;
   }
 
   // The restricted source rows are the prefill pick's, never the `sources`
