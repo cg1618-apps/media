@@ -62,7 +62,8 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   cover-image maintenance endpoints are plain JSON calls with a busy state.
 - **Calculate & Fix.** Calculate All (`POST /api/data-control/calculate/all`),
   Sync Cast, CN Display Names, Find Duplicates, With Remarks, Check & Download
-  Covers and Remove Uncast Characters. **Sync
+  Covers, Remove Uncast Characters, Free Games With a List Price and Bought
+  Copies Without a List Price. **Sync
   Cast** (`POST /api/data-control/calculate/sync-cast`,
   `endpoints.dataControl.syncCast`) runs Calculate All's cast step on its own -
   the fill-only sync between cast rows and the characters and identities
@@ -86,6 +87,25 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
   Selected posts the ticked ids to
   `endpoints.dataControl.removeUncastCharacters`, toasts the server's
   `message` and reloads the log. With nothing uncast, the modal just says so.
+  **Free Games With a List Price** fetches
+  `endpoints.dataControl.checkFreeGamesWithListPrice` and opens a modal
+  listing every game and h-game the signed-in account holds a Free copy of
+  whose list price is not 0 in all three regions. Each row starts ticked,
+  links to the entry in a new tab and shows the Free copies' storefronts and
+  the US / JP / TW list price (`—` for a blank region). Set Selected to 0
+  posts the ticked ids to `endpoints.dataControl.zeroFreeGamesListPrice`,
+  toasts the server's `message` and reloads the log. **Bought Copies Without
+  a List Price** fetches
+  `endpoints.dataControl.checkBoughtCopiesWithoutListPrice` and opens a
+  list-only modal: one row per bought copy whose game has no list price in
+  any region, linked to the entry, with its storefront, format and price
+  paid. Every copy the game spend block on `/statistics` counts under Should
+  spend as having no list price is on it, so filling those list prices in is
+  what clears that note; it also lists h-game copies and bought copies with
+  no price paid, which that block does not count.
+  Both modals share `ListCheckModal`, run their fetch through `runCheck`,
+  and leave out an h-game row for a session that may not see the type
+  (`visibleByType`), so a hidden row is never ticked or posted.
 - **Announcements.** Create / edit / delete the dashboard board
   (`/api/announcements/`; title is the identifier — see api.md).
 - **Current season.** Reads and writes `/api/system/config/current_season`
@@ -523,7 +543,7 @@ that never offers the row being edited (`ck_games_not_self_parent`), release
 status, release date, current patch, the three HLTB tiers and the platform,
 mode and combat vocabularies; Genre, Theme and Label; Production (Developer
 is a **studio** row, Publisher a **publisher** row; director and composer are
-people scoped to `game`); the six **Prices**; **Copies**; the IGDB and Steam
+people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; the IGDB and Steam
 ids and links with the sources; cover and remark. Submit needs a CN or EN name, `POST /api/game/` then
 `saveCredits`; **games are never enriched on Add** — the toast is a plain "Game
 appended successfully."

@@ -42,6 +42,11 @@ from app.services.domain.alone_groups import (
     find_alone_groups,
     mark_alone_group_reviewed,
 )
+from app.services.domain.game_price_checks import (
+    find_bought_copies_without_list_price,
+    find_free_games_with_list_price,
+    zero_free_games_list_price,
+)
 from app.services.domain.music_review import find_flagged_music
 from app.services.domain.uncast_characters import (
     find_uncast_characters,
@@ -65,6 +70,10 @@ class DownloadCoversBody(BaseModel):
 
 
 class RemoveUncastCharactersBody(BaseModel):
+    system_ids: list[UUID]
+
+
+class ZeroFreeGamesListPriceBody(BaseModel):
     system_ids: list[UUID]
 
 
@@ -429,6 +438,57 @@ def trigger_remove_uncast_characters(
         rows_deleted=result["removed_count"],
     )
     return JSONResponse(content=result)
+
+
+@router.get("/check/free-games-with-list-price")
+def check_free_games_with_list_price(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_pipelines),
+):
+    # Read-only and logs nothing. The CALLER's Free copies: a copy is a
+    # purchase record and belongs to its owner (game_price_checks.py).
+    return JSONResponse(
+        content=find_free_games_with_list_price(db, viewer.user_id)
+    )
+
+
+@router.post("/calculate/zero-free-games-list-price")
+def trigger_zero_free_games_list_price(
+    body: ZeroFreeGamesListPriceBody,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_pipelines),
+):
+    """
+    Set the three list prices to 0 on the ticked games, minus any that no
+    longer qualify. An explicit list, re-derived on the server, for the
+    reason remove-uncast-characters takes one.
+    """
+    try:
+        result = zero_free_games_list_price(db, viewer.user_id, body.system_ids)
+    except Exception as exc:
+        db.rollback()
+        log_data_control(
+            db, "Calculate", "Zero Free Games' List Price", "Manual", "Failed",
+            error_message=str(exc),
+        )
+        raise
+    log_data_control(
+        db, "Calculate", "Zero Free Games' List Price", "Manual", "Success",
+        rows_updated=result["updated_count"],
+    )
+    return JSONResponse(content=result)
+
+
+@router.get("/check/bought-copies-without-list-price")
+def check_bought_copies_without_list_price(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_pipelines),
+):
+    # Read-only and logs nothing; the caller's own Bought copies, the set the
+    # game spend page counts as having no list price.
+    return JSONResponse(
+        content=find_bought_copies_without_list_price(db, viewer.user_id)
+    )
 
 
 @router.get("/check/duplicates")

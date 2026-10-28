@@ -388,9 +388,6 @@ export function gameFieldsPayload(f) {
     price_original_us: num(f.price_original_us),
     price_original_jp: num(f.price_original_jp),
     price_original_tw: num(f.price_original_tw),
-    price_current_us: num(f.price_current_us),
-    price_current_jp: num(f.price_current_jp),
-    price_current_tw: num(f.price_current_tw),
     // Two scales: the metascore is a whole number out of 100, the user score
     // a decimal out of 10.
     metacritic_score: int(f.metacritic_score),
@@ -805,9 +802,6 @@ export function hGameFieldsPayload(f) {
     price_original_us: num(f.price_original_us),
     price_original_jp: num(f.price_original_jp),
     price_original_tw: num(f.price_original_tw),
-    price_current_us: num(f.price_current_us),
-    price_current_jp: num(f.price_current_jp),
-    price_current_tw: num(f.price_current_tw),
     language_availability: f.language_availability || null,
     dialogue_audio: choiceList(f.dialogue_audio, H_GAME_AUDIO_AVAILABILITY),
     sound_effect: choiceList(f.sound_effect, H_GAME_AUDIO_AVAILABILITY),

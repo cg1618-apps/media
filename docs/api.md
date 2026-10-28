@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-23
+Last verified: 2026-10-28
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -397,7 +397,7 @@ for a row whose `ownership` equals the value passed. A game with a Wishlist
 copy on one store and an Owned copy on another therefore matches **both**
 `?ownership=Owned` and `?ownership=Wishlist`. The `ownership` field on
 `GameResponse` (the single word `derive_game_ownership` computes, precedence
-Owned → Subscription → Free → Wishlist → Not Owned) is declared but **not
+Owned → Subscription → Wishlist → Not Owned) is declared but **not
 populated by any read path yet**, so it comes back `null`.
 
 `steam_appid` / `steam_link` are reserved columns for the deferred Steam
@@ -1346,6 +1346,9 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `anime_airing_type`, `cartoon_airing_type`, `franchise_type`,
 `franchise_expectation`, `my_rating`, `gender`, `character_role`, `is_main`, `game_is_main`, `movie_type`, `tv_region`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
+`playing_status`, `game_type`, `completion_level`, `game_completion_flag`,
+`game_achievement_flag`, `game_release_status`, `game_storefront`,
+`game_ownership`, `game_copy_format`, `game_acquisition`,
 `manga_serialization_status`, `novel_serialization_status`, `day_of_week`,
 `music_status`, `music_type_status`, `watch_order_importance`, `h_comic_region`,
 `h_comic_originality`, `h_comic_animation_status`, `h_comic_usefulness`,
@@ -1407,10 +1410,10 @@ only into an empty column), `overwrite` (rewritten every run), `conditional`
 (fill-only behind a further gate), `if-absent` (a credit / tag / source row
 added only when none exists), `if-empty` (an image downloaded only when there
 is no file), `never` (mapped but deliberately not stored). Only `overwrite`
-can change something already there, and only nine fields carry it: the three
-ratings `mal_rating`, `mal_rank` and `imdb_rating`; the game `metacritic_score`;
-the three current prices `price_current_us`, `price_current_jp`,
-`price_current_tw`; and the two personal-progress columns `hours_played` and
+can change something already there, and only ten fields carry it: the ratings
+and ranks `mal_rating`, `mal_rank`, `imdb_rating`, `imdb_series_rating`,
+`anilist_rating`, `anilist_rank` and `anilist_popularity_rank`; the game
+`metacritic_score`; and the two personal-progress columns `hours_played` and
 `achievements_earned` (the latter two carry extra guards on top — see
 [external-apis.md](external-apis.md#steam)).
 
@@ -2241,7 +2244,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST` | `/replace/manga/{entry_id}`             | Replace metadata for a single manga entry by UUID. Returns JSON.                     |
 | `POST` | `/replace/novel`                        | Replace metadata for all novels that have a MAL ID. Streams SSE progress.            |
 | `POST` | `/replace/novel/{entry_id}`             | Replace metadata for a single novel entry by UUID. Returns JSON.                     |
-| `POST` | `/replace/game`                         | Replace for every game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam (overwrites the current prices and the Metacritic score). Stops cleanly when the Steam storefront budget is spent. Streams SSE progress. Part of Replace All. |
+| `POST` | `/replace/game`                         | Replace for every game with a `steam_appid`, `steam_link`, `igdb_id` or `igdb_link`: IGDB (fill-only), then Steam (overwrites the Metacritic score and the two progress columns; the list prices are fill-only). Stops cleanly when the Steam storefront budget is spent. Streams SSE progress. Part of Replace All. |
 | `POST` | `/replace/game/{entry_id}`              | The same for one game — the detail page's Autofill button — then `run_sync_game`. Returns JSON. |
 | `POST` | `/replace/comic/{entry_id}`             | Runs the Replace write hook for a single comic entry. Fetches nothing — comics are manual-entry, so there is no external record to reconcile against; it exists only so the write is logged like every other type's. Returns JSON. |
 | `POST` | `/replace/h-comic`                      | Replace for every h-comic with a `mal_id`, `mal_link` or `ehentai_link`: the same Tenrai then E-Hentai fields as Fill, still fill-only, so it completes what is blank and overwrites nothing. Streams SSE progress. Part of Replace All. |
@@ -2281,6 +2284,9 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `DELETE` | `/calculate/delete-orphaned-covers`  | Delete orphaned cover image files from storage. Returns `{deleted_count}`.                  |
 | `GET`    | `/check/uncast-characters`           | Every character with no casting, sorted by display name: `{status, count, characters: [{system_id, public_id, name, identity_count, has_photo}]}`. Read-only, logs nothing. |
 | `POST`   | `/calculate/remove-uncast-characters` | Body `{system_ids: uuid[]}` (required). Deletes each listed character that is **still** uncast, with its identities, image attachments and own downloaded portraits; a character cast since the list was drawn is skipped. Returns `{status, message, removed_count, skipped_count}`; logged `Calculate` / `Remove Uncast Characters`. See [credits-and-tags.md](systems/credits-and-tags.md#mal-a-characters-link-and-a-cast-import). |
+| `GET`    | `/check/free-games-with-list-price`  | Every game and h-game the **caller** holds a copy of with `acquisition = 'Free'` whose list price (`price_original_us` / `_jp` / `_tw`) is not exactly 0 in all three regions — NULL counts as not 0. By name: `{status, count, entries: [{system_id, public_id, media_type, name, price_original_us, price_original_jp, price_original_tw, storefronts}]}`, prices as decimal strings or `null`, `storefronts` the caller's Free copies' storefronts. Read-only, logs nothing. See [business-rules.md](business-rules.md#a-list-price-and-the-copies-held). |
+| `POST`   | `/calculate/zero-free-games-list-price` | Body `{system_ids: uuid[]}` (required). Sets all three `price_original_*` to 0 on each listed game or h-game that **still** qualifies for the check above; one that no longer does is skipped. Returns `{status, message, updated_count, skipped_count}`; logged `Calculate` / `Zero Free Games' List Price`. |
+| `GET`    | `/check/bought-copies-without-list-price` | Every copy the **caller** holds with `acquisition = 'Bought'` whose game or h-game has no list price in any region (all three `price_original_*` NULL or 0), one row per copy, by name: `{status, count, copies: [{copy_id, system_id, public_id, media_type, name, storefront, copy_format, price_paid, price_currency}]}`, `price_paid` a decimal string or `null`. Read-only, logs nothing. |
 | `GET`    | `/check/duplicates`                  | Find and report all duplicate entries across all tables. Returns grouped clusters.          |
 | `GET`    | `/check/alone-groups`                | Every franchise and series holding exactly one media entry (any of the twelve types), less those whose lone entry was marked reviewed: `{franchise: [...], series: [...]}`, each `{system_id, public_id, display_name, entry: {system_id, media_type, public_id, display_name}}`. |
 | `POST`   | `/check/alone-groups/{kind}/{system_id}/reviewed` | `kind` is `franchise` or `series` (422 otherwise). Records the group's current lone entry in `alone_reviewed_media_id`, so the group is listed again once that entry is replaced. Returns `{system_id, alone_reviewed_media_id}`; 404 for an unknown group, 409 when it no longer holds exactly one entry. |

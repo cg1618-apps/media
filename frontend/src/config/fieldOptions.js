@@ -91,19 +91,21 @@ export const GAME_STOREFRONTS = [
   "Xbox Store",
   "GOG",
   "Epic Games Store",
-  "Physical",
+  "Physical Store",
   "Other",
 ];
 
+// Whether I have the game, not how I got it: a copy claimed for nothing is
+// Owned, with "Free" as its acquisition.
 export const GAME_OWNERSHIP_KINDS = [
   "Owned",
   "Wishlist",
   "Subscription",
-  "Free",
   "Not Owned",
 ];
 
-export const GAME_COPY_FORMATS = ["Digital", "Physical"];
+// "Key Card" is a boxed copy holding only a download code.
+export const GAME_COPY_FORMATS = ["Digital", "Physical", "Key Card"];
 
 export const GAME_ACQUISITION_KINDS = [
   "Bought",
@@ -259,14 +261,22 @@ export const PART_NUMS = Array.from({ length: 7 }, (_, i) => String(i + 1));
 // with "" meaning "unset".
 export const TRISTATE = ["true", "false"];
 
-// The three game completion axes - all_endings / all_achievements /
-// all_collected. Unlike TRISTATE these store the value itself, because the
-// column is a vocabulary rather than a boolean. "" is still "unset";
+// The game completion axes - all_endings / all_collected, and h-game's
+// all_endings / all_cg. Unlike TRISTATE these store the value itself, because
+// the column is a vocabulary rather than a boolean. "" is still "unset";
 // "Inapplicable" says the game has none of that thing to find, which is an
 // answer about the game rather than an absence of one.
 // Mirrors GAME_COMPLETION_FLAGS in app/utils/constants.py, served by
 // GET /api/constants as `game_completion_flag`.
 export const GAME_COMPLETION_FLAGS = ["Yes", "No", "Inapplicable"];
+
+// games.all_achievements: the same answers plus "Fully". Fully is every
+// achievement including the hidden ones, Yes every one except them.
+// Mirrors GAME_ACHIEVEMENT_FLAGS, served as `game_achievement_flag`.
+export const GAME_ACHIEVEMENT_FLAGS = ["Fully", "Yes", "No", "Inapplicable"];
+
+// The hint the forms show under All Achievements.
+export const GAME_ACHIEVEMENT_HINT = "Fully: hidden ones too · Yes: all but hidden";
 
 // The h-comic vocabularies (app/utils/constants.py). /api/constants serves
 // them only to a session that can see the gated type, so for anyone else
@@ -429,6 +439,8 @@ export const CONSTANTS_FALLBACK = {
   game_type: GAME_TYPES,
   completion_level: COMPLETION_LEVELS,
   game_release_status: GAME_RELEASE_STATUSES,
+  game_completion_flag: GAME_COMPLETION_FLAGS,
+  game_achievement_flag: GAME_ACHIEVEMENT_FLAGS,
   game_storefront: GAME_STOREFRONTS,
   game_ownership: GAME_OWNERSHIP_KINDS,
   game_copy_format: GAME_COPY_FORMATS,

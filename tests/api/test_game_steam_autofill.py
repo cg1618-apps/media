@@ -20,11 +20,8 @@ MAPPED = {
     "achievements_total": 42,
     "is_free": False,
     "price_original_us": Decimal("59.99"),
-    "price_current_us": Decimal("35.99"),
     "price_original_jp": Decimal("9000.00"),
-    "price_current_jp": Decimal("4500.00"),
     "price_original_tw": Decimal("1790.00"),
-    "price_current_tw": Decimal("899.00"),
 }
 
 
@@ -106,16 +103,6 @@ class TestFillOnlyColumns:
 
 
 class TestOverwrittenColumns:
-    def test_the_current_price_is_rewritten_every_run(self, db_session, patched):
-        """This is what Replace is for: a sale moved the number."""
-        game = make_game(
-            db_session, steam_appid=1245620, price_current_us=Decimal("59.99")
-        )
-
-        autofill_game_from_steam(game, db_session)
-
-        assert game.price_current_us == Decimal("35.99")
-
     def test_the_metacritic_score_is_rewritten(self, db_session, patched):
         game = make_game(db_session, steam_appid=1245620, metacritic_score=70)
 
@@ -169,7 +156,7 @@ class TestProgressGuards:
         autofill_game_from_steam(game, db_session)
 
         assert game.metacritic_score == 96
-        assert game.price_current_us == Decimal("35.99")
+        assert game.price_original_us == Decimal("59.99")
 
     def test_zero_playtime_never_overwrites(self, db_session, monkeypatch, patched):
         """Owned but never launched on Steam. 42 hours were played elsewhere."""

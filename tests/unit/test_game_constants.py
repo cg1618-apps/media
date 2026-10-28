@@ -55,10 +55,9 @@ def test_game_vocabularies():
         "Owned",
         "Wishlist",
         "Subscription",
-        "Free",
         "Not Owned",
     )
-    assert c.GAME_COPY_FORMATS == ("Digital", "Physical")
+    assert c.GAME_COPY_FORMATS == ("Digital", "Physical", "Key Card")
     assert c.GAME_ACQUISITION_KINDS == (
         "Bought",
         "Gifted",
@@ -67,6 +66,21 @@ def test_game_vocabularies():
         "Subscription",
     )
     assert "Steam" in c.GAME_STOREFRONTS
+    assert "Physical Store" in c.GAME_STOREFRONTS
+    assert "Physical" not in c.GAME_STOREFRONTS
+
+
+def test_free_is_an_acquisition_and_not_an_ownership():
+    """A free copy is owned; how it was got is the acquisition's answer."""
+    assert "Free" in c.GAME_ACQUISITION_KINDS
+    assert "Free" not in c.GAME_OWNERSHIP_KINDS
+
+
+def test_achievements_carry_their_own_vocabulary():
+    """Fully counts hidden achievements, Yes every one but those. The other
+    completion axes keep the three-value vocabulary."""
+    assert c.GAME_ACHIEVEMENT_FLAGS == ("Fully", "Yes", "No", "Inapplicable")
+    assert c.GAME_COMPLETION_FLAGS == ("Yes", "No", "Inapplicable")
 
 
 def test_franchise_type_has_game():

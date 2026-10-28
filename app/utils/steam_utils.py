@@ -170,7 +170,8 @@ def map_steam_to_game_data(payloads: Dict[str, Dict[str, Any]]) -> Dict[str, Any
 
     for cc in REGIONS:
         block = (payloads.get(cc) or {}).get("price_overview")
+        # `initial` is the list price. `final` - what a sale has moved it to -
+        # is deliberately not kept: it is stale as soon as the sale ends.
         mapped[f"price_original_{cc}"] = _price(block, "initial", cc)
-        mapped[f"price_current_{cc}"] = _price(block, "final", cc)
 
     return mapped

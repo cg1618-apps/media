@@ -41,12 +41,19 @@ describe("GameCompletionBlock", () => {
     mockAuth.username = "admin";
     render(<GameCompletionBlock game={GAME} isAdmin onChange={() => {}} />);
 
-    for (const label of ["All Endings", "All Achievements", "All Collected"]) {
-      const values = [...screen.getByLabelText(label).options].map(
-        (o) => o.value,
-      );
-      expect(values).toEqual(["", "Yes", "No", "Inapplicable"]);
+    const valuesOf = (label) =>
+      [...screen.getByLabelText(label).options].map((o) => o.value);
+    for (const label of ["All Endings", "All Collected"]) {
+      expect(valuesOf(label)).toEqual(["", "Yes", "No", "Inapplicable"]);
     }
+    // Achievements reads its own vocabulary: Fully counts the hidden ones.
+    expect(valuesOf("All Achievements")).toEqual([
+      "",
+      "Fully",
+      "Yes",
+      "No",
+      "Inapplicable",
+    ]);
   });
 
   it("patches the field that changed, and only that one", async () => {

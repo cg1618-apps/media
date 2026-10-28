@@ -57,6 +57,7 @@ import {
   READING_STATUSES,
   RELEASE_SEASONS,
   SEASON_NUMS,
+  GAME_ACHIEVEMENT_FLAGS,
   GAME_COMPLETION_FLAGS,
   TRISTATE,
   TV_REGIONS,
@@ -847,10 +848,11 @@ export const TYPE_FIELD_META = {
     },
     // Stored, not derived from achievements_earned / achievements_total: a
     // game often publishes no achievement list to count against.
+    // Its own vocabulary: Fully (hidden ones too) before Yes (all but those).
     all_achievements: {
       label: "All Achievements",
       control: "select",
-      options: GAME_COMPLETION_FLAGS,
+      options: GAME_ACHIEVEMENT_FLAGS,
       group: "Status",
     },
     all_collected: {
@@ -896,26 +898,11 @@ export const TYPE_FIELD_META = {
       control: "number",
       group: "Progress",
     },
-    // price_original_* is MSRP; price_current_* is a snapshot Fill overwrites.
-    // Neither is what YOU paid - that is game_copy.price_paid.
+    // price_original_* is the MSRP, Steam's list price before any sale. It is
+    // not what YOU paid - that is game_copy.price_paid.
     price_original_us: { label: "MSRP (US)", control: "number", group: "Release" },
     price_original_jp: { label: "MSRP (JP)", control: "number", group: "Release" },
     price_original_tw: { label: "MSRP (TW)", control: "number", group: "Release" },
-    price_current_us: {
-      label: "Current Price (US)",
-      control: "number",
-      group: "Release",
-    },
-    price_current_jp: {
-      label: "Current Price (JP)",
-      control: "number",
-      group: "Release",
-    },
-    price_current_tw: {
-      label: "Current Price (TW)",
-      control: "number",
-      group: "Release",
-    },
     // The Rating group, which the Add/Modify form draws as its own section
     // under Classification: my S..F verdict plus Metacritic's own two scales -
     // a whole metascore out of 100 and a decimal user score out of 10.
@@ -1287,21 +1274,6 @@ export const TYPE_FIELD_META = {
     price_original_us: { label: "MSRP (US)", control: "number", group: "Release" },
     price_original_jp: { label: "MSRP (JP)", control: "number", group: "Release" },
     price_original_tw: { label: "MSRP (TW)", control: "number", group: "Release" },
-    price_current_us: {
-      label: "Current Price (US)",
-      control: "number",
-      group: "Release",
-    },
-    price_current_jp: {
-      label: "Current Price (JP)",
-      control: "number",
-      group: "Release",
-    },
-    price_current_tw: {
-      label: "Current Price (TW)",
-      control: "number",
-      group: "Release",
-    },
     // The developer is h-game's one credit, a Studio row as on Game.
     studio: {
       label: "Developer",

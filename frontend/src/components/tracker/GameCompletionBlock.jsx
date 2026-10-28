@@ -19,6 +19,7 @@ import { Chip, Eyebrow, Slip } from "../ui/primitives";
 import { SELECT_CLS } from "./MyTrackerCard";
 import {
   COMPLETION_LEVELS,
+  GAME_ACHIEVEMENT_FLAGS,
   GAME_COMPLETION_FLAGS,
   H_COMIC_USEFULNESS,
 } from "../../config/fieldOptions";
@@ -29,7 +30,8 @@ import {
 export const GAME_COMPLETION_AXES = [
   ["completion_level", "Completion Level", COMPLETION_LEVELS],
   ["all_endings", "All Endings", GAME_COMPLETION_FLAGS],
-  ["all_achievements", "All Achievements", GAME_COMPLETION_FLAGS],
+  // Its own vocabulary: Fully (hidden ones too) before Yes (all but those).
+  ["all_achievements", "All Achievements", GAME_ACHIEVEMENT_FLAGS],
   ["all_collected", "All Collected", GAME_COMPLETION_FLAGS],
 ];
 

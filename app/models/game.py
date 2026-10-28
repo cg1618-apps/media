@@ -111,10 +111,12 @@ class Game(Base, NameFallbackMixin):
     # every ending can be seen on a main-story-only run, and a collectible
     # missed on a Completionist one.
     #
-    # Each carries GAME_COMPLETION_FLAGS - "Yes" / "No" / "Inapplicable" - with
-    # NULL as the unrecorded fourth state. A game that ships no endings, or
-    # publishes no achievements, answers "Inapplicable"; that is a claim about
-    # the game, where NULL is only a claim about the row. No CHECK constraint,
+    # all_endings and all_collected carry GAME_COMPLETION_FLAGS - "Yes" / "No"
+    # / "Inapplicable" - and all_achievements GAME_ACHIEVEMENT_FLAGS, the same
+    # three plus "Fully" (hidden achievements too; "Yes" is all but those).
+    # NULL is the unrecorded state on all three. A game that ships no endings,
+    # or publishes no achievements, answers "Inapplicable"; that is a claim
+    # about the game, where NULL is only a claim about the row. No CHECK constraint,
     # matching completion_level and game_type: the vocabulary lives in
     # app/utils/constants.py and reaches the client via /api/constants.
     all_endings = Column(String, nullable=True)
@@ -142,13 +144,11 @@ class Game(Base, NameFallbackMixin):
     hltb_main_extra = Column(Float, nullable=True)
     hltb_completionist = Column(Float, nullable=True)
 
-    # The game's market prices. What *I* paid is per-copy, on game_copy.
+    # The game's list price (MSRP) per region - Steam's `initial`, unmoved by
+    # a sale. What *I* paid is per-copy, on game_copy.
     price_original_us = Column(Numeric(10, 2), nullable=True)
     price_original_jp = Column(Numeric(10, 2), nullable=True)
     price_original_tw = Column(Numeric(10, 2), nullable=True)
-    price_current_us = Column(Numeric(10, 2), nullable=True)
-    price_current_jp = Column(Numeric(10, 2), nullable=True)
-    price_current_tw = Column(Numeric(10, 2), nullable=True)
 
     # Metacritic publishes two separate figures on two separate scales: the
     # critic metascore is an integer out of 100, the user score a float out of

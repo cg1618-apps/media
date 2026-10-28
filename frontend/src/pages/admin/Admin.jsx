@@ -7,7 +7,7 @@ import { backupToast, runBackup } from "../../api/backup";
 import { postEventStream } from "../../api/client";
 import FxRatesEditor from "./FxRatesEditor";
 import { useAuth } from "../../contexts/AuthContext";
-import { canSeeGatedType } from "../../lib/gatedTypes";
+import { canSeeGatedType, visibleByType } from "../../lib/gatedTypes";
 import { entityPath } from "../../lib/entityPath";
 import { nextSeason } from "../../lib/season";
 import RemarksView, {
@@ -628,6 +628,217 @@ function UncastCharactersModal({ result, onRemove, onClose, removing }) {
   );
 }
 
+// The two game list-price checks. Both list the caller's own copies across
+// games and h-games; an h-game row is shown only to a session that may see
+// the type, like every other surface naming a gated type.
+const LIST_PRICE_REGIONS = [
+  ["US", "price_original_us"],
+  ["JP", "price_original_jp"],
+  ["TW", "price_original_tw"],
+];
+
+function listPriceSummary(row) {
+  return LIST_PRICE_REGIONS.map(
+    ([label, column]) => `${label} ${row[column] ?? "—"}`,
+  ).join(" · ");
+}
+
+function GameEntryLink({ row }) {
+  return (
+    <Link
+      to={entityPath(row.media_type, {
+        public_id: row.public_id,
+        display_name: row.name,
+      })}
+      target="_blank"
+      rel="noreferrer"
+      className="truncate hover:text-brand hover:underline"
+    >
+      {row.name}
+    </Link>
+  );
+}
+
+function ListCheckModal({ title, onClose, children, footer }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-black text-text">{title}</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-text-faint hover:text-text-muted transition text-lg"
+          >
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+        <div className="p-6 flex flex-col gap-4 overflow-y-auto">{children}</div>
+        <div className="flex justify-end gap-3 px-6 pb-5 border-t border-border pt-4">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-bold text-text-muted bg-surface-2 hover:bg-surface-3 rounded-lg transition"
+          >
+            Close
+          </button>
+          {footer}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AllClear({ message }) {
+  return (
+    <div className="text-center py-6">
+      <i className="fas fa-check-circle text-4xl text-success block mb-3"></i>
+      <p className="font-bold text-text-muted">{message}</p>
+    </div>
+  );
+}
+
+// Free Games With a List Price: every game held as a Free copy whose list
+// price is not 0 in all three regions, all ticked to start. The server
+// re-checks each ticked one and skips any that no longer qualifies.
+function FreeGamesListPriceModal({ result, onZero, onClose, zeroing }) {
+  const auth = useAuth();
+  const entries = visibleByType(auth, result.entries, (e) => e.media_type);
+  const allIds = entries.map((e) => e.system_id);
+  const [selected, setSelected] = useState(() => new Set(allIds));
+  const allSelected =
+    allIds.length > 0 && allIds.every((id) => selected.has(id));
+
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(allIds));
+  }
+  function toggleOne(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <ListCheckModal
+      title="Free Games With a List Price"
+      onClose={onClose}
+      footer={
+        entries.length > 0 && (
+          <button
+            onClick={() => onZero([...selected])}
+            disabled={zeroing || selected.size === 0}
+            className="px-4 py-2 text-sm font-bold text-on-brand bg-brand hover:opacity-90 rounded-lg transition disabled:opacity-40 flex items-center gap-2"
+          >
+            {zeroing && <i className="fas fa-circle-notch fa-spin"></i>}
+            {zeroing ? "Saving..." : `Set Selected to 0 (${selected.size})`}
+          </button>
+        )
+      }
+    >
+      {entries.length === 0 ? (
+        <AllClear message="Every free game's list price is already 0." />
+      ) : (
+        <>
+          <p className="text-sm text-text-faint">
+            Sets the US, JP and TW list price to 0 on each ticked game. A
+            blank region counts as not 0. Untick any that should keep a price.
+          </p>
+          <div className="bg-surface-2 border border-border rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-bold text-text">
+                {entries.length} free game{entries.length !== 1 ? "s" : ""}{" "}
+                with a list price
+              </p>
+              <button
+                onClick={toggleAll}
+                className="text-xs text-brand hover:underline"
+              >
+                {allSelected ? "Deselect All" : "Select All"}
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto space-y-1.5">
+              {entries.map((e) => (
+                <label
+                  key={e.system_id}
+                  className="flex items-start gap-2 text-xs text-text-muted cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(e.system_id)}
+                    onChange={() => toggleOne(e.system_id)}
+                    aria-label={e.name}
+                    className="accent-brand shrink-0 mt-0.5"
+                  />
+                  <span className="flex flex-col min-w-0">
+                    <GameEntryLink row={e} />
+                    <span className="text-text-faint font-mono">
+                      {e.storefronts.join(", ") || "—"} · {listPriceSummary(e)}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </ListCheckModal>
+  );
+}
+
+// Bought Copies Without a List Price: the copies the game spend page cannot
+// price, each linked to its game so the list price can be filled in. Read
+// only - there is no value to write on the admin's behalf.
+function BoughtWithoutListPriceModal({ result, onClose }) {
+  const auth = useAuth();
+  const copies = visibleByType(auth, result.copies, (c) => c.media_type);
+
+  return (
+    <ListCheckModal title="Bought Copies Without a List Price" onClose={onClose}>
+      {copies.length === 0 ? (
+        <AllClear message="Every bought copy's game has a list price." />
+      ) : (
+        <>
+          <p className="text-sm text-text-faint">
+            Their games have no US, JP or TW list price, so the game spend
+            page cannot say what they should have cost. Open each to fill one
+            in.
+          </p>
+          <div className="bg-surface-2 border border-border rounded-xl p-4">
+            <p className="text-sm font-bold text-text mb-2">
+              {copies.length} bought cop{copies.length !== 1 ? "ies" : "y"}{" "}
+              with no list price
+            </p>
+            <div className="max-h-80 overflow-y-auto space-y-1.5">
+              {copies.map((c) => (
+                <div
+                  key={c.copy_id}
+                  className="flex flex-col text-xs text-text-muted min-w-0"
+                >
+                  <GameEntryLink row={c} />
+                  <span className="text-text-faint font-mono flex gap-2">
+                    <span>
+                      {c.storefront || "—"} · {c.copy_format || "—"}
+                    </span>
+                    <span>
+                      {c.price_paid != null
+                        ? `${c.price_currency || ""} ${c.price_paid}`.trim()
+                        : "no price paid"}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </ListCheckModal>
+  );
+}
+
 // The Remarks and Duplicates checks, opened in place. The views are the
 // review queue's own (components/review), so the two screens cannot drift.
 function ReviewModal({ title, summary, onClose, children }) {
@@ -728,6 +939,9 @@ export default function Admin() {
   const [coverDeleting, setCoverDeleting] = useState(false);
   const [uncastResult, setUncastResult] = useState(null);
   const [uncastRemoving, setUncastRemoving] = useState(false);
+  const [freeListPriceResult, setFreeListPriceResult] = useState(null);
+  const [freeListPriceZeroing, setFreeListPriceZeroing] = useState(false);
+  const [boughtNoListPriceResult, setBoughtNoListPriceResult] = useState(null);
 
   // Announcement & Notes state
   const [announcements, setAnnouncements] = useState([]);
@@ -1079,6 +1293,42 @@ export default function Admin() {
     }
   }
 
+  // A read-only check that opens its result in a modal.
+  async function runCheck(key, url, setResult) {
+    setCalcLoading((prev) => ({ ...prev, [key]: true }));
+    try {
+      const res = await fetch(url, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Check failed.");
+      setResult(data);
+    } catch (e) {
+      showToast("error", `Error: ${e.message}`);
+    } finally {
+      setCalcLoading((prev) => ({ ...prev, [key]: false }));
+    }
+  }
+
+  async function handleZeroFreeGamesListPrice(systemIds) {
+    setFreeListPriceZeroing(true);
+    try {
+      const res = await fetch(endpoints.dataControl.zeroFreeGamesListPrice(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ system_ids: systemIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Update failed.");
+      showToast("success", data.message);
+      setFreeListPriceResult(null);
+      loadLogs();
+    } catch (e) {
+      showToast("error", `Error: ${e.message}`);
+    } finally {
+      setFreeListPriceZeroing(false);
+    }
+  }
+
   async function runFindDuplicates() {
     setCalcLoading((prev) => ({ ...prev, duplicates: true }));
     try {
@@ -1137,6 +1387,20 @@ export default function Admin() {
           onRemove={handleRemoveUncastCharacters}
           onClose={() => setUncastResult(null)}
           removing={uncastRemoving}
+        />
+      )}
+      {freeListPriceResult && (
+        <FreeGamesListPriceModal
+          result={freeListPriceResult}
+          onZero={handleZeroFreeGamesListPrice}
+          onClose={() => setFreeListPriceResult(null)}
+          zeroing={freeListPriceZeroing}
+        />
+      )}
+      {boughtNoListPriceResult && (
+        <BoughtWithoutListPriceModal
+          result={boughtNoListPriceResult}
+          onClose={() => setBoughtNoListPriceResult(null)}
         />
       )}
       {coverCheckOpen && coverCheckResult && (
@@ -1366,8 +1630,8 @@ export default function Admin() {
                 { label: "Manga", url: "/api/data-control/replace/manga" },
                 { label: "Novel", url: "/api/data-control/replace/novel" },
                 // Replace for games runs IGDB (fill-only - nothing in it
-                // drifts) and then Steam: the live prices, the Metacritic
-                // score, and this collection's own playtime.
+                // drifts) and then Steam: the Metacritic score and this
+                // collection's own playtime and achievements.
                 { label: "Game", url: "/api/data-control/replace/game" },
                 // Manga's Tenrai fields, still fill-only.
                 ...(canSeeHComic
@@ -1591,6 +1855,49 @@ export default function Admin() {
             <span className="text-[10px] font-medium text-text-faint text-center">
               Characters cast on nothing, with their identities and portraits.
               Review the list first.
+            </span>
+          </button>
+          <button
+            onClick={() =>
+              runCheck(
+                "freelistprice",
+                endpoints.dataControl.checkFreeGamesWithListPrice(),
+                setFreeListPriceResult,
+              )
+            }
+            disabled={!!calcLoading.freelistprice}
+            className="flex flex-col items-center gap-2 p-3 bg-surface-2 hover:bg-brand-soft border border-border hover:border-brand/30 rounded-xl text-xs font-bold text-text-muted hover:text-brand transition disabled:opacity-60"
+          >
+            <i className="fas fa-gift text-lg"></i>
+            {calcLoading.freelistprice ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "Free Games With a List Price"
+            )}
+            <span className="text-[10px] font-medium text-text-faint text-center">
+              Games you hold a free copy of whose list price is not 0. Review
+              the list, then set it to 0.
+            </span>
+          </button>
+          <button
+            onClick={() =>
+              runCheck(
+                "boughtnolistprice",
+                endpoints.dataControl.checkBoughtCopiesWithoutListPrice(),
+                setBoughtNoListPriceResult,
+              )
+            }
+            disabled={!!calcLoading.boughtnolistprice}
+            className="flex flex-col items-center gap-2 p-3 bg-surface-2 hover:bg-brand-soft border border-border hover:border-brand/30 rounded-xl text-xs font-bold text-text-muted hover:text-brand transition disabled:opacity-60"
+          >
+            <i className="fas fa-tags text-lg"></i>
+            {calcLoading.boughtnolistprice ? (
+              <i className="fas fa-circle-notch fa-spin"></i>
+            ) : (
+              "Bought Copies Without a List Price"
+            )}
+            <span className="text-[10px] font-medium text-text-faint text-center">
+              Purchases the game spend page cannot price. List only.
             </span>
           </button>
         </div>

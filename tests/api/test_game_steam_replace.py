@@ -34,12 +34,9 @@ def patched(monkeypatch):
             "metacritic_score": 96,
             "achievements_total": None,
             "is_free": False,
-            "price_original_us": None,
-            "price_current_us": Decimal("35.99"),
+            "price_original_us": Decimal("59.99"),
             "price_original_jp": None,
-            "price_current_jp": None,
             "price_original_tw": None,
-            "price_current_tw": None,
         },
     )
     monkeypatch.setattr(autofill_module, "fetch_owned_games", lambda: {})
@@ -77,13 +74,14 @@ class TestSingleReplace:
             db_session,
             steam_appid=1245620,
             metacritic_score=70,
-            price_current_us=Decimal("59.99"),
+            price_original_us=Decimal("49.99"),
         )
 
         apply_single_replace_game(db_session, game)
 
         assert game.metacritic_score == 96
-        assert game.price_current_us == Decimal("35.99")
+        # The list price is fill-only: a value already set is kept.
+        assert game.price_original_us == Decimal("49.99")
 
     def test_it_derives_the_appid_from_a_link_first(self, db_session, patched):
         """A pasted link is enough; Replace does not need the id typed in."""

@@ -198,8 +198,8 @@ def apply_single_replace_game(
     finishes an entry in one press - IGDB can supply the appid Steam then keys
     off. IGDB stays fill-only here as it is in Fill: nothing it carries
     drifts, so Replace keeps what is already set, the same bargain the MAL
-    Replace makes with everything but its scores. Steam's current prices and
-    Metacritic score are what Replace overwrites. `bulk` is accepted for
+    Replace makes with everything but its scores. Steam's Metacritic score
+    and the two progress columns are what Replace overwrites. `bulk` is accepted for
     signature parity with the other media types.
 
     The SteamDB row is derived before the Steam fetch, not after it: it needs
