@@ -37,6 +37,7 @@ import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
 import IdentityDeleteTab from "../modify-tabs/IdentityDeleteTab";
+import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 
 
@@ -1266,8 +1267,7 @@ export default function Delete() {
           {selectedAnime && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedAnime.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedAnime.cover_image_focus)}
@@ -1357,8 +1357,7 @@ export default function Delete() {
           {selectedAnimeMovie && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedAnimeMovie.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedAnimeMovie.cover_image_focus)}
@@ -1449,8 +1448,7 @@ export default function Delete() {
           {selectedMovie && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedMovie.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedMovie.cover_image_focus)}
@@ -1544,8 +1542,7 @@ export default function Delete() {
           {selectedTvShow && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedTvShow.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedTvShow.cover_image_focus)}
@@ -1641,8 +1638,7 @@ export default function Delete() {
           {selectedCartoon && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedCartoon.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedCartoon.cover_image_focus)}
@@ -1733,8 +1729,7 @@ export default function Delete() {
           {selectedManga && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedManga.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedManga.cover_image_focus)}
@@ -1833,8 +1828,7 @@ export default function Delete() {
           {selectedNovel && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedNovel.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedNovel.cover_image_focus)}
@@ -1938,8 +1932,7 @@ export default function Delete() {
           {selectedComic && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedComic.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedComic.cover_image_focus)}
@@ -2040,8 +2033,7 @@ export default function Delete() {
           {selectedGame && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedGame.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedGame.cover_image_focus)}
@@ -2141,8 +2133,7 @@ export default function Delete() {
           {selectedHComic && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedHComic.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedHComic.cover_image_focus)}
@@ -2227,8 +2218,7 @@ export default function Delete() {
           {selectedHGame && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedHGame.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedHGame.cover_image_focus)}
@@ -2321,8 +2311,7 @@ export default function Delete() {
           {selectedHentai && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={getCoverUrl(selectedHentai.cover_image_file)}
                   className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
                   style={focusStyle(selectedHentai.cover_image_focus)}

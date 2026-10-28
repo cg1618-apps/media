@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-10-24
+Last verified: 2026-10-28
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -109,13 +109,26 @@ counts). `h1` is display by default.
 7. **Both themes.** Anything on a brand fill uses `text-on-brand`, never
    `text-white`. Nothing sits on a hard-coded grey (`src/theme-tokens.test.js`
    guards this); overlays on cover art may use `bg-black/60`.
-8. **Images lazy-load.** Every `<img>` carries `loading="lazy"`, so the
-   browser fetches a cover only as it nears the screen. Covers are served
-   from the box's upload, which the tunnel also serves the whole site on,
-   and a list of hundreds of entries with eager images downloads every cover
-   at once and stalls every other request. `src/lazy-images.test.js` guards
-   this. An image already on screen still loads at once, so the rule has no
-   above-the-fold exception.
+8. **Every image is drawn by `LazyImage`.** `components/ui/LazyImage.jsx`
+   is a drop-in `<img>` - same props - and the only file that draws a raw
+   one. Native `loading="lazy"` is not enough on a long list: the browser
+   starts an image once it comes within a screen or two of view and never
+   cancels it, so a fast scroll through a library fires every cover it
+   passes. Every cover is a gated request (`/api/covers/<key>`), so a
+   hundred of them hold the server's workers and its database pool, and the
+   click that follows waits behind them. `LazyImage` withholds `src` until
+   the image has stayed within 200px of the screen for `DWELL_MS` (150ms),
+   and takes it away again if the image leaves before it finished loading,
+   which aborts the request. An image already on screen when it mounts loads
+   at once, so a detail page's cover does not wait and there is no
+   above-the-fold exception. Without an `IntersectionObserver` (jsdom) it
+   hands `src` over straight away, with `loading="lazy"`. Markdown bodies
+   (`ResourceMarkdown`) draw their images through it too.
+   `src/lazy-images.test.js` guards this: no `<img` outside
+   `LazyImage.jsx`. The library grids also draw their cards a batch at a
+   time - 60, then 60 more as the end of the grid nears the screen - through
+   `hooks/useIncrementalList.js`, so a library of hundreds mounts sixty
+   images, not all of them.
 9. **Cropped images keep their focal point.** An owner's image - an entry's
    cover, a person's or character's photo, a studio's or publisher's logo, a
    cast photo - is drawn cropped with `object-cover`, which shows the centre
@@ -124,7 +137,7 @@ counts). `h1` is display by default.
    centred), and every cropped render applies it with
    `style={focusStyle(focus)}` from `lib/covers.js`. A group's cover is
    borrowed from an entry, so the group resolvers return `{ url, focus }` and
-   the borrowed focus travels with the URL. An `<img>` with `object-cover`
+   the borrowed focus travels with the URL. An image with `object-cover`
    that is not an owner's image says so with `data-focus="none"`: the image
    library's thumbnails (on `/images` and in `ImagePicker`'s library modal),
    whose focus belongs to each owner the file is attached to rather than to

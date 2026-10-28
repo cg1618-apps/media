@@ -6,6 +6,7 @@
 import { Link } from "react-router-dom";
 import { FALLBACK_SVG, entryCover, focusStyle } from "../../lib/covers";
 import { SCOPE_LABELS } from "../../config/planNextGroups";
+import LazyImage from "../../components/ui/LazyImage";
 
 export default function PlanNextCard({ row }) {
   if (row.missing) {
@@ -26,8 +27,7 @@ export default function PlanNextCard({ row }) {
   const body = (
     <>
       <div className="relative aspect-[3/4] bg-surface-2 overflow-hidden">
-        <img
-          loading="lazy"
+        <LazyImage
           src={cover.url}
           alt={row.display_name || ""}
           onError={(e) => {

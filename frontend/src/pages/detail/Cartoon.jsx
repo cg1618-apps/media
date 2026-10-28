@@ -30,6 +30,7 @@ import { WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
+import LazyImage from "../../components/ui/LazyImage";
 import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 
@@ -278,8 +279,7 @@ export default function Cartoon() {
                 className="absolute top-2 right-2 z-10"
               />
               <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"

@@ -7,6 +7,7 @@ import { entityPath } from "../../lib/entityPath";
 import { focusStyle } from "../../lib/covers";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { Button, Chip, Slip } from "../ui/primitives";
+import LazyImage from "../ui/LazyImage";
 
 const castLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
@@ -59,8 +60,7 @@ function CastRow({ row }) {
         }`}
         data-identity-thumb={asIdentity || undefined}
       >
-        <img
-          loading="lazy"
+        <LazyImage
           src={getCoverUrl(row.display_photo_file)}
           alt=""
           className="w-full h-full object-cover"

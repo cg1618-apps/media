@@ -15,6 +15,7 @@ import {
 } from "../../lib/novelUnits";
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
+import LazyImage from "../ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 
 const STEPPER_INPUT =
@@ -385,8 +386,7 @@ export default function NovelDashboardCard({
                 {novel.region}
               </div>
             )}
-            <img
-              loading="lazy"
+            <LazyImage
               src={imageUrl}
               alt="Cover"
               className="w-full h-full object-cover"

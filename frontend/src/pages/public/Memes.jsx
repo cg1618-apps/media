@@ -10,6 +10,7 @@ import GroupedEntryPage, {
 import { Button, Chip } from "../../components/ui/primitives";
 import { OWNER_TYPE_OPTIONS } from "../../components/forms/MemeOwnerPicker";
 import MemeForm, { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
+import LazyImage from "../../components/ui/LazyImage";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
@@ -114,8 +115,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
           {/* The image has no stored position — a meme has at most one, and it
               always leads. */}
           {imageUrl && (
-            <img
-              loading="lazy"
+            <LazyImage
               src={imageUrl}
               alt=""
               className="mb-2 max-h-64 border border-border"

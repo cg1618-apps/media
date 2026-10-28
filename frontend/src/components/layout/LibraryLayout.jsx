@@ -5,6 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { useLibraryState } from "../../hooks/useLibraryState";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
+import { useIncrementalList } from "../../hooks/useIncrementalList";
 import MediaCard from "../cards/MediaCard";
 import FilterPanel, { FilterToggleButton } from "./FilterPanel";
 import MediaLoadingState from "./MediaLoadingState";
@@ -63,6 +64,11 @@ export default function LibraryLayout({
     filteredAndSorted,
     handleUpdated,
   } = useLibraryState(type, config, data, franchiseDict, seriesDict);
+
+  // Search, filter and sort see every item; the grid view draws them a batch
+  // at a time, so a long library does not mount every card - and its cover -
+  // at once. The table view draws every row.
+  const { visible, hasMore, sentinelRef } = useIncrementalList(filteredAndSorted);
 
   // A sort may name the score a grid card should show in place of its default
   // (libraryColumns' `cardScoreField`), so that sorting an anime library by
@@ -244,17 +250,20 @@ export default function LibraryLayout({
         </div>
       ) : currentView === "grid" ? (
         /* Grid view */
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {filteredAndSorted.map((item) => (
-            <MediaCard
-              key={item.system_id}
-              type={type}
-              data={item}
-              onUpdated={handleUpdated}
-              scoreField={cardScoreField}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {visible.map((item) => (
+              <MediaCard
+                key={item.system_id}
+                type={type}
+                data={item}
+                onUpdated={handleUpdated}
+                scoreField={cardScoreField}
+              />
+            ))}
+          </div>
+          {hasMore && <div ref={sentinelRef} aria-hidden="true" />}
+        </>
       ) : (
         /* Table view */
         <div className="bg-surface border border-border overflow-auto max-h-[75vh]">

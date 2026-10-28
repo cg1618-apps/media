@@ -19,6 +19,7 @@ import { Eyebrow } from "../../components/ui/primitives";
 import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
 import { useAuth } from "../../contexts/AuthContext";
 import { useEntityFilterState } from "../../hooks/useFilterState";
+import { useIncrementalList } from "../../hooks/useIncrementalList";
 import { applyFilterDefs } from "../../lib/libraryFilters";
 import { characterFilterDefs } from "../../lib/entityFilters";
 
@@ -88,6 +89,10 @@ export default function CharacterLibrary() {
 
     return result;
   }, [cards, searchQuery, currentSort, filterDefs, filters]);
+
+  // Search, filter and sort see every item; the grid draws them a batch at a
+  // time, so a long library does not mount every card - and its cover - at once.
+  const { visible, hasMore, sentinelRef } = useIncrementalList(filteredAndSorted);
 
   const narrowed = searchQuery !== "" || activeFilterCount > 0;
   // The empty state's way out: no search and no filter, not the default -
@@ -215,11 +220,14 @@ export default function CharacterLibrary() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {filteredAndSorted.map((character) => (
-              <CharacterCard key={character.card_id} character={character} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {visible.map((character) => (
+                <CharacterCard key={character.card_id} character={character} />
+              ))}
+            </div>
+            {hasMore && <div ref={sentinelRef} aria-hidden="true" />}
+          </>
         )}
       </div>
     </div>

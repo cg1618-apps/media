@@ -16,6 +16,7 @@
 // free-form Restricted row that merely resembles a platform name is someone's
 // note, not the platform.
 import { sourceIconUrl } from "../../lib/sourceIcons";
+import LazyImage from "../ui/LazyImage";
 
 export function availablePlatforms(sources = []) {
   const byIcon = new Map();
@@ -49,8 +50,7 @@ export default function PlatformIcons({ sources, linked = true, className = "" }
       {platforms.map(({ row, icon, names }) => {
         const label = names.join(" / ");
         const img = (
-          <img
-            loading="lazy"
+          <LazyImage
             src={icon}
             alt={row.name}
             className={`${ICON_CLS} ${row.url ? "" : "opacity-50 grayscale"}`}

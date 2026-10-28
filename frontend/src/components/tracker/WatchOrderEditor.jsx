@@ -37,6 +37,7 @@ import {
   moveStepIntoPart,
   orderPayload,
 } from "./watchOrderLayout";
+import LazyImage from "../ui/LazyImage";
 
 // The rungs a step can sit on, most important first. Mirrors ITEM_IMPORTANCE
 // in app/services/domain/watch_order.py, which validates them.
@@ -281,10 +282,10 @@ function ItemRow({
           </span>
         ) : (
           <>
-            <img
+            <LazyImage
               src={getCoverUrl(item.cover_image_file)}
               alt=""
-              loading="lazy"
+
               onError={(e) => {
                 e.currentTarget.src = FALLBACK_SVG;
               }}

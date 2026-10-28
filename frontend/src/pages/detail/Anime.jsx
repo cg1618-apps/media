@@ -35,6 +35,7 @@ import ContentLabelChips from "../../components/info/ContentLabelChips";
 import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
+import LazyImage from "../../components/ui/LazyImage";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -285,8 +286,7 @@ export default function Anime() {
                 className="absolute top-2 right-2 z-10"
               />
               <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"

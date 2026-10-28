@@ -3,6 +3,7 @@
 // Collections are the optional umbrella tier above Franchise. Unlike the
 // Franchise library there is no type filter, because a collection has no type.
 import { useState, useEffect, useMemo } from "react";
+import { useIncrementalList } from "../../hooks/useIncrementalList";
 import { getSortName, getRatingWeight, cleanString } from "../../utils/media";
 import { getCollectionCover, withMediaType } from "../../lib/covers";
 import CollectionCard from "../../components/cards/CollectionCard";
@@ -138,6 +139,10 @@ export default function CollectionLibrary() {
     return result;
   }, [allCollections, searchQuery, currentSort]);
 
+  // Search, filter and sort see every item; the grid draws them a batch at a
+  // time, so a long library does not mount every card - and its cover - at once.
+  const { visible, hasMore, sentinelRef } = useIncrementalList(filteredAndSorted);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -239,24 +244,27 @@ export default function CollectionLibrary() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {filteredAndSorted.map((collection) => {
-              const members = franchisesByCollection[collection.system_id] || [];
-              return (
-                <CollectionCard
-                  key={collection.system_id}
-                  collection={collection}
-                  memberCount={members.length}
-                  cover={getCollectionCover(
-                    collection,
-                    members,
-                    allEntriesDict,
-                    allEntriesByFranchise,
-                  )}
-                />
-              );
-            })}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {visible.map((collection) => {
+                const members = franchisesByCollection[collection.system_id] || [];
+                return (
+                  <CollectionCard
+                    key={collection.system_id}
+                    collection={collection}
+                    memberCount={members.length}
+                    cover={getCollectionCover(
+                      collection,
+                      members,
+                      allEntriesDict,
+                      allEntriesByFranchise,
+                    )}
+                  />
+                );
+              })}
+            </div>
+            {hasMore && <div ref={sentinelRef} aria-hidden="true" />}
+          </>
         )}
       </div>
     </div>

@@ -10,6 +10,7 @@ import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { EntryRow } from "./DashboardTable";
 import { entityPath } from "../../lib/entityPath";
 import PlatformIcons from "../cards/PlatformIcons";
+import LazyImage from "../ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 
 const STEPPER_INPUT =
@@ -138,8 +139,7 @@ export default function DashboardCard({
               size="sm"
               className="absolute top-1.5 right-1.5 z-10"
             />
-            <img
-              loading="lazy"
+            <LazyImage
               src={imageUrl}
               alt="Cover"
               className="w-full h-full object-cover"

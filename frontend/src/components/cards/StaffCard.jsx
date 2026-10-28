@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import { RatingStamp } from "../ui/primitives";
+import LazyImage from "../ui/LazyImage";
 
 function StaffCard({
   to,
@@ -54,8 +55,7 @@ function StaffCard({
             size="sm"
             className="absolute top-1.5 right-1.5 z-10"
           />
-          <img
-            loading="lazy"
+          <LazyImage
             src={coverUrl}
             alt={imageAlt}
             className="w-full h-full object-cover"

@@ -17,6 +17,7 @@ import {
   useUploadImage,
 } from "../../hooks/useImages";
 import { Button, Chip } from "../../components/ui/primitives";
+import LazyImage from "../../components/ui/LazyImage";
 
 const PAGE_SIZE = 30;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -50,8 +51,7 @@ function ImageTile({ image, onDetach, onDelete, busy }) {
             </span>
           </div>
         ) : (
-          <img
-            loading="lazy"
+          <LazyImage
             src={getCoverUrl(image.thumb_key || image.storage_key)}
             alt={image.original_filename || ""}
             className="h-full w-full object-cover"

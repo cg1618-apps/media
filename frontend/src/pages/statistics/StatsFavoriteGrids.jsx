@@ -11,6 +11,7 @@ import {
 import { visibleFavoriteGrids } from "../../config/favoriteGrids";
 import { useAuth } from "../../contexts/AuthContext";
 import { RatingStamp, Slip } from "../../components/ui/primitives";
+import LazyImage from "../../components/ui/LazyImage";
 
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
@@ -48,8 +49,7 @@ function FavoriteGrid({ grid, rows, covers }) {
                 className="group relative overflow-hidden border border-border hover:border-text transition-colors"
               >
                 <div className="aspect-[3/4] bg-surface-2">
-                  <img
-                    loading="lazy"
+                  <LazyImage
                     src={cover.url}
                     alt={name}
                     className="w-full h-full object-cover"

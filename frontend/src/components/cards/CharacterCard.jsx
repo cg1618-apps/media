@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import { Chip, RatingStamp } from "../ui/primitives";
+import LazyImage from "../ui/LazyImage";
 
 // An identity card is drawn as one: a dashed border and divider (the dashed
 // line that means "identity" across the app), an outlined spine instead of
@@ -66,8 +67,7 @@ export default function CharacterCard({ character }) {
               className="absolute top-1.5 right-1.5 z-10"
             />
           )}
-          <img
-            loading="lazy"
+          <LazyImage
             src={coverUrl}
             alt="Photo"
             className="w-full h-full object-cover"
@@ -94,8 +94,7 @@ export default function CharacterCard({ character }) {
         {isIdentity ? (
           <>
             <span className="flex items-center gap-1.5 min-w-0">
-              <img
-                loading="lazy"
+              <LazyImage
                 src={getCoverUrl(character.character_photo_file)}
                 alt=""
                 className="w-[18px] h-[18px] shrink-0 rounded-full object-cover border border-border-strong"
