@@ -71,6 +71,29 @@ export function listPriceCents(row) {
   return cents ? cents : null;
 }
 
+// The order another region's list price is tried in, when the copy's own
+// currency has none.
+const LIST_PRICE_FALLBACK = ["USD", "JPY", "TWD"];
+
+/**
+ * The list price a bought copy is compared against, as `{ code, cents }`.
+ *
+ * The copy's own currency first; failing that, the first other region with a
+ * list price. A fallback stays in its own currency rather than being
+ * converted into the copy's - it is a recorded figure in that currency, and
+ * the converted totals are where the currencies meet. Null only when the game
+ * has no list price anywhere.
+ */
+export function listPrice(row) {
+  const codes = [row.code, ...LIST_PRICE_FALLBACK.filter((code) => code !== row.code)];
+  for (const code of codes) {
+    const column = LIST_PRICE_COLUMN[code];
+    const cents = column ? toCents(row.game?.[column]) : null;
+    if (cents) return { code, cents };
+  }
+  return null;
+}
+
 function subtotal(rows) {
   const byCurrency = {};
   rows.forEach(({ cents, code }) => {
@@ -150,15 +173,17 @@ export default function computeGameSpend(games, fxRates) {
 
   // What those same purchases would have cost at list price. The same copies
   // as Bought, so the two columns subtract: the difference is what waiting
-  // for a sale was worth. A copy whose game has no list price in its currency
-  // has no figure here at all and is counted instead, because pricing it at
-  // zero would read as a free game rather than as missing data.
+  // for a sale was worth. A copy whose currency has no list price is priced
+  // at another region's (see listPrice), so it lands under that currency and
+  // still reaches the converted totals. Only a copy whose game has no list
+  // price at all has no figure, and is counted instead, because pricing it
+  // at zero would read as a free game rather than as missing data.
   const shouldSpend = [];
   let unpriced = 0;
   bought.forEach((row) => {
-    const cents = listPriceCents(row);
-    if (cents === null) unpriced += 1;
-    else shouldSpend.push({ ...row, cents });
+    const price = listPrice(row);
+    if (price === null) unpriced += 1;
+    else shouldSpend.push({ ...row, ...price });
   });
 
   return {

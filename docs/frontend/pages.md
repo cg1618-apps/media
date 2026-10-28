@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-24
+Last verified: 2026-10-28
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -1361,10 +1361,13 @@ total built from a rate nobody entered looks exactly like a real one. Three
 columns: **Owned** is every copy with a `price_paid`, **Bought** narrows to
 `acquisition === "Bought"`, and **Should spend** prices those same bought
 copies at the game's own list price — `price_original_us` / `_jp` / `_tw`,
-picked by the copy's own currency, never by falling back to another region's.
-Bought and Should spend cover the same copies, so the two subtract to what
-waiting for a sale was worth; a bought copy whose game has no list price in
-its currency is counted under the column rather than priced at zero.
+picked by the copy's own currency, and failing that the first of US, JP, TW
+that is filled in. A fallback price stays in its own currency and is never
+converted into the copy's, so it shows under that currency and meets the rest
+in the converted totals. Bought and Should spend cover the same copies, so the
+two subtract to what waiting for a sale was worth; only a bought copy whose
+game has no list price in any region is counted under the column rather than
+priced at zero.
 
 The **Value** card is cost per hour, and a title counts only when it has
 logged hours, a convertible price and a list price of its own. The last of

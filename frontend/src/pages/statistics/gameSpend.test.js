@@ -456,9 +456,10 @@ describe("computeGameSpend: the should-spend column", () => {
     expect(rate(should(spend), "USD").cents).toBe(5999);
   });
 
-  it("counts a bought copy with no list price instead of pricing it at zero", () => {
-    // Zero would read as a free game and would quietly undercount what the
-    // collection should have cost.
+  it("falls back to another region's list price, kept in that currency", () => {
+    // The game has no price_original_jp, so the JPY purchase is priced at the
+    // US list price - in USD, as recorded, never converted into yen. The
+    // converted totals are where the currencies meet.
     const spend = computeGameSpend(
       [
         {
@@ -466,21 +467,48 @@ describe("computeGameSpend: the should-spend column", () => {
           price_original_us: "59.99",
           copies: [
             { price_paid: "19.99", price_currency: "USD", acquisition: "Bought" },
-            // No price_original_jp on this game.
             { price_paid: "4800", price_currency: "JPY", acquisition: "Bought" },
           ],
         },
       ],
       FX,
     );
-    expect(rate(should(spend), "USD").cents).toBe(5999);
+    expect(rate(should(spend), "USD").cents).toBe(11998);
     expect(rate(should(spend), "JPY")).toBeNull();
-    expect(should(spend).unpriced).toBe(1);
+    expect(should(spend).unpriced).toBe(0);
+    expect(should(spend).copies).toBe(bought(spend).copies);
+    expect(converted(should(spend), "USD").cents).toBe(11998);
   });
 
-  it("has no figure for a copy that recorded no currency", () => {
+  it("prefers the copy's own currency over a fallback", () => {
+    const spend = computeGameSpend(
+      [listed({ price_paid: "4800", price_currency: "JPY", acquisition: "Bought" })],
+      FX,
+    );
+    expect(rate(should(spend), "JPY").cents).toBe(780000);
+    expect(rate(should(spend), "USD")).toBeNull();
+  });
+
+  it("prices a copy that recorded no currency at a list price it has", () => {
     const spend = computeGameSpend(
       [listed({ price_paid: "19.99", acquisition: "Bought" })],
+      FX,
+    );
+    expect(rate(should(spend), "USD").cents).toBe(5999);
+    expect(should(spend).unpriced).toBe(0);
+  });
+
+  it("counts a bought copy whose game has no list price at all instead of pricing it at zero", () => {
+    // Zero would read as a free game and would quietly undercount what the
+    // collection should have cost.
+    const spend = computeGameSpend(
+      [
+        {
+          system_id: "g",
+          price_original_us: "0",
+          copies: [{ price_paid: "4800", price_currency: "JPY", acquisition: "Bought" }],
+        },
+      ],
       FX,
     );
     expect(should(spend).copies).toBe(0);
