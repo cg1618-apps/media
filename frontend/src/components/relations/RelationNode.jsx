@@ -10,7 +10,7 @@
 // sequel read across and an adaptation read down.
 import { Handle, Position } from "@xyflow/react";
 
-import { getCoverUrl, focusStyle } from "../../lib/covers";
+import { getCoverUrl, focusStyle, thumbUrl } from "../../lib/covers";
 import {
   MIDDLE_SOURCE,
   MIDDLE_TARGET,
@@ -19,6 +19,7 @@ import {
 } from "../../lib/relationHandles";
 import { mediaTypeChip } from "../../config/mediaTypeColors";
 import FittedName from "../layout/FittedName";
+import LazyImage from "../ui/LazyImage";
 import { NODE_HEIGHT, NODE_WIDTH } from "../../lib/relationLayout";
 
 // The title gets the two lines line-clamp-2 allows.
@@ -97,9 +98,8 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
           <i className="fas fa-link-slash text-xs text-danger"></i>
         </div>
       ) : (
-        <img
-          loading="lazy"
-          src={getCoverUrl(cover_image_file)}
+        <LazyImage
+          src={thumbUrl(getCoverUrl(cover_image_file))}
           alt=""
           className="h-12 w-9 shrink-0 rounded-md object-cover"
           style={focusStyle(cover_image_focus)}

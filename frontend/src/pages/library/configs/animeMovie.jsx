@@ -10,6 +10,7 @@ import {
   planFlagColumn,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
+import LazyImage from "../../../components/ui/LazyImage";
 import { BAHAMUT_VALUE } from "../../../lib/formatters";
 import { sourceIconUrl } from "../../../lib/sourceIcons";
 import { getBahaRow, isBaha, WATCHING_STATUS_GROUP } from "../../../utils/media";
@@ -149,8 +150,7 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
         if (!isBaha(item)) return "-";
         const bahaRow = getBahaRow(item);
         const logo = (
-          <img
-            loading="lazy"
+          <LazyImage
             src={sourceIconUrl(BAHAMUT_VALUE)}
             className={`w-4 h-4 rounded-sm bg-white object-contain inline-block ${bahaRow?.url ? "" : "opacity-50 grayscale"}`}
             alt={BAHAMUT_VALUE}

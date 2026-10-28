@@ -41,6 +41,7 @@ src/
 | `hooks/useMediaItem(type, id)` | Detail query keyed by `mediaItemQueryKey`. |
 | `hooks/useMediaCacheUpdate(type, id)` | `setMediaItem`, `fetchMediaItem`, `invalidateMedia` for optimistic detail updates. |
 | `hooks/useStatusToggle(type)` | PATCHes one field and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
+| `hooks/useIncrementalList(items, batch = 60)` | Draws a long list a batch at a time: `visible` is the first `batch` items and grows by `batch` whenever `sentinelRef` - an empty element rendered after the grid - comes within 800px of the screen; `hasMore` says whether it can still grow. A list with different items starts again from one batch. Without an `IntersectionObserver` every item is visible. Used by the library grids. |
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
 | `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker and Picker Defaults; the defs and `initial` are read once, so a caller whose defs change remounts. `useEntityFilterState(filterDefs, data)` beside it is the entity libraries' (character, person, studio, publisher) form: `initial` is `defaultEntityFilters(filterDefs)`, and it adds `isDefault` (`sameFilters` against that default) so the page hands `FilterPanel` its `resetFilters` only once the state has moved off it. |
 | `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs, its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none), and `defaultWeighted` (true unless saved off). Shared by the picker and Picker Defaults. |
@@ -487,7 +488,9 @@ not drawn. The character, person and studio libraries use it for
   to centre**, **Cancel** and **Done**; Done hands back `"X% Y%"`, or null
   for the centre, through `formatFocus`; Escape or the backdrop cancels).
 - **`components/ui`** — `primitives.jsx` (see
-  [design-system.md](design-system.md#primitives-componentsuiprimitivesjsx)) and
+  [design-system.md](design-system.md#primitives-componentsuiprimitivesjsx)),
+  `LazyImage.jsx`, the drop-in `<img>` every image is drawn with (see
+  [design-system.md](design-system.md) rule 8), and
   `Sortable.jsx`, the one reorder control every list uses: `SortableList`
   (`ids`, `onMove(from, to)`, `disabled`, `layout="grid"` for a tile grid,
   otherwise the drag is locked to the vertical axis), `SortableItem` (one row,

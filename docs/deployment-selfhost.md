@@ -1,7 +1,7 @@
 # Production: the self-hosted box
 
-Last verified: 2026-09-24 (the box is on its cable and serving at
-`media.cg1618.com`)
+Last verified: 2026-10-28 (the box itself last checked on its cable and serving
+at `media.cg1618.com` on 2026-09-24)
 
 **What this is.** The application runs on an HP ProDesk 600 G4 Desktop Mini at
 home, under Ubuntu Server, in three Docker containers, reached from the Internet
@@ -278,7 +278,7 @@ serialise on one `flock` so two never run at once:
 | --- | --- | --- | --- |
 | `media-backup` | daily 04:00 | `backup.sh` | Stamps the database, `pg_dump`s it, uploads to R2, mirrors `static/library/`, prunes old dumps |
 | `media-sheets` | daily 04:10 | `sheets.sh` | Runs the application's own Google Sheets Backup pipeline |
-| `media-covers` | Wed 04:20 | `covers.sh` | Syncs `static/covers/` (283 MB) to R2 |
+| `media-covers` | Wed 04:20 | `covers.sh` | Syncs `static/covers/` (283 MB) to R2, leaving out the `thumbs/` cache |
 | `media-verify` | Wed 04:40 | `verify.sh` | Restores the newest R2 dump into a throwaway container and asserts it |
 | `media-drift` | daily 10:00 | `drift.sh` | Checks that `main` has actually reached this box |
 
@@ -314,7 +314,7 @@ depend on it.
 db/daily/       nightly pg_dump, one object per run, 30-day retention
 db/monthly/     the 1st-of-month dump, kept 12 months
 library/        mirror of static/library/
-covers/         mirror of static/covers/ (weekly)
+covers/         mirror of static/covers/ (weekly), without the thumbs/ cache
 _archive/       rclone --backup-dir target: anything a sync would delete
                 lands here instead, under the run's timestamp
 ```

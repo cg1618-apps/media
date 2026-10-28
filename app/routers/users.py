@@ -170,6 +170,9 @@ def create_user(payload: schemas.ManagedUserCreate, db: Session = Depends(get_db
     _grant_starting_mode(db, user)
     db.commit()
     db.refresh(user)
+    # A login cookie naming this username resolved as a guest until now, and
+    # the cover route may still hold that answer (cover_viewer.py).
+    cache.bump()
     return _to_response(user, db)
 
 
@@ -380,4 +383,7 @@ def delete_user(
 
     db.delete(user)
     db.commit()
+    # The account's live cookies must stop resolving to it at once - the
+    # cover route caches viewers per cookie (cover_viewer.py).
+    cache.bump()
     return None

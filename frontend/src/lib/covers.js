@@ -39,6 +39,21 @@ export function getCoverUrl(coverFile) {
   return `/api/covers/${coverFile}`;
 }
 
+// The small version of a resolved cover URL, for anything drawn at card size
+// or smaller: a list card, a tracker row, a cast face. A detail page's own
+// cover keeps the original. A cover answers ?size=thumb (app/routers/covers.py,
+// 400px long edge, made on first request); a library upload already has its
+// thumbnail beside it at library/thumbs/<checksum>.jpg (image_library.py).
+// Anything else - the placeholder, an external URL - is returned unchanged.
+export function thumbUrl(url) {
+  if (!url) return url;
+  if (url.startsWith("/api/covers/")) return `${url}?size=thumb`;
+  if (url.startsWith("/static/library/") && !url.startsWith("/static/library/thumbs/")) {
+    return url.replace("/static/library/", "/static/library/thumbs/");
+  }
+  return url;
+}
+
 // Quote images live on local disk under static/quotes/.
 // Returning null off localhost hides every quote-image control away from the
 // dev machine. That gate is a deliberate hold, not a hosting constraint - it is

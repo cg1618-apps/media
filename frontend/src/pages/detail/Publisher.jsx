@@ -29,6 +29,7 @@ import {
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
@@ -142,8 +143,7 @@ export default function Publisher() {
               className="relative flex-1 min-w-0 bg-surface-2 overflow-hidden"
               style={{ aspectRatio: "2/3" }}
             >
-              <img
-                loading="lazy"
+              <LazyImage
                 src={logoUrl}
                 alt={`${name} logo`}
                 className="w-full h-full object-cover"
@@ -264,8 +264,7 @@ function CreditCard({ entry, navPath }) {
         className="bg-surface-2 overflow-hidden"
         style={{ aspectRatio: "2/3" }}
       >
-        <img
-          loading="lazy"
+        <LazyImage
           src={getCoverUrl(entry.cover_image_file)}
           alt=""
           className="w-full h-full object-cover"

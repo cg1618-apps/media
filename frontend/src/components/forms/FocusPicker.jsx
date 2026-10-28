@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { focusStyle, formatFocus, parseFocus } from "../../lib/covers";
 import { Button } from "../ui/primitives";
+import LazyImage from "../ui/LazyImage";
 
 const NUDGE = 1;
 const NUDGE_SHIFT = 10;
@@ -134,8 +135,7 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
               onPointerUp={endDrag}
               onPointerCancel={endDrag}
             >
-              <img
-                loading="lazy"
+              <LazyImage
                 src={src}
                 alt="Whole image"
                 draggable={false}
@@ -158,8 +158,7 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
           <div className="flex shrink-0 flex-row gap-4 sm:flex-col">
             <figure className="space-y-1">
               <div className="aspect-[2/3] w-24 overflow-hidden border border-border bg-surface-2">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={src}
                   alt="Portrait preview"
                   className="h-full w-full object-cover"
@@ -172,8 +171,7 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
             </figure>
             <figure className="space-y-1">
               <div className="aspect-square w-24 overflow-hidden border border-border bg-surface-2">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={src}
                   alt="Square preview"
                   className="h-full w-full object-cover"

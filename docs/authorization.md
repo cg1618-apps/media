@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-10-22
+Last verified: 2026-10-28
 
 ## What this is for
 
@@ -519,11 +519,18 @@ grant an admin removed is not handed back on restart.
 
 `app/services/rbac/resolver.py::resolve_viewer(request, db)` → frozen
 `Viewer(username, role_id, role_name, is_root, permissions, user_id,
-token_payload, mode_id, mode_key, visible_label_ids, field_groups)`.
+token_payload, mode_id, mode_key, visible_label_ids, field_groups,
+mode_expires_at, hidden_labels, hidden_gated)`.
 
 The last four are the **object axis**; `permissions` is the ROLE's capability
 set. `visible_label_ids` holds the labels this session may SEE —
 `hidden_label_ids()` derives the complement, so do not invert it.
+
+`hidden_labels` and `hidden_gated` are that complement and its gated types,
+**precomputed**. `resolve_viewer` leaves both `None`, which means "ask the
+database"; only the cover route's viewer
+([below](#the-cover-routes-viewer-cache-cover_viewerpy)) fills them in, and
+`hidden_label_ids` and `shared_visibility._hiding` read them when present.
 
 `user_id` is the resolved account's id, or `None` for a guest. It is what every
 per-user read and write keys on, and it is why a guest sees no list at all —
@@ -618,16 +625,61 @@ and one `bump()` that clears all of them:**
 
 They are keyed on the thing that is SHARED, never on the account: adding the
 user to a key would make the cache unbounded in accounts and destroy the
-sharing that makes it worth having. Every write in `roles.py` and
-`content_labels.py` calls `cache.bump()`, which clears all three — a `bump()`
-that cleared only the first would leave a revoked mode live until restart, and
-would leak mode state between tests in a way whose failures are random and
-order-dependent.
+sharing that makes it worth having. `cache.bump()` clears all three — a
+`bump()` that cleared only the first would leave a revoked mode live until
+restart, and would leak mode state between tests in a way whose failures are
+random and order-dependent — and advances `cache.generation()`, which the
+cover route's cache below keys its validity on.
+
+**Who calls `bump()`:** every write in `roles.py`, `access_modes.py`, and
+`users.py` (create, update, delete, and `PUT /{id}/access-modes`); label
+create and delete in `content_labels.py` (a label's PATCH changes only its
+display fields, which nothing here caches);
+`gated_labels.ensure_system_labels`; and Pull, after every tab it commits,
+because a restore writes `users` and `content_label` straight to the tables
+where no router runs. Assigning labels to an entry or a franchise does not
+bump and needs not to: no cache holds which labels an object carries.
 **Single-instance caveat:** the cache is process-local, so it is only
 correct while the app runs as one process - which it does today, local
 development being the only runtime. Self-hosting keeps that shape (one
 container behind the tunnel), but any future second worker would serve stale
 grants until its own restart and would need a short TTL instead.
+
+### The cover route's viewer cache (`cover_viewer.py`)
+
+A library page fires a hundred or more `GET /api/covers/...` at once. Each one
+resolving its own viewer cost two to four queries (account, default grant,
+active grant, mode — or for a guest, the guest role and `safe`) and its hiding
+state one or two more (`content_label` for `hidden_label_ids`, then the
+gated-type key lookup for a shared-record cover), before the one or two queries
+about the image itself; each held a worker thread and a pooled connection
+while it did, so ordinary API requests queued behind the images. So
+`routers/covers.py` depends on `cover_viewer.get_cover_viewer` instead of
+`get_viewer`, which keeps the resolved viewer **and** its precomputed
+`hidden_labels` / `hidden_gated` for **5 seconds**. Every other route still
+resolves on every request — the cache is scoped to the one route where the
+repetition is, and no route that writes ever sees a cached viewer. A warm cover
+request runs only its own queries: the `media` lookup and, when the session
+hides anything, the one probe.
+
+| | |
+|---|---|
+| **Key** | the raw `access_token` and `access_mode` cookie values — the only things `resolve_viewer` reads off the request. A different login, a mode switch, a logout or a re-login is a different key. |
+| **Lifetime** | 5 s, and never past either token's `exp` or the override's `mode_expires_at`, so a login or an override that expires mid-TTL stops applying on time. Monotonic, so a wall clock stepped backwards cannot stretch it. |
+| **Database inputs** | `users`, `role`, `role_permission`, `user_access_mode`, `access_mode`, `access_mode_label`, `access_mode_field_group`, `user_access_mode_denial`, `content_label` — not in the key, so covered by invalidation: an entry resolved under an older `cache.generation()` is discarded, and every write path to those tables bumps (above). |
+| **Not cached** | which labels an entry or franchise carries, and every shared-record connection. That is the per-image probe, run on every request, so labelling an entry hides its cover on the next fetch. |
+| **Bound** | 512 entries, expired and superseded ones pruned on each store, then oldest first — the key is caller-supplied, so junk cookies cannot grow it. |
+
+The generation is read **before** resolving and checked again before storing,
+so a request that read the old rows while a write committed and bumped serves
+its answer but does not keep it. `resolve_viewer`'s error-path
+`GUEST_FALLBACK` is never stored.
+
+**Staleness window.** A change no bump reaches — a hand-edit in psql, or a
+write handled by another uvicorn worker, since each process holds its own
+cache and a bump clears only its own — is visible to the cover route within 5
+seconds. The three caches above have no TTL, so a second worker would still
+need one there; this cache's TTL bounds only this cache.
 
 ## Visibility enforcement (`enforcement.py`)
 
@@ -870,7 +922,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | relations `for-entry`, `scope`, `graph` | `routers/media_relation.py` — hidden anchor → 404; an edge naming a hidden entry is dropped whole; graph is viewer-filtered |
 | a game's choice graph and its marks | `routers/game_choice.py` (`require_visible_media`) — a hidden game → 404 "Game not found." on the read and on every write; graph writes are `require_manage_catalog`, marks need `self.personal_notes` and the read returns only the viewer's own |
 | attaching an image to a media entry or an entity | `routers/images.py` → 404 "Entry not found." An entity owner is asked through `shared_record_visible`; quote/meme owners carry no label and are not checked |
-| serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404. The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible` (a `character-identity` owner is asked through its character, `identity_visible`); its folder is read from the path, which is safe because the folder names the file |
+| serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404, with its viewer from `cover_viewer.get_cover_viewer` ([cached for 5 s](#the-cover-routes-viewer-cache-cover_viewerpy)). The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible` (a `character-identity` owner is asked through its character, `identity_visible`); its folder is read from the path, which is safe because the folder names the file |
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
 | search | `routers/search.py` — entries, franchises, series and the person/studio/publisher buckets |
 | a public profile (`/api/profile/{username}`) | `routers/profile.py` (`apply_media_visibility`) - filtered by the **reader's** permissions, never the list owner's |
@@ -1436,6 +1488,7 @@ matters is enforced server-side.
 | `tests/api/test_no_bare_admin_permission.py` | the bare `admin` permission is absent from `static_catalog()`, and no module imports a single all-powerful admin dependency |
 | `tests/api/test_media_type_gating.py` | whole type disappears, 404 on detail |
 | `tests/api/test_field_gating.py` | link and source stripping; the narrowest viewer there is still gets credits, both timestamps and `system_id`; and a probe group stands the columns flavour up so the copy-not-setattr rule stays tested with no real column group left |
+| `tests/api/test_cover_viewer_cache.py` | a warm cover request runs no viewer query (anonymous, narrowed and admin, by statement count); a session warming the cache lends nothing to another; a new label, a new denial and a deleted account each reach the next cover request through `bump()`; an unbumped change expires on the TTL (clock moved by hand); an entry never outlives its token; an answer resolved across a bump is not kept, mirrored by the same call without one being a hit. `hidden_anime` keeps every refusal from being vacuous |
 | `tests/api/test_cover_images_are_gated.py` | a hidden entry's cover 404s and the same file 200s for an admin, the lying-folder case, and that `/static/covers/` no longer answers. The written file and `nsfw_label` are load-bearing: a missing file 404s too, and an empty label set makes every refusal vacuous |
 | `tests/api/test_shared_record_visibility.py` | the shared-record rule: a person, seiyuu, character, studio, publisher or vocabulary value connected only to label-hidden entries is hidden, one visible connection keeps it visible with the hidden one omitted, no connections stays visible, a type gap hides nothing; series under a hidden franchise; entity photos; notes on a hidden series; and scope connections through a gated type registered for the test (`manga` pointed at `nsfw`), independent of h-comic. Every refusal pairs with `admin_client` seeing the same record |
 | `tests/api/test_h_comic_entries.py` | h-comic: the label stamped on every router write path and refused removal (422) and deletion (409), guest / `normal` / `borderline` 404 and absent from list and search while `unrestricted` sees it, only `unrestricted` carries the label after a re-seed, `visible_gated_types`, no `h-comic` search bucket for a narrow session, `PUT /api/me/list` running the list hook, H-Comic franchises labelled and segregated from mainstream ones |
@@ -1513,8 +1566,10 @@ vocabulary whose name and behaviour have drifted apart.
   name, and look for an existing one that already means it.
 - **Fail closed.** `resolve_viewer` never raises; anything unresolvable is the
   guest role holding nothing.
-- **`cache.bump()` on every grant write.** Permissions resolve per request so
-  revocation is immediate; the cache is process-local.
+- **`cache.bump()` on every grant write**, and on every write to an account or
+  to the label set. Permissions resolve per request so revocation is
+  immediate; the caches are process-local, and the cover route's viewer cache
+  also expires on its own after 5 seconds.
 - **The SPA mirrors no vocabulary.** `/api/roles/catalog` is served, which is
   why the role editor renders the whole `self.*` family with no frontend
   change. Keep that property.

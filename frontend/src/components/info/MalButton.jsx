@@ -3,6 +3,7 @@
 // identity page (which shows its character's), the person page and the studio
 // page. Renders nothing without a link.
 import { sourceIconUrl } from "../../lib/sourceIcons";
+import LazyImage from "../ui/LazyImage";
 
 export default function MalButton({ href }) {
   if (!href) return null;
@@ -14,7 +15,7 @@ export default function MalButton({ href }) {
       aria-label="Open on MyAnimeList"
       className="inline-flex items-center gap-1.5 border border-border px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:border-brand hover:text-brand"
     >
-      <img loading="lazy" src={sourceIconUrl("MyAnimeList")} alt="" className="w-3.5 h-3.5" />
+      <LazyImage src={sourceIconUrl("MyAnimeList")} alt="" className="w-3.5 h-3.5" />
       MyAnimeList
     </a>
   );

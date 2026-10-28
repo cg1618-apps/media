@@ -47,6 +47,7 @@ import HComicNotes from "./HComicNotes";
 import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
+import LazyImage from "../../components/ui/LazyImage";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -462,8 +463,7 @@ export default function HComic() {
                 className="absolute top-2 right-2 z-10"
               />
               <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
-                <img
-                  loading="lazy"
+                <LazyImage
                   src={imageUrl}
                   alt="Cover"
                   className="w-full h-full object-cover"

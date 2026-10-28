@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MemeForm, { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
 import MemeOwnerPicker from "../../components/forms/MemeOwnerPicker";
 import { inputCls } from "../../components/forms/FormField";
+import LazyImage from "../../components/ui/LazyImage";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
@@ -157,8 +158,7 @@ export default function MemeManageTab({ mode = "modify" }) {
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
                   {imageUrl && (
-                    <img
-                      loading="lazy"
+                    <LazyImage
                       src={imageUrl}
                       alt=""
                       className="mb-2 max-h-32 rounded-lg border border-border"

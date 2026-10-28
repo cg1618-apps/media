@@ -10,7 +10,8 @@ import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { EntryRow } from "./DashboardTable";
 import { entityPath } from "../../lib/entityPath";
 import PlatformIcons from "../cards/PlatformIcons";
-import { focusStyle } from "../../lib/covers";
+import LazyImage from "../ui/LazyImage";
+import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center w-14 px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -138,9 +139,8 @@ export default function DashboardCard({
               size="sm"
               className="absolute top-1.5 right-1.5 z-10"
             />
-            <img
-              loading="lazy"
-              src={imageUrl}
+            <LazyImage
+              src={thumbUrl(imageUrl)}
               alt="Cover"
               className="w-full h-full object-cover"
               style={focusStyle(anime.cover_image_focus)}

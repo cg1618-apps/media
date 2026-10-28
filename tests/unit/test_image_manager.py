@@ -274,3 +274,192 @@ def test_list_skips_files_left_at_the_root(local_covers):
 
 def test_list_of_a_missing_dir_is_empty(local_covers):
     assert image_manager.list_all_cover_images() == []
+
+
+# --------------------------------------------------------------------------
+# thumbnails
+#
+# A cover's thumbnail is a cache at `thumbs/<owner_type>/<id>.jpg` under the
+# cover root, generated on first request by the cover route's `?size=thumb`.
+# --------------------------------------------------------------------------
+
+
+def _jpeg(path, width, height, colour=(200, 40, 40)):
+    """A real JPEG on disk - the thumbnailer decodes what it is given."""
+    from PIL import Image
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (width, height), colour).save(path, format="JPEG")
+    return path
+
+
+def _thumb_file(local_covers, owner, name):
+    return local_covers / image_manager.THUMB_FOLDER / owner / f"{name}.jpg"
+
+
+def test_the_thumb_folder_is_not_an_owner_type():
+    """Were it one, the cover route would serve the cache as an owner's folder
+    and the orphan sweep would list it as covers."""
+    assert image_manager.THUMB_FOLDER not in image_manager.COVER_OWNERS
+
+
+def test_a_thumbnail_is_smaller_and_capped_at_the_thumb_edge(local_covers):
+    from PIL import Image
+
+    from app.services.integrations.image_library import THUMB_EDGE
+
+    source = _jpeg(local_covers / "anime" / "a.jpg", 1200, 1600)
+
+    served = image_manager.cover_thumbnail(str(source))
+
+    assert served == str(_thumb_file(local_covers, "anime", "a"))
+    with Image.open(served) as thumb:
+        assert max(thumb.size) == THUMB_EDGE
+        assert thumb.size == (THUMB_EDGE * 3 // 4, THUMB_EDGE)
+        assert thumb.format == "JPEG"
+    assert (local_covers / image_manager.THUMB_FOLDER).is_dir()
+
+
+def test_a_source_no_bigger_than_the_thumb_is_served_as_is(local_covers):
+    from app.services.integrations.image_library import THUMB_EDGE
+
+    source = _jpeg(local_covers / "anime" / "small.jpg", THUMB_EDGE, 300)
+
+    assert image_manager.cover_thumbnail(str(source)) == str(source)
+    assert not _thumb_file(local_covers, "anime", "small").exists()
+
+
+def test_a_cached_thumbnail_is_reused_while_the_source_is_unchanged(local_covers):
+    source = _jpeg(local_covers / "anime" / "a.jpg", 1000, 1000)
+    first = image_manager.cover_thumbnail(str(source))
+    written = _thumb_file(local_covers, "anime", "a").stat().st_mtime_ns
+
+    assert image_manager.cover_thumbnail(str(source)) == first
+    assert _thumb_file(local_covers, "anime", "a").stat().st_mtime_ns == written
+
+
+def test_a_thumbnail_is_regenerated_when_the_source_changes(local_covers):
+    import os
+
+    from PIL import Image
+
+    source = local_covers / "anime" / "a.jpg"
+    _jpeg(source, 1000, 1000, colour=(255, 0, 0))
+    image_manager.cover_thumbnail(str(source))
+
+    # A re-download replaces the file in place. Pin a different mtime rather
+    # than trusting the clock to have ticked between two writes.
+    _jpeg(source, 800, 1600, colour=(0, 0, 255))
+    stat = source.stat()
+    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns + 5_000_000_000))
+
+    served = image_manager.cover_thumbnail(str(source))
+    with Image.open(served) as thumb:
+        assert thumb.size == (200, 400)
+        r, g, b = thumb.convert("RGB").getpixel((100, 200))
+        assert b > 200 and r < 50
+
+
+def test_a_thumbnail_is_regenerated_when_the_source_is_replaced_by_an_older_file(
+    local_covers,
+):
+    """
+    A restore (rclone keeps mtimes) or a merge's rename can put an OLDER file
+    at the key. "Regenerate when the source is newer" would keep the previous
+    image's thumbnail for ever; matching the mtime exactly does not.
+    """
+    import os
+
+    from PIL import Image
+
+    source = local_covers / "anime" / "a.jpg"
+    _jpeg(source, 1000, 1000)
+    image_manager.cover_thumbnail(str(source))
+
+    _jpeg(source, 800, 1600)
+    stat = source.stat()
+    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns - 5_000_000_000))
+
+    with Image.open(image_manager.cover_thumbnail(str(source))) as thumb:
+        assert thumb.size == (200, 400)
+
+
+def test_a_stale_thumbnail_is_dropped_when_the_new_source_is_small(local_covers):
+    import os
+
+    source = local_covers / "anime" / "a.jpg"
+    _jpeg(source, 1000, 1000)
+    image_manager.cover_thumbnail(str(source))
+    assert _thumb_file(local_covers, "anime", "a").exists()
+
+    _jpeg(source, 100, 100)
+    stat = source.stat()
+    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns + 5_000_000_000))
+
+    assert image_manager.cover_thumbnail(str(source)) == str(source)
+    assert not _thumb_file(local_covers, "anime", "a").exists()
+
+
+def test_an_undecodable_source_is_served_as_is(local_covers):
+    """The thumbnail is an optimisation: a file Pillow cannot read still has
+    to reach the browser exactly as the original route would send it."""
+    source = local_covers / "anime" / "junk.jpg"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"\xff\xd8\xff not really a jpeg")
+
+    assert image_manager.cover_thumbnail(str(source)) == str(source)
+    assert not _thumb_file(local_covers, "anime", "junk").exists()
+
+
+def test_writing_a_thumbnail_leaves_no_partial_file(local_covers):
+    source = _jpeg(local_covers / "anime" / "a.jpg", 1000, 1000)
+    image_manager.cover_thumbnail(str(source))
+
+    folder = local_covers / image_manager.THUMB_FOLDER / "anime"
+    assert sorted(p.name for p in folder.iterdir()) == ["a.jpg"]
+
+
+def test_delete_removes_the_thumbnail_with_its_source(local_covers):
+    source = _jpeg(local_covers / "studio" / "id1.jpg", 1000, 1000)
+    image_manager.cover_thumbnail(str(source))
+    assert _thumb_file(local_covers, "studio", "id1").exists()
+
+    image_manager.delete_cover_image("studio", "id1")
+
+    assert not source.exists()
+    assert not _thumb_file(local_covers, "studio", "id1").exists()
+
+
+def test_move_carries_the_thumbnail_with_its_source(local_covers):
+    source = _jpeg(local_covers / "anime" / "old.jpg", 1000, 1000)
+    image_manager.cover_thumbnail(str(source))
+    thumb_bytes = _thumb_file(local_covers, "anime", "old").read_bytes()
+
+    image_manager.move_cover_image("anime/old.jpg", "anime/new.jpg")
+
+    assert not _thumb_file(local_covers, "anime", "old").exists()
+    assert _thumb_file(local_covers, "anime", "new").read_bytes() == thumb_bytes
+    assert (local_covers / "anime" / "new.jpg").exists()
+
+
+def test_move_drops_the_targets_old_thumbnail_when_the_source_has_none(
+    local_covers,
+):
+    """The survivor's previous thumbnail depicts the image being replaced."""
+    _jpeg(local_covers / "anime" / "new.jpg", 1000, 1000)
+    image_manager.cover_thumbnail(str(local_covers / "anime" / "new.jpg"))
+    _jpeg(local_covers / "anime" / "old.jpg", 1000, 1000)
+
+    image_manager.move_cover_image("anime/old.jpg", "anime/new.jpg")
+
+    assert not _thumb_file(local_covers, "anime", "new").exists()
+
+
+def test_the_listing_does_not_include_thumbnails(local_covers):
+    """The orphan sweep deletes what this lists and no row owns - a cached
+    thumbnail must never reach it."""
+    source = _jpeg(local_covers / "anime" / "a.jpg", 1000, 1000)
+    image_manager.cover_thumbnail(str(source))
+    assert _thumb_file(local_covers, "anime", "a").exists()
+
+    assert image_manager.list_all_cover_images() == ["anime/a.jpg"]

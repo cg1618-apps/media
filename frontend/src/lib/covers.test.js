@@ -18,6 +18,7 @@ import {
   getCoverUrl,
   getFranchiseCover,
   getSeriesCover,
+  thumbUrl,
 } from "./covers";
 
 /** Pretend the page is served from production rather than the dev server. */
@@ -46,6 +47,32 @@ describe("getCoverUrl", () => {
   it("returns the placeholder for a missing or N/A file", () => {
     expect(getCoverUrl("")).toBe(FALLBACK_SVG);
     expect(getCoverUrl("N/A")).toBe(FALLBACK_SVG);
+  });
+});
+
+describe("thumbUrl", () => {
+  it("asks the cover route for its small version", () => {
+    expect(thumbUrl(getCoverUrl("anime/abc123.jpg"))).toBe(
+      "/api/covers/anime/abc123.jpg?size=thumb",
+    );
+    expect(thumbUrl(getCoverUrl("covers/character/abc123.jpg"))).toBe(
+      "/api/covers/character/abc123.jpg?size=thumb",
+    );
+  });
+
+  it("points a library upload at the thumbnail stored beside it", () => {
+    expect(thumbUrl(getCoverUrl("library/deadbeef.jpg"))).toBe(
+      "/static/library/thumbs/deadbeef.jpg",
+    );
+    expect(thumbUrl("/static/library/thumbs/deadbeef.jpg")).toBe(
+      "/static/library/thumbs/deadbeef.jpg",
+    );
+  });
+
+  it("leaves the placeholder and anything else alone", () => {
+    expect(thumbUrl(FALLBACK_SVG)).toBe(FALLBACK_SVG);
+    expect(thumbUrl("https://example.com/x.jpg")).toBe("https://example.com/x.jpg");
+    expect(thumbUrl(undefined)).toBeUndefined();
   });
 });
 

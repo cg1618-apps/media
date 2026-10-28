@@ -937,7 +937,24 @@ entry.
 
 | Method | Path                            | Auth   | Description                                                                                                       |
 | ------ | ------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/{owner_type}/{entry_id}.jpg`  | Public | One cover image, or **404**. Public means unauthenticated *reads*, not unguarded: the viewer's gates run first. |
+| `GET`  | `/{owner_type}/{entry_id}.jpg`  | Public | One cover image, or **404**. Public means unauthenticated *reads*, not unguarded: the viewer's gates run first. Optional query `size=thumb` serves the small version (below). |
+
+**`?size=thumb`** serves the cover with its long edge capped at
+`image_library.THUMB_EDGE` (400 px, the same edge library uploads' thumbnails
+use) — what a list card shows, at about 200 CSS px. Without `size`, the
+original is served. Any other `size` value is a 404, like every other input
+that does not name a cover. The visibility gate runs first, exactly as for the
+original, so a refused request generates and caches nothing.
+
+The thumbnail is made on the first request and cached at
+`static/covers/thumbs/<owner_type>/<id>.jpg` (`image_manager.cover_thumbnail`).
+A cached thumbnail carries its cover's mtime, and any other mtime on the cover
+means the cover changed, so a re-downloaded, restored or moved cover gets a
+fresh thumbnail on its next request. A cover already no bigger than the thumb
+edge is served as itself rather than copied, and so is one Pillow cannot
+decode. The write goes to a temporary file renamed into place, so concurrent
+requests for one thumbnail never see a half-written file. Deleting or moving a
+cover (`delete_cover_image`, `move_cover_image`) takes its thumbnail with it.
 
 **The media type comes from the `media` row, never from the path.** Both halves
 of the pair are caller-supplied here, and a caller-supplied type gates the
@@ -953,14 +970,16 @@ is read from the path, which is safe: the file opened is
 `<owner_type>/<id>.jpg`, so naming another folder names another file.
 
 **Everything that is not a hit answers 404** with the same body: an unknown
-owner type, a filename that is not a UUID plus `.jpg`, an absent file, and a
-refusal. A distinct status for any of them would be the existence oracle the
+owner type, a filename that is not a UUID plus `.jpg`, an unknown `size`, an
+absent file, and a refusal. A distinct status for any of them would be the existence oracle the
 gate exists to close. Path traversal has nothing to traverse — the filename
 opened is the canonical form of a parsed UUID, so no caller text reaches the
 filesystem call.
 
 **Caching:** `Cache-Control: private, max-age=86400` plus an `ETag` derived
-from the file's mtime and size. The browser keeps a cover for a day, and after
+from the served file's mtime and size; a thumbnail's ETag carries a `-thumb`
+suffix, so it never equals its original's even when a small cover is served as
+its own thumbnail. The browser keeps a cover for a day, and after
 that a still-current cover costs a 304 rather than the bytes. A day because
 every cover crosses the box's upload, the same one the tunnel serves the whole
 site on; the cost is that a re-downloaded cover can show its old image for up

@@ -26,8 +26,9 @@ const COMPLETION_TABS = [
   { key: "hentai", label: "Hentai" },
 ];
 import { Button, Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import LazyImage from "../../components/ui/LazyImage";
 import { entityPath } from "../../lib/entityPath";
-import { focusStyle } from "../../lib/covers";
+import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const PAGE_SIZE = 10;
 
@@ -80,9 +81,8 @@ function GroupedCompletions({ type, groups, pages, setPages, franchiseMap, extra
                       {page * PAGE_SIZE + idx + 1}
                     </span>
                     <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                      <img
-                        loading="lazy"
-                        src={getCoverUrl(entry.cover_image_file)}
+                      <LazyImage
+                        src={thumbUrl(getCoverUrl(entry.cover_image_file))}
                         alt={name}
                         className="w-full h-full object-cover"
                         style={focusStyle(entry.cover_image_focus)}
@@ -327,9 +327,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={coverUrl}
+                              <LazyImage
+                                src={thumbUrl(coverUrl)}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(anime.cover_image_focus)}
@@ -489,9 +488,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={getCoverUrl(am.cover_image_file)}
+                              <LazyImage
+                                src={thumbUrl(getCoverUrl(am.cover_image_file))}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(am.cover_image_focus)}
@@ -645,9 +643,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={getCoverUrl(movie.cover_image_file)}
+                              <LazyImage
+                                src={thumbUrl(getCoverUrl(movie.cover_image_file))}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(movie.cover_image_focus)}
@@ -800,9 +797,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={getCoverUrl(tv.cover_image_file)}
+                              <LazyImage
+                                src={thumbUrl(getCoverUrl(tv.cover_image_file))}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(tv.cover_image_focus)}
@@ -971,9 +967,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={getCoverUrl(cartoon.cover_image_file)}
+                              <LazyImage
+                                src={thumbUrl(getCoverUrl(cartoon.cover_image_file))}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(cartoon.cover_image_focus)}
@@ -1141,9 +1136,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={getCoverUrl(m.cover_image_file)}
+                              <LazyImage
+                                src={thumbUrl(getCoverUrl(m.cover_image_file))}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(m.cover_image_focus)}
@@ -1307,9 +1301,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={getCoverUrl(n.cover_image_file)}
+                              <LazyImage
+                                src={thumbUrl(getCoverUrl(n.cover_image_file))}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(n.cover_image_focus)}
@@ -1473,9 +1466,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={getCoverUrl(c.cover_image_file)}
+                              <LazyImage
+                                src={thumbUrl(getCoverUrl(c.cover_image_file))}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(c.cover_image_focus)}
@@ -1634,9 +1626,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={getCoverUrl(g.cover_image_file)}
+                              <LazyImage
+                                src={thumbUrl(getCoverUrl(g.cover_image_file))}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(g.cover_image_focus)}
@@ -1785,9 +1776,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={getCoverUrl(h.cover_image_file)}
+                              <LazyImage
+                                src={thumbUrl(getCoverUrl(h.cover_image_file))}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(h.cover_image_focus)}
@@ -1940,9 +1930,8 @@ export default function StatsCompletions({
                               {globalIdx + 1}
                             </span>
                             <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <img
-                                loading="lazy"
-                                src={getCoverUrl(g.cover_image_file)}
+                              <LazyImage
+                                src={thumbUrl(getCoverUrl(g.cover_image_file))}
                                 alt={name}
                                 className="w-full h-full object-cover"
                                 style={focusStyle(g.cover_image_focus)}

@@ -12,9 +12,10 @@
 // repeat the headline; a credited name is still shown there.
 import { Link } from "react-router-dom";
 
-import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
+import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
+import LazyImage from "../ui/LazyImage";
 
 export default function CastingCard({ entry, navPath, hideIdentity = false }) {
   const title = entry.display_name || "Untitled";
@@ -24,9 +25,8 @@ export default function CastingCard({ entry, navPath, hideIdentity = false }) {
       className="bg-surface-2 overflow-hidden"
       style={{ aspectRatio: "2/3" }}
     >
-      <img
-        loading="lazy"
-        src={getCoverUrl(entry.cover_image_file)}
+      <LazyImage
+        src={thumbUrl(getCoverUrl(entry.cover_image_file))}
         alt=""
         className="w-full h-full object-cover"
         style={focusStyle(entry.cover_image_focus)}

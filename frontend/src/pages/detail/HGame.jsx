@@ -52,6 +52,7 @@ import ChoiceGraphCard from "../../components/game-choices/ChoiceGraphCard";
 import { NotesProvider } from "../notes/NotesContext";
 import { NotesBlocks, NotesGroup } from "../notes/NotesTemplate";
 import { GameCopiesSection, yesNo } from "./Game";
+import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
@@ -336,8 +337,7 @@ export default function HGame() {
                   className="absolute top-2 right-2 z-10"
                 />
                 <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
-                  <img
-                    loading="lazy"
+                  <LazyImage
                     src={imageUrl}
                     alt="Cover"
                     className="w-full h-full object-cover"

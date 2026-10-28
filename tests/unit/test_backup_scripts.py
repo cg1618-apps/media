@@ -580,6 +580,16 @@ def test_covers_job_syncs_covers_and_checks_them():
     assert "rclone check" in body
 
 
+def test_covers_job_leaves_the_thumbnail_cache_behind():
+    # static/covers/thumbs/ is a cache the cover route rebuilds from the covers
+    # on demand (image_manager.THUMB_FOLDER). Mirroring it would spend the
+    # box's upload on bytes nothing needs restored, and BOTH commands need the
+    # filter: a sync that skips it and a check that does not reports every
+    # thumbnail as missing from the bucket and fails the job.
+    body = COVERS.read_text(encoding="utf-8")
+    assert body.count("--exclude 'thumbs/**'") == 2
+
+
 def test_covers_job_preserves_deletions():
     body = COVERS.read_text(encoding="utf-8")
     assert "--backup-dir" in body

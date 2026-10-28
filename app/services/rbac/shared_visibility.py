@@ -163,6 +163,10 @@ def _hiding(db: Session, viewer) -> _Hiding:
     if viewer is None:
         return _Hiding([], frozenset())
     hidden = hidden_label_ids(db, viewer)
+    # Precomputed alongside hidden_labels by cover_viewer.py.
+    precomputed = getattr(viewer, "hidden_gated", None)
+    if precomputed is not None:
+        return _Hiding(hidden, precomputed)
     return _Hiding(hidden, hidden_gated_types(db, hidden))
 
 

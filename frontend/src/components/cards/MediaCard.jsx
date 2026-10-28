@@ -24,9 +24,10 @@ import {
   MEDIA_CONFIG,
   getNovelProgress,
 } from "../../utils/media";
-import { focusStyle } from "../../lib/covers";
+import { focusStyle, thumbUrl } from "../../lib/covers";
 import { Chip, RatingStamp } from "../ui/primitives";
 import PlatformIcons from "./PlatformIcons";
+import LazyImage from "../ui/LazyImage";
 
 const SPINE_LABEL = {
   anime: "Anime",
@@ -718,10 +719,10 @@ export default function MediaCard({
             franchiseDict={franchiseDict}
             scoreField={scoreField}
           />
-          <img
-            src={imageUrl}
+          <LazyImage
+            src={thumbUrl(imageUrl)}
             alt={title}
-            loading="lazy"
+
             className="w-full h-full object-cover"
             style={focusStyle(data.cover_image_focus)}
             onError={(e) => {

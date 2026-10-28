@@ -8,8 +8,10 @@ blacklist to bolt onto. That choice costs a query per request, which this
 removes for all but the first.
 
 Single-process by design: the app runs as one process, so one dict is the whole
-cache. Every write in the roles and content-label routers calls bump(); running
-a second instance would need a short TTL instead.
+cache. Every write to a grant, an account or the label set calls bump() - the
+roles, access-mode, users and content-label routers, the gated-label seed and
+Pull (docs/authorization.md, "Who calls bump()"); running a second instance
+would need a short TTL instead.
 
 THREE caches now, and ONE bump() that clears all of them. The mode caches are
 keyed the way the role cache is - on the thing that is shared, not on the
@@ -24,8 +26,17 @@ accounts and destroy the sharing that makes it worth having:
 A bump() that cleared only the first would leave a revoked mode live until
 restart, and would leak mode state between tests in a way whose failures are
 random and order-dependent.
+
+bump() also advances a GENERATION. The cover route's short-lived viewer cache
+(cover_viewer.py) is keyed per session rather than on a shared object, so it
+is not one of the dicts above; instead every entry records the generation it
+was resolved under and is discarded once that has moved. Reading the
+generation BEFORE resolving is what closes the race in which a request reads
+the old rows, a write commits and bumps, and the request then stores its
+stale answer after the bump.
 """
 
+import threading
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -39,14 +50,25 @@ if TYPE_CHECKING:  # pragma: no cover
 _CACHE: dict[UUID, frozenset[str]] = {}
 _MODE_CACHE: dict[UUID, "ModeSets"] = {}
 _DENIAL_CACHE: dict[UUID, "ModeSets"] = {}
+_GENERATION = 0
+_GENERATION_LOCK = threading.Lock()
 
 
 def bump() -> None:
     """Drop every cache. Called by every write that changes a grant - role
-    permissions, access-mode items, and per-account denials alike."""
+    permissions, access-mode items, and per-account denials alike - and by
+    every write that changes who an account is or which labels exist."""
+    global _GENERATION
+    with _GENERATION_LOCK:
+        _GENERATION += 1
     _CACHE.clear()
     _MODE_CACHE.clear()
     _DENIAL_CACHE.clear()
+
+
+def generation() -> int:
+    """How many times bump() has run in this process."""
+    return _GENERATION
 
 
 def every_label_id(db: Session) -> frozenset[UUID]:

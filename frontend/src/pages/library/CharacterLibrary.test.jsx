@@ -162,7 +162,7 @@ describe("CharacterLibrary", () => {
     const card = (await screen.findByText("Yuki Nagato")).closest("a");
     expect(card.querySelector("img")).toHaveAttribute(
       "src",
-      "/static/library/yuki.jpg",
+      "/static/library/thumbs/yuki.jpg",
     );
   });
 
@@ -322,11 +322,11 @@ describe("CharacterLibrary", () => {
       expect(within(conan).getByText("Identity", { selector: "[data-card-spine] *" })).toBeInTheDocument();
       expect(within(conan).getByText("Identity", { selector: "[data-identity-tag]" })).toBeInTheDocument();
       const face = conan.querySelector("[data-character-face]");
-      expect(face).toHaveAttribute("src", "/api/covers/character/c5.jpg");
+      expect(face).toHaveAttribute("src", "/api/covers/character/c5.jpg?size=thumb");
       expect(within(conan).getByText("Kudo Shinichi")).toBeInTheDocument();
       expect(within(conan).getByAltText("Photo")).toHaveAttribute(
         "src",
-        "/api/covers/character-identity/i1.jpg",
+        "/api/covers/character-identity/i1.jpg?size=thumb",
       );
       expect(within(conan).queryByText(/identity of/i)).toBeNull();
     });

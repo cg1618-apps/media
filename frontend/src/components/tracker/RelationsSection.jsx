@@ -21,7 +21,8 @@ import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { Chip, Slip } from "../ui/primitives";
-import { focusStyle } from "../../lib/covers";
+import LazyImage from "../ui/LazyImage";
+import { focusStyle, thumbUrl } from "../../lib/covers";
 
 // Mirrors RELATION_FAMILIES in app/utils/relation_kinds.py. Order only - the
 // labels themselves arrive already resolved for the side being viewed.
@@ -99,9 +100,8 @@ export default function RelationsSection({ mediaType, entryId, onRows }) {
         // point at, but guard anyway rather than emit a dead link.
         const body = (
           <>
-            <img
-              loading="lazy"
-              src={getCoverUrl(other.cover_image_file)}
+            <LazyImage
+              src={thumbUrl(getCoverUrl(other.cover_image_file))}
               className="w-10 h-14 object-cover shrink-0 border border-border"
               style={focusStyle(other.cover_image_focus)}
               onError={(e) => {

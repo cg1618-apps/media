@@ -27,14 +27,19 @@ start_job "media-covers" "${HC_COVERS_URL}"
 
 stamp="$(date +%Y%m%d-%H%M%S)"
 
+# static/covers/thumbs/ is the cover route's thumbnail cache, rebuilt from the
+# covers on demand, so it is not mirrored. Both commands carry the filter: a
+# check without it would report every thumbnail as missing from the bucket.
 echo "==> Syncing static/covers/"
 rclone sync "${REPO_DIR}/static/covers" "r2:${R2_BUCKET}/covers" \
+    --exclude 'thumbs/**' \
     --backup-dir "r2:${R2_BUCKET}/_archive/covers/${stamp}" \
     --checksum --stats-one-line
 
 # Checksums come from the bucket listing, so this verifies all 283 MB without
 # downloading a byte of it.
 echo "==> Verifying"
-rclone check "${REPO_DIR}/static/covers" "r2:${R2_BUCKET}/covers" --checksum
+rclone check "${REPO_DIR}/static/covers" "r2:${R2_BUCKET}/covers" --checksum \
+    --exclude 'thumbs/**'
 
 echo "==> $(rclone size "r2:${R2_BUCKET}/covers")"

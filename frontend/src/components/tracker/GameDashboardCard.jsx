@@ -9,7 +9,8 @@ import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
-import { focusStyle } from "../../lib/covers";
+import LazyImage from "../ui/LazyImage";
+import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint";
 
@@ -80,9 +81,8 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
                 {game.game_type}
               </div>
             )}
-            <img
-              loading="lazy"
-              src={imageUrl}
+            <LazyImage
+              src={thumbUrl(imageUrl)}
               alt="Cover"
               className="w-full h-full object-cover"
               style={focusStyle(game.cover_image_focus)}
