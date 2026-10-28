@@ -77,6 +77,7 @@ from app.services.pipelines.tabs import (
 from app.services.pipelines.tabs import (
     MEDIA_TYPE_FOR_TAB as _MEDIA_TYPE_FOR_TAB,
 )
+from app.services.rbac import cache
 from app.services.rbac.gated_types import REQUIRED_LABEL_FOR_TYPE
 from app.services.security import UNUSABLE_PASSWORD_HASH
 from app.utils.constants import MUSIC_STATUSES
@@ -1971,6 +1972,11 @@ def execute_pull_specific(
                 error_message=str(e),
             )
         return {"status": "error", "message": str(e)}
+
+    # A restore writes users and content labels straight to their tables, so
+    # no router's bump() ran; every RBAC cache - the cover route's viewers
+    # included - would otherwise keep the pre-Pull answer.
+    cache.bump()
 
     # Tabs whose rows restore with the sheet's own integer PK. Postgres does
     # not advance a sequence when a value is supplied explicitly, so after a

@@ -52,7 +52,14 @@ def hidden_label_ids(db: Session, viewer: Viewer) -> list[UUID]:
     holding every capability says nothing about which objects this SESSION
     reaches, so an admin sitting in a narrow mode is narrowed like anybody
     else.
+
+    A viewer carrying `hidden_labels` (cover_viewer.py) has this answer
+    precomputed from the same two inputs - its visible set and the
+    content_label table - and is handed it without a query.
     """
+    precomputed = getattr(viewer, "hidden_labels", None)
+    if precomputed is not None:
+        return list(precomputed)
     visible = viewer.visible_label_ids
     return [
         system_id

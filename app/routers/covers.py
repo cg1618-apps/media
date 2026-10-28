@@ -32,8 +32,9 @@ from app.services.integrations.image_manager import (
     COVER_OWNERS,
     cover_thumbnail,
 )
+from app.services.rbac.cover_viewer import get_cover_viewer
 from app.services.rbac.enforcement import entry_visible
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer
 from app.services.rbac.shared_visibility import (
     ENTITY_OWNER_MODELS,
     IDENTITY_OWNER,
@@ -101,7 +102,8 @@ def get_cover_image(
     request: Request,
     size: Optional[str] = None,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    # Cached for a few seconds per session: see rbac/cover_viewer.py.
+    viewer: Viewer = Depends(get_cover_viewer),
 ):
     """
     One cover image, or 404.
