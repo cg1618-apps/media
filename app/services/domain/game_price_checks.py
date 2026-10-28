@@ -4,8 +4,7 @@ Free Games With a List Price and Bought Copies Without a List Price.
 
 A game's list price is its three `price_original_*` columns (US, JP, TW), the
 undiscounted storefront price Steam fills. Both checks read those and nothing
-else: the current-price columns say what a game costs today, which is no part
-of either question.
+else.
 
 Zero and NULL mean different things to the two checks, deliberately:
 
