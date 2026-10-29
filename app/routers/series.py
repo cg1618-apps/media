@@ -22,6 +22,7 @@ from app.services.domain import (
     resolve_series_parent_hierarchy,
     upsert_remark,
 )
+from app.services.domain.group_counts import attach_entry_counts
 from app.services.rbac.enforcement import apply_series_visibility, series_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
@@ -70,7 +71,11 @@ def get_all_series(
             )
         )
 
-    return query.order_by(models.Series.series_name_en).limit(limit).offset(offset).all()
+    rows = (
+        query.order_by(models.Series.series_name_en).limit(limit).offset(offset).all()
+    )
+    attach_entry_counts(db, rows, models.Media.series_id, viewer)
+    return rows
 
 
 @router.get(

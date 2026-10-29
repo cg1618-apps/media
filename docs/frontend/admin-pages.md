@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-28
+Last verified: 2026-10-29
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -269,6 +269,14 @@ series pickers: `FamilyLineageFields` with the type's franchise filter); its
 default export is the Add wrapper, and `pages/modify-tabs/<Type>ModifyTab.jsx`
 imports both. So the two pages show the same fields, in the same order, with
 the same labels, and a field added to one appears on the other.
+
+**The franchise and series pickers rank what is typed**: an exact name match
+first, then names starting with it, then names containing it (ComboBox
+`rankMatches`). Within each rank the franchise or series with more entries
+comes first, because `useEntryLists` holds those two lists sorted by the
+server's `entry_count`, highest first (`busiestFirst`; ties keep A-Z). The
+same order reaches every franchise and series picker on Add, Modify and
+Delete.
 
 The pages differ only in their wrappers and in `ownerId`:
 
@@ -1235,13 +1243,17 @@ mode with unsaved changes asks first, and discards them on yes.
 Lists every watch-order list (`GET /api/watch-order/lists`, with the
 `auto=exclude|only` filter for generated Release Orders), opens
 `WatchOrderEditor` for items, sections and reordering, and can duplicate or
-delete lists. Details in [../systems/watch-orders.md](../systems/watch-orders.md).
+delete lists. The scoped owner and the open order are `?owner=` and `?order=`
+in the URL, which is how a hub's or the full page's "Edit" opens one order.
+Details in [../systems/watch-orders.md](../systems/watch-orders.md).
 
 ## /relations (`Relations.jsx`)
 
-Picks a lens (franchise, collection or series) and renders `RelationGraph`
+Picks a lens (franchise or collection) and renders `RelationGraph`
 (`GET /api/media-relation/graph`), with drag-to-connect, the edge inspector,
-undo and scope reset. Details in [../systems/relations.md](../systems/relations.md).
+undo and scope reset. The picked lens is `?owner=<tier>:<system_id>` in the
+URL - the key `/watch-orders` uses - so a reload or a hub's "Edit relations"
+link opens on that scope. Details in [../systems/relations.md](../systems/relations.md).
 
 ## /options (`SystemOptions.jsx`)
 

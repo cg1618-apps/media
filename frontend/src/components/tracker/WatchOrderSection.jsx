@@ -10,6 +10,7 @@ import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { entityPath } from "../../lib/entityPath";
+import { ownerKeyOf, watchOrderEditPath } from "../../lib/watchOrderPaths";
 import { useWatchOrderFollows } from "../../api/mutations/useWatchOrderFollows";
 import { Button, Chip, Eyebrow } from "../ui/primitives";
 import FollowOrderButton, { isFollowed } from "./FollowOrderButton";
@@ -148,6 +149,12 @@ function OrderChips({ groups, selectedId, followedId, onSelect }) {
 export default function WatchOrderSection({ franchiseId, collectionId, seriesId }) {
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
+  // The admin page opened on this group; "Edit" also opens the order shown.
+  const ownerKey = ownerKeyOf({
+    franchise_id: franchiseId,
+    series_id: seriesId,
+    collection_id: collectionId,
+  });
   // Which of this group's orders the viewer follows - at most one.
   const follows = useWatchOrderFollows(has("self.list"));
 
@@ -271,7 +278,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
               Add built-in order
             </Button>
             <Link
-              to="/watch-orders"
+              to={watchOrderEditPath(ownerKey)}
               className="inline-flex items-center px-2.5 py-1 text-xs font-medium border border-border-strong text-text hover:border-text bg-surface"
             >
               Build one by hand
@@ -387,7 +394,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
           )}
           {isAdmin && (
             <Link
-              to="/watch-orders"
+              to={watchOrderEditPath(ownerKey, selectedId)}
               className="text-xs font-medium text-text-muted hover:text-text whitespace-nowrap"
             >
               Edit

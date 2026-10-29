@@ -19,6 +19,7 @@ from app.routers._patching import apply_column_patch
 from app.services.domain import attach_remark, pop_remark, upsert_remark
 from app.services.domain.content_labels import attach_franchise_content_labels
 from app.services.domain.gated_labels import ensure_franchise_labels
+from app.services.domain.group_counts import attach_entry_counts
 from app.services.domain.hierarchy import (
     check_franchise_entries_family,
     check_franchise_type_family,
@@ -102,6 +103,7 @@ def get_all_franchises(
         .all()
     )
     attach_franchise_content_labels(db, rows)
+    attach_entry_counts(db, rows, models.Media.franchise_id, viewer)
     return rows
 
 

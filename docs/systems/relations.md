@@ -1,6 +1,6 @@
 # Media Relations
 
-Last verified: 2026-10-04
+Last verified: 2026-10-29
 
 ## What this is for
 
@@ -141,8 +141,8 @@ Dependencies: `@xyflow/react` (React Flow 12) is the only graph library in `fron
 
 | Surface | Component | Mode |
 | --- | --- | --- |
-| Admin `/relations` (`frontend/src/pages/admin/Relations.jsx`) | `RelationGraph` + `RelationForm` | editable |
-| Collection / Franchise / Series hubs (`frontend/src/pages/detail/*Page.jsx`) | `<RelationGraph readOnly scopeType=… />` | read-only: handles inert, no drag/connect, no Undo/Tidy/Reset, inspector shows plain text |
+| Admin `/relations` (`frontend/src/pages/admin/Relations.jsx`) | `RelationGraph` + `RelationForm` | editable. The lens is `?owner=franchise:<system_id>` or `?owner=collection:<system_id>`; any other value opens the page with nothing picked. Picking, clearing, switching tier and following a ghost franchise all rewrite it (`replace`, so the back button leaves the page rather than stepping through picks) |
+| Collection / Franchise / Series hubs (`frontend/src/pages/detail/*Page.jsx`) | `<RelationGraph readOnly scopeType=… />` | read-only: handles inert, no drag/connect, no Undo/Tidy/Reset, inspector shows plain text. The Collection and Franchise hubs give an admin an "Edit relations" link to `/relations` scoped to that group; the Series hub has none, because the admin page has no series lens |
 | Every media detail page | `frontend/src/components/tracker/RelationsSection.jsx` "Related Entries" card, via `/for-entry` | read-only; the only place derived (transitive) rows appear |
 
 ### Layout — `frontend/src/lib/relationLayout.js` (`layoutGraph`, `mergePositions`)

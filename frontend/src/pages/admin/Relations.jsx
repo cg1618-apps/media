@@ -10,7 +10,12 @@
 // watch order, a relation belongs to no tier - it links two entries. Collection
 // works as the wider lens because it sits strictly above Franchise, which is
 // also where most cross-franchise relations live.
+//
+// The picked scope lives in the URL as ?owner=<tier>:<system_id>, the key
+// /watch-orders uses, so a reload, a shared link or a hub's "Edit relations"
+// lands on that franchise or collection rather than at square one.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
@@ -21,11 +26,25 @@ import FittedName from "../../components/layout/FittedName";
 import RelationGraph from "../../components/relations/RelationGraph";
 import RelationForm from "../../components/relations/RelationForm";
 
+const SCOPE_TYPES = ["franchise", "collection"];
+
+// "franchise:FR001" -> { type, id }; anything else -> null, so a hand-edited
+// or stale link opens the page empty instead of on a tier it cannot show.
+function parseOwner(value) {
+  const [type, id] = (value || "").split(":");
+  return SCOPE_TYPES.includes(type) && id ? { type, id } : null;
+}
+
 export default function Relations() {
   const { showToast } = useToast();
 
-  const [scopeType, setScopeType] = useState("franchise");
-  const [scopeId, setScopeId] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const owner = parseOwner(searchParams.get("owner"));
+  // The tier toggle with nothing picked yet: the URL names an owner, not a
+  // bare tier, so this is the only part of the scope that is not in it.
+  const [pickedType, setPickedType] = useState("franchise");
+  const scopeType = owner?.type ?? pickedType;
+  const scopeId = owner?.id ?? null;
   const [owners, setOwners] = useState({ franchises: [], collections: [] });
 
   const [kinds, setKinds] = useState([]);
@@ -153,12 +172,27 @@ export default function Relations() {
     );
   }, [candidates, selected]);
 
+  const setScope = useCallback(
+    (type, id) => {
+      setPickedType(type);
+      setSelected(null);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (id) next.set("owner", `${type}:${id}`);
+          else next.delete("owner");
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   function switchScope(type) {
     if (type === scopeType) return;
-    setScopeType(type);
     // The previous pick belongs to the other tier and cannot carry over.
-    setScopeId(null);
-    setSelected(null);
+    setScope(type, null);
   }
 
   return (
@@ -204,14 +238,8 @@ export default function Relations() {
           <ComboBox
             items={ownerItems}
             selectedId={scopeId}
-            onSelect={(id) => {
-              setScopeId(id);
-              setSelected(null);
-            }}
-            onClear={() => {
-              setScopeId(null);
-              setSelected(null);
-            }}
+            onSelect={(id) => setScope(scopeType, id)}
+            onClear={() => setScope(scopeType, null)}
             placeholder={`Search ${scopeType}s…`}
           />
 
@@ -321,9 +349,7 @@ export default function Relations() {
             }}
             onPickGhostFranchise={(franchiseId) => {
               // A ghost lives in another franchise; following it moves the lens.
-              setScopeType("franchise");
-              setScopeId(franchiseId);
-              setSelected(null);
+              setScope("franchise", franchiseId);
             }}
           />
 

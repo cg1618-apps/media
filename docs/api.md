@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-28
+Last verified: 2026-10-29
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -138,13 +138,20 @@ gains that type's content label on every write.
 
 **Response model:** `FranchiseResponse`
 
+**`entry_count`.** The list (`GET /`) sets `entry_count` on every row: how many
+entries in that franchise the viewer may see, counted over `media` through
+`apply_media_visibility` in one grouped query (`app/services/domain/group_counts.py`).
+A count that included hidden entries would say they exist, so a guest and an
+admin can read different numbers for one franchise. `GET /{system_id}` leaves
+it `null`. The series list sets the same field per series.
+
 ---
 
 ## Series — `/api/series`
 
 | Method   | Path           | Auth   | Description                                                                        |
 | -------- | -------------- | ------ | ---------------------------------------------------------------------------------- |
-| `GET`    | `/`            | Public | List all series. Optional params: `franchise_id` (UUID), `search_query`.           |
+| `GET`    | `/`            | Public | List all series. Optional params: `franchise_id` (UUID), `search_query`. Each row carries a viewer-filtered `entry_count`, as the franchise list does. |
 | `GET`    | `/{system_id}` | Public | Get a single series by UUID.                                                       |
 
 **A series is hidden with its franchise.** A series carries no labels of its
