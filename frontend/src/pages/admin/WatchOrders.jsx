@@ -13,6 +13,7 @@ import { buildUrl, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { getDisplayName } from "../../utils/media";
 import { entityPath } from "../../lib/entityPath";
+import { ownerKeyOf } from "../../lib/watchOrderPaths";
 import WatchOrderEditor, {
   LIST_TYPES,
 } from "../../components/tracker/WatchOrderEditor";
@@ -51,15 +52,6 @@ const SCOPE_PLACEHOLDERS = {
   series: "Search series…",
   order: "Find an order by name…",
 };
-
-// The owner of a list as one string, so lists and owners can be joined
-// without every call site re-checking which of the three id columns is set.
-function ownerKeyOf(list) {
-  if (list.franchise_id) return `franchise:${list.franchise_id}`;
-  if (list.series_id) return `series:${list.series_id}`;
-  if (list.collection_id) return `collection:${list.collection_id}`;
-  return "unknown";
-}
 
 function TierPill({ tier }) {
   return (
@@ -263,7 +255,6 @@ export default function WatchOrders() {
   const [franchises, setFranchises] = useState([]);
   const [seriesRows, setSeriesRows] = useState([]);
   const [collections, setCollections] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
   // One search over both owners and orders, narrowed by a scope the way the
   // nav's universal search is — you rarely know in advance whether the name
   // you half-remember belongs to a franchise or to an order.
@@ -276,29 +267,45 @@ export default function WatchOrders() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
-  // The scoped owner lives in the URL so a reload or a shared link lands
-  // back on the same franchise rather than at square one.
+  // The scoped owner and the open order live in the URL, so a reload, a
+  // shared link or a hub's "Edit" lands back on the same order rather than at
+  // square one. Both go through one write: setSearchParams reads the params
+  // of the render it came from, so two calls in one tick keep only the last.
   const [searchParams, setSearchParams] = useSearchParams();
   const scopeKey = searchParams.get("owner");
+  const selectedId = searchParams.get("order");
+
+  const updateParams = useCallback(
+    (changes) =>
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          for (const [name, value] of Object.entries(changes)) {
+            if (value) next.set(name, value);
+            else next.delete(name);
+          }
+          return next;
+        },
+        { replace: true }
+      ),
+    [setSearchParams]
+  );
+
+  const setSelectedId = useCallback(
+    (id) => updateParams({ order: id }),
+    [updateParams]
+  );
 
   const setScope = useCallback(
-    (key) => {
+    (key, extra = {}) => {
       setCreating(false);
       // Picking an owner ends the search. The scoped view is skipped while a
       // query is live, so leaving the box filled would swallow the click and
       // keep the result list on screen as if nothing had been selected.
       setQuery("");
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (key) next.set("owner", key);
-          else next.delete("owner");
-          return next;
-        },
-        { replace: true }
-      );
+      updateParams({ owner: key, ...extra });
     },
-    [setSearchParams]
+    [updateParams]
   );
 
   const loadLists = useCallback(
@@ -464,8 +471,7 @@ export default function WatchOrders() {
   // Opening a search hit also scopes to its owner, so clearing the search
   // leaves you where the order lives rather than back at the browse list.
   function openFromSearch(list) {
-    setSelectedId(list.system_id);
-    setScope(ownerKeyOf(list));
+    setScope(ownerKeyOf(list), { order: list.system_id });
   }
 
   async function createList(payload) {

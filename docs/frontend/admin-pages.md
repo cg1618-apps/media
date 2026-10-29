@@ -1235,7 +1235,9 @@ mode with unsaved changes asks first, and discards them on yes.
 Lists every watch-order list (`GET /api/watch-order/lists`, with the
 `auto=exclude|only` filter for generated Release Orders), opens
 `WatchOrderEditor` for items, sections and reordering, and can duplicate or
-delete lists. Details in [../systems/watch-orders.md](../systems/watch-orders.md).
+delete lists. The scoped owner and the open order are `?owner=` and `?order=`
+in the URL, which is how a hub's or the full page's "Edit" opens one order.
+Details in [../systems/watch-orders.md](../systems/watch-orders.md).
 
 ## /relations (`Relations.jsx`)
 

@@ -17,6 +17,7 @@ import { getDisplayName } from "../../utils/media";
 import { Chip, Slip } from "../../components/ui/primitives";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
+import { ownerKeyOf, watchOrderEditPath } from "../../lib/watchOrderPaths";
 
 export default function WatchOrderPage() {
   const { publicId } = useParams();
@@ -136,7 +137,7 @@ export default function WatchOrderPage() {
             Admin
           </div>
           <Link
-            to="/watch-orders"
+            to={watchOrderEditPath(ownerKeyOf(list), list.system_id)}
             className="border border-border-strong text-text bg-surface px-3 py-1.5 text-sm font-medium hover:border-text transition"
           >
             Edit this order
