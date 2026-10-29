@@ -16,6 +16,11 @@
 //
 // With neither, every franchise is offered.
 //
+// Both pickers rank what is typed as exact, then prefix, then contains
+// (ComboBox rankMatches), each rank in the order the items came in - which for
+// the admin pages is busiest first (hooks/useEntryLists.js). So the best name
+// match leads, and among equal matches the franchise with the most entries.
+//
 // The Series picker renders only when `seriesItems` is given - anime movie
 // has no series. Typing a name that matches nothing creates a franchise (or
 // series) of the caller's own type on save; the page does that, not this
@@ -80,6 +85,7 @@ export default function FamilyLineageFields({
           placeholder="Search or type new franchise..."
           ariaLabel="Franchise"
           allowNew
+          rankMatches
         />
         <CollectionNote franchiseId={f.franchise_id} franchiseCollections={franchiseCollections} />
       </Field>
@@ -104,6 +110,7 @@ export default function FamilyLineageFields({
             placeholder="Search or type new series..."
             ariaLabel="Series"
             allowNew
+            rankMatches
           />
         </Field>
       )}
