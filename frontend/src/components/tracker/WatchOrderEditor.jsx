@@ -4,6 +4,7 @@
 // renderer is WatchOrderGuide; this component deliberately does not reuse it,
 // because an editable row needs inputs where the guide needs links.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   DndContext,
   MeasuringStrategy,
@@ -38,6 +39,7 @@ import {
   orderPayload,
 } from "./watchOrderLayout";
 import LazyImage from "../ui/LazyImage";
+import { entityPath } from "../../lib/entityPath";
 
 // The rungs a step can sit on, most important first. Mirrors ITEM_IMPORTANCE
 // in app/services/domain/watch_order.py, which validates them.
@@ -1156,6 +1158,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
   }
 
   const isBuiltIn = Boolean(list?.auto_source);
+  const fullPagePath = entityPath("watch-order", list);
 
   if (loading || !list) {
     return (
@@ -1170,11 +1173,20 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
       {/*
         The editor has no title for the scope to lead, so it leads the panel
         instead - a band above the fields rather than a line floating between
-        the checkboxes and the picker.
+        the checkboxes and the picker. The band also carries the way out to
+        the order's own page, worded as WatchOrderSection words it.
       */}
-      {list.media_types?.length > 0 && (
-        <div className="-mx-4 -mt-4 px-4 py-2 border-b border-border bg-surface-2">
-          <MediaScopeLine mediaTypes={list.media_types} />
+      {(list.media_types?.length > 0 || fullPagePath) && (
+        <div className="-mx-4 -mt-4 px-4 py-2 border-b border-border bg-surface-2 flex items-center gap-3">
+          {list.media_types?.length > 0 && <MediaScopeLine mediaTypes={list.media_types} />}
+          {fullPagePath && (
+            <Link
+              to={fullPagePath}
+              className="ml-auto text-xs font-medium text-text-muted hover:text-brand whitespace-nowrap"
+            >
+              Open full page <i className="fas fa-arrow-up-right-from-square ml-1"></i>
+            </Link>
+          )}
         </div>
       )}
 

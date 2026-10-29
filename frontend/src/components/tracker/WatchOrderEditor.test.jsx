@@ -24,6 +24,7 @@ const step = (id, sectionId, position) => ({
 function freshList() {
   return {
     system_id: "list-1",
+    public_id: 7,
     list_name: "Order",
     list_type: "Custom",
     auto_source: null,
@@ -231,5 +232,19 @@ describe("WatchOrderEditor reordering", () => {
     fireEvent.keyDown(screen.getByLabelText("Reorder Show c"), { key: "ArrowUp" });
     await waitFor(() => expect(showToast).toHaveBeenCalledWith("error", "nope"));
     await waitFor(() => expect(stepNames()).toEqual(["a", "b", "c", "d"]));
+  });
+});
+
+describe("WatchOrderEditor header", () => {
+  it("links to the order's full page", async () => {
+    await renderEditor();
+    const link = screen.getByRole("link", { name: /open full page/i });
+    expect(link.getAttribute("href")).toMatch(/^\/watch-order\/7(\/|$)/);
+  });
+
+  it("draws no link for an order without a public id", async () => {
+    server = { ...server, public_id: null };
+    await renderEditor();
+    expect(screen.queryByRole("link", { name: /open full page/i })).toBeNull();
   });
 });
