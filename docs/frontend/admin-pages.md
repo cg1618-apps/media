@@ -270,6 +270,14 @@ default export is the Add wrapper, and `pages/modify-tabs/<Type>ModifyTab.jsx`
 imports both. So the two pages show the same fields, in the same order, with
 the same labels, and a field added to one appears on the other.
 
+**The franchise and series pickers rank what is typed**: an exact name match
+first, then names starting with it, then names containing it (ComboBox
+`rankMatches`). Within each rank the franchise or series with more entries
+comes first, because `useEntryLists` holds those two lists sorted by the
+server's `entry_count`, highest first (`busiestFirst`; ties keep A-Z). The
+same order reaches every franchise and series picker on Add, Modify and
+Delete.
+
 The pages differ only in their wrappers and in `ownerId`:
 
 - **Add wrapper** — a card holding the auto-fill box (`EntryAutofillSearch`)

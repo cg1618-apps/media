@@ -48,6 +48,9 @@ class FranchiseResponse(FranchiseBase):
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int
+    # Entries the viewer may see in this franchise. Set by the list endpoint
+    # (services.domain.group_counts); None on every other read.
+    entry_count: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -85,6 +88,8 @@ class SeriesUpdate(SeriesBase):
 
 class SeriesResponse(SeriesBase):
     system_id: UUID
+    # As FranchiseResponse.entry_count, for this series.
+    entry_count: Optional[int] = None
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int

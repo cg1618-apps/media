@@ -37,6 +37,16 @@ export const GROUP_LIST_TYPES = ["collection", "franchise", "series"];
 
 export const ALL_LIST_TYPES = [...GROUP_LIST_TYPES, ...MEDIA_LIST_TYPES];
 
+// The tiers an entry's franchise and series fields are picked from. They are
+// held busiest first (the server's entry_count, viewer-filtered), so a picker
+// offers the franchise most entries already sit in ahead of a namesake with
+// none. The sort is stable, so ties keep the server's A-Z order.
+const BUSIEST_FIRST = new Set(["franchise", "series"]);
+
+export function busiestFirst(rows) {
+  return [...rows].sort((a, b) => (b.entry_count ?? 0) - (a.entry_count ?? 0));
+}
+
 // One frozen array shared by every unloaded key. Callers only ever read it,
 // and a shared identity keeps an unloaded list from looking like a new value
 // on each render.
@@ -80,7 +90,8 @@ export function useEntryLists() {
       credentials: "include",
     });
     if (!res.ok) throw new Error(`${type}: ${res.status}`);
-    return res.json();
+    const fetched = await res.json();
+    return BUSIEST_FIRST.has(type) ? busiestFirst(fetched) : fetched;
   }, []);
 
   const ensure = useCallback(

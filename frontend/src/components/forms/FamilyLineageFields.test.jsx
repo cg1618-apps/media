@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import FamilyLineageFields from "./FamilyLineageFields";
 import { RESTRICTED_FAMILY } from "../../lib/gatedTypes";
+import { busiestFirst } from "../../hooks/useEntryLists";
 
 const FRANCHISES = [
   { system_id: "fr-h", franchise_name_en: "Doujin Circle", franchise_type: "H-Comic, Hentai" },
@@ -105,5 +106,28 @@ describe("FamilyLineageFields", () => {
     renderFields({ accepts: () => true, seriesItems: [] });
     expect(screen.getByPlaceholderText("Search or type new franchise...")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search or type new series...")).toBeInTheDocument();
+  });
+
+  // The admin pages hold franchises busiest first (busiestFirst, as
+  // useEntryLists does on load); the picker then ranks by match. Every name
+  // here contains "saga", and the A-Z order the server sends is neither of
+  // the two orders under test, so a pass is the ranking and not the input.
+  it("offers the best name match first, then the franchise with more entries", async () => {
+    const byName = [
+      { system_id: "a", franchise_name_en: "Grand Saga", franchise_type: null, entry_count: 9 },
+      { system_id: "b", franchise_name_en: "Saga", franchise_type: null, entry_count: 1 },
+      { system_id: "c", franchise_name_en: "Saga Chronicles", franchise_type: null, entry_count: 2 },
+      { system_id: "d", franchise_name_en: "Saga Legends", franchise_type: null, entry_count: 7 },
+    ];
+    renderFields({ allFranchises: busiestFirst(byName), seriesItems: [] });
+
+    await userEvent.type(screen.getByRole("combobox", { name: "Franchise" }), "saga");
+
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "Saga", // exact
+      "Saga Legends", // prefix, 7 entries
+      "Saga Chronicles", // prefix, 2 entries
+      "Grand Saga", // contains, though it has the most entries
+    ]);
   });
 });
