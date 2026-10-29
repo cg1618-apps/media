@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-28
+Last verified: 2026-10-29
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -1239,9 +1239,11 @@ delete lists. Details in [../systems/watch-orders.md](../systems/watch-orders.md
 
 ## /relations (`Relations.jsx`)
 
-Picks a lens (franchise, collection or series) and renders `RelationGraph`
+Picks a lens (franchise or collection) and renders `RelationGraph`
 (`GET /api/media-relation/graph`), with drag-to-connect, the edge inspector,
-undo and scope reset. Details in [../systems/relations.md](../systems/relations.md).
+undo and scope reset. The picked lens is `?owner=<tier>:<system_id>` in the
+URL - the key `/watch-orders` uses - so a reload or a hub's "Edit relations"
+link opens on that scope. Details in [../systems/relations.md](../systems/relations.md).
 
 ## /options (`SystemOptions.jsx`)
 

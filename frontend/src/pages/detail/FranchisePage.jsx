@@ -2615,7 +2615,18 @@ export default function FranchisePage() {
         >
           {/* Read-only everywhere outside the admin Relations page, for admins
               too: this is a view of the structure, and curating it belongs in
-              one place rather than scattered across every hub. */}
+              one place rather than scattered across every hub. The link is
+              the way there, already scoped to this franchise. */}
+          {isAdmin && (
+            <div className="flex justify-end mb-2">
+              <Link
+                to={`/relations?owner=franchise:${system_id}`}
+                className="text-xs font-medium text-text-muted hover:text-text whitespace-nowrap"
+              >
+                Edit relations
+              </Link>
+            </div>
+          )}
           <RelationGraph readOnly scopeType="franchise" scopeId={system_id} />
         </Section>
       )}

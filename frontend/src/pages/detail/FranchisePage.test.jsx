@@ -3,12 +3,19 @@
 // Every media tab carries the number of entries it lists. A tab whose label
 // had no count showed "Game 0" beside a full list of games.
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import FranchisePage from "./FranchisePage";
 import { ToastProvider } from "../../hooks/useToast";
 import { AuthProvider } from "../../contexts/AuthContext";
+
+// The canvas needs a real layout engine, and the Relations tab is tested here
+// only for the link above it.
+vi.mock("../../components/relations/RelationGraph", () => ({
+  default: () => null,
+}));
 
 const FRANCHISE = {
   system_id: "FR001",
@@ -44,13 +51,16 @@ function jsonRes(body) {
 }
 
 let franchise = FRANCHISE;
+let me = [];
 
 beforeEach(() => {
   franchise = FRANCHISE;
+  me = [];
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => {
       const u = String(url);
+      if (u.startsWith("/api/auth/me")) return jsonRes(me);
       if (u.startsWith("/api/franchise/FR001")) return jsonRes(franchise);
       if (u.startsWith("/api/game/")) return jsonRes(GAMES);
       if (u.startsWith("/api/h-game/")) return jsonRes(H_GAMES);
@@ -125,5 +135,24 @@ describe("FranchisePage restricted family", () => {
     await screen.findByRole("button", { name: /^Game\s*2$/ });
     expect(hGameFetched()).toBe(false);
     expect(screen.queryByRole("button", { name: /^H-Game/ })).toBeNull();
+  });
+});
+
+// The hub's graph is read-only; an admin reaches the editor through a link
+// already scoped to this franchise, which /relations reads from ?owner=.
+describe("FranchisePage relations link", () => {
+  it("links an admin to /relations scoped to this franchise", async () => {
+    me = { is_admin: true, is_root: true, username: "admin", role: "admin" };
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: "Relations" }));
+    expect(
+      (await screen.findByRole("link", { name: "Edit relations" })).getAttribute("href"),
+    ).toBe("/relations?owner=franchise:FR001");
+  });
+
+  it("draws no link for a guest", async () => {
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: "Relations" }));
+    expect(screen.queryByRole("link", { name: "Edit relations" })).toBeNull();
   });
 });
