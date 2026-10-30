@@ -156,3 +156,39 @@ describe("FranchisePage relations link", () => {
     expect(screen.queryByRole("link", { name: "Edit relations" })).toBeNull();
   });
 });
+
+// A guest's hub: the franchise carries a rating and an expectation, and the
+// member mirror draws both and offers the Characters tab, so their absence
+// for a guest is the view.* keys' doing.
+describe("FranchisePage for a guest", () => {
+  const GUEST = { username: null, role: "guest", is_root: false, permissions: [] };
+  const MEMBER = {
+    username: "reader",
+    role: "user",
+    is_root: false,
+    permissions: ["view.entities", "view.search", "view.extras", "view.personal"],
+  };
+  const rated = { ...FRANCHISE, my_rating: "S", franchise_expectation: "High" };
+  const characterFetched = () =>
+    fetch.mock.calls.some(([url]) => String(url).startsWith("/api/character/"));
+
+  it("draws no rating, no expectation and no Characters tab", async () => {
+    franchise = rated;
+    me = GUEST;
+    renderPage();
+    expect(await screen.findByRole("button", { name: /^Game\s*2$/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Rating S")).toBeNull();
+    expect(screen.queryByText(/Expectation · High/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Characters/ })).toBeNull();
+    expect(characterFetched()).toBe(false);
+  });
+
+  it("draws all three for a member", async () => {
+    franchise = rated;
+    me = MEMBER;
+    renderPage();
+    expect(await screen.findByRole("button", { name: /^Characters/ })).toBeInTheDocument();
+    expect(screen.getByLabelText("Rating S")).toBeInTheDocument();
+    expect(screen.getByText(/Expectation · High/)).toBeInTheDocument();
+  });
+});

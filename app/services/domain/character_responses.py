@@ -20,6 +20,7 @@ from app.services.domain.character_identities import (
 )
 from app.services.domain.character_tags import character_tag_values
 from app.services.domain.entity_photos import EntityMedia, character_media
+from app.services.rbac.personal_gate import strip_personal
 
 
 def character_response(
@@ -44,7 +45,7 @@ def character_response(
         tags = character_tag_values(db, [character.system_id])[character.system_id]
     if identities is None:
         identities = identities_by_character(db, [character.system_id])[character.system_id]
-    return schemas.CharacterResponse(
+    response = schemas.CharacterResponse(
         system_id=character.system_id,
         public_id=character.public_id,
         name_en=character.name_en,
@@ -74,6 +75,7 @@ def character_response(
         trait=tags["trait"],
         identities=[identity_response(i, character, media) for i in identities],
     )
+    return strip_personal(viewer, "character", response)
 
 
 def character_responses(

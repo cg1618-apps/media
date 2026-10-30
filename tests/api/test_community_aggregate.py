@@ -14,7 +14,7 @@ from app import models
 from app.services.rbac.permissions import media_type_perm
 from app.services.rbac.seed import default_guest_permissions
 from app.services.security import get_password_hash
-from tests.api.conftest import make_viewer
+from tests.api.conftest import ALL_VIEW_PERMISSIONS, make_viewer
 
 
 @pytest.fixture
@@ -49,8 +49,8 @@ def _listed(db, user, media_id, status, rating):
     return row
 
 
-def test_an_entry_nobody_listed_reports_nothing(client, sample_anime):
-    r = client.get(f"/api/community/{sample_anime.system_id}")
+def test_an_entry_nobody_listed_reports_nothing(guest_reader, sample_anime):
+    r = guest_reader.get(f"/api/community/{sample_anime.system_id}")
     assert r.status_code == 200
     body = r.json()
     assert body["statuses"] == []
@@ -58,48 +58,48 @@ def test_an_entry_nobody_listed_reports_nothing(client, sample_anime):
     assert body["average_rating"] is None
 
 
-def test_public_lists_are_counted_per_status(db, client, sample_anime):
+def test_public_lists_are_counted_per_status(db, guest_reader, sample_anime):
     _listed(db, _member(db, "a", True), sample_anime.system_id, "Completed", "S")
     _listed(db, _member(db, "b", True), sample_anime.system_id, "Completed", "A")
     _listed(db, _member(db, "c", True), sample_anime.system_id, "Watching", None)
 
-    body = client.get(f"/api/community/{sample_anime.system_id}").json()
+    body = guest_reader.get(f"/api/community/{sample_anime.system_id}").json()
     counts = {s["status"]: s["count"] for s in body["statuses"]}
     assert counts == {"Completed": 2, "Watching": 1}
     assert body["list_count"] == 3
 
 
-def test_private_lists_are_not_counted(db, client, sample_anime):
+def test_private_lists_are_not_counted(db, guest_reader, sample_anime):
     _listed(db, _member(db, "seen", True), sample_anime.system_id, "Completed", "A")
     _listed(db, _member(db, "hidden", False), sample_anime.system_id, "Completed", "F")
 
-    body = client.get(f"/api/community/{sample_anime.system_id}").json()
+    body = guest_reader.get(f"/api/community/{sample_anime.system_id}").json()
     assert body["list_count"] == 1
     assert body["sample_size"] == 1
     assert body["average_rating"] == "A"
 
 
-def test_the_average_ignores_unrated_rows(db, client, sample_anime):
+def test_the_average_ignores_unrated_rows(db, guest_reader, sample_anime):
     _listed(db, _member(db, "a", True), sample_anime.system_id, "Completed", "S")
     _listed(db, _member(db, "b", True), sample_anime.system_id, "Watching", None)
 
-    body = client.get(f"/api/community/{sample_anime.system_id}").json()
+    body = guest_reader.get(f"/api/community/{sample_anime.system_id}").json()
     assert body["list_count"] == 2
     assert body["sample_size"] == 1
     assert body["average_rating"] == "S"
 
 
-def test_the_average_is_the_nearest_letter(db, client, sample_anime):
+def test_the_average_is_the_nearest_letter(db, guest_reader, sample_anime):
     # S=8 and A=6 average to 7, which is A+.
     _listed(db, _member(db, "a", True), sample_anime.system_id, "Completed", "S")
     _listed(db, _member(db, "b", True), sample_anime.system_id, "Completed", "A")
 
-    body = client.get(f"/api/community/{sample_anime.system_id}").json()
+    body = guest_reader.get(f"/api/community/{sample_anime.system_id}").json()
     assert body["average_points"] == 7.0
     assert body["average_rating"] == "A+"
 
 
-def test_an_unknown_media_id_is_a_404(client):
+def test_an_unknown_media_id_is_a_404(guest_reader):
     """
     Changed deliberately: this used to answer 200 with an empty aggregate.
 
@@ -108,7 +108,7 @@ def test_an_unknown_media_id_is_a_404(client):
     to remove - 404 would mean "real, and you may not see it" and 200 would mean
     "no such entry". The two cases have to agree, so both are 404.
     """
-    r = client.get(f"/api/community/{uuid.uuid4()}")
+    r = guest_reader.get(f"/api/community/{uuid.uuid4()}")
     assert r.status_code == 404
 
 
@@ -125,10 +125,10 @@ def test_an_unknown_media_id_is_a_404(client):
 # ---------------------------------------------------------------------------
 
 
-def test_a_labelled_entry_is_indistinguishable_from_missing(client, hidden_anime):
+def test_a_labelled_entry_is_indistinguishable_from_missing(guest_reader, hidden_anime):
     """The label axis refuses, and in the same words as a missing entry."""
-    unknown = client.get(f"/api/community/{uuid.uuid4()}")
-    hidden = client.get(f"/api/community/{hidden_anime.system_id}")
+    unknown = guest_reader.get(f"/api/community/{uuid.uuid4()}")
+    hidden = guest_reader.get(f"/api/community/{hidden_anime.system_id}")
 
     assert hidden.status_code == 404
     assert hidden.json() == unknown.json()
@@ -147,7 +147,7 @@ def test_a_viewer_holding_the_label_gets_the_aggregate(
         db,
         client,
         "trusted",
-        default_guest_permissions(),
+        (default_guest_permissions() | ALL_VIEW_PERMISSIONS),
         label_keys=("nsfw",),
     )
     r = client.get(f"/api/community/{hidden_anime.system_id}")
@@ -156,7 +156,7 @@ def test_a_viewer_holding_the_label_gets_the_aggregate(
 
 
 def test_a_labelled_entrys_public_counts_are_not_disclosed(
-    db, client, hidden_anime
+    db, guest_reader, hidden_anime
 ):
     """
     The disclosure this gate exists to stop: a hidden entry that real public
@@ -165,7 +165,7 @@ def test_a_labelled_entrys_public_counts_are_not_disclosed(
     _listed(db, _member(db, "pub1", True), hidden_anime.system_id, "Completed", "S")
     _listed(db, _member(db, "pub2", True), hidden_anime.system_id, "Watching", "A")
 
-    r = client.get(f"/api/community/{hidden_anime.system_id}")
+    r = guest_reader.get(f"/api/community/{hidden_anime.system_id}")
     assert r.status_code == 404
     assert "Completed" not in r.text
     assert "Watching" not in r.text
@@ -177,12 +177,12 @@ def test_a_viewer_lacking_the_media_type_is_refused(db, client, sample_anime):
         db,
         client,
         "no-anime",
-        default_guest_permissions() - {media_type_perm("anime")},
+        (default_guest_permissions() | ALL_VIEW_PERMISSIONS) - {media_type_perm("anime")},
     )
     assert client.get(f"/api/community/{sample_anime.system_id}").status_code == 404
 
 
 def test_a_viewer_holding_the_media_type_is_not(db, client, sample_anime):
     """The mirror, on the same entry - so the 404 above is the gate, not the id."""
-    make_viewer(db, client, "yes-anime", default_guest_permissions())
+    make_viewer(db, client, "yes-anime", (default_guest_permissions() | ALL_VIEW_PERMISSIONS))
     assert client.get(f"/api/community/{sample_anime.system_id}").status_code == 200

@@ -43,6 +43,7 @@ import { progressToast } from "../../lib/progressToast";
 import { focusStyle } from "../../lib/covers";
 import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
+import { useViewScope } from "../../hooks/useViewScope";
 
 const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -56,6 +57,9 @@ const lineageLinkCls =
 // its replacement: same read-only/editor split, but backed by `units` and
 // each row's server-computed `display_key` instead of a bare `{key, name}`.
 function NovelUnitsCard({ novel, isAdmin, onSave }) {
+  // A unit's remark is personal content (view.personal); the server strips
+  // it for a viewer without the key, and the row does not leave room for it.
+  const { personal: showRemark } = useViewScope();
   const [items, setItems] = useState(novel.units || []);
   const [dirty, setDirty] = useState(false);
 
@@ -130,7 +134,7 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
                 {u.my_rating && (
                   <Chip className="shrink-0">{u.my_rating}</Chip>
                 )}
-                {u.remark && (
+                {showRemark && u.remark && (
                   <span className="text-xs text-text-faint">{u.remark}</span>
                 )}
               </div>

@@ -44,7 +44,11 @@ from app.services.domain.derivation import apply_extract_mal_id_character
 from app.services.domain.merge_fill import absorb_casting, finish_merge
 from app.services.integrations.tenrai import search_mal_characters
 from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.resolver import (
+    Viewer,
+    require_manage_catalog,
+    require_view_entities,
+)
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
     require_visible_shared,
@@ -121,7 +125,7 @@ def get_all_characters(
         description="Only characters cast on an entry in this series.",
     ),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     Retrieves every character, or - when `name` is given - only those whose
@@ -193,7 +197,7 @@ def search_mal(
 def get_character_entries(
     system_id: UUID,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     The entries this character appears in, grouped by media type.
@@ -233,7 +237,7 @@ def get_character_entries(
 def get_character_by_id(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """Retrieves a single character by their public_id or their UUID."""
     character = find_entity(db, models.Character, system_id)

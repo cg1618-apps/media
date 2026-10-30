@@ -54,6 +54,7 @@ from app.services.domain.user_list import (
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
 from app.services.rbac.field_gate import gate
+from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog, viewer_user_id
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import media_entity_ref_filter
@@ -246,6 +247,11 @@ def make_media_router(spec) -> APIRouter:
         attach_remark(db, spec.owner_type, entry, viewer_user_id(viewer))
         return entry
 
+    def _read_gates(viewer, payload):
+        """The access mode's field groups, then the role's personal fields."""
+        gated = gate(viewer, spec.owner_type, payload, spec.response_schema)
+        return strip_personal(viewer, spec.owner_type, gated, spec.response_schema)
+
     def _pop_nested(payload: dict) -> dict:
         """Lift nested collections out of the payload; they are not columns."""
         if not spec.nested_collections:
@@ -339,7 +345,7 @@ def make_media_router(spec) -> APIRouter:
             query = query.filter(or_(*[getattr(spec.model, f).ilike(q) for f in spec.search_fields]))
         entries = query.order_by(spec.model.created_at.desc()).limit(limit).offset(offset).all()
         attach_entry_list_fields(db, spec.owner_type, entries, viewer)
-        return gate(viewer, spec.owner_type, entries, spec.response_schema)
+        return _read_gates(viewer, entries)
 
     @router.get("/{entry_id}", response_model=spec.response_schema, summary=f"Get {spec.label} by ID")
     def get_one(
@@ -348,7 +354,7 @@ def make_media_router(spec) -> APIRouter:
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id, viewer)
-        return gate(viewer, spec.owner_type, _finish(db, entry, viewer), spec.response_schema)
+        return _read_gates(viewer, _finish(db, entry, viewer))
 
     # ------------------------------------------------------------------
     # Protected write (admin only)

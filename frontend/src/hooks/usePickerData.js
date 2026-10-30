@@ -18,6 +18,7 @@ import {
 } from "../lib/randomPicker";
 import { LIST_OPTIONS, mediaListQueryKey } from "./useMediaList";
 import { buildUrl, fetchJson } from "./queryUtils";
+import { useViewScope } from "./useViewScope";
 
 export function pickerDefaultsQueryKey(mode) {
   return ["random-picker-defaults", mode];
@@ -82,7 +83,13 @@ export function usePickerData(mode, typesKey) {
         : types.flatMap((t, i) => toEntries(t, lists[i])),
     [isFranchiseMode, franchises, types, lists],
   );
-  const filterDefs = useMemo(() => filterDefsForMode(mode, types), [mode, types]);
+  // A franchise's expectation and rating are personal content
+  // (view.personal); without the key their filters are not offered.
+  const { personal } = useViewScope();
+  const filterDefs = useMemo(
+    () => filterDefsForMode(mode, types, { personal }),
+    [mode, types, personal],
+  );
   const storedFilters = defaultsQuery.data?.filters;
   const defaultFilters = useMemo(
     () => resolveDefaultFilters(filterDefs, storedFilters),

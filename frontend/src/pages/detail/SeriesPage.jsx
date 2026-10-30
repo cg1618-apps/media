@@ -102,6 +102,12 @@ export default function SeriesPage() {
   const { publicId } = useParams();
   const auth = useAuth();
   const { isAdmin, has } = auth;
+  // A guest's view of a hub (the view.* keys, held by members): without
+  // view.personal the series's own rating and expectation and the "my rating"
+  // sorts are not drawn; without view.entities there is no Characters tab,
+  // and HubCharacters never asks /api/character/ for one.
+  const showPersonal = has("view.personal");
+  const showCharacters = has("view.entities");
   // Gated: a series under a franchise of the restricted family is hidden from
   // a session that cannot see the type, so only a session that can asks for
   // its h-comics.
@@ -440,8 +446,16 @@ export default function SeriesPage() {
   // reports whether it holds anything, and an admin needs the entry point
   // precisely when it is still empty.
   const extraTabs = useMemo(
-    () => (series ? ["Characters", "Watch Order", "Relations", "Notes"] : []),
-    [series],
+    () =>
+      series
+        ? [
+            ...(showCharacters ? ["Characters"] : []),
+            "Watch Order",
+            "Relations",
+            "Notes",
+          ]
+        : [],
+    [series, showCharacters],
   );
 
   const tabs = useMemo(() => [...mediaTabs, ...extraTabs], [mediaTabs, extraTabs]);
@@ -1059,7 +1073,7 @@ export default function SeriesPage() {
             cover={cover}
             spine="Series"
             id={series.system_id}
-            rating={series.my_rating}
+            rating={showPersonal ? series.my_rating : null}
             done={completedCount}
             total={totalEntries}
             pct={completionPct}
@@ -1105,9 +1119,10 @@ export default function SeriesPage() {
               </div>
             </div>
 
-            {(series.series_expectation || rewatchMarked.size > 0) && (
+            {((showPersonal && series.series_expectation) ||
+              rewatchMarked.size > 0) && (
               <div className="flex flex-wrap gap-2 mt-4">
-                {series.series_expectation && (
+                {showPersonal && series.series_expectation && (
                   <Chip>Expectation · {series.series_expectation}</Chip>
                 )}
                 {Array.from(rewatchMarked).map((mediaType) => (
@@ -1237,7 +1252,9 @@ export default function SeriesPage() {
             >
               <option value="title">Sort: title</option>
               <option value="release_date">Sort: release date</option>
-              <option value="my_rating">Sort: my rating</option>
+              {showPersonal && (
+                <option value="my_rating">Sort: my rating</option>
+              )}
               <option value="mal_rating">Sort: MAL rating</option>
             </select>
 
@@ -1337,7 +1354,9 @@ export default function SeriesPage() {
               className={SELECT_CLS}
             >
               <option value="title">Sort: title</option>
-              <option value="my_rating">Sort: my rating</option>
+              {showPersonal && (
+                <option value="my_rating">Sort: my rating</option>
+              )}
               <option value="mal_rating">Sort: MAL rating</option>
               <option value="release_date">Sort: release date</option>
               <option value="end_date">Sort: end date</option>
@@ -1419,7 +1438,9 @@ export default function SeriesPage() {
               className={SELECT_CLS}
             >
               <option value="title">Sort: title</option>
-              <option value="my_rating">Sort: my rating</option>
+              {showPersonal && (
+                <option value="my_rating">Sort: my rating</option>
+              )}
               <option value="mal_rating">Sort: MAL rating</option>
               <option value="release_date">Sort: release date</option>
               <option value="end_date">Sort: end date</option>
@@ -1500,7 +1521,9 @@ export default function SeriesPage() {
               className={SELECT_CLS}
             >
               <option value="title">Sort: title</option>
-              <option value="my_rating">Sort: my rating</option>
+              {showPersonal && (
+                <option value="my_rating">Sort: my rating</option>
+              )}
               <option value="release_date">Sort: release date</option>
               <option value="end_date">Sort: end date</option>
             </select>
@@ -1570,7 +1593,9 @@ export default function SeriesPage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              <option value="my_rating">Sort: my rating</option>
+              {showPersonal && (
+                <option value="my_rating">Sort: my rating</option>
+              )}
               <option value="hours_played">Sort: hours played</option>
             </select>
 
@@ -1720,7 +1745,9 @@ export default function SeriesPage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              <option value="my_rating">Sort: my rating</option>
+              {showPersonal && (
+                <option value="my_rating">Sort: my rating</option>
+              )}
               <option value="imdb_rating">Sort: IMDb rating</option>
             </select>
 
@@ -1791,7 +1818,9 @@ export default function SeriesPage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              <option value="my_rating">Sort: my rating</option>
+              {showPersonal && (
+                <option value="my_rating">Sort: my rating</option>
+              )}
               <option value="imdb_rating">Sort: IMDb rating</option>
             </select>
 
@@ -1863,7 +1892,9 @@ export default function SeriesPage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              <option value="my_rating">Sort: my rating</option>
+              {showPersonal && (
+                <option value="my_rating">Sort: my rating</option>
+              )}
               <option value="imdb_rating">Sort: IMDb rating</option>
             </select>
 
@@ -1937,7 +1968,7 @@ export default function SeriesPage() {
       )}
 
       {/* ── Characters tab content ───────────────────────────────────────── */}
-      {activeTab === "Characters" && (
+      {showCharacters && activeTab === "Characters" && (
         <Section
           title="Characters"
           subtitle="Everyone cast on this series's entries, and the identities they appear as"

@@ -33,10 +33,14 @@ function respond(url, isAdmin) {
   if (u.startsWith("/api/auth/me")) {
     return {
       is_admin: isAdmin,
-      username: isAdmin ? "admin" : null,
-      role: isAdmin ? "admin" : "guest",
+      username: isAdmin ? "admin" : "reader",
+      role: isAdmin ? "admin" : "user",
       is_root: isAdmin,
-      permissions: [],
+      // A member's view.* keys: entity names link (view.entities) and a
+      // unit's remark is shown (view.personal). The guest view of both is
+      // pinned in CastSection.test, StudioLinks.test and Novel's own guest
+      // case below.
+      permissions: ["view.entities", "view.search", "view.extras", "view.personal"],
     };
   }
   return [];

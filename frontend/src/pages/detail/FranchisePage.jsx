@@ -109,6 +109,12 @@ export default function FranchisePage() {
   const { publicId } = useParams();
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
+  // A guest's view of a hub (the view.* keys, held by members): without
+  // view.personal the franchise's own rating and expectation and the "my rating"
+  // sorts are not drawn; without view.entities there is no Characters tab,
+  // and HubCharacters never asks /api/character/ for one.
+  const showPersonal = has("view.personal");
+  const showCharacters = has("view.entities");
 
   // ── data ──────────────────────────────────────────────────────────────────
   const [franchise, setFranchise] = useState(null);
@@ -524,8 +530,16 @@ export default function FranchisePage() {
   // reports whether it holds anything, and an admin needs the entry point
   // precisely when it is still empty.
   const extraTabs = useMemo(
-    () => (franchise ? ["Characters", "Watch Order", "Relations", "Notes"] : []),
-    [franchise],
+    () =>
+      franchise
+        ? [
+            ...(showCharacters ? ["Characters"] : []),
+            "Watch Order",
+            "Relations",
+            "Notes",
+          ]
+        : [],
+    [franchise, showCharacters],
   );
 
   const tabs = useMemo(
@@ -1322,7 +1336,7 @@ export default function FranchisePage() {
             cover={cover}
             spine={`Franchise · ${franchise.franchise_type || "—"}`}
             id={franchise.system_id}
-            rating={franchise.my_rating}
+            rating={showPersonal ? franchise.my_rating : null}
             done={completedCount}
             total={totalEntries}
             pct={completionPct}
@@ -1381,11 +1395,11 @@ export default function FranchisePage() {
               className="mt-4"
             />
 
-            {(franchise.franchise_expectation ||
+            {((showPersonal && franchise.franchise_expectation) ||
               plannedTypes.size > 0 ||
               rewatchMarked.size > 0) && (
               <div className="flex flex-wrap gap-2 mt-4">
-                {franchise.franchise_expectation && (
+                {showPersonal && franchise.franchise_expectation && (
                   <Chip>Expectation · {franchise.franchise_expectation}</Chip>
                 )}
                 {Array.from(plannedTypes).map((mediaType) => {
@@ -1573,7 +1587,9 @@ export default function FranchisePage() {
               >
                 <option value="title">Sort: title</option>
                 <option value="release_date">Sort: release date</option>
-                <option value="my_rating">Sort: my rating</option>
+                {showPersonal && (
+                  <option value="my_rating">Sort: my rating</option>
+                )}
                 <option value="mal_rating">Sort: MAL rating</option>
               </select>
 
@@ -1721,7 +1737,9 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                <option value="my_rating">Sort: my rating</option>
+                {showPersonal && (
+                  <option value="my_rating">Sort: my rating</option>
+                )}
                 <option value="mal_rating">Sort: MAL rating</option>
               </select>
             </div>
@@ -1755,7 +1773,9 @@ export default function FranchisePage() {
                 className={SELECT_CLS}
               >
                 <option value="title">Sort: title</option>
-                <option value="my_rating">Sort: my rating</option>
+                {showPersonal && (
+                  <option value="my_rating">Sort: my rating</option>
+                )}
                 <option value="mal_rating">Sort: MAL rating</option>
                 <option value="release_date">Sort: release date</option>
                 <option value="end_date">Sort: end date</option>
@@ -1879,7 +1899,9 @@ export default function FranchisePage() {
                 className={SELECT_CLS}
               >
                 <option value="title">Sort: title</option>
-                <option value="my_rating">Sort: my rating</option>
+                {showPersonal && (
+                  <option value="my_rating">Sort: my rating</option>
+                )}
                 <option value="mal_rating">Sort: MAL rating</option>
                 <option value="release_date">Sort: release date</option>
                 <option value="end_date">Sort: end date</option>
@@ -2001,7 +2023,9 @@ export default function FranchisePage() {
             >
               <option value="release_date">Sort: release date</option>
               <option value="title">Sort: title</option>
-              <option value="my_rating">Sort: my rating</option>
+              {showPersonal && (
+                <option value="my_rating">Sort: my rating</option>
+              )}
             </select>
 
             <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
@@ -2229,7 +2253,9 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                <option value="my_rating">Sort: my rating</option>
+                {showPersonal && (
+                  <option value="my_rating">Sort: my rating</option>
+                )}
                 <option value="imdb_rating">Sort: IMDb rating</option>
               </select>
 
@@ -2347,7 +2373,9 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                <option value="my_rating">Sort: my rating</option>
+                {showPersonal && (
+                  <option value="my_rating">Sort: my rating</option>
+                )}
                 <option value="imdb_rating">Sort: IMDb rating</option>
               </select>
 
@@ -2468,7 +2496,9 @@ export default function FranchisePage() {
               >
                 <option value="release_date">Sort: release date</option>
                 <option value="title">Sort: title</option>
-                <option value="my_rating">Sort: my rating</option>
+                {showPersonal && (
+                  <option value="my_rating">Sort: my rating</option>
+                )}
                 <option value="imdb_rating">Sort: IMDb rating</option>
               </select>
 
@@ -2588,7 +2618,7 @@ export default function FranchisePage() {
         )}
 
       {/* ── Characters tab content ───────────────────────────────────────── */}
-      {activeTab === "Characters" && (
+      {showCharacters && activeTab === "Characters" && (
         <Section
           title="Characters"
           subtitle="Everyone cast on this franchise's entries, and the identities they appear as"

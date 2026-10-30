@@ -119,7 +119,15 @@ beforeEach(() => {
           Promise.resolve(
             isSearch
               ? searchPayload
-              : { is_admin: false, username: null, role: "guest", is_root: false, permissions: [] },
+              : // A member: /search is behind view.search, and its
+                // character cards link through view.entities.
+                {
+                  is_admin: false,
+                  username: "reader",
+                  role: "user",
+                  is_root: false,
+                  permissions: ["view.entities", "view.search", "view.extras", "view.personal"],
+                },
           ),
       });
     }),

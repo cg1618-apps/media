@@ -42,8 +42,8 @@ def seeded_entities(db_session, sample_anime, sample_collection, sample_franchis
 
 
 @pytest.mark.parametrize("path", LIST_ENDPOINTS)
-def test_list_endpoints_expose_public_id(client, seeded_entities, path):
-    response = client.get(path)
+def test_list_endpoints_expose_public_id(guest_reader, seeded_entities, path):
+    response = guest_reader.get(path)
     assert response.status_code == 200
     rows = response.json()
     assert rows, f"{path} returned no rows; the seed fixture did not cover it"

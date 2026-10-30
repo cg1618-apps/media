@@ -177,10 +177,14 @@ export function entryKey(entry) {
 /** Every mode the picker has: "all", then each type, then the franchise mode. */
 export const PICKER_MODES = ["all", ...PICKER_TYPES.map((t) => t.type), FRANCHISE_MODE];
 
-/** A mode's defs: the general ones for "all", the franchise ones, else that type's. */
-export function filterDefsForMode(mode, types) {
+/**
+ * A mode's defs: the general ones for "all", the franchise ones, else that
+ * type's. `personal` is whether the viewer holds view.personal (see
+ * franchiseFilterDefs).
+ */
+export function filterDefsForMode(mode, types, { personal = true } = {}) {
   if (mode === "all") return generalFilterDefs(types);
-  if (mode === FRANCHISE_MODE) return franchiseFilterDefs(types);
+  if (mode === FRANCHISE_MODE) return franchiseFilterDefs(types, { personal });
   return typeFilterDefs(mode);
 }
 
@@ -205,9 +209,14 @@ function sortFranchiseTypes(values) {
 /**
  * The franchise mode's defs. `types` are the media types this session may
  * see, offered as "holds an entry of" chips.
+ *
+ * A franchise's expectation and rating are the catalogue's own judgements,
+ * personal content: without view.personal (`personal: false`) the server
+ * sends neither, so neither filter is offered - every franchise would read
+ * as unrated and no expectation chip could match.
  */
-export function franchiseFilterDefs(types) {
-  return [
+export function franchiseFilterDefs(types, { personal = true } = {}) {
+  const defs = [
     {
       key: "franchiseType",
       label: "Franchise Type",
@@ -240,6 +249,9 @@ export function franchiseFilterDefs(types) {
     },
     ratingDef,
   ];
+  return personal
+    ? defs
+    : defs.filter((fd) => fd.key !== "expectation" && fd !== ratingDef);
 }
 
 /**

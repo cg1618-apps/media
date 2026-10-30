@@ -24,6 +24,7 @@ from app.services.domain import (
 )
 from app.services.domain.group_counts import attach_entry_counts
 from app.services.rbac.enforcement import apply_series_visibility, series_visible
+from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -75,7 +76,7 @@ def get_all_series(
         query.order_by(models.Series.series_name_en).limit(limit).offset(offset).all()
     )
     attach_entry_counts(db, rows, models.Media.series_id, viewer)
-    return rows
+    return strip_personal(viewer, "series", rows, schemas.SeriesResponse)
 
 
 @router.get(
@@ -95,7 +96,7 @@ def get_series_by_id(
     if not db_series or not series_visible(db, viewer, db_series.system_id):
         raise HTTPException(status_code=404, detail="Series not found.")
     attach_remark(db, "series", db_series, viewer.user_id)
-    return db_series
+    return strip_personal(viewer, "series", db_series, schemas.SeriesResponse)
 
 
 # ==========================================

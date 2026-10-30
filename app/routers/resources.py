@@ -22,7 +22,11 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.resolver import (
+    Viewer,
+    require_manage_catalog,
+    require_view_extras,
+)
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -173,7 +177,7 @@ def _ancestors(db: Session, node_id) -> set:
 )
 def get_resources(
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_extras),
 ):
     """The whole page as a tree: top-level nodes, each with its children."""
     return _build_tree(db.query(models.ResourceNode).all())

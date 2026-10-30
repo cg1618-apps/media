@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-10-25
+Last verified: 2026-10-30
 
 ## What this is for
 
@@ -487,7 +487,7 @@ Who may write, and whose rows a read returns, follow from it — the router read
 | `catalog` | admin only | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only (a root role may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
 
-A profile owner's personal rows can be read through `GET /api/notes?author=<username>`, but only when their `list_is_public` **and** the viewer holds `field_group.personal_notes`; an unknown user, a private list and a viewer without the group all answer the same **404**, so the reply cannot be read as "this account exists". The full rules live in [../authorization.md](../authorization.md#note-scope).
+A profile owner's personal rows can be read through `GET /api/notes?author=<username>`. A viewer without `view.personal` (a guest included) gets **401** before the username is looked up. Past that, only when their `list_is_public` **and** the viewer's mode carries `field_group.personal_notes`; an unknown user, a private list and a viewer without the group all answer the same **404**, so the reply cannot be read as "this account exists". The `highlights` and `highlight_episodes` sections are withheld from a viewer without `view.personal` - their rows and their entries in `/api/notes/sections` alike. The full rules live in [../authorization.md](../authorization.md#note-scope).
 
 **`remark` is per author, like any other personal-scope section.** It is read by `app.services.domain.remark_field.attach_remark`, filtered on `note.author_id`, and `ix_note_one_remark_per_owner` carries `author_id` — so two accounts each hold one on the same entry and each reads back their own. The index and the read path are one mechanism: a class-level `column_property` cannot know who is asking, and pairing one with a per-author index would turn a loud database refusal into an accepted-then-invisible write.
 

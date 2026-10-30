@@ -19,24 +19,24 @@ def _create(admin_client, name, roles):
     ).json()
 
 
-def test_create_and_read_back(admin_client, client):
+def test_create_and_read_back(admin_client, guest_reader):
     created = _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
-    r = client.get(f"/api/person/{created['system_id']}")
+    r = guest_reader.get(f"/api/person/{created['system_id']}")
     assert r.json()["display_name"] == "新海誠"
 
 
-def test_list_filters_by_role_and_scope(admin_client, client):
+def test_list_filters_by_role_and_scope(admin_client, guest_reader):
     _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
     _create(admin_client, "Nolan", [{"role": "director", "scope": "movie"}])
 
     names = [
         p["display_name"]
-        for p in client.get("/api/person/?role=director&scope=anime").json()
+        for p in guest_reader.get("/api/person/?role=director&scope=anime").json()
     ]
     assert names == ["新海誠"]
 
 
-def test_a_person_scoped_both_ways_appears_in_both_lists(admin_client, client):
+def test_a_person_scoped_both_ways_appears_in_both_lists(admin_client, guest_reader):
     _create(
         admin_client,
         "宮崎駿",
@@ -48,20 +48,20 @@ def test_a_person_scoped_both_ways_appears_in_both_lists(admin_client, client):
     for scope in ("anime", "movie"):
         names = [
             p["display_name"]
-            for p in client.get(f"/api/person/?role=director&scope={scope}").json()
+            for p in guest_reader.get(f"/api/person/?role=director&scope={scope}").json()
         ]
         assert names == ["宮崎駿"]
 
 
-def test_unfiltered_list_returns_everyone(admin_client, client):
+def test_unfiltered_list_returns_everyone(admin_client, guest_reader):
     _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
     # A second person under a different role, so the unfiltered list has
     # someone to return besides the director above.
     _create(admin_client, "澤野弘之", [{"role": "composer", "scope": "anime"}])
-    assert len(client.get("/api/person/").json()) == 2
+    assert len(guest_reader.get("/api/person/").json()) == 2
 
 
-def test_response_carries_a_credit_count(admin_client, client, db_session):
+def test_response_carries_a_credit_count(admin_client, guest_reader, db_session):
     created = _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
     db_session.add(
         models.MediaCredit(
@@ -71,7 +71,7 @@ def test_response_carries_a_credit_count(admin_client, client, db_session):
         )
     )
     db_session.commit()
-    assert client.get(f"/api/person/{created['system_id']}").json()["credit_count"] == 1
+    assert guest_reader.get(f"/api/person/{created['system_id']}").json()["credit_count"] == 1
 
 
 def test_delete_cascades_the_credits(admin_client, db_session):
@@ -246,18 +246,18 @@ def test_role_counts_covers_every_person_role_including_the_empty_ones(admin_cli
     assert all(v == 0 for v in counts.values())
 
 
-def test_role_counts_tallies_people_per_role(admin_client, client):
+def test_role_counts_tallies_people_per_role(admin_client, guest_reader):
     _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
     _create(admin_client, "Nolan", [{"role": "director", "scope": "movie"}])
     _create(admin_client, "澤野弘之", [{"role": "composer", "scope": "anime"}])
 
-    counts = client.get("/api/person/role-counts").json()
+    counts = guest_reader.get("/api/person/role-counts").json()
     assert counts["director"] == 2
     assert counts["composer"] == 1
     assert counts["producer"] == 0
 
 
-def test_role_counts_counts_a_doubly_scoped_person_once(admin_client, client):
+def test_role_counts_counts_a_doubly_scoped_person_once(admin_client, guest_reader):
     """A director scoped both ways has two person_role rows, but is one person."""
     _create(
         admin_client,
@@ -267,21 +267,21 @@ def test_role_counts_counts_a_doubly_scoped_person_once(admin_client, client):
             {"role": "director", "scope": "movie"},
         ],
     )
-    assert client.get("/api/person/role-counts").json()["director"] == 1
+    assert guest_reader.get("/api/person/role-counts").json()["director"] == 1
 
 
-def test_role_counts_is_not_swallowed_by_the_uuid_detail_route(client):
+def test_role_counts_is_not_swallowed_by_the_uuid_detail_route(guest_reader):
     """'role-counts' must not be parsed as a person system_id."""
-    assert client.get("/api/person/role-counts").status_code == 200
+    assert guest_reader.get("/api/person/role-counts").status_code == 200
 
 
-def test_credit_count_includes_castings(client, seiyuu_with_one_casting):
+def test_credit_count_includes_castings(guest_reader, seiyuu_with_one_casting):
     """
     A seiyuu with fifty castings and no other credits would otherwise read
     "0 credits" on their card, because credit_count only ever walked
     media_credit and a seiyuu has no rows there. See Decision A.
     """
-    r = client.get(f"/api/person/{seiyuu_with_one_casting.system_id}")
+    r = guest_reader.get(f"/api/person/{seiyuu_with_one_casting.system_id}")
     assert r.json()["credit_count"] == 1
 
 

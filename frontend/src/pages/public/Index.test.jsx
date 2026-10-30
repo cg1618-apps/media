@@ -11,8 +11,9 @@ import { ToastProvider } from "../../hooks/useToast";
 import Index from "./Index";
 
 function respond(url) {
+  // A member: the tracker divisions are drawn only for self.list holders.
   if (url.startsWith("/api/auth/me")) {
-    return { is_admin: false, username: null, role: "guest", is_root: false, permissions: [] };
+    return { is_admin: false, username: "reader", role: "user", is_root: false, permissions: ["self.list"] };
   }
   if (url.startsWith("/api/anime/"))
     return [{ system_id: "a1", anime_name_en: "Frieren", franchise_id: "f1", watching_status: "Active Watching" }];

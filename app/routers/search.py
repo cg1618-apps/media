@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app import schemas
 from app.dependencies import get_db
 from app.services.domain.search import SCOPES, search
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, require_view_search
 
 router = APIRouter(prefix="/api/search", tags=["Search"])
 
@@ -97,7 +97,7 @@ def search_everything(
         description="Add a `character` bucket, searched at scope 'all' only.",
     ),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_search),
 ):
     """
     Every entry, group, season, and staff record whose name matches `q` -

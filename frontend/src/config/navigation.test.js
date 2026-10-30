@@ -135,9 +135,9 @@ describe("NAV_SECTIONS", () => {
     expect(itemRequirement({ to: "/statistics" })).toBeNull();
   });
 
-  it("lists Resources in Insights right after Memes, ungated like Quotes", () => {
-    // The page is read by everyone who can open Quotes; only its edit
-    // controls ask for manage.catalog, and they ask inside the page.
+  it("lists Resources in Insights right after Memes, gated like Quotes", () => {
+    // The page is read by everyone who can open Quotes (view.extras); only
+    // its edit controls ask for manage.catalog, and they ask inside the page.
     expect(ownersOf("/resources")).toEqual(["insights"]);
     const insights = NAV_SECTIONS.find((s) => s.key === "insights");
     const items = sectionItems(insights);
@@ -147,7 +147,7 @@ describe("NAV_SECTIONS", () => {
     expect(itemRequirement(row("/resources"))).toBe(
       itemRequirement(row("/quote")),
     );
-    expect(itemRequirement(row("/resources"))).toBeNull();
+    expect(itemRequirement(row("/resources"))).toBe("view.extras");
   });
 
   it("splits the pipeline pages from the accounts/authz pages", () => {
@@ -215,11 +215,16 @@ describe("visibleSections", () => {
     expect(keys).toContain("admin");
   });
 
-  it("drops the admin-only rows from a section a guest may open", () => {
-    const [insights] = visibleSections(NAV_SECTIONS, holdsNothing).filter(
+  it("drops the admin-only rows from a section a member may open", () => {
+    // view.extras opens Insights (Quotes, Memes, Resources); the insights
+    // section being drawn at all is what lets the manage.catalog rows be
+    // dropped by their own gate.
+    const holdsExtras = (p) => p === "view.extras";
+    const [insights] = visibleSections(NAV_SECTIONS, holdsExtras).filter(
       (s) => s.key === "insights",
     );
     const routes = sectionItems(insights).map((i) => i.to);
+    expect(routes).toContain("/quote");
     expect(routes).not.toContain("/relations");
     expect(routes).not.toContain("/watch-orders");
   });
@@ -290,10 +295,9 @@ describe("visibleSections", () => {
     expect(visibleSections(sections, holdsEverything)).toEqual(sections);
   });
 
-  it("leaves ungated sections alone either way", () => {
+  it("leaves the ungated Library section alone either way", () => {
     const keys = visibleSections(NAV_SECTIONS, holdsNothing).map((s) => s.key);
     expect(keys).toContain("library");
-    expect(keys).toContain("insights");
   });
 
   it("still understands the older adminOnly spelling", () => {
@@ -338,6 +342,62 @@ describe("visibleSections", () => {
   });
 });
 
+describe("visibleSections - the guest scope", () => {
+  // A guest holds no view.* key. What it keeps is the Library tab's Groups
+  // and media-type columns; everything else is a member's.
+  const holdsNothing = () => false;
+  const MEMBER = new Set([
+    "self.list",
+    "view.entities",
+    "view.search",
+    "view.extras",
+    "view.personal",
+  ]);
+  const holdsMember = (p) => MEMBER.has(p);
+  const routesFor = (has) =>
+    visibleSections(NAV_SECTIONS, has).flatMap((s) =>
+      sectionItems(s).map((i) => i.to),
+    );
+
+  it("leaves a guest only the Library tab", () => {
+    expect(visibleSections(NAV_SECTIONS, holdsNothing).map((s) => s.key)).toEqual([
+      "library",
+    ]);
+  });
+
+  it("keeps Groups and the media types, drops the Entities column", () => {
+    const [library] = visibleSections(NAV_SECTIONS, holdsNothing);
+    expect(library.columns.map((c) => c.heading)).toEqual([
+      "Groups",
+      "ACG",
+      "Reality",
+    ]);
+    const forMember = visibleSections(NAV_SECTIONS, holdsMember).find(
+      (s) => s.key === "library",
+    );
+    expect(forMember.columns.map((c) => c.heading)).toContain("Entities");
+  });
+
+  it("hides every extra from a guest and shows each to a member", () => {
+    const extras = [
+      "/future-releases",
+      "/completions",
+      "/random",
+      "/quote",
+      "/meme",
+      "/resources",
+      "/library/studio",
+      "/library/seiyuu",
+    ];
+    const forGuest = routesFor(holdsNothing);
+    const forMember = routesFor(holdsMember);
+    for (const to of extras) {
+      expect(forGuest, to).not.toContain(to);
+      expect(forMember, to).toContain(to);
+    }
+  });
+});
+
 describe("the two permission surfaces agree", () => {
   // The SPA gates in two independent places: App.jsx's <ProtectedRoute> and
   // this file. Changing what a permission means reaches one and not the
@@ -360,6 +420,17 @@ describe("the two permission surfaces agree", () => {
     "/system": "manage.pipelines",
     "/clean-orphans": "manage.pipelines",
     "/business-logic": "manage.pipelines",
+    "/library/studio": "view.entities",
+    "/library/publisher": "view.entities",
+    "/library/person": "view.entities",
+    "/library/character": "view.entities",
+    "/library/seiyuu": "view.entities",
+    "/future-releases": "view.extras",
+    "/completions": "view.extras",
+    "/random": "view.extras",
+    "/quote": "view.extras",
+    "/meme": "view.extras",
+    "/resources": "view.extras",
   };
 
   it("asks the same permission the route gate asks", () => {

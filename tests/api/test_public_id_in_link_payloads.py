@@ -51,12 +51,12 @@ def test_casting_rows_carry_both_public_ids(client, seiyuu_with_one_casting, ani
             assert voice["person_public_id"] > 0
 
 
-def test_entity_entries_carry_the_entry_public_id(client, anime_with_studio):
+def test_entity_entries_carry_the_entry_public_id(guest_reader, anime_with_studio):
     """The cards on /studio, /person, /publisher and /character link to entries."""
-    studio_id = client.get(
+    studio_id = guest_reader.get(
         f"/api/anime/{anime_with_studio.public_id}"
     ).json()["studio_refs"][0]["system_id"]
-    groups = client.get(f"/api/studio/{studio_id}/entries").json()["groups"]
+    groups = guest_reader.get(f"/api/studio/{studio_id}/entries").json()["groups"]
     assert groups
     for group in groups:
         assert group["entries"]
@@ -65,10 +65,10 @@ def test_entity_entries_carry_the_entry_public_id(client, anime_with_studio):
 
 
 def test_character_entries_carry_the_seiyuu_public_id(
-    client, seiyuu_with_one_casting, character
+    guest_reader, seiyuu_with_one_casting, character
 ):
     # The nested /entries route keeps its UUID: only the detail GET widened.
-    groups = client.get(f"/api/character/{character.system_id}/entries").json()["groups"]
+    groups = guest_reader.get(f"/api/character/{character.system_id}/entries").json()["groups"]
     assert groups
     seen = [e for g in groups for e in g["entries"]]
     assert seen

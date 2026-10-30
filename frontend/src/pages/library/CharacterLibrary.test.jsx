@@ -6,7 +6,12 @@ import CharacterLibrary from "./CharacterLibrary";
 
 // A session that may see every gated type, so the Restricted chip is drawn.
 vi.mock("../../contexts/AuthContext", () => ({
-  useAuth: () => ({ visibleGatedTypes: ["h-comic", "h-game", "hentai"] }),
+  // The page is a member's (view.entities), so its viewer holds the key,
+  // and its cards link to the character pages.
+  useAuth: () => ({
+    visibleGatedTypes: ["h-comic", "h-game", "hentai"],
+    has: (p) => p === "view.entities",
+  }),
 }));
 
 const CHARACTERS = [

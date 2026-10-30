@@ -32,12 +32,12 @@ def _ids(response) -> set[str]:
     return {row["system_id"] for row in response.json()}
 
 
-def test_a_studio_credited_only_on_h_game_is_hidden(client, admin_client, db_session, h_game_id):
+def test_a_studio_credited_only_on_h_game_is_hidden(guest_reader, admin_client, db_session, h_game_id):
     credits_service.replace_credits(db_session, "h-game", h_game_id, "studio", ["Zvornik Studio"])
     db_session.flush()
     studio = credits_service.find_studio(db_session, "Zvornik Studio")
 
-    assert client.get(f"/api/studio/{studio.system_id}").status_code == 404
+    assert guest_reader.get(f"/api/studio/{studio.system_id}").status_code == 404
     assert admin_client.get(f"/api/studio/{studio.system_id}").status_code == 200
 
 

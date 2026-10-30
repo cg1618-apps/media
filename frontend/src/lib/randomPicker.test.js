@@ -188,3 +188,21 @@ describe("franchise mode", () => {
     expect(ids(withActive(defs, "entryStatus", ["Might"]))).toEqual(["f2"]);
   });
 });
+
+describe("franchiseFilterDefs without view.personal", () => {
+  // A franchise's expectation and rating are personal content; a viewer who
+  // cannot read them is not offered a filter on them. The member mirror
+  // offers both from the same call.
+  it("drops the expectation and rating filters", () => {
+    const keys = franchiseFilterDefs(["anime"], { personal: false }).map((fd) => fd.key);
+    expect(keys).not.toContain("expectation");
+    expect(keys).not.toContain("myRating");
+    expect(keys).toContain("franchiseType");
+  });
+
+  it("keeps both for a member", () => {
+    const keys = franchiseFilterDefs(["anime"]).map((fd) => fd.key);
+    expect(keys).toContain("expectation");
+    expect(keys).toContain("myRating");
+  });
+});

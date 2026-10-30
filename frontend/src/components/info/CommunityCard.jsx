@@ -8,16 +8,24 @@
 //
 // Renders nothing at all when no public list holds the entry. An empty
 // "Community" slip is a frame around nothing.
+//
+// The aggregate is personal content (view.personal): a viewer without the
+// key is shown nothing, and the card does not ask - the server would answer
+// 401.
 import { endpoints } from "../../api/endpoints";
 import { useApiQuery } from "../../hooks/useApiQuery";
+import { useViewScope } from "../../hooks/useViewScope";
 import { Eyebrow, RatingStamp, Slip } from "../ui/primitives";
 
 export default function CommunityCard({ mediaId }) {
+  const { personal } = useViewScope();
   const { data } = useApiQuery(
     ["community", mediaId],
     endpoints.community.forEntry(mediaId),
-    { enabled: Boolean(mediaId), queryOptions: { retry: false } },
+    { enabled: personal && Boolean(mediaId), queryOptions: { retry: false } },
   );
+
+  if (!personal) return null;
 
   // Shape, not just presence. This card hangs off nine detail pages, and one
   // that threw on an unexpected payload would take the whole page down with

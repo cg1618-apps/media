@@ -56,6 +56,9 @@ import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 export default function CollectionPage() {
   const { publicId } = useParams();
   const { isAdmin, has } = useAuth();
+  // The collection's own rating and expectation are personal content, drawn
+  // only for a viewer holding view.personal.
+  const showPersonal = has("view.personal");
   const { showToast } = useToast();
 
   const [collection, setCollection] = useState(null);
@@ -261,7 +264,7 @@ export default function CollectionPage() {
             cover={cover}
             spine="Collection"
             id={collection.system_id}
-            rating={collection.my_rating}
+            rating={showPersonal ? collection.my_rating : null}
           />
         </div>
 
@@ -296,7 +299,7 @@ export default function CollectionPage() {
 
             {/* Same chip vocabulary as the Franchise hub, so an expectation
                 reads the same wherever it turns up. */}
-            {collection.collection_expectation && (
+            {showPersonal && collection.collection_expectation && (
               <div className="flex flex-wrap gap-2 mt-4">
                 <Chip>Expectation · {collection.collection_expectation}</Chip>
               </div>

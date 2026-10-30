@@ -13,9 +13,9 @@ def _game_id(db_session, name="Elden Ring"):
     return g.system_id
 
 
-def test_create_and_list(admin_client, client):
+def test_create_and_list(admin_client, guest_reader):
     admin_client.post("/api/publisher/", json={"name_en": "Bandai Namco"})
-    assert [p["name_en"] for p in client.get("/api/publisher/").json()] == [
+    assert [p["name_en"] for p in guest_reader.get("/api/publisher/").json()] == [
         "Bandai Namco"
     ]
 
@@ -30,19 +30,19 @@ def test_a_nameless_publisher_is_rejected(admin_client):
     assert admin_client.post("/api/publisher/", json={}).status_code == 422
 
 
-def test_listing_is_public_but_writing_is_not(client):
-    assert client.get("/api/publisher/").status_code == 200
-    assert client.post("/api/publisher/", json={"name_en": "X"}).status_code == 401
+def test_a_reader_may_list_but_not_write(guest_reader):
+    assert guest_reader.get("/api/publisher/").status_code == 200
+    assert guest_reader.post("/api/publisher/", json={"name_en": "X"}).status_code == 401
 
 
-def test_detail_404s_for_an_unknown_id(client):
-    assert client.get(f"/api/publisher/{uuid.uuid4()}").status_code == 404
+def test_detail_404s_for_an_unknown_id(guest_reader):
+    assert guest_reader.get(f"/api/publisher/{uuid.uuid4()}").status_code == 404
 
 
-def test_list_is_sorted_by_display_name(admin_client, client):
+def test_list_is_sorted_by_display_name(admin_client, guest_reader):
     for name in ("Zen Studios", "Annapurna", "Merge Games"):
         admin_client.post("/api/publisher/", json={"name_en": name})
-    names = [p["display_name"] for p in client.get("/api/publisher/").json()]
+    names = [p["display_name"] for p in guest_reader.get("/api/publisher/").json()]
     assert names == sorted(names, key=str.casefold)
 
 

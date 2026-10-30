@@ -28,8 +28,10 @@ from app.services.rbac.permissions import (
     PERM_SELF_LIST,
     PERM_SELF_PERSONAL_NOTES,
     SUPER_ROLE_NAME,
+    VIEW_PERMISSION_KEYS,
     locked_permissions,
     media_type_perm,
+    view_perm,
 )
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
@@ -37,7 +39,7 @@ from app.utils.media_resolver import MEDIA_TYPE_KEYS
 GUEST_ROLE = GUEST_ROLE_NAME
 ADMIN_ROLE = "admin"
 # A signed-in member. Not an administrator and not a second kind of admin:
-# guest reads plus the two self.* writes, and nothing else.
+# guest reads, the view.* reads a guest lacks, and the two self.* writes.
 USER_ROLE = "user"
 # Everything except the ability to change who may do what. NOT is_root:
 # the point of the role is that its grant set is finite and inspectable, so a
@@ -58,15 +60,18 @@ def default_guest_permissions() -> set[str]:
 
 def default_user_permissions() -> set[str]:
     """
-    A signed-in member's grants: everything a guest may read, plus the two
+    A signed-in member's grants: everything a guest may read, the whole view
+    family (the parts of the site a guest does not see), and the two
     permissions over their own rows.
 
     Derived from default_guest_permissions() rather than restated, so a media
-    type or field group added later reaches both roles at once. The spec is
-    explicit that this role is three permissions and not a new system - if this
-    function ever grows a fourth idea, that is a design change, not a tidy-up.
+    type added later reaches both roles at once.
     """
-    return default_guest_permissions() | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES}
+    return (
+        default_guest_permissions()
+        | {view_perm(key) for key in VIEW_PERMISSION_KEYS}
+        | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES}
+    )
 
 
 def default_super_permissions() -> set[str]:
@@ -118,7 +123,7 @@ def ensure_rbac_seed(db: Session) -> None:
         USER_ROLE,
         label="User",
         description=(
-            "A signed-in member. Reads what a guest reads, and writes their "
+            "A signed-in member. Reads the whole site, and writes their "
             "own list and their own personal notes."
         ),
         is_system=True,

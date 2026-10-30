@@ -19,8 +19,9 @@ import { DASHBOARD_VIEW_KEY } from "../../lib/dashboardView";
 import Index from "./Index";
 
 function respond(url) {
+  // A member: the tracker divisions are drawn only for self.list holders.
   if (url.startsWith("/api/auth/me")) {
-    return { is_admin: false, username: null, role: "guest", is_root: false, permissions: [] };
+    return { is_admin: false, username: "reader", role: "user", is_root: false, permissions: ["self.list"] };
   }
   if (url.startsWith("/api/anime/"))
     return [

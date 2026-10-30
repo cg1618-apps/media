@@ -75,37 +75,37 @@ def _names(rows):
 
 
 def test_franchise_scope_lists_only_its_entries_characters(
-    client, db_session, sample_franchise, anime, other_franchise_anime, character,
+    guest_reader, db_session, sample_franchise, anime, other_franchise_anime, character,
     second_character,
 ):
     _cast(db_session, anime, character)
     _cast(db_session, other_franchise_anime, second_character)
 
-    assert _names(_list(client, franchise_id=sample_franchise.system_id)) == ["Ichika"]
+    assert _names(_list(guest_reader, franchise_id=sample_franchise.system_id)) == ["Ichika"]
     # The mirror case: unscoped, both are listed, so the scope did the narrowing.
-    assert set(_names(_list(client))) >= {"Ichika", "Yuki"}
+    assert set(_names(_list(guest_reader))) >= {"Ichika", "Yuki"}
 
 
 def test_series_scope_lists_only_its_entries_characters(
-    client, db_session, sample_series, anime, series_anime, character, second_character,
+    guest_reader, db_session, sample_series, anime, series_anime, character, second_character,
 ):
     _cast(db_session, series_anime, character)
     _cast(db_session, anime, second_character)  # same franchise, no series
 
-    assert _names(_list(client, series_id=sample_series.system_id)) == ["Ichika"]
+    assert _names(_list(guest_reader, series_id=sample_series.system_id)) == ["Ichika"]
 
 
 def test_a_character_cast_twice_is_listed_once(
-    client, db_session, sample_franchise, anime, series_anime, character,
+    guest_reader, db_session, sample_franchise, anime, series_anime, character,
 ):
     _cast(db_session, anime, character)
     _cast(db_session, series_anime, character)
 
-    assert _names(_list(client, franchise_id=sample_franchise.system_id)) == ["Ichika"]
+    assert _names(_list(guest_reader, franchise_id=sample_franchise.system_id)) == ["Ichika"]
 
 
 def test_scoped_identities_are_only_those_cast_in_scope(
-    client, db_session, sample_franchise, anime, other_franchise_anime, character,
+    guest_reader, db_session, sample_franchise, anime, other_franchise_anime, character,
 ):
     cast_here = _identity(db_session, character, "Kid")
     cast_elsewhere = _identity(db_session, character, "Phantom")
@@ -113,20 +113,20 @@ def test_scoped_identities_are_only_those_cast_in_scope(
     _cast(db_session, anime, character, cast_here)
     _cast(db_session, other_franchise_anime, character, cast_elsewhere)
 
-    [row] = _list(client, franchise_id=sample_franchise.system_id)
+    [row] = _list(guest_reader, franchise_id=sample_franchise.system_id)
     assert [i["display_name"] for i in row["identities"]] == ["Kid"]
     # Unscoped, the character keeps every identity it has.
-    [unscoped] = [r for r in _list(client) if r["system_id"] == str(character.system_id)]
+    [unscoped] = [r for r in _list(guest_reader) if r["system_id"] == str(character.system_id)]
     assert {i["display_name"] for i in unscoped["identities"]} == {"Kid", "Phantom"}
 
 
 def test_a_character_cast_only_as_an_identity_is_listed_with_it(
-    client, db_session, sample_franchise, anime, character,
+    guest_reader, db_session, sample_franchise, anime, character,
 ):
     conan = _identity(db_session, character, "Conan")
     _cast(db_session, anime, character, conan)
 
-    [row] = _list(client, franchise_id=sample_franchise.system_id)
+    [row] = _list(guest_reader, franchise_id=sample_franchise.system_id)
     assert row["display_name"] == "Ichika"
     assert [i["display_name"] for i in row["identities"]] == ["Conan"]
 
@@ -157,5 +157,5 @@ def test_an_identity_cast_only_on_a_hidden_entry_is_not_listed(
     assert [i["display_name"] for i in row["identities"]] == ["Kid"]
 
 
-def test_a_franchise_with_no_cast_lists_nobody(client, sample_franchise, anime, character):
-    assert _list(client, franchise_id=sample_franchise.system_id) == []
+def test_a_franchise_with_no_cast_lists_nobody(guest_reader, sample_franchise, anime, character):
+    assert _list(guest_reader, franchise_id=sample_franchise.system_id) == []

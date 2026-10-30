@@ -362,10 +362,10 @@ def test_a_guest_does_not_find_it_in_the_list(client, labelled_h_comic):
     assert all(e["system_id"] != labelled_h_comic["system_id"] for e in listed)
 
 
-def test_a_guest_does_not_find_it_in_search(client, labelled_h_comic):
+def test_a_safe_mode_searcher_does_not_find_it(guest_reader, labelled_h_comic):
     """Not an empty bucket but no bucket: an empty key would still say the
     type exists."""
-    body = client.get("/api/search/", params={"q": "Zvornik"}).json()
+    body = guest_reader.get("/api/search/", params={"q": "Zvornik"}).json()
     assert "h-comic" not in body["results"]
     assert "manga" in body["results"]
 

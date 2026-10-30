@@ -1,6 +1,6 @@
 # Quotes and memes
 
-Last verified: 2026-10-04
+Last verified: 2026-10-30
 
 ## What this is for
 
@@ -111,7 +111,8 @@ and `MemeForm` hides the quote control for tier owners.
 ## Endpoints
 
 Routers: `app/routers/quote.py` (`/api/quote`) and `app/routers/meme.py`
-(`/api/meme`). Reads are public; writes need `manage.catalog`.
+(`/api/meme`). Reads need `view.extras`, which a guest does not hold; writes
+need `manage.catalog`.
 
 ### Quotes
 
