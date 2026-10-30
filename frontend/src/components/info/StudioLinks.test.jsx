@@ -1,8 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import InfoCard from "./InfoCard";
-import { publisherLabel, studioValue } from "./StudioLinks";
+import { creditValue } from "./PersonLinks";
+import { publisherLabel, publisherValue, studioValue } from "./StudioLinks";
+
+// The viewer's view.* scope. A member (every flag on) unless a test says
+// otherwise; `scope.<flag> = false` makes the guest case.
+const { scope } = vi.hoisted(() => ({
+  scope: { entities: true, search: true, extras: true, personal: true },
+}));
+vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
+beforeEach(() => {
+  Object.assign(scope, { entities: true, search: true, extras: true, personal: true });
+});
 
 function renderValue(item) {
   return render(
@@ -76,5 +87,46 @@ describe("a ref with no public_id", () => {
     );
     expect(screen.getByText("Bones")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Bones" })).toBeNull();
+  });
+});
+
+describe("for a viewer without view.entities", () => {
+  // Entity pages are a member's, so a guest reads who made an entry without a
+  // link to a page that would only send them to log in. Each case renders the
+  // refs a member gets links from, and the mirror proves the links are there.
+  const anime = {
+    studio_refs: [{ system_id: "s1", public_id: 1, display_name: "KyoAni" }],
+    publisher_refs: [{ system_id: "p1", public_id: 3, display_name: "Muse" }],
+    credit_refs: {
+      director: [{ system_id: "d1", public_id: 5, display_name: "Yamada Naoko" }],
+    },
+  };
+  function renderAll() {
+    return render(
+      <MemoryRouter>
+        {studioValue(anime)}
+        {publisherValue(anime)}
+        {creditValue(anime, "director", "Yamada Naoko")}
+      </MemoryRouter>,
+    );
+  }
+
+  it("names the studio, the publisher and the person as plain text", () => {
+    scope.entities = false;
+    renderAll();
+    for (const name of ["KyoAni", "Muse", "Yamada Naoko"]) {
+      expect(screen.getByText(name)).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("links all three for a member", () => {
+    renderAll();
+    expect(screen.getByRole("link", { name: "KyoAni" })).toHaveAttribute("href", "/studio/1/kyoani");
+    expect(screen.getByRole("link", { name: "Muse" })).toHaveAttribute("href", "/publisher/3/muse");
+    expect(screen.getByRole("link", { name: "Yamada Naoko" })).toHaveAttribute(
+      "href",
+      "/person/5/yamada-naoko",
+    );
   });
 });

@@ -1,6 +1,6 @@
 # Resources
 
-Last verified: 2026-09-28
+Last verified: 2026-10-30
 
 ## What this is for
 
@@ -76,7 +76,7 @@ Router: `app/routers/resources.py`, prefix `/api/resources`. Full table in
 
 | Method | Path | Gate |
 |---|---|---|
-| GET | `/api/resources` | any viewer (`get_viewer`, as the Quote list) |
+| GET | `/api/resources` | `view.extras` (`require_view_extras`, as the Quote list) - not a guest |
 | POST | `/api/resources` | `manage.catalog` |
 | PATCH | `/api/resources/reorder` | `manage.catalog` |
 | PATCH | `/api/resources/{system_id}` | `manage.catalog` |

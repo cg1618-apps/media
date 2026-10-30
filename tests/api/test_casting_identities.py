@@ -92,9 +92,9 @@ def test_photo_file_is_the_rows_own_and_display_photo_is_resolved(
     assert cast[1]["fallback_photo_focus"] == "10% 20%"
 
 
-def test_entries_lists_each_identity_appearance(admin_client, client, anime, character, identity):
+def test_entries_lists_each_identity_appearance(admin_client, guest_reader, anime, character, identity):
     assert _put(admin_client, anime, [_row(character), _row(character, identity)]).status_code == 200
-    groups = client.get(f"/api/character/{character.system_id}/entries").json()["groups"]
+    groups = guest_reader.get(f"/api/character/{character.system_id}/entries").json()["groups"]
     entries = [e for g in groups for e in g["entries"]]
     assert len(entries) == 2
     assert len({e["casting_id"] for e in entries}) == 2

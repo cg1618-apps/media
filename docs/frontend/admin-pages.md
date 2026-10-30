@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-29
+Last verified: 2026-10-30
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -1375,7 +1375,10 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   the `locked_on` / `locked_off` the role itself carries, and a role with
   nothing left to decide (`super`, `admin`) gets no Save button. The same
   table answers 409 on the write path, so a box that looks editable is one the
-  server will accept.
+  server will accept. Each permission family is one bordered block headed by its
+  label and an icon from `FAMILY_ICONS` (`fa-key` for a family with none);
+  the Viewing family (`view.*` - entities, search, extras, personal, the
+  member-only reading surfaces) is drawn with `fa-eye`.
 - **Users** — create users with a role, change role, delete; the last
   administrator and your own account are protected.
 - **Content Labels** — the label vocabulary; deleting a label immediately

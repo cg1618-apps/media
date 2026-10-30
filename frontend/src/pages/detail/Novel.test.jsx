@@ -38,15 +38,23 @@ const BASE_NOVEL = {
   units: [],
 };
 
+const MEMBER_VIEW = ["view.entities", "view.search", "view.extras", "view.personal"];
+// What /api/auth/me grants the non-admin viewer; a guest case sets [].
+let viewPermissions = MEMBER_VIEW;
+
 function respond(url, isAdmin) {
   const u = String(url);
   if (u.startsWith("/api/auth/me")) {
     return {
       is_admin: isAdmin,
-      username: isAdmin ? "admin" : null,
-      role: isAdmin ? "admin" : "guest",
+      username: isAdmin ? "admin" : "reader",
+      role: isAdmin ? "admin" : "user",
       is_root: isAdmin,
-      permissions: [],
+      // A member's view.* keys by default: entity names link (view.entities)
+      // and a unit's remark is shown (view.personal). The guest view of the
+      // links is pinned in CastSection.test and StudioLinks.test, and of the
+      // remark below.
+      permissions: viewPermissions,
     };
   }
   return [];
@@ -82,7 +90,10 @@ function mockFetch(novel, { isAdmin = false, onPatch } = {}) {
   );
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  viewPermissions = MEMBER_VIEW;
+});
 
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -146,6 +157,33 @@ describe("Novel detail page — units", () => {
     expect(await screen.findByText("Vol.1")).toBeInTheDocument();
     expect(screen.getByText("第一卷 / Volume One")).toBeInTheDocument();
     expect(screen.getByText("Limited edition")).toBeInTheDocument();
+  });
+
+  it("leaves a unit's remark out for a viewer without view.personal", async () => {
+    // The same unit, remark and all, that the case above draws for a member:
+    // the server strips the remark for such a viewer, and the row must not
+    // draw it even if one arrives.
+    viewPermissions = [];
+    mockFetch({
+      ...BASE_NOVEL,
+      type: "Light Novel",
+      units: [
+        {
+          system_id: "u1",
+          unit_kind: "volume",
+          position: 1,
+          unit_key: "Vol.1",
+          name_cn: "第一卷",
+          name_en: "Volume One",
+          remark: "Limited edition",
+          ch_count: null,
+          display_key: "Vol.1",
+        },
+      ],
+    });
+    mount();
+    expect(await screen.findByText("第一卷 / Volume One")).toBeInTheDocument();
+    expect(screen.queryByText("Limited edition")).toBeNull();
   });
 
   it("does not render an empty Units card for a novel with no units", async () => {

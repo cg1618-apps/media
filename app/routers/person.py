@@ -45,7 +45,12 @@ from app.services.rbac.enforcement import (
     label_hidden_entry_ids,
 )
 from app.services.rbac.gated_types import hidden_person_roles
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.personal_gate import strip_personal
+from app.services.rbac.resolver import (
+    Viewer,
+    require_manage_catalog,
+    require_view_entities,
+)
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
     hidden_scopes,
@@ -88,7 +93,7 @@ def _to_response(
     # connection, and a visible person omits it rather than naming the type.
     if hidden is None:
         hidden = hidden_scopes(db, viewer)
-    return schemas.PersonResponse(
+    response = schemas.PersonResponse(
         system_id=person.system_id,
         public_id=person.public_id,
         name_en=person.name_en,
@@ -115,6 +120,7 @@ def _to_response(
         media_types=media.media_types,
         restricted=media.restricted,
     )
+    return strip_personal(viewer, "person", response)
 
 
 def _derive_and_fill_from_mal(db: Session, person: models.Person) -> None:
@@ -144,7 +150,7 @@ def get_all_people(
     role: Optional[str] = Query(default=None),
     scope: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     Retrieves people, optionally filtered to those who hold a given role, and
@@ -206,7 +212,7 @@ def search_mal(
 )
 def get_role_counts(
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     How many distinct people hold each person_role, zeros included.
@@ -239,7 +245,7 @@ def get_role_counts(
 )
 def get_role_scopes(
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     Which media types each person role may be scoped to.
@@ -270,7 +276,7 @@ def get_role_scopes(
 def get_person_entries(
     system_id: UUID,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     The entries this person is credited on, grouped by media type AND role.
@@ -495,7 +501,7 @@ def _visible_person_or_404(db: Session, viewer, system_id: str) -> models.Person
 def get_person_clubs(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """The visible clubs this artist belongs to, ordered by name."""
     person = _visible_person_or_404(db, viewer, system_id)
@@ -531,7 +537,7 @@ def put_person_clubs(
 def get_club_members(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """The visible members of a club, in the club's order. Empty for a person
     who is not a club."""
@@ -567,7 +573,7 @@ def put_club_members(
 def get_person_by_id(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """Retrieves a single person by their public_id or their UUID."""
     person = find_entity(db, models.Person, system_id)

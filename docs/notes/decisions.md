@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-10-28
+Last verified: 2026-10-30
 
 ## What this is for
 
@@ -3721,3 +3721,32 @@ The owner reshaped the game vocabularies in one revision, `g1a2mevocab34`.
   backup's `Physical` as `Physical Store`.
 - **Copy format gains `Key Card`**: a boxed copy that holds only a download
   code, physical in the hand and digital in what it delivers.
+
+### A guest browses the catalogue and nothing around it: the `view` family (2026-10-30)
+
+The owner narrowed what a logged-out visitor sees to the libraries, the
+detail pages they lead to, and the dashboard's announcements and broadcast
+schedule. That is expressed as four role permissions - `view.entities`,
+`view.search`, `view.extras`, `view.personal` - held by `user` and `super`
+and not by `guest`, rather than as checks for "is anybody logged in".
+
+- **Permissions, not a login check.** A role grant can be given back: an
+  admin may open search or the entity pages to the public by ticking a box on
+  `guest`, which is why the family is a free choice there and not locked off.
+  Four keys rather than one, because the four surfaces are independent - a
+  role may read entities without reading what members wrote.
+- **Gated per read route, not per router.** A router-level dependency would
+  also have gated the writes on the same router, so a role holding
+  `manage.catalog` without `view.entities` could no longer save a studio.
+- **Personal fields come back null, not absent.** A withheld field group is
+  absent because its presence would announce what it conceals; these fields
+  are on every row, so the key says nothing, and keeping it gives every
+  viewer one response shape.
+- **`manage.catalog` is exempt from the nulling.** The catalogue forms load a
+  row with a GET and send it back whole, so a manager handed a null would
+  write it over the stored rating. Every seeded holder of `manage.catalog`
+  holds `view.personal` anyway; the exemption only matters for a custom role.
+- **Rollout is a revision, `v1i2ewperms34`.** The seed tops up only a role
+  holding nothing, so an established `user` role would never have received
+  the keys and every member would have lost the entity pages on deploy.
+  `super` needs no rows from it: the lock reconciliation adds them on start.

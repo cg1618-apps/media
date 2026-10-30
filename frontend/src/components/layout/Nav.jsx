@@ -163,6 +163,10 @@ export default function Nav() {
   const stripRef = useRef(null);
   const triggerRefs = useRef({});
 
+  // Search reaches every table at once, so it is a member's tool:
+  // view.search, the key App.jsx's /search route asks. Without it the
+  // desktop slot, the phone button and its sheet are all absent.
+  const canSearch = has("view.search");
   const sections = visibleSections(NAV_SECTIONS, has, (type) =>
     canSeeGatedType(auth, type),
   );
@@ -300,7 +304,7 @@ export default function Nav() {
               </span>
             </Link>
 
-            <NavSearch />
+            {canSearch && <NavSearch />}
 
             <div className="flex items-center gap-2 shrink-0">
               {/* The role CHIP is a capability and stays gated; the name
@@ -379,15 +383,17 @@ export default function Nav() {
                 <i className={`fas ${theme === "dark" ? "fa-sun" : "fa-moon"} text-sm`}></i>
               </button>
 
-              <button
-                type="button"
-                onClick={toggleSearch}
-                aria-expanded={searchOpen}
-                aria-label="Search"
-                className={`md:hidden px-3 py-2.5 ${INK_ICON_BTN}`}
-              >
-                <i className={`fas ${searchOpen ? "fa-xmark" : "fa-search"}`}></i>
-              </button>
+              {canSearch && (
+                <button
+                  type="button"
+                  onClick={toggleSearch}
+                  aria-expanded={searchOpen}
+                  aria-label="Search"
+                  className={`md:hidden px-3 py-2.5 ${INK_ICON_BTN}`}
+                >
+                  <i className={`fas ${searchOpen ? "fa-xmark" : "fa-search"}`}></i>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -406,7 +412,7 @@ export default function Nav() {
       {/* Phone search - an overlay under the bar rather than a row of it, so
           the nav keeps its --nav-h height and sticky page headers do not
           jump when it opens. */}
-      {searchOpen && (
+      {canSearch && searchOpen && (
         <div
           className="md:hidden absolute inset-x-0 top-full bg-ink px-4 pb-3 pt-1 shadow-lg"
           onKeyDown={(e) => e.key === "Escape" && setSearchOpen(false)}

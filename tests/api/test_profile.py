@@ -15,6 +15,7 @@ from app import models
 from app.services.rbac.permissions import media_type_perm
 from app.services.rbac.seed import default_guest_permissions
 from app.services.security import get_password_hash
+from tests.api.conftest import ALL_VIEW_PERMISSIONS
 from tests.api.test_visibility import make_viewer
 
 
@@ -61,8 +62,8 @@ def listed(db, owner, sample_anime, sample_manga):
     return rows
 
 
-def test_a_private_list_is_404_to_a_stranger(client, owner, listed):
-    assert client.get("/api/profile/kana").status_code == 404
+def test_a_private_list_is_404_to_a_stranger(guest_reader, owner, listed):
+    assert guest_reader.get("/api/profile/kana").status_code == 404
 
 
 def test_a_private_list_is_visible_to_its_owner(db, client, owner, listed):
@@ -83,11 +84,11 @@ def test_a_private_list_is_visible_to_an_admin(admin_client, owner, listed):
     assert r.json()["is_self"] is False
 
 
-def test_a_public_list_is_visible_to_a_stranger(db, client, owner, listed):
+def test_a_public_list_is_visible_to_a_stranger(db, guest_reader, owner, listed):
     owner.list_is_public = True
     db.flush()
 
-    r = client.get("/api/profile/kana")
+    r = guest_reader.get("/api/profile/kana")
     assert r.status_code == 200
     body = r.json()
     assert body["username"] == "kana"
@@ -95,12 +96,12 @@ def test_a_public_list_is_visible_to_a_stranger(db, client, owner, listed):
     assert {e["media_type"] for e in body["entries"]} == {"anime", "manga"}
 
 
-def test_entries_are_ordered_best_rated_first(db, client, owner, listed):
+def test_entries_are_ordered_best_rated_first(db, guest_reader, owner, listed):
     owner.list_is_public = True
     db.flush()
 
     ratings = [
-        e["my_rating"] for e in client.get("/api/profile/kana").json()["entries"]
+        e["my_rating"] for e in guest_reader.get("/api/profile/kana").json()["entries"]
     ]
     assert ratings == ["S", "B"]
 
@@ -112,7 +113,7 @@ def test_a_media_type_the_reader_may_not_see_is_absent(db, client, owner, listed
         db,
         client,
         "no-manga",
-        default_guest_permissions() - {media_type_perm("manga")},
+        (default_guest_permissions() | ALL_VIEW_PERMISSIONS) - {media_type_perm("manga")},
     )
 
     types = {
@@ -137,14 +138,14 @@ def test_a_labelled_entry_is_absent_for_a_reader_lacking_the_label(
     )
     db.flush()
 
-    make_viewer(db, client, "untrusted", default_guest_permissions(), label_keys=())
+    make_viewer(db, client, "untrusted", (default_guest_permissions() | ALL_VIEW_PERMISSIONS), label_keys=())
     types = {
         e["media_type"] for e in client.get("/api/profile/kana").json()["entries"]
     }
     assert types == {"manga"}
 
     make_viewer(
-        db, client, "trusted", default_guest_permissions(), label_keys=("nsfw",)
+        db, client, "trusted", (default_guest_permissions() | ALL_VIEW_PERMISSIONS), label_keys=("nsfw",)
     )
     types = {
         e["media_type"] for e in client.get("/api/profile/kana").json()["entries"]
@@ -152,23 +153,23 @@ def test_a_labelled_entry_is_absent_for_a_reader_lacking_the_label(
     assert types == {"anime", "manga"}
 
 
-def test_an_unknown_username_is_404(client):
-    assert client.get("/api/profile/nobody").status_code == 404
+def test_an_unknown_username_is_404(guest_reader):
+    assert guest_reader.get("/api/profile/nobody").status_code == 404
 
 
-def test_the_response_carries_no_personal_notes(db, client, owner, listed):
+def test_the_response_carries_no_personal_notes(db, guest_reader, owner, listed):
     owner.list_is_public = True
     db.flush()
-    body = client.get("/api/profile/kana").json()
+    body = guest_reader.get("/api/profile/kana").json()
     assert "notes" not in body
     assert all("notes" not in e for e in body["entries"])
 
 
-def test_status_counts_are_reported(db, client, owner, listed):
+def test_status_counts_are_reported(db, guest_reader, owner, listed):
     owner.list_is_public = True
     db.flush()
     counts = {
         c["status"]: c["count"]
-        for c in client.get("/api/profile/kana").json()["counts"]
+        for c in guest_reader.get("/api/profile/kana").json()["counts"]
     }
     assert counts == {"Completed": 1, "Reading": 1}

@@ -2120,6 +2120,15 @@ CATALOG_SECTIONS: frozenset[str] = frozenset(
     s.key for s in NOTE_SECTIONS if s.scope == SCOPE_CATALOG
 )
 
+# Catalogue sections that read as somebody's opinion of the work rather than
+# a fact about it, and so are withheld - from the rows AND from the section
+# listing - from a viewer without view.personal. Named here rather than
+# flagged on NoteSection because they are a policy choice about two sections,
+# not a property of the shape.
+VIEW_PERSONAL_SECTIONS: frozenset[str] = frozenset(
+    {"highlights", "highlight_episodes"}
+)
+
 
 def sections_by_scope(scope: str) -> list[NoteSection]:
     """Every section of one scope, in display order."""

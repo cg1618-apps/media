@@ -69,18 +69,18 @@ def h_comic_only(mode_client, db_session):
 
 
 def test_a_studio_credited_only_on_hentai_is_hidden(
-    client, admin_client, db_session, hentai_id
+    guest_reader, admin_client, db_session, hentai_id
 ):
     credits_service.replace_credits(
         db_session, "hentai", hentai_id, "studio", ["Zvornik Hentai Studio"]
     )
     studio = credits_service.find_studio(db_session, "Zvornik Hentai Studio")
-    assert client.get(f"/api/studio/{studio.system_id}").status_code == 404
+    assert guest_reader.get(f"/api/studio/{studio.system_id}").status_code == 404
     assert admin_client.get(f"/api/studio/{studio.system_id}").status_code == 200
 
 
 def test_a_studio_also_on_an_anime_stays_visible(
-    client, db_session, hentai_id, sample_anime
+    guest_reader, db_session, hentai_id, sample_anime
 ):
     credits_service.replace_credits(
         db_session, "hentai", hentai_id, "studio", ["Zvornik Crossover Studio"]
@@ -89,17 +89,17 @@ def test_a_studio_also_on_an_anime_stays_visible(
         db_session, "anime", sample_anime.system_id, "studio", ["Zvornik Crossover Studio"]
     )
     studio = credits_service.find_studio(db_session, "Zvornik Crossover Studio")
-    assert client.get(f"/api/studio/{studio.system_id}").status_code == 200
+    assert guest_reader.get(f"/api/studio/{studio.system_id}").status_code == 200
 
 
 def test_a_director_credited_only_on_hentai_is_hidden(
-    client, admin_client, db_session, hentai_id
+    guest_reader, admin_client, db_session, hentai_id
 ):
     credits_service.replace_credits(
         db_session, "hentai", hentai_id, "director", ["Zvornik Hentai Director"]
     )
     person = credits_service.find_person(db_session, "Zvornik Hentai Director")
-    assert client.get(f"/api/person/{person.system_id}").status_code == 404
+    assert guest_reader.get(f"/api/person/{person.system_id}").status_code == 404
     assert admin_client.get(f"/api/person/{person.system_id}").status_code == 200
 
 
@@ -109,7 +109,7 @@ def _ids(response) -> set[str]:
 
 
 def test_an_author_credited_only_on_hentai_is_hidden(
-    client, admin_client, h_comic_only, db_session, hentai_id
+    guest_reader, admin_client, h_comic_only, db_session, hentai_id
 ):
     credits_service.replace_credits(
         db_session, "hentai", hentai_id, "author", ["Zvornik Hentai Author"]
@@ -120,7 +120,7 @@ def test_an_author_credited_only_on_hentai_is_hidden(
         "Zvornik Hentai Author"
     ]
 
-    for narrow in (client, h_comic_only):
+    for narrow in (guest_reader, h_comic_only):
         assert narrow.get(f"/api/person/{person.system_id}").status_code == 404
         assert narrow.get(f"/api/person/{person.system_id}/entries").status_code == 404
         assert str(person.system_id) not in _ids(narrow.get("/api/person/"))

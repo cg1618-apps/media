@@ -7,6 +7,7 @@ import pytest
 from app import models
 from app.services.rbac.seed import default_guest_permissions
 from tests.api.conftest import (  # noqa: F401
+    ALL_VIEW_PERMISSIONS,
     HIDDEN_NAME,
     hidden_anime,
     make_viewer,
@@ -59,7 +60,7 @@ def test_a_labelled_entry_is_hidden_from_a_viewer_without_the_permission(
     # label_keys=(): a mode carrying no labels. "Without the permission" was
     # a role grant until Phase B moved object scoping to the access mode.
     make_viewer(
-        db_session, client, "plain", default_guest_permissions(), label_keys=()
+        db_session, client, "plain", (default_guest_permissions() | ALL_VIEW_PERMISSIONS), label_keys=()
     )
     r = client.get(f"/api/studio/{mappa.system_id}/entries")
     # Assert on the whole body, not parsed fields: a title can leak through a
@@ -77,7 +78,7 @@ def test_the_same_entry_is_visible_to_a_viewer_holding_the_label(
         db_session,
         client,
         "labelled",
-        list(default_guest_permissions()),
+        list((default_guest_permissions() | ALL_VIEW_PERMISSIONS)),
         label_keys=(nsfw_label.key,),
     )
     assert HIDDEN_NAME in client.get(f"/api/studio/{mappa.system_id}/entries").text

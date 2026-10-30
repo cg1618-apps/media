@@ -33,7 +33,12 @@ from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.rbac.enforcement import drop_hidden_rows, require_visible_owner
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.resolver import (
+    Viewer,
+    get_viewer,
+    require_manage_catalog,
+    require_view_extras,
+)
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import (
     OWNER_TABLES,
@@ -233,7 +238,7 @@ def get_all_memes(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_extras),
 ):
     """
     Retrieves Memes, optionally filtered.
@@ -267,7 +272,7 @@ def get_memes_grouped(
     search_query: Optional[str] = None,
     limit: int = Query(default=2000, ge=1, le=5000),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_extras),
 ):
     """
     The Meme page's primary feed: memes bucketed by the owner they belong to.
@@ -326,7 +331,7 @@ def get_memes_grouped(
 def get_meme(
     meme_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_extras),
 ):
     """Retrieves a single Meme with its owner and linked-quote data resolved."""
     db_meme = _get_or_404(db, meme_id)

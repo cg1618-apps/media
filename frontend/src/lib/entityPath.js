@@ -9,6 +9,9 @@
 // the moment it is copied out of the address bar, so the URL prefers Latin
 // script and simply omits the slug when there is none. The UI still shows the
 // CN name everywhere else.
+import { useCallback } from "react";
+
+import { useViewScope } from "../hooks/useViewScope";
 
 const MAX_SLUG_LENGTH = 60;
 
@@ -66,4 +69,29 @@ export function entityPath(type, entity) {
   if (!entity || entity.public_id == null) return "";
   const slug = entitySlug(type, entity);
   return slug ? `/${type}/${entity.public_id}/${slug}` : `/${type}/${entity.public_id}`;
+}
+
+// The credited entities, whose pages are a member's (view.entities). Every
+// other type - a media entry, a group, a watch order - is open to a guest.
+export const ENTITY_TYPES = new Set([
+  "studio",
+  "publisher",
+  "person",
+  "character",
+  "identity",
+]);
+
+// entityPath for the current viewer: "" for an entity type when the viewer
+// lacks view.entities, the same key App.jsx's entity routes ask. Every link
+// component already reads "" as "no page to go to" and renders the name as
+// plain text, so a guest reads who made an entry without being sent to a
+// page that would only bounce them to the login screen. Outside an
+// AuthProvider nobody is known to hold the key, so no entity link is drawn.
+export function useEntityHref() {
+  const { entities: linked } = useViewScope();
+  return useCallback(
+    (type, entity) =>
+      ENTITY_TYPES.has(type) && !linked ? "" : entityPath(type, entity),
+    [linked],
+  );
 }

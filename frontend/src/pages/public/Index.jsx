@@ -167,6 +167,10 @@ const TOC_ITEMS = [
   { id: "playing-paused", label: "Paused", level: 2 },
 ];
 
+// What a guest's dashboard holds: the board and the public broadcast
+// schedule. Everything else on the page is the viewer's own tracking.
+const GUEST_TOC_IDS = new Set(["announcements", "schedule", "schedule-broadcast"]);
+
 // How far below the top of the viewport an anchor is covered by sticky
 // headers. Announcements and Schedule pin their own division header; the
 // tracker divisions share the filter bar instead.
@@ -182,17 +186,13 @@ function stickyOffset(id) {
   return navH + (id.includes("-") ? divH + 24 : 8);
 }
 
-function DashboardTOC({ activeId, typeFilter, showComingNext }) {
-  const scrollTo = (id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const top =
-      el.getBoundingClientRect().top + window.scrollY - stickyOffset(id);
-    window.scrollTo({ top, behavior: "smooth" });
-  };
-
-  // A division the type filter hides has no anchor to scroll to.
-  const items = TOC_ITEMS.filter(({ id }) => {
+// The TOC rows a viewer is shown, in order. A guest (not a member) has only
+// Announcements and the Broadcast schedule; a division the type filter hides
+// has no anchor to scroll to. The scroll-spy reads the same list, so the
+// two never disagree about which anchors exist.
+function visibleTocItems({ isMember, typeFilter, showComingNext }) {
+  return TOC_ITEMS.filter(({ id }) => {
+    if (!isMember && !GUEST_TOC_IDS.has(id)) return false;
     // Followed orders is gated exactly as Coming Next is.
     if (
       (id === "schedule-coming" || id === "schedule-follows") &&
@@ -202,6 +202,16 @@ function DashboardTOC({ activeId, typeFilter, showComingNext }) {
     const division = id.split("-")[0];
     return !(division in DIVISION_TYPES) || divisionShown(division, typeFilter);
   });
+}
+
+function DashboardTOC({ activeId, items }) {
+  const scrollTo = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const top =
+      el.getBoundingClientRect().top + window.scrollY - stickyOffset(id);
+    window.scrollTo({ top, behavior: "smooth" });
+  };
 
   return (
     <nav
@@ -540,19 +550,34 @@ export default function Index() {
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
+  // Who the dashboard is for. Everything below Announcements and the
+  // Broadcast schedule - My watch schedule, Coming Next, Followed orders, the
+  // type filter and the Watching/Reading/Playing divisions - is built from
+  // the viewer's OWN statuses and progress, and its controls write the
+  // viewer's own rows. self.list is the SPA's existing spelling of "a
+  // signed-in member" (navigation.js and App.jsx gate Plan, Seasonal and
+  // Settings on it, and Coming Next already asked it here), and the guest
+  // role does not hold it. It is that rather than a view.* key because the
+  // view.* keys open catalogue reads; nothing in this part of the dashboard
+  // is catalogue - it is the viewer's own list.
+  const isMember = has("self.list");
   const animeQuery = useMediaList("anime", LIST_OPTIONS);
-  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
-  const tvQuery = useMediaList("tv-show", LIST_OPTIONS);
-  const cartoonQuery = useMediaList("cartoon", LIST_OPTIONS);
-  const mangaQuery = useMediaList("manga", LIST_OPTIONS);
-  const novelQuery = useMediaList("novel", LIST_OPTIONS);
-  const comicQuery = useMediaList("comic", LIST_OPTIONS);
-  const gameQuery = useMediaList("game", LIST_OPTIONS);
+  // Only the tracker divisions read the other lists. A guest is shown none
+  // of them, so they are not fetched for one: the Broadcast schedule needs
+  // the anime list alone.
+  const memberListOptions = { ...LIST_OPTIONS, enabled: isMember };
+  const franchiseQuery = useMediaList("franchise", memberListOptions);
+  const tvQuery = useMediaList("tv-show", memberListOptions);
+  const cartoonQuery = useMediaList("cartoon", memberListOptions);
+  const mangaQuery = useMediaList("manga", memberListOptions);
+  const novelQuery = useMediaList("novel", memberListOptions);
+  const comicQuery = useMediaList("comic", memberListOptions);
+  const gameQuery = useMediaList("game", memberListOptions);
   // Coming Next reads the viewer's own statuses, so it is drawn only for a
   // signed-in member, and its two extra lists and the current season are
   // fetched only then. Like announcements, they stay out of the combined
   // loading/error state: a slow movie list must not hold up the dashboard.
-  const showComingNext = has("self.list");
+  const showComingNext = isMember;
   const animeMovieQuery = useMediaList("anime-movie", {
     ...LIST_OPTIONS,
     enabled: showComingNext,
@@ -584,25 +609,23 @@ export default function Index() {
   const novelData = novelQuery.data || [];
   const comicData = comicQuery.data || [];
   const gameData = gameQuery.data || [];
-  const loading =
-    animeQuery.isLoading ||
-    franchiseQuery.isLoading ||
-    tvQuery.isLoading ||
-    cartoonQuery.isLoading ||
-    mangaQuery.isLoading ||
-    novelQuery.isLoading ||
-    comicQuery.isLoading ||
-    gameQuery.isLoading;
+  // The combined loading/error state covers the lists the visible parts
+  // read: the anime list always, the tracker lists only for a member.
+  const blockingQueries = isMember
+    ? [
+        animeQuery,
+        franchiseQuery,
+        tvQuery,
+        cartoonQuery,
+        mangaQuery,
+        novelQuery,
+        comicQuery,
+        gameQuery,
+      ]
+    : [animeQuery];
+  const loading = blockingQueries.some((q) => q.isLoading);
   const error =
-    animeQuery.error?.message ||
-    franchiseQuery.error?.message ||
-    tvQuery.error?.message ||
-    cartoonQuery.error?.message ||
-    mangaQuery.error?.message ||
-    novelQuery.error?.message ||
-    comicQuery.error?.message ||
-    gameQuery.error?.message ||
-    null;
+    blockingQueries.map((q) => q.error?.message).find(Boolean) || null;
   const [activeSection, setActiveSection] = useState("announcements");
   // One type filter for Watching, Reading and Playing: null shows every
   // type; a value shows only it, and only the division that holds it.
@@ -639,29 +662,14 @@ export default function Index() {
     showToast("success", progressToast(before, saved, savedMessage));
   }
 
-  // Track which section is in view to highlight TOC
+  const tocItems = visibleTocItems({ isMember, typeFilter, showComingNext });
+  const tocIdsKey = tocItems.map(({ id }) => id).join(" ");
+
+  // Track which section is in view to highlight TOC. It watches the anchors
+  // the TOC lists, so a guest's spy never looks for a division it lacks.
   useEffect(() => {
     if (loading) return;
-    const ids = [
-      "announcements",
-      "schedule",
-      "schedule-watch",
-      "schedule-broadcast",
-      "schedule-coming",
-      "watching",
-      "watching-active",
-      "watching-passive",
-      "watching-paused",
-      "reading",
-      "reading-active",
-      "reading-passive",
-      "reading-paused",
-      "playing",
-      "playing-active",
-      "playing-passive",
-      "playing-anytime",
-      "playing-paused",
-    ];
+    const ids = tocIdsKey.split(" ");
 
     function getActive() {
       // Use the same offset as the sticky headers so the highlight matches
@@ -681,7 +689,7 @@ export default function Index() {
     window.addEventListener("scroll", getActive, { passive: true });
     getActive();
     return () => window.removeEventListener("scroll", getActive);
-  }, [loading, typeFilter]);
+  }, [loading, tocIdsKey]);
 
   async function handleEpChange(sysId, newVal, prevVal, uiType) {
     if (uiType === "TV Show") {
@@ -959,11 +967,7 @@ export default function Index() {
       <div className="flex gap-8">
         {/* TOC Sidebar — visible on xl+ screens */}
         <aside className="hidden xl:block w-48 shrink-0">
-          <DashboardTOC
-            activeId={activeSection}
-            typeFilter={typeFilter}
-            showComingNext={showComingNext}
-          />
+          <DashboardTOC activeId={activeSection} items={tocItems} />
         </aside>
 
         {/* Main Content */}
@@ -1000,19 +1004,23 @@ export default function Index() {
                 </h2>
               </div>
               <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-                {broadcastSchedule.length + watchSchedule.length} scheduled
+                {broadcastSchedule.length +
+                  (isMember ? watchSchedule.length : 0)}{" "}
+                scheduled
               </span>
             </div>
             <div className="pt-8 space-y-12">
-              <WeeklySchedule
-                id="schedule-watch"
-                title="My watch schedule"
-                icon="fa-user-clock"
-                subtitle="Airing · by my watch day"
-                dayField="my_watch_day"
-                items={watchSchedule}
-                emptyText="No airing entries have a watch day set."
-              />
+              {isMember && (
+                <WeeklySchedule
+                  id="schedule-watch"
+                  title="My watch schedule"
+                  icon="fa-user-clock"
+                  subtitle="Airing · by my watch day"
+                  dayField="my_watch_day"
+                  items={watchSchedule}
+                  emptyText="No airing entries have a watch day set."
+                />
+              )}
               <WeeklySchedule
                 id="schedule-broadcast"
                 title="Broadcast schedule"
@@ -1045,191 +1053,193 @@ export default function Index() {
 
           {/* Tracker divisions. The filter bar is their one sticky header, so
               this wrapper bounds it: it scrolls in after Schedule and stays
-              pinned to the end of Playing. */}
-          <div className="space-y-16">
-            <TypeFilterBar
-              types={MEDIA_TYPES}
-              value={typeFilter}
-              onChange={setTypeFilter}
-              onHeightChange={setFilterBarH}
-              view={view}
-              onViewChange={changeView}
-            />
+              pinned to the end of Playing. A member's only (see isMember). */}
+          {isMember && (
+            <div className="space-y-16">
+              <TypeFilterBar
+                types={MEDIA_TYPES}
+                value={typeFilter}
+                onChange={setTypeFilter}
+                onHeightChange={setFilterBarH}
+                view={view}
+                onViewChange={changeView}
+              />
 
-            {/* Watching Division */}
-            {divisionShown("watching", typeFilter) && (
-              <div id="watching">
-                <div className="flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
-                  <div>
-                    <Eyebrow className="mb-1">Anime · TV Show · Cartoon</Eyebrow>
-                    <h2 className="font-display text-3xl font-semibold text-text leading-none">
-                      Watching
-                    </h2>
+              {/* Watching Division */}
+              {divisionShown("watching", typeFilter) && (
+                <div id="watching">
+                  <div className="flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
+                    <div>
+                      <Eyebrow className="mb-1">Anime · TV Show · Cartoon</Eyebrow>
+                      <h2 className="font-display text-3xl font-semibold text-text leading-none">
+                        Watching
+                      </h2>
+                    </div>
+                    <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                      {active.length + passive.length + paused.length} in progress
+                    </span>
                   </div>
-                  <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-                    {active.length + passive.length + paused.length} in progress
-                  </span>
-                </div>
-                <div className="pt-8 space-y-12">
-                  <Section
-                    id="watching-active"
-                    title="Active watching"
-                    count={active.length}
-                    items={active}
-                    franchiseData={franchiseData}
-                    headerTop={subHeaderTop}
-                    view={view}
-                    isAdmin={isAdmin}
-                    onEpChange={handleEpChange}
-                  />
-                  <Section
-                    id="watching-passive"
-                    title="Passive watching"
-                    count={passive.length}
-                    items={passive}
-                    franchiseData={franchiseData}
-                    headerTop={subHeaderTop}
-                    view={view}
-                    isAdmin={isAdmin}
-                    onEpChange={handleEpChange}
-                  />
-                  <Section
-                    id="watching-paused"
-                    title="Paused"
-                    count={paused.length}
-                    items={paused}
-                    franchiseData={franchiseData}
-                    headerTop={subHeaderTop}
-                    view={view}
-                    isAdmin={isAdmin}
-                    onEpChange={handleEpChange}
-                  />
-                </div>
-              </div>
-
-            )}
-
-            {/* Reading Division */}
-            {divisionShown("reading", typeFilter) && (
-              <div id="reading">
-                <div className="flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
-                  <div>
-                    <Eyebrow className="mb-1">Manga · Novel · Comic</Eyebrow>
-                    <h2 className="font-display text-3xl font-semibold text-text leading-none">
-                      Reading
-                    </h2>
+                  <div className="pt-8 space-y-12">
+                    <Section
+                      id="watching-active"
+                      title="Active watching"
+                      count={active.length}
+                      items={active}
+                      franchiseData={franchiseData}
+                      headerTop={subHeaderTop}
+                      view={view}
+                      isAdmin={isAdmin}
+                      onEpChange={handleEpChange}
+                    />
+                    <Section
+                      id="watching-passive"
+                      title="Passive watching"
+                      count={passive.length}
+                      items={passive}
+                      franchiseData={franchiseData}
+                      headerTop={subHeaderTop}
+                      view={view}
+                      isAdmin={isAdmin}
+                      onEpChange={handleEpChange}
+                    />
+                    <Section
+                      id="watching-paused"
+                      title="Paused"
+                      count={paused.length}
+                      items={paused}
+                      franchiseData={franchiseData}
+                      headerTop={subHeaderTop}
+                      view={view}
+                      isAdmin={isAdmin}
+                      onEpChange={handleEpChange}
+                    />
                   </div>
-                  <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-                    {activeReading.length +
-                      passiveReading.length +
-                      pausedReading.length}{" "}
-                    in progress
-                  </span>
                 </div>
-                <div className="pt-8 space-y-12">
-                  <ReadingSection
-                    id="reading-active"
-                    title="Active reading"
-                    count={activeReading.length}
-                    items={activeReading}
-                    franchiseData={franchiseData}
-                    headerTop={subHeaderTop}
-                    view={view}
-                    isAdmin={isAdmin}
-                    onChChange={handleChChange}
-                    onNovelProgressChange={handleNovelProgressChange}
-                    onComicProgressChange={handleComicProgressChange}
-                  />
-                  <ReadingSection
-                    id="reading-passive"
-                    title="Passive reading"
-                    count={passiveReading.length}
-                    items={passiveReading}
-                    franchiseData={franchiseData}
-                    headerTop={subHeaderTop}
-                    view={view}
-                    isAdmin={isAdmin}
-                    onChChange={handleChChange}
-                    onNovelProgressChange={handleNovelProgressChange}
-                    onComicProgressChange={handleComicProgressChange}
-                  />
-                  <ReadingSection
-                    id="reading-paused"
-                    title="Paused"
-                    count={pausedReading.length}
-                    items={pausedReading}
-                    franchiseData={franchiseData}
-                    headerTop={subHeaderTop}
-                    view={view}
-                    isAdmin={isAdmin}
-                    onChChange={handleChChange}
-                    onNovelProgressChange={handleNovelProgressChange}
-                    onComicProgressChange={handleComicProgressChange}
-                  />
-                </div>
-              </div>
 
-            )}
+              )}
 
-            {/* Playing Division */}
-            {divisionShown("playing", typeFilter) && (
-              <div id="playing">
-                <div className="flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
-                  <div>
-                    <Eyebrow className="mb-1">Game</Eyebrow>
-                    <h2 className="font-display text-3xl font-semibold text-text leading-none">
-                      Playing
-                    </h2>
+              {/* Reading Division */}
+              {divisionShown("reading", typeFilter) && (
+                <div id="reading">
+                  <div className="flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
+                    <div>
+                      <Eyebrow className="mb-1">Manga · Novel · Comic</Eyebrow>
+                      <h2 className="font-display text-3xl font-semibold text-text leading-none">
+                        Reading
+                      </h2>
+                    </div>
+                    <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                      {activeReading.length +
+                        passiveReading.length +
+                        pausedReading.length}{" "}
+                      in progress
+                    </span>
                   </div>
-                  <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-                    {activePlaying.length +
-                      passivePlaying.length +
-                      anytimePlaying.length +
-                      pausedPlaying.length}{" "}
-                    in progress
-                  </span>
+                  <div className="pt-8 space-y-12">
+                    <ReadingSection
+                      id="reading-active"
+                      title="Active reading"
+                      count={activeReading.length}
+                      items={activeReading}
+                      franchiseData={franchiseData}
+                      headerTop={subHeaderTop}
+                      view={view}
+                      isAdmin={isAdmin}
+                      onChChange={handleChChange}
+                      onNovelProgressChange={handleNovelProgressChange}
+                      onComicProgressChange={handleComicProgressChange}
+                    />
+                    <ReadingSection
+                      id="reading-passive"
+                      title="Passive reading"
+                      count={passiveReading.length}
+                      items={passiveReading}
+                      franchiseData={franchiseData}
+                      headerTop={subHeaderTop}
+                      view={view}
+                      isAdmin={isAdmin}
+                      onChChange={handleChChange}
+                      onNovelProgressChange={handleNovelProgressChange}
+                      onComicProgressChange={handleComicProgressChange}
+                    />
+                    <ReadingSection
+                      id="reading-paused"
+                      title="Paused"
+                      count={pausedReading.length}
+                      items={pausedReading}
+                      franchiseData={franchiseData}
+                      headerTop={subHeaderTop}
+                      view={view}
+                      isAdmin={isAdmin}
+                      onChChange={handleChChange}
+                      onNovelProgressChange={handleNovelProgressChange}
+                      onComicProgressChange={handleComicProgressChange}
+                    />
+                  </div>
                 </div>
-                <div className="pt-8 space-y-12">
-                  <PlayingSection
-                    id="playing-active"
-                    title="Active playing"
-                    count={activePlaying.length}
-                    items={activePlaying}
-                    franchiseData={franchiseData}
-                    headerTop={subHeaderTop}
-                    view={view}
-                  />
-                  <PlayingSection
-                    id="playing-passive"
-                    title="Passive playing"
-                    count={passivePlaying.length}
-                    items={passivePlaying}
-                    franchiseData={franchiseData}
-                    headerTop={subHeaderTop}
-                    view={view}
-                  />
-                  <PlayingSection
-                    id="playing-anytime"
-                    title="Play anytime"
-                    count={anytimePlaying.length}
-                    items={anytimePlaying}
-                    franchiseData={franchiseData}
-                    headerTop={subHeaderTop}
-                    view={view}
-                  />
-                  <PlayingSection
-                    id="playing-paused"
-                    title="Paused"
-                    count={pausedPlaying.length}
-                    items={pausedPlaying}
-                    franchiseData={franchiseData}
-                    headerTop={subHeaderTop}
-                    view={view}
-                  />
+
+              )}
+
+              {/* Playing Division */}
+              {divisionShown("playing", typeFilter) && (
+                <div id="playing">
+                  <div className="flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
+                    <div>
+                      <Eyebrow className="mb-1">Game</Eyebrow>
+                      <h2 className="font-display text-3xl font-semibold text-text leading-none">
+                        Playing
+                      </h2>
+                    </div>
+                    <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                      {activePlaying.length +
+                        passivePlaying.length +
+                        anytimePlaying.length +
+                        pausedPlaying.length}{" "}
+                      in progress
+                    </span>
+                  </div>
+                  <div className="pt-8 space-y-12">
+                    <PlayingSection
+                      id="playing-active"
+                      title="Active playing"
+                      count={activePlaying.length}
+                      items={activePlaying}
+                      franchiseData={franchiseData}
+                      headerTop={subHeaderTop}
+                      view={view}
+                    />
+                    <PlayingSection
+                      id="playing-passive"
+                      title="Passive playing"
+                      count={passivePlaying.length}
+                      items={passivePlaying}
+                      franchiseData={franchiseData}
+                      headerTop={subHeaderTop}
+                      view={view}
+                    />
+                    <PlayingSection
+                      id="playing-anytime"
+                      title="Play anytime"
+                      count={anytimePlaying.length}
+                      items={anytimePlaying}
+                      franchiseData={franchiseData}
+                      headerTop={subHeaderTop}
+                      view={view}
+                    />
+                    <PlayingSection
+                      id="playing-paused"
+                      title="Paused"
+                      count={pausedPlaying.length}
+                      items={pausedPlaying}
+                      franchiseData={franchiseData}
+                      headerTop={subHeaderTop}
+                      view={view}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

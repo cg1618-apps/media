@@ -21,6 +21,7 @@ import {
   useState,
 } from "react";
 
+import { useViewScope } from "../../hooks/useViewScope";
 import { getDisplayName } from "../../lib/naming";
 import * as api from "./api";
 import GroupNotes from "./GroupNotes";
@@ -150,6 +151,12 @@ export function NotesProvider({
   children,
 }) {
   const [allSections, setSections] = useState([]);
+  // Quotes and Memes are extras (view.extras): without the key their
+  // external sections are dropped with the hidden ones below, so neither
+  // renders nor fetches from /api/quote or /api/meme, which would answer 401.
+  // The highlight sections need no such rule here: the server leaves them
+  // out of the registry for a viewer without view.personal.
+  const { extras: showExtras } = useViewScope();
   // A `hidden` section (music_status) is never a card of its own: its rows
   // belong to the sections pointing at it through `type_status_section`. It
   // is dropped here, before any layout or count sees it, so it can neither
@@ -157,9 +164,13 @@ export function NotesProvider({
   const sections = useMemo(
     () =>
       allSections.filter(
-        (section) => !section.hidden && ownerMatches(section, owner),
+        (section) =>
+          !section.hidden &&
+          ownerMatches(section, owner) &&
+          (showExtras ||
+            !(section.shape === "external" && section.key in EXTERNAL_SHAPES)),
       ),
-    [allSections, owner],
+    [allSections, owner, showExtras],
   );
   // {category: [values]} for every option category a section draws
   // suggestions from. Suggestions only, so a category that fails to load is

@@ -17,6 +17,7 @@ from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import attach_remark, pop_remark, upsert_remark
+from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -60,12 +61,13 @@ def get_all_collections(
             )
         )
 
-    return (
+    rows = (
         query.order_by(models.Collection.collection_name_en)
         .limit(limit)
         .offset(offset)
         .all()
     )
+    return strip_personal(viewer, "collection", rows, schemas.CollectionResponse)
 
 
 @router.get(
@@ -83,7 +85,9 @@ def get_collection_by_id(
     if not db_collection:
         raise HTTPException(status_code=404, detail="Collection not found.")
     attach_remark(db, "collection", db_collection, viewer.user_id)
-    return db_collection
+    return strip_personal(
+        viewer, "collection", db_collection, schemas.CollectionResponse
+    )
 
 
 # ==========================================

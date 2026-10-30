@@ -327,10 +327,10 @@ def test_a_guest_does_not_find_it_in_the_list(client, labelled_hentai):
     assert all(e["system_id"] != labelled_hentai["system_id"] for e in listed)
 
 
-def test_a_guest_does_not_find_it_in_search(client, labelled_hentai):
+def test_a_safe_mode_searcher_does_not_find_it(guest_reader, labelled_hentai):
     """Not an empty bucket but no bucket: an empty key would still say the
     type exists."""
-    body = client.get("/api/search/", params={"q": "Zvornik"}).json()
+    body = guest_reader.get("/api/search/", params={"q": "Zvornik"}).json()
     assert "hentai" not in body["results"]
     assert "manga" in body["results"]
 

@@ -43,35 +43,44 @@ export const NAV_SECTIONS = [
       },
       {
         heading: "Entities",
+        // The credited entities are a member's view of the catalogue: a guest
+        // browses the media and the groups, and reads entity names as plain
+        // text on those pages (useEntityHref in lib/entityPath.js). Every row
+        // asks view.entities, as App.jsx's entity routes do.
         items: [
           {
             label: "Studio",
             icon: "fas fa-building",
             to: "/library/studio",
             matches: ["/studio"],
+            requires: "view.entities",
           },
           {
             label: "Publisher",
             icon: "fas fa-copyright",
             to: "/library/publisher",
             matches: ["/publisher"],
+            requires: "view.entities",
           },
           {
             label: "Person",
             icon: "fas fa-user",
             to: "/library/person",
             matches: ["/person"],
+            requires: "view.entities",
           },
           {
             label: "Character",
             icon: "fas fa-masks-theater",
             to: "/library/character",
             matches: ["/character", "/identity"],
+            requires: "view.entities",
           },
           {
             label: "Seiyuu",
             icon: "fas fa-microphone",
             to: "/library/seiyuu",
+            requires: "view.entities",
           },
         ],
       },
@@ -189,15 +198,22 @@ export const NAV_SECTIONS = [
       // Settings row below is gated the same way.
       { label: "Plan", icon: "fas fa-clipboard-list", to: "/plan", requires: "self.list" },
       { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal", requires: "self.list" },
+      // Future Releases, Completions and the Random Picker are the extras a
+      // member gets on top of browsing: view.extras, the same key App.jsx's
+      // routes ask. /random/<type> lights the Random Picker row up too.
       {
         label: "Future Releases",
         icon: "fas fa-calendar-plus",
         to: "/future-releases",
+        requires: "view.extras",
       },
-      { label: "Completions", icon: "fas fa-history", to: "/completions" },
-      // Open to everyone, like Future Releases: the pool is the library lists
-      // the viewer may already read. /random/<type> lights the row up too.
-      { label: "Random Picker", icon: "fas fa-dice", to: "/random" },
+      {
+        label: "Completions",
+        icon: "fas fa-history",
+        to: "/completions",
+        requires: "view.extras",
+      },
+      { label: "Random Picker", icon: "fas fa-dice", to: "/random", requires: "view.extras" },
     ],
   },
   {
@@ -207,9 +223,11 @@ export const NAV_SECTIONS = [
       // Per-user, like Plan and Seasonal above: the page is built from the
       // caller's own seasonal rows.
       { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics", requires: "self.list" },
-      { label: "Quotes", icon: "fas fa-quote-left", to: "/quote" },
-      { label: "Memes", icon: "fas fa-face-grin-squint", to: "/meme" },
-      { label: "Resources", icon: "fas fa-bookmark", to: "/resources" },
+      // Quotes, Memes and Resources are extras too (view.extras), read-only
+      // for a member; their edit controls ask manage.catalog inside the page.
+      { label: "Quotes", icon: "fas fa-quote-left", to: "/quote", requires: "view.extras" },
+      { label: "Memes", icon: "fas fa-face-grin-squint", to: "/meme", requires: "view.extras" },
+      { label: "Resources", icon: "fas fa-bookmark", to: "/resources", requires: "view.extras" },
       // Relations and Watch Orders are ways of reading the collection, so they
       // belong here rather than in Admin — but both pages write through
       // catalogue endpoints (mediaRelation/watchOrder + resource CRUD), so the

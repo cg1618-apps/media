@@ -71,7 +71,9 @@ async function loaded() {
 it("is not drawn for a guest, who has no statuses of their own", async () => {
   stub(GUEST);
   mount();
-  await loaded();
+  // A guest's dashboard has no Watching division to hold Frieren; the
+  // Broadcast schedule is what loads.
+  await waitFor(() => expect(screen.getByText("Broadcast schedule")).toBeInTheDocument());
   expect(document.getElementById("schedule-coming")).toBeNull();
 });
 

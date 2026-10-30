@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { entityPath, entitySlug, slugify } from "./entityPath";
+import { renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { entityPath, entitySlug, slugify, useEntityHref } from "./entityPath";
+
+// useEntityHref reads the session through useAuth; this stands in for the
+// provider with a fixed permission list.
+const { authValue } = vi.hoisted(() => ({ authValue: { current: null } }));
+vi.mock("../contexts/AuthContext", () => ({ useAuth: () => authValue.current }));
 
 describe("slugify", () => {
   it("lowercases and hyphenates", () => {
@@ -150,6 +156,36 @@ describe("identity", () => {
     );
     expect(entityPath("identity", { public_id: 3, display_name: "Edogawa Conan" })).toBe(
       "/identity/3/edogawa-conan",
+    );
+  });
+});
+
+describe("useEntityHref", () => {
+  // Entity pages are a member's (view.entities). Without the key an entity
+  // type gets "" - which every link component reads as plain text - and
+  // every other type keeps its path, so a guest still reaches entries and
+  // groups.
+  function hrefFor(permissions, type, entity) {
+    authValue.current = { has: (p) => permissions.includes(p) };
+    const { result } = renderHook(() => useEntityHref());
+    return result.current(type, entity);
+  }
+
+  const person = { public_id: 5, name_en: "Yamada Naoko" };
+
+  it("returns no path to an entity for a viewer without view.entities", () => {
+    for (const type of ["studio", "publisher", "person", "character", "identity"]) {
+      expect(hrefFor([], type, person), type).toBe("");
+    }
+  });
+
+  it("returns the entity's path for a member", () => {
+    expect(hrefFor(["view.entities"], "person", person)).toBe("/person/5/yamada-naoko");
+  });
+
+  it("keeps a guest's links to entries and groups", () => {
+    expect(hrefFor([], "franchise", { public_id: 2, franchise_name_en: "Mushishi" })).toBe(
+      "/franchise/2/mushishi",
     );
   });
 });

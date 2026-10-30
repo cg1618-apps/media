@@ -240,10 +240,10 @@ def half_hidden_character(db_session, sample_franchise, hidden_anime):
 
 
 def test_auto_never_picks_a_hidden_entrys_casting_photo(
-    client, admin_client, half_hidden_character
+    guest_reader, admin_client, half_hidden_character
 ):
     c = half_hidden_character
-    assert _get(client, "character", c["character"])["display_photo_file"] == "v.jpg"
+    assert _get(guest_reader, "character", c["character"])["display_photo_file"] == "v.jpg"
     # The mirror, same fixture: the hidden casting photo IS the auto choice
     # for a viewer who can see it, so the guest's v.jpg was the gate refusing.
     assert (
@@ -253,7 +253,7 @@ def test_auto_never_picks_a_hidden_entrys_casting_photo(
 
 
 def test_auto_never_picks_a_hidden_entrys_cover(
-    client, admin_client, db_session, half_hidden_character
+    guest_reader, admin_client, db_session, half_hidden_character
 ):
     c = half_hidden_character
     db_session.query(models.CharacterCasting).filter_by(
@@ -261,16 +261,16 @@ def test_auto_never_picks_a_hidden_entrys_cover(
     ).update({"photo_file": None})
     db_session.flush()
     db_session.expire_all()
-    assert _get(client, "character", c["character"])["display_photo_file"] == "v.jpg"
+    assert _get(guest_reader, "character", c["character"])["display_photo_file"] == "v.jpg"
     assert _get(admin_client, "character", c["character"])["display_photo_file"] == "hidden.jpg"
 
 
 def test_a_chosen_hidden_entry_is_neither_used_nor_named(
-    client, admin_client, db_session, half_hidden_character
+    guest_reader, admin_client, db_session, half_hidden_character
 ):
     c = half_hidden_character
     _set(db_session, c["character"], photo_fallback_entry_id=c["hidden"].system_id)
-    guest = _get(client, "character", c["character"])
+    guest = _get(guest_reader, "character", c["character"])
     assert guest["display_photo_file"] == "v.jpg"
     assert guest["photo_fallback_entry_id"] is None
     admin = _get(admin_client, "character", c["character"])
@@ -279,10 +279,10 @@ def test_a_chosen_hidden_entry_is_neither_used_nor_named(
 
 
 def test_the_guest_list_does_not_use_the_hidden_picture(
-    client, admin_client, half_hidden_character
+    guest_reader, admin_client, half_hidden_character
 ):
     key = str(half_hidden_character["character"].system_id)
-    guest = {r["system_id"]: r for r in client.get("/api/character/").json()}
+    guest = {r["system_id"]: r for r in guest_reader.get("/api/character/").json()}
     admin = {r["system_id"]: r for r in admin_client.get("/api/character/").json()}
     assert guest[key]["display_photo_file"] == "v.jpg"
     assert admin[key]["display_photo_file"] == "hidden_cast.jpg"
@@ -333,7 +333,7 @@ def test_person_never_uses_a_casting_photo(admin_client, db_session, credited_pe
 
 
 def test_person_auto_never_picks_a_hidden_entrys_cover(
-    client, admin_client, db_session, credited_person, hidden_anime
+    guest_reader, admin_client, db_session, credited_person, hidden_anime
 ):
     p = credited_person
     _set(db_session, hidden_anime, release_date="2024-01")
@@ -344,7 +344,7 @@ def test_person_auto_never_picks_a_hidden_entrys_cover(
         )
     )
     db_session.flush()
-    assert _get(client, "person", p["person"])["display_photo_file"] == "a.jpg"
+    assert _get(guest_reader, "person", p["person"])["display_photo_file"] == "a.jpg"
     assert _get(admin_client, "person", p["person"])["display_photo_file"] == "hidden.jpg"
 
 
@@ -363,7 +363,7 @@ def _h_comic(admin_client, db_session):
 
 
 def test_media_types_are_the_visible_ones_and_restricted_follows_them(
-    client, admin_client, db_session, cast_character
+    guest_reader, admin_client, db_session, cast_character
 ):
     character = cast_character["character"]
     h_comic_id = _h_comic(admin_client, db_session)
@@ -378,7 +378,7 @@ def test_media_types_are_the_visible_ones_and_restricted_follows_them(
     assert admin["media_types"] == ["anime", "h-comic", "manga"]
     assert admin["restricted"] is True
 
-    guest = _get(client, "character", character)
+    guest = _get(guest_reader, "character", character)
     assert guest["media_types"] == ["anime", "manga"]
     assert guest["restricted"] is False
 

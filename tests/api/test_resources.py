@@ -98,14 +98,16 @@ def test_the_page_reads_as_a_nested_tree_in_sort_order(admin_client, tree):
     assert top[1]["children"] == []
 
 
-def test_an_empty_page_reads_as_an_empty_list(client):
-    assert client.get(URL).json() == []
+def test_an_empty_page_reads_as_an_empty_list(user_client):
+    assert user_client.get(URL).json() == []
 
 
-def test_a_guest_can_read_the_page(client, tree):
+def test_a_guest_cannot_read_the_page(client, tree):
+    # `tree` is load-bearing: the page has rows, so the 401 is the
+    # view.extras gate and not an empty answer. The member test below is the
+    # mirror on the same fixture.
     r = client.get(URL)
-    assert r.status_code == 200
-    assert len(r.json()) == 2
+    assert r.status_code == 401
 
 
 def test_a_member_without_manage_catalog_can_read_the_page(user_client, tree):

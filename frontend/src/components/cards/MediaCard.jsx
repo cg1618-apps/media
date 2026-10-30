@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useViewScope } from "../../hooks/useViewScope";
 import { useToast } from "../../hooks/useToast";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
 import MarkAiringModal from "../modals/MarkAiringModal";
@@ -104,7 +105,11 @@ const PLATFORM_BOX_CLS = "bg-surface/95 px-1 py-0.5 border border-border";
 
 function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
   const franchise = franchiseDict?.[data.franchise_id];
-  const expectation = franchise?.franchise_expectation;
+  // The franchise's expectation is personal content (view.personal). The
+  // entry's own rating stamp below is the viewer's own list rating, which a
+  // viewer without a list simply does not have.
+  const { personal: showPersonal } = useViewScope();
+  const expectation = showPersonal ? franchise?.franchise_expectation : null;
 
   if (variant === "future") {
     return (

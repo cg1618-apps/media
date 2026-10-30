@@ -387,8 +387,8 @@ def test_a_guest_does_not_find_it_in_the_list(client, labelled_h_game):
     assert all(e["system_id"] != labelled_h_game["system_id"] for e in listed)
 
 
-def test_a_guest_does_not_find_it_in_search(client, labelled_h_game):
-    body = client.get("/api/search/", params={"q": "Zvornik"}).json()
+def test_a_safe_mode_searcher_does_not_find_it(guest_reader, labelled_h_game):
+    body = guest_reader.get("/api/search/", params={"q": "Zvornik"}).json()
     # Not even an empty bucket: that would say the type exists.
     assert "h-game" not in body["results"]
 

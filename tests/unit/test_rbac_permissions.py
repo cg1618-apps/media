@@ -16,12 +16,14 @@ from app.services.rbac.permissions import (
     FAMILY_MEDIA_TYPE,
     MANAGE_PERMISSION_KEYS,
     SELF_PERMISSION_KEYS,
+    VIEW_PERMISSION_KEYS,
     admin_perm,
     manage_perm,
     media_type_perm,
     self_perm,
     split_perm,
     static_catalog,
+    view_perm,
 )
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
@@ -38,8 +40,8 @@ def test_hyphenated_media_type_keeps_its_hyphen():
     assert split_perm(media_type_perm("tv-show")) == (FAMILY_MEDIA_TYPE, "tv-show")
 
 
-def test_static_catalog_holds_admin_manage_every_media_type_and_self():
-    """Four families, and only four. Content labels and field groups are the
+def test_static_catalog_holds_admin_manage_every_media_type_self_and_view():
+    """Five families, and only five. Content labels and field groups are the
     access-mode axis since Phase B, not grantable permissions."""
     catalog = static_catalog()
     expected = (
@@ -47,6 +49,7 @@ def test_static_catalog_holds_admin_manage_every_media_type_and_self():
         | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
         | {media_type_perm(mt) for mt in MEDIA_TYPE_KEYS}
         | {self_perm(key) for key in SELF_PERMISSION_KEYS}
+        | {view_perm(key) for key in VIEW_PERMISSION_KEYS}
     )
     assert catalog == expected
 

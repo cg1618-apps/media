@@ -24,7 +24,7 @@ from app.dependencies import get_db
 from app.services.domain.rating_points import rating_rank_case
 from app.services.rbac.enforcement import apply_media_visibility
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, require_view_personal
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ router = APIRouter(prefix="/api/profile", tags=["Profiles"])
 def get_profile(
     username: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_personal),
 ):
     owner = db.query(models.User).filter(models.User.username == username).first()
     if owner is None:

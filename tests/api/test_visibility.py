@@ -10,7 +10,7 @@ whole body catches those; checking `[e["system_id"] for e in body]` does not.
 from app import models
 from app.services.rbac.permissions import PERM_SELF_LIST
 from app.services.rbac.seed import default_guest_permissions
-from tests.api.conftest import HIDDEN_NAME, make_viewer
+from tests.api.conftest import ALL_VIEW_PERMISSIONS, HIDDEN_NAME, make_viewer
 
 # ---------------------------------------------------------------------------
 # Entry-level
@@ -82,20 +82,20 @@ def test_a_search_cannot_surface_a_hidden_entry(client, hidden_anime):
     assert HIDDEN_NAME not in response.text
 
 
-def test_the_cross_type_search_cannot_surface_a_hidden_entry(client, hidden_anime):
+def test_the_cross_type_search_cannot_surface_a_hidden_entry(guest_reader, hidden_anime):
     """/api/search fans out over every table; each fan-out arm needs the gate."""
-    response = client.get("/api/search/", params={"q": "Zvornik"})
+    response = guest_reader.get("/api/search/", params={"q": "Zvornik"})
     assert response.status_code == 200
     assert HIDDEN_NAME not in response.text
 
 
-def test_franchise_expansion_cannot_surface_a_hidden_entry(client, hidden_anime):
+def test_franchise_expansion_cannot_surface_a_hidden_entry(guest_reader, hidden_anime):
     """
     A franchise-name match pulls in the franchise's anime. That second query is
     a separate one, so it needs its own visibility filter - otherwise searching
     the franchise name is a way around the label.
     """
-    response = client.get("/api/search/", params={"q": "Test Franchise"})
+    response = guest_reader.get("/api/search/", params={"q": "Test Franchise"})
     assert response.status_code == 200
     assert HIDDEN_NAME not in response.text
 
@@ -129,7 +129,7 @@ def _list_viewer(
         db_session,
         client,
         username,
-        default_guest_permissions() | {PERM_SELF_LIST} | set(extra),
+        (default_guest_permissions() | ALL_VIEW_PERMISSIONS) | {PERM_SELF_LIST} | set(extra),
         label_keys=label_keys,
     )
 

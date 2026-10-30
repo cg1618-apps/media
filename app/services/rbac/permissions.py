@@ -40,12 +40,18 @@ FAMILY_MEDIA_TYPE = "media_type"
 # whole of the `user` role beyond the guest reads, which is why it is two
 # permissions rather than a subsystem.
 FAMILY_SELF = "self"
+# Which parts of the site beyond the libraries and their detail pages a viewer
+# may READ. Held by `user` and `super`, not by `guest`, so a logged-out visitor
+# sees the catalogue and nothing around it. Deliberately not locked off for
+# guest: opening search or the entity pages to the public is an admin's choice.
+FAMILY_VIEW = "view"
 
 PERMISSION_FAMILIES: tuple[str, ...] = (
     FAMILY_ADMIN,
     FAMILY_MANAGE,
     FAMILY_MEDIA_TYPE,
     FAMILY_SELF,
+    FAMILY_VIEW,
 )
 
 ADMIN_PERMISSION_KEYS: tuple[str, ...] = ("authz",)
@@ -110,6 +116,33 @@ SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
 }
 
 
+VIEW_PERMISSION_KEYS: tuple[str, ...] = ("entities", "search", "extras", "personal")
+
+VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
+    "entities": (
+        "View Entities",
+        "Open the studio, publisher, person, character and character-identity "
+        "pages, and follow the links to them from an entry, franchise or "
+        "series page. Without it those names show as plain text.",
+    ),
+    "search": (
+        "Search",
+        "Use the site-wide search.",
+    ),
+    "extras": (
+        "View Extras",
+        "Quotes, memes, resources, the random picker, future releases and "
+        "completions, and the Quotes and Memes sections on detail pages.",
+    ),
+    "personal": (
+        "View Personal Content",
+        "See what members write about the catalogue: public profiles, the "
+        "community aggregate, notes by author, highlights, personal ratings "
+        "and expectations on groups and entities, and novel unit remarks.",
+    ),
+}
+
+
 def media_type_perm(media_type: str) -> str:
     """Permission to see any entry of one media type. Keys are hyphenated."""
     return f"{FAMILY_MEDIA_TYPE}.{media_type}"
@@ -122,6 +155,17 @@ def self_perm(key: str) -> str:
 
 PERM_SELF_LIST = self_perm("list")
 PERM_SELF_PERSONAL_NOTES = self_perm("personal_notes")
+
+
+def view_perm(key: str) -> str:
+    """Permission to read one part of the site beyond the catalogue."""
+    return f"{FAMILY_VIEW}.{key}"
+
+
+PERM_VIEW_ENTITIES = view_perm("entities")
+PERM_VIEW_SEARCH = view_perm("search")
+PERM_VIEW_EXTRAS = view_perm("extras")
+PERM_VIEW_PERSONAL = view_perm("personal")
 
 
 def split_perm(permission: str) -> tuple[str, str]:
@@ -140,6 +184,7 @@ def static_catalog() -> frozenset[str]:
         | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
         | {media_type_perm(media_type) for media_type in MEDIA_TYPE_KEYS}
         | {self_perm(key) for key in SELF_PERMISSION_KEYS}
+        | {view_perm(key) for key in VIEW_PERMISSION_KEYS}
     )
 
 

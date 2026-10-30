@@ -4,6 +4,7 @@
 // Franchise library there is no type filter, because a collection has no type.
 import { useState, useEffect, useMemo } from "react";
 import { useIncrementalList } from "../../hooks/useIncrementalList";
+import { useViewScope } from "../../hooks/useViewScope";
 import { getSortName, getRatingWeight, cleanString } from "../../utils/media";
 import { getCollectionCover, withMediaType } from "../../lib/covers";
 import CollectionCard from "../../components/cards/CollectionCard";
@@ -24,6 +25,12 @@ export default function CollectionLibrary() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentSort, setCurrentSort] = useState("my_rating");
+  // A collection's rating and expectation are personal content
+  // (view.personal). Without it neither sort is offered and the library
+  // sorts by title - the chosen sort, my rating by default, would order by
+  // values the server never sends.
+  const { personal: showPersonal } = useViewScope();
+  const sort = showPersonal ? currentSort : "title";
 
   useEffect(() => {
     async function load() {
@@ -121,11 +128,11 @@ export default function CollectionLibrary() {
     });
 
     result.sort((a, b) => {
-      if (currentSort === "my_rating") {
+      if (sort === "my_rating") {
         const diff =
           getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
         if (diff !== 0) return diff;
-      } else if (currentSort === "collection_expectation") {
+      } else if (sort === "collection_expectation") {
         const diff =
           getExpectationWeight(a.collection_expectation) -
           getExpectationWeight(b.collection_expectation);
@@ -137,7 +144,7 @@ export default function CollectionLibrary() {
     });
 
     return result;
-  }, [allCollections, searchQuery, currentSort]);
+  }, [allCollections, searchQuery, sort]);
 
   // Search, filter and sort see every item; the grid draws them a batch at a
   // time, so a long library does not mount every card - and its cover - at once.
@@ -207,13 +214,17 @@ export default function CollectionLibrary() {
               <label className="flex items-center gap-2">
                 <Eyebrow>Sort</Eyebrow>
                 <select
-                  value={currentSort}
+                  value={sort}
                   onChange={(e) => setCurrentSort(e.target.value)}
                   className="bg-surface border border-border-strong px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand transition"
                 >
                   <option value="title">Title</option>
-                  <option value="my_rating">My rating</option>
-                  <option value="collection_expectation">Expectation</option>
+                  {showPersonal && (
+                    <>
+                      <option value="my_rating">My rating</option>
+                      <option value="collection_expectation">Expectation</option>
+                    </>
+                  )}
                 </select>
               </label>
             </div>

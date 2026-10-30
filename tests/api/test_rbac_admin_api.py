@@ -44,14 +44,14 @@ def test_the_admin_api_is_closed_to_a_guest(client, path):
 # ---------------------------------------------------------------------------
 
 def test_the_catalog_lists_every_family(admin_client):
-    """Four families, and NOT field_group or label.
+    """Five families, and NOT field_group or label.
 
     Those two are the access-mode axis since Phase B. Offering them in the
     role editor would let an admin grant something no mode could ever take
     away, because permission resolution is a union.
     """
     families = {f["family"] for f in admin_client.get("/api/roles/catalog").json()}
-    assert families == {"admin", "manage", "media_type", "self"}
+    assert families == {"admin", "manage", "media_type", "self", "view"}
 
 
 def test_catalog_serves_the_self_family(admin_client):

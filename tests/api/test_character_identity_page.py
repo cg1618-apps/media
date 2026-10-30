@@ -75,14 +75,14 @@ def test_each_identity_gets_its_own_public_id(db_session, character):
     assert a.public_id != b.public_id
 
 
-def test_public_id_is_in_the_admin_and_the_nested_responses(admin_client, client, character):
+def test_public_id_is_in_the_admin_and_the_nested_responses(admin_client, guest_reader, character):
     created = admin_client.post(
         BASE, json={"character_id": str(character.system_id), "name_en": "Conan"}
     ).json()
     assert isinstance(created["public_id"], int)
     listed = admin_client.get(BASE).json()
     assert [i["public_id"] for i in listed] == [created["public_id"]]
-    nested = client.get(f"/api/character/{character.system_id}").json()["identities"]
+    nested = guest_reader.get(f"/api/character/{character.system_id}").json()["identities"]
     assert [i["public_id"] for i in nested] == [created["public_id"]]
 
 
@@ -104,9 +104,9 @@ def test_the_sheet_parser_keeps_public_id():
 # ---------------------------------------------------------------------------
 
 
-def test_a_guest_reads_an_identity_by_public_id_and_by_uuid(client, character, identity):
-    by_public = client.get(f"{BASE}{identity.public_id}")
-    by_uuid = client.get(f"{BASE}{identity.system_id}")
+def test_a_reader_reads_an_identity_by_public_id_and_by_uuid(guest_reader, character, identity):
+    by_public = guest_reader.get(f"{BASE}{identity.public_id}")
+    by_uuid = guest_reader.get(f"{BASE}{identity.system_id}")
     assert by_public.status_code == 200, by_public.text
     assert by_public.json() == by_uuid.json()
     body = by_public.json()
@@ -119,17 +119,17 @@ def test_a_guest_reads_an_identity_by_public_id_and_by_uuid(client, character, i
     assert "casting_count" not in body
 
 
-def test_an_unknown_identity_is_404(client):
-    assert client.get(f"{BASE}{uuid.uuid4()}").status_code == 404
-    assert client.get(f"{BASE}999999").status_code == 404
+def test_an_unknown_identity_is_404(guest_reader):
+    assert guest_reader.get(f"{BASE}{uuid.uuid4()}").status_code == 404
+    assert guest_reader.get(f"{BASE}999999").status_code == 404
 
 
 def test_an_identity_of_a_hidden_character_is_404(
-    client, admin_client, db_session, labelled_anime, character, identity
+    guest_reader, admin_client, db_session, labelled_anime, character, identity
 ):
     _cast(db_session, character, labelled_anime, identity)
     for path in (f"{BASE}{identity.public_id}", f"{BASE}{identity.public_id}/entries"):
-        assert client.get(path).status_code == 404
+        assert guest_reader.get(path).status_code == 404
         # The mirror: the same row, asked by a viewer whose mode carries the
         # label, is there - so the 404 above is the gate refusing.
         assert admin_client.get(path).status_code == 200
@@ -141,7 +141,7 @@ def test_an_identity_of_a_hidden_character_is_404(
 
 
 def test_entries_lists_only_this_identitys_cast_rows(
-    client, db_session, anime, sample_manga, character, identity
+    guest_reader, db_session, anime, sample_manga, character, identity
 ):
     # Main identity on both entries, the identity on the anime only: an
     # unfiltered list would hold three cards.
@@ -149,7 +149,7 @@ def test_entries_lists_only_this_identitys_cast_rows(
     _cast(db_session, character, anime, identity)
     _cast(db_session, character, sample_manga, media_type="manga")
 
-    r = client.get(f"{BASE}{identity.public_id}/entries")
+    r = guest_reader.get(f"{BASE}{identity.public_id}/entries")
     assert r.status_code == 200, r.text
     groups = r.json()["groups"]
     assert [g["media_type"] for g in groups] == ["anime"]
@@ -167,7 +167,7 @@ def test_entries_lists_only_this_identitys_cast_rows(
     # The character's own list still holds all three, main rows unlinked.
     character_entries = [
         e
-        for g in client.get(f"/api/character/{character.system_id}/entries").json()["groups"]
+        for g in guest_reader.get(f"/api/character/{character.system_id}/entries").json()["groups"]
         for e in g["entries"]
     ]
     assert len(character_entries) == 3
@@ -176,8 +176,8 @@ def test_entries_lists_only_this_identitys_cast_rows(
     )
 
 
-def test_entries_of_an_unknown_identity_is_404(client):
-    assert client.get(f"{BASE}{uuid.uuid4()}/entries").status_code == 404
+def test_entries_of_an_unknown_identity_is_404(guest_reader):
+    assert guest_reader.get(f"{BASE}{uuid.uuid4()}/entries").status_code == 404
 
 
 # ---------------------------------------------------------------------------
