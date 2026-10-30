@@ -12,16 +12,26 @@ import Nav from "./Nav";
 // mock answers from the same flag the tests already toggle: isAdmin true
 // holds every admin capability (admin.authz, manage.catalog,
 // manage.pipelines) the way an is_root account would, isAdmin false
-// holds none of them — except self.list, which these tests don't exercise
-// but a signed-out visitor genuinely lacks and a signed-in one holds.
+// holds none of them — except the member keys (self.list and the view.*
+// family), which most of these tests don't exercise and so hold by default.
+// `auth.member = false` makes the session a real guest that holds nothing,
+// which is what the guest-scope tests below set up.
+const MEMBER_KEYS = new Set([
+  "self.list",
+  "view.entities",
+  "view.search",
+  "view.extras",
+  "view.personal",
+]);
 const auth = {
   isAdmin: false,
+  member: true,
   username: null,
   // The chip names the ROLE. isAdmin is has(manage.catalog), which `super`
   // holds too, so a chip driven by isAdmin alone cannot tell them apart.
   role: "guest",
   has: (permission) =>
-    permission === "self.list" ? true : auth.isAdmin,
+    auth.isAdmin || (auth.member && MEMBER_KEYS.has(permission)),
   refetchAuth: vi.fn(),
 };
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
@@ -33,6 +43,7 @@ vi.mock("../../hooks/useToast", () => ({
 
 beforeEach(() => {
   auth.isAdmin = false;
+  auth.member = true;
   auth.username = null;
   auth.role = "guest";
   delete auth.visibleGatedTypes;
@@ -440,5 +451,63 @@ describe("Nav - the phone search", () => {
 
     await user.click(screen.getByRole("button", { name: /^search$/i }));
     expect(drawer()).toBeNull();
+  });
+});
+
+describe("Nav - what a guest is shown", () => {
+  // A guest holds none of the view.* keys: it browses the media and group
+  // libraries and nothing else. Each case asserts the member mirror with the
+  // same render, so a pass means the key did the hiding.
+  function guest() {
+    auth.member = false;
+  }
+
+  it("offers a guest no search, desktop or phone", () => {
+    guest();
+    renderNav("/");
+    expect(
+      screen.queryByRole("textbox", { name: /search the collection/i }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: /^search$/i })).toBeNull();
+  });
+
+  it("offers a member both search entry points", () => {
+    renderNav("/");
+    expect(
+      screen.getByRole("textbox", { name: /search the collection/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^search$/i })).toBeInTheDocument();
+  });
+
+  it("leaves a guest the Library tab alone: no Track, no Insights", () => {
+    guest();
+    renderNav("/");
+    expect(tab("library")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^track$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^insights$/i })).toBeNull();
+  });
+
+  it("keeps Groups and the media types in a guest's Library, not Entities", async () => {
+    guest();
+    const user = userEvent.setup();
+    renderNav("/");
+    await user.click(tab("library"));
+    const panel = document.querySelector("[data-nav-panel]");
+    expect(within(panel).getByRole("link", { name: /collection/i })).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: /^anime$/i })).toBeInTheDocument();
+    expect(within(panel).queryByText("Entities")).toBeNull();
+    expect(within(panel).queryByRole("link", { name: /studio/i })).toBeNull();
+    expect(within(panel).queryByRole("link", { name: /seiyuu/i })).toBeNull();
+  });
+
+  it("shows a member the Entities column and the extras", async () => {
+    const user = userEvent.setup();
+    renderNav("/");
+    await user.click(tab("library"));
+    const panel = document.querySelector("[data-nav-panel]");
+    expect(within(panel).getByText("Entities")).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: /studio/i })).toBeInTheDocument();
+    await user.click(tab("track"));
+    expect(screen.getByRole("link", { name: /random picker/i })).toBeInTheDocument();
   });
 });

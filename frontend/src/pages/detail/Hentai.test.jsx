@@ -29,7 +29,8 @@ function mockFetch(entry, cast = [], { admin = false, patched = null } = {}) {
           username: "cg1618",
           role: "user",
           is_root: false,
-          permissions: [],
+          // A member's view.* keys, so credits and the cast link.
+          permissions: ["view.entities", "view.search", "view.extras", "view.personal"],
           visible_gated_types: ["h-comic", "h-game", "hentai"],
         };
       } else if (u.startsWith(`/api/hentai/${entry.system_id}`)) {

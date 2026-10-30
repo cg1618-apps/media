@@ -71,12 +71,12 @@ def test_list_filters_by_character_and_name(admin_client, character, second_char
     assert by_name[0]["character_display_name"] == "Yuki"
 
 
-def test_character_response_nests_its_identities(admin_client, client, character):
+def test_character_response_nests_its_identities(admin_client, guest_reader, character):
     _create(admin_client, character, name_en="B")
     _create(admin_client, character, name_en="A")
-    detail = client.get(f"/api/character/{character.system_id}").json()
+    detail = guest_reader.get(f"/api/character/{character.system_id}").json()
     assert [i["name_en"] for i in detail["identities"]] == ["B", "A"]
-    listed = next(c for c in client.get("/api/character/").json() if c["system_id"] == str(character.system_id))
+    listed = next(c for c in guest_reader.get("/api/character/").json() if c["system_id"] == str(character.system_id))
     assert len(listed["identities"]) == 2
     assert "casting_count" not in listed["identities"][0]
 

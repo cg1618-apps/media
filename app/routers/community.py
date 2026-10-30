@@ -24,7 +24,7 @@ from app import models, schemas
 from app.dependencies import get_db
 from app.services.domain.rating_points import points_to_letter, rating_points
 from app.services.rbac.enforcement import require_visible_media
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, require_view_personal
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ NOT_FOUND = "Entry not found."
 def get_community_aggregate(
     media_id: UUID,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_personal),
 ):
     """
     A hidden entry and an entry that does not exist both 404, in the same

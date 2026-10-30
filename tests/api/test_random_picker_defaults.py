@@ -34,8 +34,8 @@ def _row(db_session, mode):
 # ---------------------------------------------------------------------------
 
 
-def test_a_guest_reads_an_unconfigured_mode_as_no_filters(client):
-    res = client.get(f"{ROUTE}/all")
+def test_a_reader_reads_an_unconfigured_mode_as_no_filters(guest_reader):
+    res = guest_reader.get(f"{ROUTE}/all")
     assert res.status_code == 200
     assert res.json() == {"mode": "all", "version": 1, "filters": {}, "weighted": True}
 
@@ -58,14 +58,15 @@ def test_a_member_without_manage_catalog_cannot_save(user_client):
 # ---------------------------------------------------------------------------
 
 
-def test_save_then_everyone_reads_it(admin_client, client, db_session):
+def test_save_then_everyone_reads_it(admin_client, guest_reader, db_session):
     filters = {"airingType": ["TV", "OVA"], "bahaOnly": True}
     res = admin_client.put(f"{ROUTE}/anime", json={"filters": filters})
     assert res.status_code == 200, res.text
     assert _row(db_session, "anime") is not None
 
-    # The picker is public, so a guest opens with the saved defaults too.
-    assert client.get(f"{ROUTE}/anime").json()["filters"] == filters
+    # Every reader of the picker opens with the saved defaults, not only the
+    # account that saved them.
+    assert guest_reader.get(f"{ROUTE}/anime").json()["filters"] == filters
 
 
 def test_save_replaces_wholesale(admin_client):
@@ -74,7 +75,7 @@ def test_save_replaces_wholesale(admin_client):
     assert admin_client.get(f"{ROUTE}/all").json()["filters"] == {"myRating": ["A"]}
 
 
-def test_weighting_is_on_unless_saved_off(admin_client, client, db_session):
+def test_weighting_is_on_unless_saved_off(admin_client, guest_reader, db_session):
     # A row saved before the flag existed carries no "weighted" key, and
     # reads as weighted, like a mode with nothing saved.
     db_session.add(
@@ -83,11 +84,11 @@ def test_weighting_is_on_unless_saved_off(admin_client, client, db_session):
         )
     )
     db_session.commit()
-    assert client.get(f"{ROUTE}/novel").json()["weighted"] is True
+    assert guest_reader.get(f"{ROUTE}/novel").json()["weighted"] is True
 
     admin_client.put(f"{ROUTE}/anime", json={"filters": {}, "weighted": False})
-    assert client.get(f"{ROUTE}/anime").json()["weighted"] is False
-    assert client.get(f"{ROUTE}/all").json()["weighted"] is True
+    assert guest_reader.get(f"{ROUTE}/anime").json()["weighted"] is False
+    assert guest_reader.get(f"{ROUTE}/all").json()["weighted"] is True
 
 
 def test_reset_deletes_the_row_and_is_idempotent(admin_client, db_session):
@@ -103,10 +104,10 @@ def test_modes_are_stored_apart(admin_client):
     assert admin_client.get(f"{ROUTE}/all").json()["filters"] == {}
 
 
-def test_the_franchise_mode_saves_like_any_other(admin_client, client):
+def test_the_franchise_mode_saves_like_any_other(admin_client, guest_reader):
     res = admin_client.put(f"{ROUTE}/franchise", json={"filters": {"expectation": ["High"]}})
     assert res.status_code == 200
-    assert client.get(f"{ROUTE}/franchise").json()["filters"] == {"expectation": ["High"]}
+    assert guest_reader.get(f"{ROUTE}/franchise").json()["filters"] == {"expectation": ["High"]}
 
 
 # ---------------------------------------------------------------------------
@@ -162,8 +163,8 @@ def hentai_label_exists(admin_client, db_session):
     assert label_keys_for_entry(db_session, uuid.UUID(res.json()["system_id"])) == ["hentai"]
 
 
-def test_a_guest_is_not_told_a_gated_mode_exists(client, hentai_label_exists):
-    assert client.get(f"{ROUTE}/hentai").status_code == 404
+def test_a_safe_mode_reader_is_not_told_a_gated_mode_exists(guest_reader, hentai_label_exists):
+    assert guest_reader.get(f"{ROUTE}/hentai").status_code == 404
 
 
 def test_an_unrestricted_session_reads_the_gated_mode(admin_client, hentai_label_exists):

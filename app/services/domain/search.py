@@ -33,6 +33,7 @@ from app.services.rbac.enforcement import (
 )
 from app.services.rbac.field_gate import gate
 from app.services.rbac.gated_types import unseeable_gated_types
+from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import viewer_user_id
 from app.services.rbac.shared_visibility import CONNECTIONS, apply_shared_visibility
 
@@ -347,6 +348,20 @@ def _person_results(db: Session, viewer, entries: list) -> list:
 
 
 def _decorate(db: Session, viewer, spec: SearchableType, entries: list):
+    """
+    The bucket as its own list endpoint answers it: the non-column fields
+    attached, then the mode's field groups and the role's personal fields
+    withheld.
+    """
+    return strip_personal(
+        viewer,
+        spec.owner_type or spec.key,
+        _attach(db, viewer, spec, entries),
+        spec.response_schema,
+    )
+
+
+def _attach(db: Session, viewer, spec: SearchableType, entries: list):
     """Attach the non-column fields the list endpoints attach, then field-gate."""
     if spec.key == "person":
         return _person_results(db, viewer, entries)
@@ -455,7 +470,12 @@ def search(
             criteria = and_(criteria, models.Seasonal.user_id == searcher_id)
         raw[spec.key] = _run(db, viewer, spec, criteria, q_clean, limit)
 
-    related = _related_franchises(db, raw.get("anime", []), limit)
+    related = strip_personal(
+        viewer,
+        "franchise",
+        _related_franchises(db, raw.get("anime", []), limit),
+        schemas.FranchiseResponse,
+    )
     for spec in active:
         buckets[spec.key] = _decorate(db, viewer, spec, raw[spec.key])
     return buckets, related

@@ -14,7 +14,7 @@ import pytest
 from app import models
 from app.services.domain import credits as credits_service
 from app.services.rbac.seed import default_guest_permissions
-from tests.api.conftest import make_viewer, nsfw_label  # noqa: F401
+from tests.api.conftest import ALL_VIEW_PERMISSIONS, make_viewer, nsfw_label  # noqa: F401
 
 
 @pytest.fixture
@@ -106,7 +106,7 @@ def restricted_client(db_session, client, nsfw_label):
         db_session,
         client,
         "norestricted",
-        default_guest_permissions(),
+        default_guest_permissions() | ALL_VIEW_PERMISSIONS,
         label_keys=(),
     )
 
@@ -116,8 +116,8 @@ def restricted_client(db_session, client, nsfw_label):
 # ---------------------------------------------------------------------------
 
 
-def test_entries_are_grouped_by_media_type_and_role(client, person_with_credits):
-    body = client.get(f"/api/person/{person_with_credits.system_id}/entries").json()
+def test_entries_are_grouped_by_media_type_and_role(guest_reader, person_with_credits):
+    body = guest_reader.get(f"/api/person/{person_with_credits.system_id}/entries").json()
     manga = next(g for g in body["groups"] if g["media_type"] == "manga")
     assert manga["role"] == "author"
     # The label is the credit's name on THAT media type, not the role key.
@@ -126,8 +126,8 @@ def test_entries_are_grouped_by_media_type_and_role(client, person_with_credits)
     assert "cover_image_file" in manga["entries"][0]
 
 
-def test_an_unknown_person_is_404(client):
-    r = client.get(f"/api/person/{uuid.uuid4()}/entries")
+def test_an_unknown_person_is_404(guest_reader):
+    r = guest_reader.get(f"/api/person/{uuid.uuid4()}/entries")
     assert r.status_code == 404
 
 
@@ -163,10 +163,10 @@ def test_all_credits_hidden_is_404(
     assert r.status_code == 404
 
 
-def test_a_seiyuus_entries_come_from_castings(client, seiyuu_with_one_casting, anime):
+def test_a_seiyuus_entries_come_from_castings(guest_reader, seiyuu_with_one_casting, anime):
     """A pure seiyuu's page would otherwise be empty: /entries walked only
     media_credit, where a seiyuu has nothing."""
-    groups = client.get(
+    groups = guest_reader.get(
         f"/api/person/{seiyuu_with_one_casting.system_id}/entries"
     ).json()["groups"]
     seiyuu_groups = [g for g in groups if g["role"] == "seiyuu"]
@@ -181,7 +181,7 @@ def test_a_seiyuus_entries_come_from_castings(client, seiyuu_with_one_casting, a
 
 
 def test_a_seiyuu_entry_names_the_part_voiced(
-    db_session, client, anime, character
+    db_session, guest_reader, anime, character
 ):
     """The seiyuu page leads with the part, not the entry, so each row carries
     who the part is: the identity, the credited name, the casting's role and
@@ -232,7 +232,7 @@ def test_a_seiyuu_entry_names_the_part_voiced(
     )
     db_session.commit()
 
-    groups = client.get(f"/api/person/{person.system_id}/entries").json()["groups"]
+    groups = guest_reader.get(f"/api/person/{person.system_id}/entries").json()["groups"]
     (group,) = [g for g in groups if g["role"] == "seiyuu"]
     rows = sorted(group["entries"], key=lambda e: e["identity_id"] is not None)
     assert len({r["casting_id"] for r in rows}) == 2
@@ -257,10 +257,10 @@ def test_a_seiyuu_entry_names_the_part_voiced(
 
 
 def test_a_seiyuu_cast_only_on_a_hidden_entry_is_404(
-    client, seiyuu_with_hidden_casting
+    guest_reader, seiyuu_with_hidden_casting
 ):
     """A casting is a seiyuu's connection, so hiding it hides them."""
-    r = client.get(f"/api/person/{seiyuu_with_hidden_casting.system_id}/entries")
+    r = guest_reader.get(f"/api/person/{seiyuu_with_hidden_casting.system_id}/entries")
     assert r.status_code == 404
     assert "Zvornik Hidden Anime" not in r.text
 

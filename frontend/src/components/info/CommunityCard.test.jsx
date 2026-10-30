@@ -5,9 +5,19 @@
 // claims, and only one of them is worth reading.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CommunityCard from "./CommunityCard";
+
+// The viewer's view.* scope. A member (every flag on) unless a test says
+// otherwise; `scope.<flag> = false` makes the guest case.
+const { scope } = vi.hoisted(() => ({
+  scope: { entities: true, search: true, extras: true, personal: true },
+}));
+vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
+beforeEach(() => {
+  Object.assign(scope, { entities: true, search: true, extras: true, personal: true });
+});
 
 const MEDIA_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -119,5 +129,38 @@ describe("CommunityCard", () => {
     renderCard();
     expect(await screen.findByText("Watching")).toBeInTheDocument();
     expect(screen.queryByText(/ratings/)).not.toBeInTheDocument();
+  });
+});
+
+describe("CommunityCard without view.personal", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // An aggregate that WOULD render for a member: the mirror case draws it, so
+  // the empty card below is the key's doing and not the data's.
+  const aggregate = {
+    media_id: MEDIA_ID,
+    list_count: 3,
+    statuses: [{ status: "Completed", count: 3 }],
+    sample_size: 3,
+    average_points: 8,
+    average_rating: "A",
+  };
+
+  it("renders nothing and never asks the server", async () => {
+    scope.personal = false;
+    stub(aggregate);
+    const { container } = renderCard();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container).toBeEmptyDOMElement();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("draws the same aggregate for a member", async () => {
+    stub(aggregate);
+    renderCard();
+    expect(await screen.findByText("Completed")).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalled();
   });
 });

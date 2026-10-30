@@ -24,7 +24,12 @@ from app.services.domain.credits import CreditSummary, credit_summaries, find_st
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.domain.merge_fill import finish_merge
 from app.services.rbac.enforcement import filter_visible_pairs
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.personal_gate import strip_personal
+from app.services.rbac.resolver import (
+    Viewer,
+    require_manage_catalog,
+    require_view_entities,
+)
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
     require_visible_shared,
@@ -57,7 +62,7 @@ def _to_response(
         summary = credit_summaries(
             db, viewer, [studio.system_id], models.MediaCredit.studio_id
         )[studio.system_id]
-    return schemas.StudioResponse(
+    response = schemas.StudioResponse(
         system_id=studio.system_id,
         public_id=studio.public_id,
         name_en=studio.name_en,
@@ -80,6 +85,7 @@ def _to_response(
         media_types=summary.media_types,
         restricted=summary.restricted,
     )
+    return strip_personal(viewer, "studio", response)
 
 
 # ==========================================
@@ -90,7 +96,7 @@ def _to_response(
 @router.get("/", response_model=List[schemas.StudioResponse], summary="Get All Studios")
 def get_all_studios(
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     Retrieves every studio this viewer may see, sorted by display name. A
@@ -119,7 +125,7 @@ def get_all_studios(
 def get_studio_by_id(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """Retrieves a single studio by its public_id or its UUID."""
     studio = find_entity(db, models.Studio, system_id)
@@ -133,7 +139,7 @@ def get_studio_by_id(
 def get_studio_entries(
     system_id: UUID,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     The entries this studio is credited on, grouped by media type.

@@ -2,9 +2,19 @@
 // Core, and the full cast - every role - opens in a dialog.
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import CastSection from "./CastSection";
+
+// The viewer's view.* scope. A member (every flag on) unless a test says
+// otherwise; `scope.<flag> = false` makes the guest case.
+const { scope } = vi.hoisted(() => ({
+  scope: { entities: true, search: true, extras: true, personal: true },
+}));
+vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
+beforeEach(() => {
+  Object.assign(scope, { entities: true, search: true, extras: true, personal: true });
+});
 
 function casting(name, role, position, voices = []) {
   return {
@@ -334,5 +344,38 @@ describe("a credited name", () => {
     mount([casting("Hero", "Main", 0)]);
     expect(shownNames()).toEqual(["Hero"]);
     expect(document.querySelector("[data-real-name]")).toBeNull();
+  });
+});
+
+describe("for a viewer without view.entities", () => {
+  // The same cast a member reads as links: a character, an identity row and
+  // a seiyuu. The mirror case asserts the links exist with the same rows, so
+  // the plain text below is the key's doing.
+  const cast = () => [
+    casting("Conan", "Main", 0, [
+      { person_id: "p1", person_public_id: 9, person_name: "Takayama Minami" },
+    ]),
+    {
+      ...casting("Shinichi", "Main", 1),
+      identity_id: "i1",
+      identity_public_id: 4,
+      identity_name: "Edogawa Conan",
+    },
+  ];
+
+  it("names the cast and the seiyuu as plain text, with no link", () => {
+    scope.entities = false;
+    mount(cast());
+    expect(screen.getByText("Conan")).toBeInTheDocument();
+    expect(screen.getByText("Takayama Minami")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("links the same names for a member", () => {
+    mount(cast());
+    expect(screen.getByRole("link", { name: "Conan" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Takayama Minami" }),
+    ).toBeInTheDocument();
   });
 });

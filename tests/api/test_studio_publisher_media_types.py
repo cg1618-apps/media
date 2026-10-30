@@ -95,7 +95,7 @@ def _from_list(client, kind, company):
 @pytest.mark.parametrize("kind", ["studio", "publisher"])
 @pytest.mark.parametrize("read", [_detail, _from_list], ids=["detail", "list"])
 def test_media_types_are_the_visible_ones_and_restricted_follows_them(
-    client, admin_client, companies, kind, read
+    guest_reader, admin_client, companies, kind, read
 ):
     company, everything, narrow = companies[kind]
 
@@ -104,7 +104,7 @@ def test_media_types_are_the_visible_ones_and_restricted_follows_them(
     assert admin["restricted"] is True
     assert admin["credit_count"] == 2
 
-    guest = read(client, kind, company)
+    guest = read(guest_reader, kind, company)
     assert guest["media_types"] == narrow
     assert guest["restricted"] is False
     # Derived from the same visible pairs as the types.
@@ -123,9 +123,9 @@ def test_an_uncredited_company_has_no_media_types(admin_client, db_session, kind
     assert body["credit_count"] == 0
 
 
-def test_search_results_carry_the_same_media_types(client, companies):
+def test_search_results_carry_the_same_media_types(guest_reader, companies):
     studio, _everything, narrow = companies["studio"]
-    body = client.get("/api/search/", params={"q": "Zvornik Studio"}).json()
+    body = guest_reader.get("/api/search/", params={"q": "Zvornik Studio"}).json()
     row = next(
         r for r in body["results"]["studio"] if r["system_id"] == str(studio.system_id)
     )

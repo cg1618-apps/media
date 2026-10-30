@@ -6,18 +6,22 @@
 // can link with; the string is the fallback for an entry whose studio never
 // resolved to a row, and for a viewer without the Credits permission, for
 // whom studio_refs is gated away.
+//
+// A studio or publisher page is a member's (view.entities): without the key
+// the names render as plain text, through useEntityHref.
 import { Link } from "react-router-dom";
 
-import { entityPath } from "../../lib/entityPath";
+import { useEntityHref } from "../../lib/entityPath";
 
 export function StudioLinks({ refs, base = "/studio" }) {
   // `base` is the detail route with its leading slash; entityPath wants the
   // bare type segment, and it is what tells a studio ref from a publisher one.
   const type = base.replace(/^\//, "");
+  const entityHref = useEntityHref();
   return (
     <span className="flex flex-wrap gap-x-2 gap-y-1">
       {refs.map((ref, i) => {
-        const path = entityPath(type, ref);
+        const path = entityHref(type, ref);
         return (
           <span key={ref.system_id}>
             {path ? (

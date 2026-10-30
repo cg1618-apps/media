@@ -4,6 +4,16 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import FranchiseLibrary from "./FranchiseLibrary";
 
+// The viewer's view.* scope. A member (every flag on) unless a test says
+// otherwise; `scope.<flag> = false` makes the guest case.
+const { scope } = vi.hoisted(() => ({
+  scope: { entities: true, search: true, extras: true, personal: true },
+}));
+vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
+beforeEach(() => {
+  Object.assign(scope, { entities: true, search: true, extras: true, personal: true });
+});
+
 const COLLECTIONS = [
   { system_id: "c1", public_id: 1, collection_name_en: "Shonen Jump" },
 ];
@@ -114,5 +124,36 @@ describe("FranchiseLibrary table view", () => {
     await waitFor(() => {
       expect(screen.queryByRole("table")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("FranchiseLibrary without view.personal", () => {
+  // FRANCHISES carry a rating and an expectation each, which a member reads
+  // in the table and sorts by (the first describe). A guest gets neither.
+  it("drops the Expectation and My columns from the table", async () => {
+    scope.personal = false;
+    const table = await renderTableView();
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((th) => th.textContent),
+    ).toEqual(["Franchise", "Collection", "Type", "Entries"]);
+  });
+
+  it("offers only the title sort", async () => {
+    scope.personal = false;
+    await renderTableView();
+    const sort = screen.getByRole("combobox");
+    expect(within(sort).getAllByRole("option").map((o) => o.value)).toEqual(["title"]);
+  });
+
+  it("offers a member the rating and expectation sorts", async () => {
+    await renderTableView();
+    const sort = screen.getByRole("combobox");
+    expect(within(sort).getAllByRole("option").map((o) => o.value)).toEqual([
+      "title",
+      "my_rating",
+      "franchise_expectation",
+    ]);
   });
 });

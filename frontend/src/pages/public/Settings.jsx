@@ -88,7 +88,7 @@ export default function Settings() {
           <span>
             <span className="block text-sm text-text">Make my list public</span>
             <span className="block text-sm text-text-muted mt-1">
-              A public list can be read by anyone at{" "}
+              A public list can be read by any member at{" "}
               <Link to={profilePath} className="text-brand underline">
                 {profilePath}
               </Link>

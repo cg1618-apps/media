@@ -30,16 +30,20 @@ from app.services.rbac.permissions import (
     FAMILY_MANAGE,
     FAMILY_MEDIA_TYPE,
     FAMILY_SELF,
+    FAMILY_VIEW,
     MANAGE_PERMISSION_KEYS,
     MANAGE_PERMISSION_LABELS,
     SELF_PERMISSION_KEYS,
     SELF_PERMISSION_LABELS,
+    VIEW_PERMISSION_KEYS,
+    VIEW_PERMISSION_LABELS,
     admin_perm,
     catalog,
     locked_permissions,
     manage_perm,
     media_type_perm,
     self_perm,
+    view_perm,
 )
 from app.services.rbac.resolver import require_admin_authz
 from app.utils.media_resolver import MEDIA_TABLES
@@ -157,6 +161,18 @@ def get_catalog(db: Session = Depends(get_db)):
                     description=SELF_PERMISSION_LABELS[key][1],
                 )
                 for key in SELF_PERMISSION_KEYS
+            ],
+        ),
+        schemas.PermissionFamilyOut(
+            family=FAMILY_VIEW,
+            label="Viewing",
+            permissions=[
+                schemas.PermissionOut(
+                    permission=view_perm(key),
+                    label=VIEW_PERMISSION_LABELS[key][0],
+                    description=VIEW_PERMISSION_LABELS[key][1],
+                )
+                for key in VIEW_PERMISSION_KEYS
             ],
         ),
     ]

@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-10-28
+Last verified: 2026-10-30
 
 ## What this is for
 
@@ -55,6 +55,7 @@ true, including for permissions that do not exist yet.
 | Permission | `guest` | `user` | `super` | `admin` | a custom role |
 |---|---|---|---|---|---|
 | `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`, `h-game`, `hentai` (all twelve) | yes (as seeded) | yes (as seeded) | yes | implicit | — |
+| `view.entities`, `view.search`, `view.extras`, `view.personal` | — (free choice) | yes | **locked on** | implicit | — |
 | `self.list` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `self.personal_notes` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `manage.catalog` | **locked off** | — | **locked on** | implicit | — |
@@ -81,6 +82,12 @@ true, including for permissions that do not exist yet.
   `default_user_permissions()` builds on `default_guest_permissions()` and
   `default_super_permissions()` on that, so a media type added later reaches
   all three at once.
+- **`view.*` is what separates a member's reading from a guest's.** `guest`
+  holds none of the four, so a logged-out visitor reads the libraries and the
+  pages they lead to and nothing around them - see
+  [What a guest sees](#what-a-guest-sees). The family is a free choice on
+  `guest` rather than locked off: opening search or the entity pages to the
+  public is an administrator's call, not a safety rule.
 - **No role holds a content label or a field group.** Neither family is in
   `catalog()`, so neither can be granted here — they are the other axis.
 
@@ -95,8 +102,8 @@ never hold. A permission in neither set is a free choice.
 |---|---|---|---|
 | `admin` (any root role) | everything except `self.*` | `self.*` | nothing |
 | `super` | everything except `admin.authz` | `admin.authz` | nothing |
-| `guest` | — | `admin.*`, `manage.*`, `self.*` | `media_type.*` |
-| `user`, every custom role | — | `admin.authz`, `manage.pipelines` | `manage.catalog`, `self.*`, `media_type.*` |
+| `guest` | — | `admin.*`, `manage.*`, `self.*` | `media_type.*`, `view.*` |
+| `user`, every custom role | — | `admin.authz`, `manage.pipelines` | `manage.catalog`, `self.*`, `media_type.*`, `view.*` |
 
 - **`admin.authz` is grantable to nothing.** The root short-circuit is
   the only way to hold it: handing out the permission to change who may do
@@ -187,7 +194,11 @@ short-circuit deliberately does not cover.
 
 | A viewer may… | `guest` | `user` | `super` | `admin` |
 |---|---|---|---|---|
-| browse entries of a type — lists, detail, search | yes | yes | yes | implicit |
+| browse entries of a type — the library lists and detail pages, collection, franchise, series and watch-order pages | yes | yes | yes | implicit |
+| open studio, publisher, person, character and identity pages, and follow the links to them (`view.entities`) | — | yes | yes | implicit |
+| search (`view.search`) | — | yes | yes | implicit |
+| read quotes, memes, resources, the random picker, future releases, completions (`view.extras`) | — | yes | yes | implicit |
+| read what members wrote — public profiles, the community aggregate, notes by author, highlights, group and entity ratings and expectations, novel unit remarks (`view.personal`) | — | yes | yes | implicit |
 | switch their own access mode | — (no account) | yes | yes | yes |
 | keep a list row — status, rating, progress | — | yes | yes | **never** |
 | keep a plan queue | — | yes | yes | **never** |
@@ -300,6 +311,22 @@ handed the catalogue, or vice versa:
 | `field_group.<key>` | may see the fields in one `FIELD_GROUPS` entry | `app/services/rbac/field_groups.py` |
 | `label.<key>` | may see entries and franchises carrying that content label | `content_label.key`, read at request time |
 | `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes` | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+| `view.<key>` | may **read** one part of the site beyond the libraries and their detail pages — see the table below | `VIEW_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+
+The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
+
+| Permission | Label | Gates |
+|---|---|---|
+| `view.entities` | View Entities | every read on `/api/studio`, `/api/publisher`, `/api/person`, `/api/character` and `/api/character-identity`. In the SPA: the entity libraries and pages, entity names on detail pages rendered as links rather than plain text, the characters hub on franchise and series pages |
+| `view.search` | Search | `GET /api/search/`. In the SPA: the nav search and `/search` |
+| `view.extras` | View Extras | every read on `/api/quote`, `/api/meme`, `/api/resources`, and `GET /api/random-picker-defaults/{mode}`. In the SPA: those pages, the random picker, future releases, completions, and the Quotes and Memes sections on detail pages |
+| `view.personal` | View Personal Content | `GET /api/profile/{username}`, `GET /api/community/{media_id}`, `?author=` on `GET /api/notes`; the `highlights` and `highlight_episodes` note sections; and the personal fields nulled by `personal_gate` - see [Personal fields](#personal-fields-personal_gatepy) |
+
+Each read route depends on `require_view_entities`, `require_view_search`,
+`require_view_extras` or `require_view_personal` (`resolver.py`) **per route,
+not on the router**, so a write on the same router answers to
+`manage.catalog` alone and a role holding that is not also required to hold
+the read. The four keys are independent: a role may hold any subset.
 
 `manage.pipelines` is separate from `manage.catalog` because the two carry
 very different blast radii: an account can fix a typo on an entry without being
@@ -332,7 +359,7 @@ grants, the way any custom role is):
 | Name | `sort_order` | System | Root | Holds |
 |---|---|---|---|---|
 | `guest` | 0 | yes | no | `default_guest_permissions()` — every media type, and nothing else. Field groups are the mode axis, not this one |
-| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus `self.list` and `self.personal_notes` |
+| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus the four `view.*` and `self.list` and `self.personal_notes` |
 | `super` | 75 | yes | no | `default_user_permissions()` plus `manage.catalog` and `manage.pipelines` — every catalogue capability, deliberately **not** `admin.authz` |
 | `admin` | 100 | yes | **yes** | nothing explicitly; a root role holds every permission implicitly **except `self.*`**, which is ownership rather than privilege and so has no implicit holder |
 
@@ -344,9 +371,9 @@ editable on `/roles` like a custom role's, and `viewer.has()` does not
 short-circuit for it the way it does for `admin`.
 
 `default_user_permissions()` is *derived* from `default_guest_permissions()`
-rather than restated, so a media type or field group added later reaches both
-roles at once. The `user` role is three ideas and not a subsystem: guest reads,
-write-own-list, write-own-personal-notes. Catalogue writes stay behind
+rather than restated, so a media type added later reaches both roles at once.
+The `user` role is four ideas and not a subsystem: guest reads, the `view.*`
+reads a guest lacks, write-own-list, write-own-personal-notes. Catalogue writes stay behind
 `require_manage_catalog`, so granting this role adds **no catalogue-write
 surface**.
 
@@ -357,7 +384,10 @@ admin deliberately removed is never handed back on the next restart.
 Migration `m2a1users` seeds the role for a database that already has its
 schema. It copies **this installation's** guest grants rather than recomputing
 the defaults, so an admin who narrowed guest gets a `user` role narrowed the
-same way.
+same way. Migration `v1i2ewperms34` adds the four `view.*` grants to an
+existing `user` role, since the seed's top-up never reaches a role that
+already holds something; `super` gets them from the lock reconciliation on the
+next start.
 
 `self.personal_notes` is what `app/routers/note.py` requires of every
 personal-scope note write, and what `app/routers/game_choice.py` requires of
@@ -503,8 +533,8 @@ API refuses to let an admin do to one.
 
 | Role | Rules |
 |---|---|
-| `guest` | Has no user rows; every anonymous or unresolvable request becomes this role. Can hold `media_type.*` and nothing else — the whole of `admin.*`, `manage.*` and `self.*` is locked off → **409** ([Locked grants](#locked-grants)), because that would hand any anonymous caller the ability to administer, write the catalogue, run a pipeline, or keep a list every visitor shares. Cannot be deleted or renamed. |
-| `user` | A system role like the others, so it cannot be deleted or renamed either. Its grants *can* be edited - it is not root role - and `self.list` / `self.personal_notes` are the only things separating it from `guest`. |
+| `guest` | Has no user rows; every anonymous or unresolvable request becomes this role. Can hold `media_type.*` and `view.*` and nothing else — the whole of `admin.*`, `manage.*` and `self.*` is locked off → **409** ([Locked grants](#locked-grants)), because that would hand any anonymous caller the ability to administer, write the catalogue, run a pipeline, or keep a list every visitor shares. Cannot be deleted or renamed. |
+| `user` | A system role like the others, so it cannot be deleted or renamed either. Its grants *can* be edited - it is not root role - and `view.*` plus `self.list` / `self.personal_notes` are the only things separating it from `guest`. |
 | `super` | A system role too. Not root role - its grants are ordinary rows and editable on `/roles` - but seeded with `manage.catalog` and `manage.pipelines` and deliberately without `admin.authz`. |
 | `admin` | `is_root=True`, so `Viewer.has()` short-circuits and it holds every permission including ones that do not exist yet (a new content label hides nothing from it) - **except the `self` family, which the short-circuit deliberately does not cover**, so an admin keeps no list, plan queue, season ratings, game copies or personal notes. `PUT /permissions` on a root role → **409**. Cannot be deleted or renamed. |
 | custom | `is_root=False`. Created empty; grants replaced as a whole set (`PUT`, never append). Locked exactly like `user`: `admin.authz` and `manage.pipelines` refused, everything else a free choice. Deleting one with users still holding it → **409**. |
@@ -911,21 +941,23 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 |---|---|
 | media lists, detail (every type, incl. gating) | `app/routers/_factory.py` (`apply_entry_visibility`, `entry_visible`, `gate`) |
 | credits for an entry | `routers/credits.py` → 404; hidden entries' credits not counted on person/studio |
-| people, characters, studios, publishers (list, detail, `/entries`, `role-counts`, `role-scopes`, writes) | `routers/person.py`, `character.py`, `studio.py`, `publisher.py` — [Shared records](#shared-records) |
+| people, characters, character identities, studios, publishers (list, detail, `/entries`, `role-counts`, `role-scopes`, writes) | `routers/person.py`, `character.py`, `character_identity.py`, `studio.py`, `publisher.py` — every read behind `view.entities`, then [Shared records](#shared-records); `my_rating` nulled by [Personal fields](#personal-fields-personal_gatepy) |
 | option lists (`/api/options/`, `/api/options/{category}`) and option writes | `routers/options.py` (`_visible_options`) — [Shared records](#shared-records) |
-| series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden with a label-hidden franchise |
-| notes for an owner | `routers/note.py` → 404 for a hidden entry, franchise or series owner (`tier_visible`, `require_visible_owner`), `gated_note_sections` withheld |
-| quotes (list, grouped, by id) | `routers/quote.py` (`drop_hidden_rows`) |
-| memes (list, grouped, by id) | `routers/meme.py` — a meme on a hidden entry, franchise or series is dropped; writes use `require_visible_owner` |
+| series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden with a label-hidden franchise; rating and expectation nulled by [Personal fields](#personal-fields-personal_gatepy), as on franchises and collections |
+| notes for an owner | `routers/note.py` → 404 for a hidden entry, franchise or series owner (`tier_visible`, `require_visible_owner`), `gated_note_sections` withheld; `?author=` needs `view.personal`, and `VIEW_PERSONAL_SECTIONS` (`highlights`, `highlight_episodes`) are withheld from the rows and the section listing without it |
+| quotes (list, grouped, by id) | `routers/quote.py` — every read behind `view.extras`, then `drop_hidden_rows` |
+| memes (list, grouped, by id) | `routers/meme.py` — every read behind `view.extras`; a meme on a hidden entry, franchise or series is dropped; writes use `require_visible_owner` |
 | plan-next rows | `routers/plan_next.py` |
-| the Resources page | `routers/resources.py` — nothing to filter: a node names no entry, franchise or label, so every viewer reads the whole tree (the Quote list's gate, `get_viewer`) and every write is `require_manage_catalog` |
+| the Resources page | `routers/resources.py` — the read is behind `view.extras`; past that there is nothing to filter: a node names no entry, franchise or label, so every viewer holding the key reads the whole tree, and every write is `require_manage_catalog` |
+| random picker defaults (`/api/random-picker-defaults/{mode}`) | `routers/random_picker_defaults.py` — the read is behind `view.extras`, writes `require_manage_catalog` |
 | relations `for-entry`, `scope`, `graph` | `routers/media_relation.py` — hidden anchor → 404; an edge naming a hidden entry is dropped whole; graph is viewer-filtered |
 | a game's choice graph and its marks | `routers/game_choice.py` (`require_visible_media`) — a hidden game → 404 "Game not found." on the read and on every write; graph writes are `require_manage_catalog`, marks need `self.personal_notes` and the read returns only the viewer's own |
 | attaching an image to a media entry or an entity | `routers/images.py` → 404 "Entry not found." An entity owner is asked through `shared_record_visible`; quote/meme owners carry no label and are not checked |
 | serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404, with its viewer from `cover_viewer.get_cover_viewer` ([cached for 5 s](#the-cover-routes-viewer-cache-cover_viewerpy)). The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible` (a `character-identity` owner is asked through its character, `identity_visible`); its folder is read from the path, which is safe because the folder names the file |
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
-| search | `routers/search.py` — entries, franchises, series and the person/studio/publisher buckets |
-| a public profile (`/api/profile/{username}`) | `routers/profile.py` (`apply_media_visibility`) - filtered by the **reader's** permissions, never the list owner's |
+| search | `routers/search.py` — behind `view.search`; entries, franchises, series and the person/studio/publisher buckets, each bucket passed through [Personal fields](#personal-fields-personal_gatepy) as its own list route is |
+| a public profile (`/api/profile/{username}`) | `routers/profile.py` — behind `view.personal`, then `apply_media_visibility` - filtered by the **reader's** permissions, never the list owner's |
+| the community aggregate (`/api/community/{media_id}`) | `routers/community.py` — behind `view.personal`, then `require_visible_media` |
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
 | account settings (`/api/account/settings`) | `routers/account.py` - the `list_is_public` toggle, writable only by its owner |
 | `data_control` / `system` GETs | behind `require_manage_pipelines` |
@@ -1084,7 +1116,63 @@ request".
   refuse a second account's remark outright. See
   [business-rules.md](business-rules.md).
 
+## Personal fields (`personal_gate.py`)
+
+`strip_personal(viewer, kind, payload, schema)` nulls the fields that record
+the owner's opinion on a catalogue row, for a viewer without `view.personal`.
+A different axis from [Field gating](#field-gating-field_gatepy): that one is
+the access MODE's field groups and ignores `is_root`; this one is a ROLE
+permission asked through `Viewer.has()`, so the root short-circuit reaches it.
+
+| Kind | Fields nulled |
+|---|---|
+| `collection` | `my_rating`, `collection_expectation` |
+| `franchise` | `my_rating`, `franchise_expectation` |
+| `series` | `my_rating`, `series_expectation` |
+| `person`, `studio`, `publisher`, `character` | `my_rating` |
+| `novel` | `remark` on every item of `units` |
+
+- **Null, not absent.** The key stays in the response, so every viewer gets
+  one shape. That is the opposite of a withheld field group, and deliberate:
+  these fields are on every row, so their presence announces nothing.
+- **A viewer holding `manage.catalog` is exempt.** The catalogue forms load a
+  row with a GET and send it back whole, so a manager handed a null would
+  write the null over the stored value.
+- **Copied, never set.** These are real columns, so an ORM row is copied
+  through the route's response schema before a field is nulled, exactly as
+  `field_gate` does.
+- **Applied where the rows leave:** the list and detail reads of
+  `routers/collection.py`, `franchise.py` and `series.py`; the response
+  builders of the four entity routers (`character_responses.py` for
+  characters); the media factory's list and detail reads, after `gate()`;
+  and every search bucket plus `related_franchises`. No list route filters or
+  sorts on these columns, so there is no query parameter to leak them
+  through; the SPA's sorts and the random picker's filters run on the
+  response.
+- **A unit's `my_rating` is not here.** It is the viewer's own rating
+  (`user_novel_unit_rating`), attached per viewer, and a guest has none.
+
 ## What a guest sees
+
+**Which PAGES:** the libraries of every media type the guest role holds, the
+collection and franchise libraries, and the detail pages they lead to - entry
+pages, collection, franchise, series and watch-order pages - plus the
+dashboard's announcements and broadcast schedule. Everything else is behind a
+`view.*` key the guest role does not hold, and its API answers **401**:
+studios, publishers, people, characters and identities (`view.entities`),
+search (`view.search`), quotes, memes, resources and the random picker's
+defaults (`view.extras`), and profiles and the community aggregate
+(`view.personal`). On a detail page the entity names - studio, publisher,
+staff, character, identity, seiyuu - render as plain text. The casting rows an
+entry page draws (`/api/casting/{type}/{id}`) and the credits embedded in an
+entry response stay open, because the page needs the names.
+
+**Which OPINIONS:** none. Without `view.personal` a visitor gets the owner's
+rating and expectation of every collection, franchise and series, the rating
+of every person, studio, publisher and character, and every novel unit's
+remark as **null** (see [Personal fields](#personal-fields-personal_gatepy)),
+no `highlights` or `highlight_episodes` note section at all, and no
+`?author=`.
 
 **Which OBJECTS:** a logged-out visitor resolves to the `safe` mode, always.
 It is looked up **by key**, and there is no column anywhere that says
@@ -1212,13 +1300,21 @@ row gets, because a 403 confirms a row exists exactly as surely as a 200 does.
 | no `manage.catalog`, creating a catalogue note | **401** |
 | no `manage.catalog`, editing a catalogue note | **401** — the caller may not edit catalogue notes at all, which is not a fact about this note |
 | somebody else's personal note | **404**, worded identically to a missing one |
+| `?author=` from a viewer without `view.personal` | **401**, checked before the username is looked up, so it says nothing about which accounts exist |
 | `?author=` naming a private list, a viewer whose mode lacks `personal_notes`, or a username that does not exist | **404**, all three identical, so the reply cannot be read as "this account exists" |
 
 `tests/api/test_note_status_codes.py` asserts the absence of 403 directly, so
 a "clearer" 403 fails the suite rather than quietly reintroducing an oracle.
 
 **Quotes and memes are untouched by scope.** They carry an `author_id` for
-provenance and every viewer reads the same rows.
+provenance and every viewer holding `view.extras` reads the same rows.
+
+**Two catalogue sections are withheld without `view.personal`:**
+`highlights` and `highlight_episodes` (`VIEW_PERSONAL_SECTIONS` in
+`note_sections.py`). They are catalogue rows, so they are withheld whoever
+wrote them, and absent from `/api/notes/sections` too - the SPA renders the
+sections the listing names, so an omitted section is not drawn at all rather
+than drawn empty.
 
 **A remark belongs to its author.** `remark` is read per viewer by
 `attach_remark`, filtered on `note.author_id`, and
@@ -1504,9 +1600,11 @@ matters is enforced server-side.
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |
-| `tests/api/test_resources.py` | the Resources page: a guest and a `user` read it and are refused every write (401) against a populated tree, and the same writes succeed for `super` (by grant) and `admin` (root) |
+| `tests/api/test_resources.py` | the Resources page: a guest is refused the read (401) and a `user` reads it, against a populated tree; both are refused every write (401), and the same writes succeed for `super` (by grant) and `admin` (root) |
 | `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` still answers |
 | `tests/api/test_viewer_user_id.py` | `Viewer.user_id`, and that `acting_user_id` does **not** fall back |
+| `tests/api/test_view_permissions.py` | the `view` family: the four keys in the catalog with labels, offered by the role editor, held by `user` and `super` (by lock) and not by `guest`; every gated read refused to a guest and read by a member against populated rows, and each key opening exactly its own reads; entity writes still need `manage.catalog` and do not need the read; `?author=` refused without `view.personal`; highlights absent from the rows and the section listing; group, entity and novel-unit personal fields null for a guest and present for a member, through list, detail and search, never written back, and present for a catalogue manager without the key |
+| `tests/api/test_view_permissions_migration.py` | revision `v1i2ewperms34`, run from its own file: it grants the four keys to an established `user` role and nothing to `guest`, is idempotent, and its downgrade takes them off every role |
 | `tests/api/test_note_scope_reads.py`, `test_note_scope_writes.py` | personal note sections filter by author; catalogue sections do not; who may write which |
 | `tests/api/test_profile.py`, `test_community_aggregate.py` | a private list 404s; public figures count public lists only; a community aggregate the viewer may not see 404s in the same words as one that does not exist, and each refusal is paired with its mirror on the same fixture |
 | `frontend/src/components/info/ScoreBlock.test.jsx` | the "Last updated" figure is dropped, not blanked to `—` |
@@ -1535,7 +1633,7 @@ another:
 
 | Gate | Question | Answer when it fails |
 |---|---|---|
-| `require_admin_authz` / `require_manage_catalog` / `require_manage_pipelines` | do you hold this one capability? | 401 |
+| `require_admin_authz` / `require_manage_catalog` / `require_manage_pipelines`, and the four `require_view_*` | do you hold this one capability? | 401 |
 | `require_permission(name)` | do you hold this one grant? | 401 |
 | `get_current_user_id` | is there an **account** at all? | 401 |
 | `viewer_user_id(viewer)` / `acting_user_id(db, viewer)` | who are you, if anyone? | `None`, never an error |

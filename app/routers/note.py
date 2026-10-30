@@ -38,6 +38,7 @@ from app.services.rbac.gated_types import unseeable_gated_types
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_SELF_PERSONAL_NOTES,
+    PERM_VIEW_PERSONAL,
 )
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
@@ -47,6 +48,7 @@ from app.utils.note_sections import (
     NOTE_SECTIONS,
     PERSONAL_SECTIONS,
     SCOPE_PERSONAL,
+    VIEW_PERSONAL_SECTIONS,
     field_by_key,
     section_by_key,
 )
@@ -436,17 +438,21 @@ def get_sections(
         raise HTTPException(
             status_code=400, detail=f"Unknown owner_type '{owner_type}'."
         )
-    return sections_out(owner_type)
+    sections = sections_out(owner_type)
+    if viewer.has(PERM_VIEW_PERSONAL):
+        return sections
+    # Absent rather than empty, as list_notes drops the rows: a section the
+    # viewer may not read is not on the page at all.
+    return [s for s in sections if s.key not in VIEW_PERSONAL_SECTIONS]
 
 
 @router.get("", response_model=List[schemas.NoteResponse])
 def list_notes(
     owner_type: str = Query(...),
     owner_id: uuid.UUID = Query(...),
-    # Whose personal notes to show instead of the viewer's own. Honoured only
-    # for a user whose list is public, and only for a viewer holding
-    # field_group.personal_notes - which is that group's new job now that
-    # personal sections filter by author on the entry page.
+    # Whose personal notes to show instead of the viewer's own. Needs
+    # view.personal, then honoured only for a user whose list is public and a
+    # viewer whose access mode holds the personal_notes field group.
     author: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
@@ -475,6 +481,12 @@ def list_notes(
     # the reply cannot be read as "this account exists".
     author_id = viewer.user_id
     if author is not None:
+        # Before the user lookup, so a viewer without the key learns nothing
+        # about which usernames exist.
+        if not viewer.has(PERM_VIEW_PERSONAL):
+            raise _capability_refused(
+                "Could not validate credentials or insufficient permissions"
+            )
         owner = db.query(models.User).filter(models.User.username == author).first()
         if (
             owner is None
@@ -506,6 +518,10 @@ def list_notes(
     # the viewer did not write - field_group.personal_notes governs seeing
     # SOMEBODY ELSE's personal notes, and hiding a viewer's own from them is
     # not a permission, it is a bug.
+    # Highlights are catalogue rows, so they are withheld whoever wrote them.
+    if not viewer.has(PERM_VIEW_PERSONAL):
+        query = query.filter(models.Note.section.notin_(list(VIEW_PERSONAL_SECTIONS)))
+
     withheld = gated_note_sections(viewer)
     if withheld:
         query = query.filter(

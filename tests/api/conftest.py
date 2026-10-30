@@ -23,10 +23,15 @@ from app.services.domain.gated_labels import ensure_system_labels
 from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.modes import grant_all_modes_to_existing_accounts
-from app.services.rbac.permissions import PERM_MANAGE_CATALOG
+from app.services.rbac.permissions import (
+    PERM_MANAGE_CATALOG,
+    VIEW_PERMISSION_KEYS,
+    view_perm,
+)
 from app.services.rbac.resolver import MODE_OVERRIDE_COOKIE
 from app.services.rbac.seed import default_user_permissions, ensure_rbac_seed
 from app.services.rbac.seed_modes import (
+    MODE_SAFE,
     MODE_UNRESTRICTED,
     ensure_access_mode_seed,
 )
@@ -642,6 +647,72 @@ def make_viewer(
     )
     client.cookies.set("access_token", f"Bearer {token}")
     return client
+
+
+ALL_VIEW_PERMISSIONS = frozenset(view_perm(key) for key in VIEW_PERMISSION_KEYS)
+
+
+def make_guest_reader(db_session, client, username="guestreader", extra=ALL_VIEW_PERMISSIONS):
+    """
+    Log `client` in as an account that sees exactly what a guest sees - this
+    database's guest-role grants and the `safe` mode, which is what a
+    logged-out visitor resolves - plus the role permissions in `extra`.
+
+    For tests written against the anonymous `client` that read a surface now
+    behind a view.* key. Moving them to `user_client` would change the object
+    axis too (that client sits in `unrestricted`), so a label or field-group
+    refusal would stop biting; this keeps every other part of the guest's
+    answer and adds only the key.
+    """
+    guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
+    held = {
+        row.permission
+        for row in db_session.query(models.RolePermission).filter(
+            models.RolePermission.role_id == guest.system_id
+        )
+    }
+    role = models.Role(
+        system_id=uuid.uuid4(),
+        name=f"role-{username}",
+        label=username,
+        is_system=False,
+        is_root=False,
+    )
+    db_session.add(role)
+    db_session.flush()
+    for permission in sorted(held | set(extra)):
+        db_session.add(
+            models.RolePermission(role_id=role.system_id, permission=permission)
+        )
+    user = models.User(
+        id=uuid.uuid4(),
+        username=username,
+        hashed_password=get_password_hash("x"),
+        role_id=role.system_id,
+    )
+    db_session.add(user)
+    db_session.flush()
+    safe = (
+        db_session.query(models.AccessMode)
+        .filter(models.AccessMode.key == MODE_SAFE)
+        .one()
+    )
+    db_session.add(
+        models.UserAccessMode(user_id=user.id, mode_id=safe.system_id, is_default=True)
+    )
+    db_session.flush()
+    rbac_cache.bump()
+    token = create_access_token(
+        {"sub": username, "role": role.name, "mode": str(safe.system_id)}
+    )
+    client.cookies.set("access_token", f"Bearer {token}")
+    return client
+
+
+@pytest.fixture
+def guest_reader(db_session, client):
+    """`client`, logged in as make_guest_reader: a guest plus every view.* key."""
+    return make_guest_reader(db_session, client)
 
 
 @pytest.fixture

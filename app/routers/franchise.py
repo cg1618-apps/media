@@ -28,6 +28,7 @@ from app.services.rbac.enforcement import (
     apply_franchise_visibility,
     franchise_visible,
 )
+from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -104,7 +105,7 @@ def get_all_franchises(
     )
     attach_franchise_content_labels(db, rows)
     attach_entry_counts(db, rows, models.Media.franchise_id, viewer)
-    return rows
+    return strip_personal(viewer, "franchise", rows, schemas.FranchiseResponse)
 
 
 @router.get(
@@ -127,7 +128,9 @@ def get_franchise_by_id(
         raise HTTPException(status_code=404, detail="Franchise not found.")
     attach_remark(db, "franchise", db_franchise, viewer.user_id)
     attach_franchise_content_labels(db, db_franchise)
-    return db_franchise
+    return strip_personal(
+        viewer, "franchise", db_franchise, schemas.FranchiseResponse
+    )
 
 
 # ==========================================

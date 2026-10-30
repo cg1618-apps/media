@@ -27,7 +27,11 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.services.rbac.gated_types import can_see_gated_type
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.resolver import (
+    Viewer,
+    require_manage_catalog,
+    require_view_extras,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +115,7 @@ def _serialize(payload: schemas.RandomPickerDefaultsPayload) -> str:
 def get_picker_defaults(
     mode: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_extras),
 ):
     """Returns one mode's default filters; an unconfigured mode has none."""
     _validate_mode(db, viewer, mode)

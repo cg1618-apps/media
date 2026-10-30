@@ -108,10 +108,10 @@ export default function App() {
             <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route element={<Layout />}>
-                {/* Pages anyone can visit. */}
+                {/* Pages anyone can visit: the dashboard, login, the
+                    media and group libraries and their detail pages. */}
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="/search" element={<Search />} />
                 <Route
                   path="/library/collection"
                   element={<CollectionLibrary />}
@@ -119,20 +119,6 @@ export default function App() {
                 <Route
                   path="/library/franchise"
                   element={<FranchiseLibrary />}
-                />
-                <Route path="/library/studio" element={<StudioLibrary />} />
-                <Route
-                  path="/library/publisher"
-                  element={<PublisherLibrary />}
-                />
-                <Route path="/library/person" element={<PersonLibrary />} />
-                <Route
-                  path="/library/seiyuu"
-                  element={<PersonLibrary role="seiyuu" />}
-                />
-                <Route
-                  path="/library/character"
-                  element={<CharacterLibrary />}
                 />
                 {/* The gated h-comic type: both of its routes ask the same
                     question navigation.js asks for its nav row -
@@ -144,10 +130,14 @@ export default function App() {
                     path="/library/h-comic"
                     element={<Library type="h-comic" />}
                   />
-                  <Route
-                    path="/random/h-comic"
-                    element={<RandomPicker type="h-comic" />}
-                  />
+                  {/* The picker is an extra as well: the type's gate and
+                      view.extras, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                    <Route
+                      path="/random/h-comic"
+                      element={<RandomPicker type="h-comic" />}
+                    />
+                  </Route>
                   <Route
                     path="/h-comic/:publicId/:slug?"
                     element={<HComic />}
@@ -159,10 +149,14 @@ export default function App() {
                     path="/library/h-game"
                     element={<Library type="h-game" />}
                   />
-                  <Route
-                    path="/random/h-game"
-                    element={<RandomPicker type="h-game" />}
-                  />
+                  {/* The picker is an extra as well: the type's gate and
+                      view.extras, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                    <Route
+                      path="/random/h-game"
+                      element={<RandomPicker type="h-game" />}
+                    />
+                  </Route>
                   <Route
                     path="/h-game/:publicId/:slug?"
                     element={<HGame />}
@@ -174,19 +168,20 @@ export default function App() {
                     path="/library/hentai"
                     element={<Library type="hentai" />}
                   />
-                  <Route
-                    path="/random/hentai"
-                    element={<RandomPicker type="hentai" />}
-                  />
+                  {/* The picker is an extra as well: the type's gate and
+                      view.extras, both asked. */}
+                  <Route element={<ProtectedRoute permission="view.extras" />}>
+                    <Route
+                      path="/random/hentai"
+                      element={<RandomPicker type="hentai" />}
+                    />
+                  </Route>
                   <Route
                     path="/hentai/:publicId/:slug?"
                     element={<Hentai />}
                   />
                 </Route>
                 <Route path="/library/:type" element={<Library />} />
-                <Route path="/future-releases" element={<FutureReleases />} />
-                <Route path="/random" element={<RandomPicker />} />
-                <Route path="/random/:type" element={<RandomPicker />} />
                 <Route path="/anime/:publicId/:slug?" element={<Anime />} />
                 <Route
                   path="/anime-movie/:publicId/:slug?"
@@ -202,26 +197,66 @@ export default function App() {
                 <Route path="/collection/:publicId/:slug?" element={<Collection />} />
                 <Route path="/franchise/:publicId/:slug?" element={<Franchise />} />
                 <Route path="/series/:publicId/:slug?" element={<Series />} />
-                <Route path="/studio/:publicId/:slug?" element={<Studio />} />
-                <Route path="/publisher/:publicId/:slug?" element={<Publisher />} />
-                <Route path="/person/:publicId/:slug?" element={<Person />} />
-                <Route path="/character/:publicId/:slug?" element={<Character />} />
-                <Route path="/identity/:publicId/:slug?" element={<Identity />} />
                 <Route path="/watch-order/:publicId/:slug?" element={<WatchOrder />} />
-                <Route path="/completions" element={<Completions />} />
-                <Route path="/quote" element={<Quotes />} />
-                <Route path="/meme" element={<Memes />} />
-                {/* Readable by everyone who can open /quote; the edit controls
-                    inside ask for manage.catalog themselves. */}
-                <Route path="/resources" element={<Resources />} />
-                {/* Public: the server answers 404 for a list the caller may
-                    not read, so no ProtectedRoute belongs here. */}
-                <Route path="/user/:username" element={<Profile />} />
                 <Route
                   path="/under-development"
                   element={<UnderDevelopment />}
                 />
 
+                {/* Everything below is a member's view, closed to a guest.
+                    Each block asks one view.* key, the same one
+                    navigation.js asks for the rows that link here - the two
+                    permission surfaces have to agree. */}
+
+                {/* The credited entities: their libraries and detail pages.
+                    Entity names on the open pages render as plain text
+                    without this key (useEntityHref). */}
+                <Route element={<ProtectedRoute permission="view.entities" />}>
+                  <Route path="/library/studio" element={<StudioLibrary />} />
+                  <Route
+                    path="/library/publisher"
+                    element={<PublisherLibrary />}
+                  />
+                  <Route path="/library/person" element={<PersonLibrary />} />
+                  <Route
+                    path="/library/seiyuu"
+                    element={<PersonLibrary role="seiyuu" />}
+                  />
+                  <Route
+                    path="/library/character"
+                    element={<CharacterLibrary />}
+                  />
+                  <Route path="/studio/:publicId/:slug?" element={<Studio />} />
+                  <Route path="/publisher/:publicId/:slug?" element={<Publisher />} />
+                  <Route path="/person/:publicId/:slug?" element={<Person />} />
+                  <Route path="/character/:publicId/:slug?" element={<Character />} />
+                  <Route path="/identity/:publicId/:slug?" element={<Identity />} />
+                </Route>
+
+                {/* Search, which reaches every table at once. Nav.jsx hides
+                    NavSearch on the same key. */}
+                <Route element={<ProtectedRoute permission="view.search" />}>
+                  <Route path="/search" element={<Search />} />
+                </Route>
+
+                {/* The extras. Resources is read-only here; its edit controls
+                    ask for manage.catalog themselves. The gated
+                    /random/h-* routes above ask this key too. */}
+                <Route element={<ProtectedRoute permission="view.extras" />}>
+                  <Route path="/future-releases" element={<FutureReleases />} />
+                  <Route path="/random" element={<RandomPicker />} />
+                  <Route path="/random/:type" element={<RandomPicker />} />
+                  <Route path="/completions" element={<Completions />} />
+                  <Route path="/quote" element={<Quotes />} />
+                  <Route path="/meme" element={<Memes />} />
+                  <Route path="/resources" element={<Resources />} />
+                </Route>
+
+                {/* Public profiles are personal content. The server also
+                    answers 404 for a list the caller may not read. */}
+                <Route element={<ProtectedRoute permission="view.personal" />}>
+                  <Route path="/user/:username" element={<Profile />} />
+                </Route>
                 {/* Per-user pages: a plan queue and a season's counters belong
                     to one account, and their APIs 401 a stranger.
 

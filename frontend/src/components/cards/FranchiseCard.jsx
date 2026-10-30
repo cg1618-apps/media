@@ -1,6 +1,7 @@
 // Frontend: card component file for FranchiseCard.
 import { Link } from "react-router-dom";
 import { entityPath } from "../../lib/entityPath";
+import { useViewScope } from "../../hooks/useViewScope";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 import { FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, RatingStamp } from "../ui/primitives";
@@ -9,6 +10,9 @@ import LazyImage from "../ui/LazyImage";
 // `cover` is the resolved { url, focus } from lib/covers.js.
 export default function FranchiseCard({ franchise, cover }) {
   const name = getDisplayName(franchise, "franchise") || "Unknown Franchise";
+  // The franchise's own rating and expectation are personal content: drawn only
+  // for a viewer holding view.personal (the server strips them otherwise).
+  const { personal: showPersonal } = useViewScope();
 
   // Empty when the row carries no public_id: there is no URL to link to, so
   // the card renders as plain markup rather than a link to nowhere.
@@ -37,7 +41,7 @@ export default function FranchiseCard({ franchise, cover }) {
           style={{ aspectRatio: "2/3" }}
         >
           <RatingStamp
-            rating={franchise.my_rating}
+            rating={showPersonal ? franchise.my_rating : null}
             size="sm"
             className="absolute top-1.5 right-1.5 z-10"
           />
@@ -59,7 +63,7 @@ export default function FranchiseCard({ franchise, cover }) {
         >
           {name}
         </h3>
-        {franchise.franchise_expectation && (
+        {showPersonal && franchise.franchise_expectation && (
           <Chip className="self-start">{franchise.franchise_expectation}</Chip>
         )}
       </div>

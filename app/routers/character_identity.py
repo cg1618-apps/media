@@ -27,7 +27,11 @@ from app.services.domain.character_identities import (
     identity_response,
 )
 from app.services.domain.entity_photos import character_media
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.resolver import (
+    Viewer,
+    require_manage_catalog,
+    require_view_entities,
+)
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
     require_visible_shared,
@@ -101,7 +105,7 @@ def list_identities(
 def get_identity_entries(
     ref: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     The entries this identity appears in, grouped by media type - the cast
@@ -123,7 +127,7 @@ def get_identity_entries(
 def get_identity(
     ref: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """One identity, by its public_id or its UUID, for the identity page."""
     identity = _load(db, viewer, ref)

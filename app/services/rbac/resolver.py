@@ -27,6 +27,10 @@ from app.services.rbac.permissions import (
     PERM_ADMIN_AUTHZ,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
+    PERM_VIEW_ENTITIES,
+    PERM_VIEW_EXTRAS,
+    PERM_VIEW_PERSONAL,
+    PERM_VIEW_SEARCH,
     split_perm,
 )
 
@@ -281,6 +285,14 @@ def require_permission(permission: str):
 require_admin_authz = require_permission(PERM_ADMIN_AUTHZ)
 require_manage_catalog = require_permission(PERM_MANAGE_CATALOG)
 require_manage_pipelines = require_permission(PERM_MANAGE_PIPELINES)
+
+# The view gates: reads a guest does not get. Bound per read route rather than
+# on the router, so that a write on the same router answers to manage.catalog
+# alone and a role holding that is not also required to hold the read.
+require_view_entities = require_permission(PERM_VIEW_ENTITIES)
+require_view_search = require_permission(PERM_VIEW_SEARCH)
+require_view_extras = require_permission(PERM_VIEW_EXTRAS)
+require_view_personal = require_permission(PERM_VIEW_PERSONAL)
 
 
 def viewer_user_id(viewer) -> Optional[UUID]:

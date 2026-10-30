@@ -30,7 +30,12 @@ from app.services.domain.credits import (
 from app.services.domain.merge_fill import finish_merge
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import filter_visible_pairs
-from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.personal_gate import strip_personal
+from app.services.rbac.resolver import (
+    Viewer,
+    require_manage_catalog,
+    require_view_entities,
+)
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
     hidden_scopes,
@@ -70,7 +75,7 @@ def _to_response(
     # connection; a visible publisher omits it rather than naming the type.
     if hidden is None:
         hidden = hidden_scopes(db, viewer)
-    return schemas.PublisherResponse(
+    response = schemas.PublisherResponse(
         system_id=publisher.system_id,
         public_id=publisher.public_id,
         name_en=publisher.name_en,
@@ -94,6 +99,7 @@ def _to_response(
         media_types=summary.media_types,
         restricted=summary.restricted,
     )
+    return strip_personal(viewer, "publisher", response)
 
 
 # ==========================================
@@ -107,7 +113,7 @@ def _to_response(
 def get_all_publishers(
     scope: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     Retrieves every publisher, sorted by display name.
@@ -156,7 +162,7 @@ def get_all_publishers(
 def get_publisher_by_id(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """Retrieves a single publisher by its public_id or its UUID."""
     publisher = find_entity(db, models.Publisher, system_id)
@@ -172,7 +178,7 @@ def get_publisher_by_id(
 def get_publisher_entries(
     system_id: UUID,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(get_viewer),
+    viewer: Viewer = Depends(require_view_entities),
 ):
     """
     The entries this publisher is credited on, grouped by media type.

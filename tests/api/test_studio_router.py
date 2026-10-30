@@ -11,9 +11,9 @@ def _anime_id(db_session, name="測試"):
     return a.system_id
 
 
-def test_create_and_list(admin_client, client):
+def test_create_and_list(admin_client, guest_reader):
     admin_client.post("/api/studio/", json={"name_en": "MAPPA"})
-    assert [s["name_en"] for s in client.get("/api/studio/").json()] == ["MAPPA"]
+    assert [s["name_en"] for s in guest_reader.get("/api/studio/").json()] == ["MAPPA"]
 
 
 def test_update_changes_the_rating(admin_client):
@@ -88,10 +88,10 @@ def test_response_carries_the_display_name(admin_client):
     assert created["display_name"] == "KyoAni"
 
 
-def test_list_is_sorted_by_display_name(admin_client, client):
+def test_list_is_sorted_by_display_name(admin_client, guest_reader):
     admin_client.post("/api/studio/", json={"name_en": "WIT STUDIO"})
     admin_client.post("/api/studio/", json={"name_en": "MAPPA"})
-    names = [s["display_name"] for s in client.get("/api/studio/").json()]
+    names = [s["display_name"] for s in guest_reader.get("/api/studio/").json()]
     assert names == ["MAPPA", "WIT STUDIO"]
 
 

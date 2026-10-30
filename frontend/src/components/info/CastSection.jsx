@@ -3,7 +3,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { sortCast } from "../../lib/castOrder";
-import { entityPath } from "../../lib/entityPath";
+import { useEntityHref } from "../../lib/entityPath";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { Button, Chip, Slip } from "../ui/primitives";
@@ -46,10 +46,25 @@ function IdentityToggle({ showIdentities, hideableCount, onToggle }) {
   );
 }
 
+// A name that links to its entity's page when there is one to go to, and is
+// plain text when there is not - a viewer without view.entities, or a row
+// without a public_id.
+function EntityName({ to, className, children }) {
+  return to ? (
+    <Link to={to} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <span>{children}</span>
+  );
+}
+
 // An identity row is drawn as one, not only named: a dashed frame on its
 // thumbnail and a dashed "Identity" tag, the dashed line the cast editor
-// gives its identity rows. A main row stays solid.
+// gives its identity rows. A main row stays solid. Character, identity and
+// seiyuu names link only for a viewer holding view.entities (useEntityHref).
 function CastRow({ row }) {
+  const entityHref = useEntityHref();
   const asIdentity = Boolean(row.identity_id);
   const ownName = row.identity_name || row.character_name || "Unknown";
   return (
@@ -79,14 +94,14 @@ function CastRow({ row }) {
             name - what this entry calls the character - leads the row,
             and the identity's or character's own name sits beneath it. */}
         <span className="inline-flex flex-col min-w-0">
-          <Link
+          <EntityName
             to={
               row.identity_public_id != null
-                ? entityPath("identity", {
+                ? entityHref("identity", {
                     public_id: row.identity_public_id,
                     display_name: row.identity_name,
                   })
-                : entityPath("character", {
+                : entityHref("character", {
                     public_id: row.character_public_id,
                     display_name: row.character_name,
                   })
@@ -94,7 +109,7 @@ function CastRow({ row }) {
             className={castLinkCls}
           >
             {row.credited_name || ownName}
-          </Link>
+          </EntityName>
           {row.credited_name && (
             <span className="text-text-faint text-xs" data-real-name>
               {ownName}
@@ -107,15 +122,15 @@ function CastRow({ row }) {
         {row.identity_name && (
           <span className="text-text-faint text-xs">
             identity of{" "}
-            <Link
-              to={entityPath("character", {
+            <EntityName
+              to={entityHref("character", {
                 public_id: row.character_public_id,
                 display_name: row.character_name,
               })}
               className="hover:text-brand transition"
             >
               {row.character_name || "Unknown"}
-            </Link>
+            </EntityName>
           </span>
         )}
         {row.voices?.length > 0 && (
@@ -124,15 +139,15 @@ function CastRow({ row }) {
         {(row.voices || []).map((voice, i) => (
           <Fragment key={voice.person_id}>
             {i > 0 && <span className="text-text-faint text-xs">·</span>}
-            <Link
-              to={entityPath("person", {
+            <EntityName
+              to={entityHref("person", {
                 public_id: voice.person_public_id,
                 display_name: voice.person_name,
               })}
               className={castLinkCls}
             >
               {voice.person_name || "Unknown"}
-            </Link>
+            </EntityName>
             {voice.remark && (
               <span className="text-text-faint text-xs">({voice.remark})</span>
             )}

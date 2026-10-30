@@ -13,6 +13,7 @@ import { entityPath } from "../../lib/entityPath";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import { Chip, Eyebrow } from "../../components/ui/primitives";
 import { useAuth } from "../../contexts/AuthContext";
+import { useViewScope } from "../../hooks/useViewScope";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
@@ -129,8 +130,11 @@ const TABLE_COLUMNS = [
     render: (f, { entriesByFranchise }) =>
       entriesByFranchise[f.system_id]?.length ?? 0,
   },
+  // Expectation and My are the catalogue's own judgements, personal content
+  // a viewer without view.personal is not shown (`personal: true`).
   {
     key: "expectation",
+    personal: true,
     header: "Expectation",
     thClass: HIDDEN.lg,
     tdClass: `text-center ${HIDDEN.lg}`,
@@ -143,6 +147,7 @@ const TABLE_COLUMNS = [
   },
   {
     key: "my",
+    personal: true,
     header: "My",
     tdClass: "text-center",
     render: (f) =>
@@ -158,18 +163,21 @@ const TABLE_COLUMNS = [
 
 // Markup and class names mirror the table in LibraryLayout.jsx so the two
 // libraries read as one component rather than two tables that drifted.
-function FranchiseTable({ franchises, columnCtx }) {
+function FranchiseTable({ franchises, columnCtx, showPersonal }) {
   const navigate = useNavigate();
+  const columns = showPersonal
+    ? TABLE_COLUMNS
+    : TABLE_COLUMNS.filter((col) => !col.personal);
   return (
     <div className="bg-surface border border-border overflow-auto max-h-[75vh]">
       <table className="w-full text-left">
         <thead className="bg-surface border-b border-border sticky top-0 z-10">
           <tr>
-            {TABLE_COLUMNS.map((col, i) => (
+            {columns.map((col, i) => (
               <th
                 key={col.key}
                 className={`px-4 py-2.5 font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em] text-center ${
-                  i < TABLE_COLUMNS.length - 1 ? "border-r border-border" : ""
+                  i < columns.length - 1 ? "border-r border-border" : ""
                 } ${col.thClass ?? ""}`}
               >
                 {col.header}
@@ -188,11 +196,11 @@ function FranchiseTable({ franchises, columnCtx }) {
                   path ? "hover:bg-surface-2 cursor-pointer" : ""
                 }`}
               >
-                {TABLE_COLUMNS.map((col, i) => (
+                {columns.map((col, i) => (
                   <td
                     key={col.key}
                     className={`px-4 py-2 ${
-                      i < TABLE_COLUMNS.length - 1 ? "border-r border-border" : ""
+                      i < columns.length - 1 ? "border-r border-border" : ""
                     } ${col.tdClass ?? ""}`}
                   >
                     {col.render(f, columnCtx)}
@@ -215,6 +223,7 @@ async function fetchList(path) {
 
 export default function FranchiseLibrary() {
   const auth = useAuth();
+  const { personal: showPersonal } = useViewScope();
   const authLoading = Boolean(auth?.loading);
   const canSeeHComic = canSeeGatedType(auth, "h-comic");
   const canSeeHGame = canSeeGatedType(auth, "h-game");
@@ -329,12 +338,15 @@ export default function FranchiseLibrary() {
       return true;
     });
 
+    // A personal sort left selected by a viewer who cannot see the values
+    // would order by nothing; it reads as Title instead.
+    const sort = showPersonal ? currentSort : "title";
     result.sort((a, b) => {
-      if (currentSort === "my_rating") {
+      if (sort === "my_rating") {
         const diff =
           getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
         if (diff !== 0) return diff;
-      } else if (currentSort === "franchise_expectation") {
+      } else if (sort === "franchise_expectation") {
         const diff =
           getExpectationWeight(a.franchise_expectation) -
           getExpectationWeight(b.franchise_expectation);
@@ -346,7 +358,7 @@ export default function FranchiseLibrary() {
     });
 
     return result;
-  }, [allFranchises, searchQuery, currentSort, filters, animesByFranchise, mangasByFranchise]);
+  }, [allFranchises, searchQuery, currentSort, showPersonal, filters, animesByFranchise, mangasByFranchise]);
 
   if (loading) {
     return (
@@ -428,13 +440,17 @@ export default function FranchiseLibrary() {
               <label className="flex items-center gap-2">
                 <Eyebrow>Sort</Eyebrow>
                 <select
-                  value={currentSort}
+                  value={showPersonal ? currentSort : "title"}
                   onChange={(e) => setCurrentSort(e.target.value)}
                   className="bg-surface border border-border-strong px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand transition"
                 >
                   <option value="title">Title</option>
-                  <option value="my_rating">My rating</option>
-                  <option value="franchise_expectation">Expectation</option>
+                  {showPersonal && (
+                    <>
+                      <option value="my_rating">My rating</option>
+                      <option value="franchise_expectation">Expectation</option>
+                    </>
+                  )}
                 </select>
               </label>
 
@@ -532,6 +548,7 @@ export default function FranchiseLibrary() {
         ) : currentView === "table" ? (
           <FranchiseTable
             franchises={filteredAndSorted}
+            showPersonal={showPersonal}
             columnCtx={{
               collectionDict,
               entriesByFranchise: allEntriesByFranchise,

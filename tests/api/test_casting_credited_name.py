@@ -73,15 +73,15 @@ def test_a_second_save_without_it_clears_it(admin_client, anime, character):
 
 
 def test_the_character_page_carries_each_appearance_s_credited_name(
-    client, admin_client, anime, character
+    guest_reader, admin_client, anime, character
 ):
     _put(admin_client, anime, [{"character_id": str(character.system_id), "credited_name": "AAA"}])
-    entries = _entries(client.get(f"/api/character/{character.system_id}/entries").json())
+    entries = _entries(guest_reader.get(f"/api/character/{character.system_id}/entries").json())
     assert [e["credited_name"] for e in entries] == ["AAA"]
 
 
 def test_the_identity_page_carries_each_appearance_s_credited_name(
-    client, admin_client, anime, character, identity
+    guest_reader, admin_client, anime, character, identity
 ):
     _put(admin_client, anime, [
         {"character_id": str(character.system_id)},
@@ -91,7 +91,7 @@ def test_the_identity_page_carries_each_appearance_s_credited_name(
             "credited_name": "Edogawa",
         },
     ])
-    entries = _entries(client.get(f"/api/character-identity/{identity.system_id}/entries").json())
+    entries = _entries(guest_reader.get(f"/api/character-identity/{identity.system_id}/entries").json())
     assert [e["credited_name"] for e in entries] == ["Edogawa"]
 
 
