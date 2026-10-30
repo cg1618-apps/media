@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-10-23
+Last verified: 2026-10-30
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
