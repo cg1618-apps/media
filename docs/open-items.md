@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-10-30
+Last verified: 2026-11-03
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -112,65 +112,13 @@ person writes a note. `app/services/pipelines/tabs.py:259/268/269`.
 
 ## Authorization and accounts
 
-Two auth items are open **by choice**, and neither blocks inviting somebody:
-**session lifetime** is a flat 30 days with no refresh and no revocation, and
-there is **no password reset** — an admin sets one at `/users`.
-
-**The whole account and authorization system is due for a rework, and nothing
-in it is built until all of it has been discussed.** The scope is users,
-roles, access modes, content labels and authentication together — not
-self-registration alone. Still to discuss before any implementation starts:
-the rest of that surface (roles, access modes, content labels), password reset,
-and whether a user carries an email address or phone number. What follows is
-the part already settled, and it is an input to that discussion rather than a
-plan to execute on its own.
-
-**Self-registration by invite code is designed but not built.** The intended
-flow: an admin generates a single-use code that expires after 24 hours and
-hands it over; the invitee submits code, username and password to a public
-register endpoint; the account is created `pending` and cannot log in; an
-approval panel on `/system` lists pending requests, and approving one sets its
-role and access modes (still editable on `/users` afterwards). Admins keep the
-ability to set any user's password. The shape agreed so far:
-
-- `invite_code` table holding only a **hash** of each code (shown to the admin
-  once), with expiry, used-at/used-by and revoked-at. Consuming the code and
-  creating the account happen in one transaction, so a code cannot be spent
-  twice.
-- `users.status` (`pending` / `active`); accounts created on `/users` stay
-  `active` at once.
-- Invite codes and pending accounts do **not** travel on the Sheets Users tab;
-  the R2 `pg_dump` needs no change, since `hashed_password` is already bcrypt.
-- Hardening that belongs with a public signup form: a password policy (minimum
-  length, reject rather than truncate past bcrypt's 72 bytes), revoking
-  existing sessions when an admin resets a password, and rate limiting on
-  register and login. **It ships with self-registration**, not after it — a
-  public register endpoint is what makes the "Known gaps" in
-  `authentication.md` real.
-- **A pending account learns it is pending only after a correct password.** A
-  wrong password gets the ordinary generic 401, so the login form cannot be
-  used to discover which usernames have a request waiting.
-- **Reject deletes the pending account.** It owns nothing yet, and keeping it
-  would only hold the username; a log line at reject time is the record. The
-  invite code stays spent.
-- **Approval sets the role and the access modes together**, on one form, so no
-  approved account is left half-configured for `/users` to finish.
-- **The approval form defaults to the `user` role and offers every role except
-  `admin`.** `guest` sees only the libraries, so an approved `guest` account is
-  no wider than a logged-out visitor; `admin` is root and is not handed out
-  from a one-click panel.
-- **The approval form defaults to the `normal` access mode.**
-- **An invite code carries no role or modes.** It is a single-use ticket only;
-  what the account becomes is decided once, at approval, after the person
-  exists.
-- **Usernames match `[a-z0-9_-]{3,32}`, are unique case-insensitively, and may
-  not contain `admin` or `guest` anywhere**, compared lowercased — so
-  `admin1` and `qadminqe` are refused, while `adamin` and `adm1in` are
-  allowed, since the rule is a substring test and not a similarity test. Only
-  those two words are reserved; other role names are not.
-
-Email/phone and forgot-password are part of the discussion still to come; the
-hashed single-use token is the same mechanism a reset link would reuse.
+**The whole account and authorization system is being redesigned, and nothing
+in it is built until the design is complete.** The scope is users, roles,
+access modes, content labels and authentication together. What is settled,
+how it differs from today and what is still open are in
+[superpowers/specs/2026-11-03-account-system-design.md](superpowers/specs/2026-11-03-account-system-design.md).
+Until it lands, sessions are a flat 30 days with no revocation and there is no
+password reset — an admin sets one at `/users`.
 
 **The `guest` role has no `media_type.game`**, so a logged-out visitor sees an
 empty Games library. The `role_permission` rows were seeded before games
