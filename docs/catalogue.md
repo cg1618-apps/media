@@ -164,6 +164,14 @@ Reviews.
 The six highlight rows (神回/神片段, 神片段, 神場景, 亮點) are shared today and
 will become **yours**.
 
+*Changing:* some shared sections will gain a part that is **yours**. The
+row stays shared — the item, enemy, ending or song — and your progress on
+it becomes yours: collected on 武器&裝備 Weapons & Gear, 道具 Items and
+收集物 Collectibles, beaten on 敵人 Enemies, completion on 結局 Endings, and
+your value on 屬性&配點 Stats & Points. The status on OP, ED and 插入曲
+Insert Song, and on 模組&工具 Mods & Tools, will become yours too, but only
+for accounts the admin turns that feature on for.
+
 Today other members can read your **yours** sections on your profile when
 your list is public, if their access mode allows it. *Being removed:* once
 List visibility goes, nobody else sees them. Quotes and memes are not notes
