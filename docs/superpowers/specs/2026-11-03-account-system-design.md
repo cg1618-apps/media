@@ -320,12 +320,6 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
 
 - **Of the note sections, only the six highlights change scope**, to
   personal. Every other section keeps the scope `docs/catalogue.md` lists.
-- **The restricted types drop 評論 Reviews and Comments.** H-Comic, Hentai
-  and H-Game get 大眾評價 Public Reviews (catalogue) and 我的評價 Personal
-  Reviews (personal) instead, as every other type has. A migration moves
-  the existing `reviews_and_comments` rows into `public_reviews` — from a
-  personal section into the catalogue, so their author stays as provenance
-  but they become everyone's.
 - **Some sections split into a catalogue row and personal fields.** The
   row — the item, enemy, ending, song, mod — stays catalogue; the fields
   below are personal:
@@ -383,44 +377,17 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
   Styles and Team Composition are placed by this: a guide's builds are
   catalogue rows, a user's own are personal rows.
 
-### Game notes rework
+### Game notes and other note changes
 
-The owner's changes, applying to `game` and `h-game` alike unless stated.
+The note changes that are not about accounts — new sections, new fields,
+common options, the restricted types' reviews — are their own work, in
+`2026-11-12-notes-rework-design.md` beside this file. What they make
+personal is settled here and listed below; that spec only points back.
 
-- **Common options for free-text groups are system options**, one
-  category per section, edited on the options page like any other. Used as
-  **suggestions**, not a closed list: the field stays free text — the way
-  Song Type is suggested from its category today. They are edited in **a
-  tab of their own** on the options edit pages, not in the System Options
-  tab, though they are the same structure underneath. Settled values so far:
-  - 角色 Characters `group`: 商人, 重要NPC, 主角, 同伴, 可攻略 (h-game
-    especially), 反派;
-  - 收集物 Collectibles `type`: 重要物品;
-  - 道具 Items `type`: 重要道具, 任務道具;
-  - the 地理 section's `group` (below): none for now — the category
-    exists, empty.
-- **Optional grouping for 攻略資源 Guide Resources.**
-- **Collected status options** become: not collected, collected, enough
-  collected, fully collected, skip, inapplicable (`collected` is new).
-- **Optional amounts** on the collected sections: an amount total
-  (catalogue — a fact about the game) and an amount collected (personal,
-  beside `collected`).
-- **NG Reset** on every row of the 物品 sections (武器&裝備 Weapons & Gear,
-  道具 Items, 收集物 Collectibles): yes / no, default yes, catalogue. It
-  drives a **reset button**, personal, that clears the user's own collected status
-  (and amount collected) on every row marked yes, for starting a new game.
-  敵人 Enemies has no NG Reset field: every enemy resets, so its button
-  clears every `beaten`.
-- **下周目目標**, a new subsection in NG 多周目: a list of text with one or
-  more links. **Personal.**
-- **A new section, 地理 Geography**, for `game` and `h-game`: group, name,
-  description, link; the group has common options. It nests: C under B
-  under A, where A and B are rows themselves — the `hierarchical` shape the
-  four 劇情列表 story lists already use. Only a top-level row carries a
-  group; the rows under it inherit it.
-- **Quick move in 待辦 Todo.** A row can be moved quickly between the four
-  buckets (現在進行, 接下來, 未來, 可能) without editing it. 存檔 Saves is
-  excluded.
+- **Personal, from the notes rework:** the amount collected (beside
+  `collected`), the NG reset button (it clears only the user's own
+  collected status, amount collected and `beaten`), and the 下周目目標
+  subsection of NG 多周目, a personal section.
 
 **Ratings, settled: every personal rating is personal, and only external
 scores are catalogue.** Every `my_rating` — on the list row, a season, a
