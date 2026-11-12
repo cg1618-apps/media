@@ -430,7 +430,7 @@ discussed per viewer once visibility is settled.
 ### Admin
 
 - **The admin administers and does nothing else.** No libraries, no entry,
-  group, entity or search pages, no quotes, memes or `/resources`, no
+  group, entity or search pages, no quotes or memes, no
   content modes, and no personal data, its own or anyone's. The owner's
   catalogue and data live on a `super` account (`cg1618`), so nothing is
   lost.
@@ -444,7 +444,9 @@ discussed per viewer once visibility is settled.
   - **the Note pages** — System Options, Alias Conversion, External APIs;
   - **every pipeline page** — `/system`, `/data-history`, `/review-queue`,
     `/clean-orphans`, `/business-logic`;
-  - **`/images`**.
+  - **`/images`**;
+  - **`/resources`** — the site-wide Resources page is admin's and super's
+    alone.
 - **It stops being a root role.** Today `is_root` passes every permission
   check, including ones added later. The admin becomes an ordinary role
   with a fixed set of permissions, so a later feature reaches it only by
@@ -463,7 +465,8 @@ The catalogue account — in practice the owner's, `cg1618`.
 - **Reads the whole catalogue** — libraries, entries, groups, entities,
   search, the random picker, future releases, completions — up to its mode
   ceiling.
-- **Quotes, memes and `/resources`** only through a per-account switch.
+- **Quotes and memes** only through a per-account switch.
+- **`/resources`**, always — it is admin's and super's alone.
 - **Writes the catalogue**: entries, groups, people, credits, relations,
   watch orders, catalogue notes, images, options, announcements, and
   attaching labels. In mixed sections it writes catalogue rows only.
@@ -477,6 +480,28 @@ The catalogue account — in practice the owner's, `cg1618`.
   expectations, highlights, personal notes, progress on catalogue rows —
   and granted features through per-account switches.
 - **Not:** accounts, roles, access modes, or anyone else's personal data.
+
+### User
+
+Super without the catalogue work.
+
+- **Reads the catalogue** — libraries, entries, groups, entities, search,
+  the random picker, future releases, completions — up to its mode ceiling
+  (`normal` for a new account).
+- **Quotes and memes** only through a per-account switch, off by default.
+  **Never `/resources`.**
+- **Its own personal data** — list, plan, seasonal, statistics, ratings,
+  expectations, highlights, personal notes, progress on catalogue rows —
+  and **personal rows** in mixed sections; granted features through
+  per-account switches.
+- **Files requests and reports** and sees their status; changes its own
+  password; switches modes within its ceiling.
+- **Never writes the catalogue.** `manage.catalog` is not grantable to a
+  `user`: writing the catalogue is what makes an account `super`, which
+  keeps "a user writes personal rows, super writes catalogue rows" exact.
+- **Not:** pipelines, the inbox, the Note pages, `/images`, editing
+  announcements, the label reference, accounts, roles, modes, or anyone
+  else's personal data.
 
 ### Requests and reports
 
