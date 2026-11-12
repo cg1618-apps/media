@@ -428,6 +428,37 @@ discussed per viewer once visibility is settled.
   keeps no data of its own**: no list, ratings, progress, personal notes or
   personal rows. Its only write is requests and reports.
 
+### Admin
+
+- **The admin administers and does nothing else.** No libraries, no entry,
+  group, entity or search pages, no quotes, memes or `/resources`, no
+  content modes, and no personal data, its own or anyone's. The owner's
+  catalogue and data live on a `super` account (`cg1618`), so nothing is
+  lost.
+- **What it does reach:**
+  - accounts — creating `user` / `super`, invites, approvals, reset codes,
+    disabling, passwords, feature switches, mode ceilings and per-account
+    restrictions;
+  - roles' and access modes' adjustable settings, and the read-only label
+    reference;
+  - **announcements**;
+  - **the Note pages** — System Options, Alias Conversion, External APIs;
+  - **every pipeline page** — `/system`, `/data-history`, `/review-queue`,
+    `/clean-orphans`, `/business-logic`;
+  - **`/images`**.
+- **It stops being a root role.** Today `is_root` passes every permission
+  check, including ones added later. The admin becomes an ordinary role
+  with a fixed set of permissions, so a later feature reaches it only by
+  decision.
+- **Why:** the most powerful login exposes the least, the rules lose their
+  carve-outs ("everything except personal data"), and an admin with its own
+  pages is a small set to design. The cost — the admin cannot see what a
+  restriction does — is covered by the label reference's counts; a
+  "preview as an account or mode" feature is the remedy if that is ever
+  not enough, and is not built until then.
+- **Still to settle:** which requests and reports the admin handles —
+  discussed with requests, next.
+
 ## Open questions
 
 1. **Who can see what** — next. Includes quotes and memes per account, the
