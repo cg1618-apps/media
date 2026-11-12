@@ -348,8 +348,31 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
   way `game_choice_mark` holds a user's done flag and note on a choice
   graph; a user with no mark sees the field's empty value; the migration
   moves today's values to the installation owner's marks.
-- **Still to place:** 配裝&流派 Builds & Styles and 隊伍組成 Team
-  Composition — a guide's builds or the user's own.
+- **Mixed sections: catalogue rows and personal rows together.** A section
+  the registry marks as allowing it shows the catalogue rows plus the
+  viewer's own personal rows, in the same groups. Personal fields
+  (collected, amounts, beaten, …) work on both kinds of row, and the NG
+  reset covers both.
+- **Which kind an account writes is fixed by whether it writes the
+  catalogue** — never both in one section:
+
+  | Account | Writes |
+  | --- | --- |
+  | `user` (no `manage.catalog`) | personal rows only |
+  | `super`, or anyone holding `manage.catalog` | catalogue rows only |
+  | `admin` | catalogue rows only — it keeps no personal data |
+
+  There is no "only me" switch. The owner is the one creating catalogue
+  data, and the feature exists for the other users, whose catalogue is far
+  from complete. A `super` that needs personal rows of its own is dealt with
+  if it ever happens.
+- **Proposed, not yet confirmed:** a user's rows sit after the catalogue
+  rows within each group, reorderable among themselves, since sharing the
+  catalogue order would mean a per-user copy of it; a personal row is never
+  promoted — a request asks for it to be added to the catalogue. Proposed
+  sections: 武器&裝備, 道具, 收集物, 敵人, 角色, 地理, 配裝&流派 and 隊伍組成.
+  That last pair places Builds & Styles and Team Composition: a guide's
+  builds are catalogue rows, a user's own are personal rows.
 
 ### Game notes rework
 
@@ -358,7 +381,9 @@ The owner's changes, applying to `game` and `h-game` alike unless stated.
 - **Common options for free-text groups are system options**, one
   category per section, edited on the options page like any other. Used as
   **suggestions**, not a closed list: the field stays free text — the way
-  Song Type is suggested from its category today. Settled values so far:
+  Song Type is suggested from its category today. They are edited in **a
+  tab of their own** on the options edit pages, not in the System Options
+  tab, though they are the same structure underneath. Settled values so far:
   - 角色 Characters `group`: 商人, 重要NPC, 主角, 同伴, 可攻略 (h-game
     especially), 反派;
   - 收集物 Collectibles `type`: 重要物品;
