@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-11-03
+Last verified: 2026-11-12
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -112,13 +112,9 @@ person writes a note. `app/services/pipelines/tabs.py:259/268/269`.
 
 ## Authorization and accounts
 
-**The whole account and authorization system is being redesigned, and nothing
-in it is built until the design is complete.** The scope is users, roles,
-access modes, content labels and authentication together. What is settled,
-how it differs from today and what is still open are in
-[superpowers/specs/2026-11-03-account-system-design.md](superpowers/specs/2026-11-03-account-system-design.md).
-Until it lands, sessions are a flat 30 days with no revocation and there is no
-password reset — an admin sets one at `/users`.
+The account and authorization rework is decided work, queued in
+[to-do-next.md](to-do-next.md); what is still undecided about it is in its
+design.
 
 **The `guest` role has no `media_type.game`**, so a logged-out visitor sees an
 empty Games library. The `role_permission` rows were seeded before games

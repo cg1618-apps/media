@@ -13,6 +13,7 @@ right and the doc needs the fix.
 |---|---|
 | [setup-local.md](setup-local.md) | get the app running on a new machine (Windows or Linux) |
 | [switching-environments.md](switching-environments.md) | hand work over between the **company** and **home** machines — what to push, when to Backup/Pull the data, which database is at which revision, where the recovery dumps are |
+| [to-do-next.md](to-do-next.md) | see the work that is decided but not built, in the order it is to be built. No status and no claiming; an item is deleted in the change that builds it |
 | [open-items.md](open-items.md) | see what is known-broken or undecided and nobody is working on. Everything in it is open by definition; an item is closed by deleting it in the same change that fixes it |
 | [architecture.md](architecture.md) | know how a request flows and where code lives |
 | [entry-types.md](entry-types.md) | understand what a collection / franchise / series / entry is and what each media type supports |
