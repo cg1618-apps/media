@@ -48,13 +48,12 @@ from the company development database.
 ### Content labels
 
 - Labels exist for access modes only.
-- The admin edits a label's description and can delete selected labels.
-- A label attaches to a group or a media entry.
-- Labels should carry business logic, which they do not today. A candidate:
-  labels defined in code, with the admin managing only description (and
-  deletion). **To discuss**, together with optimising the labels.
-- **Every entry carrying a label other than `nsfw` (e.g. `erotica`) also
-  carries `nsfw`.**
+- Labels are defined in code, and carry business logic there. The admin
+  attaches and detaches them but no longer creates, edits or deletes them.
+- A label attaches to a group (collection, franchise or series) or a media
+  entry.
+- **Every entry or group carrying a label other than `nsfw` (e.g. `erotica`)
+  also carries `nsfw`.**
 
 ### Account features
 
@@ -138,11 +137,29 @@ from the company development database.
   can switch up to their ceiling at once, so starting lower protects
   nothing. Which roles the form offers is difference 3 below.
 
+### Content labels
+
+- **Labels are defined in code**, the way gated types and field groups are;
+  that is what lets a label carry rules. The admin does not create, edit or
+  delete them in the app.
+- **Every label other than `nsfw` requires `nsfw` to be stored, not merely
+  implied** — gated-type labels (`h-comic`, `h-game`, `hentai`) included.
+  Attaching such a label attaches `nsfw` in the same write; detaching `nsfw`
+  while one of them is attached is refused. A migration backfills the
+  entries and franchises that lack it, and every write path — the forms,
+  Pull, the gated-type auto-label — goes through the same rule.
+- **Labels attach to collections, franchises, series and entries.** A
+  group's label cascades down, as a franchise's does today: a collection's
+  hides its franchises, series and entries; a series' hides its entries.
+
 ### Shared accounts
 
 - **The two shared accounts have their own role, `shared`**, fixed and
   seeded by the system — not the logged-out `guest` role, so what visitors
   can read and what shared accounts can read are tuned separately.
+- **Shared accounts' modes are fixed**: each account's ceiling and default
+  are its own mode, `normal` or `borderline`, and `/users` does not edit
+  them.
 - **Only the admin changes a shared account's password.** The account
   settings page offers no password change: one person changing it would
   lock out everyone else using the login.
@@ -183,31 +200,26 @@ from the company development database.
    stops it; make it an explicit 409.
 5. **The two shared accounts and the `shared` role are new.** Today the
    logged-in guest accounts do not exist as such. The accounts cannot be
-   deleted; recommended: their role cannot be changed either.
+   deleted, and their mode is fixed; recommended: their role cannot be
+   changed either.
 6. **Requests and reports** do not exist. Recommended: one table (type,
    optional target entry, body, status, author) and an admin inbox on
    `/system` beside pending registrations.
-7. **Labels defined in code.** Recommended — gated types and field groups
-   already work that way, and it is what lets a label carry rules (the lowest
-   mode that shows it, which labels it implies). It conflicts with **deleting
-   a label in the app**: a code-defined label is recreated on the next start,
-   so either deletion goes or removing a label is a code change.
-8. **Label implication is not enforced.** On the company database all 12
-   `erotica` entries already carry `nsfw`, but nothing guarantees it — and
+7. **Labels move into code.** Today they are admin-created rows on
+   `/content-labels`, editable and deletable in the app. That page's create,
+   edit and delete go; removing a label becomes a code change and a
+   migration.
+8. **The `nsfw` rule is not enforced today.** On the company database all
+   12 `erotica` entries already carry `nsfw`, but nothing guarantees it — and
    134 `h-comic`, 59 `h-game` and 10 `hentai` entries carry no `nsfw`.
-   Recommended: implied labels are added automatically on write, the way a
-   gated type's label is, with a migration to backfill.
-9. **Labels on groups.** Today labels attach to entries and **franchises**
-   only — not collections or series.
+9. **Labels attach to franchises only, among groups.** Collections and
+   series are new.
 
 ## Open questions
 
-1. **Is a shared account's mode editable** by the admin? Each is named for
-   its mode (`normal`, `borderline`).
-2. **Label deletion vs labels in code** — see difference 7.
-3. **Do the gated-type labels imply `nsfw`?**
-4. **Does "group" mean collection, franchise and series**, or franchise only?
-5. Still to discuss in full: fixed vs adjustable settings per role and per
+1. **Label descriptions** now that the admin no longer edits them — see the
+   discussion.
+2. Still to discuss in full: fixed vs adjustable settings per role and per
    mode; per-account detail settings; what belongs to each user and what
    everyone sees; what guests and shared accounts can read; admin and guest
    layouts; optimising the labels.
