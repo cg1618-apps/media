@@ -446,6 +446,16 @@ on, as they do the list.
 about it and both be right, it belongs to a user; if it is a fact about the
 work, it belongs to the catalogue.
 
+## Who can see what
+
+**Under discussion.** Ships as `docs/authorization.md` (the technical
+rules) and a plain-language summary in `docs/account.md`.
+
+**Who sees what comes first; how each viewer's pages look comes after.**
+The UI changes are not only hiding things: guests, shared accounts and the
+admin may get a different dashboard and layout. That customisation is
+discussed per viewer once visibility is settled.
+
 ## Open questions
 
 1. **Who can see what** — next. Includes quotes and memes per account, the
