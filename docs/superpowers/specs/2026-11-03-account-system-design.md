@@ -456,8 +456,25 @@ discussed per viewer once visibility is settled.
   restriction does — is covered by the label reference's counts; a
   "preview as an account or mode" feature is the remedy if that is ever
   not enough, and is not built until then.
-- **Still to settle:** which requests and reports the admin handles —
-  discussed with requests, next.
+
+### Requests and reports
+
+- **Who files:** shared accounts, users and super. Not guests, not the
+  admin.
+- **Kinds:** new entry request, data error report, **incomplete data
+  report**, bug report, other / suggestion.
+- **A request has** a kind, an optional target (the entry, group or entity
+  page it was filed from, or a page address for a bug), a description and an
+  optional remark. A "Report a problem" button on entry, group and entity
+  pages fills the target in; a general form covers the rest.
+- **One inbox** for every kind, read by the admin and by super.
+- **Status:** open, then done or declined. **The filer sees the status** of
+  their own requests and nobody else's; a shared account's requests are
+  seen by everyone using that login.
+- **After sending, the filer can edit the content — description and
+  remark — but cannot delete the request.**
+- **Requesting something the filer's mode hides is allowed.**
+- **Limits are set per account** by the admin.
 
 ## Open questions
 
