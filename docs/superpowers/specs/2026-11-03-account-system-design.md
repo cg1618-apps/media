@@ -223,6 +223,8 @@ from the company development database.
   notes. So these go with the setting, since each could only ever be empty:
   the public profile (`/user/<username>`), reading notes by author
   (`?author=`), and the community card and `/api/community/`.
+- **Requests and reports are not user data in this sense.** They are
+  addressed to the admin, who reads them in the inbox.
 - **User data is private from the admin too.** Today `admin.authz` opens
   any profile whatever its setting; that override goes with the profile,
   and nothing in the app shows the admin a user's list, ratings or notes.
@@ -269,7 +271,7 @@ from the company development database.
 
 ## Catalogue and user data
 
-**Under discussion.** **Designs come from the owner**: once the owner has
+**Designs come from the owner**: once the owner has
 reviewed the whole of this split, they provide the designs for how moved
 data looks and is edited (highlights as personal sections, per-user ratings
 and the rest). Implementation does not invent them. The catalogue is one copy everyone shares; user data is
@@ -309,10 +311,10 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
 | --- | --- | --- |
 | Ratings on collections, franchises, series, characters, people, studios, publishers | `my_rating` column on the shared row — one value, the owner's | **user — settled** |
 | Expectations on collections, franchises, series | `*_expectation` column on the shared row | **user — settled** |
-| Novel unit remark | `remark` on the shared unit row, withheld from guests as opinion | user, beside the unit rating — still open — not a note section, so the notes review did not cover it |
+| Novel unit remark | `remark` on the shared unit row, withheld from guests as opinion | **user — settled**, beside the unit rating |
 | Highlights: `highlights`, `highlight_episodes`, `highlight_moments`, `highlight_passages`, `h_comic_highlights`, `h_game_highlights` | catalogue sections; `highlights` and `highlight_episodes` are withheld from guests as opinion, the other four are not | **user — settled.** All six become personal sections |
-| Quote and meme `is_favorite` | flag on the shared row | user — still open — not a note section, so the notes review did not cover it |
-| `remark` on entities, credits, relations, watch orders, options | catalogue columns | catalogue — editorial annotations; still open — not a note section, so the notes review did not cover it |
+| Quote and meme `is_favorite` | flag on the shared row | **user — settled**, and a **granted feature** (per-account switch, off by default; today only the owner uses it) |
+| `remark` on entities, credits, relations, watch orders, options | catalogue columns | **catalogue — settled**: editorial annotations |
 
 ### Notes, settled with the owner's review
 
@@ -414,8 +416,8 @@ The owner's changes, applying to `game` and `h-game` alike unless stated.
 - **A new section, 地理 Geography**, for `game` and `h-game`: group, name,
   description, link; the group has common options. It nests: C under B
   under A, where A and B are rows themselves — the `hierarchical` shape the
-  four 劇情列表 story lists already use. Proposed: only a top-level row
-  carries a group, and the rows under it inherit it.
+  four 劇情列表 story lists already use. Only a top-level row carries a
+  group; the rows under it inherit it.
 - **Quick move in 待辦 Todo.** A row can be moved quickly between the four
   buckets (現在進行, 接下來, 未來, 可能) without editing it. 存檔 Saves is
   excluded.
@@ -428,6 +430,14 @@ someone else published: `mal_rating` and `mal_rank`, `anilist_rating`,
 `imdb_rating` and `imdb_series_rating`, `metacritic_score` and
 `metacritic_user_score`. **Every expectation is personal** as well.
 
+**Quotes, memes and the site-wide Resources page stay catalogue**, but who
+sees them is narrower than the rest of the catalogue: quotes and memes are
+to be hidden from every account but the owner's, controllable per account,
+and `/resources` is likely the owner's alone. Both belong to "who can see
+what", below.
+
+**The split is complete**: every item above is settled.
+
 **If data moves to a user**, today's values move to the installation owner's
 account in the migration, and Backup and Pull carry them per user from then
 on, as they do the list.
@@ -438,13 +448,8 @@ work, it belongs to the catalogue.
 
 ## Open questions
 
-1. **Does a nested 地理 row inherit its group?** Proposed: only a
-   top-level row carries a group, and the rows under it inherit it.
-2. **Does the site-wide Resources page (`/resources`) take personal rows**,
-   like the Resources section on an entry? Assumed not.
-3. **The last three catalogue/user rows**: the novel unit remark, quote and
-   meme favourites, and the catalogue remarks — see "Catalogue and user
-   data".
-4. Still to discuss in full: fixed vs adjustable settings per role and per
-   mode; per-account detail settings; what guests and shared accounts can
-   read; admin and guest layouts; optimising the labels.
+1. **Who can see what** — next. Includes quotes and memes per account, the
+   `/resources` page, what guests and shared accounts read, fixed vs
+   adjustable settings per role and per mode, and per-account detail
+   settings.
+2. Still to discuss: admin and guest layouts; optimising the labels.

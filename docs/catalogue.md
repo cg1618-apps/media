@@ -62,6 +62,9 @@ Members see them; visitors who are not signed in do not.
 *Changing:* every rating and every expectation above will become
 **yours** — each account rates and sets expectations for itself, privately.
 The only ratings that stay shared are the scores other sites publish.
+The remark on a novel volume will become yours too, and so will marking a
+quote or meme as a favourite — but only for accounts the admin turns that
+feature on for.
 
 *Changing:* highlights will become **yours** — each account keeps its
 own, privately, like the other personal sections. Today they are shared
