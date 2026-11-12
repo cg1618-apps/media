@@ -321,13 +321,35 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
   the existing `reviews_and_comments` rows into `public_reviews` — from a
   personal section into the catalogue, so their author stays as provenance
   but they become everyone's.
-- **To discuss next — sections that are part catalogue, part personal.**
-  The game notes are to be reworked and optimised, and some may split: an
-  item's *collected* status personal, the item itself catalogue. The same
-  question applies to Anime's music sections (OP, ED, 插入曲 Insert Song,
-  OST, and the hidden 音樂狀態 Music Status) and to OP/ED 變動 on Anime,
-  TV Show and Cartoon. Today a section has exactly one scope, so a split
-  section is a new shape.
+- **Some sections split into a catalogue row and personal fields.** The
+  row — the item, enemy, ending, song, mod — stays catalogue; the fields
+  below are personal:
+
+  | Section | Personal field |
+  | --- | --- |
+  | 武器&裝備 Weapons & Gear, 道具 Items, 收集物 Collectibles | `collected` |
+  | 敵人 Enemies | `beaten` |
+  | 結局 Endings | `completion` |
+  | 屬性&配點 Stats & Points | `my_value` |
+  | OP, ED, 插入曲 Insert Song | `status` — **granted feature** |
+  | 音樂狀態 Music Status (hidden) | `status` — **granted feature** |
+  | 模組&工具 Mods & Tools | `status` — **granted feature** |
+
+  **OP/ED 變動 does not split**; it stays catalogue as it is.
+- **A granted feature is personal and off by default.** Today only the
+  owner uses those statuses, but there is no "me" in the system to tie them
+  to, so the feature is granted to an account; an account without it does
+  not see the field at all. The music statuses keep their vocabulary as one
+  personal field — nothing in it moves to the catalogue.
+- **Proposed mechanism**, not yet confirmed: the registry marks a field
+  personal; its value lives in a per-user mark on the catalogue row, the
+  way `game_choice_mark` holds a user's done flag and note on a choice
+  graph; a user with no mark sees the field's empty value; the migration
+  moves today's values to the installation owner's marks.
+- **To discuss next:** the owner's changes to the game notes, and whether
+  any of them adds or removes personal parts. 配裝&流派 Builds & Styles and
+  隊伍組成 Team Composition — a guide's builds or the user's own — are
+  part of that.
 
 **Ratings, settled: every personal rating is personal, and only external
 scores are catalogue.** Every `my_rating` — on the list row, a season, a
@@ -350,7 +372,12 @@ work, it belongs to the catalogue.
 1. **Can the admin read a user's data?** Today `admin.authz` opens any
    profile whatever its setting. With profiles gone, the admin would see a
    user's list only through the database.
-2. Still to discuss in full: fixed vs adjustable settings per role and per
+2. **How a feature is granted to one account.** Permissions belong to
+   roles today; a per-account grant is new. Either a role made for it, or
+   a per-account feature grant the admin sets on `/users`.
+3. **Does OST's status split like OP, ED and Insert Song?** It has the same
+   `status` field and was not named.
+4. Still to discuss in full: fixed vs adjustable settings per role and per
    mode; per-account detail settings; what belongs to each user and what
    everyone sees; what guests and shared accounts can read; admin and guest
    layouts; optimising the labels.
