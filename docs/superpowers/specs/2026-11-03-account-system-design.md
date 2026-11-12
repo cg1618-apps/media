@@ -151,6 +151,32 @@ from the company development database.
 - **Labels attach to collections, franchises, series and entries.** A
   group's label cascades down, as a franchise's does today: a collection's
   hides its franchises, series and entries; a series' hides its entries.
+- **Each label is defined once in code**: key, display name, description,
+  the lowest mode that shows it, and whether a gated type carries it. The
+  modes form the order `safe < normal < borderline < unrestricted`, so "the
+  lowest mode" fixes every mode's answer, and the admin cannot change it.
+
+  | key | lowest mode | description |
+  | --- | --- | --- |
+  | `nsfw` | `normal` | 不適合公開場合觀看 |
+  | `erotica` | `borderline` | 擦邊肉番 |
+  | `hentai` | `unrestricted` | 成人動畫 |
+  | `h-game` | `unrestricted` | 成人遊戲 |
+  | `h-comic` | `unrestricted` | 成人漫畫 |
+
+  The `h-game` and `h-comic` rows keep what their descriptions say today;
+  the descriptions are drafts for the owner to correct.
+- **Descriptions are in Chinese and say only what the label marks.** Who
+  sees a label is not written in prose: the chip tooltip and the admin's
+  label page generate it from the rule ("shown in", "also carries"), so it
+  cannot drift from the rule.
+- **`/content-labels` becomes a read-only reference** for the admin — each
+  label, what it marks, which modes show it, and how many items carry it.
+- **`nsfw` at `normal` is a change from today**, where `normal` hides it
+  (only `borderline` holds `nsfw` and `erotica`; `unrestricted` holds the
+  three gated labels). On the company database that makes 4 entries and
+  3 franchises — those carrying `nsfw` alone, and the franchises' entries —
+  visible in `normal`.
 
 ### Shared accounts
 
@@ -217,9 +243,7 @@ from the company development database.
 
 ## Open questions
 
-1. **Label descriptions** now that the admin no longer edits them — see the
-   discussion.
-2. Still to discuss in full: fixed vs adjustable settings per role and per
+1. Still to discuss in full: fixed vs adjustable settings per role and per
    mode; per-account detail settings; what belongs to each user and what
    everyone sees; what guests and shared accounts can read; admin and guest
    layouts; optimising the labels.
