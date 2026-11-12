@@ -223,6 +223,9 @@ from the company development database.
   notes. So these go with the setting, since each could only ever be empty:
   the public profile (`/user/<username>`), reading notes by author
   (`?author=`), and the community card and `/api/community/`.
+- **User data is private from the admin too.** Today `admin.authz` opens
+  any profile whatever its setting; that override goes with the profile,
+  and nothing in the app shows the admin a user's list, ratings or notes.
 - **`field_group.personal_notes` goes too**: it only decides whether a mode
   may read *another* user's personal notes, which nobody can any more.
 - `view.personal` keeps only what is not another member's data — today's
@@ -392,7 +395,8 @@ The owner's changes, applying to `game` and `h-game` alike unless stated.
     especially), 反派;
   - 收集物 Collectibles `type`: 重要物品;
   - 道具 Items `type`: 重要道具, 任務道具;
-  - the 地理 section's `group` (below) — values still to choose.
+  - the 地理 section's `group` (below): none for now — the category
+    exists, empty.
 - **Optional grouping for 攻略資源 Guide Resources.**
 - **Collected status options** become: not collected, collected, enough
   collected, fully collected, skip, inapplicable (`collected` is new).
@@ -434,13 +438,10 @@ work, it belongs to the catalogue.
 
 ## Open questions
 
-1. **Can the admin read a user's data?** Today `admin.authz` opens any
-   profile whatever its setting. With profiles gone, the admin would see a
-   user's list only through the database.
-2. **Game notes rework details** — see the discussion: the common-option
-   lists, which "other resources" section, the geography section's name
-   and how nesting meets groups.
+1. **Does a nested 地理 row inherit its group?** Proposed: only a
+   top-level row carries a group, and the rows under it inherit it.
+2. **Does the site-wide Resources page (`/resources`) take personal rows**,
+   like the Resources section on an entry? Assumed not.
 3. Still to discuss in full: fixed vs adjustable settings per role and per
-   mode; per-account detail settings; what belongs to each user and what
-   everyone sees; what guests and shared accounts can read; admin and guest
-   layouts; optimising the labels.
+   mode; per-account detail settings; what guests and shared accounts can
+   read; admin and guest layouts; optimising the labels.
