@@ -423,6 +423,11 @@ The UI changes are not only hiding things: guests, shared accounts and the
 admin may get a different dashboard and layout. That customisation is
 discussed per viewer once visibility is settled.
 
+- **A shared account is a guest that can view more** — not only through its
+  higher mode, but more pages and features than a logged-out guest. **It
+  keeps no data of its own**: no list, ratings, progress, personal notes or
+  personal rows. Its only write is requests and reports.
+
 ## Open questions
 
 1. **Who can see what** — next. Includes quotes and memes per account, the
