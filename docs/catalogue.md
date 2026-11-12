@@ -38,7 +38,8 @@ community card.
 ## Shared — the catalogue
 
 Entries and everything about the work itself: titles, dates, episodes,
-covers, sources; collections, franchises and series; people, studios,
+covers, sources, and the scores other sites publish (MAL, AniList, IMDb,
+Metacritic); collections, franchises and series; people, studios,
 publishers and characters; credits, tags, relations and watch orders; a
 game's choice graph; the Resources page; quotes and memes; and the note
 sections marked **shared** in [Notes](#notes-yours-or-shared).
@@ -57,6 +58,10 @@ so they are the owner's for everyone, and members cannot set their own:
 - whether a quote or meme is a favourite.
 
 Members see them; visitors who are not signed in do not.
+
+*Changing:* every rating and every expectation above will become
+**yours** — each account rates and sets expectations for itself, privately.
+The only ratings that stay shared are the scores other sites publish.
 
 *Changing:* highlights will become **yours** — each account keeps its
 own, privately, like the other personal sections. Today they are shared

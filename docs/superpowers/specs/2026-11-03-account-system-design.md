@@ -304,12 +304,20 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
 
 | Data | Today | Suggested |
 | --- | --- | --- |
-| Ratings on collections, franchises, series, characters, people, studios, publishers | `my_rating` column on the shared row — one value, the owner's | user |
-| Expectations on collections, franchises, series | `*_expectation` column on the shared row | user, with the ratings |
-| Novel unit remark | `remark` on the shared unit row, withheld from guests as opinion | user, beside the unit rating |
+| Ratings on collections, franchises, series, characters, people, studios, publishers | `my_rating` column on the shared row — one value, the owner's | **user — settled** |
+| Expectations on collections, franchises, series | `*_expectation` column on the shared row | **user — settled** |
+| Novel unit remark | `remark` on the shared unit row, withheld from guests as opinion | user, beside the unit rating — waits on the owner's notes review |
 | Highlights: `highlights`, `highlight_episodes`, `highlight_moments`, `highlight_passages`, `h_comic_highlights`, `h_game_highlights` | catalogue sections; `highlights` and `highlight_episodes` are withheld from guests as opinion, the other four are not | **user — settled.** All six become personal sections |
-| Quote and meme `is_favorite` | flag on the shared row | user |
-| `remark` on entities, credits, relations, watch orders, options | catalogue columns | catalogue — editorial annotations |
+| Quote and meme `is_favorite` | flag on the shared row | user — waits on the owner's notes review |
+| `remark` on entities, credits, relations, watch orders, options | catalogue columns | catalogue — editorial annotations; waits on the owner's notes review |
+
+**Ratings, settled: every personal rating is personal, and only external
+scores are catalogue.** Every `my_rating` — on the list row, a season, a
+novel unit, the three group tiers, characters, people, studios and
+publishers — belongs to a user. What stays on the catalogue is a score
+someone else published: `mal_rating` and `mal_rank`, `anilist_rating`,
+`imdb_rating` and `imdb_series_rating`, `metacritic_score` and
+`metacritic_user_score`. **Every expectation is personal** as well.
 
 **If data moves to a user**, today's values move to the installation owner's
 account in the migration, and Backup and Pull carry them per user from then
