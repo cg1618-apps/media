@@ -7,6 +7,12 @@ authentication together. Implementation starts from this document once it has
 no open questions; it is then turned into a plan, and both are deleted when
 the work lands (see the platform `CLAUDE.md`, "Finishing a plan").
 
+The user-facing side — signing in, registering, resetting and changing a
+password, in plain language — is drafted in
+`2026-11-12-account-guide-draft.md` beside this file. It ships as
+`docs/account.md`, its own page, not part of `docs/authorization.md`; the
+technical side of the same flows goes in `docs/authentication.md`.
+
 Current behaviour is in `docs/authorization.md` and `docs/authentication.md`;
 where this document says "today", it was read from those, from the code, and
 from the company development database.
