@@ -7,13 +7,13 @@ authentication together. Implementation starts from this document once it has
 no open questions; it is then turned into a plan, and both are deleted when
 the work lands (see the platform `CLAUDE.md`, "Finishing a plan").
 
-The user-facing side — kinds of account, what is yours and what is shared,
-signing in, registering, resetting and changing a password, in plain
+The user-facing side — kinds of account, signing in, registering, resetting and changing a password, in plain
 language — is `docs/account.md`, its own page, not part of
 `docs/authorization.md`. It marks what is not built yet; each "not available
 yet" goes in the change that builds it, and a decision here that changes what
 a user sees changes that page too. The technical side of the same flows goes
-in `docs/authentication.md`.
+in `docs/authentication.md`. What is the catalogue and what is a user's own
+data, for the same readers, is `docs/catalogue.md`.
 
 Current behaviour is in `docs/authorization.md` and `docs/authentication.md`;
 where this document says "today", it was read from those, from the code, and
@@ -212,8 +212,22 @@ from the company development database.
 - **Only the admin manages per-account restrictions, and only the admin sees
   them.** Users cannot narrow their own view; account settings show no
   labels, denials or per-mode options. A user's own controls are the mode
-  switcher (among modes they hold), the `list_is_public` toggle and changing
-  their password.
+  switcher (among modes they hold) and changing their password.
+
+### Privacy
+
+- **There is no list visibility setting.** `users.list_is_public` and the
+  Settings "List visibility" card go.
+- **Everything per user is private to its account.** No other account
+  reads another's list, ratings, plan, copies, choice marks or personal
+  notes. So these go with the setting, since each could only ever be empty:
+  the public profile (`/user/<username>`), reading notes by author
+  (`?author=`), and the community card and `/api/community/`.
+- **`field_group.personal_notes` goes too**: it only decides whether a mode
+  may read *another* user's personal notes, which nobody can any more.
+- `view.personal` keeps only what is not another member's data — today's
+  owner ratings, expectations and highlights on catalogue rows — and shrinks
+  further if those move to the user (see "Catalogue and user data").
 
 ## Where the structure differs from today
 
@@ -267,7 +281,6 @@ this split, not with it.
 | Game-choice marks: done and a note | `game_choice_mark` |
 | Watch-order follows | `watch_order_follow` |
 | 14 personal note sections: remark, remark list, reviews and comments, advantages, disadvantages, double-edged, personal reviews, episode comments, four todo lists, saves, questions | `note`, scope `personal` |
-| `list_is_public` | `users` |
 
 ### Already catalogue — stays catalogue
 
@@ -276,7 +289,7 @@ people, studios, publishers, characters, credits, tags, options, relations,
 watch orders, game choice graphs, the Resources page, quotes and memes,
 images, content labels, and the 53 catalogue note sections other than the
 six highlights below (plot, lore, guides, characters guide, music, endings,
-mods and so on). `docs/account.md` lists every section and its scope.
+mods and so on). `docs/catalogue.md` lists every section and its scope.
 
 ### Stored as catalogue but opinion-shaped — to decide
 
@@ -300,7 +313,10 @@ work, it belongs to the catalogue.
 
 ## Open questions
 
-1. Still to discuss in full: fixed vs adjustable settings per role and per
+1. **Can the admin read a user's data?** Today `admin.authz` opens any
+   profile whatever its setting. With profiles gone, the admin would see a
+   user's list only through the database.
+2. Still to discuss in full: fixed vs adjustable settings per role and per
    mode; per-account detail settings; what belongs to each user and what
    everyone sees; what guests and shared accounts can read; admin and guest
    layouts; optimising the labels.
