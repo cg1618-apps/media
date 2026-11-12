@@ -58,7 +58,9 @@ so they are the owner's for everyone, and members cannot set their own:
 
 Members see them; visitors who are not signed in do not.
 
-Highlights are shared notes written by whoever edits the catalogue. The
+*Changing:* highlights will become **yours** — each account keeps its
+own, privately, like the other personal sections. Today they are shared
+notes written by whoever edits the catalogue. The
 Anime highlights (神回/神片段 Highlights) and the TV Show, Cartoon and Manga
 ones are kept from visitors who are not signed in; the Novel, Game, H-Comic
 and H-Game ones are not.
@@ -148,6 +150,9 @@ that type, or a group (collection, franchise, series).
 | Questions | every type but H-Comic, Hentai; every group | **yours** |
 | 名言 Quotes | every type but H-Comic, Hentai, H-Game | shared |
 | 梗/迷因 Memes | every type but H-Comic, Hentai, H-Game; every group | shared |
+
+The six highlight rows (神回/神片段, 神片段, 神場景, 亮點) are shared today and
+will become **yours**.
 
 Today other members can read your **yours** sections on your profile when
 your list is public, if their access mode allows it. *Being removed:* once

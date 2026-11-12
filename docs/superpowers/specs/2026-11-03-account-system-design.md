@@ -226,8 +226,9 @@ from the company development database.
 - **`field_group.personal_notes` goes too**: it only decides whether a mode
   may read *another* user's personal notes, which nobody can any more.
 - `view.personal` keeps only what is not another member's data — today's
-  owner ratings, expectations and highlights on catalogue rows — and shrinks
-  further if those move to the user (see "Catalogue and user data").
+  owner ratings and expectations on catalogue rows — and shrinks further if
+  those move to the user (see "Catalogue and user data"). Highlights become
+  personal, so they leave it.
 
 ## Where the structure differs from today
 
@@ -265,7 +266,10 @@ from the company development database.
 
 ## Catalogue and user data
 
-**Under discussion.** The catalogue is one copy everyone shares; user data is
+**Under discussion.** **Designs come from the owner**: once the owner has
+reviewed the whole of this split, they provide the designs for how moved
+data looks and is edited (highlights as personal sections, per-user ratings
+and the rest). Implementation does not invent them. The catalogue is one copy everyone shares; user data is
 one copy per account. What each role can *see* of either is decided after
 this split, not with it.
 
@@ -274,6 +278,11 @@ this split, not with it.
 | Data | Table |
 | --- | --- |
 | List row: status, rating, completed date, watch day, progress, `usefulness` | `user_media_list` |
+
+`usefulness` stays per user, settled. It is used mainly on restricted media,
+where in practice few accounts other than the owner's will see it, but any
+user can keep their own. Its meaning is the user's to understand; nothing
+documents or derives it.
 | Plan queue (watch-next / read-next / rewatch, with a remark) | `plan_next` |
 | Season ratings | `seasonal` |
 | Novel unit ratings | `user_novel_unit_rating` |
@@ -298,9 +307,8 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
 | Ratings on collections, franchises, series, characters, people, studios, publishers | `my_rating` column on the shared row — one value, the owner's | user |
 | Expectations on collections, franchises, series | `*_expectation` column on the shared row | user, with the ratings |
 | Novel unit remark | `remark` on the shared unit row, withheld from guests as opinion | user, beside the unit rating |
-| Highlights: `highlights`, `highlight_episodes`, `highlight_moments`, `highlight_passages`, `h_comic_highlights`, `h_game_highlights` | catalogue sections; `highlights` and `highlight_episodes` are withheld from guests as opinion, the other four are not | **owner to decide**: "scenes worth knowing" is catalogue, "scenes I loved" is user |
+| Highlights: `highlights`, `highlight_episodes`, `highlight_moments`, `highlight_passages`, `h_comic_highlights`, `h_game_highlights` | catalogue sections; `highlights` and `highlight_episodes` are withheld from guests as opinion, the other four are not | **user — settled.** All six become personal sections |
 | Quote and meme `is_favorite` | flag on the shared row | user |
-| `usefulness` on the list row | per user | **owner to decide** what it means; it may be a catalogue fact |
 | `remark` on entities, credits, relations, watch orders, options | catalogue columns | catalogue — editorial annotations |
 
 **If data moves to a user**, today's values move to the installation owner's
