@@ -18,19 +18,20 @@ from the company development database.
 - **`admin`** — managing only; keeps no media data of its own. There is one
   admin account, the owner's, and it stays admin: it cannot change its own
   role. It creates **only** `user`-family accounts (`user`, `super`), never
-  `admin` or guest accounts. It edits each account's access mode, detail
-  access settings and password.
+  `admin`, `guest` or `shared` accounts. It edits each account's access
+  mode, detail access settings and password.
 - **`user`** family — `super` and the ordinary `user`. Each account has a
   username, a password and its own media data.
-- **guest** — read-only. Three kinds:
-  - the **logged-out visitor**;
-  - **two logged-in guest accounts**, one in `normal` and one in
-    `borderline`. They have a username and password; admin can change their
-    password but cannot delete them.
+- **`guest`** — the **logged-out visitor**, and nothing else. Read-only.
+- **`shared`** — **two shared accounts**, one in `normal` and one in
+  `borderline`: a single login each, used by several people. They have a
+  username and password; admin can change their password but cannot delete
+  them. "Guest" means only the logged-out visitor; a shared account is
+  logged in.
 - Each role has some settings the admin can change and some that are fixed.
   **To discuss:** which are which.
 - **To discuss:** what belongs to each user (personal notes, reviews, …) and
-  what is shared with everyone; what guests can read.
+  what everyone sees; what guests and shared accounts can read.
 - **Admin and guests get different pages and layout.** Partly built for the
   logged-out visitor. **To discuss:** the details.
 
@@ -57,8 +58,8 @@ from the company development database.
 
 ### Account features
 
-- Logged-in guests and users get features such as requesting a new media
-  entry and reporting a data error or bug.
+- Shared accounts and users get features such as requesting a new media
+  entry and reporting a data error or bug. The logged-out guest does not.
 
 ## Settled
 
@@ -131,8 +132,24 @@ from the company development database.
   (`gUesT` counts). It is a substring test, not a similarity test: `admin1`
   and `qadminqe` are refused, `adamin` and `adm1in` are allowed. Only those
   two words are reserved.
-- **The approval form defaults to the `user` role.** Which roles it offers is
-  difference 3 below.
+- **The approval form defaults to the `user` role, with ceiling `normal` and
+  default mode `normal`**; so does an account created on `/users`. This
+  replaces the earlier rule that every new account starts in `safe`: a user
+  can switch up to their ceiling at once, so starting lower protects
+  nothing. Which roles the form offers is difference 3 below.
+
+### Shared accounts
+
+- **The two shared accounts have their own role, `shared`**, fixed and
+  seeded by the system — not the logged-out `guest` role, so what visitors
+  can read and what shared accounts can read are tuned separately.
+- **Only the admin changes a shared account's password.** The account
+  settings page offers no password change: one person changing it would
+  lock out everyone else using the login.
+- **Shared accounts can file requests and reports**; the shared account is
+  the author. Logged-out guests cannot.
+- `shared` is **not** a reserved username word: shared accounts are seeded,
+  never registered, so only `admin` and `guest` stay reserved.
 
 ### Roles and modes
 
@@ -164,8 +181,9 @@ from the company development database.
    `user`/`super`.
 4. **Admin cannot change its own role.** Today only the last-admin guard
    stops it; make it an explicit 409.
-5. **The two guest accounts cannot be deleted.** New. Recommended: their role
-   cannot be changed either.
+5. **The two shared accounts and the `shared` role are new.** Today the
+   logged-in guest accounts do not exist as such. The accounts cannot be
+   deleted; recommended: their role cannot be changed either.
 6. **Requests and reports** do not exist. Recommended: one table (type,
    optional target entry, body, status, author) and an admin inbox on
    `/system` beside pending registrations.
@@ -184,20 +202,12 @@ from the company development database.
 
 ## Open questions
 
-1. **Approval default mode** — the structure says "normal user with normal
-   mode"; the earlier decision was that every new account (approved or
-   created on `/users`) starts in `safe`. Which?
-2. **Logged-in guests: own role or `guest`?** On the `guest` role, any change
-   to what they read changes it for logged-out visitors too. Decide with
-   "what guests can read".
-3. **Can the guest accounts change their own password?** Recommended no — a
-   shared account changing it locks everyone else out.
-4. **Can the guest accounts file requests and reports?** Authorship would be
-   the shared account.
-5. **Is a guest account's mode editable** by the admin?
-6. **Label deletion vs labels in code** — see difference 7.
-7. **Do the gated-type labels imply `nsfw`?**
-8. **Does "group" mean collection, franchise and series**, or franchise only?
-9. Still to discuss in full: fixed vs adjustable settings per role and per
-   mode; per-account detail settings; what is per-user and what is shared;
-   what guests can read; admin and guest layouts; optimising the labels.
+1. **Is a shared account's mode editable** by the admin? Each is named for
+   its mode (`normal`, `borderline`).
+2. **Label deletion vs labels in code** — see difference 7.
+3. **Do the gated-type labels imply `nsfw`?**
+4. **Does "group" mean collection, franchise and series**, or franchise only?
+5. Still to discuss in full: fixed vs adjustable settings per role and per
+   mode; per-account detail settings; what belongs to each user and what
+   everyone sees; what guests and shared accounts can read; admin and guest
+   layouts; optimising the labels.
