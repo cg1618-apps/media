@@ -503,6 +503,17 @@ Super without the catalogue work.
   announcements, the label reference, accounts, roles, modes, or anyone
   else's personal data.
 
+### Entity pages, shown per kind
+
+- **Each kind of non-media, non-group library and detail page is shown or
+  hidden on its own**, not as one block. Today `view.entities` opens or
+  closes studios, publishers, people, seiyuu, characters and identities
+  together; it splits into one setting per kind. Where a kind is hidden,
+  its names render as plain text, as entity names do for a guest today.
+- **To settle:** the exact kinds, which roles the settings apply to, and
+  whether the extras (search, random picker, future releases, completions)
+  split the same way.
+
 ### Requests and reports
 
 - **Who files:** shared accounts, users and super. Not guests, not the
