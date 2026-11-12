@@ -309,10 +309,10 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
 | --- | --- | --- |
 | Ratings on collections, franchises, series, characters, people, studios, publishers | `my_rating` column on the shared row — one value, the owner's | **user — settled** |
 | Expectations on collections, franchises, series | `*_expectation` column on the shared row | **user — settled** |
-| Novel unit remark | `remark` on the shared unit row, withheld from guests as opinion | user, beside the unit rating — waits on the owner's notes review |
+| Novel unit remark | `remark` on the shared unit row, withheld from guests as opinion | user, beside the unit rating — still open — not a note section, so the notes review did not cover it |
 | Highlights: `highlights`, `highlight_episodes`, `highlight_moments`, `highlight_passages`, `h_comic_highlights`, `h_game_highlights` | catalogue sections; `highlights` and `highlight_episodes` are withheld from guests as opinion, the other four are not | **user — settled.** All six become personal sections |
-| Quote and meme `is_favorite` | flag on the shared row | user — waits on the owner's notes review |
-| `remark` on entities, credits, relations, watch orders, options | catalogue columns | catalogue — editorial annotations; waits on the owner's notes review |
+| Quote and meme `is_favorite` | flag on the shared row | user — still open — not a note section, so the notes review did not cover it |
+| `remark` on entities, credits, relations, watch orders, options | catalogue columns | catalogue — editorial annotations; still open — not a note section, so the notes review did not cover it |
 
 ### Notes, settled with the owner's review
 
@@ -442,6 +442,9 @@ work, it belongs to the catalogue.
    top-level row carries a group, and the rows under it inherit it.
 2. **Does the site-wide Resources page (`/resources`) take personal rows**,
    like the Resources section on an entry? Assumed not.
-3. Still to discuss in full: fixed vs adjustable settings per role and per
+3. **The last three catalogue/user rows**: the novel unit remark, quote and
+   meme favourites, and the catalogue remarks — see "Catalogue and user
+   data".
+4. Still to discuss in full: fixed vs adjustable settings per role and per
    mode; per-account detail settings; what guests and shared accounts can
    read; admin and guest layouts; optimising the labels.
