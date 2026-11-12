@@ -456,6 +456,28 @@ discussed per viewer once visibility is settled.
   "preview as an account or mode" feature is the remedy if that is ever
   not enough, and is not built until then.
 
+### Super
+
+The catalogue account — in practice the owner's, `cg1618`.
+
+- **Reads the whole catalogue** — libraries, entries, groups, entities,
+  search, the random picker, future releases, completions — up to its mode
+  ceiling.
+- **Quotes, memes and `/resources`** only through a per-account switch.
+- **Writes the catalogue**: entries, groups, people, credits, relations,
+  watch orders, catalogue notes, images, options, announcements, and
+  attaching labels. In mixed sections it writes catalogue rows only.
+- **The Note pages, `/images`, and every pipeline**, as today — its Pull
+  still skips the account tabs, so keeping Backup and Pull here costs no
+  safety and saves switching logins.
+- **The read-only label reference**, since super is the one attaching
+  labels.
+- **The request and report inbox.**
+- **Its own personal data** — list, plan, seasonal, statistics, ratings,
+  expectations, highlights, personal notes, progress on catalogue rows —
+  and granted features through per-account switches.
+- **Not:** accounts, roles, access modes, or anyone else's personal data.
+
 ### Requests and reports
 
 - **Who files:** shared accounts, users and super. Not guests, not the
