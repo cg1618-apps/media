@@ -256,9 +256,8 @@ from the company development database.
    logged-in guest accounts do not exist as such. The accounts cannot be
    deleted, and their mode is fixed; recommended: their role cannot be
    changed either.
-6. **Requests and reports** do not exist. Recommended: one table (type,
-   optional target entry, body, status, author) and an admin inbox on
-   `/system` beside pending registrations.
+6. **Requests and reports** do not exist — see "Requests and reports"
+   above.
 7. **Labels move into code.** Today they are admin-created rows on
    `/content-labels`, editable and deletable in the app. That page's create,
    edit and delete go; removing a label becomes a code change and a
@@ -472,7 +471,17 @@ discussed per viewer once visibility is settled.
   their own requests and nobody else's; a shared account's requests are
   seen by everyone using that login.
 - **After sending, the filer can edit the content — description and
-  remark — but cannot delete the request.**
+  remark — while the request is open, but cannot delete it.** Editing locks
+  once it is done or declined, so a status never applies to text the
+  handler did not see.
+- **Nothing is removed automatically.** The inbox opens on open requests;
+  a filter shows done and declined ones, which stay stored — the filer
+  keeps the answer, and a declined request with its remark is the record
+  of why. Space is no reason: a request is a few lines of text.
+- **Admin and super can delete a request by hand**, with a confirmation —
+  for spam, abuse, or something nobody should see; the filer then no longer
+  sees it either. A duplicate is declined with a remark naming the original
+  instead, so the filer gets an answer.
 - **Requesting something the filer's mode hides is allowed.**
 - **Limits are set per account** by the admin.
 
