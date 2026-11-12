@@ -366,13 +366,17 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
   data, and the feature exists for the other users, whose catalogue is far
   from complete. A `super` that needs personal rows of its own is dealt with
   if it ever happens.
-- **Proposed, not yet confirmed:** a user's rows sit after the catalogue
-  rows within each group, reorderable among themselves, since sharing the
-  catalogue order would mean a per-user copy of it; a personal row is never
-  promoted — a request asks for it to be added to the catalogue. Proposed
-  sections: 武器&裝備, 道具, 收集物, 敵人, 角色, 地理, 配裝&流派 and 隊伍組成.
-  That last pair places Builds & Styles and Team Composition: a guide's
-  builds are catalogue rows, a user's own are personal rows.
+- **A user's rows sit after the catalogue rows within each group**,
+  reorderable among themselves; sharing the catalogue order would mean a
+  per-user copy of it.
+- **A personal row is never promoted.** A request asks for it to be added
+  to the catalogue.
+- **The mixed sections:** 武器&裝備 Weapons & Gear, 道具 Items, 收集物
+  Collectibles, 敵人 Enemies, 角色 Characters, 地理 Geography, 配裝&流派
+  Builds & Styles, 隊伍組成 Team Composition, 攻略資源 Guide Resources, and
+  Resources — which is on every type and group, not only games. Builds &
+  Styles and Team Composition are placed by this: a guide's builds are
+  catalogue rows, a user's own are personal rows.
 
 ### Game notes rework
 
