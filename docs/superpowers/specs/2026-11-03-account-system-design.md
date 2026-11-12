@@ -247,6 +247,55 @@ from the company development database.
 9. **Labels attach to franchises only, among groups.** Collections and
    series are new.
 
+## Catalogue and user data
+
+**Under discussion.** The catalogue is one copy everyone shares; user data is
+one copy per account. What each role can *see* of either is decided after
+this split, not with it.
+
+### Already per user — stays per user
+
+| Data | Table |
+| --- | --- |
+| List row: status, rating, completed date, watch day, progress, `usefulness` | `user_media_list` |
+| Plan queue (watch-next / read-next / rewatch, with a remark) | `plan_next` |
+| Season ratings | `seasonal` |
+| Novel unit ratings | `user_novel_unit_rating` |
+| Game copies: storefront, ownership, format, acquisition, price paid, date, remark | `game_copy` |
+| Game-choice marks: done and a note | `game_choice_mark` |
+| Watch-order follows | `watch_order_follow` |
+| 14 personal note sections: remark, remark list, reviews and comments, advantages, disadvantages, double-edged, personal reviews, episode comments, four todo lists, saves, questions | `note`, scope `personal` |
+| `list_is_public` | `users` |
+
+### Already catalogue — stays catalogue
+
+Entries and their facts, the collection / franchise / series hierarchy,
+people, studios, publishers, characters, credits, tags, options, relations,
+watch orders, game choice graphs, the Resources page, quotes and memes,
+images, content labels, and the 46 catalogue note sections other than the
+highlights below (plot, lore, guides, characters guide, music, endings, mods
+and so on).
+
+### Stored as catalogue but opinion-shaped — to decide
+
+| Data | Today | Suggested |
+| --- | --- | --- |
+| Ratings on collections, franchises, series, characters, people, studios, publishers | `my_rating` column on the shared row — one value, the owner's | user |
+| Expectations on collections, franchises, series | `*_expectation` column on the shared row | user, with the ratings |
+| Novel unit remark | `remark` on the shared unit row, withheld from guests as opinion | user, beside the unit rating |
+| Highlights: `highlights`, `highlight_episodes`, `highlight_moments`, `highlight_passages`, `h_comic_highlights`, `h_game_highlights` | catalogue sections, withheld from guests as opinion | **owner to decide**: "scenes worth knowing" is catalogue, "scenes I loved" is user |
+| Quote and meme `is_favorite` | flag on the shared row | user |
+| `usefulness` on the list row | per user | **owner to decide** what it means; it may be a catalogue fact |
+| `remark` on entities, credits, relations, watch orders, options | catalogue columns | catalogue — editorial annotations |
+
+**If data moves to a user**, today's values move to the installation owner's
+account in the migration, and Backup and Pull carry them per user from then
+on, as they do the list.
+
+**The proposed rule for anything added later:** if two people could disagree
+about it and both be right, it belongs to a user; if it is a fact about the
+work, it belongs to the catalogue.
+
 ## Open questions
 
 1. Still to discuss in full: fixed vs adjustable settings per role and per
