@@ -274,9 +274,9 @@ this split, not with it.
 Entries and their facts, the collection / franchise / series hierarchy,
 people, studios, publishers, characters, credits, tags, options, relations,
 watch orders, game choice graphs, the Resources page, quotes and memes,
-images, content labels, and the 46 catalogue note sections other than the
-highlights below (plot, lore, guides, characters guide, music, endings, mods
-and so on).
+images, content labels, and the 53 catalogue note sections other than the
+six highlights below (plot, lore, guides, characters guide, music, endings,
+mods and so on). `docs/account.md` lists every section and its scope.
 
 ### Stored as catalogue but opinion-shaped — to decide
 
@@ -285,7 +285,7 @@ and so on).
 | Ratings on collections, franchises, series, characters, people, studios, publishers | `my_rating` column on the shared row — one value, the owner's | user |
 | Expectations on collections, franchises, series | `*_expectation` column on the shared row | user, with the ratings |
 | Novel unit remark | `remark` on the shared unit row, withheld from guests as opinion | user, beside the unit rating |
-| Highlights: `highlights`, `highlight_episodes`, `highlight_moments`, `highlight_passages`, `h_comic_highlights`, `h_game_highlights` | catalogue sections, withheld from guests as opinion | **owner to decide**: "scenes worth knowing" is catalogue, "scenes I loved" is user |
+| Highlights: `highlights`, `highlight_episodes`, `highlight_moments`, `highlight_passages`, `h_comic_highlights`, `h_game_highlights` | catalogue sections; `highlights` and `highlight_episodes` are withheld from guests as opinion, the other four are not | **owner to decide**: "scenes worth knowing" is catalogue, "scenes I loved" is user |
 | Quote and meme `is_favorite` | flag on the shared row | user |
 | `usefulness` on the list row | per user | **owner to decide** what it means; it may be a catalogue fact |
 | `remark` on entities, credits, relations, watch orders, options | catalogue columns | catalogue — editorial annotations |
