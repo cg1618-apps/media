@@ -311,6 +311,24 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
 | Quote and meme `is_favorite` | flag on the shared row | user — waits on the owner's notes review |
 | `remark` on entities, credits, relations, watch orders, options | catalogue columns | catalogue — editorial annotations; waits on the owner's notes review |
 
+### Notes, settled with the owner's review
+
+- **Of the note sections, only the six highlights change scope**, to
+  personal. Every other section keeps the scope `docs/catalogue.md` lists.
+- **The restricted types drop 評論 Reviews and Comments.** H-Comic, Hentai
+  and H-Game get 大眾評價 Public Reviews (catalogue) and 我的評價 Personal
+  Reviews (personal) instead, as every other type has. A migration moves
+  the existing `reviews_and_comments` rows into `public_reviews` — from a
+  personal section into the catalogue, so their author stays as provenance
+  but they become everyone's.
+- **To discuss next — sections that are part catalogue, part personal.**
+  The game notes are to be reworked and optimised, and some may split: an
+  item's *collected* status personal, the item itself catalogue. The same
+  question applies to Anime's music sections (OP, ED, 插入曲 Insert Song,
+  OST, and the hidden 音樂狀態 Music Status) and to OP/ED 變動 on Anime,
+  TV Show and Cartoon. Today a section has exactly one scope, so a split
+  section is a new shape.
+
 **Ratings, settled: every personal rating is personal, and only external
 scores are catalogue.** Every `my_rating` — on the list row, a season, a
 novel unit, the three group tiers, characters, people, studios and

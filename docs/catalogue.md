@@ -156,6 +156,11 @@ that type, or a group (collection, franchise, series).
 | 名言 Quotes | every type but H-Comic, Hentai, H-Game | shared |
 | 梗/迷因 Memes | every type but H-Comic, Hentai, H-Game; every group | shared |
 
+*Changing:* H-Comic, Hentai and H-Game will drop 評論 Reviews and Comments
+and get 大眾評價 Public Reviews and 我的評價 Personal Reviews, like every
+other type. What is written in Reviews and Comments today moves to Public
+Reviews.
+
 The six highlight rows (神回/神片段, 神片段, 神場景, 亮點) are shared today and
 will become **yours**.
 
