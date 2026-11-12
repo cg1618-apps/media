@@ -399,7 +399,7 @@ someone else published: `mal_rating` and `mal_rank`, `anilist_rating`,
 **Quotes, memes and the site-wide Resources page stay catalogue**, but who
 sees them is narrower than the rest of the catalogue: quotes and memes are
 to be hidden from every account but the owner's, controllable per account,
-and `/resources` is likely the owner's alone. Both belong to "who can see
+and `/resources` is admin's and super's alone. Both belong to "who can see
 what", below.
 
 **The split is complete**: every item above is settled.
@@ -535,7 +535,7 @@ Super without the catalogue work.
 ## Open questions
 
 1. **Who can see what** — next. Includes quotes and memes per account, the
-   `/resources` page, what guests and shared accounts read, fixed vs
+   what guests and shared accounts read, fixed vs
    adjustable settings per role and per mode, and per-account detail
    settings.
 2. Still to discuss: admin and guest layouts; optimising the labels.
