@@ -7,11 +7,13 @@ authentication together. Implementation starts from this document once it has
 no open questions; it is then turned into a plan, and both are deleted when
 the work lands (see the platform `CLAUDE.md`, "Finishing a plan").
 
-The user-facing side — signing in, registering, resetting and changing a
-password, in plain language — is drafted in
-`2026-11-12-account-guide-draft.md` beside this file. It ships as
-`docs/account.md`, its own page, not part of `docs/authorization.md`; the
-technical side of the same flows goes in `docs/authentication.md`.
+The user-facing side — kinds of account, what is yours and what is shared,
+signing in, registering, resetting and changing a password, in plain
+language — is `docs/account.md`, its own page, not part of
+`docs/authorization.md`. It marks what is not built yet; each "not available
+yet" goes in the change that builds it, and a decision here that changes what
+a user sees changes that page too. The technical side of the same flows goes
+in `docs/authentication.md`.
 
 Current behaviour is in `docs/authorization.md` and `docs/authentication.md`;
 where this document says "today", it was read from those, from the code, and

@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-10-05
+Last verified: 2026-11-12
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -45,6 +45,7 @@ right and the doc needs the fix.
 
 | File | Scope |
 |---|---|
+| [account.md](account.md) | for the people who use the site: kinds of account, what is yours and what is shared, signing in, getting an account, recovering one, changing a password. No technical detail |
 | [authentication.md](authentication.md) | login, JWT cookie, admin seeding, the frontend auth context |
 | [authorization.md](authorization.md) | RBAC: roles, permissions, content labels, visibility enforcement, field gating, what a guest sees. Ends with a **Known drift** section naming the three half-finished pieces the authorization redesign has to settle |
 
