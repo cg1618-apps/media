@@ -331,7 +331,7 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
   | 敵人 Enemies | `beaten` |
   | 結局 Endings | `completion` |
   | 屬性&配點 Stats & Points | `my_value` |
-  | OP, ED, 插入曲 Insert Song | `status` — **granted feature** |
+  | OP, ED, 插入曲 Insert Song, OST | `status` — **granted feature** |
   | 音樂狀態 Music Status (hidden) | `status` — **granted feature** |
   | 模組&工具 Mods & Tools | `status` — **granted feature** |
 
@@ -339,17 +339,47 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
 - **A granted feature is personal and off by default.** Today only the
   owner uses those statuses, but there is no "me" in the system to tie them
   to, so the feature is granted to an account; an account without it does
-  not see the field at all. The music statuses keep their vocabulary as one
+  not see the field at all. **It is a per-account feature switch** the
+  admin sets on `/users`, the same per-account shape as the access-mode
+  denials — not a role. The music statuses keep their vocabulary as one
   personal field — nothing in it moves to the catalogue.
 - **Proposed mechanism**, not yet confirmed: the registry marks a field
   personal; its value lives in a per-user mark on the catalogue row, the
   way `game_choice_mark` holds a user's done flag and note on a choice
   graph; a user with no mark sees the field's empty value; the migration
   moves today's values to the installation owner's marks.
-- **To discuss next:** the owner's changes to the game notes, and whether
-  any of them adds or removes personal parts. 配裝&流派 Builds & Styles and
-  隊伍組成 Team Composition — a guide's builds or the user's own — are
-  part of that.
+- **Still to place:** 配裝&流派 Builds & Styles and 隊伍組成 Team
+  Composition — a guide's builds or the user's own.
+
+### Game notes rework
+
+The owner's changes, applying to `game` and `h-game` alike unless stated.
+
+- **Common options for free-text groups.** A group stays free text, but
+  the editor suggests a list of common values, and that list is editable
+  later — the way Song Type is suggested from a system option category
+  today. Settled values so far:
+  - 角色 Characters `group`: 商人, 重要NPC;
+  - 收集物 Collectibles `type`: 重要物品;
+  - 道具 Items `type`: 重要道具;
+  - the new geography section's `group` (below).
+- **Optional grouping for the other resources** section.
+- **Collected status options** become: not collected, collected, enough
+  collected, fully collected, skip, inapplicable (`collected` is new).
+- **Optional amounts** on the collected sections: an amount total
+  (catalogue — a fact about the game) and an amount collected (personal,
+  beside `collected`).
+- **NG Reset** on every row of the 物品 sections (武器&裝備 Weapons & Gear,
+  道具 Items, 收集物 Collectibles): yes / no, default yes, catalogue. It
+  drives a **reset button** that clears the user's own collected status
+  (and amount collected) on every row marked yes, for starting a new game.
+  敵人 Enemies has no NG Reset field: every enemy resets, so its button
+  clears every `beaten`.
+- **下周目目標**, a new subsection in NG 多周目: a list of text with one or
+  more links. **Personal.**
+- **A new geography section** for `game` and `h-game`: group, name,
+  description, link; the group has common options. It may nest: C under B
+  under A, where A and B can be rows themselves, not only groups.
 
 **Ratings, settled: every personal rating is personal, and only external
 scores are catalogue.** Every `my_rating` — on the list row, a season, a
@@ -372,12 +402,10 @@ work, it belongs to the catalogue.
 1. **Can the admin read a user's data?** Today `admin.authz` opens any
    profile whatever its setting. With profiles gone, the admin would see a
    user's list only through the database.
-2. **How a feature is granted to one account.** Permissions belong to
-   roles today; a per-account grant is new. Either a role made for it, or
-   a per-account feature grant the admin sets on `/users`.
-3. **Does OST's status split like OP, ED and Insert Song?** It has the same
-   `status` field and was not named.
-4. Still to discuss in full: fixed vs adjustable settings per role and per
+2. **Game notes rework details** — see the discussion: the common-option
+   lists, which "other resources" section, the geography section's name
+   and how nesting meets groups.
+3. Still to discuss in full: fixed vs adjustable settings per role and per
    mode; per-account detail settings; what belongs to each user and what
    everyone sees; what guests and shared accounts can read; admin and guest
    layouts; optimising the labels.
