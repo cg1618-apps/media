@@ -178,16 +178,16 @@ from the company development database.
   | key | display name | lowest mode | description | Label tag copied |
   | --- | --- | --- | --- | --- |
   | `nsfw` | NSFW | `normal` | 不適合公開場合觀看 | NSFW |
-  | `ecchi` | 輕微色情 | `normal` | *(to write)* | 輕微色情 (new) |
-  | `erotica` | 擦邊肉番 | `borderline` | *(to write)* | 肉番, renamed 擦邊肉番 (confirmed) |
+  | `ecchi` | 輕微色情 | `normal` | 含性感或福利畫面，但公共場合還是能看，也能大家一起看 | 輕微色情 (new) |
+  | `erotica` | 擦邊肉番 | `borderline` | 以性暗示或擦邊情節為主，接近但未達成人作品，建議自己私底下看 | 肉番, renamed 擦邊肉番 (confirmed) |
   | `hentai` | Hentai | `unrestricted` | 成人動畫 | — |
   | `h-game` | H-Game | `unrestricted` | 成人遊戲 | — |
   | `h-comic` | H-Comic | `unrestricted` | 成人漫畫 | — |
 
   **Display names are usually Chinese.** `nsfw` stays NSFW. The gated
   types keep their type names; they carry no Label tag. The descriptions
-  are drafts for the owner to correct, and `ecchi`'s and `erotica`'s are
-  still to write, since their old drafts became their names.
+  are the owner's for `ecchi` and `erotica`, and drafts for the owner to
+  correct for the rest.
 - **A content label and its 標籤 Label tag are kept in step, both ways.**
   Attaching `nsfw`, `ecchi` or `erotica` to an entry adds the matching tag
   in the same write, and adding the tag attaches the label; detaching
@@ -516,5 +516,3 @@ Decisions about who sees what are written there, not here.
 1. **Customised pages and layouts**, recorded in `docs/viewers.md` as they
    are decided: the Dashboard, Seasonal and Statistics without personal
    data, the shared Random Picker, and the admin's and guests' layouts.
-2. **The descriptions of `ecchi` and `erotica`**, whose old drafts became
-   their names.
