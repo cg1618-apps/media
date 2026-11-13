@@ -147,3 +147,86 @@ class FranchiseContentLabel(Base):
     )
     position = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, default=get_taipei_now)
+
+
+class CollectionContentLabel(Base):
+    """
+    One content label attached to one collection.
+
+    The same shape as FranchiseContentLabel, one tier up, and a table of its
+    own for the same reason: a nullable owner column per tier would let a row
+    name two owners or none.
+
+    The label CASCADES DOWN through the whole tree, at read time: a collection
+    carrying a label the viewer's mode lacks hides the collection, every
+    franchise whose collection_id points at it, those franchises' series, and
+    every entry under them. See app/services/rbac/enforcement.py.
+    """
+
+    __tablename__ = "collection_content_label"
+    __table_args__ = (
+        UniqueConstraint(
+            "collection_id", "label_id", name="uq_collection_content_label_row"
+        ),
+        Index("ix_collection_content_label_collection", "collection_id"),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+        index=True,
+    )
+    collection_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("collection.system_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    label_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("content_label.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime, default=get_taipei_now)
+
+
+class SeriesContentLabel(Base):
+    """
+    One content label attached to one series.
+
+    The label cascades to the series' entries, read-time through
+    media.series_id. A series is also hidden by its franchise's labels and its
+    franchise's collection's, but those are not stored here either.
+    """
+
+    __tablename__ = "series_content_label"
+    __table_args__ = (
+        UniqueConstraint(
+            "series_id", "label_id", name="uq_series_content_label_row"
+        ),
+        Index("ix_series_content_label_series", "series_id"),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+        index=True,
+    )
+    series_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("series.system_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    label_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("content_label.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime, default=get_taipei_now)

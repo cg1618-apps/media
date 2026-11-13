@@ -29,7 +29,7 @@ def _hentai(admin_client, db_session):
         "/api/hentai/", json={"hentai_name_cn": "Zvornik Company Hentai"}
     ).json()
     entry_id = uuid.UUID(body["system_id"])
-    assert label_keys_for_entry(db_session, entry_id) == ["hentai"]
+    assert label_keys_for_entry(db_session, entry_id) == ["hentai", "nsfw"]
     return entry_id
 
 
@@ -38,7 +38,7 @@ def _h_comic(admin_client, db_session):
         "/api/h-comic/", json={"h_comic_name_cn": "Zvornik Company H-Comic", "region": "KR"}
     ).json()
     entry_id = uuid.UUID(body["system_id"])
-    assert label_keys_for_entry(db_session, entry_id) == ["h-comic"]
+    assert label_keys_for_entry(db_session, entry_id) == ["h-comic", "nsfw"]
     return entry_id
 
 

@@ -17,7 +17,12 @@ from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import attach_remark, pop_remark, upsert_remark
+from app.services.domain.content_labels import attach_group_content_labels
 from app.services.domain.user_rating import attach_ratings
+from app.services.rbac.enforcement import (
+    apply_collection_visibility,
+    collection_visible,
+)
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -47,7 +52,9 @@ def get_all_collections(
     If 'search_query' is provided, it searches across EN, CN, roman, JP, and Alt names.
     Used by the frontend to populate the Collection library and form dropdowns.
     """
-    query = db.query(models.Collection)
+    # Before any other filter: a collection carrying a label this session's
+    # mode lacks is absent from a list, a search and an autocomplete alike.
+    query = apply_collection_visibility(db.query(models.Collection), db, viewer)
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -67,6 +74,7 @@ def get_all_collections(
         .offset(offset)
         .all()
     )
+    attach_group_content_labels(db, "collection", rows)
     attach_ratings(db, "collection", rows, viewer.user_id)
     return rows
 
@@ -83,9 +91,14 @@ def get_collection_by_id(
 ):
     """Retrieves a single collection by its public_id or its UUID."""
     db_collection = find_entity(db, models.Collection, system_id)
-    if not db_collection:
+    # Same message either way: a hidden collection must be indistinguishable
+    # from one that was never there.
+    if not db_collection or not collection_visible(
+        db, viewer, db_collection.system_id
+    ):
         raise HTTPException(status_code=404, detail="Collection not found.")
     attach_remark(db, "collection", db_collection, viewer.user_id)
+    attach_group_content_labels(db, "collection", db_collection)
     attach_ratings(db, "collection", db_collection, viewer.user_id)
     return db_collection
 
@@ -158,7 +171,11 @@ def update_collection(
         .filter(models.Collection.system_id == system_id)
         .first()
     )
-    if not db_collection:
+    # A write is gated like a read: `manage.catalog` says nothing about which
+    # objects this session reaches.
+    if not db_collection or not collection_visible(
+        db, viewer, db_collection.system_id
+    ):
         raise HTTPException(status_code=404, detail="Collection not found.")
 
     update_data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
@@ -174,6 +191,7 @@ def update_collection(
     db.refresh(db_collection)
 
     attach_remark(db, "collection", db_collection, viewer.user_id)
+    attach_group_content_labels(db, "collection", db_collection)
 
     attach_ratings(db, "collection", db_collection, viewer.user_id)
 
@@ -198,7 +216,9 @@ def patch_collection(
         .filter(models.Collection.system_id == system_id)
         .first()
     )
-    if not db_collection:
+    if not db_collection or not collection_visible(
+        db, viewer, db_collection.system_id
+    ):
         raise HTTPException(status_code=404, detail="Collection not found.")
 
     payload, remark, has_remark = pop_remark(payload)
@@ -213,6 +233,7 @@ def patch_collection(
     db.refresh(db_collection)
 
     attach_remark(db, "collection", db_collection, viewer.user_id)
+    attach_group_content_labels(db, "collection", db_collection)
 
     attach_ratings(db, "collection", db_collection, viewer.user_id)
 
@@ -235,7 +256,9 @@ def delete_collection(
         .filter(models.Collection.system_id == system_id)
         .first()
     )
-    if not db_collection:
+    if not db_collection or not collection_visible(
+        db, admin, db_collection.system_id
+    ):
         raise HTTPException(status_code=404, detail="Collection not found")
 
     # Stage the deleted record log before actually deleting

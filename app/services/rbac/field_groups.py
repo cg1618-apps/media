@@ -2,13 +2,14 @@
 The vocabulary of gateable field groups.
 
 Deliberately shaped like app/utils/credit_roles.py and note_sections.py: a
-frozen dataclass per entry, a dict keyed by the value stored in
-access_mode_field_group.field_group_key, and a tuple of keys for validation.
+frozen dataclass per entry, a dict keyed by the group key, and a tuple of keys
+for validation.
 
 A group is the unit withheld as one, and it is named for what a reader would
 recognise ("Restricted Sources"), not for the storage behind it. Which groups
-exist is code; which modes carry them is data (access_mode_field_group), and
-an account may be denied one below its mode.
+exist, and the lowest mode that shows each, are code
+(seed_modes.FIELD_GROUP_LOWEST_MODE); an account may be denied one below its
+mode.
 
 There is ONE group: `sources_restricted`. Everything per user is private to
 its account, so a group deciding whether a mode may read another user's
@@ -47,7 +48,7 @@ ALL = "*"
 class FieldGroup:
     """One set of fields a mode carries or withholds as a unit."""
 
-    # Value stored in access_mode_field_group.field_group_key.
+    # Also what user_access_mode_denial.field_group_key stores.
     key: str
     # Human label for the access-mode editor.
     label: str

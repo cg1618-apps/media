@@ -75,8 +75,8 @@ def resolve_mode(
     The fallback for a mode above the ceiling is the EMPTY SET, never the
     account's default or the ceiling itself. A session sitting in a mode the
     account can no longer use has no claim to anything, and the empty set is
-    the only fallback that cannot widen. A mode outside MODE_ORDER (one an
-    admin created by hand) has no rank and is never within a ceiling.
+    the only fallback that cannot widen. A key outside MODE_ORDER has no rank
+    and is never within a ceiling.
 
     A signed-in caller with no usable claim does NOT fall through to the guest
     default either. That mode is the anonymous policy, not this account's, and
@@ -237,7 +237,12 @@ def check_mode_pair(ceiling_key: Optional[str], default_key: Optional[str]) -> N
     """
     if (ceiling_key is None) != (default_key is None):
         raise ValueError("A ceiling and a default are set together or not at all.")
-    if ceiling_key is not None and mode_rank(default_key) > mode_rank(ceiling_key):
+    if ceiling_key is None:
+        return
+    for key in (ceiling_key, default_key):
+        if mode_rank(key) is None:
+            raise ValueError(f"Unknown access mode {key!r}.")
+    if mode_rank(default_key) > mode_rank(ceiling_key):
         raise ValueError(
             f"The default mode {default_key!r} is above the ceiling {ceiling_key!r}."
         )

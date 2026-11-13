@@ -25,7 +25,6 @@ from app.services.domain.content_labels import (
     label_keys_for_franchise,
 )
 from app.services.rbac import cache as rbac_cache
-from app.services.rbac.seed_modes import ensure_access_mode_seed
 from app.services.security import get_password_hash
 from tests.api.conftest import role_id_for
 
@@ -287,8 +286,8 @@ def test_complete_fills_the_region_counter(admin_client, db_session, admin_user)
 
 def test_create_stamps_the_label(admin_client, db_session):
     body = _create(admin_client)
-    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL]
-    assert [label["key"] for label in body["content_labels"]] == [LABEL]
+    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL, "nsfw"]
+    assert [label["key"] for label in body["content_labels"]] == [LABEL, "nsfw"]
 
 
 def test_update_and_patch_restore_a_label_removed_behind_the_api(
@@ -302,7 +301,7 @@ def test_update_and_patch_restore_a_label_removed_behind_the_api(
         assert label_keys_for_entry(db_session, entry_id) == []
         response = getattr(admin_client, method)(f"{ROUTE}/{entry_id}", json=payload)
         assert response.status_code == 200, response.text
-        assert label_keys_for_entry(db_session, entry_id) == [LABEL], method
+        assert label_keys_for_entry(db_session, entry_id) == [LABEL, "nsfw"], method
 
 
 def test_the_label_endpoint_refuses_to_remove_it(admin_client, db_session):
@@ -312,7 +311,7 @@ def test_the_label_endpoint_refuses_to_remove_it(admin_client, db_session):
         json={"label_keys": []},
     )
     assert response.status_code == 422
-    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL]
+    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL, "nsfw"]
 
 
 def test_the_label_endpoint_accepts_a_set_that_keeps_it(
@@ -331,9 +330,11 @@ def test_the_label_endpoint_accepts_a_set_that_keeps_it(
 
 
 def test_the_required_label_cannot_be_deleted(admin_client, db_session):
+    """Labels are code: there is no route that deletes one, so the label an
+    entry of this type requires survives an admin's attempt."""
     label = db_session.query(models.ContentLabel).filter_by(key=LABEL).one()
     response = admin_client.delete(f"/api/content-labels/{label.system_id}")
-    assert response.status_code == 409
+    assert response.status_code in (404, 405)
     assert db_session.query(models.ContentLabel).filter_by(key=LABEL).count() == 1
 
 
@@ -346,7 +347,7 @@ def test_the_required_label_cannot_be_deleted(admin_client, db_session):
 def labelled_h_comic(admin_client, db_session):
     body = _create(admin_client)
     # The set the gate computes over is not empty: the entry carries the label.
-    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL]
+    assert label_keys_for_entry(db_session, uuid.UUID(body["system_id"])) == [LABEL, "nsfw"]
     return body
 
 
@@ -420,15 +421,13 @@ def test_the_unrestricted_mode_gets_the_search_bucket(
 # ---------------------------------------------------------------------------
 
 
-def test_only_unrestricted_carries_the_h_comic_label(db_session):
+def test_only_unrestricted_carries_the_h_comic_label(db_session, access_modes):
     """
-    `borderline` carries "all labels" as of its seed. The seed tops up a mode
-    holding no labels at all - which borderline is, on a database whose
-    labels were minted after the modes - and it must not hand it `h-comic`.
-    Running the seed again here is exactly that boot.
+    A gated type's label is shown in `unrestricted` alone. What each mode
+    shows is derived (cache.mode_sets), so this asks every mode the session
+    would resolve, not a stored grant.
     """
     label = db_session.query(models.ContentLabel).filter_by(key=LABEL).one()
-    ensure_access_mode_seed(db_session)
     rbac_cache.bump()
 
     carrying = {
@@ -438,21 +437,10 @@ def test_only_unrestricted_carries_the_h_comic_label(db_session):
     }
     assert carrying == {"unrestricted"}
 
-    rows = {
-        mode.key
-        for mode, _row in db_session.query(models.AccessMode, models.AccessModeLabel)
-        .join(models.AccessModeLabel, models.AccessModeLabel.mode_id == models.AccessMode.system_id)
-        .filter(models.AccessModeLabel.label_id == label.system_id)
-    }
-    assert rows <= {"unrestricted"}
 
-
-def test_the_seed_still_tops_borderline_up_with_ordinary_labels(db_session, nsfw_label):
+def test_borderline_still_shows_ordinary_labels(db_session, access_modes, nsfw_label):
     """The mirror: the exclusion is for the required label only."""
     borderline = db_session.query(models.AccessMode).filter_by(key="borderline").one()
-    db_session.query(models.AccessModeLabel).filter_by(mode_id=borderline.system_id).delete()
-    db_session.flush()
-    ensure_access_mode_seed(db_session)
     rbac_cache.bump()
     labels = rbac_cache.mode_sets(db_session, borderline.system_id).label_ids
     assert nsfw_label.system_id in labels
@@ -491,7 +479,7 @@ def test_an_auto_created_franchise_is_typed_and_labelled(admin_client, db_sessio
     body = _create(admin_client)
     franchise = db_session.get(models.Franchise, uuid.UUID(body["franchise_id"]))
     assert franchise.franchise_type == "H-Comic"
-    assert label_keys_for_franchise(db_session, franchise.system_id) == [LABEL]
+    assert label_keys_for_franchise(db_session, franchise.system_id) == [LABEL, "nsfw"]
 
 
 def test_an_h_comic_never_attaches_to_a_mainstream_franchise(admin_client, db_session):
@@ -544,7 +532,7 @@ def test_a_mainstream_franchise_named_by_id_is_refused(admin_client, db_session)
 def test_an_h_comic_franchise_hides_from_a_guest(client, admin_client, db_session):
     body = _create(admin_client)
     franchise_id = body["franchise_id"]
-    assert label_keys_for_franchise(db_session, uuid.UUID(franchise_id)) == [LABEL]
+    assert label_keys_for_franchise(db_session, uuid.UUID(franchise_id)) == [LABEL, "nsfw"]
     assert client.get(f"/api/franchise/{franchise_id}").status_code == 404
     assert admin_client.get(f"/api/franchise/{franchise_id}").status_code == 200
 
@@ -562,14 +550,14 @@ def test_a_franchise_gaining_the_type_gains_the_label(admin_client, db_session):
         f"/api/franchise/{franchise_id}", json={"franchise_type": "H-Comic"}
     )
     assert response.status_code == 200
-    assert label_keys_for_franchise(db_session, franchise_id) == [LABEL]
+    assert label_keys_for_franchise(db_session, franchise_id) == [LABEL, "nsfw"]
 
 
 def test_a_franchise_created_with_the_type_carries_the_label(admin_client, db_session):
     created = admin_client.post(
         "/api/franchise/", json={"franchise_name_en": "Zvornik G", "franchise_type": "H-Comic"}
     ).json()
-    assert label_keys_for_franchise(db_session, uuid.UUID(created["system_id"])) == [LABEL]
+    assert label_keys_for_franchise(db_session, uuid.UUID(created["system_id"])) == [LABEL, "nsfw"]
 
 
 def test_the_franchise_label_cannot_be_removed(admin_client, db_session):
@@ -578,7 +566,7 @@ def test_the_franchise_label_cannot_be_removed(admin_client, db_session):
         f"/api/content-labels/franchise/{body['franchise_id']}", json={"label_keys": []}
     )
     assert response.status_code == 422
-    assert label_keys_for_franchise(db_session, uuid.UUID(body["franchise_id"])) == [LABEL]
+    assert label_keys_for_franchise(db_session, uuid.UUID(body["franchise_id"])) == [LABEL, "nsfw"]
 
 
 # ---------------------------------------------------------------------------

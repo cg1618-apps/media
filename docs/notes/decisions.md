@@ -3915,6 +3915,145 @@ reset button, 下周目目標 - waits for the account rework and stays in the sp
   older code, and the option seeds stay. Not marked `irreversible`: every row
   the upgrade rewrote comes back with the same content.
 
+### Labels and modes are code, and what a mode shows is derived (2026-11-13)
+
+The six content labels (`app/services/rbac/labels.py`) and the four access
+modes (`MODE_ORDER` in `app/services/rbac/seed_modes.py`) are defined in
+code. Each label and each field group names the lowest mode that shows it,
+and a mode shows everything at or below it. `cache.mode_sets` derives both
+sets from the mode's key; `access_mode_label` and `access_mode_field_group`
+were dropped by `l1a2belcode3`. Only a mode's name, description and display
+order stay adjustable, and the label rows remain only as the foreign-key
+target of the assignment tables, rewritten from the code on every start.
+
+- **A ceiling needs each mode to contain the one below it.** Stored sets
+  could not guarantee that: any edit could leave `normal` showing something
+  `borderline` hides, and nothing would notice. Deriving every set from one order makes
+  the containment true by construction.
+- **Every database shows the same.** `access_mode_label` did not travel on the
+  sheet, so each database's modes showed whatever had been ticked on that
+  machine, and two databases could silently disagree about who sees an entry.
+  With the rule in code, the answer is the same on every machine and in
+  production.
+- **`unrestricted` shows every label row**, not just the six the code names.
+  A row nobody expected then stays reachable in the widest mode and hidden in
+  every other: fail-closed everywhere but the one mode that means
+  "everything".
+- **Unknown labels are refused, not guessed at.** The migration deletes one
+  nothing cites, and otherwise stops and names it. Deleting a cited label
+  would silently publish its entries; keeping it would leave a label no code
+  knows. A Pull skips a sheet row whose key the code does not name, and
+  reports it.
+- **Unknown modes are deleted outright.** The revision runs after the mode
+  ceiling (`m1c2eiling345`), whose `ck_users_mode_keys` already keeps every
+  account's ceiling and default to the four keys, so no account can be using
+  any other mode and there is nothing to stop for. With the sets derived, the
+  mode create, delete and regrant routes went too, which retires the ceiling
+  entry's "a mode an admin creates has no rank": there is no such mode any
+  more.
+- **Rejected: keep the stored sets and validate monotonicity on write.** It
+  would still be per-database and still absent from the sheet, so the
+  databases would keep disagreeing; it would only stop one kind of bad edit.
+
+### Every other label is stored with `nsfw`, not implied (2026-11-13)
+
+`app/services/domain/label_rules.py` attaches `nsfw` beside any other label
+on every write path, and refuses (422) a write that drops it while another
+label stays. Revision `n1s2fwrule34` backfilled the rows written before the
+rule: on the company database, 249 entries and 233 franchises, almost all of
+them gated types that carried only their own label.
+
+- **Stored, so a reader never needs the rule.** Implying `nsfw` would mean
+  every query asking "is this nsfw" also knowing which labels imply it — the
+  label filter, the reference counts, the sheet a human reads. A stored row
+  answers by itself.
+- **Refused, not silently re-added, when `nsfw` is dropped.** A PUT that keeps
+  `erotica` and drops `nsfw` is a contradiction, and quietly putting `nsfw`
+  back would make the form lie about what was saved. A first label, by
+  contrast, brings `nsfw` with it, since that write states no contradiction.
+- **No constraint enforces it.** A CHECK cannot see across rows; a trigger
+  could, but every write path already goes through one function, and the
+  invariant pass after a Pull and in Calculate catches anything written
+  straight to the tables.
+
+### A label and its 標籤 Label tag in step (2026-11-13)
+
+`nsfw`, `ecchi` and `erotica` each have a 標籤 Label tag (NSFW, 輕微色情,
+擦邊肉番 - 肉番 renamed, 輕微色情 new), and on an entry the two are kept in
+step both ways, as the spec's "Content labels" section settled. Decisions
+made while building it:
+
+- **The tag is a field on the label definition** (`labels.py`, `tag`), not a
+  second table: a label has at most one tag, and the mapping is a rule.
+- **Each write path converts at the route**, inside its own transaction: the
+  label PUT rewrites the tags after the label rows, the credits PUT resolves
+  `tags.label` into labels before any write so a refused NSFW removal leaves
+  nothing half-applied. `replace_tags` itself stays a plain writer, because
+  Pull calls it and Pull must not 422.
+- **Pull reconciles with the label winning**, as the spec says; it runs after
+  the Label-field entry tabs and `Media Content Label`, and at the end of the
+  gated invariant pass, so Calculate repairs drift too.
+- **The one-time backfill (`t1a2gsync345`) is the UNION of the two sides,
+  not label-wins.** Label-wins would have deleted tags the owner typed; a
+  tag-wins pass would have deleted labels. The union deletes nothing and can
+  only hide - a tag becoming a label never reveals anything. On the home
+  development database it added tags only: no entry carried NSFW or 肉番, and
+  26 carried `nsfw` or `erotica` without the tag.
+- **The three tags are scoped to all nine Label-field types**, since a scoped
+  option is offered only where it is scoped, and they had been scoped to
+  anime alone.
+- **The form keeps the two controls in step live**, so the order Add and
+  Modify save in - tags, then labels - cannot silently revert an edit made in
+  only one of them.
+
+### Content labels on collections and series (2026-11-13)
+
+Collections and series carry content labels of their own, as entries and
+franchises already did, and a group's labels cascade down the tree: a
+collection hides itself, its franchises, their series and every entry under
+them; a franchise hides itself, its series and its entries; a series hides
+itself and its entries. Revision `g1r2plabels3` creates both tables empty, so
+nothing became hidden on upgrade. This reverses the earlier choice, recorded
+above under the franchise cascade, to leave series out: a group's label is now
+a thing the owner can set at every tier, rather than only at the franchise.
+
+- **One join table per tier, not a polymorphic owner.**
+  `collection_content_label` and `series_content_label` copy
+  `franchise_content_label`'s shape exactly. A single table with an
+  `(owner_type, owner_id)` pair could not carry a real foreign key, so a
+  deleted group would leave its label rows behind and nothing in the database
+  would say which table an id meant; a nullable column per tier could name two
+  owners or none. Three small tables keep a real `ON DELETE CASCADE` each, and
+  the code that treats them alike is one map, `GROUP_LABEL_TABLES`.
+- **Read-time cascade, nothing copied.** As with the franchise cascade, no
+  label row is written onto anything below a labelled group. Each tier's
+  condition in `enforcement.py` is built from the one above it
+  (`_collection_hidden` → `_franchise_hidden` → `_series_hidden` →
+  `_hidden_by_label`), so moving a franchise out of a labelled collection, or
+  clearing the collection's labels, reveals everything under it at once.
+- **An entry is hidden by its series in full as well as by its own
+  franchise.** An entry records both `media.franchise_id` and
+  `media.series_id`, and its series records `series.franchise_id`. They
+  normally name the same franchise, but nothing forces it. Asking only the
+  entry's franchise would let a hidden series' franchise chain miss the entry;
+  asking only the series would miss an entry with no series. Hiding on either
+  is the direction that cannot leak, so `_hidden_by_label` asks both.
+- **Nothing cascades up or sideways.** A series' label does not hide its
+  franchise or its sibling series, and a franchise's does not hide its
+  collection: a label marks what is inside the thing labelled, not the
+  umbrella around it.
+- **Groups have no 標籤 Label tag and no gated-type required label.** The
+  Label tag is a vocabulary field on the entry tables only, and the gated-type
+  rule needs a type, which a collection and a series do not have; the
+  franchise keeps its own rule because its type list names gated types. The
+  `nsfw` rule does apply to every tier: `add_missing_nsfw` covers all four
+  join tables.
+- **Labels travel on two more `admin.authz` tabs.** `Collection Content Label`
+  and `Series Content Label` are derived-identity tabs like `Franchise Content
+  Label`, so Pull's authorization tabs became six. Each fails open, as the
+  others do: a Pull without the tab restores every collection or series
+  unlabelled.
+
 ### Account lifecycle, first half: status, revocation, reset links (2026-11-13)
 
 Accounts can be disabled, have their sessions ended, and be recovered by a

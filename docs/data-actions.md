@@ -31,7 +31,7 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (57 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (59 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -168,7 +168,9 @@ test.
 | 54 | `Media Source` | `MediaSource` |  |
 | 55 | `Media Content Label` | `MediaContentLabel` |  |
 | 56 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 57 | `Seasonal` | `Seasonal` |  |
+| 57 | `Collection Content Label` | `CollectionContentLabel` |  |
+| 58 | `Series Content Label` | `SeriesContentLabel` |  |
+| 59 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -325,9 +327,10 @@ Note the tab for the `anime_movies` table is named `Anime Movie` (singular), whi
 `Media Source` sits after `Note` (both endpoints — the entry, and, when set,
 the option — must already exist), and `Media Content Label` after it (both
 *its* endpoints — the entry, and the label on the `Content Label` tab — must
-already exist too), then `Franchise Content Label`, whose `franchise_id` is a
-real FK and whose `label_id` is translated the same way — the three of them
-before `Seasonal`.
+already exist too), then `Franchise Content Label`, `Collection Content
+Label` and `Series Content Label`, whose owner columns (`franchise_id`,
+`collection_id`, `series_id`) are real FKs and whose `label_id` is translated
+the same way — all five of them before `Seasonal`.
 
 The three tabs games added sit where their foreign keys put them.
 `System Option Alias` follows `System Option Usage`, because `option_id` is a
@@ -521,19 +524,32 @@ like its `system_option_scope` sibling. See
 [data-model.md](data-model.md#system_option_usage) and
 [options.md](options.md#tier-2-system-options).
 
-`content_label` and `media_content_label` have tabs for the same reason, and a
+`content_label` and the four assignment tables (`media_content_label` and
+the three group tables) have tabs for the same reason, and a
 sharper one: they are the only tables whose absence from the sheet fails
 **open**. A Pull All on a machine that had never been told which entries carry
 `nsfw` restored every one of them unlabelled — visible to every viewer — and
-nothing in the run reported a problem. All three tables mint their `system_id`
-per database (the labels are typed into the admin page on each machine), so all
-three are derived-identity tabs: `Content Label` is identified by its unique `key`,
-`Media Content Label` by `(media_id, label_id)` and `Franchise Content Label`
-by `(franchise_id, label_id)`, and the `label_id` a sheet carries is translated
+nothing in the run reported a problem. All five tables mint their `system_id`
+per database (each machine's `ensure_labels` inserts its own label rows), so
+all of them are derived-identity tabs: `Content Label` is identified by its unique `key`,
+`Media Content Label` by `(media_id, label_id)`, `Franchise Content Label`
+by `(franchise_id, label_id)`, `Collection Content Label` by
+`(collection_id, label_id)` and `Series Content Label` by
+`(series_id, label_id)`, and the `label_id` a sheet carries is translated
 through the `Content Label` tab before it is stored — the same treatment
-`System Option Scope` gets. `Franchise Content Label` fails open the widest:
-one missing row reveals a franchise **and every entry in it**. A labelling whose label
-cannot be resolved is skipped with a warning rather than failing the tab.
+`System Option Scope` gets. `Collection Content Label` fails open the widest:
+one missing row reveals a collection **and every franchise, series and entry
+under it**; a missing `Franchise Content Label` row reveals a franchise, its
+series and its entries, and a missing `Series Content Label` row a series and
+its entries. A labelling whose label cannot be resolved is skipped with a
+warning rather than failing the tab.
+
+**The labels themselves are code** (`app/services/rbac/labels.py`), so the
+`Content Label` tab travels for its uuids, which are what the four assignment
+tabs cite, and not to carry a vocabulary. A row whose `key` the code does not
+name is skipped and named in the run's `unresolved_refs` — never inserted. A
+known key's `label` and `description` are restored to the code's after the
+tab, because `enforce_gated_label_invariants` runs `ensure_labels` first.
 
 Still outside the sheet, deliberately: `role` and `role_permission`
 (`ensure_rbac_seed` recreates the five roles on any machine, but a role
@@ -633,15 +649,27 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
        highlight group order on a JP h-comic is deleted.
      - When the tab is one of `GATED_LABEL_INVARIANT_TABS` - every gated
        type's entry tab (`H-Comic`, `H-Game`, `Hentai`), `Franchise`, `Content Label`,
-       `Media Content Label` and `Franchise Content Label` -
+       `Media Content Label`, `Franchise Content Label`,
+       `Collection Content Label` and `Series Content Label` -
        `enforce_gated_label_invariants` (`app/services/domain/gated_labels.py`):
-       every gated type's label is re-attached to every entry of the type and
+       first `ensure_labels` rewrites every label row's name, description and
+       display order to the code's, then `add_missing_nsfw` attaches `nsfw`
+       beside any other label on every entry, collection, franchise and series
+       that lacks it, then every gated type's label is re-attached to every entry of the type and
        every franchise of its franchise type (`h-comic` on every h-comic and
        every `H-Comic` franchise, `h-game` on every h-game and every `H-Game`
        franchise, `hentai` on every hentai and every `Hentai` franchise). A
        hand-edited sheet that dropped a label cannot make a gated entry public.
        The set is derived from `REQUIRED_LABEL_FOR_TYPE`, so a new gated type's
-       tab joins it by being registered.
+       tab joins it by being registered. Last, `reconcile_label_tags`.
+     - Otherwise, when the tab is one of `LABEL_TAG_RECONCILE_TABS` - the
+       entry tab of every type with the Label field, and `Media Content
+       Label` - `reconcile_label_tags` (`app/services/domain/label_tags.py`)
+       alone: every such entry's NSFW, 輕微色情 and 擦邊肉番 tags are made to
+       match its `nsfw`, `ecchi` and `erotica` labels, **the label winning** -
+       a missing tag is added and a tag with no label behind it is removed,
+       because the label decides visibility and the sheet's tag column is a
+       copy of it.
 
 ### 3.2 Pull All — `execute_pull_all(db, action_type)`
 

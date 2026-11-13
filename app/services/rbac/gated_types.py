@@ -26,18 +26,15 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.services.rbac.enforcement import hidden_label_ids
+from app.services.rbac.labels import CONTENT_LABELS
 
-# media-type key -> content-label key. The label is a system label: created
-# by its migration and by the lifespan seed
-# (gated_labels.ensure_system_labels), attached to every entry of the type on
-# every write path (app/services/domain/gated_labels.py), and granted to no
-# mode but `unrestricted` - see ensure_access_mode_seed, which keeps it off
-# the other all-labels mode. A new gated type adds its entry here and its row
-# to gated_labels.SYSTEM_LABELS.
+# media-type key -> content-label key. Derived from the labels that name a
+# gated type (app/services/rbac/labels.py), so a new gated type adds its label
+# there and nowhere else. The label is attached to every entry of the type on
+# every write path (app/services/domain/gated_labels.py), and its lowest mode
+# is `unrestricted`.
 REQUIRED_LABEL_FOR_TYPE: dict[str, str] = {
-    "h-comic": "h-comic",
-    "hentai": "hentai",
-    "h-game": "h-game",
+    label.gated_type: label.key for label in CONTENT_LABELS if label.gated_type
 }
 
 

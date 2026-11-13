@@ -658,7 +658,7 @@ Singleton and one-per-kind uniqueness are **not** here — they need a query, so
 
 `GET /api/notes` applies the RBAC layer:
 
-- If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. A franchise owner carrying a label the viewer's mode lacks, or a series in such a franchise, answers the same 404 (`tier_visible`); every write resolves the tier from the id through `require_visible_owner` and answers it too. A collection carries no labels and skips the check.
+- If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. A collection, franchise or series owner hidden from the viewer — by a label on it that the viewer's mode lacks, or on a group above it — answers the same 404 (`tier_visible`); every write resolves the tier from the id through `require_visible_owner` and answers it too.
 - **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer; a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
 - No field group names a note section.
 - `GET /api/notes/sections` lists every section of the owner type, with its `scope`. What it leaves out is a personal value granted by a feature the viewer lacks (see [Personal values on catalogue rows](#personal-values-on-catalogue-rows-note-marks)). A gated owner type the viewer cannot see answers 400 as an unknown one.

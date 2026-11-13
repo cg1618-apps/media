@@ -31,7 +31,8 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 | `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source |
 | `/external-apis` | `pages/admin/ExternalApis.jsx` | Read-only view of which field each external API writes, and whether it fills or replaces it |
 | `/business-logic` | `pages/admin/BusinessLogic.jsx` + `pages/admin/businessLogicTopics.js` | Read-only account of what Calculate All changes, step by step; `manage.pipelines` only |
-| `/roles`, `/users`, `/content-labels` | `pages/admin/{Roles,Users,ContentLabels}.jsx` | RBAC administration |
+| `/roles`, `/users`, `/access-modes` | `pages/admin/{Roles,Users,AccessModes}.jsx` | RBAC administration |
+| `/content-labels` | `pages/admin/ContentLabels.jsx` | The read-only label reference; `admin.authz` **or** `manage.catalog` |
 
 ---
 
@@ -950,14 +951,32 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   one → for **anime, anime movie, cartoon and manga**, enrichment via
   `lib/enrich.js`, after which the page shows the *enriched* row (not the
   pre-enrichment one) and warns if enrichment failed → **content labels,
-  last**. Other types save without enrichment. A franchise saves its own
-  label set through `saveFranchiseLabels`.
+  last**. Other types save without enrichment. A collection, franchise or
+  series saves its own label set after its update, through
+  `saveCollectionLabels`, `saveFranchiseLabels` or `saveSeriesLabels`; a save
+  that adds a label confirms first, naming what that tier hides ("this
+  collection and every franchise, series and entry in it"). On Add the group's
+  set is `PUT` after the create call, and a failure there is its own toast.
 - **Labels go last because a label can hide the entry from the session that
   saves it.** An admin is narrowed by their active access mode like anyone
   else, and a hidden entry answers 404, so a label written mid-save would
   fail every later step — the cast, the enrichment, the reload. `saveCredits`
   only records the entry (`pendingLabels`), and `handleSave` writes the set
   once the type's own save has run.
+- **The label picker and the 標籤 Label field move together**, on the nine
+  types with that field, because the server keeps a label and its tag in step
+  (NSFW `nsfw`, 輕微色情 `ecchi`, 擦邊肉番 `erotica`). Ticking a label adds its
+  tag at the end of the field and unticking removes it; adding one of the
+  three tags ticks its label, with the `nsfw` rule on both sides - 輕微色情
+  alone brings NSFW. Removing the NSFW chip while 輕微色情 or 擦邊肉番 stays
+  is refused with a toast, as the picker locks NSFW. Other tags keep their
+  place. `hooks/useLabelTagSync.js` does it for both pages: `editLabels` takes
+  a tick, `syncUpdater` wraps the tab's field updater, so TagReplace's edits
+  sync too. On Add, switching tabs or the reset after a create sets the
+  picker from the open tab's tags. On Modify, the form takes its labels from
+  the label PUT's answer and re-reads the credits after it, because that
+  write can rewrite the tags; a tick leaves the field alone if the credits
+  never loaded, so a save cannot wipe tags it did not read.
 - **Adding a label asks first.** When the ticked set holds a label the entry
   (or franchise) did not carry when it was opened — `labelsAdded` against the
   set the picker reported through `onLoaded` — Save asks for confirmation
@@ -1406,7 +1425,7 @@ for an admin - what it changes and why - and the page states the code as it
 is, so it changes in the same commit as `app/services/calculation.py`. The
 prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
 
-## /roles, /users, /content-labels
+## /roles, /users, /access-modes, /content-labels
 
 - **Roles** — the five fixed roles, with no way to add or remove one;
   replace a role's permission set from the catalog
@@ -1442,10 +1461,18 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
     `POST /api/users/{id}/reset-link`, then `OnceLinkModal` with the link, a
     **Copy link** button and the expiry, saying the link is shown only once -
     the server keeps only a hash, and making another stops this one working.
-- **Content Labels** — the label vocabulary; deleting a label immediately
-  re-exposes every entry and franchise that carried only that label. This page
-  is `admin.authz`; **assigning** a label on Add/Modify is `manage.catalog`, so
-  a `super` account labels things here without reaching this screen.
+- **Access Modes** — one card per mode, narrowest first: its name and
+  description, editable; how many accounts' ceilings reach it; and the labels
+  and field groups it shows, read-only, because those are derived in code.
+  Nothing on the page creates, deletes or regrants a mode.
+- **Content Labels** — the read-only label reference: each label's name, key
+  and description, a chip for every mode that shows it, whether it also
+  carries NSFW, and how many entries, collections, franchises and series carry
+  it directly. Labels are
+  defined in code, so the page creates, renames and deletes nothing. It is
+  read by `admin` and `super` (`admin.authz` **or** `manage.catalog`) and sits
+  under Note in the nav; **assigning** a label is on Add/Modify, which is
+  `manage.catalog`.
 
-Rules and enforcement are in [../authorization.md](../authorization.md). These
-three pages have one-click deletes with no confirm dialog.
+Rules and enforcement are in [../authorization.md](../authorization.md). Roles
+and Users have one-click deletes with no confirm dialog.

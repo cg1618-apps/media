@@ -1405,7 +1405,7 @@ export default function FranchisePage() {
                 the curation chips below. */}
             <ContentLabelChips
               labels={franchise.content_labels}
-              note="Hides this franchise and every entry in it."
+              note="Hides this franchise and every series and entry in it."
               className="mt-4"
             />
 

@@ -1,20 +1,21 @@
-"""/api/access-modes - editing the object axis.
+"""/api/access-modes - reading the modes and editing their names.
 
-Shaped on roles.py route for route, with two deliberate differences:
+The four modes and what each shows are fixed in code (seed_modes.py,
+labels.py), so this router lists them with their DERIVED label and field-group
+sets and lets an admin change a mode's name, description and display order -
+nothing else. The routes that created, deleted or regranted a mode are gone;
+test_labels_in_code.py asserts that they answer 404 or 405.
 
-  - `/catalog` returns two labelled groups (Content Labels, Field Groups)
-    rather than permission families, and lists EVERY content label - including
-    ones no mode carries, because the page has to be able to warn about them.
-  - The guest default MOVES rather than raising. A partial unique index
-    permits one flagged mode; letting the index enforce that would surface as
-    a 500, so the write clears the old flag in the same transaction.
+Everything here is `admin.authz`: a `super` manages the catalogue and is
+refused the authorization surface.
 """
 
 import uuid
 
-from app import models
 from app.services.rbac.field_groups import FIELD_GROUP_KEYS
+from app.services.rbac.labels import LABEL_KEYS
 from app.services.rbac.seed_modes import (
+    MODE_BORDERLINE,
     MODE_NORMAL,
     MODE_SAFE,
     MODE_UNRESTRICTED,
@@ -28,139 +29,66 @@ MODES = "/api/access-modes/"
 # ---------------------------------------------------------------------------
 
 
-def test_listing_returns_the_seeded_modes_with_their_items(admin_client, mode):
+def test_listing_returns_the_four_modes_with_their_derived_sets(admin_client, mode):
     rows = admin_client.get(MODES).json()
     by_key = {r["key"]: r for r in rows}
 
-    assert {MODE_UNRESTRICTED, "borderline", MODE_NORMAL, MODE_SAFE} <= set(by_key)
-    assert set(by_key[MODE_NORMAL]["field_group_keys"]) == set(FIELD_GROUP_KEYS)
-    assert by_key[MODE_NORMAL]["label_keys"] == []
+    assert set(by_key) == {MODE_UNRESTRICTED, MODE_BORDERLINE, MODE_NORMAL, MODE_SAFE}
+    assert by_key[MODE_SAFE]["label_keys"] == []
+    assert by_key[MODE_SAFE]["field_group_keys"] == []
+    assert by_key[MODE_NORMAL]["label_keys"] == ["nsfw", "ecchi"]
+    assert by_key[MODE_BORDERLINE]["label_keys"] == ["nsfw", "ecchi", "erotica"]
+    assert by_key[MODE_UNRESTRICTED]["label_keys"] == list(LABEL_KEYS)
+    for key in (MODE_NORMAL, MODE_BORDERLINE, MODE_UNRESTRICTED):
+        assert set(by_key[key]["field_group_keys"]) == set(FIELD_GROUP_KEYS)
 
 
-def test_the_catalog_lists_every_content_label_and_every_field_group(
-    admin_client, nsfw_label, mode
-):
-    """Every label, not just the carried ones. A label no mode carries hides
-    its entries from everybody, and the page cannot warn about what it is not
-    told."""
-    catalog = admin_client.get("/api/access-modes/catalog").json()
+def test_one_mode_reads_the_same_as_its_listing_row(admin_client, mode):
+    listed = {r["key"]: r for r in admin_client.get(MODES).json()}[MODE_BORDERLINE]
 
-    assert [g["group"] for g in catalog] == ["label", "field_group"]
-    labels = next(g for g in catalog if g["group"] == "label")
-    assert nsfw_label.key in {item["key"] for item in labels["items"]}
-    groups = next(g for g in catalog if g["group"] == "field_group")
-    assert {item["key"] for item in groups["items"]} == set(FIELD_GROUP_KEYS)
+    one = admin_client.get(f"{MODES}{mode(MODE_BORDERLINE).system_id}")
 
-
-def test_a_label_carried_by_no_mode_still_appears(admin_client, nsfw_label, mode):
-    """The case the page exists to surface. `normal` and `safe` carry no
-    labels, and if nothing else does either, this label is hiding entries from
-    everyone - including the person reading the page."""
-    catalog = admin_client.get("/api/access-modes/catalog").json()
-    labels = next(g for g in catalog if g["group"] == "label")
-    assert nsfw_label.key in {item["key"] for item in labels["items"]}
+    assert one.status_code == 200
+    assert one.json() == listed
 
 
 # ---------------------------------------------------------------------------
-# Writes
+# The adjustable parts
 # ---------------------------------------------------------------------------
 
 
-def test_creating_a_mode_stores_its_items(admin_client, nsfw_label, mode):
-    response = admin_client.post(
-        MODES,
-        json={
-            "key": "curated",
-            "label": "Curated",
-            "description": "A hand-made tier.",
-            "sort_order": 5,
-            "label_keys": [nsfw_label.key],
-            "field_group_keys": ["sources_restricted"],
-        },
-    )
-
-    assert response.status_code == 201
-    body = response.json()
-    assert body["label_keys"] == [nsfw_label.key]
-    assert body["field_group_keys"] == ["sources_restricted"]
-    assert body["is_system"] is False
-
-
-def test_a_duplicate_key_is_409(admin_client, mode):
-    response = admin_client.post(
-        MODES, json={"key": MODE_SAFE, "label": "Clash", "label_keys": [],
-                     "field_group_keys": []}
-    )
-    assert response.status_code == 409
-
-
-def test_grants_are_replaced_wholesale(admin_client, mode, nsfw_label):
-    """The same contract as PUT /roles/{id}/permissions: one write, one
-    bump(), no partial states."""
+def test_a_patch_changes_the_name_and_not_what_the_mode_shows(admin_client, mode):
+    """The extra keys are the old grant fields. They are ignored, not
+    honoured: what a mode shows is not an administrator's to edit."""
     target = mode(MODE_NORMAL)
 
-    response = admin_client.put(
-        f"{MODES}{target.system_id}/grants",
-        # `normal` carries sources_restricted, so an empty list proves the
-        # set was replaced rather than appended to.
-        json={"label_keys": [nsfw_label.key], "field_group_keys": []},
+    response = admin_client.patch(
+        f"{MODES}{target.system_id}",
+        json={
+            "label": "一般",
+            "sort_order": 7,
+            "label_keys": list(LABEL_KEYS),
+            "field_group_keys": [],
+        },
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["label_keys"] == [nsfw_label.key]
-    assert body["field_group_keys"] == []
+    assert (body["label"], body["sort_order"]) == ("一般", 7)
+    assert body["label_keys"] == ["nsfw", "ecchi"]
+    assert set(body["field_group_keys"]) == set(FIELD_GROUP_KEYS)
 
 
-def test_an_unknown_field_group_is_422(admin_client, mode):
-    response = admin_client.put(
-        f"{MODES}{mode(MODE_NORMAL).system_id}/grants",
-        json={"label_keys": [], "field_group_keys": ["not_a_real_group"]},
-    )
-    assert response.status_code == 422
+def test_a_rename_is_felt_on_the_next_read(admin_client, mode):
+    target = mode(MODE_SAFE)
+    admin_client.patch(f"{MODES}{target.system_id}", json={"label": "安全"})
 
-
-def test_an_unknown_label_is_422(admin_client, mode):
-    response = admin_client.put(
-        f"{MODES}{mode(MODE_NORMAL).system_id}/grants",
-        json={"label_keys": ["no-such-label"], "field_group_keys": []},
-    )
-    assert response.status_code == 422
-
-
-def test_a_grant_change_is_felt_on_the_next_request(
-    db_session, admin_client, mode_client, plain_user, nsfw_label, hidden_anime
-):
-    """cache.bump() on the write, asserted through behaviour rather than by
-    reaching into the cache. Without it the change would not be felt until the
-    process restarted.
-
-    The reader is `plain_user`, not the admin, so the reader's session is
-    the only one sitting in `normal`.
-    """
-    c = mode_client(MODE_NORMAL, user=plain_user)
-    assert c.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
-
-    admin_client.put(
-        f"{MODES}{mode_normal_id(db_session)}/grants",
-        json={"label_keys": [nsfw_label.key],
-              "field_group_keys": list(FIELD_GROUP_KEYS)},
-    )
-
-    assert c.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200
-
-
-def mode_normal_id(db):
-    return (
-        db.query(models.AccessMode)
-        .filter(models.AccessMode.key == MODE_NORMAL)
-        .one()
-        .system_id
-    )
+    rows = {r["key"]: r for r in admin_client.get(MODES).json()}
+    assert rows[MODE_SAFE]["label"] == "安全"
 
 
 # ---------------------------------------------------------------------------
-# The guest default moves rather than raising
+# The anonymous policy is not an admin's to move
 # ---------------------------------------------------------------------------
 
 
@@ -175,13 +103,9 @@ def test_nothing_an_admin_can_patch_changes_what_a_visitor_sees(
     db_session, client, admin_client, mode, nsfw_label, hidden_anime
 ):
     """The anonymous policy is `safe`, by key, and is not an administrator's
-    choice.
-
-    The old flag made it one, and this test asserted the opposite of what it
-    asserts now: that patching `unrestricted` published every labelled entry
-    to the internet. That was the point of the flag and it is exactly the
-    accident worth making unreachable - it looks like an ordinary edit and
-    nothing on any screen reports what it did.
+    choice. Patching `unrestricted` with the old flag must not publish every
+    labelled entry to the internet - it would look like an ordinary edit and
+    nothing on any screen would report what it did.
     """
     assert client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
 
@@ -193,6 +117,8 @@ def test_nothing_an_admin_can_patch_changes_what_a_visitor_sees(
 
     # Still hidden. The extra key was ignored, not honoured.
     assert client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
+    # The mirror: the entry exists and the admin, in `unrestricted`, reads it.
+    assert admin_client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -200,20 +126,11 @@ def test_nothing_an_admin_can_patch_changes_what_a_visitor_sees(
 # ---------------------------------------------------------------------------
 
 
-def test_a_system_mode_cannot_be_deleted(admin_client, mode):
-    response = admin_client.delete(f"{MODES}{mode(MODE_SAFE).system_id}")
-    assert response.status_code == 409
-
-
 def test_user_count_is_the_accounts_whose_ceiling_reaches_the_mode(
     admin_client, plain_user, db_session, mode
 ):
     """`normal` is reached by a `normal` ceiling and by every wider one; a
-    `safe` ceiling does not reach it, and a hand-made mode is reached by no
-    ceiling at all."""
-    custom = models.AccessMode(key="counted", label="Counted")
-    db_session.add(custom)
-    db_session.flush()
+    `safe` ceiling does not reach it."""
 
     def count(mode_id):
         return admin_client.get(f"{MODES}{mode_id}").json()["user_count"]
@@ -225,16 +142,11 @@ def test_user_count_is_the_accounts_whose_ceiling_reaches_the_mode(
     db_session.flush()
     assert count(normal_id) == before - 1
     assert count(mode(MODE_SAFE).system_id) >= 1
-    assert count(custom.system_id) == 0
 
 
-def test_each_mode_carries_its_rank(admin_client, db_session):
+def test_each_mode_carries_its_rank(admin_client):
     """The SPA orders the ceiling and default selects by this, so it never
-    keeps a copy of MODE_ORDER. A hand-made mode has none."""
-    custom = models.AccessMode(key="unranked", label="Unranked")
-    db_session.add(custom)
-    db_session.flush()
-
+    keeps a copy of MODE_ORDER."""
     by_key = {m["key"]: m["rank"] for m in admin_client.get(MODES).json()}
 
     assert [by_key[k] for k in (MODE_SAFE, MODE_NORMAL, "borderline", MODE_UNRESTRICTED)] == [
@@ -243,27 +155,31 @@ def test_each_mode_carries_its_rank(admin_client, db_session):
         2,
         3,
     ]
-    assert by_key["unranked"] is None
-
-
-def test_an_unheld_custom_mode_deletes(admin_client, db_session):
-    custom = models.AccessMode(key="disposable", label="Disposable")
-    db_session.add(custom)
-    db_session.flush()
-
-    assert admin_client.delete(f"{MODES}{custom.system_id}").status_code == 204
-
-
 def test_an_unknown_mode_is_404(admin_client):
     assert admin_client.get(f"{MODES}{uuid.uuid4()}").status_code == 404
+    assert (
+        admin_client.patch(f"{MODES}{uuid.uuid4()}", json={"label": "x"}).status_code
+        == 404
+    )
 
 
 def test_a_super_is_refused_the_whole_router(super_client, mode):
     """This is the authorization surface, so admin.authz - not manage.catalog.
     A super manages the catalogue and may not change who reaches what."""
+    target = mode(MODE_NORMAL)
     assert super_client.get(MODES).status_code == 401
-    assert super_client.get("/api/access-modes/catalog").status_code == 401
+    assert super_client.get(f"{MODES}{target.system_id}").status_code == 401
+    assert (
+        super_client.patch(f"{MODES}{target.system_id}", json={"label": "x"}).status_code
+        == 401
+    )
 
 
 def test_a_plain_user_is_refused(user_client, mode):
     assert user_client.get(MODES).status_code == 401
+    assert (
+        user_client.patch(
+            f"{MODES}{mode(MODE_NORMAL).system_id}", json={"label": "x"}
+        ).status_code
+        == 401
+    )

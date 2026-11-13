@@ -3,11 +3,10 @@ Access modes: which objects a session may reach.
 
 The role axis answers "what kinds of operation may this account perform".
 This axis answers "which objects can those operations reach", and the two are
-deliberately disjoint. There is no column here in which `manage.catalog` or
-`admin.authz` could be stored, so "a mode scopes objects, it never grants
-powers" is a property of the schema rather than a rule a reviewer has to
-remember - which is why there are two typed link tables below instead of one
-generic access_mode_grant(permission text).
+deliberately disjoint. What a mode shows - its content labels and field
+groups - is derived in code from its key's place in seed_modes.MODE_ORDER and
+is not stored, so there is nowhere a mode could be given `manage.catalog` or
+`admin.authz`, and nowhere an edit could make two databases disagree.
 
 An account holds one role and a mode CEILING (users.mode_ceiling): it may use
 every mode ranked at or below it in seed_modes.MODE_ORDER, and exactly one is
@@ -55,62 +54,6 @@ class AccessMode(Base):
     # services/rbac/modes.py - see resolve_mode for why it is not data.
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
-
-
-class AccessModeLabel(Base):
-    """One content label a mode carries - that is, does NOT hide."""
-
-    __tablename__ = "access_mode_label"
-    __table_args__ = (
-        UniqueConstraint("mode_id", "label_id", name="uq_access_mode_label"),
-    )
-
-    system_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
-    )
-    mode_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("access_mode.system_id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    label_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("content_label.system_id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    created_at = Column(DateTime, default=get_taipei_now)
-
-
-class AccessModeFieldGroup(Base):
-    """
-    One field group a mode carries.
-
-    `field_group_key` is a plain string validated against FIELD_GROUP_KEYS on
-    write - the same contract role_permission.permission had before this table
-    took the family over. Not a foreign key, because field groups are code and
-    not rows; see app/services/rbac/field_groups.py.
-    """
-
-    __tablename__ = "access_mode_field_group"
-    __table_args__ = (
-        UniqueConstraint(
-            "mode_id", "field_group_key", name="uq_access_mode_field_group"
-        ),
-    )
-
-    system_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
-    )
-    mode_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("access_mode.system_id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    field_group_key = Column(String, nullable=False)
-    created_at = Column(DateTime, default=get_taipei_now)
 
 
 class UserAccessModeDenial(Base):

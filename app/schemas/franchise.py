@@ -94,6 +94,9 @@ class SeriesResponse(SeriesBase):
     # does not carry it - PUT /api/me/ratings/... does.
     my_rating: Optional[str] = None
     series_expectation: Optional[str] = None
+    # Set by attach_group_content_labels; read-only, as on FranchiseResponse.
+    # The only writer is PUT /api/content-labels/series/{series_id}.
+    content_labels: list[ContentLabelRef] = []
     # As FranchiseResponse.entry_count, for this series.
     entry_count: Optional[int] = None
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the

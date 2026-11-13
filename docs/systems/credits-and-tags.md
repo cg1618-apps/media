@@ -161,6 +161,13 @@ that names a credit which does not exist.
 | `h_genre_appearance` | Genre Appearance | H Genre Appearance | h-comic, h-game, hentai |
 | `h_genre_relation` | Genre Relation | H Genre Relation | h-comic, h-game, hentai |
 
+**Three Label values are not ordinary tags.** NSFW, 輕微色情 and 擦邊肉番 are
+the tags of the content labels `nsfw`, `ecchi` and `erotica`, and the two are
+kept in step on an entry both ways - adding the tag attaches the label, and
+the other way round - so these three decide who can see the entry. Each is
+scoped to all nine Label-field types. 很多福利 and the rest are ordinary
+tags. See `app/services/domain/label_tags.py` and authorization.md.
+
 The three H genre vocabularies are admin-managed and shared by the gated
 types - one vocabulary per axis, not one per type; they serve gated types
 alone, so a value is hidden from a session that can see none of them.

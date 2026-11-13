@@ -3,14 +3,14 @@ Changing who may do what is admin-only.
 
 A super account manages the catalogue and runs pipelines, but must not be able
 to grant itself anything, edit a role, create an account, or change the content
-label VOCABULARY - the labels being what the access-mode axis scopes.
+label VOCABULARY - the labels being what the access-mode axis scopes. The
+vocabulary is code, so nobody changes it through the API; the test below
+holds that for a super.
 
-The vocabulary, not the whole router. Putting an existing label on an entry or
-a franchise is `manage.catalog`, and reading the list is either permission,
-because that list is both the admin page's table and the Add/Modify picker's
-checkboxes. The split and the assignment gates are
-tests/api/test_franchise_content_labels.py; what stays here is the half that
-is still admin-only.
+Putting an existing label on an entry or a franchise is `manage.catalog`, and
+reading the list is either permission, because that list is both the admin
+page's reference and the Add/Modify picker's checkboxes. The assignment gates
+are tests/api/test_franchise_content_labels.py.
 """
 
 
@@ -33,10 +33,12 @@ def test_super_is_refused_the_authorization_routers(super_client, path):
     assert response.headers["WWW-Authenticate"] == "Bearer"
 
 
-def test_super_is_refused_the_content_label_vocabulary(super_client, nsfw_label):
+def test_super_cannot_change_the_content_label_vocabulary(super_client, nsfw_label):
     """
-    The write half only. `nsfw_label` is what makes this bite: on an empty
-    catalogue a DELETE would 404 and a POST would be the only live assertion.
+    The labels are code, so there is no write route for anybody: each attempt
+    is a 404 or 405, and the label it named is unchanged afterwards.
+    `nsfw_label` is what makes this bite - the PATCH and DELETE name a row
+    that exists.
     """
     created = super_client.post(
         "/api/content-labels/",
@@ -46,10 +48,12 @@ def test_super_is_refused_the_content_label_vocabulary(super_client, nsfw_label)
         f"/api/content-labels/{nsfw_label.system_id}", json={"label": "Renamed"}
     )
     deleted = super_client.delete(f"/api/content-labels/{nsfw_label.system_id}")
-    assert created.status_code == 401
-    assert patched.status_code == 401
-    assert deleted.status_code == 401
-    assert created.headers["WWW-Authenticate"] == "Bearer"
+    assert created.status_code in (404, 405)
+    assert patched.status_code in (404, 405)
+    assert deleted.status_code in (404, 405)
+    rows = {row["key"]: row for row in super_client.get("/api/content-labels/").json()}
+    assert "gore" not in rows
+    assert rows[nsfw_label.key]["label"] == "NSFW"
 
 
 @pytest.mark.parametrize(

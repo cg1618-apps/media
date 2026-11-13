@@ -473,6 +473,21 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_franchise_content_label_from_sheet,
         requires_authz=True,
     ),
+    # The same row for the other two grouping tiers, after Collection and
+    # Series, and failing open the same way: a Pull without the tab restores
+    # every collection or series unlabelled.
+    SheetTab(
+        "Collection Content Label",
+        models.CollectionContentLabel,
+        f.parse_collection_content_label_from_sheet,
+        requires_authz=True,
+    ),
+    SheetTab(
+        "Series Content Label",
+        models.SeriesContentLabel,
+        f.parse_series_content_label_from_sheet,
+        requires_authz=True,
+    ),
     # user_id is dropped for `username` for the same reason the Plan Next tab
     # drops it. seasonal's primary key is the (user_id, seasonal) pair, so the
     # user is not decoration here - without it a Pull updates whichever user's

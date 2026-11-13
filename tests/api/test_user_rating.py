@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 
 from app import models
 from app.main import app
+from app.services.domain.gated_labels import ensure_label
 from app.services.rbac.permissions import PERM_SELF_LIST
 from app.services.security import create_access_token, get_password_hash
 from app.utils.constants import FRANCHISE_EXPECTATIONS, MY_RATINGS
@@ -346,10 +347,12 @@ def test_clearing_both_values_deletes_the_row(db_session, user_client, plain_use
     assert _row(db_session, plain_user, "series", sid) is None
 
 
-def test_a_hidden_franchise_is_404_on_write(db_session, client, nsfw_label):
+def test_a_hidden_franchise_is_404_on_write(db_session, client):
     """Writes follow reads: the franchise GET 404s for this viewer, so does
     the rating. The viewer holds self.list but a mode without the label, and
-    the mirror - a labelled franchise it CAN see - is the tier test above."""
+    the mirror - a labelled franchise it CAN see - is the tier test above.
+    `erotica`, not `nsfw`: a member's `normal` mode shows nsfw."""
+    erotica = ensure_label(db_session, "erotica")
     hidden = models.Franchise(
         system_id=uuid.uuid4(), franchise_type="ACG", franchise_name_en="Hidden"
     )
@@ -357,7 +360,7 @@ def test_a_hidden_franchise_is_404_on_write(db_session, client, nsfw_label):
     db_session.flush()
     db_session.add(
         models.FranchiseContentLabel(
-            franchise_id=hidden.system_id, label_id=nsfw_label.system_id
+            franchise_id=hidden.system_id, label_id=erotica.system_id
         )
     )
     db_session.flush()
