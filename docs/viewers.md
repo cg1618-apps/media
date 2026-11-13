@@ -243,8 +243,7 @@ customisation per viewer — columns, defaults, layout, wording — is
 discussed after the rework is built; see [open-items.md](open-items.md),
 "Per-viewer page detail".
 
-**Still to discuss:** Seasonal
-and Statistics (both need a version for an account without data); the
+**Still to discuss:** the
 Random Picker (personal filters only with data, and the shared version);
 Future Releases; My requests; the request and report inbox; pending
 registrations.
@@ -318,6 +317,14 @@ an account that has them switched on.
 | **user** | the same without edit controls | the watch order, the follow toggle |
 | **guest** | catalogue only — no rating, expectation or list status | the watch order only |
 | **shared** | the guest's page, plus Report a problem | the watch order only |
+| **admin** | none | none |
+
+### Seasonal and Statistics
+
+| Viewer | Seasonal | Statistics |
+| --- | --- | --- |
+| **super, user** | the season's anime sorted by the viewer's own status, and its own season rating | its own ratings, favourites and counts |
+| **guest, shared** | the season's anime **without a status split** — what aired or airs that season, with external scores — and the All Seasons table | **counts of the catalogue**, not anyone's opinion: entries per type, per season, per genre |
 | **admin** | none | none |
 
 ### Search
