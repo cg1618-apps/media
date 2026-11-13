@@ -415,6 +415,19 @@ export const OPTION_CATEGORIES = [
 // both sub-tabs are the same form over the same system_option rows.
 export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label"];
 
+// What a request or report is about, and where it stands (REQUEST_KINDS and
+// REQUEST_STATUSES in app/utils/constants.py). Their human labels are in
+// lib/requests.js.
+export const REQUEST_KINDS = [
+  "new_entry",
+  "data_error",
+  "incomplete_data",
+  "bug",
+  "other",
+];
+
+export const REQUEST_STATUSES = ["open", "done", "declined"];
+
 // Shape-matched to GET /api/constants. Rendered only until the fetch resolves.
 export const CONSTANTS_FALLBACK = {
   watching_status: WATCHING_STATUSES,
@@ -466,6 +479,8 @@ export const CONSTANTS_FALLBACK = {
   media_type: MEDIA_TYPES,
   option_categories: OPTION_CATEGORIES,
   tag_categories: TAG_CATEGORIES,
+  request_kind: REQUEST_KINDS,
+  request_status: REQUEST_STATUSES,
 };
 
 // Every Add/Modify tab imports the arrays above (e.g. `AIRING_STATUSES`) and

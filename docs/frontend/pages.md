@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -67,6 +67,7 @@ are a large share of the bundle and never needed on first paint.
 | `/meme` | `public/Memes.jsx` | lazy, **`view.extras`** |
 | `/resources` | `public/Resources.jsx` | lazy, **`view.extras`** |
 | `/user/:username` | `public/Profile.jsx` | lazy, **`view.personal`** |
+| `/requests` | `public/MyRequests.jsx` | lazy, **`self.requests`** |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
 
 **Gated routes.** The two h-comic routes sit inside
@@ -122,7 +123,8 @@ about styling.
 | `insights` | Insights | flat | Statistics `/statistics` (`requires: "self.list"`), Quotes `/quote`, Memes `/meme`, Resources `/resources` (each `requires: "view.extras"`) ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` |
 | `note` | Note | flat, `requires: "manage.catalog"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described — and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
-| `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue ┃ Users, Roles, Content Labels |
+| `pipelines` | Pipelines | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, and **Inbox** `/request-inbox`, which carries `requires: "manage.requests"` on the row — the key its route asks |
+| `admin` | Admin | flat, `requires: "admin.authz"` | Users, Roles, Content Labels, Access Modes |
 
 Each item has `label`, `icon` (Font Awesome class), `to`, optional `matches`
 (extra path prefixes that light the tab up — `/anime/123` highlights the Anime
@@ -168,6 +170,10 @@ load of the page it is on, so nothing cached for the outgoing account
 survives) follows the indicator rather than the chip: it renders for any
 signed-in account, because a strip naming you with no way out is a dead end.
 Guests get **Log in** → `/login?next=<current path>`.
+**Requests** → `/requests` sits just before log out, and in the drawer just
+above it, for a viewer holding `self.requests` — the key the route asks. It
+is an account control rather than a tab, and the admin account, which files
+nothing, is not offered it.
 
 The nav narrows in three steps:
 
@@ -945,7 +951,8 @@ renders the card unlinked.
 
 Files `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx`
 (thin wrappers `Franchise.jsx`, `Series.jsx`, `Collection.jsx`). Chrome comes
-from `components/hub/` (`HubShell`, `Crumbs`, `AdminStrip` — the admin-only
+from `components/hub/` (`HubShell`, `Crumbs` — whose `action` slot holds the
+hub's **Report a problem** —, `AdminStrip` — the admin-only
 dashed strip with the **Quick edit** link `/modify?id=…` —, `HeroCover` with
 the spine strip and optional progress rule, cropping the borrowed cover at
 its entry's focal point, `Field`, `HubTabs`, `Section`,
@@ -1016,7 +1023,8 @@ toast "Update failed" and refetch.
 
 Top to bottom:
 
-1. **Breadcrumb** `/library/{type}` → title.
+1. **Breadcrumb** `/library/{type}` → title, with **Report a problem** at
+   the row's right-hand end for a `self.requests` holder (see MyRequests).
 2. **Admin toolbar** (`isAdmin`): **Quick Edit** → `/modify?id={id}`;
    **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;
    the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
@@ -1630,6 +1638,40 @@ that order and sorts nothing.
   drop is refused (`canDropInto`) and the option is left out. A reorder is
   applied to the cache first and rolled back if the request fails; every
   write then invalidates `["resources"]`.
+
+### MyRequests — `/requests`
+
+File `pages/public/MyRequests.jsx`; data `useMyRequests()` from
+`api/mutations/useRequestMutations.js` (`GET /api/requests/mine`, key
+`["requests", "mine", "all"]`). The account's own requests and reports,
+newest first, behind `<ProtectedRoute permission="self.requests">` — user and
+super; never the admin account, since `has()` does not short-circuit the
+`self.*` family for the root role.
+
+- **Table**: kind, what it is about (`RequestTarget`: a link through the
+  target's `nav_path`, plain text when there is none, "(deleted)" after the
+  name of a target that is gone, the page address for a request without a
+  target), description, remark, status, the handler's response and the filing
+  date.
+- **The response column** is one constant at the top of the file,
+  `SHOW_RESPONSE_TO_FILER` (true). The API returns `response` either way.
+- **Edit** on a row whose `can_edit` is true (the caller's own and still
+  open) opens `RequestModal` on that request: description and remark only.
+  Nothing on this page deletes.
+- **New request** opens `RequestModal`'s general form, which opens on the
+  new-entry kind and offers a page-address field for a bug report. A refusal
+  — 409 at the open-request limit, in the server's own sentence — shows inside
+  the modal, which keeps the draft.
+- Loading and error through `MediaLoadingState`; an empty list says how to
+  file one.
+
+A request about one entry, group or entity is filed from that page's
+**Report a problem** instead (`components/requests/ReportProblemButton.jsx`,
+see [components.md](components.md#requests)). It sits at the right-hand end
+of the breadcrumb row on every media detail page, the three hubs (through
+`Crumbs`' `action` slot) and the five entity pages, and is drawn only for a
+`self.requests` holder. Its placement is provisional, pending the owner's
+design.
 
 ### Login — `/login`
 

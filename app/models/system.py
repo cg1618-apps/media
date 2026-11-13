@@ -4,6 +4,7 @@ import uuid
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -304,8 +305,17 @@ class User(Base):
     is_installation_owner = Column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    # How many OPEN requests this account may hold at once; NULL is no limit.
+    # Set to the role's default when the account is created or changes role
+    # (services/domain/requests.py::default_request_limit), and adjustable on
+    # the Users page. Never enforced for the super role, whatever is stored.
+    open_request_limit = Column(Integer, nullable=True)
 
     __table_args__ = (
+        CheckConstraint(
+            "open_request_limit IS NULL OR open_request_limit >= 0",
+            name="ck_users_open_request_limit_non_negative",
+        ),
         Index(
             "ix_one_installation_owner",
             # The indexed expression is a constant, not the column: this is a

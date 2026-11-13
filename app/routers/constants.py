@@ -180,6 +180,10 @@ def _constants() -> dict[str, list[str]]:
         # The subset of the above that the admin pages group under "Tags".
         # Navigation only: both sub-tabs write the same system_option rows.
         "tag_categories": list(TAG_CATEGORIES),
+        # What a request is about, and where it stands. The request forms and
+        # the inbox's status filter read these.
+        "request_kind": list(c.REQUEST_KINDS),
+        "request_status": list(c.REQUEST_STATUSES),
     }
 
 

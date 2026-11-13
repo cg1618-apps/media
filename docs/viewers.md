@@ -23,6 +23,13 @@ catalogue and what is an account's own data is
 > [authorization.md](authorization.md), "What each role can DO". Each part
 > of this page becomes true when the change that builds it lands, and that
 > change rewrites it in the present tense.
+>
+> **Built:** [Requests and reports](#requests-and-reports), and the My
+> requests and inbox rows of
+> [My requests, the inbox, and pending registrations](#my-requests-the-inbox-and-pending-registrations).
+> They work for `admin`, `super` and `user`. A shared account gets them
+> when the `shared` role exists. Until the header rework, the inbox sits
+> under Pipelines for both admin and super.
 
 ## At a glance
 
@@ -214,9 +221,11 @@ A guest that can view more, with no data of its own.
   optional remark. A "Report a problem" button on entry, group and entity
   pages fills the target in; a general form covers the rest.
 - **One inbox** for every kind, read by the admin and by super.
-- **Status:** open, then done or declined. **The filer sees the status** of
-  their own requests and nobody else's; a shared account's requests are
-  seen by everyone using that login.
+- **Status:** open, then done or declined, with an optional response from
+  whoever handled it. **The filer sees the status and the response** for
+  their own requests, and nobody else's. A shared account's requests are
+  seen by everyone using that login. A handler can set a closed request
+  back to open, and the filer can then edit it again.
 - **After sending, the filer can edit the content — description and
   remark — while the request is open, but cannot delete it.** Editing locks
   once it is done or declined, so a status never applies to text the
@@ -230,7 +239,9 @@ A guest that can view more, with no data of its own.
   sees it either. A duplicate is declined with a remark naming the original
   instead, so the filer gets an answer.
 - **Requesting something the filer's mode hides is allowed.**
-- **Limits are set per account** by the admin.
+- **Limits are set per account** by the admin. A limit counts **open**
+  requests at once, so a handled request frees a place. The defaults are
+  `user` 15 and `shared` 10. `super` has none, and that is fixed.
 
 ## Customised pages
 

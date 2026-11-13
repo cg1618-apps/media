@@ -325,6 +325,15 @@ export const NAV_SECTIONS = [
       { label: "Data History", icon: "fas fa-history", to: "/data-history" },
       { label: "Review Queue", icon: "fas fa-tasks", to: "/review-queue" },
       { label: "Clean Orphans", icon: "fas fa-broom", to: "/clean-orphans" },
+      // The request inbox asks its own permission rather than the section's:
+      // App.jsx's /request-inbox route gates on manage.requests. Super and
+      // the admin hold both today, so the row shows wherever the tab does.
+      {
+        label: "Inbox",
+        icon: "fas fa-inbox",
+        to: "/request-inbox",
+        requires: "manage.requests",
+      },
     ],
   },
   {
