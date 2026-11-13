@@ -33,6 +33,10 @@ class ContentLabelDef:
     lowest_mode: str
     # The gated media type every entry of which carries this label, if any.
     gated_type: Optional[str] = None
+    # The 標籤 Label tag (system_option category "Label") kept in step with
+    # this label on an entry, both ways - see services/domain/label_tags.py.
+    # None for a label with no tag: the gated types carry none.
+    tag: Optional[str] = None
 
 
 # Order is display order, and is written into content_label.sort_order.
@@ -42,18 +46,21 @@ CONTENT_LABELS: tuple[ContentLabelDef, ...] = (
         name="NSFW",
         description="不適合公開場合觀看",
         lowest_mode="normal",
+        tag="NSFW",
     ),
     ContentLabelDef(
         key="ecchi",
         name="輕微色情",
         description="含性感或福利畫面，但公共場合還是能看，也能大家一起看",
         lowest_mode="normal",
+        tag="輕微色情",
     ),
     ContentLabelDef(
         key="erotica",
         name="擦邊肉番",
         description="以性暗示或擦邊情節為主，接近但未達成人作品，建議自己私底下看",
         lowest_mode="borderline",
+        tag="擦邊肉番",
     ),
     ContentLabelDef(
         key="hentai",

@@ -265,4 +265,9 @@ def enforce_gated_label_invariants(db: Session) -> dict[str, int]:
         for franchise in franchises_of_type(db, franchise_type):
             ensure_franchise_labels(db, franchise)
     db.flush()
+    # Last, once every label is settled: each entry's 標籤 Label tags follow
+    # its labels, the label winning.
+    from app.services.domain.label_tags import reconcile_label_tags
+
+    reconcile_label_tags(db)
     return counts

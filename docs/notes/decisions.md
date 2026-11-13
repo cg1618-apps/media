@@ -3976,6 +3976,36 @@ them gated types that carried only their own label.
   invariant pass after a Pull and in Calculate catches anything written
   straight to the tables.
 
+### A label and its 標籤 Label tag in step (2026-11-13)
+
+`nsfw`, `ecchi` and `erotica` each have a 標籤 Label tag (NSFW, 輕微色情,
+擦邊肉番 - 肉番 renamed, 輕微色情 new), and on an entry the two are kept in
+step both ways, as the spec's "Content labels" section settled. Decisions
+made while building it:
+
+- **The tag is a field on the label definition** (`labels.py`, `tag`), not a
+  second table: a label has at most one tag, and the mapping is a rule.
+- **Each write path converts at the route**, inside its own transaction: the
+  label PUT rewrites the tags after the label rows, the credits PUT resolves
+  `tags.label` into labels before any write so a refused NSFW removal leaves
+  nothing half-applied. `replace_tags` itself stays a plain writer, because
+  Pull calls it and Pull must not 422.
+- **Pull reconciles with the label winning**, as the spec says; it runs after
+  the Label-field entry tabs and `Media Content Label`, and at the end of the
+  gated invariant pass, so Calculate repairs drift too.
+- **The one-time backfill (`t1a2gsync345`) is the UNION of the two sides,
+  not label-wins.** Label-wins would have deleted tags the owner typed; a
+  tag-wins pass would have deleted labels. The union deletes nothing and can
+  only hide - a tag becoming a label never reveals anything. On the home
+  development database it added tags only: no entry carried NSFW or 肉番, and
+  26 carried `nsfw` or `erotica` without the tag.
+- **The three tags are scoped to all nine Label-field types**, since a scoped
+  option is offered only where it is scoped, and they had been scoped to
+  anime alone.
+- **The form keeps the two controls in step live**, so the order Add and
+  Modify save in - tags, then labels - cannot silently revert an edit made in
+  only one of them.
+
 ### Content labels on collections and series (2026-11-13)
 
 Collections and series carry content labels of their own, as entries and

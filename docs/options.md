@@ -561,6 +561,12 @@ Tier 2 category:
 | `h_genre_appearance` | Genre Appearance | `H Genre Appearance` | h-comic, h-game, hentai |
 | `h_genre_relation` | Genre Relation | `H Genre Relation` | h-comic, h-game, hentai |
 
+Three `Label` values are the tags of content labels - NSFW (`nsfw`),
+輕微色情 (`ecchi`) and 擦邊肉番 (`erotica`) - and are kept in step with the
+label on each entry, so editing one changes who can see the entry. They are
+scoped to all nine `label` types. See
+[systems/credits-and-tags.md](systems/credits-and-tags.md).
+
 The three H genre fields are shared by the gated types - one vocabulary per
 axis, not one per type - and serve gated types alone, so their **category
 itself is a connection**: every value in `H Genre Plot`, `H Genre Appearance`

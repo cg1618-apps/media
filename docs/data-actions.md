@@ -584,7 +584,15 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
        franchise, `hentai` on every hentai and every `Hentai` franchise). A
        hand-edited sheet that dropped a label cannot make a gated entry public.
        The set is derived from `REQUIRED_LABEL_FOR_TYPE`, so a new gated type's
-       tab joins it by being registered.
+       tab joins it by being registered. Last, `reconcile_label_tags`.
+     - Otherwise, when the tab is one of `LABEL_TAG_RECONCILE_TABS` - the
+       entry tab of every type with the Label field, and `Media Content
+       Label` - `reconcile_label_tags` (`app/services/domain/label_tags.py`)
+       alone: every such entry's NSFW, 輕微色情 and 擦邊肉番 tags are made to
+       match its `nsfw`, `ecchi` and `erotica` labels, **the label winning** -
+       a missing tag is added and a tag with no label behind it is removed,
+       because the label decides visibility and the sheet's tag column is a
+       copy of it.
 
 ### 3.2 Pull All — `execute_pull_all(db, action_type)`
 

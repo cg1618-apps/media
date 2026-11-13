@@ -62,6 +62,7 @@ from app.services.domain.credits import (
 from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import enforce_h_comic_invariants
 from app.services.domain.hierarchy import find_by_names
+from app.services.domain.label_tags import LABEL_FIELD_TYPES, reconcile_label_tags
 from app.services.domain.user_list import installation_owner_id
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
@@ -141,6 +142,20 @@ GATED_LABEL_INVARIANT_TABS: frozenset[str] = frozenset(
         "Collection Content Label",
         "Series Content Label",
     }
+)
+
+# Tabs after which an entry's 標籤 Label tags are brought back in step with its
+# content labels, the label winning (services/domain/label_tags.py): the
+# entry tabs of the types with the Label field, which restore the tags, and
+# Media Content Label, which restores the labels. The gated pass below runs
+# the same reconcile after its own tabs.
+LABEL_TAG_RECONCILE_TABS: frozenset[str] = frozenset(
+    {
+        tab
+        for tab, media_type in _MEDIA_TYPE_FOR_TAB.items()
+        if media_type in LABEL_FIELD_TYPES
+    }
+    | {"Media Content Label"}
 )
 
 # Restore order for Pull All. STRICT: parents before children (FK constraints).
@@ -2120,6 +2135,9 @@ def execute_pull_specific(
     # franchises, and the label tabs.
     if tab_name in GATED_LABEL_INVARIANT_TABS:
         enforce_gated_label_invariants(db)
+        db.commit()
+    elif tab_name in LABEL_TAG_RECONCILE_TABS:
+        reconcile_label_tags(db)
         db.commit()
 
     logger.info("Successfully pulled and upserted %s records from '%s'.", processed, tab_name)

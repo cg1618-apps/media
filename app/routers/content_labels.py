@@ -47,6 +47,7 @@ from app.services.domain.label_rules import (
     refuse_nsfw_removal,
     with_required_labels,
 )
+from app.services.domain.label_tags import sync_tags_to_labels
 from app.services.rbac.enforcement import (
     collection_visible,
     entry_visible,
@@ -158,6 +159,7 @@ def _replace_labels(
     owner_kwargs: dict,
     owner_id: UUID,
     payload: schemas.EntryLabels,
+    after_write=None,
 ) -> List[str]:
     """
     Replace one owner's whole label set, whichever join table holds it.
@@ -197,6 +199,9 @@ def _replace_labels(
     )
     for position, key in enumerate(wanted):
         db.add(join_model(label_id=found[key], position=position, **owner_kwargs))
+    # In the same transaction: an entry's Label tags follow its labels.
+    if after_write is not None:
+        after_write(wanted)
     db.commit()
     return wanted
 
@@ -270,6 +275,9 @@ def replace_entry_labels(
         {"media_id": entry_id},
         entry_id,
         payload,
+        # The 標籤 Label tags of nsfw, ecchi and erotica follow the set
+        # (services/domain/label_tags.py), on the types with that field.
+        after_write=lambda keys: sync_tags_to_labels(db, media_type, entry_id, keys),
     )
 
 

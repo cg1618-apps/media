@@ -217,6 +217,22 @@ content labels and field groups and nothing else, so there is nowhere
   It never hides anything new: `nsfw` is shown from `normal`, and every other
   label is hidden at or below it. The reference says so per label
   (`also_carries`).
+- **A label and its 標籤 Label tag are kept in step on an entry, both
+  ways** (`app/services/domain/label_tags.py`). `nsfw`, `ecchi` and
+  `erotica` each have a tag (`tag` in `labels.py`): NSFW, 輕微色情, 擦邊肉番.
+  On the nine types with the Label field, the entry label PUT rewrites the
+  entry's label tags to match, and a `PUT /api/credits/...` naming
+  `tags.label` rewrites its labels to match, so **a tag edit changes who can
+  see the entry** - both are `manage.catalog` writes, gated on the entry.
+  The `nsfw` rule runs through it: 輕微色情 alone attaches `ecchi` and `nsfw`
+  and stores the NSFW tag, and dropping NSFW while 輕微色情 or 擦邊肉番 stays
+  is a 422 that writes nothing. Only the entry's own labels have tags; the
+  groups and the gated types have no Label field. After a Pull of a
+  Label-field entry tab or `Media Content Label`, and in the invariant pass,
+  `reconcile_label_tags` brings the tags back in step **with the label
+  winning**, since the label decides visibility and a sheet's tag column is
+  a copy. Revision `t1a2gsync345` brought existing rows into step once, as
+  the union of the two sides.
 - **An account has a ceiling.** It may use every mode ranked at or below
   `users.mode_ceiling`, and what it reaches in the active one is that mode's
   sets minus the account's `user_access_mode_denial` rows. A denial hangs off
