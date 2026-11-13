@@ -175,17 +175,35 @@ from the company development database.
   modes form the order `safe < normal < borderline < unrestricted`, so "the
   lowest mode" fixes every mode's answer, and the admin cannot change it.
 
-  | key | lowest mode | description |
-  | --- | --- | --- |
-  | `nsfw` | `normal` | 不適合公開場合觀看 |
-  | `ecchi` | `normal` | 輕微擦邊 |
-  | `erotica` | `borderline` | 擦邊肉番 |
-  | `hentai` | `unrestricted` | 成人動畫 |
-  | `h-game` | `unrestricted` | 成人遊戲 |
-  | `h-comic` | `unrestricted` | 成人漫畫 |
+  | key | display name | lowest mode | description | Label tag copied |
+  | --- | --- | --- | --- | --- |
+  | `nsfw` | NSFW | `normal` | 不適合公開場合觀看 | NSFW |
+  | `ecchi` | 輕微色情 | `normal` | *(to write)* | 輕微色情 (new) |
+  | `erotica` | 擦邊肉番 | `borderline` | *(to write)* | 肉番, renamed 擦邊肉番 |
+  | `hentai` | Hentai | `unrestricted` | 成人動畫 | — |
+  | `h-game` | H-Game | `unrestricted` | 成人遊戲 | — |
+  | `h-comic` | H-Comic | `unrestricted` | 成人漫畫 | — |
 
-  The `h-game` and `h-comic` rows keep what their descriptions say today;
-  the descriptions are drafts for the owner to correct.
+  **Display names are usually Chinese.** `nsfw` stays NSFW. The gated
+  types keep their type names; they carry no Label tag. The descriptions
+  are drafts for the owner to correct, and `ecchi`'s and `erotica`'s are
+  still to write, since their old drafts became their names.
+- **A content label is copied into the entry's 標籤 Label tags.** Attaching
+  `nsfw`, `ecchi` or `erotica` to an entry adds the matching tag in the same
+  write; detaching it removes the tag. Proposed, not yet confirmed:
+  - one way only — the label drives the tag. The three copied tag values
+    are not offered for picking by hand, so a tag cannot contradict a label;
+  - the Fill and backfill pipelines leave copied tags alone, since
+    `media_tag` is what they write and a pipeline must not change what an
+    entry is labelled;
+  - only the types that have the Label field — Anime, Anime Movie, Movie,
+    TV Show, Cartoon, Manga, Novel, Comic, Game. The gated types and the
+    groups have no Label tag;
+  - the entry's own labels only, not ones inherited from its franchise,
+    series or collection;
+  - the three tag values become scoped to every one of those types; today
+    the Label options are scoped to Anime and Anime Movie only.
+  - 很多福利 stays an ordinary Label tag; it is not `ecchi`.
 - **Descriptions are in Chinese and say only what the label marks.** Who
   sees a label is not written in prose: the chip tooltip and the admin's
   label page generate it from the rule ("shown in", "also carries"), so it
