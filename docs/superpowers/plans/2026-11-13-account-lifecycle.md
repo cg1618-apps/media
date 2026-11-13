@@ -43,7 +43,7 @@ PR, the plan is unchanged** — it becomes two commits on one branch.
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| `status` | string, not null, default `active` | `pending` / `active` / `disabled`, CHECK-constrained. **If P3 adds it, P4 uses P3's column** — see question 1 |
+| `status` | string, not null, default `active` | `pending` / `active` / `disabled`, CHECK-constrained. P4 owns it, and P3 does not add it |
 | `session_version` | integer, not null, default 0 | the revocation counter; never travels on Sheets |
 
 Index **`uq_users_username_lower`** — `UNIQUE (lower(username))`. Checked
