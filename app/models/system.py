@@ -4,6 +4,7 @@ import uuid
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -269,6 +271,20 @@ class RolePermission(Base):
     role = relationship("Role", back_populates="permissions")
 
 
+# An account's lifecycle. `pending` is a registration awaiting the admin's
+# approval; `disabled` is an account the admin has switched off, reversibly.
+# Only `active` can sign in or hold a session - resolve_viewer reads anything
+# else as the guest, and login answers 403 after a correct password.
+USER_STATUS_PENDING = "pending"
+USER_STATUS_ACTIVE = "active"
+USER_STATUS_DISABLED = "disabled"
+USER_STATUSES: tuple[str, ...] = (
+    USER_STATUS_PENDING,
+    USER_STATUS_ACTIVE,
+    USER_STATUS_DISABLED,
+)
+
+
 class User(Base):
     """Administrative user accounts for access control."""
 
@@ -304,8 +320,27 @@ class User(Base):
     is_installation_owner = Column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    # USER_STATUSES above. Travels on the Sheets Users tab for active and
+    # disabled, so a Pull does not re-activate an account disabled elsewhere.
+    status = Column(
+        String,
+        nullable=False,
+        default=USER_STATUS_ACTIVE,
+        server_default=USER_STATUS_ACTIVE,
+    )
+    # The revocation counter. A login token carries it as the `sv` claim, and
+    # a token whose `sv` differs resolves as the guest - so incrementing it
+    # (app/services/domain/accounts.py::revoke_sessions) ends every session
+    # the account holds. Never travels on Sheets: it is this machine's count.
+    session_version = Column(Integer, nullable=False, default=0, server_default="0")
 
     __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'active', 'disabled')", name="ck_users_status"
+        ),
+        # Usernames are unique WITHOUT regard to case, so `Kai` and `kai`
+        # cannot both exist and the lowercased name login looks up is one row.
+        Index("uq_users_username_lower", func.lower(username), unique=True),
         Index(
             "ix_one_installation_owner",
             # The indexed expression is a constant, not the column: this is a

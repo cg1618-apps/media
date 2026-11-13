@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -12,7 +12,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency.
 - **View-gated reads** — an Auth cell naming a `view.*` permission (`view.entities`, `view.search`, `view.extras`, `view.personal`) is a read the `guest` role does not hold, so a logged-out visitor gets **401**; a signed-in `user` holds all four. See [authorization.md](authorization.md#permission-catalog-code).
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
-- A missing or invalid cookie on an admin endpoint is **401**, never 403. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
+- A missing or invalid cookie on an admin endpoint is **401**, never 403. The one 403 in the app is the login route's, for a pending or disabled account that gave the right password. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
 
 ## Conventions shared by many routers
 
@@ -92,8 +92,27 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | `POST` | `/login`  | Public | Authenticate with username + password (form data). Sets HTTP-Only JWT cookie. Returns `{message, role}`. |
 | `GET`  | `/me`     | Public | The viewer's auth state, from the current cookie. Used by `AuthContext` on app boot. Full shape under [Authorization](#get-apiauthme-extended). |
 | `POST` | `/logout` | Public | Clears the `access_token` cookie.                                                                        |
+| `GET`  | `/reset?code=` | Public | Whose account a reset link is for, without spending it. `{username}`, or **404** for any unusable code. |
+| `POST` | `/reset`  | Public | `{code, password}`: spend a reset link and set the password. `{username}`; clears the login cookie. |
 
-**Login request:** `OAuth2PasswordRequestForm` — `username` and `password` fields.
+**Login request:** `OAuth2PasswordRequestForm` — `username` and `password` fields. The username is lowercased before the lookup.
+
+| Login answer | When |
+| --- | --- |
+| **200** `{message, role}` + cookie | Right password, `active` account. The token carries `sv` (see [authentication.md](authentication.md#sessions-and-their-revocation)) |
+| **401** `Incorrect username or password` | No such account, or a wrong password - whatever the account's status |
+| **403** `Your account is waiting for the admin's approval.` | Right password, `pending` account. No cookie |
+| **403** `This account is disabled.` | Right password, `disabled` account. No cookie |
+| **429** `Too many attempts. Try again in N minutes.` + `Retry-After` | 5 failed attempts for this username, or 20 from this address, in 15 minutes. A success clears the username's count |
+
+**Reset.** The link is issued by `POST /api/users/{id}/reset-link` or on the box (`python -m app.cli reset-link <username>`); see [authentication.md](authentication.md#reset-links).
+
+| Reset answer | When |
+| --- | --- |
+| **200** `{username}` | `GET`: the code is usable. `POST`: spent - password set, every session of the account ended, this browser's login and mode cookies cleared |
+| **404** `This link is not valid. Ask the admin for a new one.` | The code is unknown, spent, expired, minted for another purpose, or its account is no longer active or is shared. One message for all of them |
+| **422** | `POST` only: the password is empty, or longer than 72 UTF-8 bytes. The code stays unspent |
+| **429** + `Retry-After` | 10 requests (`GET` and `POST` together) from this address in 15 minutes |
 
 ---
 
@@ -2435,6 +2454,7 @@ a stray `username` in the body is dropped by pydantic rather than honoured.
 |---|---|---|---|
 | GET | `/api/account/settings` | session | `{username, role_name, list_is_public}`. **401** for an anonymous caller. |
 | PATCH | `/api/account/settings` | session | `AccountSettingsUpdate` — `list_is_public` only. Returns the same shape as GET. **401** for an anonymous caller. |
+| PUT | `/api/account/password` | `self.password` | `OwnPasswordChange` — `{current_password, new_password}`. **200** `{"message": "Password changed."}`. **400** `Your current password is not right.` (not 401, which the SPA reads as a lost session). **422** for an empty new password or one past 72 UTF-8 bytes. **401** without `self.password` - a guest, and the root admin, which sets its own on `/users`. Does not end the account's other sessions. |
 
 ---
 
@@ -2592,7 +2612,7 @@ in the default mode.
 **The login cookie is not reissued.** A switch cannot extend the session:
 minting a fresh month-long login on each switch would make toggling between two
 modes an unlimited session-extension oracle, and the lifetime is flat with no
-refresh flow and no revocation.
+refresh flow - revocation can end a session early, never extend one.
 
 ### `/api/access-modes` — admin (`admin.authz`)
 
@@ -2657,11 +2677,18 @@ resolve to guest, so that would make every visitor an administrator).
 
 No self-registration; accounts are created here only.
 
+A **new** username passes `validate_new_username` - 3 to 32 of lowercase
+letters, digits, `-` and `_`, and never `admin` or `guest` inside it - and a
+**new** password passes `validate_new_password` - not empty, at most 72 UTF-8
+bytes. A refusal is **422** whose `detail` is the sentence to show. Names
+already stored are not re-checked. Uniqueness ignores case.
+
 | Method | Path | Body / notes |
 |---|---|---|
-| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `list_is_public`). `list_is_public` is **read-only here** — it is the account holder's decision, written only through `PATCH /api/account/settings`, and deliberately absent from `ManagedUserUpdate`. Passwords never leave the server. |
-| POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201. 409 on a taken username, 422 on an unknown role. |
-| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`. 409 if the new username is taken, or if the change would demote the last account that can still administer the site. |
+| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `status`, `list_is_public`, `access_modes`). `list_is_public` is **read-only here** — it is the account holder's decision, written only through `PATCH /api/account/settings`, and deliberately absent from `ManagedUserUpdate`. Passwords never leave the server. |
+| POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201, `status` `active`. 409 on a username taken ignoring case, 422 on an unknown role or a username or password the checks refuse. |
+| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`, `status` (`active` / `disabled`; anything else 422). Setting a password **ends the account's sessions**, and so does disabling it; enabling does not revive them. 409 if the new username is taken, if the change would demote the last **active** account that can still administer the site, if you disable yourself (`You cannot disable yourself.`), or if the account is `pending` (approved or declined, not edited). |
+| POST | `/api/users/{id}/reset-link` | No body. **200** `{link, expires_at}` - a one-time password reset link, valid 24 hours, returned **once** (only a hash is stored). Issuing one deletes the account's unspent reset links. **409** for an account that is not `active` or whose role is `shared`; 404 for an unknown id. |
 | DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, or the last administering account. |
 
 ### `/api/content-labels`

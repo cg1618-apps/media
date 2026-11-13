@@ -18,7 +18,13 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.permissions import PERM_SELF_PASSWORD
+from app.services.rbac.resolver import Viewer, get_viewer, require_permission
+from app.services.security import (
+    get_password_hash,
+    validate_new_password,
+    verify_password,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -93,3 +99,37 @@ def update_settings(
         "%s set list_is_public=%s", user.username, user.list_is_public
     )
     return _to_response(user)
+
+
+@router.put("/password", summary="Change My Password")
+def change_password(
+    payload: schemas.OwnPasswordChange,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_permission(PERM_SELF_PASSWORD)),
+):
+    """
+    Change your own password, given the current one.
+
+    A wrong current password is 400, not 401: the SPA reads 401 as a lost
+    session and would sign the person out for a typo. Does NOT end the
+    account's sessions - the person changing it is the one holding them; a
+    reset link or the admin setting it does.
+
+    Gated on self.password, which the root admin does not hold (the self
+    family is excluded from the root short-circuit): the admin sets its own
+    password on /users.
+    """
+    user = _current_user(db, viewer)
+    if not verify_password(payload.current_password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Your current password is not right.",
+        )
+    try:
+        validate_new_password(payload.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    user.hashed_password = get_password_hash(payload.new_password)
+    db.commit()
+    logger.info("%s changed their own password", user.username)
+    return {"message": "Password changed."}

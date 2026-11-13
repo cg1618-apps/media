@@ -100,7 +100,7 @@ PERM_MANAGE_PIPELINES = manage_perm("pipelines")
 # Declared here rather than derived from a table: like every other permission
 # these name code (a router dependency), so a row with no code behind it would
 # be inert.
-SELF_PERMISSION_KEYS: tuple[str, ...] = ("list", "personal_notes")
+SELF_PERMISSION_KEYS: tuple[str, ...] = ("list", "personal_notes", "password")
 
 SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "list": (
@@ -112,6 +112,11 @@ SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "Own Personal Notes",
         "Write your own personal-scope notes on an entry. Catalogue notes stay "
         "admin-only.",
+    ),
+    "password": (
+        "Own Password",
+        "Change your own password from Settings, given the current one. An "
+        "account without it asks the admin, who sets it on Users.",
     ),
 }
 
@@ -155,6 +160,7 @@ def self_perm(key: str) -> str:
 
 PERM_SELF_LIST = self_perm("list")
 PERM_SELF_PERSONAL_NOTES = self_perm("personal_notes")
+PERM_SELF_PASSWORD = self_perm("password")
 
 
 def view_perm(key: str) -> str:
@@ -231,6 +237,11 @@ def is_valid(db: "Session", permission: str) -> bool:
 
 SUPER_ROLE_NAME = "super"
 GUEST_ROLE_NAME = "guest"
+USER_ROLE_NAME = "user"
+# The role of an account several people sign in to. It does not exist until
+# the shared accounts land; the reset-link refusal (routers/users.py, the CLI)
+# keys on this name now so that it holds from the day the role is created.
+SHARED_ROLE_NAME = "shared"
 
 
 def _self_family() -> frozenset[str]:
@@ -266,7 +277,13 @@ def locked_permissions(
         )
     if role_name == SUPER_ROLE_NAME:
         return frozenset(every - {PERM_ADMIN_AUTHZ}), frozenset({PERM_ADMIN_AUTHZ})
-    # `user` and every custom role. manage.catalog and the self family are
-    # free choices here; running a pipeline is not, because one Pull All
-    # overwrites every table including the accounts and role assignments.
-    return frozenset(), frozenset({PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES})
+    # Running a pipeline is never a free choice below super, because one Pull
+    # All overwrites every table including the accounts and role assignments.
+    refused = frozenset({PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES})
+    if role_name == USER_ROLE_NAME:
+        # Changing your own password is fixed for a member: without it every
+        # change goes through the admin.
+        return frozenset({PERM_SELF_PASSWORD}), refused
+    # Every custom role. manage.catalog and the self family are free choices
+    # here.
+    return frozenset(), refused

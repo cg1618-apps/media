@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-10-28
+Last verified: 2026-11-13
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -119,6 +119,7 @@ list. Variable names are case-insensitive.
 | `ALGORITHM` | `HS256` | JWT algorithm |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `43200` | Cookie/JWT lifetime, in minutes (30 days) |
 | `ADMIN_PASSWORD` | *(none — required)* | Password of the `admin` user seeded on first boot. The app **refuses to start** while this is the value `.env.example` ships. |
+| `PUBLIC_BASE_URL` | `https://media.cg1618.com` | Where the site is reached, no trailing slash. Password reset links - from the Users page and from `python -m app.cli reset-link` - are built on it. The default is production's, so the box needs nothing; **set `PUBLIC_BASE_URL=http://localhost:5173` in your `.env`**, or a link issued here points at production. |
 | `TMDB_API_KEY` | unset | TMDB: movie/TV cover, release date, director |
 | `OMDB_API_KEY` | unset | OMDb: IMDb rating |
 | `COMICVINE_API_KEY` | unset | Comic Vine: comic run metadata and covers |

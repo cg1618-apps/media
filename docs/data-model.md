@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-10-28
+Last verified: 2026-11-13
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -2185,18 +2185,43 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `id` | UUID | no | uuid4 | PK (named `id`, not `system_id`) |
-| `username` | String | no | | UNIQUE, indexed |
-| `hashed_password` | String | no | | |
+| `username` | String | no | | UNIQUE, indexed. Also unique **ignoring case**: `uq_users_username_lower` is a unique index over `lower(username)`, so `Kai` and `kai` cannot both exist, and it is the index login's lowercased lookup uses. A new name passes `validate_new_username` (lowercase `[a-z0-9_-]{3,32}`, no `admin` or `guest` inside it); stored names are not re-checked |
+| `hashed_password` | String | no | | bcrypt. Never travels on Sheets |
 | `role_id` | UUID | **no** | | FK `role.system_id` ON DELETE **RESTRICT**, indexed |
 | `list_is_public` | Boolean | **no** | `false` (server default) | Whether anyone may read this account's list at `/user/<username>`. **Private by default**, and written only by its owner through `PATCH /api/account/settings` - an admin sees the flag on the Users page but does not set it, because whose list is visible is the account holder's decision and not the inviter's. NOT NULL so that no reader has to decide what a NULL would mean. |
 | `is_installation_owner` | Boolean | **no** | `false` (server default) | Whose rows a Sheets restore and the Calculate pipeline file under when nobody is logged in - `installation_owner_id()`. **Not a permission** and not on any request path. Partial unique index `ix_one_installation_owner` over a constant, so at most one account in the table holds it and any number hold false. It is data rather than a name in code so that moving the collection to another account is a row edit, and so the answer travels between the two machines on the Sheets `Users` tab - `parse_user_from_sheet` names it explicitly, because that parser is a projection and not a column sweep. |
+| `status` | String | **no** | `active` (server default) | `pending` / `active` / `disabled`, CHECK `ck_users_status`. Only `active` can sign in or hold a session: login answers 403 for the other two after a correct password, and `resolve_viewer` reads their tokens as the guest. `pending` is a registration awaiting approval; `disabled` is set and cleared on `/users`. Travels on the Sheets `Users` tab for `active` and `disabled` |
+| `session_version` | Integer | **no** | `0` (server default) | The revocation counter. A login token carries it as `sv`, and a token whose `sv` differs resolves as the guest - so incrementing it, always through `revoke_sessions()`, ends every session the account holds. A reset spent, disabling, and the admin setting the password increment it. **Never travels** on Sheets: it is this machine's count |
 
 No timestamps. Relationship `role_ref` (joined load). Virtual `role`.
 
 **Four** roles are seeded and read by name - `guest`, `user`, `super`,
 `admin`; see [authorization.md](authorization.md#roles). An account on the
-`user` role holds guest's reads plus `self.list` and `self.personal_notes`;
+`user` role holds guest's reads plus `self.list`, `self.personal_notes` and
+`self.password`;
 `super` adds both `manage.*` and is deliberately **not** `is_root`.
+
+### `account_code`
+
+The one-time codes behind password reset links (and invite links, which use the
+same table). Model: `AccountCode` (`app/models/account_code.py`); minted and
+spent only through `app/services/domain/account_codes.py`. See
+[authentication.md](authentication.md#reset-links).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `purpose` | String | no | | `invite` / `reset`, CHECK `ck_account_code_purpose` |
+| `code_hash` | String | no | | UNIQUE. **SHA-256** hex of the code, which is 32 random bytes (`secrets.token_urlsafe(32)`) and is never stored. A fast hash, because the code is high-entropy; it is the column a code is looked up by |
+| `user_id` | UUID | yes | | FK `users.id` ON DELETE **CASCADE** (`fk_account_code_user`), indexed. The account a reset link resets - CHECK `ck_account_code_reset_has_user` requires it on a `reset` row |
+| `created_by_id` | UUID | yes | | FK `users.id` ON DELETE **SET NULL** (`fk_account_code_created_by`). Who issued it; null from the CLI |
+| `created_at` | DateTime (tz) | no | | |
+| `expires_at` | DateTime (tz) | no | | `created_at` + 24 hours |
+| `spent_at` | DateTime (tz) | yes | | Null until spent |
+
+Issuing a reset link deletes the account's **unspent** reset rows in the same
+transaction, so a newer link stops an older one working. Spent and expired
+rows are kept. No Sheets tab: a code means nothing on the other machine.
 
 ### `content_label`
 

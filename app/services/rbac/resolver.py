@@ -3,8 +3,9 @@ Request -> Viewer.
 
 One function answers "who is asking" for every route, authenticated or not.
 It never raises: a missing, malformed, expired or badly-signed cookie, a user
-row that has since been deleted, and a role that no longer exists all resolve
-to the guest viewer. Failing closed rather than erroring is what lets the same
+row that has since been deleted, an account that is not active, a token whose
+sessions were revoked, and a role that no longer exists all resolve to the
+guest viewer. Failing closed rather than erroring is what lets the same
 call serve /api/auth/me, which three tests require never to raise, and the
 public read routes, which must stay public.
 """
@@ -20,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.dependencies import ALGORITHM, SECRET_KEY, get_db
+from app.models.system import USER_STATUS_ACTIVE
 from app.services.rbac import cache
 from app.services.rbac.modes import default_mode_id, resolve_mode
 from app.services.rbac.permissions import (
@@ -195,6 +197,25 @@ def role_for_user(db: Session, user: Optional[models.User]) -> Optional[models.R
     return db.query(models.Role).filter(models.Role.name == GUEST_ROLE).first()
 
 
+def session_is_current(user: models.User, payload: dict[str, Any]) -> bool:
+    """
+    Whether a login token still speaks for its account.
+
+    Only an `active` account has sessions, and only a token whose `sv` claim
+    equals users.session_version is one of them - the column is incremented
+    by revoke_sessions() (app/services/domain/accounts.py) to end every
+    session at once. A token with no `sv` predates the claim and reads as 0,
+    every account's starting value, so the deploy that added it signed
+    nobody out. A claim that is not an integer reads as a mismatch.
+    """
+    if user.status != USER_STATUS_ACTIVE:
+        return False
+    try:
+        return int(payload.get("sv", 0)) == (user.session_version or 0)
+    except (TypeError, ValueError):
+        return False
+
+
 def resolve_viewer(request: Request, db: Session) -> Viewer:
     """
     A plain function, not a dependency, so /api/auth/me and the capability
@@ -210,6 +231,8 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
                 .filter(models.User.username == payload["sub"])
                 .first()
             )
+            if user is not None and not session_is_current(user, payload):
+                user = None
 
         role = role_for_user(db, user)
         if role is None:

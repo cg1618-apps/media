@@ -11,6 +11,7 @@ from app.models.access_mode import (
     UserAccessMode,
     UserAccessModeDenial,
 )
+from app.models.account_code import AccountCode
 from app.models.anime import Anime
 from app.models.anime_movie import AnimeMovies
 from app.models.base import NameFallbackMixin
@@ -150,6 +151,7 @@ __all__ = [
     "Role",
     "RolePermission",
     "User",
+    "AccountCode",
     "DataControlLog",
     "DeletedRecord",
 ]

@@ -67,7 +67,7 @@ def test_catalog_serves_the_self_family(admin_client):
     assert "self" in families
 
     names = {p["permission"] for p in families["self"]["permissions"]}
-    assert names == {"self.list", "self.personal_notes"}
+    assert names == {"self.list", "self.personal_notes", "self.password"}
 
 
 def test_a_self_permission_can_be_granted_to_a_role(admin_client):

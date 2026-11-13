@@ -1806,6 +1806,14 @@ def parse_user_from_sheet(raw: dict) -> dict:
     "unknown". A sheet written before either column existed has no header for
     it at all, which is the same case and the same answer.
 
+    `status` travels for `active` and `disabled`, so a Pull does not
+    re-activate an account disabled on the other machine. Any other value -
+    and a sheet written before the column existed - emits no `status` at all:
+    an existing account keeps its own, and a new one starts at the column
+    default, `active`. `pending` belongs to the approval flow on the machine
+    the registration arrived on and does not travel. `session_version` is
+    never read: it is this machine's revocation counter.
+
     THIS IS AN EXPLICIT PROJECTION, NOT A COLUMN SWEEP. A column added to the
     User model does not travel until it is named here, and the failure is
     silent on the machine doing the Backup - it shows up as the OTHER machine
@@ -1815,12 +1823,16 @@ def parse_user_from_sheet(raw: dict) -> dict:
     """
     is_public = parse_from_sheet(raw.get("list_is_public"), bool)
     is_owner = parse_from_sheet(raw.get("is_installation_owner"), bool)
-    return {
+    parsed = {
         "id": parse_from_sheet(raw.get("id"), UUID),
         "username": parse_from_sheet(raw.get("username"), str),
         "list_is_public": bool(is_public),
         "is_installation_owner": bool(is_owner),
     }
+    status = parse_from_sheet(raw.get("status"), str)
+    if status in ("active", "disabled"):
+        parsed["status"] = status
+    return parsed
 
 
 def parse_content_label_from_sheet(raw: dict) -> dict:

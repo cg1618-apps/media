@@ -1,7 +1,7 @@
 """
 The `user` role is four ideas, not a subsystem: everything a guest may read,
 plus the view.* reads a guest lacks, plus write-your-own-list, plus
-write-your-own-personal-notes. Catalogue writes
+write-your-own-personal-notes, plus change-your-own-password. Catalogue writes
 stay behind require_manage_catalog, so granting this role adds no admin
 surface at all.
 """
@@ -11,6 +11,7 @@ from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
     PERM_SELF_LIST,
+    PERM_SELF_PASSWORD,
     PERM_SELF_PERSONAL_NOTES,
     VIEW_PERMISSION_KEYS,
     view_perm,
@@ -33,11 +34,12 @@ def test_it_holds_everything_guest_holds():
     assert default_guest_permissions() <= default_user_permissions()
 
 
-def test_it_adds_exactly_the_view_family_and_the_two_self_permissions():
+def test_it_adds_exactly_the_view_family_and_the_three_self_permissions():
     extra = default_user_permissions() - default_guest_permissions()
     assert extra == {view_perm(key) for key in VIEW_PERMISSION_KEYS} | {
         PERM_SELF_LIST,
         PERM_SELF_PERSONAL_NOTES,
+        PERM_SELF_PASSWORD,
     }
 
 

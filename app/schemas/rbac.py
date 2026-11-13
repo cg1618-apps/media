@@ -1,6 +1,6 @@
 """Role, user-management and content-label schemas."""
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -179,6 +179,9 @@ class ManagedUserUpdate(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
     role_id: Optional[UUID] = None
+    # `pending` is not settable here: a registration is approved or declined,
+    # not edited. Anything else is a 422.
+    status: Optional[Literal["active", "disabled"]] = None
 
 
 class HeldAccessMode(BaseModel):
@@ -197,6 +200,8 @@ class ManagedUserResponse(BaseModel):
     username: str
     role_id: Optional[UUID] = None
     role_name: Optional[str] = None
+    # active / disabled / pending. Changed through PATCH /api/users/{id}.
+    status: str = "active"
     # Read-only here. Written only by the account's owner, through
     # PATCH /api/account/settings.
     list_is_public: bool = False
@@ -219,6 +224,14 @@ class AccountSettingsResponse(BaseModel):
     username: str
     role_name: str
     list_is_public: bool
+
+
+class OwnPasswordChange(BaseModel):
+    """Body of PUT /api/account/password. No user id, as everywhere on this
+    router: the account is the session's."""
+
+    current_password: str
+    new_password: str
 
 
 class AccountSettingsUpdate(BaseModel):

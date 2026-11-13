@@ -10,6 +10,7 @@ guest who held self.list would be handed a list the moment accounts existed.
 from app.services.rbac.permissions import (
     FAMILY_SELF,
     PERM_SELF_LIST,
+    PERM_SELF_PASSWORD,
     PERM_SELF_PERSONAL_NOTES,
     PERMISSION_FAMILIES,
     SELF_PERMISSION_KEYS,
@@ -20,11 +21,12 @@ from app.services.rbac.permissions import (
 from app.services.rbac.seed import default_guest_permissions
 
 
-def test_the_two_self_permissions_have_the_names_the_plan_promised():
+def test_the_self_permissions_have_the_names_the_plans_promised():
     assert PERM_SELF_LIST == "self.list"
     assert PERM_SELF_PERSONAL_NOTES == "self.personal_notes"
+    assert PERM_SELF_PASSWORD == "self.password"
     assert self_perm("list") == PERM_SELF_LIST
-    assert SELF_PERMISSION_KEYS == ("list", "personal_notes")
+    assert SELF_PERMISSION_KEYS == ("list", "personal_notes", "password")
 
 
 def test_self_is_a_declared_family():
@@ -40,9 +42,11 @@ def test_both_are_in_the_static_catalog():
     catalog = static_catalog()
     assert PERM_SELF_LIST in catalog
     assert PERM_SELF_PERSONAL_NOTES in catalog
+    assert PERM_SELF_PASSWORD in catalog
 
 
 def test_guest_holds_neither():
     guest = default_guest_permissions()
     assert PERM_SELF_LIST not in guest
     assert PERM_SELF_PERSONAL_NOTES not in guest
+    assert PERM_SELF_PASSWORD not in guest

@@ -19,6 +19,7 @@ from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
     PERM_SELF_LIST,
+    PERM_SELF_PASSWORD,
     PERM_SELF_PERSONAL_NOTES,
     locked_permissions,
     media_type_perm,
@@ -72,6 +73,7 @@ def test_guest_can_only_view():
         PERM_MANAGE_CATALOG,
         PERM_MANAGE_PIPELINES,
         PERM_SELF_LIST,
+        PERM_SELF_PASSWORD,
         PERM_SELF_PERSONAL_NOTES,
     }
     # Media types stay free - narrowing what a guest may read is the point of
@@ -82,11 +84,25 @@ def test_guest_can_only_view():
 @pytest.mark.parametrize("name", [USER_ROLE, "friend"])
 def test_catalogue_is_a_choice_for_user_and_custom_roles_but_pipelines_is_not(name):
     on, off = locked_permissions(name, False)
-    assert on == set()
     assert PERM_MANAGE_PIPELINES in off
     # The mirror: these three are neither forced nor refused.
     for permission in (PERM_MANAGE_CATALOG, PERM_SELF_LIST, media_type_perm("anime")):
         assert permission not in on and permission not in off
+
+
+def test_a_user_always_holds_its_own_password():
+    """Changing your own password is fixed for a member, as the reset link
+    is: a member who could not would have to ask the admin every time."""
+    on, _off = locked_permissions(USER_ROLE, False)
+    assert on == {PERM_SELF_PASSWORD}
+
+
+def test_a_custom_role_decides_its_own_password_freely():
+    """The mirror: the lock comes from the role's name, not from the
+    permission being unlockable."""
+    on, off = locked_permissions("friend", False)
+    assert on == set()
+    assert PERM_SELF_PASSWORD not in on and PERM_SELF_PASSWORD not in off
 
 
 def test_a_root_role_holds_everything_except_its_own_rows():
@@ -94,7 +110,7 @@ def test_a_root_role_holds_everything_except_its_own_rows():
     administrative account keeps no list and no personal notes. Drawing those
     two boxes ticked would state the opposite of what the resolver does."""
     on, off = locked_permissions(ADMIN_ROLE, True)
-    assert off == {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES}
+    assert off == {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES, PERM_SELF_PASSWORD}
     assert on == static_catalog() - off
     assert PERM_ADMIN_AUTHZ in on
 
@@ -109,7 +125,7 @@ def test_the_role_list_serves_the_locks(admin_client):
     assert PERM_MANAGE_CATALOG in super_role["locked_on"]
 
     user_role = _role(admin_client, USER_ROLE)
-    assert user_role["locked_on"] == []
+    assert user_role["locked_on"] == [PERM_SELF_PASSWORD]
     assert PERM_MANAGE_CATALOG not in user_role["locked_off"]
 
 
@@ -120,7 +136,7 @@ def test_the_admin_role_serves_every_management_permission_as_locked_on(admin_cl
     for permission in (PERM_ADMIN_AUTHZ, PERM_MANAGE_CATALOG, PERM_MANAGE_PIPELINES):
         assert permission in admin_role["locked_on"]
     assert sorted(admin_role["locked_off"]) == sorted(
-        [PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES]
+        [PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES, PERM_SELF_PASSWORD]
     )
 
 
@@ -158,7 +174,9 @@ def test_a_user_role_may_hold_the_catalogue_but_never_the_pipelines(admin_client
 
     allowed = admin_client.put(
         f"{ROLES}{user_id}/permissions",
-        json={"permissions": [PERM_MANAGE_CATALOG, PERM_SELF_LIST]},
+        json={
+            "permissions": [PERM_MANAGE_CATALOG, PERM_SELF_LIST, PERM_SELF_PASSWORD]
+        },
     )
     assert allowed.status_code == 200
     assert PERM_MANAGE_CATALOG in allowed.json()["permissions"]
