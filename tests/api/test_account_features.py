@@ -285,3 +285,27 @@ def test_has_feature_refuses_an_unknown_name(db_session):
 
     with pytest.raises(ValueError):
         has_feature(db_session, _viewer(), "favorites")
+
+
+def test_a_role_outside_the_five_gets_no_features(db_session, plain_user):
+    """The allowlist fails closed: a bespoke or renamed role - a restore, a
+    future role, a hand edit - holds no feature even with every switch
+    stored. Mirror: the same stored switches on a `user` account count."""
+    import uuid
+
+    from app.services.rbac.features import held_features
+
+    stray = models.Role(
+        system_id=uuid.uuid4(), name="friend", label="Friend", is_root=False
+    )
+    db_session.add(stray)
+    db_session.flush()
+    for column in FEATURE_COLUMNS:
+        setattr(plain_user, column, True)
+    db_session.flush()
+    assert held_features(plain_user, False) == list(FEATURE_NAMES)
+
+    plain_user.role_id = stray.system_id
+    db_session.flush()
+    db_session.refresh(plain_user)
+    assert held_features(plain_user, False) == []
