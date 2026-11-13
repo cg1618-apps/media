@@ -673,14 +673,14 @@ def make_guest_reader(
     client,
     username="guestreader",
     extra=ALL_VIEW_PERMISSIONS,
-    quotes_memes=False,
 ):
     """
     Log `client` in as an account that sees exactly what a guest sees - this
     database's guest-role grants and the `safe` mode, which is what a
-    logged-out visitor resolves - plus the role permissions in `extra`, and
-    the account's quotes-and-memes switch when `quotes_memes` is true (the
-    quote and meme reads ask the switch, not a permission).
+    logged-out visitor resolves - plus the role permissions in `extra`.
+
+    Its role is bespoke, so it holds no feature switch: the feature gate
+    admits only `user` and `super`. A quote or meme read uses quote_reader.
 
     For tests written against the anonymous `client` that read a surface now
     behind a view.* key. Moving them to `user_client` would change the object
@@ -712,7 +712,6 @@ def make_guest_reader(
         username=username,
         hashed_password=get_password_hash("x"),
         role_id=role.system_id,
-        feature_quotes_memes=quotes_memes,
     )
     user.mode_ceiling = MODE_SAFE
     user.mode_default = MODE_SAFE
@@ -734,9 +733,43 @@ def make_guest_reader(
 @pytest.fixture
 def guest_reader(db_session, client):
     """`client`, logged in as make_guest_reader: a guest plus every view.* key
-    and the quotes-and-memes switch - every gated read, on the guest's
-    object axis."""
-    return make_guest_reader(db_session, client, quotes_memes=True)
+    - every role-gated read, on the guest's object axis."""
+    return make_guest_reader(db_session, client)
+
+
+@pytest.fixture
+def quote_reader(db_session, client):
+    """`client`, logged in as a real `user` account in the `safe` mode with
+    the quotes-and-memes switch on.
+
+    The quote and meme reads ask the switch, which the feature gate grants
+    only on a `user` or `super` account - so the visibility tests run on a
+    role the gate admits, and a 404 or a missing row is the visibility rule
+    at work rather than the switch. `safe` is the guest's object axis, as
+    guest_reader's is.
+    """
+    user = models.User(
+        id=uuid.uuid4(),
+        username="quotereader",
+        hashed_password=get_password_hash("x"),
+        role_id=role_id_for(db_session, "user"),
+        feature_quotes_memes=True,
+    )
+    user.mode_ceiling = MODE_SAFE
+    user.mode_default = MODE_SAFE
+    db_session.add(user)
+    db_session.flush()
+    safe = (
+        db_session.query(models.AccessMode)
+        .filter(models.AccessMode.key == MODE_SAFE)
+        .one()
+    )
+    rbac_cache.bump()
+    token = create_access_token(
+        {"sub": user.username, "role": "user", "mode": str(safe.system_id)}
+    )
+    client.cookies.set("access_token", f"Bearer {token}")
+    return client
 
 
 @pytest.fixture
