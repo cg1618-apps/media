@@ -257,13 +257,18 @@ registrations.
 | --- | --- | --- | --- | --- | --- | --- |
 | Library | collection, franchise, the nine types, the entity libraries whose switches are on | — | ✓ | ✓ | ✓ | ✓ |
 | Restricted | H-Comic, H-Game, Hentai | — | in `unrestricted` | in `unrestricted` | — | — |
-| Track | Plan, Seasonal, Future Releases, Completions, Random Picker, **Statistics** | — | ✓ | ✓ | Seasonal, Future Releases, Statistics | + Random Picker |
-| Insights | Quotes, Memes, Resources | Resources | ✓ | quotes and memes by switch | — | — |
+| **Track** | Plan, Completions | — | ✓ | ✓ | — | — |
+| **Explore** | Seasonal, Future Releases, Random Picker, Statistics | — | ✓ | ✓ | all but Random Picker | ✓ |
+| **Extras** | Quotes, Memes, Resources | Resources | ✓ | quotes and memes by switch | — | — |
 | Entry, Note | catalogue editing, options | Note | ✓ | — | — | — |
 | Pipelines | Control Center, history, review queue, … | ✓ | ✓ | — | — | — |
 | Admin | users, roles, labels, modes | ✓ | — | — | — | — |
 
-- **Statistics moves into Track**, for every viewer.
+- **Three tabs replace Track and Insights.** **Track** keeps the
+  account's own progress — Plan and Completions; **Explore** holds the
+  browsing pages — Seasonal, Future Releases, Random Picker and
+  Statistics; **Extras** is the old Insights. Super's Relations and Watch
+  Orders editors stay in Extras.
 - **A tab with nothing left in it is not drawn.**
 - **Requests** is a menu item for shared, user and super, opening My
   requests. The inbox sits under Pipelines for super and Admin for the
@@ -273,7 +278,6 @@ registrations.
 - **The mode switcher** appears only for an account holding more than one
   mode, so never for a shared account.
 - Sign in and sign out stay as they are.
-- **Track and Insights may be renamed** — still to choose.
 
 ### Search
 
