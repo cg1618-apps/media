@@ -315,7 +315,7 @@ export default function App() {
 
                 {/* The handler's inbox: its own permission, not the
                     pipelines', though navigation.js lists it under the
-                    Pipelines tab. */}
+                    System tab. */}
                 <Route element={<ProtectedRoute permission="manage.requests" />}>
                   <Route path="/request-inbox" element={<RequestInbox />} />
                 </Route>

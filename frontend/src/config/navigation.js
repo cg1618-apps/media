@@ -193,41 +193,55 @@ export const NAV_SECTIONS = [
   {
     key: "track",
     label: "Track",
+    // The account's own progress: what it plans to watch and what it has
+    // finished.
     items: [
-      // Plan and Seasonal are per-user pages: their APIs answer 401 to a
-      // stranger and their routes redirect to login (App.jsx, ProtectedRoute
-      // requireAuth), so showing the rows logged out would only bounce people.
-      // self.list is the nav's spelling of "a signed-in member with a library
-      // of their own" - user and super hold it, guest does not, and neither
-      // does admin: the root short-circuit never covers the self.* family
-      // (AuthContext.has). The Settings row below is gated the same way.
+      // Plan is a per-user page: its API answers 401 to a stranger and its
+      // route redirects to login (App.jsx, ProtectedRoute requireAuth), so
+      // showing the row logged out would only bounce people. self.list is the
+      // nav's spelling of "a signed-in member with a library of their own" -
+      // user and super hold it, guest does not, and neither does admin: the
+      // root short-circuit never covers the self.* family (AuthContext.has).
       { label: "Plan", icon: "fas fa-clipboard-list", to: "/plan", requires: "self.list" },
-      { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal", requires: "self.list" },
-      // Future Releases, Completions and the Random Picker are the extras a
-      // member gets on top of browsing: view.extras, the same key App.jsx's
-      // routes ask. /random/<type> lights the Random Picker row up too.
-      {
-        label: "Future Releases",
-        icon: "fas fa-calendar-plus",
-        to: "/future-releases",
-        requires: "view.extras",
-      },
+      // Completions is an extra a member gets on top of browsing:
+      // view.extras, the same key App.jsx's route asks.
       {
         label: "Completions",
         icon: "fas fa-history",
         to: "/completions",
         requires: "view.extras",
       },
-      { label: "Random Picker", icon: "fas fa-dice", to: "/random", requires: "view.extras" },
     ],
   },
   {
-    key: "insights",
-    label: "Insights",
+    key: "explore",
+    label: "Explore",
+    // The browsing pages: ways into the collection by season, by release
+    // date, by chance and by the numbers.
     items: [
-      // Per-user, like Plan and Seasonal above: the page is built from the
-      // caller's own seasonal rows.
+      // Seasonal and Statistics are per-user like Plan, and gated on
+      // self.list for the same reason: Statistics is built from the caller's
+      // own seasonal rows.
+      { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal", requires: "self.list" },
+      // Future Releases and the Random Picker are extras: view.extras, the
+      // same key App.jsx's routes ask. /random/<type> lights the Random
+      // Picker row up too.
+      {
+        label: "Future Releases",
+        icon: "fas fa-calendar-plus",
+        to: "/future-releases",
+        requires: "view.extras",
+      },
+      { label: "Random Picker", icon: "fas fa-dice", to: "/random", requires: "view.extras" },
       { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics", requires: "self.list" },
+    ],
+  },
+  {
+    key: "extras",
+    label: "Extras",
+    // Quotes, memes and resources, then the catalogue editors' relations and
+    // watch orders.
+    items: [
       // Quotes and Memes follow the account's quotes_memes feature switch,
       // the one App.jsx's routes ask; Resources is an extra (view.extras).
       // All three are read-only for a member; their edit controls ask
@@ -252,18 +266,10 @@ export const NAV_SECTIONS = [
         to: "/watch-orders",
         requires: "manage.catalog",
       },
-      // The account's own settings. Not in Admin or Pipelines: those
-      // sections require admin.authz / manage.pipelines, and this is the one
-      // page a member who holds neither has of their own.
-      { divider: true, requires: "self.list" },
-      {
-        label: "Settings",
-        icon: "fas fa-sliders-h",
-        to: "/settings",
-        requires: "self.list",
-      },
     ],
   },
+  // The account's own settings are not a section row: they sit with the
+  // account in Nav.jsx's strip, beside Requests and log out.
   {
     key: "entry",
     label: "Entry",
@@ -289,7 +295,7 @@ export const NAV_SECTIONS = [
     requires: "manage.catalog",
     // The three read-only inventories of how the data is described: the
     // vocabulary, its translations, and which columns each external API
-    // writes. Editing lives on Add/Modify under System.
+    // writes. Editing lives on Add/Modify under Entry.
     items: [
       {
         label: "System Options",
@@ -320,8 +326,8 @@ export const NAV_SECTIONS = [
     ],
   },
   {
-    key: "pipelines",
-    label: "Pipelines",
+    key: "system",
+    label: "System",
     // Control Center, Data History and Review Queue call only
     // /api/system/* and /api/data-control/*, which require manage.pipelines
     // — not the same capability as the catalogue CRUD pages above, and not
