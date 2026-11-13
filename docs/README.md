@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-10-05
+Last verified: 2026-11-12
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -13,6 +13,7 @@ right and the doc needs the fix.
 |---|---|
 | [setup-local.md](setup-local.md) | get the app running on a new machine (Windows or Linux) |
 | [switching-environments.md](switching-environments.md) | hand work over between the **company** and **home** machines — what to push, when to Backup/Pull the data, which database is at which revision, where the recovery dumps are |
+| [to-do-next.md](to-do-next.md) | see the work that is decided but not built, in the order it is to be built. No status and no claiming; an item is deleted in the change that builds it |
 | [open-items.md](open-items.md) | see what is known-broken or undecided and nobody is working on. Everything in it is open by definition; an item is closed by deleting it in the same change that fixes it |
 | [architecture.md](architecture.md) | know how a request flows and where code lives |
 | [entry-types.md](entry-types.md) | understand what a collection / franchise / series / entry is and what each media type supports |
@@ -45,6 +46,9 @@ right and the doc needs the fix.
 
 | File | Scope |
 |---|---|
+| [account.md](account.md) | for the people who use the site: kinds of account, signing in, getting an account, recovering one, changing a password. No technical detail |
+| [catalogue.md](catalogue.md) | for the people who use the site: what is the shared catalogue and what is your own data, down to each Notes section. No technical detail |
+| [viewers.md](viewers.md) | what each viewer — admin, super, user, guest, shared — sees, and how a page differs between them. The decided design of the account rework, marked not available yet |
 | [authentication.md](authentication.md) | login, JWT cookie, admin seeding, the frontend auth context |
 | [authorization.md](authorization.md) | RBAC: roles, permissions, content labels, visibility enforcement, field gating, what a guest sees. Ends with a **Known drift** section naming the three half-finished pieces the authorization redesign has to settle |
 
