@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-10-28
+Last verified: 2026-11-13
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -1319,6 +1319,47 @@ The icon itself is looked up by the vocabulary value's name in
 drops its icon until the map is updated — a missing icon, not lost data. The
 one name code *branches* on is 動畫瘋's (above), and `getBahaRow` prefers the
 row's `option_id` where a caller has it.
+
+---
+
+## 18a. Requests and reports (`app/services/domain/requests.py`)
+
+What a member files and how the inbox treats it. The whole subsystem is in
+[systems/requests.md](systems/requests.md); these are the rules the backend
+applies on its own.
+
+### Only open requests count against the limit
+
+`users.open_request_limit` caps how many **open** requests an account may hold
+at once; NULL is no limit. Filing counts the author's `open` rows, and at or
+over the limit answers **409** naming it. A request marked done or declined
+frees its slot, so the limit throttles what is waiting, not what was ever
+asked.
+
+The super role is never limited: `effective_request_limit` answers none for it
+whatever is stored, and `/users` refuses to store one (**422**).
+
+### The limit follows the role
+
+`default_request_limit(role)` is each role's starting limit - 15 for `user`,
+none for every other role (`DEFAULT_REQUEST_LIMITS`). An account takes it when
+`/users` creates it, and again whenever `/users` changes its role, unless the
+same save sets `open_request_limit` explicitly.
+
+### An open request is editable; a handled one is not
+
+The author edits `description` and `remark` only, and only while the request
+is `open` - a done or declined one answers **409**. A handler setting it back
+to `open` clears who handled it and when, and makes it editable again.
+Another account's request answers **404**, exactly as a missing one does.
+
+### A target must exist, and its name is kept
+
+A request may name one target: an entry, a grouping tier or an entity
+(`REQUEST_TARGET_TABLES`). It must exist (**422** otherwise), but the filer's
+access mode is not consulted. Its name is copied into `target_label` at
+filing, so after the target is deleted the request still says what it was
+about; the live name is shown while it exists.
 
 ---
 

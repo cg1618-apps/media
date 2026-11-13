@@ -3,7 +3,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # ---------------------------------------------------------------------------
 # Permission catalog
@@ -179,6 +179,10 @@ class ManagedUserUpdate(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
     role_id: Optional[UUID] = None
+    # Null is no limit. Left out of the payload it is untouched - unless the
+    # same save changes the role, which resets it to the new role's default.
+    # Not settable on a super account, which never has one.
+    open_request_limit: Optional[int] = Field(default=None, ge=0)
 
 
 class HeldAccessMode(BaseModel):
@@ -205,6 +209,8 @@ class ManagedUserResponse(BaseModel):
     # the users page, and PUT .../access-modes returns this same shape - so
     # the page never has to reconcile two sources.
     access_modes: List[HeldAccessMode] = []
+    # How many open requests the account may hold at once; null is no limit.
+    open_request_limit: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 

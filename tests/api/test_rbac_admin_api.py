@@ -67,7 +67,7 @@ def test_catalog_serves_the_self_family(admin_client):
     assert "self" in families
 
     names = {p["permission"] for p in families["self"]["permissions"]}
-    assert names == {"self.list", "self.personal_notes"}
+    assert names == {"self.list", "self.personal_notes", "self.requests"}
 
 
 def test_a_self_permission_can_be_granted_to_a_role(admin_client):
@@ -272,6 +272,77 @@ def test_demotion_is_allowed_while_another_admin_remains(admin_client, db_sessio
     ).first()
     response = admin_client.patch(f"/api/users/{me.id}", json={"role_id": guest})
     assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# The open-request limit
+# ---------------------------------------------------------------------------
+
+def _create(admin_client, username, role_name):
+    response = admin_client.post(
+        USERS,
+        json={
+            "username": username,
+            "password": "pw",
+            "role_id": _role_id(admin_client, role_name),
+        },
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_a_new_account_takes_its_roles_request_limit(admin_client):
+    assert _create(admin_client, "limited", "user")["open_request_limit"] == 15
+    assert _create(admin_client, "unlimited", "super")["open_request_limit"] is None
+
+
+def test_the_limit_can_be_set_and_cleared(admin_client):
+    user = _create(admin_client, "tuned", "user")
+    path = f"{USERS}{user['id']}"
+    set_ = admin_client.patch(path, json={"open_request_limit": 3})
+    assert set_.status_code == 200
+    assert set_.json()["open_request_limit"] == 3
+    # An unrelated edit leaves it alone.
+    assert admin_client.patch(path, json={"password": "pw2"}).json()[
+        "open_request_limit"
+    ] == 3
+    cleared = admin_client.patch(path, json={"open_request_limit": None})
+    assert cleared.json()["open_request_limit"] is None
+
+
+def test_a_negative_limit_is_422(admin_client):
+    user = _create(admin_client, "negative", "user")
+    path = f"{USERS}{user['id']}"
+    assert admin_client.patch(path, json={"open_request_limit": -1}).status_code == 422
+    assert admin_client.patch(path, json={"open_request_limit": 0}).status_code == 200
+
+
+def test_a_role_change_resets_the_limit_to_the_new_roles_default(admin_client):
+    user = _create(admin_client, "promoted", "user")
+    path = f"{USERS}{user['id']}"
+    admin_client.patch(path, json={"open_request_limit": 4})
+
+    to_super = admin_client.patch(path, json={"role_id": _role_id(admin_client, "super")})
+    assert to_super.json()["open_request_limit"] is None
+    back = admin_client.patch(path, json={"role_id": _role_id(admin_client, "user")})
+    assert back.json()["open_request_limit"] == 15
+
+
+def test_a_role_change_keeps_a_limit_set_in_the_same_save(admin_client):
+    user = _create(admin_client, "both", "guest")
+    response = admin_client.patch(
+        f"{USERS}{user['id']}",
+        json={"role_id": _role_id(admin_client, "user"), "open_request_limit": 7},
+    )
+    assert response.json()["open_request_limit"] == 7
+
+
+def test_a_super_account_has_no_editable_limit(admin_client):
+    user = _create(admin_client, "boss", "super")
+    path = f"{USERS}{user['id']}"
+    assert admin_client.patch(path, json={"open_request_limit": 5}).status_code == 422
+    # The mirror: clearing it, which is what it already is, is accepted.
+    assert admin_client.patch(path, json={"open_request_limit": None}).status_code == 200
 
 
 # ---------------------------------------------------------------------------

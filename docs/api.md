@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -81,6 +81,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Account — `/api/account`](#account--apiaccount)
 - [Profile — `/api/profile`](#profile--apiprofile)
 - [Community — `/api/community`](#community--apicommunity)
+- [Requests — `/api/requests`](#requests--apirequests)
 - [Authorization](#authorization) — `/api/roles`, `/api/users`, `/api/content-labels`
 
 ---
@@ -1383,7 +1384,8 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `hentai_source_material`, `h_game_playstyle`, `h_game_language_availability`,
 `h_game_audio_availability`, `h_game_h_presentation`, `h_game_art_style`,
 `h_game_h_art_style`, `h_game_platform`,
-`person_role`, `media_type`, `option_categories`, `tag_categories`. The
+`person_role`, `media_type`, `option_categories`, `tag_categories`,
+`request_kind`, `request_status`. The
 payload is viewer-scoped on the gated types: a key that serves gated types
 only (`TYPE_ONLY_VOCABULARIES`) is served while at least one of its types is
 seeable - `h_comic_originality` serves h-comic and hentai,
@@ -2493,6 +2495,44 @@ and a 404 here would blank a page that is otherwise fine.
 
 ---
 
+## Requests — `/api/requests`
+
+Requests and reports: what a member files about the site or its data, and the
+inbox that handles them. Two gates and no others, both **401** when refused:
+`self.requests` (`require_file_requests`) files a request and reads and edits
+your own; `manage.requests` (`require_handle_requests`) is the inbox. Filing is
+a `self.*` permission, so the **administrative** account handles requests and
+files none. Rules: [systems/requests.md](systems/requests.md).
+
+| Method | Path | Auth | Body / notes |
+|---|---|---|---|
+| GET | `/api/requests/mine` | `self.requests` | The caller's own, newest first. `?status=` `open`, `done` or `declined`; omitted, every status. Another account's requests never appear. |
+| POST | `/api/requests` | `self.requests` | `UserRequestCreate` — `kind` (one of `request_kind`), `description` (required, non-empty), and optionally `remark`, `page_path`, and `target_type` + `target_id` (both or neither). **201** with the request. **409** when the caller already holds as many **open** requests as their `open_request_limit`; **422** on an unknown `kind`, an unknown `target_type`, a `target_id` naming no row, or half a target. A target the caller's access mode hides is accepted. |
+| PATCH | `/api/requests/{id}` | `self.requests` | `UserRequestUpdate` — `description` and/or `remark` (null clears the remark); any other key is **422**. Only the author's own: another account's request is **404**. **409** once the request is done or declined. |
+| GET | `/api/requests` | `manage.requests` | The inbox, every account's requests, newest first. `?status=` `open` (the default), `done`, `declined` or `all`; anything else **422**. |
+| GET | `/api/requests/summary` | `manage.requests` | `{open: n}` — the number of open requests. |
+| PUT | `/api/requests/{id}/status` | `manage.requests` | `UserRequestStatusUpdate` — `status` (`open`, `done` or `declined`) and an optional `response`. Closing records `handled_by` and `handled_at`; `open` clears both and makes the request editable by its author again. **404** on an unknown id. |
+| DELETE | `/api/requests/{id}` | `manage.requests` | **204**. A hard delete; the log line is the only record left. **404** on an unknown id. |
+
+**`UserRequestResponse`** (every route but `/summary` and `DELETE`):
+`id`, `kind`, `status`, `description`, `remark`, `page_path`, `target`,
+`author_username`, `response`, `handled_by_username`, `handled_at`,
+`created_at`, `updated_at`, `can_edit`.
+
+- `target` is null when the request names none, otherwise `{type, type_label,
+  id, label, nav_path, missing}`. `type` is a key of `REQUEST_TARGET_TABLES`
+  (`app/utils/media_resolver.py`): the twelve media types, `series`,
+  `franchise`, `collection`, `studio`, `publisher`, `person`, `character`,
+  `identity`. `label` is the target's current name, or the name copied when the
+  request was filed once the target is gone (`missing: true`, `nav_path`
+  null). `nav_path` is the SPA detail path (`/anime/<uuid>`), null for a series.
+- `author_username` and `handled_by_username` are null once that account is
+  deleted — the SPA shows "deleted account".
+- `response` is the handler's remark, returned to the author on `/mine` too.
+- `can_edit` is true when the request is the caller's own and still open.
+
+---
+
 ## Authorization
 
 Every read route now resolves a **viewer** (`app/services/rbac/resolver.py`).
@@ -2659,9 +2699,9 @@ No self-registration; accounts are created here only.
 
 | Method | Path | Body / notes |
 |---|---|---|
-| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `list_is_public`). `list_is_public` is **read-only here** — it is the account holder's decision, written only through `PATCH /api/account/settings`, and deliberately absent from `ManagedUserUpdate`. Passwords never leave the server. |
-| POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201. 409 on a taken username, 422 on an unknown role. |
-| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`. 409 if the new username is taken, or if the change would demote the last account that can still administer the site. |
+| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `list_is_public`, `access_modes`, `open_request_limit`). `open_request_limit` is how many open requests the account may hold, null for no limit. `list_is_public` is **read-only here** — it is the account holder's decision, written only through `PATCH /api/account/settings`, and deliberately absent from `ManagedUserUpdate`. Passwords never leave the server. |
+| POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201. The account's `open_request_limit` is its role's default — 15 for `user`, none for every other role. 409 on a taken username, 422 on an unknown role. |
+| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`, `open_request_limit` (an integer ≥ 0, or null for no limit; negative is 422). A `role_id` change resets the limit to the new role's default unless the same body sets `open_request_limit`. A non-null limit on a `super` account — or on an account this save moves to `super` — is **422**: super's limit is fixed at none. 409 if the new username is taken, or if the change would demote the last account that can still administer the site. |
 | DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, or the last administering account. |
 
 ### `/api/content-labels`

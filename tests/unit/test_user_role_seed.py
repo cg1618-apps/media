@@ -10,8 +10,10 @@ from app.services.rbac.permissions import (
     PERM_ADMIN_AUTHZ,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
+    PERM_MANAGE_REQUESTS,
     PERM_SELF_LIST,
     PERM_SELF_PERSONAL_NOTES,
+    PERM_SELF_REQUESTS,
     VIEW_PERMISSION_KEYS,
     view_perm,
 )
@@ -33,11 +35,12 @@ def test_it_holds_everything_guest_holds():
     assert default_guest_permissions() <= default_user_permissions()
 
 
-def test_it_adds_exactly_the_view_family_and_the_two_self_permissions():
+def test_it_adds_exactly_the_view_family_and_the_three_self_permissions():
     extra = default_user_permissions() - default_guest_permissions()
     assert extra == {view_perm(key) for key in VIEW_PERMISSION_KEYS} | {
         PERM_SELF_LIST,
         PERM_SELF_PERSONAL_NOTES,
+        PERM_SELF_REQUESTS,
     }
 
 
@@ -45,3 +48,4 @@ def test_it_is_not_an_admin():
     assert PERM_ADMIN_AUTHZ not in default_user_permissions()
     assert PERM_MANAGE_CATALOG not in default_user_permissions()
     assert PERM_MANAGE_PIPELINES not in default_user_permissions()
+    assert PERM_MANAGE_REQUESTS not in default_user_permissions()

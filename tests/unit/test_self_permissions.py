@@ -11,6 +11,7 @@ from app.services.rbac.permissions import (
     FAMILY_SELF,
     PERM_SELF_LIST,
     PERM_SELF_PERSONAL_NOTES,
+    PERM_SELF_REQUESTS,
     PERMISSION_FAMILIES,
     SELF_PERMISSION_KEYS,
     self_perm,
@@ -20,11 +21,12 @@ from app.services.rbac.permissions import (
 from app.services.rbac.seed import default_guest_permissions
 
 
-def test_the_two_self_permissions_have_the_names_the_plan_promised():
+def test_the_self_permissions_have_the_names_the_plans_promised():
     assert PERM_SELF_LIST == "self.list"
     assert PERM_SELF_PERSONAL_NOTES == "self.personal_notes"
+    assert PERM_SELF_REQUESTS == "self.requests"
     assert self_perm("list") == PERM_SELF_LIST
-    assert SELF_PERMISSION_KEYS == ("list", "personal_notes")
+    assert SELF_PERMISSION_KEYS == ("list", "personal_notes", "requests")
 
 
 def test_self_is_a_declared_family():
@@ -40,9 +42,11 @@ def test_both_are_in_the_static_catalog():
     catalog = static_catalog()
     assert PERM_SELF_LIST in catalog
     assert PERM_SELF_PERSONAL_NOTES in catalog
+    assert PERM_SELF_REQUESTS in catalog
 
 
 def test_guest_holds_neither():
     guest = default_guest_permissions()
     assert PERM_SELF_LIST not in guest
     assert PERM_SELF_PERSONAL_NOTES not in guest
+    assert PERM_SELF_REQUESTS not in guest

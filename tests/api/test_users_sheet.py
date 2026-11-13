@@ -180,3 +180,44 @@ def test_an_unknown_role_name_skips_the_row(db, sheets):
     assert result["status"] == "success"
     assert db.query(models.User).filter_by(username="ghost").first() is None
     assert any("wizard" in ref for ref in result["unresolved_refs"])
+
+
+def test_the_open_request_limit_travels(db, sheets):
+    """An account setting like list_is_public: named in the projection, or a
+    Pull silently lifts every member's limit."""
+    sheets(
+        {
+            "Users": [
+                USER_HEADERS + ["open_request_limit"],
+                [str(uuid.uuid4()), "capped", "FALSE", "user", "7"],
+                [str(uuid.uuid4()), "uncapped", "FALSE", "user", ""],
+            ]
+        }
+    )
+
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    assert db.query(models.User).filter_by(username="capped").one().open_request_limit == 7
+    assert (
+        db.query(models.User).filter_by(username="uncapped").one().open_request_limit
+        is None
+    )
+
+
+def test_a_sheet_without_the_limit_leaves_a_local_one_alone(db, sheets):
+    """A sheet backed up before the column existed has no header for it."""
+    local = models.User(
+        id=uuid.uuid4(),
+        username="kept",
+        hashed_password=get_password_hash("pw"),
+        role_id=db.query(models.Role).filter_by(name="user").one().system_id,
+        open_request_limit=4,
+    )
+    db.add(local)
+    db.flush()
+    sheets({"Users": [USER_HEADERS, [str(local.id), "kept", "FALSE", "user"]]})
+
+    pull.execute_pull_specific(db, "Users", log_action=False, may_restore_authz=True)
+
+    db.refresh(local)
+    assert local.open_request_limit == 4

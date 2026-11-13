@@ -13,6 +13,7 @@ from app.services.rbac.permissions import (
     PERM_ADMIN_AUTHZ,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
+    PERM_MANAGE_REQUESTS,
     is_valid,
     split_perm,
     static_catalog,
@@ -47,7 +48,7 @@ def test_the_role_editor_offers_them(admin_client):
     families = {f["family"]: f for f in admin_client.get("/api/roles/catalog").json()}
     assert "manage" in families
     offered = {p["permission"] for p in families["manage"]["permissions"]}
-    assert offered == {PERM_MANAGE_CATALOG, PERM_MANAGE_PIPELINES}
+    assert offered == {PERM_MANAGE_CATALOG, PERM_MANAGE_PIPELINES, PERM_MANAGE_REQUESTS}
     admin_family = {p["permission"] for p in families["admin"]["permissions"]}
     assert PERM_ADMIN_AUTHZ in admin_family
 

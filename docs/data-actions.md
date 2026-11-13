@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-10-28
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -163,7 +163,7 @@ its own commit. Each of the twelve entry tabs drops its constant `media_type`
 column and appends a derived, read-only `display_name` for the human reader;
 Pull drops any header that is not a column of the model (`drop_non_columns`).
 
-**`Users`** carries `id`, `username`, `list_is_public`, `is_installation_owner` and `role`.
+**`Users`** carries `id`, `username`, `list_is_public`, `is_installation_owner`, `open_request_limit` and `role`.
 `hashed_password` and `role_id` are dropped. `role_id` because
 `role.system_id` is minted per database by `ensure_rbac_seed`, so the role
 **name** travels instead and Pull resolves it locally - the same arrangement
@@ -183,7 +183,12 @@ whatever local account held it first: `ix_one_installation_owner` is unique
 across the whole table, and without the clearing step the tab would raise at
 its commit and roll back **every** account. `parse_user_from_sheet` is an
 explicit projection, so a column added to the User model does not travel until
-it is named there.
+it is named there. `open_request_limit` is named there; a blank cell is NULL
+(no limit), and a sheet with no header for it leaves the local value alone.
+
+**Requests are not on the sheet.** `user_request` has no tab, so Backup and
+Pull never touch it: the inbox lives on the box and in its own dumps, and a
+Pull would otherwise overwrite it with a development machine's.
 
 **`User Media List`** carries every user's list rows. `user_id`, `media_id`
 and `system_id` are dropped for `username`, `media_type` and `public_id` -

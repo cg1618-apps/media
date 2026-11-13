@@ -61,6 +61,7 @@ from app.routers import (
     publisher,
     quote,
     random_picker_defaults,
+    requests,
     resources,
     roles,
     search,
@@ -326,6 +327,7 @@ app.include_router(profile.router)
 app.include_router(community.router)
 app.include_router(me_list.router)
 app.include_router(content_labels.router)
+app.include_router(requests.router)
 
 
 # ==========================================
