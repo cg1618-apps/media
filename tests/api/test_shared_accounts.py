@@ -234,3 +234,16 @@ def test_an_active_member_owns_it_past_inactive_ones(db_session):
     active = _member(db_session, "aac", USER_STATUS_ACTIVE)
 
     assert installation_owner_id(db_session) == active.id
+
+
+def test_a_disabled_flag_holder_still_owns_it(db_session):
+    """The status rule is the fallbacks' only: a disabled owner's data is
+    still theirs. An active member sorting first is the competing answer."""
+    from app.services.domain.user_list import installation_owner_id
+
+    _member(db_session, "aaa", USER_STATUS_ACTIVE)
+    owner = _member(db_session, "zzz", USER_STATUS_DISABLED)
+    owner.is_installation_owner = True
+    db_session.flush()
+
+    assert installation_owner_id(db_session) == owner.id

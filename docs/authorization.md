@@ -1327,7 +1327,8 @@ Two rules that are **not** this one:
   so on a fresh machine a shared login would otherwise be the first
   fallback's answer and receive the owner's whole collection. Nor does
   either name an account whose status is not `active` — a pending
-  registrant or a disabled account.
+  registrant or a disabled account. The flag holder is the answer whatever
+  its status: a disabled owner's data is still theirs.
 - **`viewer_user_id`** — the non-raising companion for the two public paths
   that must show nothing per-user. It has no fallback either.
 
