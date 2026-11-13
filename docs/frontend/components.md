@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -523,7 +523,12 @@ not drawn. The character, person and studio libraries use it for
   see `pages.md`, Detail pages), `CreateNewEntityModal`, `FranchiseCreateModal`,
   `ConfirmModal` (a yes/no question in the same chrome - `title`, body as
   children, `confirmLabel`, `danger` for a destructive confirm, Escape
-  cancels; the Resources page's delete prompt).
+  cancels; the Resources page's delete prompt and Disable on `/users`),
+  `OnceLinkModal` (a one-time link the server has just minted, in the same
+  chrome - `title`, explanation as children, `link` in a read-only field,
+  `expiresAt`, a **Copy link** button through `copyTextToClipboard`
+  (`lib/clipboardImage.js`), and the line that it is shown only once; Escape
+  or Close dismisses it; `/users`' reset link).
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
 - **`components/resources`** — `ResourceTree` (the `/resources` tree: nested
   collapsible groups, items, and for a manage.catalog holder every add, edit,
@@ -783,7 +788,8 @@ is a second place to keep in step.
 | `relationLayout.js`, `relationHandles.js`, `relationUndo.js` | pure graph layout (union-find clusters on a hand-rolled grid; no dagre), handle geometry, undo stack |
 | `choiceLayout.js` | `choiceLayout(nodes, edges, marks)` → `{blocks, branches, arrows}`: a game's choice graph laid out top to bottom, pure and unit-tested. Blocks and branches are both laid out as items, joined by block→branch, branch→next block and block→block (link) arrows. Roots are the `start` blocks (else the blocks nothing leads to, else the first); a depth-first walk marks back arrows (returns), which are left out of ranking; an item's rank is its longest path; within a rank a block orders by `sort_index` then under its leftmost parent, a branch under its block. Each item's size comes from its content - `sizeOf(item)` over `textWidth(text, charWidth)`, a full-width character counting double, within the `BLOCK` and `BRANCH` constants - and ranks and columns are spaced so nothing overlaps (`CHOICE_RANK_GAP`, `CHOICE_COLUMN_GAP`) |
 | `textFit.js` | width measurement for `FittedName` |
-| `clipboardImage.js` | copy an image to the clipboard (quotes/memes) |
+| `clipboardImage.js` | copy an image to the clipboard (quotes/memes); `copyTextToClipboard(text)` for plain text (a quote line, `OnceLinkModal`'s link) |
+| `newPassword.js` | `newPasswordProblem(password, again)`: the message for what is wrong with a new password typed twice, or `null` - empty, more than `MAX_PASSWORD_BYTES` (72) UTF-8 bytes, or the two differ. The server's only two checks, repeated so `/reset` and Settings → Password can answer before a round trip; there is no minimum length, and the server stays authoritative |
 | `resourceTree.js` | The Resources tree's move arithmetic, pure: `findNode`, `parentIdOf`, `childrenOf`, `countDescendants`, `countByKind`, `flattenGroups`, `canDropInto` (refuses a group into itself or any descendant, and an item as a parent), `moveAmongSiblings` and `moveInto` (each returns the reorder body `{parent_id, ordered_ids}` - the complete new child list - or `null`), and `applyReorder` for the optimistic cache update |
 | `gatedTypes.js` | The gated-type question - see [Gated media types](#gated-media-types). `GATED_TYPES`, `canSeeGatedType`, the list filters, and `REQUIRED_LABEL_FOR_TYPE` (mirrors the backend's) with `requiredLabelsForType` / `requiredLabelsForFranchiseType`. `FRANCHISE_FAMILY_FOR_TYPE` mirrors the backend's franchise families - `H-Comic`, `Hentai` and `H-Game` are one family, `RESTRICTED_FAMILY` (`restricted`) - and `inFranchiseFamily(franchiseType, family)` asks whether a comma-joined `franchise_type` names a type of it |
 | `hComicAnimation.js` | An h-comic's animation status, hand-set or derived. `isDerivedAnimationStatus(entry)` (`animation_status_source === "derived"`: a hentai adapts it) and `adaptingHentai(rows)` (the stored, reverse-direction `adaptation` rows of a relation card whose far end is a hentai, as their `other` endpoints) |

@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -29,6 +29,7 @@ are a large share of the bundle and never needed on first paint.
 |---|---|---|
 | `/` | `Index` — `public/Index.jsx` | eager |
 | `/login` | `Login` — `public/Login.jsx` | eager |
+| `/reset` | `ResetPassword` — `public/ResetPassword.jsx`, in no menu | lazy |
 | `/search` | `Search` — `public/Search.jsx` | eager, **`view.search`** |
 | `/library/collection` | `CollectionLibrary` — `library/CollectionLibrary.jsx` | eager |
 | `/library/franchise` | `FranchiseLibrary` — `library/FranchiseLibrary.jsx` | eager |
@@ -67,6 +68,7 @@ are a large share of the bundle and never needed on first paint.
 | `/meme` | `public/Memes.jsx` | lazy, **`view.extras`** |
 | `/resources` | `public/Resources.jsx` | lazy, **`view.extras`** |
 | `/user/:username` | `public/Profile.jsx` | lazy, **`view.personal`** |
+| `/settings` | `public/Settings.jsx` | lazy, **`self.list`** |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
 
 **Gated routes.** The two h-comic routes sit inside
@@ -1633,12 +1635,54 @@ that order and sorts nothing.
 
 ### Login — `/login`
 
-File `pages/public/Login.jsx`. Heading "Admin Access". POSTs
+File `pages/public/Login.jsx`. Heading "Sign in". POSTs
 `/api/auth/login` as `application/x-www-form-urlencoded` (`username`,
 `password`), then **loads** `?next` when it starts with `/` and does not point
 back at `/login`, otherwise `/system`. A full page load, not a route change -
-everything cached up to that moment was cached as a guest. Errors show inline
-and as a toast.
+everything cached up to that moment was cached as a guest. A refusal shows the
+server's `detail` as it comes, inline and as a toast: the generic 401, the
+403 a pending or a disabled account gets after the right password, and the
+429 that says how many minutes to wait.
+
+`?username=` pre-fills the username field - `/reset` lands here that way.
+The saved-users row (up to three usernames this browser signed in with, from
+`lib/savedUsers.js`) still replaces it on a click.
+
+**Forgot your password or username?** under the form toggles a short note
+(`aria-expanded`): ask the admin for a reset link, which works once for 24
+hours and shows your username. It is a note only - no form, and no link to
+`/reset`, which is useless without a code from the admin.
+
+### ResetPassword — `/reset`
+
+File `pages/public/ResetPassword.jsx`, in no menu: the only way here is a
+reset link from the admin, `/reset?code=…`. On load it asks
+`GET /api/auth/reset?code=` whose account the code is for, which does not
+spend it. Without a code, or for any code the server refuses, the page shows
+one message - the server's `detail` (`This link is not valid. Ask the admin
+for a new one.`, or the 429) - and no form. Otherwise it reads "Setting a new
+password for *username*", with the new password twice. The two must match,
+and `lib/newPassword.js` repeats the server's only two checks (not empty, at
+most 72 UTF-8 bytes) so the form can say so before a round trip; anything the
+server still refuses (404, 422) is shown inline and the page stays. A save
+POSTs `{code, password}` and then **loads** `/login?username=<username>` - a
+full page load, as signing out is, because the server has just ended every
+session of the account and cleared this browser's login cookies.
+
+### Settings — `/settings`
+
+File `pages/public/Settings.jsx`, behind `<ProtectedRoute
+permission="self.list">`. The header names the account and its role.
+
+- **List visibility** - one switch, written on change through
+  `PATCH /api/account/settings`; it shows the server's answer, not the click.
+- **Password** - only when `has("self.password")`, so a shared account and the
+  root admin (whose `self.*` permissions are not short-circuited) never see
+  it. Current password, new password, new password again; the same
+  `lib/newPassword.js` checks as `/reset`, then `PUT /api/account/password`.
+  A refusal (`Your current password is not right.`, a 422) shows inline; a
+  success clears the fields and says you stay signed in, here and on your
+  other devices - a change ends no session, a reset does.
 
 ### UnderDevelopment — `/under-development`
 

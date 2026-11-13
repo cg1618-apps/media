@@ -15,10 +15,15 @@ export default function Login() {
   // Usernames saved on this browser, most recently used first. Read once:
   // nothing outside this page writes the list while it is open.
   const [savedUsers, setSavedUsers] = useState(readSavedUsers);
-  const [username, setUsername] = useState("");
+  const location = useLocation();
+  // ?username= pre-fills the field: a password reset lands here with the
+  // account it was for, so the only thing left to type is the new password.
+  const [username, setUsername] = useState(
+    () => new URLSearchParams(location.search).get("username") ?? "",
+  );
+  const [showForgot, setShowForgot] = useState(false);
   const passwordRef = useRef(null);
   const { showToast } = useToast();
-  const location = useLocation();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -51,6 +56,9 @@ export default function Login() {
         // would be drawn from that cache.
         hardNavigate(usable ? next : "/system");
       } else {
+        // The server's detail is shown as it comes: the generic 401, the two
+        // 403s a pending or disabled account earns after the right password,
+        // and the 429 that says how long to wait.
         const data = await res.json();
         setError(data.detail || "Authentication failed.");
         showToast("error", data.detail || "Authentication failed.");
@@ -162,6 +170,29 @@ export default function Login() {
             )}
           </Button>
         </form>
+
+        {/* A note, not a form: the site has no way to reach anyone, so the
+            only way back into an account is a reset link from the admin.
+            No link to /reset either - that page needs a code only the admin
+            can hand out. */}
+        <div className="mt-6 text-sm">
+          <button
+            type="button"
+            aria-expanded={showForgot}
+            aria-controls="login-forgot-note"
+            onClick={() => setShowForgot((open) => !open)}
+            className="text-text-muted underline hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            Forgot your password or username?
+          </button>
+          {showForgot && (
+            <p id="login-forgot-note" className="mt-2 text-text-muted">
+              Ask the admin for a reset link, outside the site. It works once,
+              for 24 hours. Opening it shows your username and lets you choose
+              a new password.
+            </p>
+          )}
+        </div>
       </Slip>
     </div>
   );

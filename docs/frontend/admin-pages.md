@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -1379,8 +1379,20 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   label and an icon from `FAMILY_ICONS` (`fa-key` for a family with none);
   the Viewing family (`view.*` - entities, search, extras, personal, the
   member-only reading surfaces) is drawn with `fa-eye`.
-- **Users** — create users with a role, change role, delete; the last
-  administrator and your own account are protected.
+- **Users** — create users with a role, change role, set a password,
+  delete; the last administrator and your own account are protected. The
+  password field in a row's edit mode says that setting one signs the
+  account out everywhere. A **Status** column shows each account's `status`
+  as a chip (`active`, `disabled` in danger, `pending`). Each row offers only
+  what the server would accept:
+  - **Disable** on an active account other than your own, behind a
+    `ConfirmModal` saying it signs the account out everywhere and nothing in
+    it is lost; **Enable** on a disabled one, straight away. Both are
+    `PATCH /api/users/{id}` with `status`. A pending account gets neither.
+  - **Reset link** on an active account whose role is not `shared`:
+    `POST /api/users/{id}/reset-link`, then `OnceLinkModal` with the link, a
+    **Copy link** button and the expiry, saying the link is shown only once -
+    the server keeps only a hash, and making another stops this one working.
 - **Content Labels** — the label vocabulary; deleting a label immediately
   re-exposes every entry and franchise that carried only that label. This page
   is `admin.authz`; **assigning** a label on Add/Modify is `manage.catalog`, so

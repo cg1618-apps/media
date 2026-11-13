@@ -4,16 +4,36 @@
 // to let you delete yourself or demote the last account that can still
 // administer the site, and those refusals surface as toasts rather than being
 // pre-empted here - one rule, enforced in one place.
+//
+// The lifecycle controls are offered only where the server would take them,
+// because a button that can only ever earn a 409 is noise: Disable on an
+// active account other than your own, Enable on a disabled one, neither on a
+// pending one (that is approved or declined, not edited), and a reset link on
+// an active account whose role is not `shared` (the admin sets a shared
+// account's password here instead). The server still refuses each of them.
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
+import ConfirmModal from "../../components/modals/ConfirmModal";
+import OnceLinkModal from "../../components/modals/OnceLinkModal";
+import { Chip } from "../../components/ui/primitives";
+import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 
 const BLANK = { username: "", password: "", role_id: "" };
 
+// Disabled is the one state that is a refusal, so it alone takes danger.
+const STATUS_TONE = { active: "ink", disabled: "danger", pending: "muted" };
+
 export default function Users() {
   const { showToast } = useToast();
+  const { username: myUsername } = useAuth();
+  const [disabling, setDisabling] = useState(null);
+  const [busy, setBusy] = useState(false);
+  // {user, link, expires_at} for the reset link just minted - held only
+  // while its modal is open, since the server never shows it again.
+  const [resetLink, setResetLink] = useState(null);
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +111,37 @@ export default function Users() {
       showToast("success", `Updated ${user.username}.`);
       setEditingId(null);
       await load();
+    } catch (err) {
+      showToast("error", err.message);
+    }
+  }
+
+  async function setStatus(user, status) {
+    setBusy(true);
+    try {
+      await fetchJson(endpoints.users.update(user.id), {
+        method: "PATCH",
+        ...jsonBody({ status }),
+      });
+      showToast(
+        "success",
+        status === "disabled" ? `Disabled ${user.username}.` : `Enabled ${user.username}.`,
+      );
+      setDisabling(null);
+      await load();
+    } catch (err) {
+      showToast("error", err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function makeResetLink(user) {
+    try {
+      const data = await fetchJson(endpoints.users.resetLink(user.id), {
+        method: "POST",
+      });
+      setResetLink({ user, link: data.link, expires_at: data.expires_at });
     } catch (err) {
       showToast("error", err.message);
     }
@@ -175,6 +226,7 @@ export default function Users() {
           <tr>
             <th className="text-left px-4 py-2">Username</th>
             <th className="text-left px-4 py-2">Role</th>
+            <th className="text-left px-4 py-2">Status</th>
             <th className="text-left px-4 py-2">Access</th>
             <th className="text-right px-4 py-2">Actions</th>
           </tr>
@@ -202,16 +254,26 @@ export default function Users() {
                     <input
                       type="password"
                       placeholder="New password (optional)"
+                      aria-describedby={`password-help-${user.id}`}
                       value={editDraft.password}
                       onChange={(e) =>
                         setEditDraft({ ...editDraft, password: e.target.value })
                       }
                       className="border rounded px-2 py-1 text-xs"
                     />
+                    <span
+                      id={`password-help-${user.id}`}
+                      className="text-[11px] text-text-faint"
+                    >
+                      Setting a password signs this account out everywhere.
+                    </span>
                   </div>
                 ) : (
                   <span className="text-text-muted">{user.role_name}</span>
                 )}
+              </td>
+              <td className="px-4 py-2">
+                <Chip tone={STATUS_TONE[user.status] ?? "ink"}>{user.status}</Chip>
               </td>
               <td className="px-4 py-2 text-xs text-text-faint">
                 {user.access_modes.length === 0 ? (
@@ -267,6 +329,31 @@ export default function Users() {
                     >
                       Edit
                     </button>
+                    {user.status === "active" && user.role_name !== "shared" && (
+                      <button
+                        onClick={() => makeResetLink(user)}
+                        className="text-brand text-xs mr-3"
+                      >
+                        Reset link
+                      </button>
+                    )}
+                    {user.status === "active" && user.username !== myUsername && (
+                      <button
+                        onClick={() => setDisabling(user)}
+                        className="text-danger text-xs mr-3"
+                      >
+                        Disable
+                      </button>
+                    )}
+                    {user.status === "disabled" && (
+                      <button
+                        onClick={() => setStatus(user, "active")}
+                        disabled={busy}
+                        className="text-brand text-xs mr-3"
+                      >
+                        Enable
+                      </button>
+                    )}
                     <button
                       onClick={() => remove(user)}
                       className="text-danger text-xs"
@@ -295,6 +382,37 @@ export default function Users() {
           onClose={() => setModesFor(null)}
           onSave={saveAccessModes}
         />
+      )}
+
+      {disabling && (
+        <ConfirmModal
+          title={`Disable ${disabling.username}?`}
+          confirmLabel="Disable"
+          danger
+          busy={busy}
+          onConfirm={() => setStatus(disabling, "disabled")}
+          onCancel={() => setDisabling(null)}
+        >
+          This signs {disabling.username} out everywhere, on every device, and
+          the account cannot sign in until you enable it again. Nothing in it
+          is lost.
+        </ConfirmModal>
+      )}
+
+      {resetLink && (
+        <OnceLinkModal
+          title={`Reset link for ${resetLink.user.username}`}
+          link={resetLink.link}
+          expiresAt={resetLink.expires_at}
+          onClose={() => setResetLink(null)}
+        >
+          <p>
+            Give this to {resetLink.user.username} outside the site. It works
+            once, shows them their username, and lets them set a new password;
+            using it signs the account out everywhere. Making a new link stops
+            this one working.
+          </p>
+        </OnceLinkModal>
       )}
     </div>
   );
