@@ -1,7 +1,6 @@
 # Account and authorization system — design
 
-**Status: under discussion. Nothing here is built, and nothing is built until
-every open question below is answered.** The scope is the whole account and
+**Status: complete — no open questions. Nothing here is built yet.** The scope is the whole account and
 authorization system — users, roles, access modes, content labels and
 authentication together. Implementation starts from this document once it has
 no open questions; it is then turned into a plan, and both are deleted when
@@ -36,12 +35,13 @@ from the company development database.
   username and password; admin can change their password but cannot delete
   them. "Guest" means only the logged-out visitor; a shared account is
   logged in.
-- Each role has some settings the admin can change and some that are fixed.
-  **To discuss:** which are which.
-- **To discuss:** what belongs to each user (personal notes, reviews, …) and
-  what everyone sees; what guests and shared accounts can read.
-- **Admin and guests get different pages and layout.** Partly built for the
-  logged-out visitor. **To discuss:** the details.
+- Each role has some settings the admin can change and some that are fixed
+  — see "Fixed and adjustable settings".
+- What belongs to each user and what everyone sees is "Catalogue and user
+  data"; what each viewer can read is `docs/viewers.md`.
+- **Admin and guests get different pages and layout** — each page's general
+  version is in `docs/viewers.md`, "Customised pages"; the detail is the
+  first item of `docs/open-items.md`.
 
 ### Access modes
 
@@ -49,7 +49,7 @@ from the company development database.
   cannot create or delete modes.
 - **`unrestricted` always reaches everything.**
 - Each mode has some settings the admin can change and some that are fixed
-  (hard vs manual restrictions). **To discuss:** which are which.
+  (hard vs manual restrictions) — see "Fixed and adjustable settings".
 - An account is bound to a **ceiling** — the highest mode it may use — and a
   **default** mode it starts in at login.
 
@@ -333,9 +333,8 @@ and never hold the type either.
    implies an order `safe < normal < borderline < unrestricted` and requires
    **each mode to contain the one below it** — which then has to be a fixed
    rule the admin's edits cannot break. Today nothing stops `normal` from
-   showing something `borderline` hides. Recommended: it matches how the
-   modes are used (on the company development database, `admin` and
-   `cg1618` both hold all four).
+   showing something `borderline` hides. **Settled**: an account has a
+   ceiling and a default, and the order is fixed in code.
 2. **No mode creation or deletion.** Today `POST` and `DELETE
    /api/access-modes` exist; both go, and editing the adjustable parts stays.
 3. **`/users` creates only `user`/`super`.** Today it accepts any role. This
@@ -345,8 +344,7 @@ and never hold the type either.
    stops it; make it an explicit 409.
 5. **The two shared accounts and the `shared` role are new.** Today the
    logged-in guest accounts do not exist as such. The accounts cannot be
-   deleted, and their mode is fixed; recommended: their role cannot be
-   changed either.
+   deleted, their mode is fixed, and their role cannot be changed.
 6. **Requests and reports** do not exist — see "Requests and reports"
    above.
 7. **Labels move into code.** Today they are admin-created rows on
@@ -432,7 +430,7 @@ mods and so on). `docs/catalogue.md` lists every section and its scope.
   admin sets on `/users`, the same per-account shape as the access-mode
   denials — not a role. The music statuses keep their vocabulary as one
   personal field — nothing in it moves to the catalogue.
-- **Proposed mechanism**, not yet confirmed: the registry marks a field
+- **The mechanism, settled:** the registry marks a field
   personal; its value lives in a per-user mark on the catalogue row, the
   way `game_choice_mark` holds a user's done flag and note on a choice
   graph; a user with no mark sees the field's empty value; the migration
@@ -499,7 +497,7 @@ what", below.
 account in the migration, and Backup and Pull carry them per user from then
 on, as they do the list.
 
-**The proposed rule for anything added later:** if two people could disagree
+**The rule for anything added later, settled:** if two people could disagree
 about it and both be right, it belongs to a user; if it is a fact about the
 work, it belongs to the catalogue.
 
@@ -513,6 +511,6 @@ Decisions about who sees what are written there, not here.
 
 ## Open questions
 
-1. **Customised pages and layouts**, recorded in `docs/viewers.md` as they
-   are decided: the Dashboard, Seasonal and Statistics without personal
-   data, the shared Random Picker, and the admin's and guests' layouts.
+None. What is deferred is recorded where it waits: each page's per-viewer
+detail is the first item of `docs/open-items.md`, and the content label
+filter is an item there too.

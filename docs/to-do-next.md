@@ -1,6 +1,6 @@
 # To do next
 
-Last verified: 2026-11-12
+Last verified: 2026-11-13
 
 **Decided work that is not built yet, in the order it is to be built.** An
 item here has been settled with the owner — what to build is known — but
@@ -35,9 +35,8 @@ waits for item 2.
 Users, roles, access modes, content labels and authentication together,
 including what becomes personal: per-user ratings, expectations,
 highlights, personal fields on catalogue rows, mixed sections, granted
-features, and the personal half of item 1. **The design is not finished**:
-who can see what is still being decided, and nothing is built until the
-design has no open questions.
+features, and the personal half of item 1. **The design is complete.**
+What each viewer sees is [viewers.md](viewers.md).
 
 Design: [superpowers/specs/2026-11-03-account-system-design.md](superpowers/specs/2026-11-03-account-system-design.md).
 
