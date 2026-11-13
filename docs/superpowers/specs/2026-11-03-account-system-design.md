@@ -433,10 +433,35 @@ The UI changes are not only hiding things: guests, shared accounts and the
 admin may get a different dashboard and layout. That customisation is
 discussed per viewer once visibility is settled.
 
-- **A shared account is a guest that can view more** — not only through its
-  higher mode, but more pages and features than a logged-out guest. **It
-  keeps no data of its own**: no list, ratings, progress, personal notes or
-  personal rows. Its only write is requests and reports.
+### At a glance
+
+The per-role sections below are the authority; this table summarises them.
+"switch" is a per-role setting the admin adjusts, with its default after
+it; "per account" is a per-account feature switch, off by default.
+
+| | admin | super | user | guest | shared |
+| --- | --- | --- | --- | --- | --- |
+| Media and group libraries, detail pages, watch orders | — | ✓ | ✓ | ✓ | ✓ |
+| Studio, publisher, person, character pages | — | ✓ | switch, on | switch, off | switch, off |
+| Search, Future Releases | — | ✓ | ✓ | ✓ | ✓ |
+| Seasonal, Statistics | — | ✓ | ✓ | ✓ ² | ✓ ² |
+| Random Picker | — | ✓ | ✓ | — | ✓ ¹ |
+| Plan, Completions | — | ✓ | ✓ | — | — |
+| Quotes, memes | — | per account | per account | — | per account |
+| `/resources` | ✓ | ✓ | — | — | — |
+| Content (modes) | none | up to ceiling | up to ceiling | `safe`, fixed | its own mode, fixed |
+| Own personal data | — | ✓ | ✓ | — | — |
+| Rows in mixed sections | — | catalogue | personal | — | — |
+| Granted features | — | per account | per account | — | — |
+| Requests and reports | inbox | inbox, files | files | — | files |
+| Writes the catalogue | — | ✓ | never | — | — |
+| Announcements, Note pages, `/images`, pipelines | ✓ | ✓ | — | — | — |
+| Accounts, roles, modes | ✓ | — | — | — | — |
+| Label reference | ✓ | ✓ | — | — | — |
+| Anyone else's personal data | — | — | — | — | — |
+
+¹ a customised version. ² a version without personal data, still to
+design.
 
 ### Admin
 
@@ -568,6 +593,22 @@ The logged-out visitor.
   personal data, requests.
 - **No register link** on the sign-in page: an invite arrives as a link.
 - Its mode is `safe`, always, fixed.
+
+### Shared
+
+A guest that can view more, with no data of its own.
+
+- **Reads** everything a guest reads, in its own fixed mode (`normal` or
+  `borderline`), plus a **Random Picker** in a customised version, and
+  quotes and memes only through a per-account switch.
+- **Entity pages are off by default**, as for a guest; the `shared` role's
+  switches are set separately from the guest's.
+- **Keeps no data of its own**: no list, ratings, progress, personal notes
+  or personal rows. **Its only write is requests and reports**, whose
+  status it sees.
+- **Nothing else beyond guest for now**; the rest of the difference is the
+  per-viewer customisation discussed with layouts.
+- Only the admin changes its password.
 
 ### Requests and reports
 
