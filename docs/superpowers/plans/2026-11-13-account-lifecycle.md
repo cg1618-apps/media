@@ -178,8 +178,10 @@ longer password before the policy.
   `role` is `user` or `super` (default `user`); ceiling and default from
   `safe` / `normal` / `borderline` (default `normal` / `normal`), never
   `unrestricted`; sets `active`, the role's request limit (P6's
-  `default_request_limit`) — **using P3's ceiling model**, whatever shape
-  media-fd gives it.
+  `default_request_limit`) — by calling P3e's
+  `set_mode_ceiling(db, user, ceiling_key, default_key)` in
+  `app/services/rbac/modes.py`, which raises `ValueError` when default >
+  ceiling (→ 422). Not reimplemented here.
 - `POST /api/users/{id}/reject` — deletes a `pending` account only (409
   otherwise), logs one line with the username; the invite row stays spent.
 - **Sheets**: Backup skips `pending` accounts; `account_code` has no tab.
