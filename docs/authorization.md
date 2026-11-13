@@ -1325,7 +1325,9 @@ Two rules that are **not** this one:
   a fresh machine still lands. Neither fallback ever names a `shared` or
   `guest` account: the seed creates the two shared accounts on every boot,
   so on a fresh machine a shared login would otherwise be the first
-  fallback's answer and receive the owner's whole collection.
+  fallback's answer and receive the owner's whole collection. Nor does
+  either name an account whose status is not `active` — a pending
+  registrant or a disabled account.
 - **`viewer_user_id`** — the non-raising companion for the two public paths
   that must show nothing per-user. It has no fallback either.
 

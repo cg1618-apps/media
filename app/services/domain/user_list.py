@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.database import get_taipei_now
+from app.models.system import USER_STATUS_ACTIVE
 from app.services.rbac.permissions import GUEST_ROLE_NAME, SHARED_ROLE_NAME
 from app.utils.constants import COMPLETED_WATCH_STATUSES
 
@@ -176,8 +177,10 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
     whose role is `shared` or `guest`: a shared account is non-root and the
     seed creates two on every boot, so on a fresh install it would otherwise
     be the first fallback's answer, and the owner's whole collection would be
-    filed under a login several people use. Never None while the admin
-    account exists, because `user_media_list.user_id` is NOT NULL and a
+    filed under a login several people use. Nor does either name an account
+    that is not `active`: a pending registrant is a stranger until approved,
+    and a disabled account cannot sign in to see what was filed under it.
+    Never None while an active admin account exists, because `user_media_list.user_id` is NOT NULL and a
     restore has to file its rows somewhere. The second fallback can therefore
     still name an admin, on a database that has no other account - which is
     right: a sheet must restore onto a fresh machine before a second account
@@ -197,7 +200,10 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
     candidates = (
         db.query(models.User)
         .join(models.Role, models.User.role_id == models.Role.system_id)
-        .filter(models.Role.name.notin_(NEVER_OWNER_ROLE_NAMES))
+        .filter(
+            models.Role.name.notin_(NEVER_OWNER_ROLE_NAMES),
+            models.User.status == USER_STATUS_ACTIVE,
+        )
         .order_by(models.User.username)
     )
     owner = candidates.filter(~models.Role.is_root).first() or candidates.first()

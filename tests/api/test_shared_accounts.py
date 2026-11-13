@@ -190,3 +190,47 @@ def test_a_flagless_restore_picks_a_member_over_the_admin(db_session, plain_user
     from app.services.domain.user_list import installation_owner_id
 
     assert installation_owner_id(db_session) == plain_user.id
+
+
+def _member(db, username, status):
+    import uuid
+
+    from app.services.security import get_password_hash
+
+    user = models.User(
+        id=uuid.uuid4(),
+        username=username,
+        hashed_password=get_password_hash("pw"),
+        role_id=role_id_for(db, "user"),
+        status=status,
+    )
+    db.add(user)
+    db.flush()
+    return user
+
+
+def test_an_inactive_account_never_owns_the_installation(db_session):
+    """A pending registrant and a disabled account, both sorting before every
+    other account, are what makes this bite: without the status rule the
+    first fallback's answer is `aaa`."""
+    from app.models.system import USER_STATUS_PENDING
+    from app.services.domain.user_list import installation_owner_id
+
+    pending = _member(db_session, "aaa", USER_STATUS_PENDING)
+    disabled = _member(db_session, "aab", USER_STATUS_DISABLED)
+
+    owner_id = installation_owner_id(db_session)
+    assert owner_id not in (pending.id, disabled.id)
+    assert db_session.get(models.User, owner_id).status == USER_STATUS_ACTIVE
+
+
+def test_an_active_member_owns_it_past_inactive_ones(db_session):
+    """Mirror, on the same inactive accounts: an active member still wins."""
+    from app.models.system import USER_STATUS_PENDING
+    from app.services.domain.user_list import installation_owner_id
+
+    _member(db_session, "aaa", USER_STATUS_PENDING)
+    _member(db_session, "aab", USER_STATUS_DISABLED)
+    active = _member(db_session, "aac", USER_STATUS_ACTIVE)
+
+    assert installation_owner_id(db_session) == active.id
