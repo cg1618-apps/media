@@ -86,7 +86,7 @@ password. Remove one with its **×**.
 
 **Access mode.** Once signed in, the mode switcher in the header changes how
 much of the collection you see, among the modes up to your account's
-ceiling.
+ceiling. A shared account's mode is fixed, so it has no switcher.
 
 *Not available yet:* an account waiting for approval will be told so after
 the right password; a wrong password will still just say the sign-in

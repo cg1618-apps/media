@@ -27,9 +27,16 @@ catalogue and what is an account's own data is
 > **Built:** [Removed](#removed), under "Customised pages";
 > [Requests and reports](#requests-and-reports), and the My
 > requests and inbox rows of
-> [My requests, the inbox, and pending registrations](#my-requests-the-inbox-and-pending-registrations).
+> [My requests, the inbox, and pending registrations](#my-requests-the-inbox-and-pending-registrations);
+> [Entity pages, shown per kind](#entity-pages-shown-per-kind); and, in
+> "At a glance", the rows for the nine ordinary media types, H-Comic, H-Game
+> and Hentai, the entity pages, and quotes and memes for `super` and `user`.
 > Requests and reports work for `admin`, `super`, `user` and the shared
-> accounts. Until the header rework, the inbox sits under Pipelines for both
+> accounts. Quotes and memes follow a per-account switch on the Users page,
+> held only by `user` and `super` accounts ([authorization.md](authorization.md),
+> "Per-account feature switches"); favourites, music status and mod status
+> are switches there too, which gate nothing until the personal-data work
+> lands. Until the header rework, the inbox sits under Pipelines for both
 > admin and super. A `user` never writes the catalogue (`manage.catalog` is
 > locked off for the role). The shared accounts, `shared-normal` and
 > `shared-borderline`, each fixed at its own mode, keep no data of their own,
@@ -39,14 +46,19 @@ catalogue and what is an account's own data is
 > **Built underneath, not yet as described here:** every account has a mode
 > ceiling and a default, set on the Users page, and switches among the modes
 > up to its ceiling ([authorization.md](authorization.md), "Access modes").
-> The "Content (modes)" row is not yet true as a whole: `admin` still sits in
-> `unrestricted` rather than in no mode, and a shared account can still
-> switch down to `safe`, so the mode switcher still appears for it.
+> A shared account's mode is fixed for switching too, so the mode switcher
+> does not appear for it. The "Content (modes)" row is not yet true as a
+> whole: `admin` still sits in `unrestricted` rather than in no mode.
 >
-> **A shared account lacks Random Picker and Future Releases** until the
-> per-role switches are split. Both sit behind `view.extras` today, which is
-> locked off for `shared` because it also opens quotes and memes; until then
-> a shared account reads what a guest reads, plus requests.
+> **The admin is still a root role**, so it still reads every page this
+> design takes from it — the catalogue, the entity pages, and quotes and
+> memes, which it holds without a switch.
+>
+> **A shared account lacks Random Picker and Future Releases** until
+> `view.extras` is split. Both sit behind that one key, which also opens
+> Resources and Completions — neither of them a shared account's — so it is
+> locked off for `shared`; until the split a shared account reads what a
+> guest reads, plus requests.
 
 ## At a glance
 
@@ -159,16 +171,18 @@ Super without the catalogue work.
 ## Entity pages, shown per kind
 
 - **Each kind of non-media, non-group library and detail page is shown or
-  hidden on its own**, not as one block. Today `view.entities` opens or
-  closes studios, publishers, people, seiyuu, characters and identities
-  together; it splits into one setting per kind. Where a kind is hidden,
-  its names render as plain text, as entity names do for a guest today.
-- **Four kinds, one setting each:** studio; publisher; person — the people
-  library and the seiyuu library, since a seiyuu opens a person page; and
-  character — characters and identities.
-- **They apply to guest, shared and user**, adjustable per role, and are
-  **off by default for all three**. Super is always on; the admin is
-  always off.
+  hidden on its own**, not as one block. Where a kind is hidden, its library
+  row and its pages are absent and its names render as plain text wherever
+  they appear.
+- **Four kinds, one setting each:** studio (`view.studio`); publisher
+  (`view.publisher`); person (`view.person`) — the people library and the
+  seiyuu library, since a seiyuu opens a person page; and character
+  (`view.character`) — characters, identities, and the Characters tab on
+  franchise and series pages.
+- **They apply to guest, shared and user**, adjustable per role on the
+  Roles page, and a fresh database starts **all three with them off**.
+  Super always holds them; the admin is to hold none once it stops being a
+  root role.
 
 ## Track and Insights pages
 
@@ -203,9 +217,9 @@ The logged-out visitor.
   dashboard's announcements and broadcast schedule, Search, Future
   Releases, Seasonal and Statistics (in a version without personal data),
   and the entity kinds its role's switches open.
-- **Every media type, games included**, in `safe`. The empty Games library
-  is an accident of the seed — the guest role was seeded before games
-  existed — not a decision.
+- **The nine ordinary media types, games included**, in `safe` — each a
+  switch on the role, seeded on. Never H-Comic, H-Game or Hentai: those are
+  fixed off for a guest.
 - **Not:** Random Picker, Plan, Completions, quotes, memes, `/resources`,
   personal data, requests.
 - **No register link** on the sign-in page: an invite arrives as a link.
