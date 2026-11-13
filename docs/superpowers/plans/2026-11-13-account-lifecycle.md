@@ -87,8 +87,16 @@ submitted username before the lookup — every stored name is lowercase.
 
 ### Password policy — `validate_new_password(password)`
 
-Minimum length `PASSWORD_MIN_LENGTH` (question 2 — default **8**), and
-**refuse past 72 UTF-8 bytes** with a 422 that says so. Applied to
+**No policy, by the owner's decision: no minimum length, no composition
+rules.** Only two checks remain, and both are technical, not policy:
+
+- **refuse an empty password**, which is no credential at all;
+- **refuse past 72 UTF-8 bytes**, with a 422 that says so. bcrypt reads
+  only the first 72 bytes, so truncating quietly would accept a password
+  that differs from the one stored after byte 72. The spec says "reject
+  rather than truncate".
+
+Both apply to
 register, reset, self-change, `/users` create and `/users` set-password.
 `get_password_hash` stops truncating (it is now only ever handed a valid
 password); **`verify_password` keeps the `[:72]` slice**, because bcrypt
@@ -107,14 +115,14 @@ longer password before the policy.
   reset", which matters most for a leaked shared login. Not a self-change,
   not logout. Every increment goes through one function,
   `revoke_sessions(user)`, and the admin-set case is one constant,
-  `ADMIN_SET_PASSWORD_REVOKES_SESSIONS = True`, beside it — the owner has
-  not answered yet, so the PR says this is provisional.
+  `ADMIN_SET_PASSWORD_REVOKES_SESSIONS = True`, beside it — the owner's
+  decision.
 - **Login**: a wrong password is the ordinary generic 401 whatever the
   status. After a correct one: `pending` → 403 `"Your account is waiting
   for the admin's approval."`; `disabled` → 403 `"This account is
   disabled."` No token in either case.
-- **`/users`**: `PATCH` takes `status` `active` / `disabled` (whether a
-  shared account may be disabled is question 3), and increments the
+- **`/users`**: `PATCH` takes `status` `active` / `disabled` (shared
+  accounts included), and increments the
   counter on disable. A pending account is not edited here; it goes through approval.
   The admin cannot disable itself (409), as it cannot delete itself.
 
@@ -159,7 +167,7 @@ longer password before the policy.
   tunnel. No library: slowapi keys per route, and login needs a
   per-username key as well; the counter is ~40 lines. The docstring says
   that a second worker process would need a shared store.
-- **Limits** (question 4), 429 with `Retry-After`:
+- **Limits** (the owner's), 429 with `Retry-After`:
   - login: 5 **failed** attempts per username per 15 min, and 20 failed per
     IP per 15 min; a success clears the username's count;
   - reset and register, GET and POST: 10 per IP per 15 min.
@@ -185,7 +193,8 @@ longer password before the policy.
 - `POST /api/users/{id}/reject` — deletes a `pending` account only (409
   otherwise), logs one line with the username; the invite row stays spent.
 - **Sheets**: Backup skips `pending` accounts; `account_code` has no tab.
-  `status` travels for `active` / `disabled` (question 5).
+  `status` travels for `active` / `disabled`, so a Pull does not re-activate a disabled
+  account on the other machine.
 - **Seeding** `shared-normal` and `shared-borderline` — **if P3 has not
   already**: role `shared`, their fixed mode, request limit 10, the
   unusable password hash (`UNUSABLE_PASSWORD_HASH`), so no credential is in
@@ -226,7 +235,7 @@ the owner wants to design them.
 
 - **Policies**: each username rule both ways, including the spec's
   examples (`admin1`, `qadminqe` refused; `adamin`, `adm1in` allowed;
-  `gUesT` refused); `Kai` vs `kai` clash; min length; 73-byte password
+  `gUesT` refused); `Kai` vs `kai` clash; empty password refused, a one-character one accepted; 73-byte password
   refused with a multi-byte example; an existing 80-byte-password account
   still logs in.
 - **Revocation — refusals that bite**: a token minted, then a reset spent →
@@ -278,25 +287,23 @@ so reparent, never renumber.
   P6's backend is in review, in parallel with P3 — media-fd is told which
   functions P4a changes before it starts; whoever lands second rebases.
 - **P4 owns `users.status`** — it is lifecycle; P3 does not add it.
-- Built to these defaults, owner's answers pending: minimum password
-  length 8, no composition rules; shared accounts may be disabled; the
-  rate limits above; `disabled` travels on the Users tab; an admin
-  set-password revokes sessions (above). Modals and the approval form from
-  existing components.
+- Modals and the approval form from existing components.
 
-## Questions as asked
+## Decided by the owner (2026-11-13)
 
-1. **For media-fd:** does P3 add `users.status`, or is it P4's? "after
-   media-fd's role/status pieces land" reads as P3's. I build on whichever
-   column exists and add it only if none does.
-2. **Owner:** the password minimum length. The spec says "a minimum
-   length". Recommend **8** (NIST's floor for user-chosen passwords), with
-   no composition rules.
-3. **Owner:** may a shared account be disabled? The spec says the admin
-   cannot delete them; disabling is reversible. Recommend **yes**.
-4. **Owner:** the rate limits above — 5 failed logins per username and 20
-   per IP per 15 min; 10 per IP per 15 min on register and reset.
-5. **Owner:** does `disabled` travel on the Sheets Users tab? Recommend
-   **yes** — otherwise a disabled account comes back active on the other
-   machine after a Pull.
-6. **For you:** two PRs (P4a, P4b) or one?
+When this plan is deleted, these go to `docs/notes/decisions.md` with
+their reasons.
+
+- **An admin setting a password on `/users` revokes that account's
+  sessions**, as a reset does. This matters most for a leaked shared login.
+- **No password policy.** No minimum length and no composition rules. The
+  only checks are the two technical ones above, for an empty password and
+  past 72 bytes. media-00 is correcting the spec's "minimum length" wording
+  separately.
+- **A shared account may be disabled.** Disabling is reversible, unlike the
+  deletion the spec forbids.
+- **Rate limits**: 5 failed logins per username and 20 per IP per 15 min;
+  10 per IP per 15 min on register and reset.
+- **`disabled` travels on the Sheets Users tab.**
+
+No questions remain open.
