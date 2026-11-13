@@ -186,10 +186,23 @@ longer password before the policy.
   `role` is `user` or `super` (default `user`); ceiling and default from
   `safe` / `normal` / `borderline` (default `normal` / `normal`), never
   `unrestricted`; sets `active`, the role's request limit (P6's
-  `default_request_limit`) — by calling P3e's
-  `set_mode_ceiling(db, user, ceiling_key, default_key)` in
-  `app/services/rbac/modes.py`, which raises `ValueError` when default >
-  ceiling (→ 422). Not reimplemented here.
+  `default_request_limit`) — by calling P3e's setter, not reimplementing it.
+  As media-ad gave it:
+  `set_mode_ceiling(db, user, ceiling_key: str | None, default_key: str | None) -> None`
+  in `app/services/rbac/modes.py`.
+  - Keys are mode keys; both None means no mode.
+  - Raises `ValueError` on an unknown key, on exactly one None, or when
+    the default ranks above the ceiling. Approve turns that into a 422.
+  - It flushes and bumps the rbac cache but **never commits**, so approve
+    commits it in one transaction with the status change.
+  - **The setter accepts `unrestricted`; the form must not.** Approve
+    refuses `unrestricted` itself (422) before calling the setter.
+  - Registration leaves a pending account with no modes, both None.
+  - `default_mode_id(db, user)` keeps its name and signature, so
+    `set_login_cookie` needs no change.
+
+  Check the signature against `modes.py` when P4b is built. It is pending
+  media-00's review of P3e.
 - `POST /api/users/{id}/reject` — deletes a `pending` account only (409
   otherwise), logs one line with the username; the invite row stays spent.
 - **Sheets**: Backup skips `pending` accounts; `account_code` has no tab.
