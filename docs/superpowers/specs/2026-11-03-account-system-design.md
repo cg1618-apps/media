@@ -310,9 +310,21 @@ and never hold the type either.
 | Role | `user` / `super`, at approval or creation; `admin` and `shared` fixed |
 | Mode ceiling and default | `user`, `super`; a shared account is fixed to its own mode |
 | Per-account restrictions — a label or field group denied below the ceiling | `user`, `super` |
-| Feature switches — quotes and memes, favourites, music status, mod status | `user`, `super`; quotes and memes also for `shared` |
-| Request limit | `user`, `super`, `shared` |
+| Feature switches — quotes and memes, favourites, music status, mod status | `user`, `super` only |
+| Request limit — open requests at once | `user` 15, `shared` 10 by default; `super` none |
 | Password | every account; the admin sets it |
+
+### The named accounts
+
+| Account | Role | Ceiling / default at login | Feature switches | Request limit |
+| --- | --- | --- | --- | --- |
+| `admin` | `admin` | none | none | — |
+| `cg1618` — the owner's, installation owner | `super` | `unrestricted` / `borderline` | all on | none |
+| `shared-normal` | `shared` | `normal`, fixed | none | 10 |
+| `shared-borderline` | `shared` | `borderline`, fixed | none | 10 |
+| a new user | `user` | `normal` / `normal` | all off | 15 |
+
+**Shared accounts never get quotes or memes** — not even by switch.
 
 ## Where the structure differs from today
 
@@ -322,8 +334,8 @@ and never hold the type either.
    **each mode to contain the one below it** — which then has to be a fixed
    rule the admin's edits cannot break. Today nothing stops `normal` from
    showing something `borderline` hides. Recommended: it matches how the
-   modes are used (`admin` and `cg1618` both hold all four, default
-   `unrestricted`).
+   modes are used (on the company development database, `admin` and
+   `cg1618` both hold all four).
 2. **No mode creation or deletion.** Today `POST` and `DELETE
    /api/access-modes` exist; both go, and editing the adjustable parts stays.
 3. **`/users` creates only `user`/`super`.** Today it accepts any role. This
@@ -501,8 +513,8 @@ Decisions about who sees what are written there, not here.
 
 ## Open questions
 
-1. **Who can see what** — next. Includes quotes and memes per account, the
-   what guests and shared accounts read, fixed vs
-   adjustable settings per role and per mode, and per-account detail
-   settings.
-2. Still to discuss: admin and guest layouts; optimising the labels.
+1. **Customised pages and layouts**, recorded in `docs/viewers.md` as they
+   are decided: the Dashboard, Seasonal and Statistics without personal
+   data, the shared Random Picker, and the admin's and guests' layouts.
+2. **The descriptions of `ecchi` and `erotica`**, whose old drafts became
+   their names.

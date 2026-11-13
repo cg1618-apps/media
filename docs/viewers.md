@@ -40,7 +40,7 @@ it; "per account" is a per-account feature switch, off by default.
 | Seasonal, Statistics | — | ✓ | ✓ | ✓ ² | ✓ ² |
 | Random Picker | — | ✓ | ✓ | — | ✓ ¹ |
 | Plan, Completions | — | ✓ | ✓ | — | — |
-| Quotes, memes | — | per account | per account | — | per account |
+| Quotes, memes | — | per account | per account | — | — |
 | `/resources` | ✓ | ✓ | — | — | — |
 | Content (modes) | none | up to ceiling | up to ceiling | `safe`, fixed | its own mode, fixed |
 | Own personal data | — | ✓ | ✓ | — | — |
@@ -192,8 +192,8 @@ The logged-out visitor.
 A guest that can view more, with no data of its own.
 
 - **Reads** everything a guest reads, in its own fixed mode (`normal` or
-  `borderline`), plus a **Random Picker** in a customised version, and
-  quotes and memes only through a per-account switch.
+  `borderline`), plus a **Random Picker** in a customised version. **Never
+  quotes or memes**, not even by switch.
 - **Entity pages are off by default**, as for a guest; the `shared` role's
   switches are set separately from the guest's.
 - **Keeps no data of its own**: no list, ratings, progress, personal notes
