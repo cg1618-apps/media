@@ -115,7 +115,8 @@ Only Part A has a migration.
 A before everything, because it settles the one rule the others stand on:
 **a viewer without `self.list` gets the catalogue version** — guest and
 shared alike, and the admin, which holds no `self.*` — so "catalogue
-only" is one test, `has("self.list")`, everywhere in C–E.
+only" is one test, `has("self.list")` — in the SPA, P5's
+`useViewScope().ownData` — everywhere in C–E.
 
 ## Part A — `view.extras` goes; personal writes through `/api/me`
 
@@ -158,18 +159,28 @@ viewers.md:
   `PATCH /api/<type>/{id}` to `PUT /api/me/list/{media_id}`:
   `useStatusToggle`, the dashboard steppers, Seasonal's episode stepper and
   MediaCard's status button.
-- **Plan flags**: check at execution whether `/api/me` writes them. If
-  not, add `PUT /api/me/plan-flags/{media_id}` `{kind, planned}` under the
+  P5 moves none of these: its Part A leaves entry list writes on the
+  catalogue PATCH and does not touch `useStatusToggle`, so this part owns
+  the move.
+- **Plan flags**: nothing under `/api/me` writes them, so add
+  `PUT /api/me/plan-flags/{media_id}` `{kind, planned}` under the
   router's `self.list`, calling `set_entry_flag` with the caller's id, and
   visibility-checked through `_media_or_404` like the list routes.
+- **The shape to mirror is P5's `app/routers/me_ratings.py`**:
+  `PUT /api/me/ratings/{owner_type}/{owner_id}` and
+  `PUT /api/me/novel-units/{unit_id}`, under `self.list`, with the admin
+  refused 401. Every new personal write in P7 lives under `/api/me/...` in
+  that shape.
 - The catalogue PATCH's personal half (`pop_plan_flag`,
   `split_list_payload`'s personal side, `_write_list`) stays only while a
   caller still sends it. Grep every caller at execution (the Modify form
   first). If none is left, the PATCH refuses personal keys with **422**
   rather than dropping them, as `/api/me/list` refuses a foreign key. If
   one is left, say which in the PR body rather than leave it silently.
-- UI gates: every personal control asks `has("self.list")`, not
-  `isAdmin`. That covers MediaCard's status button (and
+- UI gates: every personal control asks P5's
+  `useViewScope().ownData` (= `has("self.list")`), not `isAdmin`. Nothing
+  here builds on `useViewScope().personal`: `view.personal` survives only
+  until P5 Part C removes it. That covers MediaCard's status button (and
   `ADMIN_ONLY_STATUS` goes), the dashboard steppers, Seasonal's rating
   select and episode stepper. `SeasonBulkActions` writes the catalogue
   (anime PATCH, data-control replace), so it stays on `manage.catalog`.
@@ -205,10 +216,15 @@ viewers.md:
   personal filter, sort and column — status group, ownership, my rating,
   usefulness, progress, the status button, the plan-flag columns — is
   marked `personal: true` in its config, and `LibraryLayout` drops those
-  without `self.list`. One flag in the configs, not a check per page. The
-  franchise and collection libraries' existing `view.personal` stripping
-  is P5's; after P5 it should ask the same flag, so it is checked at
-  execution and folded in if P5 has not already.
+  without `ownData`. One flag in the configs, not a check per page. P5
+  already moves the Collection, Franchise, Character, Person, Studio and
+  Publisher libraries' rating and expectation columns and sorts onto
+  `ownData` (and `lib/entityFilters.js`, `lib/randomPicker.js`,
+  `hooks/usePickerData.js`), and deletes `personal_gate.py`: responses
+  keep their field names, filled with the viewer's own value or null. So
+  those six are already right after the sideways merge. Part C brings the
+  media-type configs to the same test through the flag, and folds P5's
+  per-page `ownData` checks into it where they are the same columns.
 - **Cards** (`MediaCard.jsx`): no status chip and no personal badge
   without `self.list`; the external score stays (viewers.md, "Libraries").
 - **Entry, group and watch-order pages**: the My tracker card, the follow
@@ -356,20 +372,20 @@ Every refusal test makes its set non-empty and asserts the mirror.
 
 ## Questions for review
 
-1. **Open, with the owner: build the new surfaces plain now, refine
-   later?** That covers
-   the catalogue versions of Seasonal, Statistics and the Random Picker,
-   the Future Releases markers, the dashboard summary, library links and
-   recently added, the admin's dashboard, and Settings' place in the
-   header. P5 has this decision for its own UI (its question 6); this plan
-   assumes the same for P7, so each would be built from existing
-   components, marked provisional UI, and redesigned afterwards. If the
-   owner wants to design any of them first, that part waits.
+1. **Settled (owner): plain now, refined later.** Every P7 surface is
+   built functional and plain from existing components and the design
+   system, and marked **provisional UI** in the PR body, as P5's
+   question 6. That covers the catalogue versions of Seasonal, Statistics
+   and the Random Picker, the Future Releases markers, the dashboard
+   summary, library links and recently added, the admin's dashboard, and
+   Settings' place in the header. The owner reviews on the preview and
+   sends designs afterwards.
 2. **Settled (manager): merge order.** P7 merges after P3g, P3h, P4b and
    #354, so the admin's page (Part E) is built against a non-root admin
    and the summary's pending count against P4b's `pending`.
 3. **Settled (manager): shared files with P5.** P5 goes first, and P7
    merges `feat/personal-data` in sideways before Parts A and C (see
-   "Parts"). Whether P5 already moves any status or progress write to
-   `/api/me` is being checked with P5's builder, and Part A is matched to
-   the answer before this plan merges.
+   "Parts"). P5's builder confirmed that P5 moves no entry list write to
+   `/api/me`, so Part A owns it. It mirrors `me_ratings.py` and builds on
+   `ownData`, never on `personal`. P5 does not touch
+   `installation_owner_id`, and P7 does not use it.
