@@ -243,9 +243,7 @@ customisation per viewer — columns, defaults, layout, wording — is
 discussed after the rework is built; see [open-items.md](open-items.md),
 "Per-viewer page detail".
 
-**Still to discuss:** the
-Random Picker (personal filters only with data, and the shared version);
-Future Releases; My requests; the request and report inbox; pending
+**Still to discuss:** My requests; the request and report inbox; pending
 registrations.
 
 ### Removed
@@ -325,6 +323,15 @@ an account that has them switched on.
 | --- | --- | --- |
 | **super, user** | the season's anime sorted by the viewer's own status, and its own season rating | its own ratings, favourites and counts |
 | **guest, shared** | the season's anime **without a status split** — what aired or airs that season, with external scores — and the All Seasons table | **counts of the catalogue**, not anyone's opinion: entries per type, per season, per genre |
+| **admin** | none | none |
+
+### Random Picker and Future Releases
+
+| Viewer | Random Picker | Future Releases |
+| --- | --- | --- |
+| **super, user** | every filter, the personal ones included — on my list, by status, planned, my rating | upcoming releases, with on-your-list and plan markers |
+| **shared** | **its own version, catalogue filters only** — type, genre, season, external score | upcoming releases, catalogue only |
+| **guest** | none | upcoming releases, catalogue only |
 | **admin** | none | none |
 
 ### Search
