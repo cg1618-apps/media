@@ -253,6 +253,12 @@ function rowOf(username) {
 describe("account lifecycle on /users", () => {
   beforeEach(() => {
     fetchJson.mockImplementation((url, opts) => {
+      if (url.includes("/invites")) {
+        return Promise.resolve({
+          link: "https://media.example/register?code=inv456",
+          expires_at: "2026-11-14T12:00:00Z",
+        });
+      }
       if (url.includes("/reset-link")) {
         return Promise.resolve({
           link: "https://media.example/reset?code=abc123",
@@ -271,7 +277,14 @@ describe("account lifecycle on /users", () => {
     await screen.findByText("bob");
     expect(within(rowOf("bob")).getByText("active")).toBeTruthy();
     expect(within(rowOf("dave")).getByText("disabled")).toBeTruthy();
-    expect(within(rowOf("erin")).getByText("pending")).toBeTruthy();
+  });
+
+  it("does not list a pending account, which /system handles", async () => {
+    // erin is served pending; bob, served active by the same answer, is the
+    // mirror that proves the table drew rows at all.
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(screen.queryByText("erin")).toBeNull();
   });
 
   it("offers Disable on another active account, not on your own", async () => {
@@ -281,13 +294,11 @@ describe("account lifecycle on /users", () => {
     expect(within(rowOf("alice")).queryByRole("button", { name: "Disable" })).toBeNull();
   });
 
-  it("offers Enable on a disabled account and neither on a pending one", async () => {
+  it("offers Enable, not Disable, on a disabled account", async () => {
     render(<Users />);
     await screen.findByText("dave");
     expect(within(rowOf("dave")).queryByRole("button", { name: "Enable" })).toBeTruthy();
     expect(within(rowOf("dave")).queryByRole("button", { name: "Disable" })).toBeNull();
-    expect(within(rowOf("erin")).queryByRole("button", { name: "Enable" })).toBeNull();
-    expect(within(rowOf("erin")).queryByRole("button", { name: "Disable" })).toBeNull();
   });
 
   it("asks before disabling, says it signs out everywhere, then PATCHes", async () => {
@@ -327,7 +338,6 @@ describe("account lifecycle on /users", () => {
       within(rowOf("shared-normal")).queryByRole("button", { name: "Reset link" }),
     ).toBeNull();
     expect(within(rowOf("dave")).queryByRole("button", { name: "Reset link" })).toBeNull();
-    expect(within(rowOf("erin")).queryByRole("button", { name: "Reset link" })).toBeNull();
   });
 
   it("shows the minted link once, with its expiry and a copy button", async () => {
@@ -358,6 +368,26 @@ describe("account lifecycle on /users", () => {
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("mints an invite link and shows it in the once-shown modal", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Invite link" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      fetchJson.mock.calls.some(
+        ([url, o]) => url === "/api/users/invites" && o?.method === "POST",
+      ),
+    ).toBe(true);
+    expect(within(dialog).getByRole("textbox", { name: "Link" })).toHaveValue(
+      "https://media.example/register?code=inv456",
+    );
+    expect(within(dialog).getByText(/shown only once/)).toBeTruthy();
+    expect(within(dialog).getByText(/Expires/)).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Copy link" })).toBeTruthy();
   });
 
   it("says on the password field that setting one signs the account out", async () => {

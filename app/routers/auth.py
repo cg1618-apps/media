@@ -20,6 +20,7 @@ from app.models.system import USER_STATUS_DISABLED, USER_STATUS_PENDING
 from app.services import rate_limit
 from app.services.domain.account_codes import (
     INVALID_CODE_MESSAGE,
+    PURPOSE_INVITE,
     PURPOSE_RESET,
     InvalidCode,
     find_code,
@@ -27,6 +28,7 @@ from app.services.domain.account_codes import (
     spend_code,
 )
 from app.services.domain.accounts import revoke_sessions, set_login_cookie
+from app.services.domain.registration import UsernameTaken, register_account
 from app.services.rbac import cache
 from app.services.rbac.gated_types import visible_gated_types
 from app.services.rbac.modes import (
@@ -57,13 +59,14 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 # The owner's limits, per 15 minutes. Login counts FAILED attempts only, keyed
 # both on the username (one account being guessed at) and on the address (one
 # visitor guessing at many); a correct password clears the username's count.
-# Reset counts every request from an address, GET and POST alike, because the
-# GET alone answers "is this code real". The counter is in-process - see
+# Reset and register count every request from an address, GET and POST alike,
+# because the GET alone answers "is this code real". The counter is in-process - see
 # app/services/rate_limit.py for why that is enough and when it stops being.
 RATE_WINDOW_SECONDS = 15 * 60
 LOGIN_FAILURES_PER_USERNAME = 5
 LOGIN_FAILURES_PER_ADDRESS = 20
 RESET_REQUESTS_PER_ADDRESS = 10
+REGISTER_REQUESTS_PER_ADDRESS = 10
 
 STATUS_REFUSALS = {
     USER_STATUS_PENDING: "Your account is waiting for the admin's approval.",
@@ -379,12 +382,16 @@ def logout_user():
 # holds the link. No session is needed - that is the point of the link.
 
 
-def _limit_reset(request: Request) -> None:
-    key = f"reset:ip:{_client_address(request)}"
-    wait = rate_limit.check(key, RESET_REQUESTS_PER_ADDRESS)
+def _limit_per_address(request: Request, scope: str, limit: int) -> None:
+    key = f"{scope}:ip:{_client_address(request)}"
+    wait = rate_limit.check(key, limit)
     if wait:
         raise _too_many(wait)
     rate_limit.hit(key, RATE_WINDOW_SECONDS)
+
+
+def _limit_reset(request: Request) -> None:
+    _limit_per_address(request, "reset", RESET_REQUESTS_PER_ADDRESS)
 
 
 def _invalid_link() -> HTTPException:
@@ -449,3 +456,65 @@ def reset_password(
     response.delete_cookie(key="access_token", path="/", httponly=True, samesite="lax")
     _clear_mode_override(response)
     return response
+
+
+# ---------------------------------------------------------------------------
+# Registration by invite link
+# ---------------------------------------------------------------------------
+# The admin issues the invite (POST /api/users/invites); whoever holds it
+# registers here, once. The account waits `pending` for the admin's approval
+# and cannot sign in until then. Without an invite there is no registration.
+
+
+def _limit_register(request: Request) -> None:
+    _limit_per_address(request, "register", REGISTER_REQUESTS_PER_ADDRESS)
+
+
+@router.get(
+    "/register",
+    response_model=schemas.InviteCodeInfo,
+    summary="Check an invite link",
+)
+def check_invite_code(
+    request: Request, code: str = "", db: Session = Depends(get_db)
+):
+    """Whether an invite can be used, WITHOUT spending it. Every unusable code
+    is the same 404 as on /reset."""
+    _limit_register(request)
+    try:
+        find_code(db, code, PURPOSE_INVITE)
+    except InvalidCode:
+        raise _invalid_link()
+    return {"valid": True}
+
+
+@router.post(
+    "/register",
+    response_model=schemas.RegisteredAccount,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register an account from an invite link",
+)
+def register(
+    payload: schemas.Registration, request: Request, db: Session = Depends(get_db)
+):
+    """
+    Spend the invite and create the account, `pending`, in ONE transaction. A
+    refused name or password (422) or a taken name (409) rolls the spend back,
+    so a typo does not burn the link. No cookie is set: the account signs in
+    once the admin has approved it.
+    """
+    _limit_register(request)
+    try:
+        user = register_account(db, payload.code, payload.username, payload.password)
+    except InvalidCode:
+        db.rollback()
+        raise _invalid_link()
+    except UsernameTaken:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="That username is taken.")
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc))
+    db.commit()
+    logger.info("Registration waiting for approval: %s", user.username)
+    return {"username": user.username}

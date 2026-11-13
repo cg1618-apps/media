@@ -6,6 +6,7 @@ import { endpoints } from "../../api/endpoints";
 import { backupToast, runBackup } from "../../api/backup";
 import { postEventStream } from "../../api/client";
 import FxRatesEditor from "./FxRatesEditor";
+import PendingRegistrations from "./PendingRegistrations";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType, visibleByType } from "../../lib/gatedTypes";
 import { entityPath } from "../../lib/entityPath";
@@ -1490,6 +1491,10 @@ export default function Admin() {
           </Link>
         </div>
       </div>
+
+      {/* Registrations waiting for approval: drawn only for admin.authz,
+          which the panel checks itself. */}
+      <PendingRegistrations />
 
       {/* 2. Top Grid: Season Config & Data Control */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
