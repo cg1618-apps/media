@@ -15,7 +15,6 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
-import CommunityCard from "../../components/info/CommunityCard";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
@@ -553,8 +552,6 @@ export default function HComic() {
           <FollowedOrderPanel entryId={hComic.system_id} />
 
           <HComicTrackerBlock hComic={hComic} isAdmin={isAdmin} onPatch={performPatch} />
-
-          <CommunityCard mediaId={hComic.system_id} />
 
           <div className="space-y-6">
             <NamingCard type="h-comic" item={hComic} />

@@ -24,12 +24,13 @@ catalogue and what is an account's own data is
 > of this page becomes true when the change that builds it lands, and that
 > change rewrites it in the present tense.
 >
-> **Built:** [Requests and reports](#requests-and-reports), and the My
+> **Built:** [Removed](#removed), under "Customised pages";
+> [Requests and reports](#requests-and-reports), and the My
 > requests and inbox rows of
 > [My requests, the inbox, and pending registrations](#my-requests-the-inbox-and-pending-registrations).
-> They work for `admin`, `super` and `user`. A shared account gets them
-> when the `shared` role exists. Until the header rework, the inbox sits
-> under Pipelines for both admin and super.
+> Requests and reports work for `admin`, `super` and `user`. A shared account
+> gets them when the `shared` role exists. Until the header rework, the inbox
+> sits under Pipelines for both admin and super.
 
 ## At a glance
 
@@ -258,9 +259,11 @@ Every page listed below is settled in its general version.
 
 ### Removed
 
-- **Public profiles** (`/user/<username>`) and **the community card** on
-  entry pages. Everything per user is private, so both could only ever be
-  empty; the feature is removed, not hidden.
+*Built — true today.*
+
+- There are no **public profiles** (`/user/<username>`) and no **community
+  card** on entry pages. Everything per user is private to its account, so
+  both could only ever be empty; neither exists, rather than being hidden.
 
 ### Header and menus
 

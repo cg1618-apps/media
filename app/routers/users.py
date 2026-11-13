@@ -93,7 +93,6 @@ def _to_response(
         username=user.username,
         role_id=user.role_id,
         role_name=user.role_ref.name if user.role_ref else None,
-        list_is_public=bool(user.list_is_public),
         access_modes=_held_access_modes(db, user) if db is not None else [],
         open_request_limit=user.open_request_limit,
     )

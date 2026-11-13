@@ -42,7 +42,7 @@ code.
 
 | Tier | Lives in | Who changes it | Read by the frontend via | Examples |
 |---|---|---|---|---|
-| 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.sources_other` |
+| 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.sources_restricted` |
 | 2 | `system_option` + `system_option_scope` tables | an admin, through the Options tab of Add / Modify | `GET /api/options[/{category}]?scope=` | `Genre Main` = `Action`, `Platform` = `Disney+` |
 | 3 | `person`, `person_role`, `studio`, linked through `media_credit` | an admin, through `/api/person` and `/api/studio` | the credits endpoints | a director with JP/EN names and a rating |
 
@@ -286,7 +286,7 @@ out. What the three gated types keep is in
 | `disadvantages` | text_links | 缺點 Disadvantages | All but h-comic, hentai | reviews | |
 | `double_edged` | text_links | 優缺點 | All but h-comic, hentai | reviews | |
 | `public_reviews` | text_links | 大眾評價 Public Reviews | All but H | reviews | |
-| `personal_reviews` | text | 我的評價 Personal Reviews | All but H | reviews | gated by field group `personal_notes` |
+| `personal_reviews` | text | 我的評價 Personal Reviews | All but H | reviews | personal scope |
 | `episode_comments` | text_links | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | anime, tv-show, cartoon, manga, game | reviews | locator required; manga's placeholder is "Chapter", game's "Chapter / Part" |
 | `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
@@ -662,7 +662,7 @@ the bare `admin`, which implies everything.
 
 | Constant | Value |
 |---|---|
-| `PERMISSION_FAMILIES` | `media_type`, `field_group`, `label` |
+| `PERMISSION_FAMILIES` | `admin`, `manage`, `media_type`, `self`, `view` — the role axis. `field_group` and `label` are the access-mode axis and are not in it |
 | `media_type.<key>` | one per hyphenated media type key, e.g. `media_type.tv-show` |
 | `field_group.<key>` | one per `FIELD_GROUP_KEYS` entry |
 | `label.<key>` | one per `content_label.key` row; the only family computed from the database at request time |
@@ -671,11 +671,11 @@ the bare `admin`, which implies everything.
 
 | Key | Label | Gates |
 |---|---|---|
-| `sources_other` | Other Sources | `media_source` rows with `bucket='other'`, every media type; UI block `info.SourcesCard.other` |
-| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type; UI block `info.SourcesCard.restricted`. Excluded from the `safe` access mode via `SAFE_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed_modes.py`) — a fresh install does not serve it to a logged-out visitor |
-| `personal_notes` | Personal Reviews | note section `personal_reviews`; UI block `notes.reviews.personal` |
-| `system_info` | System Info | UI block `detail.SystemInfo` only (frontend-only, no column) |
-| `credits` | Credits | every credit-kind link field per media type, derived from `CREDIT_ROLES`; also `studio_refs` (types with a `studio` role) and `publisher_refs` (types with a `publisher` role); UI block `info.CreditsCard` |
+| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type. Excluded from the `safe` access mode via `SAFE_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed_modes.py`) — a fresh install does not serve it to a logged-out visitor |
+
+It is the only group. The `other` bucket, personal notes and credits are not
+field groups: every viewer gets the other sources and the credits, and a
+personal note is read only by its author.
 
 See [authorization.md](authorization.md) for roles, enforcement and content
 labels.

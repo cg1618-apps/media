@@ -1,10 +1,8 @@
 """/api/auth/me after the axis split.
 
-The `permissions` list keeps publishing field_group.* strings even though they
-are no longer role permissions. The SPA has hundreds of has() calls against
-them, and the whole reason Phase B's frontend cost is ~zero is that this
-contract holds - the server changed where the answer comes from, not what the
-answer looks like.
+The `permissions` list publishes the session's field groups as field_group.*
+strings beside the role's permissions, so the SPA asks one has() for either.
+The groups come from the active mode, not the role.
 """
 
 from app.services.rbac.seed_modes import (
@@ -17,15 +15,13 @@ from app.services.rbac.seed_modes import (
 def test_field_groups_still_appear_in_permissions(mode_client):
     body = mode_client(MODE_NORMAL).get("/api/auth/me").json()
     assert "field_group.sources_restricted" in body["permissions"]
-    assert "field_group.sources_other" in body["permissions"]
 
 
 def test_a_narrow_mode_withholds_them(mode_client):
-    """`safe` is seeded from the guest role's own field groups, so on a fresh
-    database it carries everything except sources_restricted."""
+    """`safe` withholds sources_restricted on a fresh database. The `normal`
+    case above is the mirror that makes this refusal mean something."""
     body = mode_client(MODE_SAFE).get("/api/auth/me").json()
     assert "field_group.sources_restricted" not in body["permissions"]
-    assert "field_group.sources_other" in body["permissions"]
 
 
 def test_neither_credits_nor_system_info_is_a_field_group_any_more(mode_client):
@@ -37,13 +33,12 @@ def test_neither_credits_nor_system_info_is_a_field_group_any_more(mode_client):
     a detail page spine is drawn on `is_root`, which /me already carries
     as its own field.
     """
-    for key in (MODE_NORMAL, MODE_SAFE):
-        held = mode_client(key).get("/api/auth/me").json()["permissions"]
-        for gone in ("field_group.credits", "field_group.system_info"):
-            assert gone not in held, gone
-        # The mirror: the three surviving groups still arrive, so the green
-        # above is these two being gone and not the merge being dropped.
-        assert "field_group.sources_other" in held
+    held = mode_client(MODE_NORMAL).get("/api/auth/me").json()["permissions"]
+    for gone in ("field_group.credits", "field_group.system_info"):
+        assert gone not in held, gone
+    # The mirror: the surviving group still arrives, so the green above is
+    # these two being gone and not the merge being dropped.
+    assert "field_group.sources_restricted" in held
 
 
 def test_narrowing_the_mode_does_not_take_away_what_the_account_may_do(
@@ -89,7 +84,6 @@ def test_labels_stay_out_of_the_payload(mode_client, nsfw_label):
 def test_a_guest_gets_the_guest_default_modes_groups(client, access_modes):
     body = client.get("/api/auth/me").json()
     assert body["mode"]["key"] == MODE_SAFE
-    assert "field_group.sources_other" in body["permissions"]
     assert "field_group.sources_restricted" not in body["permissions"]
 
 

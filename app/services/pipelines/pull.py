@@ -399,6 +399,15 @@ RENAMED_HEADERS: dict[str, frozenset[str]] = {
     "Game Choice Edge": frozenset({"option"}),
 }
 
+# Headers an older sheet carries for a column that no longer exists at all and
+# whose value nothing reads. Not stale in unexpected_headers' sense - the sheet
+# is merely older than the drop, and the next Backup stops writing it - so
+# reporting it would turn every Pull All red until then.
+RETIRED_HEADERS: dict[str, frozenset[str]] = {
+    # users.list_is_public: everything per user is private to its account.
+    "Users": frozenset({"list_is_public"}),
+}
+
 
 def unexpected_headers(tab_name: str, headers: list) -> list[str]:
     """
@@ -425,6 +434,7 @@ def unexpected_headers(tab_name: str, headers: list) -> list[str]:
     known = set(drop_non_columns(model, {h: None for h in headers if h}))
     known |= {name for name, _fn in TAB_BY_NAME[tab_name].extra_columns}
     known |= RENAMED_HEADERS.get(tab_name, frozenset())
+    known |= RETIRED_HEADERS.get(tab_name, frozenset())
     media_type = _MEDIA_TYPE_FOR_TAB.get(tab_name)
     if media_type:
         for role in credit_roles_for(media_type):

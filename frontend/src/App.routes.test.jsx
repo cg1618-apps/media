@@ -45,7 +45,6 @@ vi.mock("./pages/public/RandomPicker", () => stub("random picker"));
 vi.mock("./pages/public/Quotes", () => stub("quotes"));
 vi.mock("./pages/public/Memes", () => stub("memes"));
 vi.mock("./pages/public/Resources", () => stub("resources"));
-vi.mock("./pages/public/Profile", () => stub("profile"));
 
 import App from "./App";
 
@@ -101,7 +100,6 @@ const CLOSED = {
   "/quote": "quotes",
   "/meme": "memes",
   "/resources": "resources",
-  "/user/bob": "profile",
 };
 
 describe("a member-only route", () => {

@@ -14,7 +14,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
 import TimeToBeatCard from "../../components/info/TimeToBeatCard";
 import { hours } from "../../lib/gameHours";
@@ -496,10 +495,6 @@ export default function Game() {
               isAdmin={isAdmin}
               onChange={(patch) => performPatch(patch, "Completion updated")}
             />
-
-            {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-            <CommunityCard mediaId={game.system_id} />
 
             {/* Progress and 待辦 Todo in one card. How far in I am and what I
               still mean to do are the same question asked twice, and they

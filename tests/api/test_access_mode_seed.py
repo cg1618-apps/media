@@ -141,15 +141,12 @@ def test_does_not_hand_back_an_item_an_admin_removed(db_session):
 
 
 def test_safe_is_derived_from_the_guest_role_not_from_the_default(db_session):
-    """The regression test for a real defect.
+    """`safe` means "today's guest exactly", read rather than assumed.
 
-    The design assumed guest withheld `sources_restricted` and nothing else.
-    On the live installation guest held only `credits` and `system_info` -
-    `sources_other` and `personal_notes` were added to FIELD_GROUPS after the
-    roles were first seeded, and ensure_rbac_seed tops up only a role holding
-    NOTHING. Seeding `safe` from the default set would have published the
-    other-sources list and other people's personal reviews to every logged-out
-    visitor on the day Phase B landed.
+    The default withholds sources_restricted from `safe`; a guest role that
+    holds it says otherwise, and the role wins. The legacy grant naming a
+    group that no longer exists is the second half: it must be dropped, not
+    reseeded onto a mode where nothing would read it.
     """
     _reset_modes(db_session)
     guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
@@ -157,7 +154,7 @@ def test_safe_is_derived_from_the_guest_role_not_from_the_default(db_session):
         models.RolePermission.role_id == guest.system_id,
         models.RolePermission.permission.like("field_group.%"),
     ).delete(synchronize_session=False)
-    for key in ("credits", "system_info"):
+    for key in ("sources_restricted", "personal_notes"):
         db_session.add(
             models.RolePermission(
                 role_id=guest.system_id, permission=f"field_group.{key}"
@@ -168,9 +165,31 @@ def test_safe_is_derived_from_the_guest_role_not_from_the_default(db_session):
     ensure_access_mode_seed(db_session)
 
     assert _field_groups(db_session, _mode(db_session, MODE_SAFE)) == {
-        "credits",
-        "system_info",
+        "sources_restricted"
     }
+
+
+def test_a_guest_holding_only_removed_groups_falls_back_to_the_default(db_session):
+    """Every legacy grant names a group that is gone: that is the same as
+    holding none, so `safe` gets the default - which withholds
+    sources_restricted."""
+    _reset_modes(db_session)
+    guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
+    db_session.query(models.RolePermission).filter(
+        models.RolePermission.role_id == guest.system_id,
+        models.RolePermission.permission.like("field_group.%"),
+    ).delete(synchronize_session=False)
+    for key in ("credits", "system_info", "sources_other"):
+        db_session.add(
+            models.RolePermission(
+                role_id=guest.system_id, permission=f"field_group.{key}"
+            )
+        )
+    db_session.flush()
+
+    ensure_access_mode_seed(db_session)
+
+    assert _field_groups(db_session, _mode(db_session, MODE_SAFE)) == set()
     # The wider modes are unaffected: they are policy, not a mirror of guest.
     assert _field_groups(db_session, _mode(db_session, MODE_NORMAL)) == set(
         FIELD_GROUP_KEYS

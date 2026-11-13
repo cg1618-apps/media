@@ -7,7 +7,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
@@ -423,10 +422,6 @@ export default function Anime() {
             statusOptions={WATCHING_STATUSES}
             ratingOptions={MY_RATINGS}
           />
-
-          {/* What every public list says about it, beside what I say.
-              Renders nothing when no public list holds this entry. */}
-          <CommunityCard mediaId={anime.system_id} />
 
           {/* Naming / Information / Production (stacked) */}
           <div className="space-y-6">

@@ -3,9 +3,9 @@
 // The four view.* keys open what a guest is not shown: the credited entities,
 // search, the extras (Future Releases, Completions, the Random Picker, Quotes,
 // Memes, Resources) and personal content (the catalogue's own ratings and
-// expectations, the community aggregate, public profiles, a novel unit's
-// remark, the highlight note sections). user and super hold all four; guest
-// holds none; admin passes through the root flag.
+// expectations, a novel unit's remark, the highlight note sections). user
+// and super hold all four; guest holds none; admin passes through the root
+// flag.
 //
 // The server already refuses or strips what a viewer may not read. This hook
 // is the UI's half: it hides the chip, column, sort option or section rather
