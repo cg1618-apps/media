@@ -623,7 +623,8 @@ not drawn. The character, person and studio libraries use it for
   provider hands in as `typeStatusNote`; with no row it reads
   `type_status_default`, and the first change POSTs the row, every later one
   PATCHes it. The provider also fetches the values of every category a
-  section names (`kind_category`, `link_text_category`) from
+  section names (`kind_category`, `link_text_category`) or one of its
+  structured fields names (`option_category`) from
   `GET /api/options/{category}?scope=<owner type>` once per page and passes
   them as `optionValues`; a category that fails to load is an empty list.
   **Link pairs** (`LinkPairs.jsx`, pure helpers in `linkPairValues.js` - not
@@ -656,9 +657,11 @@ not drawn. The character, person and studio libraries use it for
   a rule, and a move - among a row's own siblings only - that flattens the
   whole tree depth-first (the reorder
   endpoint takes ids naming exactly the section, so a sibling-only payload is
-  refused). Its owners are thirteen 攻略 sections, both 劇情 plot sections, the
-  four 劇情列表 strands, the standalone `guide_resources` card, 存檔 Saves and 亮點
-  Highlights; `docs/systems/notes.md` lists each one's spec. Two registry
+  refused). It serves every `structured` section - thirty-two of them, most
+  of the game guide cards, the 劇情列表 strands, 存檔 Saves and both 亮點
+  Highlights; `docs/systems/notes.md` lists each one's spec. A free-text
+  `select` naming an `option_category` renders as a `SuggestInput` over that
+  category's values (the provider's `optionValues`) and stays free text. Two registry
   features are rendered here and named nowhere else: a `names` field gets
   `NamesInput` (several free-text names, suggesting `nameSuggestions`) - and a
   `choice_node` field gets `ChoiceNodeSelect` in the form and a "{label}: {block
@@ -679,6 +682,14 @@ not drawn. The character, person and studio libraries use it for
   groups and rows move by their grips - a row only within its own group
   (`movedRow` in `groupedRows.js`) - and each move goes to `onReorder` as the
   section's whole row order, grouped - nothing else stores the group order.
+  A section both `hierarchical` and `groupable_by` (地理 Geography) groups its
+  top-level rows, each drawn with its whole subtree (`groupRoots`,
+  `movedTreeIds` in `groupedRows.js`), and the form leaves the group field out
+  for a child row, since only a top-level row carries one.
+  `TextLinksSection` draws a native "Move to…" `<select>` beside a row's Edit
+  and Delete when the section serves `move_targets` (the 待辦 buckets); picking
+  one PATCHes the row's `section`, and the backend appends it to the end of
+  the new section.
   `NotesTemplate`'s `SHAPES` map covers every stored shape but the hidden `music_status`.
   Every list section shows its first three rows and folds the rest behind
   "Show all (N)" - `useEntryCap` and `ShowAllToggle` in `ui.jsx`, one hook

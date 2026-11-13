@@ -2031,6 +2031,20 @@ def _note_fields(raw: dict):
     return fields
 
 
+# Sections that left the registry, and where their rows went. A sheet backed
+# up before the move still names the old key, and Pull files each row where
+# the migration filed the local ones.
+_RETIRED_NOTE_SECTIONS = {
+    # The gated types' one list of reviews became their 大眾評價.
+    "reviews_and_comments": "public_reviews",
+}
+
+
+def _pulled_note_section(value) -> str | None:
+    section = parse_from_sheet(value, str)
+    return _RETIRED_NOTE_SECTIONS.get(section, section)
+
+
 def parse_note_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Note sheet into typed data ready for the
@@ -2054,7 +2068,7 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # Users tab; `None` here means "fall back to the admin", which
         # app/services/pipelines/pull.py applies.
         "author_id": _uuid_or_none(raw.get("author_id")),
-        "section": parse_from_sheet(raw.get("section"), str),
+        "section": _pulled_note_section(raw.get("section")),
         # The tree link for the hierarchical sections. A plain UUID column, so
         # it needs no JSON handling - but it does need to be here, or Pull
         # flattens every nested Story List entry to a root.

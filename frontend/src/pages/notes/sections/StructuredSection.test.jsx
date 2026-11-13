@@ -609,3 +609,60 @@ it("draws no stray 0 for a row with only a body", () => {
   const body = screen.getByText("Press X to parry.");
   expect(body.parentElement.textContent).toBe("Press X to parry.");
 });
+
+// --- Field-level suggestions ----------------------------------------------
+
+// Mirrors 角色 Characters' Group: a free-text select naming a suggestion
+// category, beside one that names none.
+const CHARACTERS = {
+  key: "characters",
+  shape: "structured",
+  label: "角色 Characters",
+  require_any: [],
+  hierarchical: false,
+  fields: [
+    {
+      key: "group",
+      label: "Group",
+      type: "select",
+      column: "kind",
+      options: [],
+      option_category: "Character Group",
+    },
+    { key: "region", label: "Region", type: "select", column: null, options: [], option_category: null },
+    { key: "name", label: "Name", type: "text", column: "title", options: [] },
+  ],
+};
+
+it("suggests a free-text select's values from its option category, keeping it free text", async () => {
+  const onCreate = vi.fn();
+  renderSection({
+    section: CHARACTERS,
+    onCreate,
+    optionValues: { "Character Group": ["Heroes", "Villains"] },
+  });
+  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+
+  const group = screen.getByLabelText("Group");
+  expect(group).toHaveAttribute("role", "combobox");
+  await userEvent.click(group);
+  expect(screen.getByText("Heroes")).toBeInTheDocument();
+  expect(screen.getByText("Villains")).toBeInTheDocument();
+
+  // Still free text: a value no suggestion offers is what is saved.
+  await userEvent.type(group, "Bystanders");
+  await userEvent.type(screen.getByLabelText("Name"), "Ranni");
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate).toHaveBeenCalledWith(
+    expect.objectContaining({ kind: "Bystanders", title: "Ranni" }),
+  );
+});
+
+it("leaves a free-text select without a category a plain input", async () => {
+  renderSection({
+    section: CHARACTERS,
+    optionValues: { "Character Group": ["Heroes"] },
+  });
+  await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+  expect(screen.getByLabelText("Region")).not.toHaveAttribute("role");
+});

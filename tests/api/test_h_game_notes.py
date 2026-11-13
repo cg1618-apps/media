@@ -45,8 +45,6 @@ def _sections(c, owner_type):
 # Game's sections an h-game does not take. The unit tests hold the reason for
 # each; this checks the API serves the same answer.
 GAME_ONLY = {
-    "public_reviews",
-    "personal_reviews",
     "episode_comments",
     "highlight_moments",
     "beginner",
@@ -70,7 +68,7 @@ def test_h_game_takes_game_sections_less_the_game_only_ones(admin_client):
     game = _sections(admin_client, "game")
     h_game = _sections(admin_client, "h-game")
     assert set(game) - set(h_game) == GAME_ONLY
-    assert set(h_game) - set(game) == {SECTION, "reviews_and_comments"}
+    assert set(h_game) - set(game) == {SECTION}
 
 
 def test_the_game_labels_and_placeholders_carry_over(admin_client):
@@ -195,8 +193,8 @@ def test_a_game_only_catalogue_section_refuses_a_row_on_h_game(admin_client, ent
         assert response.status_code == 422, section
 
 
-def test_reviews_and_comments_replaces_personal_reviews_on_h_game(
-    mode_client, plain_user, entry
+def test_h_game_takes_personal_reviews_and_not_reviews_and_comments(
+    admin_client, mode_client, plain_user, entry
 ):
     """
     Personal sections, so a member writes them - an admin holds no personal
@@ -204,12 +202,25 @@ def test_reviews_and_comments_replaces_personal_reviews_on_h_game(
     all; the mirror pair shows the 422 is the section, not the viewer.
     """
     c = mode_client(MODE_UNRESTRICTED, user=plain_user)
-    refused = c.post("/api/notes", json=_plain(entry, "personal_reviews", content="good"))
-    assert refused.status_code == 422, refused.text
-    taken = c.post(
+    # Retired: an unknown section, which the router answers 400.
+    refused = c.post(
         "/api/notes", json=_plain(entry, "reviews_and_comments", content="worth it")
     )
+    assert refused.status_code == 400, refused.text
+    # A section that exists but not for an h-game answers 422 to the same
+    # member, so the 201 below is the section's answer, not the viewer's.
+    assert (
+        c.post(
+            "/api/notes", json=_plain(entry, "episode_comments", content="x", locator="1")
+        ).status_code
+        == 422
+    )
+    taken = c.post("/api/notes", json=_plain(entry, "personal_reviews", content="good"))
     assert taken.status_code == 201, taken.text
+    public = admin_client.post(
+        "/api/notes", json=_plain(entry, "public_reviews", content="well liked")
+    )
+    assert public.status_code == 201, public.text
 
 
 # ---------------------------------------------------------------------------

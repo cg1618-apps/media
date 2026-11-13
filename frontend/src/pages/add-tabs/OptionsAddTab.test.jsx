@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import OptionsAddTab from "./OptionsAddTab";
 
 const CATEGORIES = [
+  "Character Group",
   "Comic Era",
   "Comic Imprint",
   "Game Genre",
@@ -64,6 +65,20 @@ describe("OptionsAddTab", () => {
       .map((o) => o.value)
       .filter(Boolean);
     expect(values).toEqual(["Genre Main", "Label"]);
+  });
+
+  it("offers only the note suggestion categories on their sub-tab", () => {
+    const { container } = renderTab("notes");
+    const values = [...container.querySelectorAll("option")]
+      .map((o) => o.value)
+      .filter(Boolean);
+    expect(values).toEqual(["Character Group"]);
+  });
+
+  it("keeps the note suggestion categories off the Options sub-tab", () => {
+    const { container } = renderTab("options");
+    const values = [...container.querySelectorAll("option")].map((o) => o.value);
+    expect(values).not.toContain("Character Group");
   });
 
   it("offers usages on Platform, the one category that takes them", () => {

@@ -408,12 +408,28 @@ export const OPTION_CATEGORIES = [
   "Character Appearance",
   "Character Trait",
   "Franchise for Filter",
+  // The note sections' field suggestions (NOTE_SUGGESTION_CATEGORIES below).
+  "Character Group",
+  "Collectible Type",
+  "Item Type",
+  "Geography Group",
 ];
 
 // The subset of OPTION_CATEGORIES the admin pages group under their "Tags"
 // sub-tab (TAG_CATEGORIES in app/utils/credit_roles.py). Navigation only -
 // both sub-tabs are the same form over the same system_option rows.
 export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label"];
+
+// The subset of OPTION_CATEGORIES the admin pages group under their "Note
+// Suggestions" sub-tab: the categories a note section's free-text field
+// suggests from (`option_category` on a field of GET /api/notes/sections).
+// Navigation only, like TAG_CATEGORIES.
+export const NOTE_SUGGESTION_CATEGORIES = [
+  "Character Group",
+  "Collectible Type",
+  "Item Type",
+  "Geography Group",
+];
 
 // What a request or report is about, and where it stands (REQUEST_KINDS and
 // REQUEST_STATUSES in app/utils/constants.py). Their human labels are in
@@ -479,6 +495,7 @@ export const CONSTANTS_FALLBACK = {
   media_type: MEDIA_TYPES,
   option_categories: OPTION_CATEGORIES,
   tag_categories: TAG_CATEGORIES,
+  note_suggestion_categories: NOTE_SUGGESTION_CATEGORIES,
   request_kind: REQUEST_KINDS,
   request_status: REQUEST_STATUSES,
 };

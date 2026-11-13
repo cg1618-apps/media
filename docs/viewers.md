@@ -17,7 +17,7 @@ catalogue and what is an account's own data is
 
 > **Not available yet.** Everything on this page below this note is the
 > decided design of the account and authorization rework
-> ([to-do-next.md](to-do-next.md), item 2), not today's behaviour. Today
+> ([to-do-next.md](to-do-next.md), item 1), not today's behaviour. Today
 > there are four viewers — `admin`, `super`, `user` and the signed-out
 > guest — and what each can do is
 > [authorization.md](authorization.md), "What each role can DO". Each part

@@ -554,3 +554,90 @@ def test_sections_endpoint_reports_scope(client):
     assert by_key["remark"]["scope"] == "personal"
     assert by_key["op"]["scope"] == "catalog"
     assert by_key["quotes"]["scope"] is None
+
+
+# --- Moving a row to another section --------------------------------------
+
+
+@pytest.fixture
+def todo_game(db_session):
+    g = models.Game(game_name_en="Todo Ring")
+    db_session.add(g)
+    db_session.flush()
+    return g
+
+
+def _todo(client, game, section, content):
+    r = client.post(
+        "/api/notes",
+        json={
+            "owner_type": "game",
+            "owner_id": str(game.system_id),
+            "section": section,
+            "content": content,
+        },
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def test_a_section_move_appends_to_the_end_of_the_target(super_client, todo_game):
+    # The target holds two rows, so its end (2.0) is a position the moving
+    # row's own sort_index (1.0) is not - keeping the old value would fail.
+    _todo(super_client, todo_game, "todo_later", "a")
+    _todo(super_client, todo_game, "todo_later", "b")
+    _todo(super_client, todo_game, "todo_now", "x")
+    moving = _todo(super_client, todo_game, "todo_now", "y")
+    assert moving["sort_index"] == 1.0
+
+    r = super_client.patch(
+        f"/api/notes/{moving['system_id']}", json={"section": "todo_later"}
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["section"] == "todo_later"
+    assert r.json()["sort_index"] == 2.0
+
+
+def test_a_section_move_into_an_empty_section_starts_at_zero(super_client, todo_game):
+    _todo(super_client, todo_game, "todo_now", "x")
+    moving = _todo(super_client, todo_game, "todo_now", "y")
+    r = super_client.patch(
+        f"/api/notes/{moving['system_id']}", json={"section": "todo_maybe"}
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["sort_index"] == 0.0
+
+
+def test_a_section_move_keeps_a_sort_index_it_was_sent(super_client, todo_game):
+    _todo(super_client, todo_game, "todo_later", "a")
+    moving = _todo(super_client, todo_game, "todo_now", "y")
+    r = super_client.patch(
+        f"/api/notes/{moving['system_id']}",
+        json={"section": "todo_later", "sort_index": 7.0},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["sort_index"] == 7.0
+
+
+def test_an_edit_that_keeps_the_section_keeps_the_sort_index(super_client, todo_game):
+    first = _todo(super_client, todo_game, "todo_now", "x")
+    _todo(super_client, todo_game, "todo_now", "y")
+    r = super_client.patch(
+        f"/api/notes/{first['system_id']}",
+        json={"section": "todo_now", "content": "x2"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["sort_index"] == 0.0
+
+
+def test_sections_endpoint_serves_move_targets(client):
+    sections = {
+        s["key"]: s
+        for s in client.get("/api/notes/sections", params={"owner_type": "game"}).json()
+    }
+    assert sections["todo_now"]["move_targets"] == [
+        {"key": "todo_next", "label": "接下來 To do next"},
+        {"key": "todo_later", "label": "未來 To do in the future"},
+        {"key": "todo_maybe", "label": "可能 Might do"},
+    ]
+    assert sections["saves"]["move_targets"] == []
