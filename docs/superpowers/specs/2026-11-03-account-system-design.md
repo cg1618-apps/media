@@ -136,9 +136,16 @@ from the company development database.
 - Consuming the code and creating the account happen in one transaction.
 - Invite codes and pending accounts do **not** travel on the Sheets Users
   tab; the R2 `pg_dump` needs no change, since `hashed_password` is bcrypt.
-- **The hardening ships with it**, not after: a password policy (minimum
-  length; reject rather than truncate past bcrypt's 72 bytes), revoking
-  sessions on an admin reset, and rate limiting on register, login and reset.
+- **The hardening ships with it**, not after: revoking sessions on an admin
+  reset — **including the admin setting a password on `/users`** — and rate
+  limiting: 5 failed logins per username and 20 per IP per 15 minutes; 10
+  per IP per 15 minutes on register and reset.
+- **No password policy**: no minimum length, no composition rules. The only
+  checks are technical — an empty password is refused, and one past
+  bcrypt's 72 bytes is refused rather than silently truncated.
+- **A shared account may be disabled** (it still cannot be deleted), and
+  `disabled` travels on the Sheets Users tab, so a Pull never re-activates
+  an account.
 - **A pending account learns it is pending only after a correct password.**
   A wrong password gets the ordinary generic 401.
 - **Reject deletes the pending account**; a log line is the record and the
