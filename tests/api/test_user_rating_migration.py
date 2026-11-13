@@ -172,6 +172,19 @@ def test_the_same_account_active_does_own_the_data(db_session, rated, revision):
     assert {r.user_id for r in db_session.query(models.UserRating)} == {first.id}
 
 
+def test_a_disabled_flag_holder_still_owns_the_data(db_session, rated, revision):
+    """The flag is an explicit designation of whose data it is, so it wins
+    whatever the account's status: a disabled owner's collection is still
+    theirs. An active, eligible account sorting first is what makes this
+    bite."""
+    _account(db_session, "aaa-user", "user")
+    flagged = _account(db_session, "cg1618", "super", owner=True, status="disabled")
+
+    revision.copy_to_owner(db_session.connection())
+
+    assert {r.user_id for r in db_session.query(models.UserRating)} == {flagged.id}
+
+
 def test_only_inactive_accounts_with_data_raises(db_session, rated, revision):
     """Nobody active to own it is the same as nobody: raise, never guess."""
     _account(db_session, "aaa-user", "user", status="disabled")
