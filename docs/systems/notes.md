@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -734,11 +734,11 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 
 | Aspect | Detail |
 | --- | --- |
-| Columns | `note` column declaration order: `system_id, media_id, collection_id, franchise_id, series_id, author_id, section, parent_id, locator, kind, status, title, content, links, entries, fields, sort_index, created_at, updated_at` (`format_model_for_sheet`, `app/utils/formatter.py`). `links`, `entries` and `fields` are serialised as JSON text. `owner_type` / `owner_id` are **not** columns — they are read-only properties, which is what keeps them out of the sheet row. |
+| Columns | `note` column declaration order: `system_id, media_id, collection_id, franchise_id, series_id, section, parent_id, locator, kind, status, title, content, links, entries, fields, sort_index, created_at, updated_at`, then `username` (`format_model_for_sheet`, `app/utils/formatter.py`). `author_id` is dropped for `username`, the author's name, because the uuid is minted per database; Pull resolves the name back, and an unknown, blank or absent one files the row under the installation owner. A sheet written before the column existed carries `author_id`, and Pull tries that uuid first. `links`, `entries` and `fields` are serialised as JSON text. `owner_type` / `owner_id` are **not** columns — they are read-only properties, which is what keeps them out of the sheet row. |
 | Restore order | Near the end of `SHEET_TABS`: after every owner tab, Quote and Meme, before Seasonal — owners must exist first. |
 | Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **`entries` and `fields` are each parsed exactly like `links` beside them, and `parent_id` like the owner columns** — without those keys Backup would still write the columns (the formatter walks real columns) and Pull would drop them, losing every item of every `name_entries` row, every structured field, and the nesting of every hierarchical row on a round trip. |
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
-| Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the owner's existing remark row and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
+| Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the existing remark row for the same owner **and author** and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
 | Music status rows | The same retargeting per `(owner, kind)`: a sheet `music_status` row folds onto the local row for the same anime and list, keeping the local id. Its revision minted those rows separately on every database, so the two machines' copies differ in id and nothing else. |
 | Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is one of `MUSIC_STATUSES`. A song list's links that arrive as URL strings are read as link pairs with no text, and link pairs that arrive on any other section - 彩蛋/致敬 Easter Eggs/References, from a backup taken while its links were pairs - are read as their URL strings, the text dropped, a blank URL and a repeat skipped (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
 | Round-trip | Because owner tables no longer have a `remark` column (and `format_model_for_sheet` walks real columns, so the column_property is not exported), **remark round-trips only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |

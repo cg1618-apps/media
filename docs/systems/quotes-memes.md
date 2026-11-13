@@ -1,6 +1,6 @@
 # Quotes and memes
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -244,9 +244,12 @@ its own to match on — so re-importing the same sheet updates rather than
 duplicates. The **tab headers are unchanged**: the sheet still carries the
 `(media_type, entry_id)` and `(owner_type, owner_id)` pair a human reads during
 an environment switch, and the parser translates it onto the columns (a Meme
-row's pair is renamed to `_legacy_*` on the way in). `author_id` is NOT NULL,
-so a row from a sheet that carries no author falls back to the installation
-owner rather than failing. Blank timestamp
+row's pair is renamed to `_legacy_*` on the way in). The author travels as
+`username` in place of `author_id`, whose uuid is minted per database, and Pull
+resolves it back to the local account. `author_id` is NOT NULL, so a row whose
+author is unknown here, blank, or absent falls back to the installation owner
+rather than failing; a sheet written before the column existed is resolved by
+its `author_id` uuid first. Blank timestamp
 cells parse to `None`, which is why `created_at`/`updated_at` are optional in
 the response schemas.
 
