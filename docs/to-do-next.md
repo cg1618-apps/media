@@ -49,7 +49,6 @@ and what comes next, so read that before anything else.
 | Branch | Feature | Plan | Waits for |
 | --- | --- | --- | --- |
 | `feat/labels-in-code` (#353) | P3b1–P3d: labels and modes in code, the `nsfw` rule, labels on collections and series, label ↔ 標籤 Label tag | the PR body; spec "Content labels" | nothing |
-| `feat/five-fixed-roles` | P3f: exactly five fixed roles, and the shared accounts | [plans/2026-11-13-five-fixed-roles.md](superpowers/plans/2026-11-13-five-fixed-roles.md) | nothing |
 | `feat/role-and-account-switches` | P3g: per-role and per-account switches | [plans/2026-11-13-role-and-account-switches.md](superpowers/plans/2026-11-13-role-and-account-switches.md) | P3f, for the `shared` role |
 | `feat/admin-not-root` | P3h: admin stops being root | [plans/2026-11-13-admin-not-root.md](superpowers/plans/2026-11-13-admin-not-root.md) | P3g, because every permission and switch it relies on has to exist |
 | `feat/invites-and-registration` | P4b: invite links and registration | [plans/2026-11-13-account-lifecycle.md](superpowers/plans/2026-11-13-account-lifecycle.md), "P4b" | P3f, which creates the shared accounts P4b would otherwise create too |

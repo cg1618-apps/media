@@ -252,13 +252,28 @@ def is_valid(db: "Session", permission: str) -> bool:
 # a table keyed on a name must own that name, or a rename reaches the seed and
 # silently unlocks the role.
 
+ADMIN_ROLE_NAME = "admin"
 SUPER_ROLE_NAME = "super"
 GUEST_ROLE_NAME = "guest"
 USER_ROLE_NAME = "user"
-# The role of an account several people sign in to. It does not exist until
-# the shared accounts land; the reset-link refusal (routers/users.py, the CLI)
-# keys on this name now so that it holds from the day the role is created.
+# The role of an account several people sign in to - the two shared accounts
+# seed.py::ensure_shared_accounts keeps on every boot.
 SHARED_ROLE_NAME = "shared"
+
+# Every role there is. The set is fixed: there is no route that creates or
+# deletes a role, and migration f1i2veroles45 removed every other name.
+ROLE_NAMES: tuple[str, ...] = (
+    ADMIN_ROLE_NAME,
+    SUPER_ROLE_NAME,
+    USER_ROLE_NAME,
+    GUEST_ROLE_NAME,
+    SHARED_ROLE_NAME,
+)
+
+# The roles an admin may give an account on /users. admin and guest are not
+# held by choice (one installation account; the anonymous visitor), and a
+# shared account's role is fixed by the seed.
+ASSIGNABLE_ROLE_NAMES: frozenset[str] = frozenset({USER_ROLE_NAME, SUPER_ROLE_NAME})
 
 
 def _self_family() -> frozenset[str]:
@@ -301,10 +316,25 @@ def locked_permissions(
         # Filing requests and changing your own password are fixed for a
         # member: without the second every change goes through the admin.
         # Handling requests is not a member's: the inbox reads every
-        # account's requests.
+        # account's requests. Writing the catalogue is what makes an account
+        # `super`, so a member never holds it.
         return frozenset({PERM_SELF_REQUESTS, PERM_SELF_PASSWORD}), frozenset(
-            refused | {PERM_MANAGE_REQUESTS}
+            refused | {PERM_MANAGE_CATALOG, PERM_MANAGE_REQUESTS}
         )
-    # Every custom role. manage.catalog, manage.requests and the self family
-    # are free choices here.
-    return frozenset(), frozenset(refused)
+    if role_name == SHARED_ROLE_NAME:
+        # Several people sign in to one shared account. It files requests and
+        # reads; it keeps no list or personal notes of its own, because they
+        # would be everyone's. Its password is the admin's to set - one person
+        # changing it would lock out everyone else using the login - and
+        # view.extras stays off because it opens quotes and memes, which a
+        # shared account never gets.
+        return frozenset({PERM_SELF_REQUESTS}), frozenset(
+            {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
+            | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
+            | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES, PERM_SELF_PASSWORD}
+            | {PERM_VIEW_EXTRAS}
+        )
+    # A name outside ROLE_NAMES cannot exist after migration f1i2veroles45.
+    # Should one appear anyway, it is given nothing: a lock table must not
+    # hand a stranger the free choices.
+    return frozenset(), frozenset(every)

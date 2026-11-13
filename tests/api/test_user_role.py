@@ -32,7 +32,6 @@ def user_role(db):
 
 
 def test_the_role_is_a_system_role_and_not_a_root_role(user_role):
-    assert user_role.is_system is True
     assert user_role.is_root is False
 
 

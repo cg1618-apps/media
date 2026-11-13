@@ -2193,10 +2193,9 @@ A named bundle of permissions. Permissions themselves are Python constants
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `name` | String | no | | UNIQUE, indexed. `guest` and `admin` are read by name (`app/services/rbac/seed.py`). |
+| `name` | String | no | | UNIQUE, indexed. Exactly five rows — `admin`, `super`, `user`, `guest`, `shared` (`permissions.ROLE_NAMES`) — each read by name; no route creates, renames or deletes one. |
 | `label` | String | no | | |
 | `description` | Text | yes | | |
-| `is_system` | Boolean | no | `False` (server default) | `guest` / `admin`: cannot be renamed or deleted through the API |
 | `is_root` | Boolean | no | `False` (server default) | Implies every permission, including labels and field groups created later |
 | `sort_order` | Integer | no | `0` (server default) | |
 | `created_at` / `updated_at` | DateTime | yes | now | Yes, roles have timestamps. |
@@ -2230,7 +2229,7 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 | `is_installation_owner` | Boolean | **no** | `false` (server default) | Whose rows a Sheets restore and the Calculate pipeline file under when nobody is logged in - `installation_owner_id()`. **Not a permission** and not on any request path. Partial unique index `ix_one_installation_owner` over a constant, so at most one account in the table holds it and any number hold false. It is data rather than a name in code so that moving the collection to another account is a row edit, and so the answer travels between the two machines on the Sheets `Users` tab - `parse_user_from_sheet` names it explicitly, because that parser is a projection and not a column sweep. |
 | `status` | String | **no** | `active` (server default) | `pending` / `active` / `disabled`, CHECK `ck_users_status`. Only `active` can sign in or hold a session: login answers 403 for the other two after a correct password, and `resolve_viewer` reads their tokens as the guest. `pending` is a registration awaiting approval; `disabled` is set and cleared on `/users`. Travels on the Sheets `Users` tab for `active` and `disabled` |
 | `session_version` | Integer | **no** | `0` (server default) | The revocation counter. A login token carries it as `sv`, and a token whose `sv` differs resolves as the guest - so incrementing it, always through `revoke_sessions()`, ends every session the account holds. A reset spent, disabling, and the admin setting the password increment it. **Never travels** on Sheets: it is this machine's count |
-| `open_request_limit` | Integer | yes | | How many **open** requests the account may hold at once; NULL is no limit. CHECK `ck_users_open_request_limit_non_negative` (≥ 0). Set to the role's default when the account is created or changes role (15 for `user`, NULL otherwise) and adjustable on the Users page; never enforced, and never settable, for `super`. Travels on the Sheets `Users` tab (`parse_user_from_sheet` names it); a sheet with no header for it leaves the local value alone. |
+| `open_request_limit` | Integer | yes | | How many **open** requests the account may hold at once; NULL is no limit. CHECK `ck_users_open_request_limit_non_negative` (≥ 0). Set to the role's default when the account is created or changes role (15 for `user`, 10 for `shared`, NULL otherwise) and adjustable on the Users page; never enforced, and never settable, for `super`. Travels on the Sheets `Users` tab (`parse_user_from_sheet` names it); a sheet with no header for it leaves the local value alone. |
 | `mode_ceiling` | String | yes | `normal` (server default) | The widest access mode the account may use: a mode **key**, ranked by `seed_modes.MODE_ORDER` (`safe < normal < borderline < unrestricted`). NULL together with `mode_default` is no mode - the account resolves the empty object set. Written by `services/rbac/modes.py::set_mode_ceiling`. A key rather than an `access_mode` id: the order is defined on keys, and a key survives a Pull where a per-database uuid does not. |
 | `mode_default` | String | yes | `normal` (server default) | The mode a login lands in; at or below the ceiling. |
 
@@ -2247,11 +2246,13 @@ rather than rolling back the tab.
 No timestamps. Relationship `role_ref` (joined load). Virtual `role`. There
 is no visibility flag: everything per user is private to its account.
 
-**Four** roles are seeded and read by name - `guest`, `user`, `super`,
-`admin`; see [authorization.md](authorization.md#roles). An account on the
+**Five** roles exist and are read by name - `guest`, `shared`, `user`,
+`super`, `admin`; see [authorization.md](authorization.md#roles). An account on the
 `user` role holds guest's reads, the `view.*` family, and `self.list`,
 `self.personal_notes`, `self.requests` and `self.password`; `super` adds the
-three `manage.*` and is deliberately **not** `is_root`.
+three `manage.*` and is deliberately **not** `is_root`; `shared` holds guest's
+reads and `self.requests`, and only the two shared accounts the lifespan
+seeds (`shared-normal`, `shared-borderline`) hold it.
 
 ### `account_code`
 

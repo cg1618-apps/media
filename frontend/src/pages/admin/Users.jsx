@@ -11,6 +11,12 @@
 // pending one (that is approved or declined, not edited), and a reset link on
 // an active account whose role is not `shared` (the admin sets a shared
 // account's password here instead). The server still refuses each of them.
+//
+// The same reasoning shapes the role and mode controls. An account is created
+// in, or moved to, only `user` or `super`; an admin or shared account keeps
+// its role, so its row shows the role as text. A shared account cannot be
+// deleted (disable it instead) and its access mode is fixed, so its row shows
+// the mode and offers no panel to change it.
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
@@ -34,6 +40,27 @@ const UNLIMITED_ROLE_NAMES = new Set(["super"]);
 // never limited, and not for the root role, which files nothing.
 function hasRequestLimit(role) {
   return Boolean(role) && !role.is_root && !UNLIMITED_ROLE_NAMES.has(role.name);
+}
+
+// The only roles an account can be created in or moved to. The other three
+// are fixed: guest holds no account, and an admin or shared account keeps the
+// role it has - the server answers 422 to anything else, and 409 to changing
+// an admin's or shared account's role.
+const ASSIGNABLE_ROLE_NAMES = new Set(["user", "super"]);
+
+// Roles whose accounts keep the role they have, so the row shows it as text.
+const FIXED_ROLE_NAMES = new Set(["admin", "shared"]);
+
+// The account's role key. role_name comes on the response; the lookup by id
+// covers a row served without it.
+function assignable(roles) {
+  return roles.filter((r) => ASSIGNABLE_ROLE_NAMES.has(r.name));
+}
+
+function roleNameOf(user, roles) {
+  return (
+    user.role_name ?? roles.find((r) => r.system_id === user.role_id)?.name ?? null
+  );
 }
 
 // The limit field's text as the API's value: blank is no limit (null).
@@ -61,6 +88,7 @@ export default function Users() {
   });
   const [modes, setModes] = useState([]);
   const [modesFor, setModesFor] = useState(null);
+  const assignableRoles = assignable(roles);
 
   async function saveAccessModes(user, next) {
     try {
@@ -86,7 +114,10 @@ export default function Users() {
       setUsers(userRows);
       setRoles(roleRows);
       setModes(modeRows);
-      setDraft((d) => ({ ...d, role_id: d.role_id || roleRows[0]?.system_id || "" }));
+      setDraft((d) => ({
+        ...d,
+        role_id: d.role_id || assignable(roleRows)[0]?.system_id || "",
+      }));
     } catch (err) {
       showToast("error", err.message);
     } finally {
@@ -106,7 +137,7 @@ export default function Users() {
         ...jsonBody(draft),
       });
       showToast("success", `Created ${draft.username}.`);
-      setDraft({ ...BLANK, role_id: roles[0]?.system_id ?? "" });
+      setDraft({ ...BLANK, role_id: assignableRoles[0]?.system_id ?? "" });
       await load();
     } catch (err) {
       showToast("error", err.message);
@@ -233,7 +264,7 @@ export default function Users() {
             onChange={(e) => setDraft({ ...draft, role_id: e.target.value })}
             className="mt-1 w-full border rounded px-2 py-1.5 text-sm font-normal"
           >
-            {roles.map((role) => (
+            {assignableRoles.map((role) => (
               <option key={role.system_id} value={role.system_id}>
                 {role.label}
               </option>
@@ -259,25 +290,33 @@ export default function Users() {
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
+          {users.map((user) => {
+            const roleName = roleNameOf(user, roles);
+            const isShared = roleName === "shared";
+            return (
             <tr key={user.id} className="border-t border-border">
               <td className="px-4 py-2 font-medium">{user.username}</td>
               <td className="px-4 py-2">
                 {editingId === user.id ? (
                   <div className="flex flex-col gap-2">
-                    <select
-                      value={editDraft.role_id}
-                      onChange={(e) =>
-                        setEditDraft({ ...editDraft, role_id: e.target.value })
-                      }
-                      className="border rounded px-2 py-1 text-xs"
-                    >
-                      {roles.map((role) => (
-                        <option key={role.system_id} value={role.system_id}>
-                          {role.label}
-                        </option>
-                      ))}
-                    </select>
+                    {FIXED_ROLE_NAMES.has(roleName) ? (
+                      <span className="text-text-muted">{roleName}</span>
+                    ) : (
+                      <select
+                        aria-label="Role"
+                        value={editDraft.role_id}
+                        onChange={(e) =>
+                          setEditDraft({ ...editDraft, role_id: e.target.value })
+                        }
+                        className="border rounded px-2 py-1 text-xs"
+                      >
+                        {assignableRoles.map((role) => (
+                          <option key={role.system_id} value={role.system_id}>
+                            {role.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <input
                       type="password"
                       placeholder="New password (optional)"
@@ -324,6 +363,16 @@ export default function Users() {
                 <Chip tone={STATUS_TONE[user.status] ?? "ink"}>{user.status}</Chip>
               </td>
               <td className="px-4 py-2 text-xs text-text-faint">
+                {isShared ? (
+                  // A shared account's mode is the account itself: ceiling and
+                  // default are both its own mode, and the server answers 409
+                  // to changing them, so there is nothing here to edit.
+                  `Mode: ${
+                    modes.find((m) => m.key === user.mode_ceiling)?.label ??
+                    user.mode_ceiling
+                  } (fixed)`
+                ) : (
+                  <>
                 {user.mode_ceiling == null ? (
                   <span className="text-danger">no mode — sees nothing</span>
                 ) : (
@@ -340,6 +389,8 @@ export default function Users() {
                 >
                   Change
                 </button>
+                  </>
+                )}
               </td>
               <td className="px-4 py-2 text-right whitespace-nowrap">
                 {editingId === user.id ? (
@@ -363,7 +414,7 @@ export default function Users() {
                       onClick={() => {
                         setEditingId(user.id);
                         setEditDraft({
-                          role_id: user.role_id ?? roles[0]?.system_id ?? "",
+                          role_id: user.role_id ?? assignableRoles[0]?.system_id ?? "",
                           password: "",
                           open_request_limit:
                             user.open_request_limit == null
@@ -400,17 +451,20 @@ export default function Users() {
                         Enable
                       </button>
                     )}
-                    <button
-                      onClick={() => remove(user)}
-                      className="text-danger text-xs"
-                    >
-                      Delete
-                    </button>
+                    {!isShared && (
+                      <button
+                        onClick={() => remove(user)}
+                        className="text-danger text-xs"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </>
                 )}
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
 

@@ -2639,7 +2639,9 @@ in one payload. `ceiling` and `default` are mode keys.
   "denied_label_keys": [], "denied_field_group_keys": [] }
 ```
 
-**422** for an unknown key, for exactly one of `ceiling` / `default` null, and
+**409** on a shared account (`A shared account's mode is fixed.`): its
+ceiling and default are its own mode, re-asserted on every boot. **422** for
+an unknown key, for exactly one of `ceiling` / `default` null, and
 for a default ranked above the ceiling. **A denial naming something the
 ceiling does not show is 422**, naming the strays: the ceiling is an upper
 bound, so such a denial subtracts nothing in any mode the account can use and
@@ -2662,14 +2664,19 @@ source and this endpoint returns the same shape.
 | GET | `/api/roles/` | Roles with their grants and user counts. |
 | GET | `/api/roles/catalog` | Every grantable permission, grouped by family — **four of them** (`admin`, `manage`, `media_type`, `self`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. `field_group` and `label` are deliberately absent: they are the access-mode axis, and a role cannot express "minus this label" because permission resolution is a union. |
 | GET | `/api/roles/{id}` | |
-| POST | `/api/roles/` | 409 on a duplicate name, 422 on an unknown permission. |
-| PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads `guest` and `admin` by name. |
-| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 409 on a root role. |
-| DELETE | `/api/roles/{id}` | 409 if `is_system` or still held by users. |
+| PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads every role by name. |
+| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 422 on an unknown permission, 409 on a root role. |
 
-Also 409: giving the `guest` role the `admin` permission (anonymous requests
-resolve to guest, so that would make every visitor an administrator).
-`DELETE` answers **204**.
+**There are exactly five roles** — `admin`, `super`, `user`, `guest`,
+`shared` — and no route creates or deletes one: `POST /api/roles/` and
+`DELETE /api/roles/{id}` do not exist. `RoleResponse` carries `name`,
+`label`, `description`, `sort_order`, `system_id`, `is_root`, `permissions`,
+`user_count`, `locked_on` and `locked_off`.
+
+Also 409: a `PUT /permissions` payload that holds a locked-off grant or drops
+a locked-on one — anything beyond a read on `guest`, for one, since anonymous
+requests resolve to it. The table is
+[authorization.md](authorization.md#locked-grants).
 
 ### `/api/users` — admin
 
@@ -2684,10 +2691,10 @@ already stored are not re-checked. Uniqueness ignores case.
 | Method | Path | Body / notes |
 |---|---|---|
 | GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `status`, `mode_ceiling`, `mode_default`, `denied_label_keys`, `denied_field_group_keys`, `open_request_limit`). `open_request_limit` is how many open requests the account may hold, null for no limit. Passwords never leave the server. |
-| POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201, `status` `active`. The account's `open_request_limit` is its role's default — 15 for `user`, none for every other role. 409 on a username taken ignoring case, 422 on an unknown role or a username or password the checks refuse. |
-| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`, `status` (`active` / `disabled`; anything else 422), `open_request_limit` (an integer ≥ 0, or null for no limit; negative is 422). Setting a password **ends the account's sessions**, and so does disabling it; enabling does not revive them. A `role_id` change resets the limit to the new role's default unless the same body sets `open_request_limit`. A non-null limit on a `super` account — or on an account this save moves to `super` — is **422**: super's limit is fixed at none. 409 if the new username is taken, if the change would demote the last **active** account that can still administer the site, if you disable yourself (`You cannot disable yourself.`), or if the account is `pending` (approved or declined, not edited). |
+| POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201, `status` `active`. The role must be `user` or `super`: any other role is **422** (`An account's role is either user or super.`). The account's `open_request_limit` is its role's default — 15 for `user`, none for `super` (10 for `shared`, which only the seed's shared accounts hold). 409 on a username taken ignoring case, 422 on an unknown role or a username or password the checks refuse. |
+| PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`, `status` (`active` / `disabled`; anything else 422), `open_request_limit` (an integer ≥ 0, or null for no limit; negative is 422). Setting a password **ends the account's sessions**, and so does disabling it; enabling does not revive them. A `role_id` change must move the account to `user` or `super` (anything else **422**), and is **409** on an `admin` or `shared` account — the admin's own included — with `The admin account's role is fixed.` / `A shared account's role is fixed.`; it resets the limit to the new role's default unless the same body sets `open_request_limit`. Setting a shared account's password is allowed — it is how the admin hands one out. A non-null limit on a `super` account — or on an account this save moves to `super` — is **422**: super's limit is fixed at none. 409 if the new username is taken, if the change would demote the last **active** account that can still administer the site, if you disable yourself (`You cannot disable yourself.`), or if the account is `pending` (approved or declined, not edited). |
 | POST | `/api/users/{id}/reset-link` | No body. **200** `{link, expires_at}` - a one-time password reset link, valid 24 hours, returned **once** (only a hash is stored). Issuing one deletes the account's unspent reset links. **409** for an account that is not `active` or whose role is `shared`; 404 for an unknown id. |
-| DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, or the last administering account. |
+| DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, the last administering account, or a shared account (`A shared account cannot be deleted. Disable it instead.`). |
 
 ### `/api/content-labels`
 

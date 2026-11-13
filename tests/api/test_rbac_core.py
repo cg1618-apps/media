@@ -46,7 +46,6 @@ def test_seed_creates_the_two_system_roles(db_session):
     for name in ("guest", "admin"):
         role = _role(db_session, name)
         assert role is not None, f"{name} role not seeded"
-        assert role.is_system is True
 
 
 def test_seed_is_idempotent(db_session):

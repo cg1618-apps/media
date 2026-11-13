@@ -55,8 +55,8 @@ Owner: `app/services/domain/requests.py`. The business-rules summary is
   the limit. Only open requests count, so a request marked done or declined
   frees a slot.
 - **The limit is per role, then per account.** `default_request_limit(role)`
-  gives the starting value from `DEFAULT_REQUEST_LIMITS` - 15 for `user`, none
-  for every other role. `/users` applies it when it creates an account and
+  gives the starting value from `DEFAULT_REQUEST_LIMITS` - 15 for `user`, 10
+  for `shared`, none for every other role. `/users` applies it when it creates an account and
   whenever it changes an account's role, unless the same save sets the limit;
   an admin adjusts it per account on the Users page.
 - **`super` is never limited.** `effective_request_limit` answers none for the
@@ -96,12 +96,12 @@ this feature asks anything else:
 
 | Permission | Dependency | Means | Held by |
 |---|---|---|---|
-| `self.requests` | `require_file_requests` | file a request; read and edit your own | `user` (locked on), `super` (locked on). Never the root role: `Viewer.has()` does not short-circuit `self.*`, so the admin account files nothing. Locked off for `guest` |
-| `manage.requests` | `require_handle_requests` | the inbox: read every request, set its status, delete it | `super` (locked on), `admin` through root. Locked off for `user` and `guest` |
+| `self.requests` | `require_file_requests` | file a request; read and edit your own | `shared` (locked on), `user` (locked on), `super` (locked on). A shared account's requests are everyone's who uses that login. Never the root role: `Viewer.has()` does not short-circuit `self.*`, so the admin account files nothing. Locked off for `guest` |
+| `manage.requests` | `require_handle_requests` | the inbox: read every request, set its status, delete it | `super` (locked on), `admin` through root. Locked off for `shared`, `user` and `guest` |
 
 A refusal is **401**, as everywhere. The locks are in
-[authorization.md](../authorization.md#locked-grants); a custom role decides both
-freely.
+[authorization.md](../authorization.md#locked-grants); there are exactly five
+roles, so neither is ever a free choice.
 
 ## API
 

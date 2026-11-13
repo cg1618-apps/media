@@ -13,6 +13,10 @@
 // enforces with a 409, so a box that looks editable can never be refused on
 // save. A locked_on box draws ticked, a locked_off box draws clear, and both
 // draw disabled.
+//
+// The roles themselves are fixed - admin, super, user, guest and shared - so
+// the page edits the five rows the server serves and offers no way to add or
+// remove one.
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
@@ -36,8 +40,6 @@ export default function Roles() {
   const [draft, setDraft] = useState(new Set());
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [newRole, setNewRole] = useState({ name: "", label: "" });
 
   const load = useCallback(async () => {
     try {
@@ -125,35 +127,6 @@ export default function Roles() {
     }
   }
 
-  async function createRole(e) {
-    e.preventDefault();
-    try {
-      await fetchJson(endpoints.roles.create(), {
-        method: "POST",
-        ...jsonBody({ ...newRole, permissions: [] }),
-      });
-      showToast("success", `Created ${newRole.label}.`);
-      setNewRole({ name: "", label: "" });
-      setCreating(false);
-      await load();
-    } catch (err) {
-      showToast("error", err.message);
-    }
-  }
-
-  async function removeRole(role) {
-    try {
-      await fetchJson(endpoints.roles.remove(role.system_id), {
-        method: "DELETE",
-      });
-      showToast("success", `Deleted ${role.label}.`);
-      setSelectedId(null);
-      await load();
-    } catch (err) {
-      showToast("error", err.message);
-    }
-  }
-
   if (loading) {
     return (
       <div className="p-8 text-center text-text-faint">
@@ -188,15 +161,7 @@ export default function Roles() {
                   : "border-border hover:bg-surface-2"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span>{role.label}</span>
-                {role.is_system && (
-                  <i
-                    className="fas fa-lock text-[10px] text-text-faint"
-                    title="Built in - cannot be renamed or deleted"
-                  ></i>
-                )}
-              </div>
+              <div>{role.label}</div>
               <div className="text-[11px] text-text-faint">
                 {role.is_root
                   ? "all permissions"
@@ -205,54 +170,6 @@ export default function Roles() {
               </div>
             </button>
           ))}
-
-          {creating ? (
-            <form
-              onSubmit={createRole}
-              className="border border-border rounded-lg p-3 space-y-2"
-            >
-              <input
-                required
-                value={newRole.name}
-                onChange={(e) =>
-                  setNewRole({ ...newRole, name: e.target.value })
-                }
-                placeholder="key (e.g. friend)"
-                className="w-full border rounded px-2 py-1 text-xs"
-              />
-              <input
-                required
-                value={newRole.label}
-                onChange={(e) =>
-                  setNewRole({ ...newRole, label: e.target.value })
-                }
-                placeholder="Display name"
-                className="w-full border rounded px-2 py-1 text-xs"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-brand text-on-brand rounded px-2 py-1 text-xs font-semibold"
-                >
-                  Create
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCreating(false)}
-                  className="px-2 py-1 text-xs text-text-faint"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              onClick={() => setCreating(true)}
-              className="w-full border border-dashed border-border-strong rounded-lg px-3 py-2 text-sm text-text-faint hover:bg-surface-2"
-            >
-              <i className="fas fa-plus mr-1"></i>New role
-            </button>
-          )}
         </aside>
 
         {/* Permission grid */}
@@ -278,14 +195,6 @@ export default function Roles() {
                   <p className="text-xs text-text-faint">{selected.description}</p>
                 </div>
                 <div className="flex gap-2">
-                  {!selected.is_system && selected.user_count === 0 && (
-                    <button
-                      onClick={() => removeRole(selected)}
-                      className="px-3 py-1.5 text-xs text-danger border border-danger/40 rounded hover:bg-danger/10"
-                    >
-                      Delete
-                    </button>
-                  )}
                   {anyEditable && (
                     <button
                       onClick={save}

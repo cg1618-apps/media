@@ -11,7 +11,6 @@ Every refusal below is paired with the mirror case that must still succeed - a
 409 proves nothing on its own if the endpoint would have refused anything.
 """
 
-import pytest
 
 from app import models
 from app.services.rbac.permissions import (
@@ -85,12 +84,14 @@ def test_guest_can_only_view():
     assert media_type_perm("anime") not in off
 
 
-@pytest.mark.parametrize("name", [USER_ROLE, "friend"])
-def test_catalogue_is_a_choice_for_user_and_custom_roles_but_pipelines_is_not(name):
-    on, off = locked_permissions(name, False)
+def test_neither_catalogue_nor_pipelines_is_a_choice_for_user():
+    """Writing the catalogue is what makes an account `super`, and one Pull
+    All overwrites every table."""
+    on, off = locked_permissions(USER_ROLE, False)
     assert PERM_MANAGE_PIPELINES in off
-    # The mirror: these three are neither forced nor refused.
-    for permission in (PERM_MANAGE_CATALOG, PERM_SELF_LIST, media_type_perm("anime")):
+    assert PERM_MANAGE_CATALOG in off
+    # The mirror: these two are neither forced nor refused.
+    for permission in (PERM_SELF_LIST, media_type_perm("anime")):
         assert permission not in on and permission not in off
 
 
@@ -111,15 +112,6 @@ def test_a_user_always_files_requests_and_never_handles_them():
 def test_a_user_has_exactly_those_two_locked_on():
     on, _off = locked_permissions(USER_ROLE, False)
     assert on == {PERM_SELF_REQUESTS, PERM_SELF_PASSWORD}
-
-
-def test_a_custom_role_decides_requests_and_its_own_password_freely():
-    """The mirror of the user locks: they come from the role's name, not from
-    the permissions being unlockable."""
-    on, off = locked_permissions("friend", False)
-    assert on == set()
-    for permission in (PERM_SELF_REQUESTS, PERM_MANAGE_REQUESTS, PERM_SELF_PASSWORD):
-        assert permission not in on and permission not in off
 
 
 def test_a_root_role_holds_everything_except_its_own_rows():
@@ -151,7 +143,7 @@ def test_the_role_list_serves_the_locks(admin_client):
     assert sorted(user_role["locked_on"]) == sorted(
         [PERM_SELF_REQUESTS, PERM_SELF_PASSWORD]
     )
-    assert PERM_MANAGE_CATALOG not in user_role["locked_off"]
+    assert PERM_MANAGE_CATALOG in user_role["locked_off"]
 
 
 def test_the_admin_role_serves_every_management_permission_as_locked_on(admin_client):
@@ -192,29 +184,25 @@ def test_a_guest_may_not_be_granted_its_own_list(admin_client):
     assert ok.json()["permissions"] == [media_type_perm("anime")]
 
 
-def test_a_user_role_may_hold_the_catalogue_but_never_the_pipelines(admin_client):
+def test_a_user_role_never_holds_the_catalogue_or_the_pipelines(admin_client):
     user_id = _role(admin_client, USER_ROLE)["system_id"]
+    must = [PERM_SELF_REQUESTS, PERM_SELF_PASSWORD]
 
-    refused = admin_client.put(
-        f"{ROLES}{user_id}/permissions",
-        json={"permissions": [PERM_MANAGE_CATALOG, PERM_MANAGE_PIPELINES]},
-    )
-    assert refused.status_code == 409
-    assert PERM_MANAGE_PIPELINES in refused.text
+    for permission in (PERM_MANAGE_CATALOG, PERM_MANAGE_PIPELINES):
+        refused = admin_client.put(
+            f"{ROLES}{user_id}/permissions",
+            json={"permissions": must + [permission]},
+        )
+        assert refused.status_code == 409, permission
+        assert permission in refused.text
 
+    # Mirror: the same save with a free permission instead goes through.
     allowed = admin_client.put(
         f"{ROLES}{user_id}/permissions",
-        json={
-            "permissions": [
-                PERM_MANAGE_CATALOG,
-                PERM_SELF_LIST,
-                PERM_SELF_REQUESTS,
-                PERM_SELF_PASSWORD,
-            ]
-        },
+        json={"permissions": must + [PERM_SELF_LIST]},
     )
     assert allowed.status_code == 200
-    assert PERM_MANAGE_CATALOG in allowed.json()["permissions"]
+    assert PERM_SELF_LIST in allowed.json()["permissions"]
 
 
 def test_the_super_role_cannot_have_anything_taken_away(admin_client):
@@ -239,29 +227,6 @@ def test_the_super_role_cannot_have_anything_taken_away(admin_client):
     )
     assert unchanged.status_code == 200
     assert unchanged.json()["permissions"] == full
-
-
-def test_a_new_role_cannot_be_created_holding_a_locked_permission(admin_client):
-    for index, permission in enumerate((PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES)):
-        response = admin_client.post(
-            ROLES,
-            json={
-                "name": f"sneaky{index}",
-                "label": "Sneaky",
-                "permissions": [permission],
-            },
-        )
-        assert response.status_code == 409, permission
-
-    ok = admin_client.post(
-        ROLES,
-        json={
-            "name": "curator",
-            "label": "Curator",
-            "permissions": [PERM_MANAGE_CATALOG],
-        },
-    )
-    assert ok.status_code == 201
 
 
 # ---------------------------------------------------------------------------
