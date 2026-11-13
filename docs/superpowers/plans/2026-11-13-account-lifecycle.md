@@ -306,4 +306,24 @@ their reasons.
   10 per IP per 15 min on register and reset.
 - **`disabled` travels on the Sheets Users tab.**
 
-No questions remain open.
+## Settled after P4a's backend
+
+- **Invites get their own column** (media-00). P4b's migration adds
+  `account_code.created_user_id`, `ON DELETE SET NULL`, recording the
+  account an invite created. `user_id` stays the reset target, with
+  `CASCADE`. One foreign key cannot serve both rules, and with `user_id`
+  alone a rejected account would take its invite row with it. With the
+  new column the invite stays recorded as spent, as the spec says.
+- **The per-username login limit is checked before the password**
+  (accepted, documented in `docs/authentication.md`). Five wrong guesses
+  lock that username for 15 minutes, even for its real owner. That is
+  the standard price of brute-force protection. Letting a correct password
+  through the lock would undo the protection.
+- **Provisional, the owner's call:** when the admin sets **its own**
+  password on `/users`, every session is revoked, then the caller's
+  cookie is re-issued at the new counter. The browser that made the
+  change stays signed in and every other device is signed out, as
+  Django's `update_session_auth_hash` does. Built behind one function.
+  The alternative is to accept the sign-out.
+
+No other questions remain open.
