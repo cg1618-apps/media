@@ -7,6 +7,7 @@ import {
   GENDERS,
   castRoleRank,
   MEDIA_TYPES,
+  NOTE_SUGGESTION_CATEGORIES,
   OPTION_CATEGORIES,
   PERSON_ROLES,
   PROGRESS_DISPLAY_OPTIONS,
@@ -133,6 +134,14 @@ describe("declared option categories", () => {
 
   it("offers a category that has no options stored against it", () => {
     expect(OPTION_CATEGORIES).toContain("Combat Mode");
+  });
+
+  it("declares the note sections' field suggestion categories, empty ones included", () => {
+    // Geography Group is seeded with no values, so only this list offers it
+    // on Add before its first value exists.
+    expect(CONSTANTS_FALLBACK.note_suggestion_categories).toBe(NOTE_SUGGESTION_CATEGORIES);
+    for (const c of NOTE_SUGGESTION_CATEGORIES) expect(OPTION_CATEGORIES).toContain(c);
+    expect(NOTE_SUGGESTION_CATEGORIES).toContain("Geography Group");
   });
 
   it("updates in place from the API payload", () => {

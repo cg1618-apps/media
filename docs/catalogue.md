@@ -81,12 +81,11 @@ that type, or a group (collection, franchise, series).
 | 備註 Remark | every type; every group | **yours** |
 | 備註列表 Remark List | every type; every group | **yours** |
 | 介紹 Introduction | every type but H-Comic, Hentai; every group | shared |
-| 評論 Reviews and Comments | H-Comic, Hentai, H-Game | **yours** |
 | 優點 Advantages | every type but H-Comic, Hentai; every group | **yours** |
 | 缺點 Disadvantages | every type but H-Comic, Hentai; every group | **yours** |
 | 優缺點 | every type but H-Comic, Hentai; every group | **yours** |
-| 大眾評價 Public Reviews | every type but H-Comic, Hentai, H-Game; every group | shared |
-| 我的評價 Personal Reviews | every type but H-Comic, Hentai, H-Game; every group | **yours** |
+| 大眾評價 Public Reviews | every type; every group | shared |
+| 我的評價 Personal Reviews | every type; every group | **yours** |
 | 各集評論 Episode Comments (Manga: 各話評論 Chapter Comments; Game: 各章評論 Part Reviews) | Anime, TV Show, Cartoon, Manga, Game | **yours** |
 | 神回/神片段 Highlights | Anime | shared |
 | 神回/神片段 (Manga: 神回) | TV Show, Cartoon, Manga | shared |
@@ -116,6 +115,7 @@ that type, or a group (collection, franchise, series).
 | 收集物 Collectibles | Game, H-Game | shared |
 | 角色 Characters | Game, H-Game | shared |
 | 敵人 Enemies | Game, H-Game | shared |
+| 地理 Geography | Game, H-Game | shared |
 | 遊戲名詞 Game Terms | Game, H-Game | shared |
 | 玩家術語 Player Terms | Game | shared |
 | 主線劇情 Main Plot | Game | shared |
@@ -153,11 +153,6 @@ that type, or a group (collection, franchise, series).
 | Questions | every type but H-Comic, Hentai; every group | **yours** |
 | 名言 Quotes | every type but H-Comic, Hentai, H-Game | shared |
 | 梗/迷因 Memes | every type but H-Comic, Hentai, H-Game; every group | shared |
-
-*Changing:* H-Comic, Hentai and H-Game will drop 評論 Reviews and Comments
-and get 大眾評價 Public Reviews and 我的評價 Personal Reviews, like every
-other type. What is written in Reviews and Comments today moves to Public
-Reviews.
 
 The six highlight rows (神回/神片段, 神片段, 神場景, 亮點) are shared today and
 will become **yours**.

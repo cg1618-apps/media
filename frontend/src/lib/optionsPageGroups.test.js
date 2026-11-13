@@ -34,6 +34,7 @@ const SERVED = [
   "music_status",
   "music_type_status",
   "my_rating",
+  "note_suggestion_categories",
   "novel_region",
   "novel_serialization_status",
   "novel_type",
@@ -134,7 +135,9 @@ describe("groupTier1Keys", () => {
 // /api/options serves them (by category name).
 const CATEGORIES = [
   "Character Appearance",
+  "Character Group",
   "Character Trait",
+  "Collectible Type",
   "Combat Mode",
   "Comic Continuity",
   "Comic Era",
@@ -147,6 +150,8 @@ const CATEGORIES = [
   "Game Theme",
   "Genre Main",
   "Genre Sub",
+  "Geography Group",
+  "Item Type",
   "Label",
   "Platform",
   "Reference Source",

@@ -3795,3 +3795,69 @@ changes only grants and nothing in the feature itself.
   setting like `disabled`, and a Pull must not reset it. A blank cell means
   no limit, and an older sheet without the column leaves the local value
   alone.
+
+### Notes rework, catalogue half (spec: 2026-11-12 notes-rework-design)
+
+The half of the notes rework that needs nothing from the account work, in one
+revision, `n1o2tesrwk3`. The personal half - the amount collected, the NG
+reset button, 下周目目標 - waits for the account rework and stays in the spec.
+
+- **地理 Geography sits in 圖鑑與名詞 Compendium & Terms, for game and h-game
+  alike.** It is declared straight after 敵人 Enemies, because "where is it"
+  is the next question after "what is it". 世界觀 Worldbuilding was the other
+  candidate, but it is game-only; filing 地理 there would have needed a
+  `groups_by_owner` override for h-game, while a card both types share needs
+  none. Confirmed by the owner.
+- **Only a top-level 地理 row carries a group.** The section both nests and
+  groups, and a child already belongs to its root's group by being under it,
+  so a child's own group would be a value nothing reads. The backend refuses
+  one (422), the grouped view groups the roots and draws each subtree under
+  its root, and `_check_groupable_by` now accepts a hierarchical section only
+  when the field it groups by is column-backed.
+- **Suggestions are field-level, `NoteField.option_category`.** The guide
+  sections' free-text group and type fields wanted suggestions without
+  becoming closed lists, and the existing `kind_category` names one category
+  for a whole section, where a structured section has several free-text
+  fields. Only a free-text `select` may name one, checked at import.
+- **Only four categories: Character Group, Collectible Type, Item Type,
+  Geography Group.** Adding a fifth is a registry edit, not an admin action.
+  攻略資源 Guide Resources gained a group but no category: the spec named
+  none.
+- **The admin sub-tab is "Note Suggestions"**, a third beside Options and
+  Tags on `/add`, `/modify` and `/delete`. The categories are the same
+  `system_option` structure as everything under Options, and the split is
+  navigation only, but they serve the notes rather than the entry forms, so
+  they get their own tab rather than lengthening Options. Song Type and Song
+  Source, named by a section rather than a field, stay under Options.
+  Confirmed by the owner.
+- **The seeds carry no scope rows**, so both game and h-game are offered
+  them; 可攻略 is not scoped to h-game.
+- **The amount total is text**, like the stat values. There is no number
+  field type, and adding one was not this work.
+- **NG Reset defaults to yes**, the commoner answer. The revision backfills
+  `yes` on every existing row of the three 物品 sections, and a row with no
+  key at all (an older sheet row) is read as yes rather than refused.
+- **`collected` joins the collect statuses** after `not collected`, for a
+  one-off thing that is simply had; "enough" and "fully" stay for a thing
+  collected in quantity.
+- **The gated types drop 評論 Reviews and Comments** for 大眾評價 Public
+  Reviews and 我的評價 Personal Reviews, like every other type. Every
+  `reviews_and_comments` row moved to `public_reviews` with its `author_id`
+  kept as provenance - a personal section's rows becoming a catalogue
+  section's. A sheet backed up before the move still names the old key, and
+  Pull files those rows the same way; a POST naming it is a 400 like any
+  unknown section.
+- **The 待辦 buckets quick-move.** A "Move to…" select beside Edit and Delete,
+  the pattern ResourceTree already uses, so no new layout. A PATCH that
+  changes `section` without a `sort_index` now appends the row to the end of
+  its new section; it used to keep an index that ordered it among rows it
+  had left.
+- **The downgrade puts back what the older registry can say, and clears what
+  its validator would refuse.** `public_reviews` and `personal_reviews` rows
+  on an h-comic, hentai or h-game go back to `reviews_and_comments` - exact
+  for the moved rows, and the nearest home for a personal review written
+  since. `collected` becomes `fully collected`, the old vocabulary's nearest
+  truthful value. `ng_reset` and `amount_total` leave `fields`, and a guide
+  resource's group is cleared. 地理 rows are left in place, untouched by the
+  older code, and the option seeds stay. Not marked `irreversible`: every row
+  the upgrade rewrote comes back with the same content.

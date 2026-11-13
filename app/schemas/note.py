@@ -121,8 +121,18 @@ class NoteFieldOut(BaseModel):
     default: Optional[str] = None
     quick_edit: bool = False
     placeholder: Optional[str] = None
+    # The system_option category whose values the editor suggests for a
+    # free-text select. Suggestions only - the value stays free text.
+    option_category: Optional[str] = None
     # Populated for `list` fields alone: the shape of one nested row.
     item_fields: List["NoteFieldOut"] = []
+
+
+class NoteMoveTarget(BaseModel):
+    """A section a row can be quick-moved to, labelled for the owner."""
+
+    key: str
+    label: str
 
 
 class NoteSectionOut(BaseModel):
@@ -191,6 +201,10 @@ class NoteSectionOut(BaseModel):
     type_status_section: Optional[str] = None
     type_statuses: List[str] = []
     type_status_default: Optional[str] = None
+    # The sections a row of this one can be moved straight to (a PATCH of
+    # `section`): the owner's other `quick_move` sections in the same group,
+    # in registry order. Empty where the section does not quick-move.
+    move_targets: List[NoteMoveTarget] = []
 
 
 class NoteReorder(BaseModel):
@@ -214,8 +228,28 @@ def field_out(field: NoteField) -> NoteFieldOut:
         default=field.default,
         quick_edit=field.quick_edit,
         placeholder=field.placeholder,
+        option_category=field.option_category,
         item_fields=[field_out(f) for f in field.item_fields],
     )
+
+
+def move_targets_for(section: NoteSection, owner_type: str) -> List[NoteMoveTarget]:
+    """
+    The sections a row of `section` can be quick-moved to on this owner.
+
+    Resolved per owner because the group is: a target in another card would
+    move a row somewhere its reader is not looking.
+    """
+    if not section.quick_move:
+        return []
+    group = group_for(section, owner_type)
+    return [
+        NoteMoveTarget(key=other.key, label=label_for(other, owner_type))
+        for other in sections_for(owner_type)
+        if other.quick_move
+        and other.key != section.key
+        and group_for(other, owner_type) == group
+    ]
 
 
 def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
@@ -255,6 +289,7 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
         type_status_section=type_status.key if type_status else None,
         type_statuses=list(type_status.statuses) if type_status else [],
         type_status_default=type_status.default_status if type_status else None,
+        move_targets=move_targets_for(section, owner_type),
     )
 
 
@@ -437,6 +472,26 @@ def _validate_structured(section: NoteSection, payload: NoteBase) -> None:
     carrying = [f for f in spec if f.default is None] or list(spec)
     if all(_is_blank(_field_value(f, payload)) for f in carrying):
         raise ValueError(f"Section '{section.key}' note is empty.")
+
+    _check_root_only_group(section, payload)
+
+
+def _check_root_only_group(section: NoteSection, payload: NoteBase) -> None:
+    """
+    On a section that both nests and groups, only a top-level row carries a
+    group: the grouped view groups the roots and draws each subtree under its
+    root, so a child's own group is a value nothing would read.
+
+    Checked on the row as it will be, so a PATCH that reparents a grouped root
+    has to clear its group in the same request.
+    """
+    if not (section.hierarchical and section.groupable_by):
+        return
+    if payload.parent_id is None:
+        return
+    field = field_by_key(section, section.groupable_by)
+    if not _is_blank(_field_value(field, payload)):
+        raise ValueError("Only a top-level row carries a group.")
 
 
 

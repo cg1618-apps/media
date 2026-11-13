@@ -135,3 +135,14 @@ def test_a_structured_section_keeps_its_fields():
         {"section": "builds_and_styles", "fields": '{"stats": []}'}
     )
     assert parsed["fields"] == {"stats": []}
+
+
+def test_a_reviews_and_comments_row_pulls_as_public_reviews():
+    # The section left the registry; an older sheet still names it, and its
+    # rows land where the migration put the local ones.
+    parsed = parse_note_from_sheet(
+        {"section": "reviews_and_comments", "content": "worth it"}
+    )
+    assert parsed["section"] == "public_reviews"
+    # The mirror: every other section passes through untouched.
+    assert parse_note_from_sheet({"section": "advantages"})["section"] == "advantages"
