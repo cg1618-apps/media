@@ -22,11 +22,12 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.registry import MEDIA_REGISTRY
 from app.services.domain.character_responses import character_responses
-from app.services.domain.content_labels import attach_franchise_content_labels
+from app.services.domain.content_labels import attach_group_content_labels
 from app.services.domain.credits import credit_summaries
 from app.services.domain.entity_photos import person_media
 from app.services.domain.entry_fields import attach_entry_list_fields
 from app.services.rbac.enforcement import (
+    apply_collection_visibility,
     apply_entry_visibility,
     apply_franchise_visibility,
     apply_series_visibility,
@@ -254,6 +255,19 @@ def _exact_first(spec: SearchableType, q_clean: str):
     return ~matches
 
 
+# The grouping tiers' visibility gates, and their tier names.
+_GROUP_VISIBILITY = {
+    models.Collection: apply_collection_visibility,
+    models.Franchise: apply_franchise_visibility,
+    models.Series: apply_series_visibility,
+}
+_GROUP_TIER = {
+    models.Collection: "collection",
+    models.Franchise: "franchise",
+    models.Series: "series",
+}
+
+
 def _run(
     db: Session, viewer, spec: SearchableType, criteria, q_clean: str, limit: int
 ) -> list:
@@ -261,14 +275,11 @@ def _run(
     query = db.query(spec.model)
     if spec.owner_type is not None:
         query = apply_entry_visibility(query, spec.model, spec.owner_type, db, viewer)
-    elif spec.model is models.Franchise:
+    elif spec.model in _GROUP_VISIBILITY:
         # A grouping tier holds no media_type permission, so it is not an
-        # `owner_type` - but a franchise can carry content labels of its own,
-        # and one that does must not surface in a search either.
-        query = apply_franchise_visibility(query, db, viewer)
-    elif spec.model is models.Series:
-        # Hidden with its franchise, read-time through series.franchise_id.
-        query = apply_series_visibility(query, db, viewer)
+        # `owner_type` - but every tier can carry content labels, and a group
+        # hidden by its own or by one above it must not surface in a search.
+        query = _GROUP_VISIBILITY[spec.model](query, db, viewer)
     elif spec.model in CONNECTIONS:
         # People, characters, studios and publishers: hidden when every
         # connection is - the rule their own list routes apply.
@@ -373,10 +384,10 @@ def _attach(db: Session, viewer, spec: SearchableType, entries: list):
         _attach_credit_counts(db, viewer, spec, entries)
         return entries
     if spec.owner_type is None:
-        if spec.model is models.Franchise:
-            # FranchiseResponse carries content_labels, and an unattached []
+        if spec.model in _GROUP_TIER:
+            # A group's response carries content_labels, and an unattached []
             # would read as "no labels" rather than "not loaded".
-            attach_franchise_content_labels(db, entries)
+            attach_group_content_labels(db, _GROUP_TIER[spec.model], entries)
         return entries
     # The same fields the media list routes attach, so a search card shows
     # the viewer's status and progress rather than an untouched entry's.

@@ -51,6 +51,7 @@ import FranchiseCard from "../../components/cards/FranchiseCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import ContentLabelChips from "../../components/info/ContentLabelChips";
 import CollectionNotes from "./CollectionNotes";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
@@ -304,6 +305,15 @@ export default function CollectionPage() {
                 <span className="text-text">{members.length}</span>
               </div>
             </div>
+
+            {/* A collection's labels hide the collection AND every franchise,
+                series and entry in it, so they are said in their own row, as
+                the Franchise hub says its own. */}
+            <ContentLabelChips
+              labels={collection.content_labels}
+              note="Hides this collection and every franchise, series and entry in it."
+              className="mt-4"
+            />
 
             {/* Same chip vocabulary as the Franchise hub, so an expectation
                 reads the same wherever it turns up. */}

@@ -101,10 +101,10 @@ def test_pull_stamps_the_label_on_every_row_and_franchise(monkeypatch, db_sessio
         [["Zvornik Pulled", "JP", "Zvornik Pulled Franchise"]],
     )
     entry = db_session.query(models.HComic).filter_by(h_comic_name_cn="Zvornik Pulled").one()
-    assert label_keys_for_entry(db_session, entry.system_id) == ["h-comic"]
+    assert label_keys_for_entry(db_session, entry.system_id) == ["h-comic", "nsfw"]
     franchise = db_session.get(models.Franchise, entry.franchise_id)
     assert franchise.franchise_type == "H-Comic"
-    assert label_keys_for_franchise(db_session, franchise.system_id) == ["h-comic"]
+    assert label_keys_for_franchise(db_session, franchise.system_id) == ["h-comic", "nsfw"]
 
 
 def test_pull_restores_credits_and_tags(monkeypatch, db_session):
@@ -138,7 +138,7 @@ def test_a_label_tab_restore_repairs_a_missing_label(monkeypatch, db_session):
         db_session, "Content Label", log_action=False, may_restore_authz=True
     )
     assert result["status"] == "success", result
-    assert label_keys_for_entry(db_session, entry.system_id) == ["h-comic"]
+    assert label_keys_for_entry(db_session, entry.system_id) == ["h-comic", "nsfw"]
 
 
 def test_pull_of_the_list_tab_clears_the_counter_the_region_does_not_use(

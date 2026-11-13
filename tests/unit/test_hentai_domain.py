@@ -12,12 +12,17 @@ from app.services.domain.hierarchy import (
     franchise_families,
 )
 from app.services.rbac import gated_types
+from app.services.rbac.labels import label_by_key
+from app.services.rbac.seed_modes import MODE_UNRESTRICTED
 from app.utils import constants as c
 
 
 def test_the_label_key_is_the_one_the_gated_type_requires():
     assert gated_types.REQUIRED_LABEL_FOR_TYPE[hentai.MEDIA_TYPE] == hentai.LABEL_KEY
-    assert hentai.LABEL_KEY in gated_labels.SYSTEM_LABELS
+    definition = label_by_key(hentai.LABEL_KEY)
+    assert definition is not None
+    assert definition.gated_type == hentai.MEDIA_TYPE
+    assert definition.lowest_mode == MODE_UNRESTRICTED
 
 
 @pytest.mark.parametrize(

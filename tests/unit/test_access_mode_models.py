@@ -1,19 +1,28 @@
-"""The four access-mode tables and the users' mode columns, checked at the
+"""The two access-mode tables and the users' mode columns, checked at the
 metadata level.
 
-No database needed: these assertions are about the mapping, and the
-constraints they check are the ones the Phase B migration must reproduce
-literally.
+No database needed: these assertions are about the mapping. What a mode shows
+is derived in code, so there is no table of a mode's labels or field groups.
 """
 
 from app import models
 
 
-def test_four_tables_are_mapped():
+def test_two_tables_are_mapped():
     assert models.AccessMode.__tablename__ == "access_mode"
-    assert models.AccessModeLabel.__tablename__ == "access_mode_label"
-    assert models.AccessModeFieldGroup.__tablename__ == "access_mode_field_group"
     assert models.UserAccessModeDenial.__tablename__ == "user_access_mode_denial"
+
+
+def test_no_table_stores_what_a_mode_shows():
+    """A stored set is one an edit or a Pull could make disagree with the
+    derivation; the tables are gone so nothing can."""
+    assert not hasattr(models, "AccessModeLabel")
+    assert not hasattr(models, "AccessModeFieldGroup")
+    tables = {table.name for table in models.AccessMode.metadata.sorted_tables}
+    assert "access_mode_label" not in tables
+    assert "access_mode_field_group" not in tables
+    # The mirror: the metadata is the real one, and holds the mode table.
+    assert "access_mode" in tables
 
 
 def test_an_account_holds_no_mode_rows():
@@ -79,9 +88,3 @@ def test_a_denial_belongs_to_the_account_and_goes_with_it():
     assert "user_access_mode_id" not in models.UserAccessModeDenial.__table__.c
 
 
-def test_deleting_a_mode_cascades_its_items_away():
-    for column in (
-        models.AccessModeLabel.__table__.c.mode_id,
-        models.AccessModeFieldGroup.__table__.c.mode_id,
-    ):
-        assert next(iter(column.foreign_keys)).ondelete == "CASCADE"

@@ -141,7 +141,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 | File | Holds |
 |---|---|
 | `mediaRegistry.js` | `MEDIA_CONFIG`: per type `statusField`, `apiEndpoint`, `navPath`, `statusType` (incl. collection/franchise/series). `statusType` is the status axis — `watch`, `read` or, for `game` and `h-game`, `play` (`statusField: "playing_status"`). `h-comic` (`read` axis), `h-game` (`play` axis) and `hentai` (`watch` axis) are registered like any other type; where they are drawn is decided by the gate below. Source for `endpoints.resource`. `MEDIA_TYPE_LABELS` / `mediaTypeLabel(type)` name a bare type key for display (the character page's groups, the entity libraries' Entry type chips). |
-| `navigation.js` | `NAV_SECTIONS` (Library mega-panel, Restricted, Track, Insights, then Entry, Note and Admin with `requires: "admin"`), `activeItem`, `visibleSections(sections, has, canSeeType)` (filters rows as well as sections — Insights carries two `requires: "admin"` rows, and the Restricted section's H-Comic, H-Game and Hentai rows carry `gatedType: "h-comic"` / `"h-game"` / `"hentai"`, each dropped unless `canSeeType` says yes for its own type; left out, every gated row is dropped, and with them the Restricted tab, which holds nothing else). |
+| `navigation.js` | `NAV_SECTIONS` (Library mega-panel, Restricted, Track, Insights, then Entry, Note and Admin with `requires: "admin"`), `activeItem`, `meets(has, needed)` (one permission, or any of a list), `visibleSections(sections, has, canSeeType)` (filters rows as well as sections — Insights carries two `requires: "admin"` rows, Note's Content Labels row carries `requires: ["admin.authz", "manage.catalog"]`, and the Restricted section's H-Comic, H-Game and Hentai rows carry `gatedType: "h-comic"` / `"h-game"` / `"hentai"`, each dropped unless `canSeeType` says yes for its own type; left out, every gated row is dropped, and with them the Restricted tab, which holds nothing else). |
 | `statusGroups.js` | `WATCHING_STATUS_GROUP`, `READING_STATUS_GROUP`, `PLAYING_STATUS_GROUP`, `AIRING_STATUS_CLS`; plus the picker groups (`STATUS_PICKER_GROUP`, `groupStatusOptions()`) that `components/ui/StatusOptions.jsx` renders as `<optgroup>`s. Filter buckets and picker groups are separate splits of the same vocabulary — and one `STATUS_PICKER_GROUP` map covers all three status axes, because no value means something different between them (Paused is Paused whether you watch, read or play). |
 | `planNextGroups.js` | Size buckets and labels — a hand-kept copy of `app/utils/plan_next_kinds.py`; keep them in sync. `game` and `h-game` have **no** `SIZE_GROUPS` entry (as `anime-movie` has an empty one): there is no count a game groups by, so each Plan tab renders one ungrouped list. Their `ALLOWED_SCOPES` are entry/series/franchise for both `next` and `rewatch`. `h-comic` and `hentai` are absent from `SIZE_GROUPS` the same way, and are queued at entry scope only for both kinds. |
 | `fieldOptions.js` + `useConstants.js` | Fallback enum arrays, overwritten in place by `/api/constants` once on mount — but only the arrays listed in `CONSTANTS_FALLBACK`. All eleven game vocabularies are in that map: `PLAYING_STATUSES`, `GAME_TYPES`, `GAME_IS_MAIN` (key `game_is_main`, game and h-game's own `is_main` vocabulary - Main, Remake, Remaster - beside the shared `IS_MAIN`), `COMPLETION_LEVELS`, `GAME_COMPLETION_FLAGS` (`game_completion_flag`), `GAME_ACHIEVEMENT_FLAGS` (`game_achievement_flag`, all_achievements' own - Fully, Yes, No, Inapplicable), `GAME_RELEASE_STATUSES`, `GAME_STOREFRONTS`, `GAME_OWNERSHIP_KINDS`, `GAME_COPY_FORMATS` and `GAME_ACQUISITION_KINDS`. `GAME_ACHIEVEMENT_HINT` is frontend-only: the line the Game form shows under All Achievements to tell Fully from Yes. `PRICE_CURRENCIES` is frontend-only: `game_copy.price_currency` is a free string on the backend. The seven h-game vocabularies (`H_GAME_PLAYSTYLES`, `H_GAME_LANGUAGE_AVAILABILITY`, `H_GAME_AUDIO_AVAILABILITY`, `H_GAME_H_PRESENTATIONS`, `H_GAME_ART_STYLES`, `H_GAME_H_ART_STYLES`, `H_GAME_PLATFORMS`) **are** in the map, under the `h_game_*` keys `/api/constants` serves only to a session that can see the type, and so is hentai's own `HENTAI_SOURCE_MATERIALS`, under `hentai_source_material`; a hentai also reads h-comic's originality and usefulness lists and anime's `AIRING_STATUSES`. `GENDERS` (a character's or person's gender, `/api/constants` key `gender`) is in the map; `CHARACTER_ROLES` (Main, Core, Important Supporting, Supporting, Other; `/api/constants` key `character_role`) is in the map too, and serves both a casting's role and a character's own role; `castRoleRank(role)` is the cast-list sort every ACG detail page uses (that order, no role last). `NEW_CAST_CHARACTER_GENDER` is the per-media-type gender `CastEditor` gives a character it mints (女 for h-comic and hentai, unset otherwise). |
@@ -377,14 +377,18 @@ not drawn. The character, person and studio libraries use it for
   `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `OptionCategorySelect`,
   `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
-  it takes `owner={{kind, mediaType?, id}}` and reads and writes an entry's or
-  a **franchise's** label set through the one URL builder, so the two pages
-  cannot drift; `LABELLABLE_TABS` exported beside it is the one list of tabs
+  it takes `owner={{kind, mediaType?, id}}`, `kind` being `entry`,
+  `collection`, `franchise` or `series`, and reads and writes that owner's
+  label set through the one URL builder, so the two pages cannot drift;
+  `GROUP_SCOPE_NOTES` holds each group tier's footnote and `GROUP_HIDES` the
+  wording of Modify's confirm; `LABELLABLE_TABS` exported beside it is the one list of tabs
   that carry labels, which is what closed the gap where `game` was missing
   from Add's list while Add's submit wrote labels anyway. Its `required` prop
   draws a gated type's required label checked and locked, and
   `saveEntryLabels` / `saveFranchiseLabels(id, keys, franchiseType)` add it
-  back to the set they send. `onLoaded` reports the set as loaded, before any
+  back to the set they send; `saveCollectionLabels(id, keys)` and
+  `saveSeriesLabels(id, keys)` add only `nsfw`, since no group but a franchise
+  has a required label. `onLoaded` reports the set as loaded, before any
   edit; `labelsAdded(loaded, chosen)` and
   `entryHiddenFromSession(type, id)` are what Modify's Save uses to confirm an
   added label and to report one that hid the entry — see `admin-pages.md`),
@@ -779,9 +783,12 @@ too rather than drawing its own.
 ## The access-mode admin pages (`pages/admin/`)
 
 `AccessModes.jsx` and the panel inside `Users.jsx` edit the **object axis** -
-which entries and fields a session can reach. Both are shaped on their role
-equivalents so the pair read the same way, and both carry one control whose
-shape is a guarantee rather than a style choice.
+which entries and fields a session can reach. The four modes and what each
+shows are code, so `AccessModes.jsx` draws one card per mode, narrowest first
+(its own `MODE_ORDER`, since the API orders by `sort_order`, which runs the
+other way), with the derived labels and field groups read-only and only the
+name and description editable. Each page carries one control whose shape is a
+guarantee rather than a style choice.
 
 | Control | Shape | Why it cannot be a checkbox / free field |
 |---|---|---|
@@ -789,25 +796,32 @@ shape is a guarantee rather than a style choice.
 | Per-account denials (`Users.jsx`) | **the ceiling's own list, tick-to-deny** | Denials only subtract - an account's reach is always a subset of its active mode's - so showing what the ceiling shows and letting you remove from it is structurally incapable of naming something outside it. Changing the ceiling drops the denials the new one does not show. |
 | Ceiling and login default (`Users.jsx`) | two selects ordered by each mode's served `rank`; the default offers only modes **at or below the ceiling** | The default cannot be set above the ceiling, which is the same guarantee `ck_users_mode_default_within_ceiling` gives in the database. Lowering the ceiling below the default moves the default down with it. |
 
-**`homelessLabelKeys` is exported for its tests**, and is the one piece of
-logic on either page that can be wrong in a way nobody would notice. A content
-label carried by no mode hides its entries from everyone, the owner included;
-the warning computes from the **draft**, so it appears the moment the last
-mode carrying a label is unticked - while it can still be reconsidered -
-rather than after a save and a reload, by which point it is a record rather
-than a warning.
-
 An account holding **no** mode is called out in red on the users table. It
 reaches nothing, which is fail-closed and correct and looks exactly like a
 broken site.
 
 Both pages sit behind `admin.authz` on **both** SPA permission surfaces -
-`App.jsx`'s route gate and `navigation.js` - and the nav link inherits the
-admin section's `requires` rather than declaring its own.
+`App.jsx`'s route gate and `navigation.js` - and the Access Modes nav link
+inherits the admin section's `requires` rather than declaring its own.
+
+`ContentLabels.jsx`, the read-only label reference, is the one page here read
+by two capabilities: `admin.authz` and `manage.catalog`. Its route sits in
+`<ProtectedRoute anyPermission={["admin.authz", "manage.catalog"]}>` and its
+nav row, under Note, carries the same list as `requires`, the either-of
+`GET /api/content-labels/` asks on the server.
 `navigation.test.js` asserts that inheritance, because a second declaration
 is a second place to keep in step.
 
 ## `lib/` utilities
+
+`lib/labelTags.js` - the three content labels that have a 標籤 Label tag
+(`TAG_FOR_LABEL`, mirroring `app/services/domain/label_tags.py`), the nine
+types with the field (`LABEL_FIELD_TYPES`, `hasLabelField`), and the pure sync
+functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
+`applyTagEdit` (which refuses removing NSFW while 輕微色情 or 擦邊肉番 stays).
+`withNsfw` and `NSFW` live here and are re-exported from
+`ContentLabelPicker`, whose `onEdit` prop receives the admin's ticks while
+`onChange` receives loads.
 
 | File | Purpose |
 |---|---|

@@ -12,12 +12,10 @@ Without the mirror a green could mean "the gate refused" or "there was nothing
 to see either way", and `nsfw_label` - which appears in almost none of these
 test bodies - is the fixture that makes the refusing possible at all.
 
-THE GATE SPLIT. Minting a label is `admin.authz`; putting an existing one on
-an entry or a franchise is `manage.catalog`. `super` holds the second and is
-locked off the first by construction, so before the split a `super` account
-saved an entry and then watched only its labels fail. The refusal tests below
-therefore run against a vocabulary that is NOT empty - a 401 on an empty
-catalogue would prove nothing about the gate.
+THE GATE SPLIT. Labels are defined in code, so nobody mints one; putting an
+existing one on an entry or a franchise is `manage.catalog`, which `super`
+holds. The refusal tests below run against a vocabulary that is NOT empty - a
+401 on an empty catalogue would prove nothing about the gate.
 
 Requires PostgreSQL (media_test DB). See tests/api/conftest.py.
 """
@@ -27,6 +25,7 @@ import uuid
 import pytest
 
 from app import models
+from app.services.rbac.labels import LABEL_KEYS
 
 
 @pytest.fixture
@@ -81,22 +80,24 @@ def test_super_may_read_the_vocabulary(super_client, nsfw_label):
     """The picker's checkbox list. Non-empty, so a 200 means something."""
     res = super_client.get("/api/content-labels/")
     assert res.status_code == 200, res.text
-    # The gated types' system labels exist in every database.
-    assert [row["key"] for row in res.json()] == ["h-comic", "hentai", "h-game", "nsfw"]
+    # The code's six labels exist in every database, in display order.
+    assert [row["key"] for row in res.json()] == list(LABEL_KEYS)
 
 
-def test_super_may_not_mint_a_label(super_client, nsfw_label):
-    """The other half of the split: the vocabulary is still admin.authz."""
-    res = super_client.post(
+def test_super_may_not_mint_or_delete_a_label(super_client, nsfw_label):
+    """The other half of the split: assigning is not defining. Labels are
+    code, so there is no route to mint or delete one for anybody - and the
+    label the attempt names still exists afterwards."""
+    minted = super_client.post(
         "/api/content-labels/",
         json={"key": "gore", "label": "Gore", "sort_order": 0},
     )
-    assert res.status_code == 401
-
-
-def test_super_may_not_delete_a_label(super_client, nsfw_label):
-    res = super_client.delete(f"/api/content-labels/{nsfw_label.system_id}")
-    assert res.status_code == 401
+    deleted = super_client.delete(f"/api/content-labels/{nsfw_label.system_id}")
+    assert minted.status_code in (404, 405)
+    assert deleted.status_code in (404, 405)
+    keys = [row["key"] for row in super_client.get("/api/content-labels/").json()]
+    assert "gore" not in keys
+    assert nsfw_label.key in keys
 
 
 def test_a_plain_user_may_assign_nothing(

@@ -6,9 +6,11 @@ not see which entries were restricted and a Pull All on the second machine
 restored every entry unlabelled - i.e. visible to every viewer. That is the
 one class of missing tab that fails OPEN, so it gets its own test file.
 
-Both tables mint their own `system_id` per database (the labels are typed into
-the admin page on each machine), so both are derived-identity tabs: the sheet's
-uuid is a hint, the natural key is the identity. `media_content_label.label_id`
+Both tables mint their own `system_id` per database (each database writes the
+code's labels for itself), so both are derived-identity tabs: the sheet's uuid
+is a hint, the natural key is the identity. The labels themselves are code, so
+the `Content Label` tab restores no names and mints no rows; it travels for
+the uuids the link tabs cite. `media_content_label.label_id`
 additionally cites the OTHER database's label uuid and must be translated
 through the `Content Label` tab before it is stored.
 
@@ -20,8 +22,10 @@ import uuid
 import pytest
 
 from app import models
+from app.services.domain.gated_labels import ensure_label
 from app.services.pipelines import pull
 from app.services.pipelines.tabs import TAB_NAMES
+from app.services.rbac.labels import LABEL_KEYS, label_by_key
 
 LABEL_HEADERS = [
     "system_id",
@@ -89,19 +93,18 @@ def test_the_franchise_link_tab_restores_after_its_label_and_its_franchise():
 # --- Content Label ---------------------------------------------------------
 
 
-def test_a_label_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
+def test_a_label_with_a_foreign_uuid_keeps_the_local_row_and_the_codes_name(
+    db_session, sheets
+):
     """
     `key` is UNIQUE and the uuid is minted per database, so honouring the
     sheet's uuid inserts a second "nsfw" and the collision rolls the whole tab
     back. The key is the identity; the local uuid must survive, because
-    media_content_label rows already point at it.
+    media_content_label rows already point at it. The name, description and
+    order are the code's: whatever the sheet says, ensure_labels restores them
+    after the tab.
     """
-    local = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
-    )
-    db_session.add(local)
-    db_session.flush()
-    local_id = local.system_id
+    local_id = ensure_label(db_session, "nsfw").system_id
 
     sheets(
         {
@@ -120,16 +123,21 @@ def test_a_label_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
     rows = db_session.query(models.ContentLabel).filter_by(key="nsfw").all()
     assert len(rows) == 1
     assert rows[0].system_id == local_id
-    assert rows[0].label == "Not safe for work"
-    assert rows[0].sort_order == 3
+    definition = label_by_key("nsfw")
+    assert rows[0].label == definition.name
+    assert rows[0].description == definition.description
+    assert rows[0].sort_order == LABEL_KEYS.index("nsfw")
 
 
-def test_a_label_this_database_has_never_seen_inserts(db_session, sheets):
+def test_a_label_the_code_does_not_name_is_skipped_and_reported(db_session, sheets):
+    """A sheet row is not a way to mint a label: an unknown key is skipped,
+    named in unresolved_refs, and the known row beside it still restores."""
     sheets(
         {
             "Content Label": [
                 LABEL_HEADERS,
                 [str(uuid.uuid4()), "gore", "Gore", "", "1", "", ""],
+                [str(uuid.uuid4()), "ecchi", "Ecchi", "", "1", "", ""],
             ]
         }
     )
@@ -139,7 +147,10 @@ def test_a_label_this_database_has_never_seen_inserts(db_session, sheets):
     )
 
     assert result["status"] == "success"
-    assert db_session.query(models.ContentLabel).filter_by(key="gore").count() == 1
+    assert db_session.query(models.ContentLabel).filter_by(key="gore").count() == 0
+    assert any("'gore'" in ref for ref in result["unresolved_refs"])
+    # The mirror: the code's label in the same tab is there, once.
+    assert db_session.query(models.ContentLabel).filter_by(key="ecchi").count() == 1
 
 
 # --- Media Content Label ---------------------------------------------------
@@ -151,11 +162,9 @@ def test_a_labelling_translates_the_foreign_label_uuid(db_session, sheets):
     untranslated it is a dangling FK, and the violation at commit rolls the
     whole tab back - so every restriction on every entry would be lost.
     """
-    local_label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
-    )
+    local_label = ensure_label(db_session, "nsfw")
     anime = models.Anime(anime_name_cn="測試")
-    db_session.add_all([local_label, anime])
+    db_session.add(anime)
     db_session.flush()
 
     foreign_label_uuid = str(uuid.uuid4())
@@ -197,11 +206,9 @@ def test_the_same_labelling_under_a_foreign_row_uuid_updates_in_place(
     carrying an unknown system_id for a labelling this database already holds
     must update it, not insert a duplicate that collides.
     """
-    local_label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
-    )
+    local_label = ensure_label(db_session, "nsfw")
     anime = models.Anime(anime_name_cn="測試二")
-    db_session.add_all([local_label, anime])
+    db_session.add(anime)
     db_session.flush()
     existing = models.MediaContentLabel(
         system_id=uuid.uuid4(),
@@ -249,11 +256,9 @@ def test_a_labelling_whose_label_is_unknown_is_skipped_not_fatal(db_session, she
     every other labelling still restores. Same treatment as an unresolvable
     series FK or system_option on the Media Source tab.
     """
-    local_label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
-    )
+    local_label = ensure_label(db_session, "nsfw")
     anime = models.Anime(anime_name_cn="測試三")
-    db_session.add_all([local_label, anime])
+    db_session.add(anime)
     db_session.flush()
 
     sheets(
@@ -296,13 +301,11 @@ def test_a_franchise_labelling_translates_the_foreign_label_uuid(
     restriction is lost - which for this table means every entry under those
     franchises becomes visible too.
     """
-    local_label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
-    )
+    local_label = ensure_label(db_session, "nsfw")
     franchise = models.Franchise(
         system_id=uuid.uuid4(), franchise_name_cn="測試系列"
     )
-    db_session.add_all([local_label, franchise])
+    db_session.add(franchise)
     db_session.flush()
 
     foreign_label_uuid = str(uuid.uuid4())
@@ -347,13 +350,11 @@ def test_the_same_franchise_labelling_under_a_foreign_row_uuid_updates(
     carrying an unknown system_id for a labelling this database already holds
     must update it, not insert a duplicate that collides.
     """
-    local_label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
-    )
+    local_label = ensure_label(db_session, "nsfw")
     franchise = models.Franchise(
         system_id=uuid.uuid4(), franchise_name_cn="測試系列二"
     )
-    db_session.add_all([local_label, franchise])
+    db_session.add(franchise)
     db_session.flush()
     existing = models.FranchiseContentLabel(
         system_id=uuid.uuid4(),

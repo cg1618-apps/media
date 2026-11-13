@@ -143,8 +143,8 @@ the two-stage cursor stepper.
 | `super_client` / `super_user` | function | The same for the `super` role - both `manage.*`, no `admin.authz`. **This is the account shape that keeps a library**, so it is what a test of a personal endpoint should use: an admin holds no `self.*` grant. Use the fixture rather than building one inline |
 | `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The account's ceiling is raised to the mode if it sits below it, and the mode travels in the `access_mode` override cookie exactly as after a switch in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
 | `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and making one available: raises the account's ceiling to it (never lowers it), optionally makes it the default, and adds label denials named by key - which, like every denial, apply in every mode the account uses |
-| `nsfw_label` / `hidden_anime` | function | A content label and an entry carrying it. Label fixtures call `carry_label_in_wide_modes`, because a mode's labels are materialised rows and a label created after the seed would otherwise reach no mode - which would make fixture ORDER decide what a mode holds |
-| `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` in a mode carrying NO labels - i.e. a writer who cannot see the labelled entry. `tests/api/test_franchise_content_labels.py` builds its `narrow` fixture from this, and pairs every refusal with the same call from `admin_client`: a mode-scoped 404 and an empty database are indistinguishable without the mirror |
+| `nsfw_label` / `hidden_anime` | function | The `nsfw` label and an entry carrying it. Every code label exists in every test - the session seed runs `ensure_labels` - so `nsfw_label` finds the row rather than creating one. It is shown from `normal` up, so a logged-out visitor (`safe`) never sees what carries it |
+| `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` whose effective set shows NO labels - i.e. a writer who cannot see the labelled entry. `make_viewer` builds it from a fixed mode and denials, as below. `tests/api/test_franchise_content_labels.py` and `tests/api/test_group_content_labels.py` build their `narrow` fixtures from this, and pair every refusal with the same call from `admin_client`: a mode-scoped 404 and an empty database are indistinguishable without the mirror |
 | `sample_collection` | function | `Collection` "Test Collection" / "測試合集" |
 | `sample_collected_franchise` | function | Anime `Franchise` linked to `sample_collection` |
 | `sample_franchise` | function | Anime `Franchise` "Test Franchise" / "測試系列" |
@@ -152,7 +152,7 @@ the two-stage cursor stepper.
 | `sample_anime` | function | TV `Anime` under `sample_franchise`, 12/12 episodes, Completed |
 | `sample_comic` | function | `Comic` under `sample_franchise`, 6/6 issues, Completed |
 | `role_id_for(db, name)` | helper, not a fixture | Looks up a seeded role's `system_id`; needed because `users.role` is a read-only mapping and fixtures must set `role_id` |
-| `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis: the account sits at a wide ceiling and is denied every field group and label outside them. With no `label_keys` the ceiling is `unrestricted`; with them it is `borderline` when that mode already carries every listed label - its labels are rows, so a label minted later through the API stays out of reach - and `unrestricted` otherwise, and one created through `carry_label_in_wide_modes` is denied unless listed. Both default to "everything", so a test that only cares about capabilities need not mention them |
+| `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis. The four modes are fixed, so `grant_bespoke_mode` narrows the way production does: it puts the account at the lowest mode whose derived sets contain the request, as both ceiling and default, and denies the difference per account. A request no mode can satisfy fails the test loudly rather than testing something else. Both default to "everything" (`unrestricted`, no denial), so a test that only cares about capabilities need not mention them |
 
 **A signed-in test client whose account has no mode, or whose token names a
 mode above its ceiling, resolves the EMPTY object set**
@@ -251,8 +251,8 @@ Look at these files, in this order:
 | `tests/unit/test_plan_next_kinds.py` | `EXPECTED_MEMBERS` / `EXPECTED_NON_MEMBERS` | Decide which list the type belongs to. |
 
 A **gated type** needs more than rows in those tables: its label must be
-present for its refusal tests to bite. The conftest seeds every system label
-session-wide (`ensure_system_labels`), as every real database has them, so a
+present for its refusal tests to bite. The conftest seeds every label the code
+defines session-wide (`ensure_labels`), as every real database has them, so a
 narrow mode is never vacuously narrow; a test that counts labels or asserts
 `visible_gated_types` has to allow for all of them. The hentai files are the
 current template: `test_hentai_entries.py` (CRUD, label, who sees it,

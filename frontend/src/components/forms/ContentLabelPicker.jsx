@@ -4,10 +4,11 @@
 // per-type tabs, because labels are the same keys for every media type and
 // duplicating the control is that many places to forget.
 //
-// The control is OWNER-AGNOSTIC. A media entry and a franchise are the same
-// checkbox list against the same vocabulary, differing only in which URL the
-// set is read from and written to, so one `owner` prop carries both rather
-// than a second near-identical component drifting away from this one.
+// The control is OWNER-AGNOSTIC. A media entry and each grouping tier - a
+// collection, a franchise, a series - are the same checkbox list against the
+// same vocabulary, differing only in which URL the set is read from and
+// written to, so one `owner` prop carries all four rather than a second
+// near-identical component drifting away from this one.
 //
 // On Add the thing has no id until the create call returns, so the parent
 // holds the selection in state and PUTs it afterwards - the same
@@ -21,14 +22,26 @@ import {
   requiredLabelsForType,
 } from "../../lib/gatedTypes";
 
-// { kind: "entry", mediaType, id } | { kind: "franchise", id } -> URL.
-// Returns null when the owner has no id yet (the Add page), which is the
-// signal not to read or write anything.
+import { NSFW, withNsfw } from "../../lib/labelTags";
+
+// Every other label is stored with nsfw (app/services/domain/label_rules.py):
+// ticking one ticks NSFW, and NSFW cannot be unticked while one is held. The
+// rule lives in lib/labelTags.js, beside the Label tags it also governs.
+export { NSFW, withNsfw };
+
+// The label endpoint of each grouping tier, keyed by the owner's `kind`.
+const GROUP_LABEL_URL = {
+  collection: endpoints.contentLabels.forCollection,
+  franchise: endpoints.contentLabels.forFranchise,
+  series: endpoints.contentLabels.forSeries,
+};
+
+// { kind: "entry", mediaType, id } | { kind: "collection" | "franchise" |
+// "series", id } -> URL. Returns null when the owner has no id yet (the Add
+// page), which is the signal not to read or write anything.
 function ownerUrl(owner) {
   if (!owner?.id) return null;
-  if (owner.kind === "franchise") {
-    return endpoints.contentLabels.forFranchise(owner.id);
-  }
+  if (GROUP_LABEL_URL[owner.kind]) return GROUP_LABEL_URL[owner.kind](owner.id);
   if (!owner.mediaType) return null;
   return endpoints.contentLabels.forEntry(owner.mediaType, owner.id);
 }
@@ -38,9 +51,9 @@ export default function ContentLabelPicker({
   onChange,
   disabled,
   owner,
-  // What the footnote says is hidden. A franchise's labels cascade to its
-  // entries, so saying "this entry" there would understate it by a whole
-  // franchise.
+  // What the footnote says is hidden. A group's labels cascade to everything
+  // under it, so saying "this entry" there would understate it by a whole
+  // group (GROUP_SCOPE_NOTES).
   scopeNote = "A labelled entry is hidden from anyone whose active mode does not carry that label.",
   // Labels the thing must carry whatever the admin picks - a gated type's
   // required label (lib/gatedTypes.js). Drawn checked and locked; the savers
@@ -49,6 +62,10 @@ export default function ContentLabelPicker({
   // Called with the set as loaded, before any edit - Modify keeps it to tell
   // which labels a save is ADDING (labelsAdded).
   onLoaded,
+  // Called instead of `onChange` when the ADMIN ticks or unticks, so a page
+  // can tell an edit from a load - Add and Modify carry an edit through to
+  // the 標籤 Label tags (hooks/useLabelTagSync.js), and a load must not.
+  onEdit,
 }) {
   const [labels, setLabels] = useState([]);
   const [failed, setFailed] = useState(false);
@@ -87,17 +104,35 @@ export default function ContentLabelPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
+  // What requires NSFW right now: every held label but NSFW itself.
+  const requiringNsfw = [...new Set([...value, ...required])].filter(
+    (key) => key !== NSFW,
+  );
   const locked = new Set(required);
+  if (requiringNsfw.length) locked.add(NSFW);
   const toggle = useCallback(
     (key) => {
-      if (required.includes(key)) return;
+      if (locked.has(key)) return;
       const held = new Set(value);
       if (held.has(key)) held.delete(key);
       else held.add(key);
-      onChange([...held].sort());
+      (onEdit || onChange)(withNsfw([...held]));
     },
-    [value, onChange, required],
+    // `locked` is derived from value and required.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [value, onChange, onEdit, required],
   );
+  const nameOf = (key) => labels.find((row) => row.key === key)?.label || key;
+
+  function titleFor(row) {
+    if (required.includes(row.key)) {
+      return "Required: every entry of this type carries it";
+    }
+    if (row.key === NSFW && locked.has(NSFW)) {
+      return `Carried with ${requiringNsfw.map(nameOf).join(", ")}`;
+    }
+    return row.description || "";
+  }
 
   // Nothing defined means nothing to restrict - draw no empty box.
   if (failed || labels.length === 0) return null;
@@ -112,11 +147,7 @@ export default function ContentLabelPicker({
           <label
             key={row.system_id}
             className="flex items-center gap-1.5 text-sm cursor-pointer"
-            title={
-              locked.has(row.key)
-                ? "Required: every entry of this type carries it"
-                : row.description || ""
-            }
+            title={titleFor(row)}
           >
             <input
               type="checkbox"
@@ -150,13 +181,35 @@ export const LABELLABLE_TABS = [
   "h-comic",
   "h-game",
   "hentai",
+  "collection",
   "franchise",
+  "series",
 ];
 
-// What the picker says under a franchise's checkboxes. Kept beside the
-// default so the two readings of "what does this hide" sit together.
-export const FRANCHISE_SCOPE_NOTE =
-  "A labelled franchise is hidden from anyone whose active mode does not carry that label - and so is every entry in it.";
+// The grouping tiers that carry labels of their own - the picker's group
+// owner kinds, and the Add/Modify tabs whose labels cascade.
+export const LABELLABLE_GROUPS = Object.freeze(Object.keys(GROUP_LABEL_URL));
+
+// What the picker says under each grouping tier's checkboxes, keyed by tab.
+// Kept beside the default so every reading of "what does this hide" sits
+// together. Each states the tier's cascade: a collection's label reaches
+// every franchise, series and entry in it; a series' reaches its entries.
+export const GROUP_SCOPE_NOTES = Object.freeze({
+  collection:
+    "A labelled collection is hidden from anyone whose active mode does not carry that label - and so is every franchise, series and entry in it.",
+  franchise:
+    "A labelled franchise is hidden from anyone whose active mode does not carry that label - and so is every series and entry in it.",
+  series:
+    "A labelled series is hidden from anyone whose active mode does not carry that label - and so is every entry in it.",
+});
+
+// What a Modify confirm says an added label hides, keyed by tab; an entry
+// tab is not listed and reads "this entry".
+export const GROUP_HIDES = Object.freeze({
+  collection: "this collection and every franchise, series and entry in it",
+  franchise: "this franchise and every series and entry in it",
+  series: "this series and every entry in it",
+});
 
 // Save an entry's labels. Call after a create returns its system_id, or after
 // a modify submit. Failure is reported to the caller rather than swallowed:
@@ -178,6 +231,23 @@ export async function saveFranchiseLabels(franchiseId, labelKeys, franchiseType)
   return saveLabels(
     endpoints.contentLabels.forFranchise(franchiseId),
     withRequired(labelKeys, requiredLabelsForFranchiseType(franchiseType)),
+  );
+}
+
+// The same for a collection. No gated type stamps a collection, so nothing
+// is required beyond the nsfw rule.
+export async function saveCollectionLabels(collectionId, labelKeys) {
+  return saveLabels(
+    endpoints.contentLabels.forCollection(collectionId),
+    withNsfw(labelKeys),
+  );
+}
+
+// The same for a series, which likewise has no required label.
+export async function saveSeriesLabels(seriesId, labelKeys) {
+  return saveLabels(
+    endpoints.contentLabels.forSeries(seriesId),
+    withNsfw(labelKeys),
   );
 }
 
@@ -205,7 +275,7 @@ export async function entryHiddenFromSession(mediaType, entryId) {
 }
 
 function withRequired(labelKeys, required) {
-  return [...new Set([...(labelKeys || []), ...required])].sort();
+  return withNsfw([...(labelKeys || []), ...required]);
 }
 
 function saveLabels(url, labelKeys) {

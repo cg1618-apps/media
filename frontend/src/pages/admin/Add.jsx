@@ -60,10 +60,12 @@ import { endpoints } from "../../api/endpoints";
 import { useEntryLists, GROUP_LIST_TYPES } from "../../hooks/useEntryLists";
 import { ADD_TAB_LISTS, listsForTab } from "../../config/adminEntryLists";
 import ContentLabelPicker, {
-  FRANCHISE_SCOPE_NOTE,
+  GROUP_SCOPE_NOTES,
   LABELLABLE_TABS,
+  saveCollectionLabels,
   saveEntryLabels,
   saveFranchiseLabels,
+  saveSeriesLabels,
 } from "../../components/forms/ContentLabelPicker";
 import { fetchJson, jsonBody } from "../../api/client";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
@@ -117,6 +119,7 @@ import { fetchAllSources } from "../../lib/sources";
 import { withMediaType } from "../../lib/suggestionOrder";
 import { characterTagsPayload, firstsPayload } from "../../lib/characterForm";
 import { enrichEntry } from "../../lib/enrich";
+import useLabelTagSync from "../../hooks/useLabelTagSync";
 
 export default function Add() {
   const { showToast } = useToast();
@@ -244,18 +247,57 @@ export default function Add() {
   const upubf = (k, v) => setPublisherForm((p) => ({ ...p, [k]: v }));
   const ucf = (k, v) => setCharacterForm((p) => ({ ...p, [k]: v }));
 
-  const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
+  // The 標籤 Label field and the content-label picker, kept in step on every
+  // type with that field (hooks/useLabelTagSync.js). A tab switch or a reset
+  // after a create brings the labels to the open form's tags, so the picker
+  // shows what this tab will save.
+  const { editLabels, syncUpdater } = useLabelTagSync({
+    mediaType: activeTab,
+    forms: {
+      anime: [af, setAf],
+      "anime-movie": [amf, setAmf],
+      movie: [mf, setMf],
+      "tv-show": [tvf, setTvf],
+      cartoon: [cf, setCf],
+      manga: [mgf, setMgf],
+      novel: [nvf, setNvf],
+      comic: [cmf, setCmf],
+      game: [gmf, setGmf],
+    },
+    labels: contentLabels,
+    setLabels: setContentLabels,
+    onRefused: (message) => showToast("warning", message),
+    reconcileOnChange: true,
+  });
+
+  const ua = syncUpdater("anime", (k, v) => setAf((p) => ({ ...p, [k]: v })));
   const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
   const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
   const us = (k, v) => setSf((p) => ({ ...p, [k]: v }));
-  const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
-  const umf = (k, v) => setMf((p) => ({ ...p, [k]: v }));
-  const utf = (k, v) => setTvf((p) => ({ ...p, [k]: v }));
-  const uc = (k, v) => setCf((p) => ({ ...p, [k]: v }));
-  const umg = (k, v) => setMgf((p) => ({ ...p, [k]: v }));
-  const unv = (k, v) => setNvf((p) => ({ ...p, [k]: v }));
-  const ucm = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
-  const ugm = (k, v) => setGmf((p) => ({ ...p, [k]: v }));
+  const uam = syncUpdater("anime-movie", (k, v) =>
+    setAmf((p) => ({ ...p, [k]: v })),
+  );
+  const umf = syncUpdater("movie", (k, v) =>
+    setMf((p) => ({ ...p, [k]: v })),
+  );
+  const utf = syncUpdater("tv-show", (k, v) =>
+    setTvf((p) => ({ ...p, [k]: v })),
+  );
+  const uc = syncUpdater("cartoon", (k, v) =>
+    setCf((p) => ({ ...p, [k]: v })),
+  );
+  const umg = syncUpdater("manga", (k, v) =>
+    setMgf((p) => ({ ...p, [k]: v })),
+  );
+  const unv = syncUpdater("novel", (k, v) =>
+    setNvf((p) => ({ ...p, [k]: v })),
+  );
+  const ucm = syncUpdater("comic", (k, v) =>
+    setCmf((p) => ({ ...p, [k]: v })),
+  );
+  const ugm = syncUpdater("game", (k, v) =>
+    setGmf((p) => ({ ...p, [k]: v })),
+  );
   const uhc = (k, v) => setHcf((p) => ({ ...p, [k]: v }));
   const uhg = (k, v) => setHgf((p) => ({ ...p, [k]: v }));
   const uht = (k, v) => setHtf((p) => ({ ...p, [k]: v }));
@@ -784,6 +826,17 @@ export default function Add() {
           created.collection_name_en ||
           "New Collection",
       );
+      try {
+        await saveCollectionLabels(created.system_id, contentLabels);
+      } catch {
+        // The collection saved; only its visibility did not. Say so rather
+        // than letting the admin believe a collection is restricted when it
+        // and everything under it is not.
+        showToast(
+          "error",
+          "Collection saved, but its content labels failed to save.",
+        );
+      }
       setColf(freshForm("collection"));
       setContentLabels([]);
       setAllCollections((prev) => [...prev, created]);
@@ -891,6 +944,17 @@ export default function Add() {
       setLastAdded(
         created.series_name_cn || created.series_name_en || "New Series",
       );
+      try {
+        await saveSeriesLabels(created.system_id, contentLabels);
+      } catch {
+        // The series saved; only its visibility did not. Say so rather than
+        // letting the admin believe a series is restricted when it and its
+        // entries are not.
+        showToast(
+          "error",
+          "Series saved, but its content labels failed to save.",
+        );
+      }
       setSf(freshForm("series"));
       setContentLabels([]);
       setAllSeries((prev) => [...prev, created]);
@@ -3306,7 +3370,9 @@ export default function Add() {
         {activeTab === "identity" && <IdentityAddTab />}
 
         {/* Content labels - one control for every media tab, and for the
-            franchise tab, whose labels cascade to the entries under it.
+            collection, franchise and series tabs, whose labels cascade to
+            everything under them. Only a franchise has required labels (its
+            gated franchise type's); a collection or series has none.
             "game" belongs here: submitGame writes labels like every other
             type, and leaving the tab out of this list meant a game could
             never be labelled on the way in. */}
@@ -3315,14 +3381,13 @@ export default function Add() {
             <ContentLabelPicker
               value={contentLabels}
               onChange={setContentLabels}
+              onEdit={editLabels}
               required={
                 activeTab === "franchise"
                   ? requiredLabelsForFranchiseType(ff.franchise_type)
                   : requiredLabelsForType(activeTab)
               }
-              scopeNote={
-                activeTab === "franchise" ? FRANCHISE_SCOPE_NOTE : undefined
-              }
+              scopeNote={GROUP_SCOPE_NOTES[activeTab]}
             />
           </div>
         )}

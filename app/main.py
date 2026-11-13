@@ -72,7 +72,7 @@ from app.routers import (
     watch_order,
 )
 from app.schema_guard import ensure_schema
-from app.services.domain.gated_labels import ensure_system_labels
+from app.services.domain.gated_labels import ensure_labels
 from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
 from app.services.rbac.seed import (
     ADMIN_ROLE,
@@ -135,11 +135,10 @@ async def lifespan(app: FastAPI):
         # should find both seeds in one place. Idempotent for the same reason
         # ensure_rbac_seed is.
         ensure_access_mode_seed(db)
-        # The system labels the gated types require (h-comic, hentai), AFTER
-        # the modes so each can be granted to `unrestricted` - and to nothing
-        # else, which ensure_access_mode_seed guarantees on every later boot
-        # too. Found by key: a row an admin created by hand is adopted.
-        ensure_system_labels(db)
+        # The content labels, as rows in step with app/services/rbac/labels.py:
+        # a missing one created, a renamed one renamed back. Which modes show
+        # each is derived, so nothing is granted.
+        ensure_labels(db)
         # The two shared accounts, after the roles and the modes they name.
         # Re-asserts each one's role and fixed mode on every boot.
         ensure_shared_accounts(db)

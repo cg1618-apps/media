@@ -127,11 +127,12 @@ The account and authorization rework is decided work, queued in
 design.
 
 **Libraries cannot filter by content label.** The franchise library already
-receives each franchise's labels and only draws them as chips. A label
+receives each franchise's labels and only draws them as chips; the collection
+and series responses carry their own labels too. A label
 filter is wanted — "only `ecchi`", "without `nsfw`" — and is not designed.
 The shape proposed so far: include and exclude; offer only the labels the
-viewer's mode can see; match inherited labels (a franchise's label counts
-for its entries), so the filter agrees with what the mode hides; no filter
+viewer's mode can see; match inherited labels (a group's label counts for
+everything under it), so the filter agrees with what the mode hides; no filter
 in `safe`, where every labelled entry is hidden. Undecided: every library,
 or the group libraries only.
 
@@ -142,14 +143,22 @@ company development database has the grant, so it is a per-database fact.
 Guests are to see games: on `/roles`, check the `guest` role on each
 database and grant `media_type.game` where it is missing.
 
+**A watch order owned by a hidden group still lists.** `routers/watch_order.py`
+filters the entries inside an order but never asks whether its owning
+collection, franchise or series is visible, so a viewer whose mode hides that
+group still sees the order and the group's display name. `media_relation`'s
+`/graph` and scope listing behave the same way. Fix by gating each on
+`tier_visible` and answering a hidden owner as missing.
+
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a
 label-hidden entry — that one is demonstrable: the home database carries three
 labels (`nsfw`, `erotica`, `hentai`) across 27 labelled entries, so the case can
 be tested against real rows rather than argued.
 
-`franchise_content_label` is the empty one — no franchise carries a label yet,
-so the franchise cascade has shipped without ever running against real data.
+`collection_content_label` and `series_content_label` are created empty by
+their migration, so the collection and series cascade has not run against
+real data until something is labelled.
 
 **Count these before citing them.** This item asserted **0 rows** and 2 labels
 for a long time and was wrong on both, because each reader inherited the number
