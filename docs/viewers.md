@@ -33,6 +33,8 @@ it; "per account" is a per-account feature switch, off by default.
 | | admin | super | user | guest | shared |
 | --- | --- | --- | --- | --- | --- |
 | Media and group libraries, detail pages, watch orders | — | ✓ | ✓ | ✓ | ✓ |
+| The nine ordinary media types | — | ✓ | switch, on | switch, on | switch, on |
+| H-Comic, H-Game, Hentai | — | in `unrestricted` | in `unrestricted` | never | never |
 | Studio, publisher, person, character pages | — | ✓ | switch, off | switch, off | switch, off |
 | Search, Future Releases | — | ✓ | ✓ | ✓ | ✓ |
 | Seasonal, Statistics | — | ✓ | ✓ | ✓ ² | ✓ ² |

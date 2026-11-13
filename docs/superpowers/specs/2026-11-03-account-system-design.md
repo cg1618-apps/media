@@ -241,8 +241,14 @@ from the company development database.
 
 ### Roles and modes
 
-- **Only the owner holds `admin`.** The four seeded roles and custom roles
-  stay.
+- **Only the owner holds `admin`.**
+- **Exactly five roles, all fixed: `admin`, `super`, `user`, `guest`,
+  `shared`.** **Custom roles are abandoned** and everything for them is
+  removed — creating and deleting roles (`POST` and `DELETE` on
+  `/api/roles`), the create form on `/roles`, and the code paths that treat
+  "a custom role" as a case. With five fixed roles plus per-role and
+  per-account switches, a custom role adds nothing but something more to
+  secure.
 - **The four modes stay.**
 - **A registered user can hold `unrestricted`, but never from the approval
   form**; the admin grants it later on `/users`, per person.
@@ -271,6 +277,42 @@ from the company development database.
   owner ratings and expectations on catalogue rows — and shrinks further if
   those move to the user (see "Catalogue and user data"). Highlights become
   personal, so they leave it.
+
+### Fixed and adjustable settings
+
+**Per role**, on `/roles`:
+
+| Setting | admin | super | user | guest | shared |
+| --- | --- | --- | --- | --- | --- |
+| Entity switches (studio, publisher, person, character) | off, fixed | on, fixed | adjustable, off | adjustable, off | adjustable, off |
+| The nine ordinary media types | none, fixed | all, fixed | adjustable, all on | adjustable, all on | adjustable, all on |
+| The three gated types (H-Comic, H-Game, Hentai) | none, fixed | on, fixed | on, fixed | **never**, fixed | **never**, fixed |
+| Everything else in `docs/viewers.md` | fixed | fixed | fixed | fixed | fixed |
+
+A gated type is on for `user` and `super` but still shows only in
+`unrestricted`, through its label; guest and shared never reach that mode,
+and never hold the type either.
+
+**Per mode**, on `/access-modes`:
+
+- The four modes, their order and which labels each shows are **fixed in
+  code**; name and description are adjustable.
+- **Field groups are fixed in code too, and only one is left:
+  `sources_restricted`**, the restricted bucket of an entry's source list.
+  `personal_notes` goes (nobody reads another user's notes), and
+  `sources_other` goes because every viewer gets the other sources. Shown
+  from `normal` up and withheld in `safe`, as today.
+
+**Per account**, on `/users`:
+
+| Setting | Applies to |
+| --- | --- |
+| Role | `user` / `super`, at approval or creation; `admin` and `shared` fixed |
+| Mode ceiling and default | `user`, `super`; a shared account is fixed to its own mode |
+| Per-account restrictions — a label or field group denied below the ceiling | `user`, `super` |
+| Feature switches — quotes and memes, favourites, music status, mod status | `user`, `super`; quotes and memes also for `shared` |
+| Request limit | `user`, `super`, `shared` |
+| Password | every account; the admin sets it |
 
 ## Where the structure differs from today
 
