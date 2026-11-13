@@ -13,17 +13,19 @@ import uuid
 import pytest
 
 from app import models
+from app.services.rbac.gated_types import gated_types
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_SELF_PASSWORD,
     PERM_SELF_REQUESTS,
-    PERM_VIEW_ENTITIES,
     PERM_VIEW_EXTRAS,
+    PERM_VIEW_PERSON,
     ROLE_NAMES,
     SHARED_ROLE_NAME,
     SUPER_ROLE_NAME,
     USER_ROLE_NAME,
     locked_permissions,
+    media_type_perm,
     static_catalog,
 )
 from app.services.rbac.seed import (
@@ -31,6 +33,7 @@ from app.services.rbac.seed import (
     default_user_permissions,
     ensure_rbac_seed,
 )
+from app.utils.media_resolver import MEDIA_TYPE_KEYS
 from tests.api.conftest import role_id_for
 
 ROLES = "/api/roles/"
@@ -121,11 +124,11 @@ def test_shared_saves_a_free_view_permission(admin_client):
     save of this role."""
     shared = _role(admin_client, SHARED_ROLE_NAME)
     held = set(shared["permissions"])
-    assert PERM_VIEW_ENTITIES not in held
+    assert PERM_VIEW_PERSON not in held
 
-    r = _save(admin_client, shared, held | {PERM_VIEW_ENTITIES})
+    r = _save(admin_client, shared, held | {PERM_VIEW_PERSON})
     assert r.status_code == 200, r.text
-    assert PERM_VIEW_ENTITIES in r.json()["permissions"]
+    assert PERM_VIEW_PERSON in r.json()["permissions"]
 
 
 def test_shared_is_seeded_with_guest_reads_and_requests(admin_client):
@@ -171,6 +174,122 @@ def test_boot_drops_a_stored_manage_catalog_from_user(db_session):
     assert PERM_MANAGE_CATALOG not in held
     # Mirror: the same run kept the member's ordinary grants.
     assert default_user_permissions() <= held
+
+
+# ---------------------------------------------------------------------------
+# The gated types are fixed; the nine ordinary types are free
+# ---------------------------------------------------------------------------
+
+HENTAI = media_type_perm("hentai")
+GATED = {media_type_perm(t) for t in gated_types()}
+ORDINARY = {media_type_perm(t) for t in MEDIA_TYPE_KEYS} - GATED
+
+
+def _held(db_session, role_name):
+    role_id = role_id_for(db_session, role_name)
+    return {
+        row.permission
+        for row in db_session.query(models.RolePermission).filter(
+            models.RolePermission.role_id == role_id
+        )
+    }
+
+
+def test_the_gated_and_ordinary_sets_are_what_this_file_assumes():
+    # Load-bearing: every test below would pass vacuously on an empty set.
+    assert GATED == {
+        media_type_perm("h-comic"),
+        media_type_perm("h-game"),
+        media_type_perm("hentai"),
+    }
+    assert len(ORDINARY) == 9
+
+
+@pytest.mark.parametrize("role_name", ["guest", SHARED_ROLE_NAME])
+def test_guest_and_shared_cannot_hold_a_gated_type(admin_client, role_name):
+    role = _role(admin_client, role_name)
+    held = set(role["permissions"])
+    assert HENTAI not in held
+    assert GATED <= set(role["locked_off"])
+
+    r = _save(admin_client, role, held | {HENTAI})
+    assert r.status_code == 409
+    assert HENTAI in r.json()["detail"]
+
+
+@pytest.mark.parametrize("role_name", ["guest", SHARED_ROLE_NAME])
+def test_guest_and_shared_save_without_one_ordinary_type(admin_client, role_name):
+    """Mirror: the ordinary types are a free choice, so taking one away saves
+    - the 409 above was the gated lock, not a refusal of every save."""
+    role = _role(admin_client, role_name)
+    held = set(role["permissions"])
+    anime = media_type_perm("anime")
+    assert anime in held
+
+    r = _save(admin_client, role, held - {anime})
+    assert r.status_code == 200, r.text
+    assert anime not in r.json()["permissions"]
+    assert not GATED & set(r.json()["permissions"])
+
+
+def test_user_must_hold_the_gated_types(admin_client):
+    user = _role(admin_client, USER_ROLE_NAME)
+    held = set(user["permissions"])
+    assert GATED <= held
+    assert GATED <= set(user["locked_on"])
+
+    r = _save(admin_client, user, held - {HENTAI})
+    assert r.status_code == 409
+    assert HENTAI in r.json()["detail"]
+
+
+def test_user_saves_without_one_ordinary_type(admin_client):
+    """Mirror: an ordinary type is still the admin's to take off a member."""
+    user = _role(admin_client, USER_ROLE_NAME)
+    held = set(user["permissions"])
+    anime = media_type_perm("anime")
+    assert anime in held
+
+    r = _save(admin_client, user, held - {anime})
+    assert r.status_code == 200, r.text
+    assert anime not in r.json()["permissions"]
+    assert GATED <= set(r.json()["permissions"])
+
+
+def test_the_ordinary_types_are_free_for_user_guest_and_shared():
+    for name in (USER_ROLE_NAME, "guest", SHARED_ROLE_NAME):
+        on, off = locked_permissions(name, False)
+        assert not ORDINARY & (on | off), name
+
+
+def test_boot_reconciles_the_gated_types_both_ways(db_session):
+    """A guest or shared role holding a gated type loses it on boot, and a
+    user role missing one gets it back."""
+    for role_name in ("guest", SHARED_ROLE_NAME):
+        db_session.add(
+            models.RolePermission(
+                role_id=role_id_for(db_session, role_name), permission=HENTAI
+            )
+        )
+    user_id = role_id_for(db_session, USER_ROLE_NAME)
+    db_session.query(models.RolePermission).filter(
+        models.RolePermission.role_id == user_id,
+        models.RolePermission.permission.in_(GATED),
+    ).delete(synchronize_session=False)
+    db_session.flush()
+    assert HENTAI in _held(db_session, "guest")
+    assert HENTAI in _held(db_session, SHARED_ROLE_NAME)
+    assert not GATED & _held(db_session, USER_ROLE_NAME)
+
+    ensure_rbac_seed(db_session)
+
+    assert not GATED & _held(db_session, "guest")
+    assert not GATED & _held(db_session, SHARED_ROLE_NAME)
+    assert GATED <= _held(db_session, USER_ROLE_NAME)
+    # Mirror: the same run left the ordinary types where they were.
+    assert ORDINARY <= _held(db_session, "guest")
+    assert ORDINARY <= _held(db_session, SHARED_ROLE_NAME)
+    assert ORDINARY <= _held(db_session, USER_ROLE_NAME)
 
 
 def test_boot_strips_a_stray_role_of_everything(db_session):

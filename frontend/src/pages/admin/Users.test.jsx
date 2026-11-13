@@ -560,3 +560,87 @@ describe("the fixed roles on /users", () => {
     expect(await screen.findByText("Access for bob")).toBeTruthy();
   });
 });
+
+/**
+ * The per-account feature switches. Only a user or super account holds them,
+ * so their rows carry four toggles and an admin or shared row carries none -
+ * each refusal paired with a row on the same page that has them.
+ */
+describe("the feature switches on /users", () => {
+  const ROLES_HERE = [
+    { system_id: "r-shared", name: "shared", label: "Shared", is_root: false },
+    { system_id: "r-user", name: "user", label: "User", is_root: false },
+    { system_id: "r-super", name: "super", label: "Super", is_root: false },
+    { system_id: "r-admin", name: "admin", label: "Admin", is_root: true },
+  ];
+  const account = (id, username, roleName, features = {}) => ({
+    id,
+    username,
+    role_id: `r-${roleName}`,
+    role_name: roleName,
+    status: "active",
+    mode_ceiling: "normal",
+    mode_default: "normal",
+    denied_label_keys: [],
+    denied_field_group_keys: [],
+    open_request_limit: null,
+    feature_quotes_memes: false,
+    feature_favourites: false,
+    feature_music_status: false,
+    feature_mod_status: false,
+    ...features,
+  });
+  const FEATURE_USERS = [
+    account(1, "alice", "admin"),
+    account(2, "bob", "user", { feature_quotes_memes: true }),
+    account(3, "carol", "super"),
+    account(4, "shared-normal", "shared"),
+  ];
+  const LABELS = ["Quotes & memes", "Favourites", "Music status", "Mod status"];
+
+  beforeEach(() => {
+    fetchJson.mockImplementation((url, opts) => {
+      if (opts?.method === "PATCH") return Promise.resolve({});
+      if (url.includes("/roles")) return Promise.resolve(ROLES_HERE);
+      if (url.includes("/access-modes")) return Promise.resolve(MODES);
+      return Promise.resolve(FEATURE_USERS);
+    });
+  });
+
+  it("gives a user and a super row all four, and an admin or shared row none", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    for (const name of ["bob", "carol"]) {
+      for (const label of LABELS) {
+        expect(
+          within(rowOf(name)).getByRole("checkbox", { name: `${label} for ${name}` }),
+        ).toBeTruthy();
+      }
+    }
+    for (const name of ["alice", "shared-normal"]) {
+      expect(within(rowOf(name)).queryAllByRole("checkbox")).toHaveLength(0);
+    }
+  });
+
+  it("shows each switch as stored", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(
+      within(rowOf("bob")).getByRole("checkbox", { name: "Quotes & memes for bob" }).checked,
+    ).toBe(true);
+    expect(
+      within(rowOf("bob")).getByRole("checkbox", { name: "Favourites for bob" }).checked,
+    ).toBe(false);
+  });
+
+  it("saves a toggle as a PATCH of that one field", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    await userEvent.click(
+      within(rowOf("bob")).getByRole("checkbox", { name: "Mod status for bob" }),
+    );
+    const patch = fetchJson.mock.calls.find(([, opts]) => opts?.method === "PATCH");
+    expect(patch[0]).toContain("/users/2");
+    expect(JSON.parse(patch[1].body)).toEqual({ feature_mod_status: true });
+  });
+});

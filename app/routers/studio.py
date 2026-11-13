@@ -28,7 +28,7 @@ from app.services.rbac.personal_gate import strip_personal
 from app.services.rbac.resolver import (
     Viewer,
     require_manage_catalog,
-    require_view_entities,
+    require_view_studio,
 )
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
@@ -96,7 +96,7 @@ def _to_response(
 @router.get("/", response_model=List[schemas.StudioResponse], summary="Get All Studios")
 def get_all_studios(
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_studio),
 ):
     """
     Retrieves every studio this viewer may see, sorted by display name. A
@@ -125,7 +125,7 @@ def get_all_studios(
 def get_studio_by_id(
     system_id: str,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_studio),
 ):
     """Retrieves a single studio by its public_id or its UUID."""
     studio = find_entity(db, models.Studio, system_id)
@@ -139,7 +139,7 @@ def get_studio_by_id(
 def get_studio_entries(
     system_id: UUID,
     db: Session = Depends(get_db),
-    viewer: Viewer = Depends(require_view_entities),
+    viewer: Viewer = Depends(require_view_studio),
 ):
     """
     The entries this studio is credited on, grouped by media type.

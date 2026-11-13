@@ -8,6 +8,7 @@ surface at all.
 """
 
 from app.services.rbac.permissions import (
+    ENTITY_VIEW_KEYS,
     PERM_ADMIN_AUTHZ,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
@@ -17,6 +18,7 @@ from app.services.rbac.permissions import (
     PERM_SELF_PERSONAL_NOTES,
     PERM_SELF_REQUESTS,
     VIEW_PERMISSION_KEYS,
+    gated_type_permissions,
     view_perm,
 )
 from app.services.rbac.seed import (
@@ -37,9 +39,14 @@ def test_it_holds_everything_guest_holds():
     assert default_guest_permissions() <= default_user_permissions()
 
 
-def test_it_adds_exactly_the_view_family_and_the_four_self_permissions():
+def test_it_adds_the_gated_types_the_non_entity_view_keys_and_the_self_permissions():
+    """The four entity-page keys are not seeded: they start off for a member
+    and are the admin's to switch on. The gated types are locked on."""
     extra = default_user_permissions() - default_guest_permissions()
-    assert extra == {view_perm(key) for key in VIEW_PERMISSION_KEYS} | {
+    assert gated_type_permissions()
+    assert extra == gated_type_permissions() | {
+        view_perm(key) for key in VIEW_PERMISSION_KEYS if key not in ENTITY_VIEW_KEYS
+    } | {
         PERM_SELF_LIST,
         PERM_SELF_PERSONAL_NOTES,
         PERM_SELF_REQUESTS,

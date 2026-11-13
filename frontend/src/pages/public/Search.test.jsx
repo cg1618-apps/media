@@ -120,13 +120,13 @@ beforeEach(() => {
             isSearch
               ? searchPayload
               : // A member: /search is behind view.search, and its
-                // character cards link through view.entities.
+                // character cards link through view.character.
                 {
                   is_admin: false,
                   username: "reader",
                   role: "user",
                   is_root: false,
-                  permissions: ["view.entities", "view.search", "view.extras", "view.personal"],
+                  permissions: ["view.studio", "view.publisher", "view.person", "view.character", "view.search", "view.extras", "view.personal"],
                 },
           ),
       });

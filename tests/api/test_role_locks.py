@@ -22,6 +22,7 @@ from app.services.rbac.permissions import (
     PERM_SELF_PASSWORD,
     PERM_SELF_PERSONAL_NOTES,
     PERM_SELF_REQUESTS,
+    gated_type_permissions,
     locked_permissions,
     media_type_perm,
     static_catalog,
@@ -78,10 +79,11 @@ def test_guest_can_only_view():
         PERM_SELF_PASSWORD,
         PERM_SELF_PERSONAL_NOTES,
         PERM_SELF_REQUESTS,
-    }
-    # Media types stay free - narrowing what a guest may read is the point of
-    # the page.
+    } | gated_type_permissions()
+    # The ordinary media types stay free - narrowing what a guest may read is
+    # the point of the page. The gated types are locked off.
     assert media_type_perm("anime") not in off
+    assert media_type_perm("hentai") in off
 
 
 def test_neither_catalogue_nor_pipelines_is_a_choice_for_user():
@@ -109,9 +111,10 @@ def test_a_user_always_files_requests_and_never_handles_them():
     assert PERM_MANAGE_REQUESTS in off
 
 
-def test_a_user_has_exactly_those_two_locked_on():
+def test_a_user_has_exactly_those_two_and_the_gated_types_locked_on():
     on, _off = locked_permissions(USER_ROLE, False)
-    assert on == {PERM_SELF_REQUESTS, PERM_SELF_PASSWORD}
+    assert gated_type_permissions()
+    assert on == {PERM_SELF_REQUESTS, PERM_SELF_PASSWORD} | gated_type_permissions()
 
 
 def test_a_root_role_holds_everything_except_its_own_rows():
@@ -141,7 +144,7 @@ def test_the_role_list_serves_the_locks(admin_client):
 
     user_role = _role(admin_client, USER_ROLE)
     assert sorted(user_role["locked_on"]) == sorted(
-        [PERM_SELF_REQUESTS, PERM_SELF_PASSWORD]
+        {PERM_SELF_REQUESTS, PERM_SELF_PASSWORD} | gated_type_permissions()
     )
     assert PERM_MANAGE_CATALOG in user_role["locked_off"]
 
@@ -186,7 +189,7 @@ def test_a_guest_may_not_be_granted_its_own_list(admin_client):
 
 def test_a_user_role_never_holds_the_catalogue_or_the_pipelines(admin_client):
     user_id = _role(admin_client, USER_ROLE)["system_id"]
-    must = [PERM_SELF_REQUESTS, PERM_SELF_PASSWORD]
+    must = [PERM_SELF_REQUESTS, PERM_SELF_PASSWORD, *sorted(gated_type_permissions())]
 
     for permission in (PERM_MANAGE_CATALOG, PERM_MANAGE_PIPELINES):
         refused = admin_client.put(

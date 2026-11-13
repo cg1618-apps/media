@@ -17,7 +17,7 @@ from app.models.system import USER_STATUS_ACTIVE, USER_STATUS_DISABLED
 from app.services.rbac.modes import default_mode_id
 from app.services.rbac.permissions import SHARED_ROLE_NAME
 from app.services.rbac.seed import SHARED_ACCOUNTS, ensure_shared_accounts
-from app.services.rbac.seed_modes import MODE_BORDERLINE, MODE_NORMAL
+from app.services.rbac.seed_modes import MODE_BORDERLINE, MODE_NORMAL, MODE_SAFE
 from app.services.security import UNUSABLE_PASSWORD_HASH, create_access_token
 from tests.api.conftest import role_id_for
 from tests.api.test_account_lifecycle import login
@@ -140,11 +140,53 @@ def test_a_shared_account_files_a_request(admin_client, db_session, shared_norma
 
 @pytest.mark.parametrize("path", ["/api/quote/", "/api/meme/"])
 def test_a_shared_account_cannot_read_quotes_or_memes(
-    admin_client, user_client, db_session, shared_normal, path
+    admin_client, user_client, db_session, shared_normal, plain_user, path
 ):
     assert _client_for(db_session, shared_normal).get(path).status_code == 401
-    # Mirror: a member, who holds view.extras, can.
+    # Mirror: a member with the quotes-and-memes switch on can.
+    plain_user.feature_quotes_memes = True
+    db_session.flush()
     assert user_client.get(path).status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# A shared account's mode is fixed for switching too
+# ---------------------------------------------------------------------------
+
+SWITCH = "/api/auth/access-mode"
+
+
+def _mode_id(db, key):
+    return str(
+        db.query(models.AccessMode).filter(models.AccessMode.key == key).one().system_id
+    )
+
+
+def test_a_shared_account_cannot_switch_mode(admin_client, db_session, shared_normal):
+    """`safe` ranks below shared-normal's ceiling, so only the fixed-mode
+    rule refuses it - the ceiling would allow it."""
+    c = _client_for(db_session, shared_normal)
+    r = c.post(SWITCH, json={"mode_id": _mode_id(db_session, MODE_SAFE)})
+    assert r.status_code == 409
+    assert r.json()["detail"] == "A shared account's mode is fixed."
+    assert c.get("/api/auth/me").json()["mode"]["key"] == MODE_NORMAL
+
+
+def test_a_member_switches_within_its_ceiling(admin_client, user_client, db_session):
+    """The mirror: the same move, from an account that is not shared."""
+    r = user_client.post(SWITCH, json={"mode_id": _mode_id(db_session, MODE_SAFE)})
+    assert r.status_code == 200, r.text
+    assert r.json()["mode"]["key"] == MODE_SAFE
+
+
+def test_me_offers_a_shared_account_its_own_mode_alone(
+    admin_client, user_client, db_session, shared_normal
+):
+    modes = _client_for(db_session, shared_normal).get("/api/auth/me").json()["modes"]
+    assert [m["key"] for m in modes] == [MODE_NORMAL]
+    # Mirror: a member is offered every mode up to its ceiling, more than
+    # one, which is what makes the switcher render.
+    assert len(user_client.get("/api/auth/me").json()["modes"]) > 1
 
 
 def test_a_shared_account_cannot_change_its_own_password(

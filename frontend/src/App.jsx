@@ -213,27 +213,36 @@ export default function App() {
                     navigation.js asks for the rows that link here - the two
                     permission surfaces have to agree. */}
 
-                {/* The credited entities: their libraries and detail pages.
-                    Entity names on the open pages render as plain text
-                    without this key (useEntityHref). */}
-                <Route element={<ProtectedRoute permission="view.entities" />}>
+                {/* The credited entities: their libraries and detail pages,
+                    one key per kind. Entity names on the open pages render
+                    as plain text without that kind's key (useEntityHref). */}
+                <Route element={<ProtectedRoute permission="view.studio" />}>
                   <Route path="/library/studio" element={<StudioLibrary />} />
+                  <Route path="/studio/:publicId/:slug?" element={<Studio />} />
+                </Route>
+                <Route element={<ProtectedRoute permission="view.publisher" />}>
                   <Route
                     path="/library/publisher"
                     element={<PublisherLibrary />}
                   />
+                  <Route path="/publisher/:publicId/:slug?" element={<Publisher />} />
+                </Route>
+                {/* A seiyuu is a person, so the seiyuu library asks
+                    view.person too. */}
+                <Route element={<ProtectedRoute permission="view.person" />}>
                   <Route path="/library/person" element={<PersonLibrary />} />
                   <Route
                     path="/library/seiyuu"
                     element={<PersonLibrary role="seiyuu" />}
                   />
+                  <Route path="/person/:publicId/:slug?" element={<Person />} />
+                </Route>
+                {/* An identity is a page of a character. */}
+                <Route element={<ProtectedRoute permission="view.character" />}>
                   <Route
                     path="/library/character"
                     element={<CharacterLibrary />}
                   />
-                  <Route path="/studio/:publicId/:slug?" element={<Studio />} />
-                  <Route path="/publisher/:publicId/:slug?" element={<Publisher />} />
-                  <Route path="/person/:publicId/:slug?" element={<Person />} />
                   <Route path="/character/:publicId/:slug?" element={<Character />} />
                   <Route path="/identity/:publicId/:slug?" element={<Identity />} />
                 </Route>
@@ -246,15 +255,19 @@ export default function App() {
 
                 {/* The extras. Resources is read-only here; its edit controls
                     ask for manage.catalog themselves. The gated
-                    /random/h-* routes above ask this key too. */}
+                    /random/h-* routes above ask this key too. Quotes and
+                    Memes are not extras: they follow the account's
+                    quotes_memes feature switch, below. */}
                 <Route element={<ProtectedRoute permission="view.extras" />}>
                   <Route path="/future-releases" element={<FutureReleases />} />
                   <Route path="/random" element={<RandomPicker />} />
                   <Route path="/random/:type" element={<RandomPicker />} />
                   <Route path="/completions" element={<Completions />} />
+                  <Route path="/resources" element={<Resources />} />
+                </Route>
+                <Route element={<ProtectedRoute feature="quotes_memes" />}>
                   <Route path="/quote" element={<Quotes />} />
                   <Route path="/meme" element={<Memes />} />
-                  <Route path="/resources" element={<Resources />} />
                 </Route>
 
                 {/* Per-user pages: a plan queue and a season's counters belong

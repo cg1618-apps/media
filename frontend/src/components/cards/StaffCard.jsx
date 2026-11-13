@@ -8,7 +8,7 @@
 import { Link } from "react-router-dom";
 
 import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
-import { entityPath } from "../../lib/entityPath";
+import { useEntityHref } from "../../lib/entityPath";
 import { RatingStamp } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
@@ -25,8 +25,9 @@ function StaffCard({
   const coverUrl = getCoverUrl(imageFile);
   const credits = creditCount ?? 0;
 
-  // `to` is empty when the entity carries no public_id - entityPath has no
-  // URL to build - so the card renders as plain markup instead of a dead link.
+  // `to` is empty when the entity carries no public_id, or the viewer lacks
+  // that kind's view key (useEntityHref), so the card renders as plain markup
+  // instead of a dead link.
   const Wrapper = to ? Link : "div";
   const wrapperProps = to ? { to } : {};
 
@@ -82,9 +83,10 @@ function StaffCard({
 }
 
 export function PersonCard({ person }) {
+  const entityHref = useEntityHref();
   return (
     <StaffCard
-      to={entityPath("person", person)}
+      to={entityHref("person", person)}
       label="Person"
       name={person.display_name || "Unknown Person"}
       // The server resolves the fallback (the chosen entry's cover, then the
@@ -99,9 +101,10 @@ export function PersonCard({ person }) {
 }
 
 export function StudioCard({ studio }) {
+  const entityHref = useEntityHref();
   return (
     <StaffCard
-      to={entityPath("studio", studio)}
+      to={entityHref("studio", studio)}
       label="Studio"
       name={studio.display_name || "Unknown Studio"}
       imageFile={studio.logo_file}
@@ -114,9 +117,10 @@ export function StudioCard({ studio }) {
 }
 
 export function PublisherCard({ publisher }) {
+  const entityHref = useEntityHref();
   return (
     <StaffCard
-      to={entityPath("publisher", publisher)}
+      to={entityHref("publisher", publisher)}
       label="Publisher"
       name={publisher.display_name || "Unknown Publisher"}
       imageFile={publisher.logo_file}

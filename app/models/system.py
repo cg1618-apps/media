@@ -289,6 +289,20 @@ USER_STATUSES: tuple[str, ...] = (
 )
 
 
+# The per-account feature switches, by name, and the `users` column holding
+# each. services/rbac/features.py is what they mean; this is where they are
+# stored, and the one list the Users tab parser reads.
+USER_FEATURE_NAMES: tuple[str, ...] = (
+    "quotes_memes",
+    "favourites",
+    "music_status",
+    "mod_status",
+)
+USER_FEATURE_COLUMNS: tuple[str, ...] = tuple(
+    f"feature_{name}" for name in USER_FEATURE_NAMES
+)
+
+
 class User(Base):
     """Administrative user accounts for access control."""
 
@@ -347,6 +361,23 @@ class User(Base):
     )
     mode_default = Column(
         String, nullable=True, default="normal", server_default="normal"
+    )
+    # Per-account feature switches (services/rbac/features.py). Only a `user`
+    # or `super` account may hold one - PATCH /api/users/{id} refuses the
+    # rest with 409. Columns rather than a table so they travel on the Sheets
+    # Users tab beside the mode pair and the request limit. Only
+    # feature_quotes_memes gates anything today: the quote and meme reads.
+    feature_quotes_memes = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    feature_favourites = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    feature_music_status = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    feature_mod_status = Column(
+        Boolean, nullable=False, default=False, server_default="false"
     )
 
     __table_args__ = (

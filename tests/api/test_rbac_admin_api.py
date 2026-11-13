@@ -164,11 +164,13 @@ def test_revoking_a_permission_is_felt_without_re_login(
     client.cookies.set("access_token", f"Bearer {token}")
     assert str(sample_anime.system_id) in client.get("/api/anime/").text
 
-    # Down to what the role must hold, which is no media type.
-    admin_client.put(
-        f"/api/roles/{role_id}/permissions",
-        json={"permissions": ["self.password", "self.requests"]},
+    # Down to what the role must hold, which is no ordinary media type.
+    locked_on = admin_client.get(f"/api/roles/{role_id}").json()["locked_on"]
+    assert "media_type.anime" not in locked_on
+    saved = admin_client.put(
+        f"/api/roles/{role_id}/permissions", json={"permissions": locked_on}
     )
+    assert saved.status_code == 200, saved.text
 
     # Same cookie, no re-login.
     assert client.get("/api/anime/").json() == []

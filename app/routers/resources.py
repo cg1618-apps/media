@@ -1,7 +1,7 @@
 """
 routers/resources.py
 The Resources page: one site-wide tree of groups and items (links, plain
-text, text with inline links). Reads follow the Quote page's gate; writes need
+text, text with inline links). Reads need `view.extras`; writes need
 `manage.catalog`.
 
 The tree is stored flat - one `resource_node` row per node, each naming its

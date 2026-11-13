@@ -21,6 +21,10 @@
 // composes with `permission`/`requireAuth` only when one is passed explicitly;
 // on its own it asks nothing else.
 //
+// `feature` asks the fourth - "does this ACCOUNT have this feature switched
+// on?" - through hasFeature, the same question navigation.js's `feature` rows
+// ask. It replaces `permission` rather than composing with it.
+//
 // This is a redirect, not a security boundary: the API refuses the request on
 // its own. The point is to send someone to the login page instead of showing
 // them a screen that will only fill with errors.
@@ -32,9 +36,10 @@ export default function ProtectedRoute({
   permission,
   requireAuth = false,
   gatedType,
+  feature,
 }) {
   const auth = useAuth();
-  const { has, username, loading } = auth;
+  const { has, hasFeature, username, loading } = auth;
   const location = useLocation();
 
   if (loading) {
@@ -62,7 +67,9 @@ export default function ProtectedRoute({
   // requireAuth gates on "is anyone logged in" rather than on a permission.
   // With neither, a gated-type route asks nothing more; any other bare use
   // keeps the old default of "admin", a permission no role holds.
-  const allowed = requireAuth
+  const allowed = feature
+    ? hasFeature(feature)
+    : requireAuth
     ? Boolean(username)
     : permission
       ? has(permission)

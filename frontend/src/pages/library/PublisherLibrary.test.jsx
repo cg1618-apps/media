@@ -4,6 +4,12 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PublisherLibrary from "./PublisherLibrary";
 
+// The page is behind view.publisher, so its viewer holds it and the cards
+// link (useEntityHref).
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ has: (p) => p === "view.publisher" }),
+}));
+
 const PUBLISHERS = [
   {
     system_id: "1",

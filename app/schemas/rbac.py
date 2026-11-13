@@ -176,6 +176,13 @@ class ManagedUserUpdate(BaseModel):
     # same save changes the role, which resets it to the new role's default.
     # Not settable on a super account, which never has one.
     open_request_limit: Optional[int] = Field(default=None, ge=0)
+    # The per-account feature switches (services/rbac/features.py). Left out
+    # is untouched. Switching one ON for an account that is not `user` or
+    # `super` is a 409; switching one off is always allowed.
+    feature_quotes_memes: Optional[bool] = None
+    feature_favourites: Optional[bool] = None
+    feature_music_status: Optional[bool] = None
+    feature_mod_status: Optional[bool] = None
 
 
 class ManagedUserResponse(BaseModel):
@@ -196,6 +203,12 @@ class ManagedUserResponse(BaseModel):
     denied_field_group_keys: List[str] = []
     # How many open requests the account may hold at once; null is no limit.
     open_request_limit: Optional[int] = None
+    # The per-account feature switches, as stored. Always false on an account
+    # that is not `user` or `super`.
+    feature_quotes_memes: bool = False
+    feature_favourites: bool = False
+    feature_music_status: bool = False
+    feature_mod_status: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

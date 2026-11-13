@@ -45,6 +45,7 @@ from app.services.domain.accounts import (
 )
 from app.services.domain.requests import default_request_limit, limit_is_fixed
 from app.services.rbac import cache
+from app.services.rbac.features import FEATURE_COLUMNS, FEATURE_ROLE_NAMES
 from app.services.rbac.modes import ModeSets, check_mode_pair, set_mode_ceiling
 from app.services.rbac.permissions import (
     ADMIN_ROLE_NAME,
@@ -111,6 +112,7 @@ def _to_response(
         denied_field_group_keys=denied_groups,
         status=user.status,
         open_request_limit=user.open_request_limit,
+        **{column: getattr(user, column) for column in FEATURE_COLUMNS},
     )
 
 
@@ -347,7 +349,8 @@ def update_user(
     admin: Viewer = Depends(require_admin_authz),
 ):
     """
-    Rename, set a password, change role, or disable / enable.
+    Rename, set a password, change role, disable / enable, or switch the
+    account's features (services/rbac/features.py).
 
     Setting a password ends the account's sessions
     (ADMIN_SET_PASSWORD_REVOKES_SESSIONS) and so does disabling it; enabling
@@ -377,6 +380,23 @@ def update_user(
         raise HTTPException(
             status_code=422,
             detail="A super account has no open-request limit.",
+        )
+    # Only a user or super account holds a feature. Switching one OFF is
+    # always allowed; ON for anything else - the admin account, a shared one -
+    # is a 409, like the other fixed facts about those accounts. Every role
+    # change this route makes stays inside user and super, so a stored switch
+    # never outlives the role that could hold it.
+    features = {
+        column: getattr(payload, column)
+        for column in FEATURE_COLUMNS
+        if column in payload.model_fields_set and getattr(payload, column) is not None
+    }
+    if any(features.values()) and (
+        resulting_role is None or resulting_role.name not in FEATURE_ROLE_NAMES
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Only a user or super account can have a feature switched on.",
         )
 
     if user.status == USER_STATUS_PENDING:
@@ -427,6 +447,8 @@ def update_user(
         user.open_request_limit = payload.open_request_limit
     elif new_role is not None:
         user.open_request_limit = default_request_limit(new_role.name)
+    for column, value in features.items():
+        setattr(user, column, value)
 
     db.commit()
     db.refresh(user)
