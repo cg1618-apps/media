@@ -1,6 +1,6 @@
 # P3g — per-role and per-account switches
 
-Built on one branch with the other two plans (`feat/fixed-roles-and-switches`, per media-00), in order P3f → P3g → P3h. Originally planned as its own branch, `feat/role-and-account-switches`, cut off dev **after P3f merges**
+Its own branch, `feat/role-and-account-switches`, second of P3f → P3g → P3h (each its own branch — see `docs/to-do-next.md`), cut off dev **after P3f merges**
 (it needs the `shared` role). Spec:
 `docs/superpowers/specs/2026-11-03-account-system-design.md`, "Fixed and
 adjustable settings"; `docs/viewers.md`, "At a glance", "Entity pages,

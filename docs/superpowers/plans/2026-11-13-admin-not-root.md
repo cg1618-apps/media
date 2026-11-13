@@ -1,6 +1,6 @@
 # P3h — admin stops being root
 
-Built on one branch with the other two plans (`feat/fixed-roles-and-switches`, per media-00), in order P3f → P3g → P3h. Originally planned as its own branch, `feat/admin-not-root`, cut off dev **after P3g merges** — last of the
+Its own branch, `feat/admin-not-root`, last of P3f → P3g → P3h (each its own branch — see `docs/to-do-next.md`), cut off dev **after P3g merges** — last of the
 four, because every permission it hands the admin must already exist and
 every switch it stops short-circuiting must already be in place. Spec:
 `docs/viewers.md`, "Admin"; account-system spec, "Fixed and adjustable
