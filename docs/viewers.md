@@ -261,7 +261,7 @@ registrations.
 | **Explore** | Seasonal, Future Releases, Random Picker, Statistics | — | ✓ | ✓ | all but Random Picker | ✓ |
 | **Extras** | Quotes, Memes, Resources | Resources | ✓ | quotes and memes by switch | — | — |
 | Entry, Note | catalogue editing, options | Note | ✓ | — | — | — |
-| Pipelines | Control Center, history, review queue, … | ✓ | ✓ | — | — | — |
+| **System** (was Pipelines) | Control Center, history, review queue, … | ✓ | ✓ | — | — | — |
 | Admin | users, roles, labels, modes | ✓ | — | — | — | — |
 
 - **Three tabs replace Track and Insights.** **Track** keeps the
@@ -270,9 +270,10 @@ registrations.
   Statistics; **Extras** is the old Insights. Super's Relations and Watch
   Orders editors stay in Extras.
 - **A tab with nothing left in it is not drawn.**
-- **Requests** is a menu item for shared, user and super, opening My
-  requests. The inbox sits under Pipelines for super and Admin for the
-  admin.
+- **Requests sits in the header**, beside sign out, for shared, user and
+  super, opening My requests — the same place for every filer. The inbox
+  sits under System for super and Admin for the admin.
+- **The Pipelines tab is renamed System.**
 - **The admin's header** carries only its own tabs — no Library, no search
   box.
 - **The mode switcher** appears only for an account holding more than one
