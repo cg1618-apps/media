@@ -35,6 +35,9 @@ export const endpoints = {
     accessMode: () => "/api/auth/access-mode",
     // GET ?code= says whose account a reset link is for; POST spends it.
     reset: () => "/api/auth/reset",
+    // GET ?code= says whether an invite link can be used; POST spends it and
+    // creates the account, pending until the admin approves it.
+    register: () => "/api/auth/register",
   },
 
   // Tier 1 closed enums. Read-only by design - they live in Python.
@@ -78,6 +81,10 @@ export const endpoints = {
     remove: (id) => `/api/users/${id}`,
     accessModes: (id) => `/api/users/${id}/access-modes`,
     resetLink: (id) => `/api/users/${id}/reset-link`,
+    invites: () => "/api/users/invites",
+    // A pending registration is approved or declined, never edited.
+    approve: (id) => `/api/users/${id}/approve`,
+    reject: (id) => `/api/users/${id}/reject`,
   },
 
   // The caller's own account. No id in any path: these act on whoever the

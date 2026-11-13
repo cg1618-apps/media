@@ -25,12 +25,12 @@ catalogue and what is an account's own data is
 > builds it lands, and that change rewrites it in the present tense.
 >
 > **Built:** [Removed](#removed), under "Customised pages";
-> [Requests and reports](#requests-and-reports), and the My
-> requests and inbox rows of
+> [Requests and reports](#requests-and-reports), and every row of
 > [My requests, the inbox, and pending registrations](#my-requests-the-inbox-and-pending-registrations).
 > Requests and reports work for `admin`, `super`, `user` and the shared
 > accounts. Until the header rework, the inbox sits under Pipelines for both
-> admin and super. A `user` never writes the catalogue (`manage.catalog` is
+> admin and super, and pending registrations are a panel on `/system`, shown
+> only to the admin. Invite links are issued on `/users`. A `user` never writes the catalogue (`manage.catalog` is
 > locked off for the role). The shared accounts, `shared-normal` and
 > `shared-borderline`, each fixed at its own mode, keep no data of their own,
 > and only the admin sets their password
