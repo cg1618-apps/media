@@ -55,14 +55,32 @@ reached through `admin.authz`, unchanged.
   updated. The admin role now stores its grant rows like any other.
 - **Known bypasses removed**:
   - `note.py` `_authorize_edit`: a personal note is edited by its author
-    only — no account edits another's.
+    only — no account edits another's. The root admin can still DELETE
+    another account's personal-SCOPE note today, because DELETE never calls
+    `_authorize_write` and `_authorize_edit` short-circuits on `is_root`;
+    both go. (In #354's mixed sections `_authorize_edit` already refuses the
+    admin on another account's personal row; once #354 is on dev a test
+    covers a mixed-section personal row too.)
+  - **Owner decision: the admin writes no catalogue rows in note
+    sections.** It no longer holds `manage.catalog`, so create, edit and
+    delete of a note section's catalogue row are refused; only `super`
+    writes them.
   - `media_relation.py` (~:460) and `watch_order.py` (~:226): the object
     axis applies to every viewer; no exemption.
-- `user_list.py` `installation_owner_id`: keep the rule (flag holder, then the first eligible account, then the first account) — media-db's P5 relies on it — but "first non-root"
-  becomes "first account whose role is not `admin`, `guest` or `shared`", by role name. Not deleted.
-  It has a second caller on media-db's P5 branch: `pull.py`
-  `restore_legacy_personal` → `_restore_owner_id`. The role-name rule is the
-  same one P5's migrations freeze; check both callers when this lands.
+- `user_list.py` `installation_owner_id` — **matches P5's frozen migration
+  rule** (added at execution, from the run's manager): the flag holder,
+  whatever its status; else the first `active` account whose role is not
+  `admin`, `guest` or `shared`, by role name and username; else **None**,
+  never the admin. The frozen rule raises at that point; at runtime None is
+  the same refusal without failing a whole Pull, because every caller
+  already skips on None (Game Copy and Game Choice Mark rows are counted
+  as skipped, Calculate derives nothing). Today's second fallback ("the
+  first account of any kind") goes — after this branch the admin holds no
+  personal data, so it is never the owner.
+  Callers on dev: `calculation.py`, `pull.py` (`_restore_owner_id`, the
+  Game Copy restore). On #354 the old-backup Pull moved to
+  `app/services/domain/legacy_personal.py` (`restore_legacy_personal`); check
+  it when #354 merges dev.
 - `users.py`: the last-admin guard (`_can_administer`, `_admin_count`)
   goes. The admin account's role is fixed (P3f) and **it cannot be
   deleted** — an explicit 409 replaces the guard's indirect protection.
@@ -76,7 +94,9 @@ reached through `admin.authz`, unchanged.
   a permission check. The mode switcher never shows. `/users` refuses a
   ceiling for the admin (409), as for a shared account.
 - Feature switches stay off and are refused (P3g already limits them to
-  `user` / `super`).
+  `user` / `super`). `features.ROOT_FEATURES` — the root admin reading
+  quotes and memes without the switch — goes with `is_root`, so the admin
+  reads no quotes or memes (Visible change 1).
 - `self.*` was never implicit for root; it stays locked off.
 
 ### SPA
@@ -95,7 +115,7 @@ reached through `admin.authz`, unchanged.
   `locked_off`; the `is_root` special cases go. `Users.jsx`: no mode panel
   for the admin row.
 
-### Migration (`a1d2minroot45`, parented on the head at execution)
+### Migration (`a1d2minroot45`, parented on `s1w2itches345`, the head at execution)
 
 1. Grant the admin role its fixed set as rows; drop `role.is_root`.
 2. Set the `admin`-role account's ceiling and default to NULL.
@@ -134,7 +154,13 @@ Refusal tests make their set non-empty and assert the mirror.
   reach the admin — the property root had and loses.
 - `user` is refused `/api/resources` with a resource present; **mirror**:
   super reads it.
-- Bypasses: the admin cannot edit a user's personal note (404/401), and a
+- The owner rule: the flag holder wins whatever its status; a pending and a
+  disabled account sorting first never win; an admin-only database answers
+  None; **mirror**: an active member wins.
+- Bypasses: the admin cannot edit or DELETE a user's personal-scope note
+  (404/401); **mirror**: the note's author deletes it. The admin's write on
+  a note section's catalogue row is refused; **mirror**: super's succeeds.
+  And a
   relation or watch order pointing at an entry hidden from the viewer is
   hidden from every viewer, admin included.
 - `locked_permissions("admin")` leaves no free cell; saving the admin role
