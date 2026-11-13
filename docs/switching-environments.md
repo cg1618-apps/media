@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-10-14
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -18,7 +18,7 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 
 ## 1. The two environments
 
-| | **Company** | **Home** |
+| | **Company** | `v1i2ewperms34` — head, as of 2026-11-13 | **Rebuilt from production.** The database was dropped, rebuilt by `alembic upgrade head`, seeded by one app start, and filled by Pull All from the production sheet (`GOOGLE_PULL_SHEET_ID`), every tab restoring, so its rows are production's as of that sheet. Mode grants do not travel, so `admin`'s and `cg1618`'s were re-inserted by hand: all four modes each, defaults `unrestricted` and `borderline`. `cg1618` was created by Pull with no usable password and needs one set at `/users`. The recovery dump of the database before the rebuild is `C:\Users\q601513\media_company_pre_pull_20261113.sql` |
 |---|---|---|
 | Project path | `C:\Users\q601513\Documents\personal\cg1618\media` | `C:\Users\cgent\Documents\cg1618\media` |
 | OS | Windows 11 Pro (10.0.26200) | Windows 11 Home (10.0.26200) |
