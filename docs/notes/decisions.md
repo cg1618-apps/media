@@ -4281,3 +4281,13 @@ columns on `users`. Migration `s1w2itches345` carries all of it.
   appeared for it - one person narrowing the login for everyone signed in.
   `POST /api/auth/access-mode` now answers 409 for it, and `held_modes` offers
   it its own mode alone, so the switcher, which needs two, does not render.
+- **Search drops a bucket's key rather than send it empty.** An empty list
+  still says the type exists - it reads as "nothing matched", which is only
+  true of a type the viewer may see - and it was already how a gated type's
+  bucket behaved, so every switch now answers the same way: a media type the
+  role does not hold, or an entity kind without its `view.*` key, has no key
+  in `results`. `SearchBuckets` defaults each such bucket to `None` and drops
+  it on serialising, so a type added later cannot put its key back by having
+  a default of `[]`. The groups and seasonal are always present, because no
+  switch hides them. The SPA already read every bucket as `?? []`, and the
+  nav search offers only the scopes whose bucket would come back.

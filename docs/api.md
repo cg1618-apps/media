@@ -1346,14 +1346,26 @@ routes.
 }
 ```
 
-Every bucket key this session may see is present, empty for the types the
-scope did not ask about. A gated type the session cannot see has **no key at
-all** - not an empty bucket, which would still say the type exists - whatever
-the scope and whether or not `q` is empty. So `h-comic` is present only in a
-mode showing the `h-comic` label, `h-game` only in one showing `h-game`,
-and `hentai` only in one showing `hentai` — which is `unrestricted` for all
-three. The SPA reads every bucket as
-`results[type] ?? []`. An h-comic row carries its derived `animation_status`,
+**Which buckets a response carries.** A bucket is present only for a type
+the viewer may see, and a type it may not see has **no key at all** — not an
+empty bucket, which would still say the type exists. This holds whatever the
+scope and whether or not `q` is empty (`_viewer_may_search`,
+`app/services/domain/search.py`; `SearchBuckets`, `app/routers/search.py`):
+
+| Bucket | Present when |
+| --- | --- |
+| `collection`, `franchise`, `series`, `seasonal` | always |
+| each media type (`anime` … `hentai`) | the role holds `media_type.<type>` |
+| a gated type (`h-comic`, `h-game`, `hentai`) | as above, **and** the mode shows the type's label — which is `unrestricted` for all three |
+| `person`, `studio`, `publisher` | the viewer holds `view.person`, `view.studio`, `view.publisher` |
+| `character` | `characters=true` **and** the viewer holds `view.character` |
+
+A present bucket is empty for the types the scope did not ask about. A
+`scope` naming a bucket the viewer may not see is accepted and answers with
+every present bucket empty. The admin's root flag holds every key, so the
+admin gets every bucket its mode shows. The SPA reads every bucket as
+`results[type] ?? []`, so an absent bucket draws no section, no tab and no
+count. An h-comic row carries its derived `animation_status`,
 as on its own list. Rows carry the same response schema as that type's own list endpoint —
 plan flags, link fields, RBAC visibility, and field gating all included.
 
@@ -1374,7 +1386,8 @@ visibility gate, so a group hidden by its own labels or by a group above it is
 absent, and each row carries its `content_labels`.
 
 **Characters.** With `characters=true` the response carries a `character`
-bucket; without it there is no such key, so the nav dropdown never sees one.
+bucket for a viewer holding `view.character`; without either there is no such
+key, so the nav dropdown never sees one.
 The bucket matches `name_en`, `name_cn`, `name_jp` and `name_alt` with the
 same normalisation and exact-first ordering as every other bucket, and is
 filled at `scope=all` only — at any other scope it is present and empty.
