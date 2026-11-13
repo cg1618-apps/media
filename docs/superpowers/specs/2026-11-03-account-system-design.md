@@ -510,9 +510,15 @@ Super without the catalogue work.
   closes studios, publishers, people, seiyuu, characters and identities
   together; it splits into one setting per kind. Where a kind is hidden,
   its names render as plain text, as entity names do for a guest today.
-- **To settle:** the exact kinds, which roles the settings apply to, and
-  whether the extras (search, random picker, future releases, completions)
-  split the same way.
+- **Four switches**: **studio**; **publisher**; **person**, covering the
+  people library, the seiyuu library and person pages, since a seiyuu opens
+  a person page; **character**, covering characters and identities, since
+  an identity groups character pages.
+- **They are per role and apply to guest, shared and user**, set by the
+  admin. `super` always has them on; the admin always has them off.
+- **To settle:** whether the catalogue pages in Track and Insights get
+  switches the same way — proposed: search, future releases and the random
+  picker, for seven switches in all — and whether Completions is personal.
 
 ### Requests and reports
 
