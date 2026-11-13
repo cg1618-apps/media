@@ -1,6 +1,6 @@
 # Open items
 
-Last verified: 2026-10-30
+Last verified: 2026-11-13
 
 Known defects, unmade decisions and blocked work. **Everything here is open by
 definition** — there is no status column, no claiming, and no lifecycle. An item
@@ -13,6 +13,22 @@ This is not a work log and not a plan. Whose turn something is, and what a
 session is currently doing, live in the branch and the pull request. Machine
 state — which database is at which revision, where the dumps are — is
 [switching-environments.md](switching-environments.md).
+
+## Per-viewer page detail — first, once the rework is built
+
+**Each page's detailed customisation per viewer is undecided, and it is the
+first thing to take up** once everything in [to-do-next.md](to-do-next.md)
+has been built — the notes rework and the account and authorization rework
+— and the remaining page-level discussions have been had.
+
+What is settled now is each page's **general** version per viewer, in
+[viewers.md](viewers.md), "Customised pages": for a library, for instance,
+super and user get essentially the same page, and guests and shared
+accounts get its catalogue parts only. What is not is the detail beyond
+that — which columns, defaults, layout and wording each viewer gets — and
+the designs for it, which come from the owner. The same holds for every
+customised page: its general version is settled in that discussion, and its
+detail waits for this.
 
 ## Deployment
 
@@ -112,44 +128,25 @@ person writes a note. `app/services/pipelines/tabs.py:259/268/269`.
 
 ## Authorization and accounts
 
-Two auth items are open **by choice**, and neither blocks inviting somebody:
-**session lifetime** is a flat 30 days with no refresh and no revocation, and
-there is **no password reset** — an admin sets one at `/users`.
+The account and authorization rework is decided work, queued in
+[to-do-next.md](to-do-next.md); what is still undecided about it is in its
+design.
 
-**Self-registration by invite code is designed but not built.** The intended
-flow: an admin generates a single-use code that expires after 24 hours and
-hands it over; the invitee submits code, username and password to a public
-register endpoint; the account is created `pending` and cannot log in; an
-approval panel on `/system` lists pending requests, and approving one sets its
-role and access modes (still editable on `/users` afterwards). Admins keep the
-ability to set any user's password. The shape agreed so far:
+**Libraries cannot filter by content label.** The franchise library already
+receives each franchise's labels and only draws them as chips. A label
+filter is wanted — "only `ecchi`", "without `nsfw`" — and is not designed.
+The shape proposed so far: include and exclude; offer only the labels the
+viewer's mode can see; match inherited labels (a franchise's label counts
+for its entries), so the filter agrees with what the mode hides; no filter
+in `safe`, where every labelled entry is hidden. Undecided: every library,
+or the group libraries only.
 
-- `invite_code` table holding only a **hash** of each code (shown to the admin
-  once), with expiry, used-at/used-by and revoked-at. Consuming the code and
-  creating the account happen in one transaction, so a code cannot be spent
-  twice.
-- `users.status` (`pending` / `active`); accounts created on `/users` stay
-  `active` at once.
-- Invite codes and pending accounts do **not** travel on the Sheets Users tab;
-  the R2 `pg_dump` needs no change, since `hashed_password` is already bcrypt.
-- Hardening that belongs with a public signup form: a password policy (minimum
-  length, reject rather than truncate past bcrypt's 72 bytes), revoking
-  existing sessions when an admin resets a password, and rate limiting on
-  register and login.
-
-Four decisions are still the owner's: what a pending account sees on login
-(recommended: "awaiting approval" only after a correct password), whether
-reject deletes the account or keeps a record (recommended: delete), whether
-approval sets the role as well as access modes (recommended: both), and
-whether the hardening ships with it (recommended: yes). Email/phone and
-forgot-password come after this, and the hashed single-use token is the same
-mechanism a reset link would reuse.
-
-**The `guest` role has no `media_type.game`**, so a logged-out visitor sees an
-empty Games library. The `role_permission` rows were seeded before games
-existed; the other eight types are granted. This is a permissions decision
-rather than a bug to fix blind — grant it on `/roles` if guests should see
-games.
+**The `guest` role may lack `media_type.game`**, which shows a logged-out
+visitor an empty Games library. `role_permission` rows seeded before games
+existed miss it, and a role is topped up only when it holds nothing; the
+company development database has the grant, so it is a per-database fact.
+Guests are to see games: on `/roles`, check the `guest` role on each
+database and grant `media_type.game` where it is missing.
 
 **Two community-adjacent measurements are unanswered.** Does any endpoint return
 an entry's `system_id` for a type the viewer lacks? And the same for a
