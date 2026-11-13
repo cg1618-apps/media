@@ -205,9 +205,12 @@ Collision points with media-fd, both mechanical: `permissions.py` /
 `seed.py` (lock table and defaults) and `users.py` / `Users.jsx` (one field).
 Whoever lands second rebases.
 
-## Defaults being built (approved by media-00; owner's answers pending)
+## Decided by the owner (2026-11-13)
 
-Each is kept in ONE easily-changed place:
+All seven confirmed. Each still sits in one place. When this plan is
+deleted, they go to `docs/notes/decisions.md` with their reasons, and the
+behaviour goes to `docs/systems/requests.md`. Only the placement of
+"Report a problem" stays provisional, pending the owner's design.
 
 1. Requests do not travel on Sheets — no tab, nothing in Backup or Pull.
 2. A role change on `/users` resets the limit to the new role's default,
