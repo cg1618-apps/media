@@ -524,11 +524,15 @@ Super without the catalogue work.
 | Future Releases | ✓ | ✓ | ✓ | ✓ |
 | Seasonal | ✓ | ✓ | ✓ | ✓ |
 | Statistics | ✓ | ✓ | ✓ | ✓ |
-| Random Picker | — | — | ✓ | ✓ |
+| Random Picker | — | ✓ ¹ | ✓ | ✓ |
 | Plan | — | — | ✓ | ✓ |
 | Completions | — | — | ✓ | ✓ |
 
 The admin has none of them: it reads no catalogue.
+
+¹ Shared accounts get a Random Picker that differs from today's. **Many
+pages and features will be customised per viewer**, beyond being shown or
+hidden; that is discussed with the per-viewer layouts, after visibility.
 
 **Seasonal and Statistics need a version without personal data.** Both are
 built from the viewer's own list today — Seasonal sorts a season's anime
