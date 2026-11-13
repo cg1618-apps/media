@@ -92,7 +92,11 @@ from app.utils.formatter import (
     parse_from_sheet,
     parse_row_to_dict,
 )
-from app.utils.note_sections import MUSIC_STATUS_SECTION, section_by_key
+from app.utils.note_sections import (
+    MUSIC_STATUS_SECTION,
+    SCOPE_PERSONAL,
+    section_by_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1097,28 +1101,42 @@ def execute_pull_specific(
                 rows_skipped += 1
                 continue
 
-        # author_id is NOT NULL on all three of note, meme and quote, and it
-        # travels as a raw uuid. A user the sheet INSERTS here keeps that uuid
-        # (Users is not in DERIVED_IDENTITY_MINTED_PK), so most authors do
-        # resolve - but the `admin` account does not: app/main.py mints one on
-        # every machine, so the two never shared an id, and the username match
-        # in DERIVED_IDENTITY_KEYS keeps the local one and discards the
-        # sheet's. Every row the other machine's admin wrote therefore arrives
-        # naming a user that does not exist here. That, a blank cell - an older
-        # sheet, written before the column existed - or any other unknown id
-        # falls back to the admin rather than skipping the row: a line whose
-        # author is uncertain is still the line, and the sheet is its only
-        # copy. Without this the FK raises at the tab's commit and rolls back
-        # every row on it, which is how Pull All lost the whole Quote tab.
+        # author_id is NOT NULL on all three of note, meme and quote, and the
+        # tabs carry the author as `username` rather than as the uuid: users.id
+        # is minted per database - the `admin` account above all, which
+        # app/main.py mints on every machine - so the sheet's uuid would name
+        # nobody here. The same resolution Plan Next's username gets above.
+        #
+        # What differs is a miss. A name nobody here holds, a blank cell, or a
+        # sheet written before the column existed - which carries author_id as
+        # a uuid, tried first - falls back to the installation owner rather
+        # than skipping the row: a line whose author is uncertain is still the
+        # line, and the sheet is its only copy. Without the fallback the FK
+        # raises at the tab's commit and rolls back every row on it, which is
+        # how Pull All once lost the whole Quote tab.
         if tab_name in ("Note", "Meme", "Quote"):
+            author_name = parse_from_sheet(raw_header_dict.get("username"), str)
             author = clean_header_dict.get("author_id")
-            known = (
-                db.query(User).filter(User.id == author).first()
-                if author is not None
-                else None
+            if author_name:
+                known = (
+                    db.query(User).filter(User.username == author_name).first()
+                )
+                if known is None:
+                    logger.warning(
+                        "%s: no user named %r; row filed under the "
+                        "installation owner.",
+                        tab_name,
+                        author_name,
+                    )
+            else:
+                known = (
+                    db.query(User).filter(User.id == author).first()
+                    if author is not None
+                    else None
+                )
+            clean_header_dict["author_id"] = (
+                known.id if known is not None else _restore_owner_id(db)
             )
-            if known is None:
-                clean_header_dict["author_id"] = _restore_owner_id(db)
 
         # A copy row belongs to whoever bought it (Task 19). The sheet holds
         # one person's collection, so every row it restores is filed under the
@@ -1764,6 +1782,13 @@ def execute_pull_specific(
             rk_owner = _note_owner_filters(clean_header_dict)
             if rk_owner:
                 rk_filters = [*rk_owner, Note.section == singleton.key]
+                # A personal-scope singleton is one row per owner PER AUTHOR
+                # (ix_note_one_remark_per_owner carries author_id), so the
+                # fold must not land one account's remark on another's.
+                if singleton.scope == SCOPE_PERSONAL:
+                    rk_filters.append(
+                        Note.author_id == clean_header_dict.get("author_id")
+                    )
                 if singleton.one_per_kind:
                     rk_filters.append(Note.kind == clean_header_dict.get("kind"))
                 local_row = db.query(Note).filter(*rk_filters).first()
