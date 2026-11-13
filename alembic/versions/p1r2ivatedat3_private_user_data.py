@@ -24,7 +24,7 @@ Raw SQL rather than ORM models, which would break as soon as a later revision
 adds a column the model declares.
 
 Revision ID: p1r2ivatedat3
-Revises: v1i2ewperms34
+Revises: r1e2quests34
 Create Date: 2026-11-13 00:00:00.000000
 
 """
@@ -36,7 +36,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "p1r2ivatedat3"
-down_revision: Union[str, Sequence[str], None] = "v1i2ewperms34"
+down_revision: Union[str, Sequence[str], None] = "r1e2quests34"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

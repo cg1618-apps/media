@@ -143,6 +143,26 @@ def _row_username(row: Any, db: Session) -> Optional[str]:
     return user.username if user else None
 
 
+def _row_author_username(row: Any, db: Session) -> Optional[str]:
+    """
+    Who wrote this note, meme or quote, by name.
+
+    _row_username for the three tables whose user column is author_id: the
+    uuid is minted per database for the same reason users.id is, so it would
+    name nobody on the other machine.
+    """
+    if getattr(row, "author_id", None) is None:
+        return None
+    user = db.get(models.User, row.author_id)
+    return user.username if user else None
+
+
+AUTHOR_BY_USERNAME: dict[str, Any] = {
+    "drop_columns": ("author_id",),
+    "extra_columns": (("username", _row_author_username),),
+}
+
+
 def _user_role_name(row: Any, db: Session) -> Optional[str]:
     """
     The NAME of the role a user holds.
@@ -326,7 +346,9 @@ SHEET_TABS: tuple[SheetTab, ...] = (
             ("username", _row_username),
         ),
     ),
-    SheetTab("Quote", models.Quote, f.parse_quote_from_sheet),
+    # author_id is dropped for `username`, the way the per-user tabs drop
+    # user_id; Pull resolves it back (pull.py). Same for Meme and Note.
+    SheetTab("Quote", models.Quote, f.parse_quote_from_sheet, **AUTHOR_BY_USERNAME),
     # After every media tab: a casting reaches its entry by the FK-less
     # (media_type, entry_id) pair, so each entry must already exist.
     SheetTab(
@@ -341,8 +363,8 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_character_casting_voice_from_sheet,
     ),
     # Memes name quotes, so after them.
-    SheetTab("Meme", models.Meme, f.parse_meme_from_sheet),
-    SheetTab("Note", models.Note, f.parse_note_from_sheet),
+    SheetTab("Meme", models.Meme, f.parse_meme_from_sheet, **AUTHOR_BY_USERNAME),
+    SheetTab("Note", models.Note, f.parse_note_from_sheet, **AUTHOR_BY_USERNAME),
     # The Resources page. Cites nothing outside itself; its only reference is
     # its own parent_id, which is DEFERRABLE, so a child row may precede its
     # parent on the tab and still restore.

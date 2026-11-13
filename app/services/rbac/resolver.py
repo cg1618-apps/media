@@ -27,6 +27,8 @@ from app.services.rbac.permissions import (
     PERM_ADMIN_AUTHZ,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
+    PERM_MANAGE_REQUESTS,
+    PERM_SELF_REQUESTS,
     PERM_VIEW_ENTITIES,
     PERM_VIEW_EXTRAS,
     PERM_VIEW_SEARCH,
@@ -291,6 +293,13 @@ require_manage_pipelines = require_permission(PERM_MANAGE_PIPELINES)
 require_view_entities = require_permission(PERM_VIEW_ENTITIES)
 require_view_search = require_permission(PERM_VIEW_SEARCH)
 require_view_extras = require_permission(PERM_VIEW_EXTRAS)
+
+# Requests and reports: the only two gates /api/requests uses. Filing is a
+# self.* permission, so the root role does not hold it (Viewer.has() does not
+# short-circuit that family) - an administrative account handles requests and
+# files none.
+require_file_requests = require_permission(PERM_SELF_REQUESTS)
+require_handle_requests = require_permission(PERM_MANAGE_REQUESTS)
 
 
 def viewer_user_id(viewer) -> Optional[UUID]:

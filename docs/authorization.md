@@ -58,8 +58,10 @@ true, including for permissions that do not exist yet.
 | `view.entities`, `view.search`, `view.extras`, `view.personal` | — (free choice) | yes | **locked on** | implicit | — |
 | `self.list` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `self.personal_notes` | **locked off** | yes | **locked on** | **never implicit** | — |
+| `self.requests` | **locked off** | **locked on** | **locked on** | **never implicit** | — |
 | `manage.catalog` | **locked off** | — | **locked on** | implicit | — |
 | `manage.pipelines` | **locked off** | **locked off** | **locked on** | implicit | **locked off** |
+| `manage.requests` | **locked off** | **locked off** | **locked on** | implicit | — |
 | `admin.authz` | **locked off** | **locked off** | **locked off** | implicit | **locked off** |
 
 - **A custom role is created empty.** Every cell is `—` until an admin grants
@@ -76,7 +78,8 @@ true, including for permissions that do not exist yet.
   **409**, and so does a save that drops a locked-on one.
 - **`admin` never holds `self.*`, implicitly or otherwise**, so an
   administrative account keeps no list, plan queue, season ratings, game
-  copies or personal notes. An explicit grant still wins. See
+  copies or personal notes, and files no requests - it handles them, through
+  `manage.requests`. An explicit grant still wins. See
   [The admin account holds no user data](#the-admin-account-holds-no-user-data).
 - **`user` and `super` are derived, not restated**:
   `default_user_permissions()` builds on `default_guest_permissions()` and
@@ -103,7 +106,8 @@ never hold. A permission in neither set is a free choice.
 | `admin` (any root role) | everything except `self.*` | `self.*` | nothing |
 | `super` | everything except `admin.authz` | `admin.authz` | nothing |
 | `guest` | — | `admin.*`, `manage.*`, `self.*` | `media_type.*`, `view.*` |
-| `user`, every custom role | — | `admin.authz`, `manage.pipelines` | `manage.catalog`, `self.*`, `media_type.*`, `view.*` |
+| `user` | `self.requests` | `admin.authz`, `manage.pipelines`, `manage.requests` | `manage.catalog`, `self.list`, `self.personal_notes`, `media_type.*`, `view.*` |
+| every custom role | — | `admin.authz`, `manage.pipelines` | `manage.catalog`, `manage.requests`, `self.*`, `media_type.*`, `view.*` |
 
 - **`admin.authz` is grantable to nothing.** The root short-circuit is
   the only way to hold it: handing out the permission to change who may do
@@ -119,6 +123,10 @@ never hold. A permission in neither set is a free choice.
   `manage.*` grant would hand an anonymous visitor the collection.
 - **`super` means everything except changing authorization**, so there is
   nothing on that role to tick or untick at all.
+- **A member always files requests and never handles them.** Filing is fixed
+  for `user`; the inbox reads every account's requests, so it is not a
+  member's. Both locks are keyed on the role's name, so a custom role decides
+  both freely.
 - **One table, three readers.** `RoleResponse` serves `locked_on` /
   `locked_off`, so the editor draws those boxes disabled; `PUT
   /api/roles/{id}/permissions` and `POST /api/roles/` refuse a payload that
@@ -204,6 +212,8 @@ short-circuit deliberately does not cover.
 | rate a season | — | yes | yes | **never** |
 | read their own account settings — username and role | — (no account) | yes | yes | yes, through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn for `admin` |
 | write a personal note — a review or a remark | — | yes | yes | **never** |
+| file a request or report, and read and edit their own (`self.requests`) | — | **always** | **always** | **never** |
+| handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **always** | implicit |
 | write the catalogue — entries, groups, people, credits, options, relations, watch orders, quotes, memes, catalogue notes, the Resources page | **409 if granted** | grantable | **always** | implicit |
 | run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | **409 if granted** | **always** | implicit |
 | restore accounts, content labels and label assignments on a Pull | — | — | **no** — those four tabs are skipped | implicit |
@@ -222,9 +232,10 @@ short-circuit deliberately does not cover.
 - **`guest` cannot hold any of these**: granting one answers **409**, because
   every anonymous request resolves to that role. Nor can it hold `self.*` — it
   has no account to own rows in.
-- **`user` and a custom role may be granted `manage.catalog`**, and nothing
-  else from this block. Running a pipeline is refused there because one Pull
-  All overwrites every table, accounts and role assignments included.
+- **`user` and a custom role may be granted `manage.catalog`**, and a custom
+  role `manage.requests` too; nothing else from this block. Running a pipeline
+  is refused there because one Pull All overwrites every table, accounts and
+  role assignments included.
 
 ### What each mode lets a session SEE
 
@@ -304,10 +315,11 @@ handed the catalogue, or vice versa:
 | `admin.authz` | may **change who may do what** — roles, accounts, and the content-label **vocabulary** (minting, renaming, deleting a label) | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 | `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, a game's choice graph, catalogue notes, the Resources page, and **which labels an entry or franchise carries** | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.requests` | may **handle requests** — the request inbox: read every account's requests, set their status, delete them | `MANAGE_PERMISSION_KEYS` in the same module |
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
 | `field_group.<key>` | may see the fields in one `FIELD_GROUPS` entry | `app/services/rbac/field_groups.py` |
 | `label.<key>` | may see entries and franchises carrying that content label | `content_label.key`, read at request time |
-| `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes` | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+| `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes`, `self.requests` | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 | `view.<key>` | may **read** one part of the site beyond the libraries and their detail pages — see the table below | `VIEW_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
 
 The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
@@ -350,15 +362,15 @@ hyphenated keys survive.
 
 ### Roles
 
-Four roles are seeded by `app/services/rbac/seed.py`, and the app reads three
-of them by name (`guest`, `user`, `admin`; `super` is reached only through its
-grants, the way any custom role is):
+Four roles are seeded by `app/services/rbac/seed.py`, and the app reads all
+four by name - the lock table keys on `guest`, `user` and `super`, and the
+request limit on `user` and `super` (`app/services/domain/requests.py`):
 
 | Name | `sort_order` | System | Root | Holds |
 |---|---|---|---|---|
 | `guest` | 0 | yes | no | `default_guest_permissions()` — every media type, and nothing else. Field groups are the mode axis, not this one |
-| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus the four `view.*` and `self.list` and `self.personal_notes` |
-| `super` | 75 | yes | no | `default_user_permissions()` plus `manage.catalog` and `manage.pipelines` — every catalogue capability, deliberately **not** `admin.authz` |
+| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus the four `view.*` and `self.list`, `self.personal_notes` and `self.requests` |
+| `super` | 75 | yes | no | `default_user_permissions()` plus `manage.catalog`, `manage.pipelines` and `manage.requests` — every catalogue capability, deliberately **not** `admin.authz` |
 | `admin` | 100 | yes | **yes** | nothing explicitly; a root role holds every permission implicitly **except `self.*`**, which is ownership rather than privilege and so has no implicit holder |
 
 `super` is the helper account the three named permissions make possible: it
@@ -610,7 +622,9 @@ keeping:
 - `app/services/rbac/resolver.py` binds three capability gates at import time,
   one per capability: `require_admin_authz`, `require_manage_catalog`,
   `require_manage_pipelines` — each `require_permission(<name>)`, else
-  **401**. There is no single "is an admin" dependency, deliberately: routers
+  **401**. The view gates and the two request gates, `require_file_requests`
+  (`self.requests`) and `require_handle_requests` (`manage.requests`), are
+  bound the same way. There is no single "is an admin" dependency, deliberately: routers
   depend on these by name rather than calling `require_permission` inline, so
   swapping a router's gate is a one-word edit and grepping for a capability
   finds every route holding it. A valid token for a deleted user, or for a
@@ -956,6 +970,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | search | `routers/search.py` — behind `view.search`; entries, franchises, series and the person/studio/publisher buckets, each bucket passed through [Personal fields](#personal-fields-personal_gatepy) as its own list route is |
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
 | account settings (`/api/account/settings`) | `routers/account.py` - a read of the caller's own username and role; no path takes a user id, and there is no write |
+| requests and reports (`/api/requests`) | `routers/requests.py` — filing and the caller's own behind `self.requests`, the inbox behind `manage.requests`. **No object check**: a target must exist, not be visible - see [Accepted residuals](#accepted-residuals) |
 | `data_control` / `system` GETs | behind `require_manage_pipelines` |
 | Pull's four authorization tabs (`Users`, `Content Label`, `Media Content Label`, `Franchise Content Label`) | `routers/data_control.py` passes `may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ)` into `pull.py`. Without it each returns `status: "skipped"` and is named in `unresolved_refs`, so the rest of the restore still lands and the gap is visible. Stops a `manage.pipelines` holder promoting themselves by typing `admin` into the sheet's Users tab. **Backup is not gated** - it writes local -> sheet and cannot change this database |
 
@@ -1063,6 +1078,13 @@ is a **422**, checked before anything is deleted - see
   served by `routers/covers.py`, which asks the same gates the API does before
   opening the file.
 - Franchise/series hubs may render empty rather than 404 when all children are hidden.
+- **A request names its target whatever anyone's mode.** Filing checks that
+  the target exists, not that the filer may see it, and the inbox serves every
+  request's target name and link to its handler unfiltered. So a filer can
+  report an entry their mode hides, and a `super` sitting in a narrow mode
+  sees the name of a hidden entry somebody reported. Both readers already hold
+  the id or the inbox, and the link still 404s for a session that may not see
+  it.
 - A newly created content label reaches **`unrestricted` and no other mode**,
   so it hides its entries from every narrower session until somebody carries
   it at `/access-modes`. Fail-closed everywhere it can be: "hidden from

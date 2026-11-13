@@ -167,6 +167,7 @@ export default function Nav() {
   // view.search, the key App.jsx's /search route asks. Without it the
   // desktop slot, the phone button and its sheet are all absent.
   const canSearch = has("view.search");
+  const canFileRequests = has("self.requests");
   const sections = visibleSections(NAV_SECTIONS, has, (type) =>
     canSeeGatedType(auth, type),
   );
@@ -344,6 +345,18 @@ export default function Nav() {
                     ? `Backing up${backupProgress ? ` ${backupProgress}` : ""}…`
                     : "Back up"}
                 </button>
+              )}
+              {/* The account's own requests sit with the account, beside log
+                  out, not in a tab. self.requests is the key App.jsx's
+                  /requests route asks, so the admin account - which files
+                  nothing - is not offered it. */}
+              {canFileRequests && (
+                <Link
+                  to="/requests"
+                  className="hidden sm:inline-flex items-center px-2 py-1.5 text-xs text-ink-text/80 hover:text-ink-text hover:bg-ink-text/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  Requests
+                </Link>
               )}
               {username ? (
                 <button
@@ -556,6 +569,16 @@ export default function Nav() {
                 >
                   Back up data
                 </button>
+              )}
+
+              {canFileRequests && (
+                <Link
+                  to="/requests"
+                  onClick={() => setMobileOpen(false)}
+                  className={DRAWER_ROW}
+                >
+                  Requests
+                </Link>
               )}
 
               {username ? (

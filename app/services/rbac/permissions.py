@@ -55,7 +55,7 @@ PERMISSION_FAMILIES: tuple[str, ...] = (
 )
 
 ADMIN_PERMISSION_KEYS: tuple[str, ...] = ("authz",)
-MANAGE_PERMISSION_KEYS: tuple[str, ...] = ("catalog", "pipelines")
+MANAGE_PERMISSION_KEYS: tuple[str, ...] = ("catalog", "pipelines", "requests")
 
 ADMIN_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "authz": (
@@ -80,6 +80,11 @@ MANAGE_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "Backup, Pull, Fill, Replace and Calculate. Separate from the "
         "catalogue because a single Pull All overwrites every table.",
     ),
+    "requests": (
+        "Handle Requests",
+        "The request inbox: read every member's requests and reports, mark "
+        "them done or declined with a response, reopen them, and delete them.",
+    ),
 }
 
 
@@ -96,11 +101,12 @@ def manage_perm(key: str) -> str:
 PERM_ADMIN_AUTHZ = admin_perm("authz")
 PERM_MANAGE_CATALOG = manage_perm("catalog")
 PERM_MANAGE_PIPELINES = manage_perm("pipelines")
+PERM_MANAGE_REQUESTS = manage_perm("requests")
 
 # Declared here rather than derived from a table: like every other permission
 # these name code (a router dependency), so a row with no code behind it would
 # be inert.
-SELF_PERMISSION_KEYS: tuple[str, ...] = ("list", "personal_notes")
+SELF_PERMISSION_KEYS: tuple[str, ...] = ("list", "personal_notes", "requests")
 
 SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "list": (
@@ -112,6 +118,11 @@ SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "Own Personal Notes",
         "Write your own personal-scope notes on an entry. Catalogue notes stay "
         "admin-only.",
+    ),
+    "requests": (
+        "Own Requests",
+        "File requests and reports - a missing entry, wrong or incomplete "
+        "data, a bug - and read and edit your own while they are open.",
     ),
 }
 
@@ -155,6 +166,7 @@ def self_perm(key: str) -> str:
 
 PERM_SELF_LIST = self_perm("list")
 PERM_SELF_PERSONAL_NOTES = self_perm("personal_notes")
+PERM_SELF_REQUESTS = self_perm("requests")
 
 
 def view_perm(key: str) -> str:
@@ -231,6 +243,7 @@ def is_valid(db: "Session", permission: str) -> bool:
 
 SUPER_ROLE_NAME = "super"
 GUEST_ROLE_NAME = "guest"
+USER_ROLE_NAME = "user"
 
 
 def _self_family() -> frozenset[str]:
@@ -266,7 +279,15 @@ def locked_permissions(
         )
     if role_name == SUPER_ROLE_NAME:
         return frozenset(every - {PERM_ADMIN_AUTHZ}), frozenset({PERM_ADMIN_AUTHZ})
-    # `user` and every custom role. manage.catalog and the self family are
-    # free choices here; running a pipeline is not, because one Pull All
-    # overwrites every table including the accounts and role assignments.
-    return frozenset(), frozenset({PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES})
+    # Running a pipeline is never a free choice below super, because one Pull
+    # All overwrites every table including the accounts and role assignments.
+    refused = {PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES}
+    if role_name == USER_ROLE_NAME:
+        # Filing requests is fixed for a member, and handling them is not a
+        # member's: the inbox reads every account's requests.
+        return frozenset({PERM_SELF_REQUESTS}), frozenset(
+            refused | {PERM_MANAGE_REQUESTS}
+        )
+    # Every custom role. manage.catalog, manage.requests and the self family
+    # are free choices here.
+    return frozenset(), frozenset(refused)

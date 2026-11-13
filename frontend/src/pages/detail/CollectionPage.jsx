@@ -49,6 +49,7 @@ import {
 } from "../../components/ui/primitives";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import RemarkModal from "../../components/modals/RemarkModal";
+import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import CollectionNotes from "./CollectionNotes";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
@@ -253,6 +254,13 @@ export default function CollectionPage() {
       <Crumbs
         trail={[{ to: "/library/collection", label: "Collection" }]}
         current={name}
+        action={
+          <ReportProblemButton
+            targetType="collection"
+            targetId={collection.system_id}
+            targetLabel={name}
+          />
+        }
       />
 
       {isAdmin && <AdminStrip editId={collection.system_id} />}

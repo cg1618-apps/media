@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-11-12
+Last verified: 2026-11-13
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -41,6 +41,7 @@ right and the doc needs the fix.
 | [systems/quotes-memes.md](systems/quotes-memes.md) | quotes and memes, pickers, pages |
 | [systems/resources.md](systems/resources.md) | the site-wide Resources page: groups and items, reorder and move, the Resources tab |
 | [systems/credits-and-tags.md](systems/credits-and-tags.md) | people, studios, credits, tags (Tier 3 entities) |
+| [systems/requests.md](systems/requests.md) | requests and reports: filing, the open-request limit, editing your own, the inbox |
 
 ## Access
 

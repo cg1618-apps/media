@@ -12,6 +12,21 @@ import { useToast } from "../../hooks/useToast";
 
 const BLANK = { username: "", password: "", role_id: "" };
 
+// Roles whose open-request limit is fixed at "none" (UNLIMITED_ROLES in
+// app/services/domain/requests.py): the server answers 422 to a limit on one.
+const UNLIMITED_ROLE_NAMES = new Set(["super"]);
+
+// Whether an account in `role` has a limit to set. Not for super, which is
+// never limited, and not for the root role, which files nothing.
+function hasRequestLimit(role) {
+  return Boolean(role) && !role.is_root && !UNLIMITED_ROLE_NAMES.has(role.name);
+}
+
+// The limit field's text as the API's value: blank is no limit (null).
+function limitValue(text) {
+  return text.trim() === "" ? null : Number(text);
+}
+
 export default function Users() {
   const { showToast } = useToast();
   const [users, setUsers] = useState([]);
@@ -19,7 +34,11 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState(BLANK);
   const [editingId, setEditingId] = useState(null);
-  const [editDraft, setEditDraft] = useState({ role_id: "", password: "" });
+  const [editDraft, setEditDraft] = useState({
+    role_id: "",
+    password: "",
+    open_request_limit: "",
+  });
   const [modes, setModes] = useState([]);
   const [modesFor, setModesFor] = useState(null);
 
@@ -79,6 +98,14 @@ export default function Users() {
     if (editDraft.role_id && editDraft.role_id !== user.role_id)
       payload.role_id = editDraft.role_id;
     if (editDraft.password) payload.password = editDraft.password;
+    // Sent only when it changed: left out, a role change resets the limit to
+    // the new role's default on the server.
+    const editedRole = roles.find((r) => r.system_id === editDraft.role_id);
+    if (hasRequestLimit(editedRole)) {
+      const limit = limitValue(editDraft.open_request_limit);
+      if (limit !== (user.open_request_limit ?? null))
+        payload.open_request_limit = limit;
+    }
     if (Object.keys(payload).length === 0) {
       setEditingId(null);
       return;
@@ -208,6 +235,27 @@ export default function Users() {
                       }
                       className="border rounded px-2 py-1 text-xs"
                     />
+                    {hasRequestLimit(
+                      roles.find((r) => r.system_id === editDraft.role_id),
+                    ) && (
+                      <label className="text-[11px] text-text-faint">
+                        Open request limit
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="No limit"
+                          value={editDraft.open_request_limit}
+                          onChange={(e) =>
+                            setEditDraft({
+                              ...editDraft,
+                              open_request_limit: e.target.value,
+                            })
+                          }
+                          className="mt-0.5 block w-full border rounded px-2 py-1 text-xs"
+                        />
+                      </label>
+                    )}
                   </div>
                 ) : (
                   <span className="text-text-muted">{user.role_name}</span>
@@ -261,6 +309,10 @@ export default function Users() {
                         setEditDraft({
                           role_id: user.role_id ?? roles[0]?.system_id ?? "",
                           password: "",
+                          open_request_limit:
+                            user.open_request_limit == null
+                              ? ""
+                              : String(user.open_request_limit),
                         });
                       }}
                       className="text-brand text-xs mr-3"

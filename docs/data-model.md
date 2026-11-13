@@ -28,6 +28,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Image library](#image-library): image, image_attachment
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item, watch_order_follow
 - [Planning](#planning): plan_next
+- [Requests and reports](#requests-and-reports): user_request
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
 - [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode, user_access_mode_denial
 - [Logs](#logs): data_control_logs, deleted_record
@@ -2003,6 +2004,44 @@ They remain the API's wire format and the Google Sheets tab's headers.
 
 ---
 
+## Requests and reports
+
+### `user_request`
+
+One request or report a member files - a missing entry, wrong or incomplete
+data, a bug, anything else - and where the inbox has got with it. Model:
+`UserRequest` (`app/models/user_request.py`). Named `user_request` because
+`fastapi.Request` is imported across the routers. The rules are in
+[systems/requests.md](systems/requests.md).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK, indexed |
+| `author_id` | UUID | yes | | FK `users.id` ON DELETE **SET NULL** (`fk_user_request_author`). Null once the account is deleted: its requests stay in the inbox as from a deleted account |
+| `kind` | String | no | | `new_entry`, `data_error`, `incomplete_data`, `bug` or `other` (`REQUEST_KINDS`); `ck_user_request_kind` |
+| `target_type` | String | yes | | A `REQUEST_TARGET_TABLES` key: a media type, a grouping tier, or `studio` / `publisher` / `person` / `character` / `identity` |
+| `target_id` | UUID | yes | | The target's `system_id`. No FK - see [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys) |
+| `target_label` | String | yes | | The target's name when the request was filed, so a request whose target was deleted still says what it was about |
+| `page_path` | String | yes | | The SPA path it was filed from; a bug report's page address |
+| `description` | Text | no | | The filer's |
+| `remark` | Text | yes | | The filer's optional remark |
+| `status` | String | no | `open` (server default) | `open`, `done` or `declined` (`REQUEST_STATUSES`); `ck_user_request_status` |
+| `response` | Text | yes | | The handler's remark on closing it |
+| `handled_by_id` | UUID | yes | | FK `users.id` ON DELETE SET NULL (`fk_user_request_handled_by`). Who closed it; null while open |
+| `handled_at` | DateTime | yes | | When it was closed; null while open |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `ck_user_request_target_pair` - `target_type` and `target_id` are
+both set or both null. Indexes: `ix_user_request_author_status` on
+`(author_id, status)` (the limit count and My requests) and
+`ix_user_request_status_created` on `(status, created_at)` (the inbox).
+
+**Not on the Sheets backup.** No tab carries it, so neither Backup nor Pull
+touches it: the requests live on the box, inside its own database dumps, and a
+development database has none.
+
+---
+
 ## Vocabulary and configuration
 
 ### `system_option`
@@ -2189,14 +2228,16 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 | `hashed_password` | String | no | | |
 | `role_id` | UUID | **no** | | FK `role.system_id` ON DELETE **RESTRICT**, indexed |
 | `is_installation_owner` | Boolean | **no** | `false` (server default) | Whose rows a Sheets restore and the Calculate pipeline file under when nobody is logged in - `installation_owner_id()`. **Not a permission** and not on any request path. Partial unique index `ix_one_installation_owner` over a constant, so at most one account in the table holds it and any number hold false. It is data rather than a name in code so that moving the collection to another account is a row edit, and so the answer travels between the two machines on the Sheets `Users` tab - `parse_user_from_sheet` names it explicitly, because that parser is a projection and not a column sweep. |
+| `open_request_limit` | Integer | yes | | How many **open** requests the account may hold at once; NULL is no limit. CHECK `ck_users_open_request_limit_non_negative` (≥ 0). Set to the role's default when the account is created or changes role (15 for `user`, NULL otherwise) and adjustable on the Users page; never enforced, and never settable, for `super`. Travels on the Sheets `Users` tab (`parse_user_from_sheet` names it); a sheet with no header for it leaves the local value alone. |
 
 No timestamps. Relationship `role_ref` (joined load). Virtual `role`. There
 is no visibility flag: everything per user is private to its account.
 
 **Four** roles are seeded and read by name - `guest`, `user`, `super`,
 `admin`; see [authorization.md](authorization.md#roles). An account on the
-`user` role holds guest's reads plus `self.list` and `self.personal_notes`;
-`super` adds both `manage.*` and is deliberately **not** `is_root`.
+`user` role holds guest's reads, the `view.*` family, and `self.list`,
+`self.personal_notes` and `self.requests`; `super` adds the three `manage.*`
+and is deliberately **not** `is_root`.
 
 ### `content_label`
 
@@ -2486,20 +2527,22 @@ from whichever column is set, so the API shape is the pair even though the
 storage is not; being properties rather than columns, they are absent from the
 Google Sheets row.
 
-What still stores a **(type, id) pair** with no FK are the two tables that
-point at entries on both ends. They resolve at read time through
+What still stores a **(type, id) pair** with no FK are the tables that point
+at entries on both ends, and `user_request`, whose target may be an entry, a
+tier or an entity. They resolve at read time through
 `app/utils/media_resolver.py`:
 
 | Registry | Keys | Still used by |
 |---|---|---|
 | `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` and `character_casting_voice` (`CASTING_MEDIA_TYPES` only) |
 | `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | Nothing stores a pair here. `note` and `meme` read it to **resolve a row's display data** and to translate the API's `owner_type` / `owner_id` parameters onto their four owner columns; `plan_next` does the same over its three. |
+| `REQUEST_TARGET_TABLES` = `OWNER_TABLES` + `ENTITY_TABLES` (`studio`, `publisher`, `person`, `character`, `identity`) | | `user_request` (`target_type`, `target_id`). A deleted target resolves `missing`, and the request falls back to its stored `target_label`. |
 
 `resolve_entries()` issues at most one query per involved table. A pair whose
 row does not exist resolves to `missing=True` rather than vanishing, so a
 dangling reference stays visible and fixable in the admin pages. Consequence:
 **deleting an entry does not cascade** to `media_relation`,
-`character_casting` or `character_casting_voice`. Every other table listed below cascades in the database.
+`character_casting`, `character_casting_voice` or `user_request`. Every other table listed below cascades in the database.
 
 ### `note`, `quote` and `meme`: who wrote it
 

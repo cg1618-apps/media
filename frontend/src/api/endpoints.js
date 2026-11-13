@@ -349,6 +349,19 @@ export const endpoints = {
     reorder: () => "/api/resources/reorder",
   },
 
+  // Requests and reports. `mine`, `create` and `update` are the filer's
+  // (self.requests); `inbox`, `summary`, `status` and `remove` the handler's
+  // (manage.requests).
+  requests: {
+    mine: () => "/api/requests/mine",
+    create: () => "/api/requests",
+    update: (id) => `/api/requests/${id}`,
+    inbox: () => "/api/requests",
+    summary: () => "/api/requests/summary",
+    status: (id) => `/api/requests/${id}/status`,
+    remove: (id) => `/api/requests/${id}`,
+  },
+
   // The Add tabs' external pickers. CRUD for each type comes from
   // resource(type); these groups hold the endpoints that are not CRUD. Every
   // search answers ExternalSearchResult rows (external_id, link, title,

@@ -1,6 +1,6 @@
 # Your account
 
-Last verified: 2026-11-12
+Last verified: 2026-11-13
 
 ## What this is for
 
@@ -41,6 +41,27 @@ into an account you are locked out of is through the admin.
 Your list, ratings, plan, game copies and personal notes are yours; the
 works themselves are the shared catalogue. Which is which, section by
 section, is [catalogue.md](catalogue.md).
+
+## Requests and reports
+
+If something is missing, wrong or broken, tell the admin from inside the
+site.
+
+1. On an entry, group, studio, publisher, person or character page, choose
+   **Report a problem**. The request is then about that page. For anything
+   else, open **Requests** in the header and choose **New request**.
+2. Pick what kind it is: a new entry request, a data error, incomplete data,
+   a bug, or something else. Describe it, and add a remark if you like. For
+   a bug, you can give the address of the page where it happened.
+3. **Requests** in the header lists your own requests, each with its status
+   (open, done or declined) and any answer from whoever handled it.
+
+While a request is open you can change its description and remark. Once
+it is done or declined it is locked. You cannot delete a request.
+
+You can have only a limited number of requests open at once (15 for a new
+account). When you reach it, wait until one is handled. Nobody else sees
+your requests except the admin and the owner's account, which handle them.
 
 ## Signing in
 

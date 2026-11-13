@@ -1820,6 +1820,9 @@ def parse_user_from_sheet(raw: dict) -> dict:
         "id": parse_from_sheet(raw.get("id"), UUID),
         "username": parse_from_sheet(raw.get("username"), str),
         "is_installation_owner": bool(is_owner),
+        # NULL is no limit, so a blank cell is NULL, not 0. A sheet with no
+        # header for it leaves the local value alone (pull drops the key).
+        "open_request_limit": parse_from_sheet(raw.get("open_request_limit"), int),
     }
 
 

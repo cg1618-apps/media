@@ -258,6 +258,14 @@ from app.schemas.tv_show import (
     TVShowSheetSync,
     TVShowUpdate,
 )
+from app.schemas.user_request import (
+    UserRequestCreate,
+    UserRequestResponse,
+    UserRequestStatusUpdate,
+    UserRequestSummary,
+    UserRequestTarget,
+    UserRequestUpdate,
+)
 from app.schemas.watch_order import (
     WatchOrderCandidate,
     WatchOrderEntryFollow,
@@ -434,6 +442,12 @@ __all__ = [
     "WatchOrderListResponse",
     "WatchOrderListDetailResponse",
     "WatchOrderReorder",
+    "UserRequestCreate",
+    "UserRequestResponse",
+    "UserRequestStatusUpdate",
+    "UserRequestSummary",
+    "UserRequestTarget",
+    "UserRequestUpdate",
     "WatchOrderCandidate",
     "WatchOrderListSheetSync",
     "WatchOrderItemSheetSync",

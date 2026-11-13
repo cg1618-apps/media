@@ -25,9 +25,12 @@ from app.services.rbac.permissions import (
     GUEST_ROLE_NAME,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
+    PERM_MANAGE_REQUESTS,
     PERM_SELF_LIST,
     PERM_SELF_PERSONAL_NOTES,
+    PERM_SELF_REQUESTS,
     SUPER_ROLE_NAME,
+    USER_ROLE_NAME,
     VIEW_PERMISSION_KEYS,
     locked_permissions,
     media_type_perm,
@@ -35,12 +38,12 @@ from app.services.rbac.permissions import (
 )
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
-# Both names are owned by permissions.py, which keys the lock table on them.
+# These names are owned by permissions.py, which keys the lock table on them.
 GUEST_ROLE = GUEST_ROLE_NAME
 ADMIN_ROLE = "admin"
 # A signed-in member. Not an administrator and not a second kind of admin:
-# guest reads, the view.* reads a guest lacks, and the two self.* writes.
-USER_ROLE = "user"
+# guest reads, the view.* reads a guest lacks, and the three self.* writes.
+USER_ROLE = USER_ROLE_NAME
 # Everything except the ability to change who may do what. NOT is_root:
 # the point of the role is that its grant set is finite and inspectable, so a
 # permission minted in code reaches it only when someone grants it.
@@ -61,8 +64,9 @@ def default_guest_permissions() -> set[str]:
 def default_user_permissions() -> set[str]:
     """
     A signed-in member's grants: everything a guest may read, the whole view
-    family (the parts of the site a guest does not see), and the two
-    permissions over their own rows.
+    family (the parts of the site a guest does not see), and the three
+    permissions over their own rows - their list, their personal notes and
+    their requests.
 
     Derived from default_guest_permissions() rather than restated, so a media
     type added later reaches both roles at once.
@@ -70,14 +74,14 @@ def default_user_permissions() -> set[str]:
     return (
         default_guest_permissions()
         | {view_perm(key) for key in VIEW_PERMISSION_KEYS}
-        | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES}
+        | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES, PERM_SELF_REQUESTS}
     )
 
 
 def default_super_permissions() -> set[str]:
     """
-    A super account: everything a signed-in member has, plus both management
-    permissions. Derived from default_user_permissions() rather than restated,
+    A super account: everything a signed-in member has, plus the three
+    management permissions. Derived from default_user_permissions() rather than restated,
     so a media type or field group added later reaches this role too.
 
     admin.authz is deliberately absent. That is the whole distinction between
@@ -86,6 +90,7 @@ def default_super_permissions() -> set[str]:
     return default_user_permissions() | {
         PERM_MANAGE_CATALOG,
         PERM_MANAGE_PIPELINES,
+        PERM_MANAGE_REQUESTS,
     }
 
 
