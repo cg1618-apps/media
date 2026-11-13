@@ -24,11 +24,12 @@ it appears. Everything else works today.
   [Getting an account](#getting-an-account).
 - **The admin** — the owner's account. It runs the site and keeps no list or
   notes of its own.
-
-*Not available yet:* **shared accounts** — one login several people use,
-handed out by the admin. You will be able to browse and send requests and
-reports, but not change its password, and anything sent from it will show
-the shared account as its author.
+- **A shared account** — one login several people use, handed out by the
+  admin: `shared-normal` or `shared-borderline`, each fixed at its own
+  content mode. You can browse and send requests and reports, but not change
+  its password, and keep no list or notes on it. Anything sent from it shows
+  the shared account as its author, and everyone using that login sees its
+  requests.
 
 What each kind of visitor will be able to see, page by page, is
 [viewers.md](viewers.md).
@@ -156,8 +157,12 @@ disabling your account. There is no separate "sign out everywhere".
 
 ## For the admin
 
-- **Create an account** — on `/users`, with a username, password, role and
-  access modes. It works at once.
+- **Create an account** — on `/users`, with a username, password, role
+  (**User** or **Super**) and access modes. It works at once.
+- **Hand out a shared account** — `shared-normal` and `shared-borderline`
+  exist on every installation, but nobody can sign in to either until you
+  set its password on `/users`. Its role and mode are fixed, and it cannot be
+  deleted; disable it to stop it being used.
 - **Set a password** — `/users` sets any account's password, and signs
   that account out everywhere. Setting your **own** password there keeps
   this browser signed in and signs out your other devices.

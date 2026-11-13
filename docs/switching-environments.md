@@ -239,7 +239,7 @@ its fixture runs `DROP SCHEMA public CASCADE`.
 | `venv/`, `node_modules/`, `frontend_dist/` | **nothing** | rebuilt locally on each machine |
 | Cover images (`static/covers/`) | **nothing** | Local disk is the only cover storage there is, and the folder is gitignored, so each machine holds its own copy (a few hundred MB). They are not in the sheet either. Rebuild them where they are missing with `/system` → Calculate → **download missing covers**, which re-runs the autofills for every row whose file is gone |
 | Accounts and everybody's list rows | Google Sheets | the `Users` and `User Media List` tabs. **Passwords do not travel** — an account restored here needs a password set at `/users` before it can be logged into |
-| Roles and their grants | **nothing** | `ensure_rbac_seed` recreates guest, user and admin anywhere; a role added or a grant removed by hand is per-machine. Content *labels* do travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |
+| Roles and their grants | **nothing** | `ensure_rbac_seed` recreates the five roles anywhere, and `ensure_shared_accounts` the two shared accounts; a grant removed by hand is per-machine. Content *labels* do travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |
 
 ### The one hard rule
 

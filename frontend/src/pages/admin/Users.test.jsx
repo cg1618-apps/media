@@ -455,3 +455,108 @@ describe("the open request limit", () => {
     expect(JSON.parse(patches()[0][1].body)).toEqual({ password: "pw" });
   });
 });
+
+/**
+ * The five fixed roles. Only `user` and `super` are offered as an account's
+ * role; an admin or shared account keeps its role, and a shared account's mode
+ * is fixed and it cannot be deleted. Every refusal is paired with the user
+ * row on the same page, so a green proves the role did the hiding rather than
+ * the control being absent everywhere.
+ */
+describe("the fixed roles on /users", () => {
+  // All five, in the server's sort order, so a filter that let any of the
+  // other three through would show up as an extra option.
+  const FIVE_ROLES = [
+    { system_id: "r-guest", name: "guest", label: "Guest", is_root: false },
+    { system_id: "r-shared", name: "shared", label: "Shared", is_root: false },
+    { system_id: "r-user", name: "user", label: "User", is_root: false },
+    { system_id: "r-super", name: "super", label: "Super", is_root: false },
+    { system_id: "r-admin", name: "admin", label: "Admin", is_root: true },
+  ];
+  const account = (id, username, roleName, mode) => ({
+    id,
+    username,
+    role_id: `r-${roleName}`,
+    role_name: roleName,
+    status: "active",
+    mode_ceiling: mode,
+    mode_default: mode,
+    denied_label_keys: [],
+    denied_field_group_keys: [],
+    open_request_limit: null,
+  });
+  const FIXED_USERS = [
+    account(1, "alice", "admin", "unrestricted"),
+    account(2, "bob", "user", "normal"),
+    account(3, "shared-normal", "shared", "normal"),
+  ];
+
+  beforeEach(() => {
+    fetchJson.mockImplementation((url) => {
+      if (url.includes("/roles")) return Promise.resolve(FIVE_ROLES);
+      if (url.includes("/access-modes")) return Promise.resolve(MODES);
+      return Promise.resolve(FIXED_USERS);
+    });
+  });
+
+  async function editRow(username) {
+    render(<Users />);
+    await screen.findByText(username);
+    await userEvent.click(within(rowOf(username)).getByRole("button", { name: "Edit" }));
+    return rowOf(username);
+  }
+
+  it("offers only User and Super when creating an account", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(optionsOf(screen.getByLabelText("Role"))).toEqual(["User", "Super"]);
+  });
+
+  it("offers only User and Super when editing a user account", async () => {
+    const row = await editRow("bob");
+    expect(optionsOf(within(row).getByRole("combobox", { name: "Role" }))).toEqual([
+      "User",
+      "Super",
+    ]);
+  });
+
+  it("shows a shared account's role as text, with no select", async () => {
+    const row = await editRow("shared-normal");
+    expect(within(row).queryByRole("combobox", { name: "Role" })).toBeNull();
+    // Its password can still be set.
+    expect(within(row).getByPlaceholderText("New password (optional)")).toBeTruthy();
+  });
+
+  it("shows an admin account's role as text, with no select", async () => {
+    const row = await editRow("alice");
+    expect(within(row).queryByRole("combobox", { name: "Role" })).toBeNull();
+  });
+
+  it("offers Delete on a user account and not on a shared one", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(within(rowOf("bob")).queryByRole("button", { name: "Delete" })).toBeTruthy();
+    expect(
+      within(rowOf("shared-normal")).queryByRole("button", { name: "Delete" }),
+    ).toBeNull();
+  });
+
+  it("keeps Disable on a shared account", async () => {
+    render(<Users />);
+    await screen.findByText("shared-normal");
+    expect(
+      within(rowOf("shared-normal")).queryByRole("button", { name: "Disable" }),
+    ).toBeTruthy();
+  });
+
+  it("shows a shared account's mode as fixed, with no way to change it", async () => {
+    render(<Users />);
+    await screen.findByText("shared-normal");
+    const shared = rowOf("shared-normal");
+    expect(within(shared).getByText("Mode: Normal (fixed)")).toBeTruthy();
+    expect(within(shared).queryByRole("button", { name: "Change" })).toBeNull();
+    // The mirror: the user row still opens the panel.
+    await userEvent.click(within(rowOf("bob")).getByRole("button", { name: "Change" }));
+    expect(await screen.findByText("Access for bob")).toBeTruthy();
+  });
+});

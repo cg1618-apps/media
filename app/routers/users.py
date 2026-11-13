@@ -9,6 +9,12 @@ Three guards exist because each mistake locks the admin out of their own site:
 you cannot delete or disable yourself, and you cannot remove the last active
 account that can still administer anything.
 
+The roles are fixed, and so is who holds two of them. An account is given
+`user` or `super` and nothing else (422 otherwise). The `admin` account's role
+and a shared account's role never change, and a shared account is never
+deleted and its mode never edited - each a 409 of its own, not left to the
+last-admin guard.
+
 Every NEW username and password passes the checks in services/security.py
 (validate_new_username, validate_new_password), and a refusal is a 422 whose
 detail is the sentence to show. Names already stored are left alone.
@@ -40,7 +46,12 @@ from app.services.domain.accounts import (
 from app.services.domain.requests import default_request_limit, limit_is_fixed
 from app.services.rbac import cache
 from app.services.rbac.modes import ModeSets, check_mode_pair, set_mode_ceiling
-from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
+from app.services.rbac.permissions import (
+    ADMIN_ROLE_NAME,
+    ASSIGNABLE_ROLE_NAMES,
+    PERM_ADMIN_AUTHZ,
+    SHARED_ROLE_NAME,
+)
 from app.services.rbac.resolver import Viewer, require_admin_authz, role_for_user
 from app.services.security import (
     get_password_hash,
@@ -135,6 +146,30 @@ def _role_or_422(db: Session, role_id: UUID) -> models.Role:
     return role
 
 
+def _assignable_role_or_422(db: Session, role_id: UUID) -> models.Role:
+    """A role an admin may give an account: `user` or `super`."""
+    role = _role_or_422(db, role_id)
+    if role.name not in ASSIGNABLE_ROLE_NAMES:
+        raise HTTPException(
+            status_code=422,
+            detail="An account's role is either user or super.",
+        )
+    return role
+
+
+# The roles whose holders keep them: the one admin account, and the shared
+# accounts the seed maintains. Each answer names which.
+_FIXED_ROLE_REFUSALS: dict[str, str] = {
+    ADMIN_ROLE_NAME: "The admin account's role is fixed.",
+    SHARED_ROLE_NAME: "A shared account's role is fixed.",
+}
+
+
+def _is_shared(db: Session, user: models.User) -> bool:
+    role = role_for_user(db, user)
+    return role is not None and role.name == SHARED_ROLE_NAME
+
+
 def _can_administer(db: Session, role: models.Role) -> bool:
     if role is None:
         return False
@@ -189,7 +224,7 @@ def create_user(payload: schemas.ManagedUserCreate, db: Session = Depends(get_db
     _checked(validate_new_password, payload.password)
     if _name_taken(db, payload.username):
         raise HTTPException(status_code=409, detail="That username is taken.")
-    role = _role_or_422(db, payload.role_id)
+    role = _assignable_role_or_422(db, payload.role_id)
 
     user = models.User(
         username=payload.username,
@@ -228,6 +263,10 @@ def replace_access_modes(
     checked before anything is written.
     """
     user = _get_or_404(db, user_id)
+    if _is_shared(db, user):
+        raise HTTPException(
+            status_code=409, detail="A shared account's mode is fixed."
+        )
 
     try:
         check_mode_pair(payload.ceiling, payload.default)
@@ -323,7 +362,11 @@ def update_user(
     user = _get_or_404(db, user_id)
     new_role = None
     if payload.role_id and payload.role_id != user.role_id:
-        new_role = _role_or_422(db, payload.role_id)
+        current = role_for_user(db, user)
+        refusal = _FIXED_ROLE_REFUSALS.get(current.name if current else "")
+        if refusal:
+            raise HTTPException(status_code=409, detail=refusal)
+        new_role = _assignable_role_or_422(db, payload.role_id)
     limit_set = "open_request_limit" in payload.model_fields_set
     resulting_role = new_role or role_for_user(db, user)
     if (
@@ -432,6 +475,11 @@ def delete_user(
 
     if admin.username == user.username:
         raise HTTPException(status_code=409, detail="You cannot delete yourself.")
+    if _is_shared(db, user):
+        raise HTTPException(
+            status_code=409,
+            detail="A shared account cannot be deleted. Disable it instead.",
+        )
     if _can_administer(db, role_for_user(db, user)) and _admin_count(
         db, excluding=user.id
     ) == 0:

@@ -90,18 +90,13 @@ def test_a_disabled_account_gets_no_link(admin_client, db_session, kana):
 
 
 def test_a_shared_account_gets_no_link(admin_client, db_session, kana):
-    """The `shared` role arrives with P3; the refusal keys on its name so it
-    is live the moment the role exists. The mirror is an ordinary account,
-    issued below with the same client."""
-    shared = models.Role(
-        system_id=uuid.uuid4(),
-        name=SHARED_ROLE_NAME,
-        label="Shared",
-        is_system=False,
-        is_root=False,
+    """The refusal keys on the `shared` role's name. The mirror is an
+    ordinary account, issued below with the same client."""
+    shared = (
+        db_session.query(models.Role)
+        .filter(models.Role.name == SHARED_ROLE_NAME)
+        .one()
     )
-    db_session.add(shared)
-    db_session.flush()
     family = make_account(db_session, "family")
     family.role_id = shared.system_id
     db_session.flush()

@@ -460,8 +460,8 @@ one missing row reveals a franchise **and every entry in it**. A labelling whose
 cannot be resolved is skipped with a warning rather than failing the tab.
 
 Still outside the sheet, deliberately: `role` and `role_permission`
-(`ensure_rbac_seed` recreates guest, user and admin on any machine, but a role
-added or narrowed by hand is per-machine), `data_control_logs` and
+(`ensure_rbac_seed` recreates the five roles on any machine, but a role
+narrowed by hand is per-machine), `data_control_logs` and
 `deleted_record`. `users` **is** in the sheet, minus its
 `hashed_password` - see the per-tab note below.
 

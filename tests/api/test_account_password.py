@@ -11,6 +11,7 @@ import pytest
 
 from app.services.rbac.permissions import (
     PERM_SELF_PASSWORD,
+    SHARED_ROLE_NAME,
     SUPER_ROLE_NAME,
     locked_permissions,
 )
@@ -86,6 +87,8 @@ def test_it_is_locked_on_for_user_and_super():
     assert PERM_SELF_PASSWORD in locked_permissions(SUPER_ROLE_NAME, False)[0]
 
 
-def test_a_custom_role_decides_it_freely():
-    on, off = locked_permissions("friend", False)
-    assert PERM_SELF_PASSWORD not in on and PERM_SELF_PASSWORD not in off
+def test_it_is_locked_off_for_a_shared_account():
+    """One person changing a shared login's password would lock out everyone
+    else using it; the admin sets it on /users."""
+    on, off = locked_permissions(SHARED_ROLE_NAME, False)
+    assert PERM_SELF_PASSWORD in off and PERM_SELF_PASSWORD not in on

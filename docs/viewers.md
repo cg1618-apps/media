@@ -17,26 +17,36 @@ catalogue and what is an account's own data is
 
 > **Not available yet.** Everything on this page below this note is the
 > decided design of the account and authorization rework
-> ([to-do-next.md](to-do-next.md), item 1), not today's behaviour. Today
-> there are four viewers — `admin`, `super`, `user` and the signed-out
-> guest — and what each can do is
-> [authorization.md](authorization.md), "What each role can DO". Each part
-> of this page becomes true when the change that builds it lands, and that
-> change rewrites it in the present tense.
+> ([to-do-next.md](to-do-next.md), item 1), not today's behaviour, except
+> what is listed as built here. The five viewers exist — `admin`, `super`,
+> `user`, the signed-out guest, and the two shared accounts — and what each
+> role can do today is [authorization.md](authorization.md), "What each role
+> can DO". Each remaining part of this page becomes true when the change that
+> builds it lands, and that change rewrites it in the present tense.
 >
 > **Built:** [Removed](#removed), under "Customised pages";
 > [Requests and reports](#requests-and-reports), and the My
 > requests and inbox rows of
 > [My requests, the inbox, and pending registrations](#my-requests-the-inbox-and-pending-registrations).
-> Requests and reports work for `admin`, `super` and `user`. A shared account
-> gets them when the `shared` role exists. Until the header rework, the inbox
-> sits under Pipelines for both admin and super.
+> Requests and reports work for `admin`, `super`, `user` and the shared
+> accounts. Until the header rework, the inbox sits under Pipelines for both
+> admin and super. A `user` never writes the catalogue (`manage.catalog` is
+> locked off for the role). The shared accounts, `shared-normal` and
+> `shared-borderline`, each fixed at its own mode, keep no data of their own,
+> and only the admin sets their password
+> ([authorization.md](authorization.md), "Shared accounts").
 >
 > **Built underneath, not yet as described here:** every account has a mode
 > ceiling and a default, set on the Users page, and switches among the modes
 > up to its ceiling ([authorization.md](authorization.md), "Access modes").
 > The "Content (modes)" row is not yet true as a whole: `admin` still sits in
-> `unrestricted` rather than in no mode, and there is no shared account.
+> `unrestricted` rather than in no mode, and a shared account can still
+> switch down to `safe`, so the mode switcher still appears for it.
+>
+> **A shared account lacks Random Picker and Future Releases** until the
+> per-role switches are split. Both sit behind `view.extras` today, which is
+> locked off for `shared` because it also opens quotes and memes; until then
+> a shared account reads what a guest reads, plus requests.
 
 ## At a glance
 
