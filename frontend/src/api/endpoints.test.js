@@ -196,10 +196,11 @@ describe("named endpoint groups", () => {
     expect(endpoints.gameChoice.markEdge("X")).toBe("/api/game-choice/edges/X/mark");
   });
 
-  it("me: the caller's own ratings and novel-unit opinions", () => {
+  it("me: the caller's own ratings, novel-unit opinions and highlight group order", () => {
     expect(endpoints.me.rating("franchise", "F1")).toBe("/api/me/ratings/franchise/F1");
     expect(endpoints.me.rating("studio", "S1")).toBe("/api/me/ratings/studio/S1");
     expect(endpoints.me.novelUnit("U1")).toBe("/api/me/novel-units/U1");
+    expect(endpoints.me.highlightGroupOrder("H1")).toBe("/api/me/highlight-group-order/H1");
   });
 
   it("studio and publisher take a partial PATCH, like person and character", () => {

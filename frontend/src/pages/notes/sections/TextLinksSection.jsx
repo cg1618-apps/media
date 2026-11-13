@@ -74,8 +74,8 @@ function TextLinksForm({ val, setVal, section }) {
 // owner's others. Picking one rewrites the row's `section`, and the backend
 // appends it to the end of that section. Shown to whoever may edit the row,
 // as Edit and Delete are; the ResourceTree's native select is the pattern.
-function MoveToSection({ isAdmin, note, targets, onMove }) {
-  if (!isAdmin || !targets?.length) return null;
+function MoveToSection({ canWrite, note, targets, onMove }) {
+  if (!canWrite || !targets?.length) return null;
   return (
     <select
       value=""
@@ -99,7 +99,7 @@ function MoveToSection({ isAdmin, note, targets, onMove }) {
 export default function TextLinksSection({
   section,
   notes,
-  isAdmin,
+  canWrite,
   onCreate,
   onUpdate,
   onDelete,
@@ -113,7 +113,7 @@ export default function TextLinksSection({
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
-  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
+  const reorder = useRowReorder({ section, notes, canWrite, onReorder, reordering, cap });
 
   // An empty row is never worth storing, and some sections demand a body.
   const invalid = (val) => {
@@ -142,7 +142,7 @@ export default function TextLinksSection({
     <SectionCard
       label={section.label}
       count={notes.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={() => setAdding(true)}
     >
       <ReorderList reorder={reorder}>
@@ -169,13 +169,13 @@ export default function TextLinksSection({
                   )}
                 </div>
                 <MoveToSection
-                  isAdmin={isAdmin}
+                  canWrite={canWrite}
                   note={n}
                   targets={section.move_targets}
                   onMove={(key) => onUpdate(n.system_id, { section: key })}
                 />
                 <ItemActions
-                  isAdmin={isAdmin}
+                  canWrite={canWrite}
                   onEdit={() => {
                     setEditId(n.system_id);
                     setEditVal(fromNote(n));

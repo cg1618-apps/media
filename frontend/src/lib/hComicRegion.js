@@ -36,7 +36,6 @@ export const REGION_ONLY_FIELDS = Object.freeze({
     "ch_fin",
     "author",
     "original_source",
-    "highlight_group_order",
   ]),
 });
 

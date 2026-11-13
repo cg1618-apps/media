@@ -21,7 +21,6 @@ const MEMBER_KEYS = new Set([
   "view.entities",
   "view.search",
   "view.extras",
-  "view.personal",
 ]);
 const auth = {
   isAdmin: false,

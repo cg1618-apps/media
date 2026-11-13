@@ -715,7 +715,6 @@ export default function Novel() {
           <NovelNotes
             key={novel.system_id}
             novel={novel}
-            isAdmin={isAdmin}
             hideSections={novel.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}

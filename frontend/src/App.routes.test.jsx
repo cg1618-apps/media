@@ -48,7 +48,7 @@ vi.mock("./pages/public/Resources", () => stub("resources"));
 
 import App from "./App";
 
-const MEMBER_KEYS = ["self.list", "view.entities", "view.search", "view.extras", "view.personal"];
+const MEMBER_KEYS = ["self.list", "view.entities", "view.search", "view.extras"];
 
 function session(permissions, username) {
   auth.current = {

@@ -60,7 +60,7 @@ function renderSection(props = {}) {
     onReorder: vi.fn(),
     onGroupOrderChange: vi.fn(),
   };
-  render(<StructuredSection section={HIGHLIGHTS} notes={[]} isAdmin {...handlers} {...props} />);
+  render(<StructuredSection section={HIGHLIGHTS} notes={[]} canWrite {...handlers} {...props} />);
   return handlers;
 }
 
@@ -173,7 +173,7 @@ describe("grouped read view", () => {
   });
 
   it("lets a reader see the groups but not move them", () => {
-    renderSection({ notes: [note("r1", ["Ahri"]), note("r2", ["Bora"])], isAdmin: false });
+    renderSection({ notes: [note("r1", ["Ahri"]), note("r2", ["Bora"])], canWrite: false });
     expect(groupNames()).toEqual(["Ahri", "Bora"]);
     expect(screen.queryByRole("button", { name: /^Reorder /i })).toBeNull();
   });

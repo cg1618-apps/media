@@ -464,9 +464,9 @@ function ListView({ field, rows }) {
 // The one field a reader edits without opening the row: a stat's own value,
 // which changes while playing rather than while writing the guide. Saves on
 // blur, like the remark box on the detail pages.
-function QuickEdit({ field, note, isAdmin, onUpdate }) {
+function QuickEdit({ field, note, canWrite, onUpdate }) {
   const value = readValue(field, note);
-  if (!isAdmin) {
+  if (!canWrite) {
     return isBlank(value) ? null : (
       <span className={brandTagCls}>
         {field.label} {value}
@@ -528,7 +528,7 @@ function NamesView({ field, note, omit }) {
 
 // `groupedBy` is the key of the field the row is drawn grouped by, if any: its
 // value is the group header, so the row does not repeat it.
-function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy }) {
+function StructuredRow({ section, note, canWrite, onUpdate, groupName, groupedBy }) {
   const heading = rowHeading(section, note);
   const headingKey = heading?.field.key;
   const namesFields = section.fields.filter((f) => f.type === "names");
@@ -572,7 +572,7 @@ function StructuredRow({ section, note, isAdmin, onUpdate, groupName, groupedBy 
               key={f.key}
               field={f}
               note={note}
-              isAdmin={isAdmin}
+              canWrite={canWrite}
               onUpdate={onUpdate}
             />
           ))}
@@ -709,7 +709,7 @@ function GroupBlock({ name, noName, count, movable, children }) {
 function GroupedRows({
   section,
   notes,
-  isAdmin,
+  canWrite,
   groupBy = section.group_by,
   groupOrder,
   onGroupOrderChange,
@@ -740,7 +740,7 @@ function GroupedRows({
   const named = groups.filter((g) => g.name !== null);
   const unnamed = groups.filter((g) => g.name === null);
   const saveOrder = onRowsReorder || onGroupOrderChange;
-  const canMove = isAdmin && Boolean(saveOrder) && named.length > 1;
+  const canMove = canWrite && Boolean(saveOrder) && named.length > 1;
   const locked = busy || savingOrder;
   const noName = `No ${(groupField?.label || "name").toLowerCase()}`;
 
@@ -789,7 +789,7 @@ function GroupedRows({
         if (!next.delete(foldKey)) next.add(foldKey);
         return next;
       });
-    const rowsMove = isAdmin && Boolean(onRowsReorder) && group.notes.length > 1;
+    const rowsMove = canWrite && Boolean(onRowsReorder) && group.notes.length > 1;
 
     const renderRow = (n) => {
       const key = `${group.name}|${n.system_id}`;
@@ -821,13 +821,13 @@ function GroupedRows({
           <StructuredRow
             section={section}
             note={n}
-            isAdmin={isAdmin}
+            canWrite={canWrite}
             onUpdate={onUpdate}
             groupName={group.name}
             groupedBy={groupBy}
           />
           <ItemActions
-            isAdmin={isAdmin}
+            canWrite={canWrite}
             onEdit={() => {
               setEditKey(key);
               setEditVal(fromNote(section, n));
@@ -926,7 +926,7 @@ export default function StructuredSection({
 function StructuredSectionBody({
   section,
   notes,
-  isAdmin,
+  canWrite,
   onCreate,
   onUpdate,
   onDelete,
@@ -1064,7 +1064,7 @@ function StructuredSectionBody({
   // `shown` is which of `siblings` to draw: the top level passes its folded
   // rows, and every level below draws all of its children.
   const renderNodes = (siblings, depth, shown = siblings) => {
-    const sortable = isAdmin && Boolean(onReorder) && siblings.length > 1;
+    const sortable = canWrite && Boolean(onReorder) && siblings.length > 1;
     const rows = shown.map((node) => {
       const n = node.note;
       const editing = editId === n.system_id;
@@ -1096,13 +1096,13 @@ function StructuredSectionBody({
               <StructuredRow
                 section={section}
                 note={n}
-                isAdmin={isAdmin}
+                canWrite={canWrite}
                 onUpdate={onUpdate}
                 groupedBy={
                   childOmit && (depth > 0 || groupedTree) ? childOmit : undefined
                 }
               />
-              {isAdmin && section.hierarchical && (
+              {canWrite && section.hierarchical && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1117,7 +1117,7 @@ function StructuredSectionBody({
                 </button>
               )}
               <ItemActions
-                isAdmin={isAdmin}
+                canWrite={canWrite}
                 onEdit={() => {
                   setEditId(n.system_id);
                   setEditVal(fromNote(section, n));
@@ -1181,7 +1181,7 @@ function StructuredSectionBody({
   const renderGroupedTree = () => {
     const named = rootGroups.filter((g) => g.name !== null);
     const unnamed = rootGroups.filter((g) => g.name === null);
-    const canMove = isAdmin && Boolean(onReorder) && named.length > 1;
+    const canMove = canWrite && Boolean(onReorder) && named.length > 1;
     const noName = `No ${(treeGroupField.label || "group").toLowerCase()}`;
     const keep = (node) =>
       (editId !== null && holds(node, editId)) ||
@@ -1231,7 +1231,7 @@ function StructuredSectionBody({
       <SectionCard
         label={section.label}
         count={notes.length}
-        isAdmin={isAdmin}
+        canWrite={canWrite}
         onAdd={openDraft}
         actions={groupToggle(treeGroupField)}
       >
@@ -1255,7 +1255,7 @@ function StructuredSectionBody({
       <SectionCard
         label={section.label}
         count={notes.length}
-        isAdmin={isAdmin}
+        canWrite={canWrite}
         onAdd={openDraft}
         actions={groupToggle(groupableField)}
       >
@@ -1263,7 +1263,7 @@ function StructuredSectionBody({
           <GroupedRows
             section={section}
             notes={notes}
-            isAdmin={isAdmin}
+            canWrite={canWrite}
             groupBy={section.groupable_by}
             onRowsReorder={onReorder ? (ids) => onReorder(section.key, ids) : undefined}
             busy={reordering}
@@ -1294,7 +1294,7 @@ function StructuredSectionBody({
       <SectionCard
         label={section.label}
         count={notes.length}
-        isAdmin={isAdmin}
+        canWrite={canWrite}
         onAdd={openDraft}
         actions={groupToggle(section.fields.find((f) => f.key === section.group_by))}
       >
@@ -1302,7 +1302,7 @@ function StructuredSectionBody({
           <GroupedRows
             section={section}
             notes={notes}
-            isAdmin={isAdmin}
+            canWrite={canWrite}
             groupOrder={groupOrder}
             onGroupOrderChange={onGroupOrderChange}
             onUpdate={onUpdate}
@@ -1325,7 +1325,7 @@ function StructuredSectionBody({
     <SectionCard
       label={section.label}
       count={notes.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={openDraft}
     >
       {renderNodes(tree, 0, cap.visible)}

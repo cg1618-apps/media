@@ -126,7 +126,7 @@ beforeEach(() => {
                   username: "reader",
                   role: "user",
                   is_root: false,
-                  permissions: ["view.entities", "view.search", "view.extras", "view.personal"],
+                  permissions: ["view.entities", "view.search", "view.extras"],
                 },
           ),
       });

@@ -2701,7 +2701,6 @@ export default function FranchisePage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <FranchiseNotes
             franchise={franchise}
-            isAdmin={isAdmin}
             hideSections={isAdmin || franchise.remark ? ["remark"] : []}
           />
         </Section>

@@ -87,7 +87,7 @@ the media and the groups and nothing else: the dashboard's Announcements and
 Broadcast schedule, the `/library/:type` lists, `/library/collection`,
 `/library/franchise`, and the entry, collection, franchise, series and
 watch-order pages they lead to. Everything else a member reads is behind one
-of four `view.*` permissions, which `user` and `super` hold, `admin` passes
+of three `view.*` permissions, which `user` and `super` hold, `admin` passes
 through the root flag, and `guest` does not hold:
 
 | Key | Route gate (`<ProtectedRoute permission>`) | Inside the open pages |
@@ -95,7 +95,10 @@ through the root flag, and `guest` does not hold:
 | `view.entities` | the five entity libraries and the studio, publisher, person, character and identity pages | entity names render as plain text (`useEntityHref`, components.md); the franchise and series hubs have no Characters tab |
 | `view.search` | `/search` | `NavSearch` is not drawn — not the inline slot, the phone button or its sheet |
 | `view.extras` | Future Releases, Completions, every `/random` route, `/quote`, `/meme`, `/resources` | the Quotes and Memes note sections are dropped |
-| `view.personal` | none — there is no public profile | the `highlights` and `highlight_episodes` note sections are not drawn |
+
+A personal note section is not behind a `view.*` key either: the registry
+lists it for every viewer and the rows are only the viewer's own, so a guest
+sees it empty and without write controls.
 
 The viewer's **own** ratings and expectations are not behind a `view.*` key:
 they are drawn for a holder of `self.list` (`useViewScope().ownData`), since
@@ -1227,11 +1230,17 @@ arrive the note reads "a linked hentai adaptation".
 
 `HComicNotes.jsx` hands the notes page the entry row (so the KR-only
 Highlights section is dropped on a JP entry), the cast's names (suggested in
-the Highlights `names` inputs) and `highlight_group_order` with a callback that
-PATCHes it. Highlights read as one group per female character, a row naming
-two under both; dragging a group by the grip on its header - or ArrowUp /
-ArrowDown on that grip - saves the whole new order, and the rows inside a
-group are not movable
+the Highlights `names` inputs) and `highlight_group_order` - the viewer's own
+order, or null - with a callback that saves a new one through
+`useHighlightGroupOrderSaver` (`api/mutations/useMyHighlightGroupOrder.js`):
+`PUT /api/me/highlight-group-order/{system_id}` with `{group_order}`, the new
+order shown at once and every cached h-comic detail refreshed after. The
+callback is passed only to a holder of `self.personal_notes`, so nobody else
+is offered the reorder. Highlights read as one group per female character, a
+row naming two under both; dragging a group by the grip on its header - or
+ArrowUp / ArrowDown on that grip - saves the whole new order, and the rows
+inside a group are not movable. The reorder is **provisional UI**: the
+ordinary group grips, pending the owner's design for a per-user order
 ([systems/notes.md](../systems/notes.md#h-comic-highlights-h_comic_highlights)).
 
 **H-Game** (`pages/detail/HGame.jsx`) is the second gated type's page, routed
@@ -1255,8 +1264,9 @@ IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
 | Notes | every game section, plus **亮點 Highlights** |
 
 No Metacritic, no Cast and no `RelationsSection`. The provider is handed the
-entry row, `highlight_group_order` and a callback that PATCHes a new order,
-exactly as on H-Comic; an h-game has no cast, so the Highlights `names` inputs
+entry row, the viewer's own `highlight_group_order` and, for a holder of
+`self.personal_notes`, the callback that PUTs a new one, exactly as on
+H-Comic; an h-game has no cast, so the Highlights `names` inputs
 take free text with no suggestions
 ([systems/notes.md](../systems/notes.md#h-game-highlights-h_game_highlights)).
 
@@ -1296,9 +1306,15 @@ novel | series | tv-show`
 registry group, and hands `quotes`/`memes` sections to `QuoteSection` /
 `MemeSection` — for a viewer holding `view.extras`. Without it both sections
 are dropped from the registry the page draws, before either component can
-fetch `/api/quote` or `/api/meme`. The highlight sections (`highlights`,
-`highlight_episodes`) need no such rule: the server leaves them out of
-`/api/notes/sections` for a viewer without `view.personal`. `SHAPES` maps all nine stored shapes to components,
+fetch `/api/quote` or `/api/meme`. A personal section needs no such rule:
+the registry lists it for every viewer, and `/api/notes` returns only the
+viewer's own rows in it. Write controls are gated **per section**, from its
+`scope`: a catalogue section (and Quotes and Memes) for a holder of
+`manage.catalog`, a personal one - 備註 Remark, the reviews and advantages,
+the highlight sections, the 待辦 todos, 存檔 Saves and 下周目目標 NG+ Goals
+among them - for a holder of `self.personal_notes`; an admin, whose root flag does not pass `self.*`,
+reads the personal ones without controls (components.md, `pages/notes`).
+`SHAPES` maps all nine stored shapes to components,
 `structured` → `StructuredSection` among them, so a new registry section needs
 no frontend change as long as it reuses an existing shape — every one of the
 game-only sections did. Group cards render in registry first-appearance order,

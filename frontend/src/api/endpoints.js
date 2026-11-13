@@ -93,9 +93,14 @@ export const endpoints = {
   // collection, franchise, series, character, person, studio or publisher and
   // its expectation of a tier; and its rating and remark of one novel unit.
   // Both are PUTs with a partial body - only the keys sent change, null clears.
+  //
+  // And the caller's own order of an h-comic's or h-game's highlight groups
+  // (self.personal_notes): a PUT of `{group_order: [names] | null}` for the
+  // entry's system_id, served back as the entry's `highlight_group_order`.
   me: {
     rating: (ownerType, ownerId) => `/api/me/ratings/${ownerType}/${ownerId}`,
     novelUnit: (unitId) => `/api/me/novel-units/${unitId}`,
+    highlightGroupOrder: (mediaId) => `/api/me/highlight-group-order/${mediaId}`,
   },
 
   contentLabels: {

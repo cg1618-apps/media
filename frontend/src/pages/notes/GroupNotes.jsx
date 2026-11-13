@@ -46,7 +46,7 @@ export default function GroupNotes({ section, groups, Component, optionValues })
             section={section}
             notes={notes}
             optionValues={optionValues}
-            isAdmin={false}
+            canWrite={false}
           />
         </SectionCardProvider>
       </div>

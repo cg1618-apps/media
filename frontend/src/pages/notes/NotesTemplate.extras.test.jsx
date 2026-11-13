@@ -18,7 +18,7 @@ vi.mock("./sections/MemeSection", () => ({
   default: ({ label }) => <div data-testid="meme-section">{label}</div>,
 }));
 const { scope } = vi.hoisted(() => ({
-  scope: { entities: true, search: true, extras: true, personal: true },
+  scope: { entities: true, search: true, extras: true },
 }));
 vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
 
@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 
 const renderTemplate = () =>
-  render(<NotesTemplate ownerType="anime" ownerId="abc" isAdmin={false} />);
+  render(<NotesTemplate ownerType="anime" ownerId="abc" />);
 
 describe("NotesTemplate quotes and memes", () => {
   it("leaves both out for a viewer without view.extras", async () => {

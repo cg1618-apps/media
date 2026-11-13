@@ -45,7 +45,7 @@ const renderSection = (props = {}) =>
     <MusicTrackSection
       section={OP}
       notes={[]}
-      isAdmin
+      canWrite
       onCreate={() => {}}
       onUpdate={() => {}}
       onDelete={() => {}}
@@ -279,7 +279,7 @@ it("patches the status row once it exists", async () => {
 
 it("shows the status as a tag to a reader who cannot edit", () => {
   renderSection({
-    isAdmin: false,
+    canWrite: false,
     typeStatusNote: { system_id: "s1", kind: "op", status: "Pending" },
   });
   expect(screen.queryByLabelText("OP status")).not.toBeInTheDocument();
@@ -289,7 +289,7 @@ it("shows the status as a tag to a reader who cannot edit", () => {
 it("opens an empty list, because it carries a status", () => {
   // Other empty sections open collapsed; a song list has its own status, so a
   // new anime's four "Not Done" lists open and say so.
-  renderSection({ isAdmin: false });
+  renderSection({ canWrite: false });
   expect(screen.getByText("No entries.")).toBeInTheDocument();
   expect(screen.getByText("Not Done")).toBeInTheDocument();
 });
@@ -298,6 +298,6 @@ it("still collapses an empty list that carries no status", () => {
   // The mirror case: the same empty list without type_status_section keeps
   // the ordinary collapse-when-empty default, so the test above is the status
   // doing the opening.
-  renderSection({ isAdmin: false, section: songList("op", { type_status_section: null }) });
+  renderSection({ canWrite: false, section: songList("op", { type_status_section: null }) });
   expect(screen.queryByText("No entries.")).not.toBeInTheDocument();
 });

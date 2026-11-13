@@ -26,7 +26,7 @@ const renderSection = (props = {}) =>
     <TextLinksSection
       section={EASTER_EGGS}
       notes={[]}
-      isAdmin
+      canWrite
       onCreate={() => {}}
       onUpdate={() => {}}
       onDelete={() => {}}
@@ -135,7 +135,7 @@ it("offers no move on a section without targets", () => {
 });
 
 it("offers no move to a reader who cannot edit", () => {
-  renderSection({ section: TODO_NOW, notes: [TODO_ROW], isAdmin: false });
+  renderSection({ section: TODO_NOW, notes: [TODO_ROW], canWrite: false });
   expect(screen.queryByRole("combobox", { name: /^Move / })).toBeNull();
 });
 

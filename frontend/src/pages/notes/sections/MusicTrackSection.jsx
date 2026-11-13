@@ -83,11 +83,12 @@ const selectCls = inputCls + " bg-surface";
 const statusSelectCls =
   "border border-border-strong bg-surface text-text px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-brand";
 
-// The list's own status, in the card header. Admins get a compact select over
-// the closed vocabulary; everyone else reads it as a tag.
-function TypeStatus({ section, note, isAdmin, onCreate, onUpdate }) {
+// The list's own status, in the card header. A viewer who may write the
+// section gets a compact select over the closed vocabulary; everyone else
+// reads it as a tag.
+function TypeStatus({ section, note, canWrite, onCreate, onUpdate }) {
   const value = note?.status || section.type_status_default || "";
-  if (!isAdmin) {
+  if (!canWrite) {
     return value ? <span className={brandTagCls}>{value}</span> : null;
   }
   const change = (status) => {
@@ -179,7 +180,7 @@ function MusicTrackForm({ val, setVal, section, optionValues }) {
 export default function MusicTrackSection({
   section,
   notes,
-  isAdmin,
+  canWrite,
   onCreate,
   onUpdate,
   onDelete,
@@ -197,7 +198,7 @@ export default function MusicTrackSection({
   });
   // Reorders this list's songs only. The list's own status lives in another
   // section (`music_status`) and is never one of these rows.
-  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
+  const reorder = useRowReorder({ section, notes, canWrite, onReorder, reordering, cap });
 
   const commit = () => {
     if (invalid(draft)) return;
@@ -216,7 +217,7 @@ export default function MusicTrackSection({
     <SectionCard
       label={section.label}
       count={notes.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={() => setAdding(true)}
       // A list with a status of its own opens even with no songs: the status
       // is the point of looking at it.
@@ -226,7 +227,7 @@ export default function MusicTrackSection({
           <TypeStatus
             section={section}
             note={typeStatusNote}
-            isAdmin={isAdmin}
+            canWrite={canWrite}
             onCreate={onCreate}
             onUpdate={onUpdate}
           />
@@ -262,7 +263,7 @@ export default function MusicTrackSection({
                   <LinkPairPills links={n.links} />
                 </div>
                 <ItemActions
-                  isAdmin={isAdmin}
+                  canWrite={canWrite}
                   onEdit={() => {
                     setEditId(n.system_id);
                     setEditVal(fromNote(n, section));

@@ -34,7 +34,6 @@ export default function HentaiModifyTab({
           other on Save Changes. */}
       <HentaiNotes
         hentai={editingItem ?? {}}
-        isAdmin={true}
         hideSections={["remark"]}
       />
     </>

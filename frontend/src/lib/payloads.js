@@ -685,8 +685,8 @@ export function comicFieldsPayload(f, { defaultStatus } = {}) {
  * `f` should already be `clearedForRegion(form)` (lib/hComicRegion.js): the
  * server clears the columns a region does not use anyway, and blanking them
  * here keeps the request saying what will be stored. `highlight_group_order`
- * is not in the form - it is written by the detail page's drag - so it is
- * never sent from here, and a save leaves it alone.
+ * is not in the form or the entry at all - it is each viewer's own, written
+ * through PUT /api/me/highlight-group-order - so it is never sent from here.
  */
 export function hComicFieldsPayload(f) {
   // A derived animation status (a hentai adapts this h-comic) is not the
@@ -786,8 +786,9 @@ export function choiceList(value, vocabulary) {
  * created) first.
  *
  * Game's shape for the columns the two share, minus the ones h_game lacks.
- * `highlight_group_order` is not in the form - the detail page's drag writes
- * it - so it is never sent from here, and a save leaves it alone.
+ * `highlight_group_order` is not in the form or the entry at all - it is
+ * each viewer's own, written through PUT /api/me/highlight-group-order - so
+ * it is never sent from here.
  */
 export function hGameFieldsPayload(f) {
   return {

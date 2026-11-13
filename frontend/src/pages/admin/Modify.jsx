@@ -973,12 +973,13 @@ export default function Modify() {
 
   // Region first in the form, and every column as its form string. The
   // credit and tag fields arrive through loadCreditsIntoForm, as for every
-  // other type; highlight_group_order is not in the form at all - the detail
-  // page's drag owns it, and a PATCH that leaves it out leaves it alone.
+  // other type; highlight_group_order is not in the form at all - it is the
+  // viewer's own, written through PUT /api/me/highlight-group-order.
   // Game's shape for the columns the two share. The multi-choice lists keep
   // null as null - "not recorded" is not the empty list - and the credit and
   // tag fields arrive through loadCreditsIntoForm. highlight_group_order is
-  // not in the form: the detail page's drag owns it.
+  // not in the form: it is the viewer's own, written through
+  // PUT /api/me/highlight-group-order.
   function hGameToForm(g, allFranchises, seriesList) {
     const f = allFranchises.find((x) => x.system_id === g.franchise_id);
     const s = (seriesList || allSeries).find(

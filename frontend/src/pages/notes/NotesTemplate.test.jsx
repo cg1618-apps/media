@@ -13,6 +13,11 @@ import NotesTemplate from "./NotesTemplate";
 import * as api from "./api";
 
 vi.mock("./api");
+// A catalogue writer: these sections have catalogue scope, so their write
+// controls follow manage.catalog.
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ has: (p) => p === "manage.catalog" }),
+}));
 
 const SECTIONS = [
   { key: "remark", shape: "text", label: "Remark", kinds: [], singleton: true },
@@ -32,7 +37,7 @@ beforeEach(() => {
 
 const renderTemplate = (props = {}) =>
   render(
-    <NotesTemplate ownerType="anime" ownerId="abc" isAdmin {...props} />,
+    <NotesTemplate ownerType="anime" ownerId="abc" {...props} />,
   );
 
 describe("NotesTemplate hideSections", () => {

@@ -1,9 +1,10 @@
 // Frontend: which of the member-only reading surfaces this viewer may see.
 //
-// The four view.* keys open what a guest is not shown: the credited entities,
-// search, the extras (Future Releases, Completions, the Random Picker, Quotes,
-// Memes, Resources) and the highlight note sections (view.personal). user and
-// super hold all four; guest holds none; admin passes through the root flag.
+// The three view.* keys open what a guest is not shown: the credited entities,
+// search, and the extras (Future Releases, Completions, the Random Picker,
+// Quotes, Memes, Resources). user and super hold all three; guest holds none;
+// admin passes through the root flag. A personal note section needs no key:
+// every viewer is served it, holding only its own rows.
 //
 // `ownData` is the viewer's own opinion of catalogue rows - its rating of a
 // group or an entity, its expectation of a tier, a novel unit's remark. Those
@@ -26,7 +27,6 @@ export function useViewScope() {
     entities: has("view.entities"),
     search: has("view.search"),
     extras: has("view.extras"),
-    personal: has("view.personal"),
     ownData: has("self.list"),
   };
 }

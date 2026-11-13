@@ -435,8 +435,11 @@ Once a media submit succeeds, the page keeps the created row beside the
 section that type has is listed and each saves on its own. It hides nothing,
 `remark` included — the form has already reset to a blank entry, so its Remark
 field no longer edits this row. For h-comic and h-game the created row feeds
-`owner_where` and the 亮點 Highlights group order, which a header drag saves
-with a `PATCH`. The panel shows only on the tab the entry was added from, is
+`owner_where`, and the viewer's own 亮點 Highlights group order, which a
+holder of `self.personal_notes` saves by a header drag through
+`PUT /api/me/highlight-group-order/{system_id}`. Each section's write
+controls follow its scope, as on the detail pages: an admin adding an entry
+writes the catalogue sections and reads the personal ones. The panel shows only on the tab the entry was added from, is
 replaced by the next media add, and goes when the banner is dismissed or a
 non-media row (collection, person, …) is added.
 
@@ -619,7 +622,8 @@ link - and the **E-Hentai Link**, the gallery URL the second fill source reads
 E-Hentai Link is sent as `null` (`hComicFieldsPayload`). The
 content-label picker shows the `h-comic` label checked and locked: every entry
 carries it, and the save adds it back. The form never sends
-`highlight_group_order` - the detail page's drag owns it.
+`highlight_group_order` - it is each viewer's own, written through
+`PUT /api/me/highlight-group-order`.
 
 **H-Game tab.** `HGameAddTab.jsx`, gated like the H-Comic tab. It is the Game
 tab reshaped for `h_game`: the same two boxes at the top (`EntryAutofillSearch`

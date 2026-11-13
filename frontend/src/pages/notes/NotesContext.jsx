@@ -21,6 +21,7 @@ import {
   useState,
 } from "react";
 
+import { useAuth } from "../../contexts/AuthContext";
 import { useViewScope } from "../../hooks/useViewScope";
 import { getDisplayName } from "../../lib/naming";
 import * as api from "./api";
@@ -61,25 +62,36 @@ const SHAPES = {
 // rather than rewritten. media_type/entry_id and owner_type/owner_id are the
 // same hyphenated owner keys the notes API uses.
 const EXTERNAL_SHAPES = {
-  quotes: ({ label, ownerType, ownerId, isAdmin, onCount }) => (
+  quotes: ({ label, ownerType, ownerId, canWrite, onCount }) => (
     <QuoteSection
       label={label}
       mediaType={ownerType}
       entryId={ownerId}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onCount={onCount}
     />
   ),
-  memes: ({ label, ownerType, ownerId, isAdmin, onCount }) => (
+  memes: ({ label, ownerType, ownerId, canWrite, onCount }) => (
     <MemeSection
       label={label}
       ownerType={ownerType}
       ownerId={ownerId}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onCount={onCount}
     />
   ),
 };
+
+// The permission a write to a section needs, from its `scope`: the server
+// takes manage.catalog for a catalogue section and self.personal_notes for a
+// personal one, and refuses the other. Quotes and memes are their own
+// catalogue tables, so an external section is catalogue whatever it says.
+// self.* is ownership, so the root flag does not pass it (AuthContext's has()),
+// and an admin reads a personal section without its write controls.
+export function writePermissionFor(section) {
+  if (section.shape === "external") return "manage.catalog";
+  return section.scope === "personal" ? "self.personal_notes" : "manage.catalog";
+}
 
 const NotesContext = createContext(null);
 
@@ -126,6 +138,9 @@ export function useNotes() {
   return value;
 }
 
+// Who may write which section is not a prop: each section's write controls
+// follow `writePermissionFor`, asked of the signed-in viewer here.
+//
 // `owner` is the owner row, for `owner_where`. The next three feed the
 // structured shape and only matter to a section declaring the matching field:
 // `nameSuggestions` for a `names` input, and the owner's stored group order
@@ -141,7 +156,6 @@ export function useNotes() {
 export function NotesProvider({
   ownerType,
   ownerId,
-  isAdmin,
   owner,
   nameSuggestions,
   groupOrder,
@@ -151,11 +165,13 @@ export function NotesProvider({
   children,
 }) {
   const [allSections, setSections] = useState([]);
+  const auth = useAuth();
+  const canWrite = (section) => Boolean(auth?.has?.(writePermissionFor(section)));
   // Quotes and Memes are extras (view.extras): without the key their
   // external sections are dropped with the hidden ones below, so neither
   // renders nor fetches from /api/quote or /api/meme, which would answer 401.
-  // The highlight sections need no such rule here: the server leaves them
-  // out of the registry for a viewer without view.personal.
+  // A personal section needs no such rule: the registry lists it for every
+  // viewer, and the rows the server sends are only the viewer's own.
   const { extras: showExtras } = useViewScope();
   // A `hidden` section (music_status) is never a card of its own: its rows
   // belong to the sections pointing at it through `type_status_section`. It
@@ -406,7 +422,7 @@ export function NotesProvider({
           label={section.label}
           ownerType={ownerType}
           ownerId={ownerId}
-          isAdmin={isAdmin}
+          canWrite={canWrite(section)}
           onCount={reporterFor(section.key)}
         />
       );
@@ -428,7 +444,7 @@ export function NotesProvider({
         notes={bySection[section.key] || []}
         optionValues={optionValues}
         typeStatusNote={typeStatusNote}
-        isAdmin={isAdmin}
+        canWrite={canWrite(section)}
         ownerId={ownerId}
         nameSuggestions={nameSuggestions}
         groupOrder={groupOrder}

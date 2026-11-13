@@ -24,7 +24,7 @@ import AutoGrowTextarea from "../../../components/ui/AutoGrowTextarea";
 
 // ─── Singleton (Remark) ──────────────────────────────────────────────────────
 
-function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete }) {
+function SingletonText({ section, note, canWrite, onCreate, onUpdate, onDelete }) {
   const value = note?.content || "";
   const [draft, setDraft] = useState(value);
   const [fullscreen, setFullscreen] = useState(false);
@@ -56,7 +56,7 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
   };
 
   const textareaCls =
-    inputCls + (isAdmin ? "" : " bg-surface-2 text-text-muted cursor-default");
+    inputCls + (canWrite ? "" : " bg-surface-2 text-text-muted cursor-default");
 
   const saveBtn = (
     <Button type="button" kind="primary" size="sm" onClick={save} disabled={!dirty}>
@@ -83,13 +83,13 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
       <div className="p-3 flex flex-col gap-2">
         <textarea
           value={draft}
-          disabled={!isAdmin}
-          onChange={(e) => isAdmin && setDraft(e.target.value)}
+          disabled={!canWrite}
+          onChange={(e) => canWrite && setDraft(e.target.value)}
           rows={10}
           placeholder="General remarks..."
           className={textareaCls + " resize-y"}
         />
-        {isAdmin && <div className="flex justify-end">{saveBtn}</div>}
+        {canWrite && <div className="flex justify-end">{saveBtn}</div>}
       </div>
 
       {fullscreen && (
@@ -118,13 +118,13 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
             <div className="p-4 flex flex-col gap-2 flex-1 min-h-0">
               <textarea
                 value={draft}
-                disabled={!isAdmin}
-                onChange={(e) => isAdmin && setDraft(e.target.value)}
+                disabled={!canWrite}
+                onChange={(e) => canWrite && setDraft(e.target.value)}
                 placeholder="General remarks..."
                 autoFocus
                 className={textareaCls + " flex-1 resize-none"}
               />
-              {isAdmin && <div className="flex justify-end">{saveBtn}</div>}
+              {canWrite && <div className="flex justify-end">{saveBtn}</div>}
             </div>
           </div>
         </div>
@@ -138,7 +138,7 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
 function TextList({
   section,
   notes,
-  isAdmin,
+  canWrite,
   onCreate,
   onUpdate,
   onDelete,
@@ -152,7 +152,7 @@ function TextList({
   const cap = useEntryCap(notes, {
     keep: (row) => row.system_id === editId,
   });
-  const reorder = useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap });
+  const reorder = useRowReorder({ section, notes, canWrite, onReorder, reordering, cap });
 
   const commit = () => {
     const content = draft.trim();
@@ -173,7 +173,7 @@ function TextList({
     <SectionCard
       label={section.label}
       count={notes.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={() => setAdding(true)}
     >
       <ReorderList reorder={reorder}>
@@ -195,7 +195,7 @@ function TextList({
                 <span className="text-xs text-text-faint mt-0.5 shrink-0">•</span>
                 <span className="text-sm text-text flex-1 whitespace-pre-wrap">{n.content}</span>
                 <ItemActions
-                  isAdmin={isAdmin}
+                  canWrite={canWrite}
                   onEdit={() => {
                     setEditId(n.system_id);
                     setEditVal(n.content || "");

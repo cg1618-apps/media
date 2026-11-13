@@ -81,7 +81,7 @@ function NameLinksForm({ val, setVal, groupOptions }) {
 export default function NameLinksSection({
   section,
   notes,
-  isAdmin,
+  canWrite,
   onCreate,
   onUpdate,
   onDelete,
@@ -111,7 +111,7 @@ export default function NameLinksSection({
   const reorder = useRowReorder({
     section,
     notes: rows,
-    isAdmin,
+    canWrite,
     onReorder,
     reordering,
     cap,
@@ -139,7 +139,7 @@ export default function NameLinksSection({
     <SectionCard
       label={section.label}
       count={notes.length}
-      isAdmin={isAdmin}
+      canWrite={canWrite}
       onAdd={() => setAdding(true)}
     >
       <ReorderList reorder={reorder}>
@@ -193,7 +193,7 @@ export default function NameLinksSection({
                 </div>
                 {editId !== n.system_id && (
                   <ItemActions
-                    isAdmin={isAdmin}
+                    canWrite={canWrite}
                     onEdit={() => {
                       setEditId(n.system_id);
                       setEditVal(fromNote(n));

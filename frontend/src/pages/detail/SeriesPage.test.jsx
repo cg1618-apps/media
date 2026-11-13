@@ -212,7 +212,7 @@ describe("SeriesPage own rating and expectation", () => {
     username: "reader",
     role: "user",
     is_root: false,
-    permissions: ["view.entities", "view.search", "view.extras", "view.personal", "self.list"],
+    permissions: ["view.entities", "view.search", "view.extras", "self.list"],
   };
   const READER = { ...MEMBER, permissions: MEMBER.permissions.filter((p) => p !== "self.list") };
   const rated = { ...SERIES, my_rating: "S", series_expectation: "High" };

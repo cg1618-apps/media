@@ -488,7 +488,6 @@ export default function CollectionPage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <CollectionNotes
             collection={collection}
-            isAdmin={isAdmin}
             hideSections={isAdmin || collection.remark ? ["remark"] : []}
           />
         </Section>

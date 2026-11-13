@@ -49,7 +49,7 @@ function renderSkills(section = SKILLS) {
     <StructuredSection
       section={section}
       notes={NOTES}
-      isAdmin
+      canWrite
       onCreate={vi.fn()}
       onUpdate={vi.fn()}
       onDelete={vi.fn()}
@@ -195,7 +195,7 @@ function renderGeography(props = {}) {
     <StructuredSection
       section={GEOGRAPHY}
       notes={PLACES}
-      isAdmin
+      canWrite
       optionValues={{ "Geography Group": ["Lands Between", "Underground"] }}
       {...handlers}
       {...props}

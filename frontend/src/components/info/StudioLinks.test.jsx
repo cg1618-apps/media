@@ -8,11 +8,11 @@ import { publisherLabel, publisherValue, studioValue } from "./StudioLinks";
 // The viewer's view.* scope. A member (every flag on) unless a test says
 // otherwise; `scope.<flag> = false` makes the guest case.
 const { scope } = vi.hoisted(() => ({
-  scope: { entities: true, search: true, extras: true, personal: true },
+  scope: { entities: true, search: true, extras: true },
 }));
 vi.mock("../../hooks/useViewScope", () => ({ useViewScope: () => scope }));
 beforeEach(() => {
-  Object.assign(scope, { entities: true, search: true, extras: true, personal: true });
+  Object.assign(scope, { entities: true, search: true, extras: true });
 });
 
 function renderValue(item) {

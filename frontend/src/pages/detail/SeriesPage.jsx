@@ -2036,7 +2036,6 @@ export default function SeriesPage() {
               hide the duplicate `remark` section wherever that editor renders. */}
           <SeriesNotes
             series={series}
-            isAdmin={isAdmin}
             hideSections={isAdmin || series.remark ? ["remark"] : []}
           />
         </Section>

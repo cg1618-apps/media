@@ -479,7 +479,6 @@ export default function TV() {
           <TVShowNotes
             key={show.system_id}
             show={show}
-            isAdmin={isAdmin}
             hideSections={show.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}

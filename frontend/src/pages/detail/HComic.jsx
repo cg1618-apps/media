@@ -14,6 +14,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
+import { useHighlightGroupOrderSaver } from "../../api/mutations/useMyHighlightGroupOrder";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
@@ -264,7 +265,7 @@ function HComicTrackerBlock({ hComic, isAdmin, onPatch }) {
 export default function HComic() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, isRoot } = useAuth();
+  const { isAdmin, isRoot, has } = useAuth();
   const { showToast } = useToast();
 
   const [hComic, setHComic] = useState(null);
@@ -277,6 +278,8 @@ export default function HComic() {
   // Everything past the lookup speaks UUIDs; resolved from the fetched row so
   // the URL segment and the id can never disagree.
   const system_id = itemQuery.data?.system_id;
+  // The highlight group order is the viewer's own (self.personal_notes).
+  const saveGroupOrder = useHighlightGroupOrderSaver("h-comic", system_id, setHComic);
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate(
@@ -653,14 +656,11 @@ export default function HComic() {
           <HComicNotes
             key={hComic.system_id}
             hComic={hComic}
-            isAdmin={isAdmin}
             hideSections={hComic.remark ? ["remark"] : []}
             series={series}
             franchise={franchise}
             nameSuggestions={castNames}
-            onGroupOrderChange={(names) =>
-              performPatch({ highlight_group_order: names }, "Group order saved")
-            }
+            onGroupOrderChange={has("self.personal_notes") ? saveGroupOrder : undefined}
           />
         </div>
       </div>

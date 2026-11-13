@@ -79,7 +79,7 @@ export const SectionCardProvider = SectionCardContext.Provider;
 // `actions` are extra header controls drawn before Add - a section's view
 // toggles. They sit in the header's click-shielded strip, so pressing one
 // never collapses the card. `openWhenEmpty` - see useCollapsed.
-export function SectionCard({ label, count, isAdmin, onAdd, actions, openWhenEmpty, children }) {
+export function SectionCard({ label, count, canWrite, onAdd, actions, openWhenEmpty, children }) {
   const { bare, appendix, appendixCount } = useContext(SectionCardContext);
   const total = appendixCount ? (count || 0) + appendixCount : count;
   const [collapsed, setCollapsed] = useCollapsed(total, openWhenEmpty);
@@ -100,7 +100,7 @@ export function SectionCard({ label, count, isAdmin, onAdd, actions, openWhenEmp
           onClick={(e) => e.stopPropagation()}
         >
           {actions}
-          {isAdmin && onAdd && (
+          {canWrite && onAdd && (
             <Button
               type="button"
               size="sm"
@@ -157,8 +157,8 @@ export function GroupCard({ label, count, showCount = true, openWhenEmpty, child
   );
 }
 
-export function ItemActions({ isAdmin, onEdit, onDelete }) {
-  if (!isAdmin) return null;
+export function ItemActions({ canWrite, onEdit, onDelete }) {
+  if (!canWrite) return null;
   return (
     <div className="flex gap-1 shrink-0 mt-0.5">
       <button
@@ -321,11 +321,12 @@ export function ShowAllToggle({ total, expanded, onToggle }) {
 // moved down past the fold - which unfolds the section, or the row would
 // vanish. Each move sends the whole section's order, which is what
 // PATCH /api/notes/reorder takes. While a move is being saved every handle is
-// disabled (`reordering`). Only an admin with two rows or more gets handles.
-export function useRowReorder({ section, notes, isAdmin, onReorder, reordering, cap }) {
+// disabled (`reordering`). Only a viewer who may write
+// the section (`canWrite`), with two rows or more, gets handles.
+export function useRowReorder({ section, notes, canWrite, onReorder, reordering, cap }) {
   const ids = notes.map((n) => n.system_id);
   return {
-    on: isAdmin && Boolean(onReorder) && ids.length > 1,
+    on: canWrite && Boolean(onReorder) && ids.length > 1,
     ids,
     disabled: Boolean(reordering),
     move: (from, to) => {

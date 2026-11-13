@@ -187,7 +187,6 @@ export function NotesBlocks({ hideSections = [], hideGroups = [] }) {
 export default function NotesTemplate({
   ownerType,
   ownerId,
-  isAdmin,
   hideSections = [],
   hideGroups = [],
   owner,
@@ -201,7 +200,6 @@ export default function NotesTemplate({
     <NotesProvider
       ownerType={ownerType}
       ownerId={ownerId}
-      isAdmin={isAdmin}
       owner={owner}
       nameSuggestions={nameSuggestions}
       groupOrder={groupOrder}
