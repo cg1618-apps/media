@@ -24,7 +24,7 @@ self.password off every role. Lossy only in what it drops: which accounts were
 disabled, the counters, and every outstanding link.
 
 Revision ID: a1c2codes345
-Revises: v1i2ewperms34
+Revises: n1o2tesrwk3
 Create Date: 2026-11-13 00:00:00.000000
 
 """
@@ -36,7 +36,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision: str = "a1c2codes345"
-down_revision: Union[str, Sequence[str], None] = "v1i2ewperms34"
+down_revision: Union[str, Sequence[str], None] = "n1o2tesrwk3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
