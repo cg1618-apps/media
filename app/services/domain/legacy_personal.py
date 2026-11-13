@@ -9,6 +9,11 @@ opinions, and that revision moved them to the installation owner's
 user_rating / user_novel_unit_rating rows - so Pull of such a sheet does the
 same rather than drop them.
 
+A backup taken before revision h1i2ghlights3 carries, on the H-Comic and
+H-Game tabs, `highlight_group_order` - the order of the highlight groups,
+which that revision moved to the installation owner's
+user_highlight_group_order row. Pull files it there too.
+
 The header names live here rather than in pull.py because they are personal
 column names, and no pipeline module may name one
 (tests/services/test_pipelines_write_no_personal_columns.py): Pull asks this
@@ -20,6 +25,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.services.domain.highlight_group_order import write_group_order
 from app.services.domain.novel_unit_writer import write_unit_rating
 from app.services.domain.user_list import installation_owner_id
 from app.services.domain.user_rating import write_rating
@@ -43,6 +49,8 @@ LEGACY_PERSONAL_COLUMNS: dict[str, tuple[str, dict[str, str]]] = {
     "Studio": ("studio", {"my_rating": "my_rating"}),
     "Publisher": ("publisher", {"my_rating": "my_rating"}),
     "Novel Unit": ("novel_unit", {"my_rating": "my_rating", "remark": "remark"}),
+    "H-Comic": ("group_order", {"highlight_group_order": "group_order"}),
+    "H-Game": ("group_order", {"highlight_group_order": "group_order"}),
 }
 
 
@@ -85,12 +93,20 @@ def restore_legacy_personal(
     owner = installation_owner_id(db)
     if owner is None:
         return (
-            f"{tab_name}: a rating, expectation or remark could not be "
-            "restored - no account exists to own it"
+            f"{tab_name}: a rating, expectation, remark or group order could "
+            "not be restored - no account exists to own it"
         )
     owner_type, _fields = LEGACY_PERSONAL_COLUMNS[tab_name]
     if owner_type == "novel_unit":
         write_unit_rating(db, owner, owner_id, values)
+    elif owner_type == "group_order":
+        try:
+            write_group_order(db, owner, owner_id, values["group_order"])
+        except ValueError:
+            return (
+                f"{tab_name}: highlight_group_order is not a list of names; "
+                "not restored"
+            )
     else:
         write_rating(db, owner, owner_type, owner_id, values)
     return None

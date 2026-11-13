@@ -777,7 +777,6 @@ write path; see [authorization.md](authorization.md#gated-types).
 | `mal_id` | Integer | yes | | Both. Extracted from `mal_link` by the write hook and every pipeline (`apply_extract_mal_id_manga_novel`); the key Tenrai is fetched on |
 | `mal_link` | String | yes | | Both. The MyAnimeList manga URL, typed by hand |
 | `ehentai_link` | String | yes | | Both. The E-Hentai gallery URL (`https://e-hentai.org/g/<gid>/<token>/`, an `exhentai.org` one accepted), typed by hand. No id column: the E-Hentai fill reads the gallery id and token out of it, and fills the cover and the illustrator credit after Tenrai ([external-apis.md](external-apis.md#e-hentai)) |
-| `highlight_group_order` | JSONB | yes | | **KR.** The owner's order of the `h_comic_highlights` groups: a list of distinct, non-blank female character names, read and written whole through the entry update. Names absent from it render after it, in first-appearance order |
 
 Constraints and wiring, as for every entry table: composite FK `fk_h_comic_media`
 (`system_id`, `media_type`) -> `media` (deferrable, ON DELETE CASCADE), CHECK
@@ -832,7 +831,6 @@ CHECK, matching `games`; they are checked on every write path
 | `igdb_id` / `igdb_link` | Integer / String | yes | | As on `games` |
 | `steam_appid` / `steam_link` | Integer / String | yes | | As on `games`; the SteamDB reference row is derived from the appid |
 | `dlsite_link_jp` / `dlsite_link_tw` | String | yes | | The two DLsite store pages. No id column: the DLsite fill reads the product id (`RJ`/`VJ`/`BJ` + digits) out of the JP link, else the TW link - the same product either way |
-| `highlight_group_order` | JSONB | yes | | The owner's order of the `h_game_highlights` groups, as `h_comic`'s |
 | `type_slots` | JSONB | yes | | Favourite-grid slot per grid key, as on `games` |
 
 Constraints and wiring, as for every entry table: composite FK `fk_h_game_media`
@@ -1000,6 +998,32 @@ deliberately excluded from the read-back-as-`0` rule: it was nullable on
 `anime` / `tv_shows` / `cartoons`, so None is a value it always could have had,
 and hentai reads it the same way. Its schemas already declared it
 `Optional[int] = 0`, and a blank one is sent as `null` too.
+
+### `user_highlight_group_order`
+
+One account's order of the highlight groups on one h-comic or h-game - the
+groups `h_comic_highlights` / `h_game_highlights` draw, one per female
+character name. Model: `UserHighlightGroupOrder`
+(`app/models/user_highlight_group_order.py`). Keyed by `(user_id, media_id)` -
+`uq_user_highlight_group_order`.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
+| `media_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE, indexed - the h-comic's or h-game's `system_id`, which is its `media` row's |
+| `group_order` | JSONB | **no** | | A list of distinct, non-blank female character names, read and written whole. Names absent from it render after it, in first-appearance order |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+An empty or cleared order is **not stored**: `write_group_order`
+(`app/services/domain/highlight_group_order.py`, used by
+`PUT /api/me/highlight-group-order/{media_id}` and the old-sheet carry in
+`legacy_personal.py`) deletes the row. `attach_group_orders` puts the
+viewer's order back on each h-comic and h-game as `highlight_group_order`, a
+plain class attribute defaulted to `None` (`app/models/__init__.py`), one
+query per page. When an h-comic's region becomes JP every account's row for
+it is deleted (`drop_jp_group_orders`, in the write hook and in
+`enforce_h_comic_invariants`).
 
 ### `user_novel_unit_rating`
 

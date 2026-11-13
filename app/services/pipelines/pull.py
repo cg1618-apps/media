@@ -60,8 +60,12 @@ from app.services.domain.credits import (
     replace_tags,
 )
 from app.services.domain.gated_labels import enforce_gated_label_invariants
-from app.services.domain.h_comic import enforce_h_comic_invariants
+from app.services.domain.h_comic import (
+    enforce_h_comic_invariants,
+    normalize_group_order,
+)
 from app.services.domain.hierarchy import find_by_names
+from app.services.domain.highlight_group_order import GROUP_ORDER_TYPES
 from app.services.domain.legacy_personal import (
     legacy_personal_headers,
     pop_legacy_personal,
@@ -124,7 +128,11 @@ MEDIA_TYPE_FOR_TAB = _MEDIA_TYPE_FOR_TAB
 # Tabs after which the h-comic variant rule is re-established (see
 # app/services/domain/h_comic.py): every tab that writes an h-comic row or a
 # reader's counter on one.
-H_COMIC_INVARIANT_TABS: frozenset[str] = frozenset({"H-Comic", "User Media List"})
+# User Highlight Group Order is one: an order restored onto a JP entry orders
+# nothing, and the rule deletes it.
+H_COMIC_INVARIANT_TABS: frozenset[str] = frozenset(
+    {"H-Comic", "User Media List", "User Highlight Group Order"}
+)
 
 # Tabs after which every gated type's label is re-attached (see
 # app/services/domain/gated_labels.py): each gated type's entry tab, the
@@ -258,6 +266,11 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     # instead; resolve_user_media_list_key turns that into these two ids before
     # the match runs.
     "User Media List": ("user_id", "media_id"),  # uq_user_media
+    # The same natural key, resolved the same way.
+    "User Highlight Group Order": (
+        "user_id",
+        "media_id",
+    ),  # uq_user_highlight_group_order
     # The Steam import mints these locally, so the same purchase carries a
     # different system_id on each machine while the natural key is identical.
     # game_id is a real entry uuid and is the same everywhere, so no parent
@@ -335,6 +348,7 @@ DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
         # Its uuid is minted per database and the sheet carries no id at all -
         # only the natural key resolve_user_media_list_key turns into two.
         "User Media List",
+        "User Highlight Group Order",
     }
 )
 
@@ -480,9 +494,13 @@ def unexpected_headers(tab_name: str, headers: list) -> list[str]:
     return seen
 
 
-def resolve_user_media_list_key(db: Session, payload: dict) -> Optional[str]:
+def resolve_user_media_list_key(
+    db: Session, payload: dict, tab_name: str = "User Media List"
+) -> Optional[str]:
     """
-    Turn a User Media List row's natural key into real ids, in place.
+    Turn a User Media List row's natural key into real ids, in place. The
+    User Highlight Group Order tab carries the same key and comes through
+    here too, under its own `tab_name` for the reasons.
 
     The sheet identifies the entry by (media_type, public_id) and the person by
     username, because a uuid in the sheet belongs to whichever database last
@@ -510,20 +528,18 @@ def resolve_user_media_list_key(db: Session, payload: dict) -> Optional[str]:
         )
     if media is None:
         logger.warning(
-            "User Media List: no %s entry with public_id %s; row skipped.",
-            media_type, public_id,
+            "%s: no %s entry with public_id %s; row skipped.",
+            tab_name, media_type, public_id,
         )
         return (
-            f"User Media List: entry ({media_type}, {public_id}) is unknown "
+            f"{tab_name}: entry ({media_type}, {public_id}) is unknown "
             f"here, for user {username!r}"
         )
 
     user = db.query(User).filter(User.username == username).first() if username else None
     if user is None:
-        logger.warning(
-            "User Media List: no user named %r; row skipped.", username
-        )
-        return f"User Media List: user {username!r} is unknown here"
+        logger.warning("%s: no user named %r; row skipped.", tab_name, username)
+        return f"{tab_name}: user {username!r} is unknown here"
 
     payload["media_id"] = media.system_id
     payload["user_id"] = user.id
@@ -1086,6 +1102,39 @@ def execute_pull_specific(
         # payload until this resolves them.
         if tab_name == "User Media List":
             unresolved = resolve_user_media_list_key(db, clean_header_dict)
+            if unresolved is not None:
+                unresolved_refs.append(unresolved)
+                rows_skipped += 1
+                continue
+
+        # A highlight group order: the same natural key, then the value as
+        # the write path stores it. A cell that is not a list of names is
+        # reported rather than guessed at, and an empty order is not stored.
+        if tab_name == "User Highlight Group Order":
+            if clean_header_dict.get("media_type") not in GROUP_ORDER_TYPES:
+                unresolved = (
+                    f"{tab_name}: a {clean_header_dict.get('media_type')!r} "
+                    "entry has no highlight groups"
+                )
+            else:
+                unresolved = resolve_user_media_list_key(
+                    db, clean_header_dict, tab_name=tab_name
+                )
+            if unresolved is None:
+                try:
+                    clean_header_dict["group_order"] = normalize_group_order(
+                        clean_header_dict.get("group_order")
+                    )
+                except ValueError:
+                    unresolved = (
+                        f"{tab_name}: the order for user "
+                        f"{raw_header_dict.get('username')!r} is not a list "
+                        "of names"
+                    )
+                else:
+                    if clean_header_dict["group_order"] is None:
+                        rows_skipped += 1
+                        continue
             if unresolved is not None:
                 unresolved_refs.append(unresolved)
                 rows_skipped += 1

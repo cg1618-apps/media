@@ -60,7 +60,7 @@ true, including for permissions that do not exist yet.
 | Permission | `guest` | `user` | `super` | `admin` | a custom role |
 |---|---|---|---|---|---|
 | `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `h-comic`, `h-game`, `hentai` (all twelve) | yes (as seeded) | yes (as seeded) | yes | implicit | — |
-| `view.entities`, `view.search`, `view.extras`, `view.personal` | — (free choice) | yes | **locked on** | implicit | — |
+| `view.entities`, `view.search`, `view.extras` | — (free choice) | yes | **locked on** | implicit | — |
 | `self.list` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `self.personal_notes` | **locked off** | yes | **locked on** | **never implicit** | — |
 | `self.requests` | **locked off** | **locked on** | **locked on** | **never implicit** | — |
@@ -223,10 +223,10 @@ short-circuit deliberately does not cover.
 | open studio, publisher, person, character and identity pages, and follow the links to them (`view.entities`) | — | yes | yes | implicit |
 | search (`view.search`) | — | yes | yes | implicit |
 | read quotes, memes, resources, the random picker, future releases, completions (`view.extras`) | — | yes | yes | implicit |
-| read the highlights note sections (`view.personal`) | — | yes | yes | implicit |
 | switch their own access mode | — (no account) | yes | yes | yes |
 | keep a list row — status, rating, progress | — | yes | yes | **never** |
 | keep a plan queue | — | yes | yes | **never** |
+| write their own highlights and other personal notes, and their own highlight group order on an h-comic or h-game (`self.personal_notes`) | — | yes | yes | **never** |
 | rate a season | — | yes | yes | **never** |
 | rate a collection, franchise, series, character, person, studio or publisher, set a tier's expectation, rate and remark on a novel unit (`self.list`) | — | yes | yes | **never** |
 | read their own account settings — username and role | — (no account) | yes | yes | yes, through the API; the SPA's `/settings` route asks `self.list`, so it is not drawn for `admin` |
@@ -349,13 +349,12 @@ The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
 | `view.entities` | View Entities | every read on `/api/studio`, `/api/publisher`, `/api/person`, `/api/character` and `/api/character-identity`. In the SPA: the entity libraries and pages, entity names on detail pages rendered as links rather than plain text, the characters hub on franchise and series pages |
 | `view.search` | Search | `GET /api/search/`. In the SPA: the nav search and `/search` |
 | `view.extras` | View Extras | every read on `/api/quote`, `/api/meme`, `/api/resources`, and `GET /api/random-picker-defaults/{mode}`. In the SPA: those pages, the random picker, future releases, completions, and the Quotes and Memes sections on detail pages |
-| `view.personal` | View Personal Content | no route. The `highlights` and `highlight_episodes` note sections - see [Note scope](#note-scope). Ratings, expectations and novel unit remarks are each account's own and are not behind it - see [Ratings and expectations](#ratings-and-expectations-user_rating) |
 
 Each read route depends on `require_view_entities`, `require_view_search` or
 `require_view_extras` (`resolver.py`) **per route, not on the router**, so a write on the same router answers to
 `manage.catalog` alone and a role holding that is not also required to hold
-the read. `view.personal` has no route gate: it is read inside `note.py`.
-The four keys are independent:
+the read.
+The three keys are independent:
 a role may hold any subset.
 
 `manage.pipelines` is separate from `manage.catalog` because the two carry
@@ -389,7 +388,7 @@ request limit on `user` and `super` (`app/services/domain/requests.py`):
 | Name | `sort_order` | System | Root | Holds |
 |---|---|---|---|---|
 | `guest` | 0 | yes | no | `default_guest_permissions()` — every media type, and nothing else. Field groups are the mode axis, not this one |
-| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus the four `view.*` and `self.list`, `self.personal_notes`, `self.requests` and `self.password` |
+| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus the three `view.*` and `self.list`, `self.personal_notes`, `self.requests` and `self.password` |
 | `super` | 75 | yes | no | `default_user_permissions()` plus `manage.catalog`, `manage.pipelines` and `manage.requests` — every catalogue capability, deliberately **not** `admin.authz` |
 | `admin` | 100 | yes | **yes** | nothing explicitly; a root role holds every permission implicitly **except `self.*`**, which is ownership rather than privilege and so has no implicit holder |
 
@@ -418,10 +417,16 @@ same way. Migration `v1i2ewperms34` adds the four `view.*` grants to an
 existing `user` role, since the seed's top-up never reaches a role that
 already holds something; `super` gets them from the lock reconciliation on the
 next start.
+Migration `h1i2ghlights3` deletes every `view.personal` grant: the key is
+gone from the vocabulary, so the seed and the lock reconciliation never mint
+it again.
 
 `self.personal_notes` is what `app/routers/note.py` requires of every
-personal-scope note write, and what `app/routers/game_choice.py` requires of
-a done mark or personal note on a block or edge of a game's choice graph
+personal-scope note write - the six highlight sections among them - what
+`app/routers/me_highlights.py` requires of
+`PUT /api/me/highlight-group-order/{media_id}`, and what
+`app/routers/game_choice.py` requires of a done mark or personal note on a
+block or edge of a game's choice graph
 ([systems/game-choices.md](systems/game-choices.md)). See
 [Note scope](#note-scope) below.
 
@@ -981,7 +986,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | people, characters, character identities, studios, publishers (list, detail, `/entries`, `role-counts`, `role-scopes`, writes) | `routers/person.py`, `character.py`, `character_identity.py`, `studio.py`, `publisher.py` — every read behind `view.entities`, then [Shared records](#shared-records); `my_rating` is the viewer's own - see [Ratings and expectations](#ratings-and-expectations-user_rating) |
 | option lists (`/api/options/`, `/api/options/{category}`) and option writes | `routers/options.py` (`_visible_options`) — [Shared records](#shared-records) |
 | series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden with a label-hidden franchise; rating and expectation are the viewer's own, as on franchises and collections - see [Ratings and expectations](#ratings-and-expectations-user_rating) |
-| notes for an owner | `routers/note.py` → 404 for a hidden entry, franchise or series owner (`tier_visible`, `require_visible_owner`), personal sections return only the viewer's own rows (none for a logged-out viewer), and `VIEW_PERSONAL_SECTIONS` (`highlights`, `highlight_episodes`) are withheld from the rows and the section listing without it |
+| notes for an owner | `routers/note.py` → 404 for a hidden entry, franchise or series owner (`tier_visible`, `require_visible_owner`), personal sections - the six highlight sections among them - return only the viewer's own rows (none for a logged-out viewer) |
 | quotes (list, grouped, by id) | `routers/quote.py` — every read behind `view.extras`, then `drop_hidden_rows` |
 | memes (list, grouped, by id) | `routers/meme.py` — every read behind `view.extras`; a meme on a hidden entry, franchise or series is dropped; writes use `require_visible_owner` |
 | plan-next rows | `routers/plan_next.py` |
@@ -994,6 +999,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
 | search | `routers/search.py` — behind `view.search`; entries, franchises, series and the person/studio/publisher buckets, each bucket carrying the viewer's own ratings as its own list route does ([Ratings and expectations](#ratings-and-expectations-user_rating)) |
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
+| own highlight group order (`/api/me/highlight-group-order/{media_id}`) | `routers/me_highlights.py`, behind `self.personal_notes` on the router **and** `entry_visible` on the h-comic or h-game: 404 "Entry not found." for a hidden one, any other type, or none. The order is read back on the h-comic and h-game responses as the viewer's own (`highlight_group_order.attach_group_orders`) |
 | own ratings (`/api/me/ratings/{owner_type}/{owner_id}`, `/api/me/novel-units/{unit_id}`) | `routers/me_ratings.py`, behind `self.list` on the router **and** the owner's own read check (`franchise_visible`, `series_visible`, `view.entities` plus `shared_record_visible` for an entity, `entry_visible` on the unit's novel). Writes follow reads: 404 with the owner's not-found message |
 | account settings (`/api/account/settings`) | `routers/account.py` - a read of the caller's own username and role; no path takes a user id, and there is no write |
 | requests and reports (`/api/requests`) | `routers/requests.py` — filing and the caller's own behind `self.requests`, the inbox behind `manage.requests`. **No object check**: a target must exist, not be visible - see [Accepted residuals](#accepted-residuals) |
@@ -1149,9 +1155,9 @@ request".
   rows in the first place. `gate()` and `gated_columns()` know nothing about
   `source_buckets` — see [Field groups](#field-groups) above.
 - Returns the ORM instances untouched when nothing is withheld (the common case).
-- **No field group names a note section.** Personal sections are filtered by
-  author in `app/routers/note.py`, and the highlight sections by
-  `view.personal` - see [Note scope](#note-scope).
+- **No field group names a note section.** Personal sections - the
+  highlight sections among them - are filtered by author in
+  `app/routers/note.py` - see [Note scope](#note-scope).
 - **`remark` is not gated here at all.** It is a personal-scope note, read
   per viewer by `app.services.domain.remark_field.attach_remark`, filtered on
   `note.author_id`. It must never become a class-level `column_property`: a
@@ -1218,9 +1224,9 @@ entry response stay open, because the page needs the names.
 **Which OPINIONS:** none. A visitor has no account, so every rating and
 expectation of a collection, franchise, series, person, studio, publisher or
 character, and every novel unit's rating and remark, reads **null** (see
-[Ratings and expectations](#ratings-and-expectations-user_rating)); and
-without `view.personal` there is no `highlights` or `highlight_episodes` note
-section at all.
+[Ratings and expectations](#ratings-and-expectations-user_rating)); every
+highlight, being a personal note, is somebody's own and not the visitor's; and
+every highlight group order reads null.
 
 **Which OBJECTS:** a logged-out visitor resolves to the `safe` mode, always.
 It is looked up **by key**, and there is no column anywhere that says
@@ -1326,8 +1332,8 @@ the column in [data-model.md](data-model.md).
 ## Note scope
 
 Every entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`) declares a
-`scope`, with no default: **`catalog`** (61 sections) holds one shared set of
-rows, **`personal`** (13) holds one set per user, and the two `SHAPE_EXTERNAL`
+`scope`, with no default: **`catalog`** (55 sections) holds one shared set of
+rows, **`personal`** (20) holds one set per user, and the two `SHAPE_EXTERNAL`
 sections - `quotes` and `memes` - declare `None`, because they store no `note`
 row and are universal by design. The distinction lives in the registry rather
 than in the schema, so reclassifying a section stays a registry edit plus a
@@ -1357,12 +1363,14 @@ a "clearer" 403 fails the suite rather than quietly reintroducing an oracle.
 **Quotes and memes are untouched by scope.** They carry an `author_id` for
 provenance and every viewer holding `view.extras` reads the same rows.
 
-**Two catalogue sections are withheld without `view.personal`:**
-`highlights` and `highlight_episodes` (`VIEW_PERSONAL_SECTIONS` in
-`note_sections.py`). They are catalogue rows, so they are withheld whoever
-wrote them, and absent from `/api/notes/sections` too - the SPA renders the
-sections the listing names, so an omitted section is not drawn at all rather
-than drawn empty.
+**The six highlight sections are personal** - `highlights`,
+`highlight_episodes`, `highlight_passages`, `highlight_moments`,
+`h_comic_highlights`, `h_game_highlights` - and so is 下周目目標
+(`ng_goals`). Nothing withholds a section from the listing:
+`/api/notes/sections` names every section of the owner type with its `scope`,
+and the page decides from the scope who may write it. An h-comic's and
+h-game's highlight group order is per account too, in
+`user_highlight_group_order`, written under `self.personal_notes`.
 
 **A remark belongs to its author.** `remark` is read per viewer by
 `attach_remark`, filtered on `note.author_id`, and

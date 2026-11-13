@@ -31,7 +31,7 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (55 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (56 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`BACKUP_KEEPALIVE_SECONDS`) while a tab is slow. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -65,8 +65,10 @@ guarded from the day it lands. The personal values travel in the **User Media
 List** tab instead, and the twelve media tabs' parsers do not emit them. The
 same holds one level out: a rating or expectation of a collection, franchise,
 series, character, person, studio or publisher travels in the **User Rating**
-tab, a novel unit's rating and remark in **User Novel Unit Rating**, and the
-tier, entity and Novel Unit tabs carry none of them.
+tab, a novel unit's rating and remark in **User Novel Unit Rating**, an
+h-comic's or h-game's highlight group order in **User Highlight Group
+Order**, and the tier, entity, Novel Unit, H-Comic and H-Game tabs carry none
+of them.
 
 The restore order follows from that: `users` and every media tab must land
 before **User Media List**, because a list row is keyed by `(user_id,
@@ -97,10 +99,11 @@ Person / Studio / Publisher / Character / Content Label -> the media tabs
 Character -> Character Identity -> Character Casting
 Users, Collection / Franchise / Series, Character / Person / Studio / Publisher -> User Rating
 Users, Novel Unit -> User Novel Unit Rating
+Users, Media, H-Comic, H-Game -> User Highlight Group Order
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
-`Seasonal`, `Watch Order Follow`, `User Rating`, `User Novel Unit Rating`, `Game Copy` and `Game Choice Mark` all carry a NOT NULL `user_id`. The enforcement is
+`Seasonal`, `Watch Order Follow`, `User Rating`, `User Novel Unit Rating`, `User Highlight Group Order`, `Game Copy` and `Game Choice Mark` all carry a NOT NULL `user_id`. The enforcement is
 `tests/api/test_sheet_restore_order.py`; move the tab rather than weaken the
 test.
 
@@ -147,22 +150,23 @@ test.
 | 37 | `Hentai` | `Hentai` | `hentai` |
 | 38 | `H-Game` | `HGame` | `h-game` |
 | 39 | `User Media List` | `UserMediaList` |  |
-| 40 | `Watch Order List` | `WatchOrderList` |  |
-| 41 | `Watch Order Section` | `WatchOrderSection` |  |
-| 42 | `Watch Order Item` | `WatchOrderItem` |  |
-| 43 | `Watch Order Follow` | `WatchOrderFollow` |  |
-| 44 | `Media Relation` | `MediaRelation` |  |
-| 45 | `Plan Next` | `PlanNext` |  |
-| 46 | `Quote` | `Quote` |  |
-| 47 | `Character Casting` | `CharacterCasting` |  |
-| 48 | `Character Casting Voice` | `CharacterCastingVoice` |  |
-| 49 | `Meme` | `Meme` |  |
-| 50 | `Note` | `Note` |  |
-| 51 | `Resources` | `ResourceNode` |  |
-| 52 | `Media Source` | `MediaSource` |  |
-| 53 | `Media Content Label` | `MediaContentLabel` |  |
-| 54 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 55 | `Seasonal` | `Seasonal` |  |
+| 40 | `User Highlight Group Order` | `UserHighlightGroupOrder` |  |
+| 41 | `Watch Order List` | `WatchOrderList` |  |
+| 42 | `Watch Order Section` | `WatchOrderSection` |  |
+| 43 | `Watch Order Item` | `WatchOrderItem` |  |
+| 44 | `Watch Order Follow` | `WatchOrderFollow` |  |
+| 45 | `Media Relation` | `MediaRelation` |  |
+| 46 | `Plan Next` | `PlanNext` |  |
+| 47 | `Quote` | `Quote` |  |
+| 48 | `Character Casting` | `CharacterCasting` |  |
+| 49 | `Character Casting Voice` | `CharacterCastingVoice` |  |
+| 50 | `Meme` | `Meme` |  |
+| 51 | `Note` | `Note` |  |
+| 52 | `Resources` | `ResourceNode` |  |
+| 53 | `Media Source` | `MediaSource` |  |
+| 54 | `Media Content Label` | `MediaContentLabel` |  |
+| 55 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 56 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -247,6 +251,21 @@ they are; `person_id`, `studio_id` and `publisher_id` are minted per database
 and are translated through their own tabs (`DERIVED_IDENTITY_PARENTS`).
 **`User Novel Unit Rating`** keys on `(user_id, unit_id)` =
 `uq_user_novel_unit`; `unit_id` travels unchanged.
+**`User Highlight Group Order`** carries every account's order of the
+highlight groups on an h-comic or h-game, keyed naturally as `User Media
+List` is: Backup drops `system_id`, `user_id` and `media_id` and writes
+`media_type`, `public_id` and `username`, and Pull resolves them back
+(`resolve_user_media_list_key`) and matches on `(user_id, media_id)` =
+`uq_user_highlight_group_order`. `group_order` travels as JSON text and is
+normalised as the write path does; a row naming an entry of another type, an
+unknown entry or an unknown user, or an order that is not a list of names, is
+skipped and named in `unresolved_refs`, and an empty order is skipped.
+
+**A backup taken before `h1i2ghlights3` still Pulls its group orders.** Its
+H-Comic and H-Game tabs carry `highlight_group_order`, and no `User Highlight
+Group Order` tab. `legacy_personal.py` names that header for both tabs too,
+and files the value as the installation owner's `user_highlight_group_order`
+row; a cell that is not a list of names is named in `unresolved_refs`.
 
 **A backup taken before `u1r2atings3` still Pulls its opinions.** Such a sheet
 carries `my_rating` (and the tier's `*_expectation`) on its Collection,
@@ -330,8 +349,7 @@ under their own keys the same way. Its `ep_total` is an ordinary column of the
 `User Media List`, as cartoon's do. Its credit and
 tag columns (`illustrator`, `author`, `club`, `original_source`,
 `h_genre_plot`, `h_genre_appearance`, `h_genre_relation`) have no legacy
-header, so each travels under its own key, and `highlight_group_order`
-travels as JSON text. `H-Game` follows `H-Comic`, the same way: its credit and
+header, so each travels under its own key. `H-Game` follows `H-Comic`, the same way: its credit and
 tag columns (`studio`, `game_genre`, `game_theme`, `h_genre_plot`,
 `h_genre_appearance`, `h_genre_relation`) travel under their own keys, and its
 six list fields (`dialogue_audio`, `sound_effect`, `h_presentation`,
@@ -582,9 +600,10 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      committed. A restore writes rows straight to the tables, so neither the
      region rule nor the label would otherwise hold for it.
      - When the tab is one of `H_COMIC_INVARIANT_TABS` (`H-Comic`,
-       `User Media List`), `enforce_h_comic_invariants`: each h-comic's unused
-       region columns are cleared (and a `highlight_group_order` that is not a
-       list of names is dropped), and every reader's unused counter is cleared.
+       `User Media List`, `User Highlight Group Order`),
+       `enforce_h_comic_invariants`: each h-comic's unused region columns are
+       cleared, every reader's unused counter is cleared, and every account's
+       highlight group order on a JP h-comic is deleted.
      - When the tab is one of `GATED_LABEL_INVARIANT_TABS` - every gated
        type's entry tab (`H-Comic`, `H-Game`, `Hentai`), `Franchise`, `Content Label`,
        `Media Content Label` and `Franchise Content Label` -

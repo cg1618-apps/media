@@ -1,9 +1,8 @@
 """
 The view.* family: what a logged-out visitor does not see.
 
-Four keys, held by `user` and `super` and not by `guest`. Each refusal below is
-asserted with the gated thing PRESENT - a row to read, a highlight to
-withhold - and is mirrored by a viewer holding the key reading the
+Three keys, held by `user` and `super` and not by `guest`. Each refusal below is
+asserted with the gated thing PRESENT - a row to read - and is mirrored by a viewer holding the key reading the
 same thing through the same fixture, so a green proves the gate refused and not
 that there was nothing to return.
 """
@@ -18,7 +17,6 @@ from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_VIEW_ENTITIES,
     PERM_VIEW_EXTRAS,
-    PERM_VIEW_PERSONAL,
     PERM_VIEW_SEARCH,
     VIEW_PERMISSION_KEYS,
     VIEW_PERMISSION_LABELS,
@@ -30,6 +28,7 @@ from app.services.rbac.seed import (
     default_guest_permissions,
     default_super_permissions,
     default_user_permissions,
+    ensure_rbac_seed,
 )
 from tests.api.conftest import make_viewer
 
@@ -37,7 +36,6 @@ VIEW_ALL = {
     PERM_VIEW_ENTITIES,
     PERM_VIEW_SEARCH,
     PERM_VIEW_EXTRAS,
-    PERM_VIEW_PERSONAL,
 }
 
 
@@ -61,10 +59,39 @@ def _held(db, role_name):
 # ---------------------------------------------------------------------------
 
 
-def test_the_four_keys_are_in_the_catalog():
-    assert VIEW_PERMISSION_KEYS == ("entities", "search", "extras", "personal")
+def test_the_three_keys_are_in_the_catalog():
+    assert VIEW_PERMISSION_KEYS == ("entities", "search", "extras")
     assert {view_perm(k) for k in VIEW_PERMISSION_KEYS} == VIEW_ALL
     assert VIEW_ALL <= static_catalog()
+
+
+def test_view_personal_is_gone_from_the_catalog():
+    """Every highlight section is personal, so nothing is left for it to open."""
+    assert "view.personal" not in static_catalog()
+    assert "personal" not in VIEW_PERMISSION_LABELS
+
+
+def test_seeding_twice_grants_no_view_personal(db):
+    """
+    The user and super roles are emptied first, so the seed's top-up - which
+    only fills a role holding nothing - really does run, and runs again. The
+    mirror is the same assertion's other half: the rest of the family IS
+    granted, so the absence is the vocabulary and not an empty seed.
+    """
+    roles = db.query(models.Role).filter(models.Role.name.in_(["user", "super"])).all()
+    assert len(roles) == 2
+    db.query(models.RolePermission).filter(
+        models.RolePermission.role_id.in_([r.system_id for r in roles])
+    ).delete(synchronize_session=False)
+    db.flush()
+
+    ensure_rbac_seed(db)
+    ensure_rbac_seed(db)
+
+    held = {row.permission for row in db.query(models.RolePermission)}
+    assert "view.personal" not in held
+    assert VIEW_ALL <= _held(db, "user")
+    assert VIEW_ALL <= _held(db, "super")
 
 
 def test_every_key_has_a_label_and_a_description():
@@ -163,10 +190,6 @@ def gated_reads(db, admin_client, person, character, anime_with_studio, sample_a
             "/api/resources",
             "/api/random-picker-defaults/all",
         ],
-        # view.personal gates no route of its own: what it opens are
-        # sections and fields inside pages every viewer reads, tested below.
-        # Holding it still opens none of the reads above, which the
-        # parametrised test asserts.
     }
 
 
@@ -186,7 +209,7 @@ def test_a_member_reads_every_gated_read(user_client, gated_reads):
 
 
 @pytest.mark.parametrize(
-    "permission", [PERM_VIEW_ENTITIES, PERM_VIEW_SEARCH, PERM_VIEW_EXTRAS, PERM_VIEW_PERSONAL]
+    "permission", [PERM_VIEW_ENTITIES, PERM_VIEW_SEARCH, PERM_VIEW_EXTRAS]
 )
 def test_each_key_opens_exactly_its_own_reads(db, client, gated_reads, permission):
     """The keys are independent: holding one opens its reads and no other's."""
@@ -216,62 +239,10 @@ def test_an_entity_write_does_not_also_need_the_read(db, client):
 
 
 # ---------------------------------------------------------------------------
-# Notes: the highlight sections
-# ---------------------------------------------------------------------------
-
-
-def _notes(c, anime, **params):
-    return c.get(
-        "/api/notes",
-        params={"owner_type": "anime", "owner_id": str(anime.system_id), **params},
-    )
-
-
-@pytest.fixture
-def highlight(db, sample_anime, admin_user):
-    """A catalogue highlight on the anime - the row a guest must not see."""
-    db.add(
-        models.Note(
-            system_id=uuid.uuid4(),
-            media_id=sample_anime.system_id,
-            section="highlights",
-            content="第六話",
-            author_id=admin_user.id,
-        )
-    )
-    db.flush()
-
-
-def test_a_guest_does_not_see_highlights(client, sample_anime, highlight):
-    r = _notes(client, sample_anime)
-    assert r.status_code == 200
-    assert not [n for n in r.json() if n["section"] == "highlights"]
-
-
-def test_a_member_sees_highlights(user_client, sample_anime, highlight):
-    r = _notes(user_client, sample_anime)
-    assert [n["content"] for n in r.json() if n["section"] == "highlights"] == ["第六話"]
-
-
-def test_the_section_listing_omits_highlights_for_a_guest(client, user_client):
-    def keys(c, owner_type):
-        r = c.get("/api/notes/sections", params={"owner_type": owner_type})
-        assert r.status_code == 200
-        return {s["key"] for s in r.json()}
-
-    assert "highlights" in keys(user_client, "anime")
-    assert "highlight_episodes" in keys(user_client, "tv-show")
-    assert "highlights" not in keys(client, "anime")
-    assert "highlight_episodes" not in keys(client, "tv-show")
-    # Only those two: a guest still gets every other section.
-    assert keys(user_client, "anime") - keys(client, "anime") == {"highlights"}
-
-
-# ---------------------------------------------------------------------------
 # Ratings, expectations and unit remarks are the viewer's own
 # ---------------------------------------------------------------------------
-# No longer a view.personal question: they live per account (user_rating,
-# user_novel_unit_rating), so a viewer reads its own and nobody else's. Each
+# They live per account (user_rating, user_novel_unit_rating), so a viewer
+# reads its own and nobody else's. Each
 # null below is asserted with a row PRESENT - the member's own - so it proves
 # the read is per account rather than that nothing was rated.
 

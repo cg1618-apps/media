@@ -121,8 +121,9 @@ SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     ),
     "personal_notes": (
         "Own Personal Notes",
-        "Write your own personal-scope notes on an entry. Catalogue notes stay "
-        "admin-only.",
+        "Write your own personal-scope notes on an entry - highlights, todos, "
+        "saves, NG+ goals - and your own highlight group order. Catalogue "
+        "notes stay admin-only.",
     ),
     "requests": (
         "Own Requests",
@@ -137,7 +138,7 @@ SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
 }
 
 
-VIEW_PERMISSION_KEYS: tuple[str, ...] = ("entities", "search", "extras", "personal")
+VIEW_PERMISSION_KEYS: tuple[str, ...] = ("entities", "search", "extras")
 
 VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "entities": (
@@ -154,12 +155,6 @@ VIEW_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
         "View Extras",
         "Quotes, memes, resources, the random picker, future releases and "
         "completions, and the Quotes and Memes sections on detail pages.",
-    ),
-    "personal": (
-        "View Personal Content",
-        "See the Highlights and Highlight Episodes sections of an entry's "
-        "notes. Ratings, expectations and novel unit remarks are each "
-        "account's own and are not covered by this.",
     ),
 }
 
@@ -188,7 +183,6 @@ def view_perm(key: str) -> str:
 PERM_VIEW_ENTITIES = view_perm("entities")
 PERM_VIEW_SEARCH = view_perm("search")
 PERM_VIEW_EXTRAS = view_perm("extras")
-PERM_VIEW_PERSONAL = view_perm("personal")
 
 
 def split_perm(permission: str) -> tuple[str, str]:

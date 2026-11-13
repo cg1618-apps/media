@@ -71,6 +71,7 @@ from app.models.system import (
     User,
 )
 from app.models.tv_show import TVShows
+from app.models.user_highlight_group_order import UserHighlightGroupOrder
 from app.models.user_media_list import UserMediaList
 from app.models.user_novel_unit_rating import UserNovelUnitRating
 from app.models.user_rating import UserRating
@@ -90,6 +91,7 @@ __all__ = [
     "Franchise",
     "Series",
     "Media",
+    "UserHighlightGroupOrder",
     "UserMediaList",
     "UserNovelUnitRating",
     "UserRating",
@@ -232,6 +234,11 @@ Collection.collection_expectation = None
 Franchise.franchise_expectation = None
 Series.series_expectation = None
 NovelUnit.remark = None
+# An h-comic's and an h-game's highlight group order is the viewer's own too,
+# in user_highlight_group_order, attached by
+# app.services.domain.highlight_group_order.attach_group_orders.
+HComic.highlight_group_order = None
+HGame.highlight_group_order = None
 
 
 # ---------------------------------------------------------------------------

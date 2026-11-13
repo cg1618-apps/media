@@ -7,8 +7,10 @@ Two invariants, and one place that keeps them:
             by the form - the same rule novel's volume-only types follow
             (derive_novel_catalog). A KR entry has no originality, animation
             status, series number or page total; a JP entry has no chapter
-            total, chapters behind or highlight group order. The reader's own
-            counters follow the region too: page_fin is JP's, ch_fin is KR's.
+            total or chapters behind, and no account keeps a highlight group
+            order for it (its rows in user_highlight_group_order are
+            deleted). The reader's own counters follow the region too:
+            page_fin is JP's, ch_fin is KR's.
 
   label     Every h-comic entry carries the `h-comic` content label, and every
             franchise whose type includes `H-Comic` carries it too. A missing
@@ -36,7 +38,6 @@ relations to hentai entries (attach_animation_status) - read, never written,
 so removing the relation restores the hand-set value.
 """
 
-import logging
 from typing import Optional
 
 from fastapi import HTTPException
@@ -56,8 +57,6 @@ from app.utils.constants import (
     ReadStatus,
 )
 
-logger = logging.getLogger(__name__)
-
 MEDIA_TYPE = "h-comic"
 # The content label every h-comic carries. Named here as well as in
 # gated_types.REQUIRED_LABEL_FOR_TYPE so this module does not have to import
@@ -73,7 +72,7 @@ REGION_CLEARS: dict[str, tuple[str, ...]] = {
         "series_number",
         "page_total",
     ),
-    H_COMIC_REGION_JP: ("ch_total", "ch_behind", "highlight_group_order"),
+    H_COMIC_REGION_JP: ("ch_total", "ch_behind"),
 }
 
 # The reader's counters, the same way.
@@ -173,7 +172,28 @@ def _validate_catalog(entry) -> None:
     entry.region = check_region(entry.region)
     entry.originality = check_originality(entry.originality)
     entry.animation_status = check_animation_status(entry.animation_status)
-    entry.highlight_group_order = normalize_group_order(entry.highlight_group_order)
+
+
+def drop_jp_group_orders(db: Session, entry_ids=None) -> int:
+    """
+    Delete every account's highlight group order on a JP h-comic - one entry,
+    a set, or (None) every JP h-comic. A JP entry has no highlights section
+    (owner_where), so an order on it orders nothing. Returns rows deleted;
+    does not commit.
+    """
+    jp = db.query(models.HComic.system_id).filter(
+        models.HComic.region == H_COMIC_REGION_JP
+    )
+    if entry_ids is not None:
+        ids = [i for i in entry_ids if i is not None]
+        if not ids:
+            return 0
+        jp = jp.filter(models.HComic.system_id.in_(ids))
+    return (
+        db.query(models.UserHighlightGroupOrder)
+        .filter(models.UserHighlightGroupOrder.media_id.in_(jp.scalar_subquery()))
+        .delete(synchronize_session=False)
+    )
 
 
 def h_comic_progress_hook(db: Session, entry) -> None:
@@ -193,6 +213,7 @@ def h_comic_progress_hook(db: Session, entry) -> None:
     if entry.system_id is not None:
         db.flush()
         gated_labels.ensure_entry_label(db, entry.system_id, LABEL_KEY)
+        drop_jp_group_orders(db, [entry.system_id])
 
 
 def h_comic_progress_hook_list(row, entry) -> None:
@@ -382,7 +403,6 @@ def enforce_h_comic_invariants(db: Session) -> dict:
     by_id = {entry.system_id: entry for entry in entries}
     for entry in entries:
         clear_h_comic_catalog(entry)
-        entry.highlight_group_order = _safe_group_order(entry)
 
     if by_id:
         rows = (
@@ -393,16 +413,6 @@ def enforce_h_comic_invariants(db: Session) -> dict:
         for row in rows:
             clear_h_comic_list(row, by_id[row.media_id])
     db.flush()
+    drop_jp_group_orders(db)
+    db.flush()
     return {"entries": len(entries)}
-
-
-def _safe_group_order(entry):
-    """A restored order that is not a list of names is dropped, not raised."""
-    try:
-        return normalize_group_order(entry.highlight_group_order)
-    except ValueError:
-        logger.warning(
-            "h-comic %s: highlight_group_order is not a list of names; cleared.",
-            entry.system_id,
-        )
-        return None

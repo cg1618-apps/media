@@ -37,7 +37,6 @@ from app.services.rbac.gated_types import unseeable_gated_types
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_SELF_PERSONAL_NOTES,
-    PERM_VIEW_PERSONAL,
 )
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
@@ -47,7 +46,6 @@ from app.utils.note_sections import (
     NOTE_SECTIONS,
     PERSONAL_SECTIONS,
     SCOPE_PERSONAL,
-    VIEW_PERSONAL_SECTIONS,
     field_by_key,
     section_by_key,
 )
@@ -443,12 +441,7 @@ def get_sections(
         raise HTTPException(
             status_code=400, detail=f"Unknown owner_type '{owner_type}'."
         )
-    sections = sections_out(owner_type)
-    if viewer.has(PERM_VIEW_PERSONAL):
-        return sections
-    # Absent rather than empty, as list_notes drops the rows: a section the
-    # viewer may not read is not on the page at all.
-    return [s for s in sections if s.key not in VIEW_PERSONAL_SECTIONS]
+    return sections_out(owner_type)
 
 
 @router.get("", response_model=List[schemas.NoteResponse])
@@ -487,12 +480,6 @@ def list_notes(
                 models.Note.author_id == author_id,
             )
         )
-
-    # A withheld section is absent rather than blanked: an empty card would
-    # advertise that there is something here to not-see. Highlights are
-    # catalogue rows, so they are withheld whoever wrote them.
-    if not viewer.has(PERM_VIEW_PERSONAL):
-        query = query.filter(models.Note.section.notin_(list(VIEW_PERSONAL_SECTIONS)))
     return _ordered(query.all())
 
 

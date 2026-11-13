@@ -411,6 +411,30 @@ def parse_user_novel_unit_rating_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_user_highlight_group_order_from_sheet(raw: dict) -> dict:
+    """
+    One account's highlight group order on one h-comic or h-game, keyed
+    naturally like User Media List: media_type + public_id for the entry and
+    username for the account. Pull resolves both and normalises the order.
+    """
+    media_type = parse_from_sheet(raw.get("media_type"), str)
+    public_id = parse_from_sheet(raw.get("public_id"), int)
+    username = parse_from_sheet(raw.get("username"), str)
+    if not media_type or public_id is None or not username:
+        raise ValueError(
+            "User Highlight Group Order row needs media_type, public_id and "
+            f"username; got {media_type!r}, {public_id!r}, {username!r}"
+        )
+    return {
+        "media_type": media_type,
+        "public_id": public_id,
+        "username": username,
+        "group_order": _safe_json(raw.get("group_order")),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_user_media_list_from_sheet(raw: dict) -> dict:
     """
     One user's list row, keyed naturally rather than by uuid.
@@ -1174,6 +1198,8 @@ def parse_h_comic_from_sheet(raw: dict) -> dict:
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "ehentai_link": parse_from_sheet(raw.get("ehentai_link"), str),
+        # An old sheet's header: no column any more. Pull hands it to
+        # legacy_personal, which files it as the installation owner's order.
         "highlight_group_order": _safe_json(raw.get("highlight_group_order")),
         "illustrator": parse_from_sheet(raw.get("illustrator"), str),
         "author": parse_from_sheet(raw.get("author"), str),
@@ -1335,6 +1361,8 @@ def parse_h_game_from_sheet(raw: dict) -> dict:
         "steam_link": parse_from_sheet(raw.get("steam_link"), str),
         "dlsite_link_jp": parse_from_sheet(raw.get("dlsite_link_jp"), str),
         "dlsite_link_tw": parse_from_sheet(raw.get("dlsite_link_tw"), str),
+        # An old sheet's header: no column any more. Pull hands it to
+        # legacy_personal, which files it as the installation owner's order.
         "highlight_group_order": _safe_json(raw.get("highlight_group_order")),
         "type_slots": _safe_json(raw.get("type_slots")),
         "studio": parse_from_sheet(raw.get("studio"), str),

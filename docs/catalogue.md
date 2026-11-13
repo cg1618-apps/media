@@ -26,7 +26,8 @@ card. It carries no technical detail; the tables behind it are
 | Your game copies: where you bought it, the format, what you paid | a game's copies |
 | Your progress through a game's choices: what you have done, and a note | a game's Choices card |
 | The watch orders you follow | a watch order's follow toggle |
-| Your personal notes — the sections marked **yours** in [Notes](#notes-yours-or-shared) | the Notes card on an entry or group |
+| Your personal notes — the sections marked **yours** in [Notes](#notes-yours-or-shared), your highlights among them | the Notes card on an entry or group |
+| The order of the highlight groups on an H-Comic or H-Game | its 亮點 Highlights card |
 
 Nobody else can change any of it, and nobody else can see it, the admin
 included. There is no profile others can open and no community figure your
@@ -53,13 +54,6 @@ quote or meme is a favourite.
 *Changing:* marking a quote or meme as a favourite will become **yours** —
 but only for accounts the admin turns that feature on for.
 
-*Changing:* highlights will become **yours** — each account keeps its
-own, privately, like the other personal sections. Today they are shared
-notes written by whoever edits the catalogue. The
-Anime highlights (神回/神片段 Highlights) and the TV Show, Cartoon and Manga
-ones are kept from visitors who are not signed in; the Novel, Game, H-Comic
-and H-Game ones are not.
-
 ## Notes: yours or shared
 
 Every section of the Notes card is one or the other. A **yours** section
@@ -79,12 +73,12 @@ that type, or a group (collection, franchise, series).
 | 大眾評價 Public Reviews | every type; every group | shared |
 | 我的評價 Personal Reviews | every type; every group | **yours** |
 | 各集評論 Episode Comments (Manga: 各話評論 Chapter Comments; Game: 各章評論 Part Reviews) | Anime, TV Show, Cartoon, Manga, Game | **yours** |
-| 神回/神片段 Highlights | Anime | shared |
-| 神回/神片段 (Manga: 神回) | TV Show, Cartoon, Manga | shared |
-| 神片段 | Novel | shared |
-| 神場景 Highlights | Game | shared |
-| 亮點 Highlights | H-Comic | shared |
-| 亮點 Highlights | H-Game | shared |
+| 神回/神片段 Highlights | Anime | **yours** |
+| 神回/神片段 (Manga: 神回) | TV Show, Cartoon, Manga | **yours** |
+| 神片段 | Novel | **yours** |
+| 神場景 Highlights | Game | **yours** |
+| 亮點 Highlights | H-Comic | **yours** |
+| 亮點 Highlights | H-Game | **yours** |
 | 解析/解惑/討論 Analysis/Discussion | every type but H-Comic, Hentai; every group | shared |
 | 分鏡/演出/巧思/細節 | Anime, Anime Movie, TV Show, Cartoon, Manga; series | shared |
 | 巧思 | Novel | shared |
@@ -127,6 +121,7 @@ that type, or a group (collection, franchise, series).
 | 繼承內容 Carried Over | Game, H-Game | shared |
 | 重置內容 Reset | Game, H-Game | shared |
 | 新周目前需完成 Before Starting | Game, H-Game | shared |
+| 下周目目標 NG+ Goals | Game, H-Game | **yours** |
 | 現在進行 Doing now | Game, H-Game | **yours** |
 | 接下來 To do next | Game, H-Game | **yours** |
 | 未來 To do in the future | Game, H-Game | **yours** |
@@ -145,9 +140,6 @@ that type, or a group (collection, franchise, series).
 | Questions | every type but H-Comic, Hentai; every group | **yours** |
 | 名言 Quotes | every type but H-Comic, Hentai, H-Game | shared |
 | 梗/迷因 Memes | every type but H-Comic, Hentai, H-Game; every group | shared |
-
-The six highlight rows (神回/神片段, 神片段, 神場景, 亮點) are shared today and
-will become **yours**.
 
 *Changing:* some shared sections will gain a part that is **yours**. The
 row stays shared — the item, enemy, ending or song — and your progress on

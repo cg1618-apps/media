@@ -10,7 +10,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 - **Public endpoints** — accessible by any visitor (guest or admin).
 - **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency.
-- **View-gated reads** — an Auth cell naming a `view.*` permission (`view.entities`, `view.search`, `view.extras`, `view.personal`) is a read the `guest` role does not hold, so a logged-out visitor gets **401**; a signed-in `user` holds all four. See [authorization.md](authorization.md#permission-catalog-code).
+- **View-gated reads** — an Auth cell naming a `view.*` permission (`view.entities`, `view.search`, `view.extras`) is a read the `guest` role does not hold, so a logged-out visitor gets **401**; a signed-in `user` holds all three. See [authorization.md](authorization.md#permission-catalog-code).
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
 - A missing or invalid cookie on an admin endpoint is **401**, never 403. The one 403 in the app is the login route's, for a pending or disabled account that gave the right password. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
 
@@ -79,6 +79,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Watch Order — Sections](#watch-order--sections)
 - [My List — `/api/me`](#my-list--apime)
 - [My Ratings — `/api/me`](#my-ratings--apime)
+- [My Highlight Group Order — `/api/me`](#my-highlight-group-order--apime)
 - [Account — `/api/account`](#account--apiaccount)
 - [Requests — `/api/requests`](#requests--apirequests)
 - [Authorization](#authorization) — `/api/roles`, `/api/users`, `/api/content-labels`
@@ -457,7 +458,7 @@ then E-Hentai (keyed on the gallery in `ehentai_link`), both fill-only
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
 | `POST`   | `/`                    | Admin  | Create. Body: `HComicCreate`; **`region` is required** (`JP` / `KR`). Auto-runs `execute_replace_single_h_comic`: when the entry has a `mal_link`, `mal_id` is extracted from it and Tenrai's manga record fills what is blank, then the E-Hentai gallery in `ehentai_link` fills the cover and the illustrator credit if they are still blank (see `/replace/h-comic/{entry_id}`); then `run_sync_h_comic` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HComicUpdate`. `region` may be omitted, but not sent as `null` (422). Same write hook. |
-| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The h-comic vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. `animation_status` follows the derived-status rule below. |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The h-comic vocabularies are checked here too (422), because a PATCH body never passes through the schema. `animation_status` follows the derived-status rule below. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `reading_status = "Completed"`; `serialization_status` becomes `完結` unless it is `腰斬`; the region's counter reaches its total (`page_fin = page_total` on JP, `ch_fin = ch_total` on KR). |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete. Logs to `deleted_record` under type `H-Comic`. |
 
@@ -465,8 +466,7 @@ then E-Hentai (keyed on the gallery in `ehentai_link`), both fill-only
 `h_comic_name_en` / `_cn` / `_alt` / `_jp` / `_kr`, `region`, `originality`,
 `animation_status`, `series_number`, `serialization_status`, `page_total`,
 `ch_total`, `ch_behind`, `release_date`, `end_date`, `mal_id`, `mal_link`,
-`ehentai_link`, `highlight_group_order`
-(list of strings), the personal `reading_status` (default `Might Read`),
+`ehentai_link`, the personal `reading_status` (default `Might Read`),
 `my_rating`, `page_fin`, `ch_fin`, `usefulness`, `completed_at`, the plan flags
 `read_next` / `to_reread`, `remark`, `cover_image_file`, `cover_image_focus`, and `sources`.
 `region`, `originality`, `animation_status` and `usefulness` are checked
@@ -478,8 +478,9 @@ region, `app/services/domain/gated_labels.py` for the label):
 
 - **Region.** The columns the region does not use are cleared whatever the
   payload says - on KR `originality`, `animation_status`, `series_number`,
-  `page_total` and the reader's `page_fin`; on JP `ch_total`, `ch_behind`,
-  `highlight_group_order` and the reader's `ch_fin`.
+  `page_total` and the reader's `page_fin`; on JP `ch_total`, `ch_behind`
+  and the reader's `ch_fin`, and every account's highlight group order on the
+  entry is deleted.
 - **Label.** The `h-comic` label is attached if missing.
 
 **Franchise.** An h-comic auto-resolves only into a franchise of the
@@ -500,11 +501,13 @@ derived, sending the derived or the stored value changes nothing, and any other
 value is **422**. See
 [entry-types.md](entry-types.md#h-comic-animation-status-attach_animation_status-appservicesdomainh_comicpy).
 
-**`highlight_group_order`** is the order of the KR highlight groups (see
-[systems/notes.md](systems/notes.md#h-comic-highlights-h_comic_highlights)):
-a list of female character names, written whole through `PUT` or `PATCH`,
-deduplicated with blanks dropped (`[]` stores `null`); a non-list, or a list
-holding a non-string, is 422. It is cleared on a JP entry.
+**`highlight_group_order`** is a response field only: the VIEWER'S own order
+of the KR highlight groups (see
+[systems/notes.md](systems/notes.md#h-comic-highlights-h_comic_highlights)),
+a list of female character names, or `null` for nobody signed in, for no
+order, and always on a JP entry. It is written by
+[`PUT /api/me/highlight-group-order/{media_id}`](#my-highlight-group-order--apime);
+an entry write that sends it has the key ignored.
 
 **Response model:** `HComicResponse` — the columns, the personal fields,
 `display_name` (CN → EN → Alt → JP → KR), `public_id`, `content_labels`,
@@ -575,7 +578,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 | `GET`    | `/{entry_id}`          | Public | One entry, by `public_id` or UUID. |
 | `POST`   | `/`                    | Admin  | Create. Body: `HGameCreate`. Auto-runs `execute_save_replace_h_game`: Game's Replace in its save form (ids extracted from `igdb_link` and `steam_link`, IGDB fetched fill-only when there is an `igdb_id`, SteamDB row derived, Steam fetched when there is an appid, then the HowLongToBeat search unless it already missed in this process), then `run_sync_game` and `run_sync_gated_labels`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `HGameUpdate`. Same write hook. |
-| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The vocabularies and `highlight_group_order` are checked here too (422), because a PATCH body never passes through the schema. |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. The vocabularies are checked here too (422), because a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | `playing_status = "Completed"`; nothing on the catalogue side, as for game. |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete. Logs to `deleted_record` under type `H-Game`; the entry's `game_copy` rows go with its `media` row. |
 
@@ -587,7 +590,7 @@ factory from `MEDIA_REGISTRY["h_game"]`, plus Game's IGDB picker.
 the six `price_*`, `language_availability`, `dialogue_audio` (list),
 `sound_effect` (list), `h_presentation` (list), `art_style` (list),
 `h_art_style` (list), `platform` (list), `igdb_id` / `igdb_link`, `steam_appid` / `steam_link`,
-`dlsite_link_jp` / `_tw`, `highlight_group_order` (list of strings),
+`dlsite_link_jp` / `_tw`,
 `type_slots`, `cover_image_file`, `cover_image_focus`, the personal `playing_status` (default
 `Might Play`), `my_rating`, `usefulness`, `completed_at`, the plan flags
 `play_next` / `to_replay`, `remark`, `sources` and `copies` (Game's
@@ -611,9 +614,8 @@ auto-creates one of type `H-Game`, labelled. A `franchise_id` naming an
 `H-Comic` or `Hentai` franchise is accepted; one naming a mainstream franchise
 (`Game`, `ACG`, ...) is **422**.
 
-**`highlight_group_order`** is the order of the highlight groups (see
-[systems/notes.md](systems/notes.md)), written whole as on h-comic; every
-h-game keeps it.
+**`highlight_group_order`** is a response field only, the viewer's own order
+of the highlight groups, as on h-comic; every h-game takes one.
 
 **Response model:** `HGameResponse` — the columns, the personal fields,
 `display_name` (CN → EN → Alt → Roman → JP), `public_id`, `base_game`
@@ -1078,7 +1080,7 @@ whether the file exists on this machine — and `attachments`, the list of
 
 Structured commentary on any owner: one row per bullet, linked resource or
 episode comment. This is the only storage for them — there is no `notes` JSONB column on the
-seven media tables. Reads are public, less what needs `view.personal` (below); every write is admin-only.
+seven media tables. Reads are public; a catalogue write needs `manage.catalog` and a personal one `self.personal_notes`.
 
 Like Meme, a note's owner may be a media entry **or** one of the three
 grouping tiers — the same twelve hyphenated `owner_type` values.
@@ -1090,15 +1092,24 @@ tier on a write is resolved from the id, never from the payload's
 
 | Method   | Path           | Auth   | Description                                                                                                                                       |
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`). Without `view.personal`, `highlights` and `highlight_episodes` are absent from the list. |
-| `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Catalogue sections for everyone; personal sections only the viewer's own rows, and none for a logged-out viewer. There is no parameter that reads another account's personal notes, the admin's included. Without `view.personal`, rows in `highlights` and `highlight_episodes` are omitted. |
-| `POST`   | `""`           | Admin  | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
-| `PATCH`  | `/reorder`     | Admin  | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once.                |
-| `PATCH`  | `/{note_id}`   | Admin  | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. |
-| `DELETE` | `/{note_id}`   | Admin  | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have.        |
+| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`). Each section carries its `scope` (`catalog` or `personal`), which says who may write it. |
+| `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Catalogue sections for everyone; personal sections only the viewer's own rows, and none for a logged-out viewer. There is no parameter that reads another account's personal notes, the admin's included. The six highlight sections are personal, so their rows are the viewer's own too. |
+| `POST`   | `""`           | By scope | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
+| `PATCH`  | `/reorder`     | By scope | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once - in a personal section, exactly the caller's own.                |
+| `PATCH`  | `/{note_id}`   | By scope | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. |
+| `DELETE` | `/{note_id}`   | By scope | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have.        |
+
+**By scope** is the section's `scope`: a `catalog` section is written under
+`manage.catalog`, a `personal` one under `self.personal_notes` (which the
+`admin` account does not hold - its creates, edits and reorders there are
+**401**). A personal row is edited, reordered and deleted only by its author;
+another account's row is **404** - except that the `admin` account may delete
+one (`_authorize_edit`'s root short-circuit). Personal sections include the six highlight sections and 下周目目標
+(`ng_goals`) - [catalogue.md](catalogue.md) lists every section's scope.
 
 **Response models:** `NoteResponse`, `NoteSectionOut` (one resolved registry
-entry: `key`, `shape`, `label`, `kinds`, `locator_placeholder`,
+entry: `key`, `shape`, `scope` (`catalog`, `personal`, or `null` for quotes and
+memes), `label`, `kinds`, `locator_placeholder`,
 `locator_required`, `takes_links` (an `episode_text` section whose rows also
 carry URL-string links - `op_ed_changes`), `singleton`, `desc_required`, and for a structured section
 `fields` - each field's `type` may be `names`, a list of strings stored under
@@ -2476,6 +2487,24 @@ all get **401**.
 Each route writes one row, the caller's, and takes no user id. A row left
 holding neither value is deleted, so "never rated" and "cleared" are one
 state.
+
+---
+
+## My Highlight Group Order — `/api/me`
+
+The caller's own order of the highlight groups on an h-comic or an h-game
+(`app/routers/me_highlights.py`, table `user_highlight_group_order`). Gated at
+**router level** on `self.personal_notes`, the permission the highlight rows
+are written under: a logged-out visitor, a viewer without it and the `admin`
+account all get **401**.
+
+| Method | Path | Notes |
+|---|---|---|
+| PUT | `/api/me/highlight-group-order/{media_id}` | `media_id` is the entry's `system_id`. Body `{"group_order": [names] \| null}` - the key is required. The list is read and written whole, trimmed, with blanks and repeats dropped; `null`, `[]` or a list of blanks clears the order and deletes the row. Returns `{media_id, group_order}`. **422** for a value that is not a list of strings, a missing key or any other key, and for a JP h-comic (it has no highlights section). **404** "Entry not found." for an entry that does not exist, is not an h-comic or h-game, or that the caller's GET would not answer. |
+
+The order is read back as `highlight_group_order` on the h-comic and h-game
+list, detail and search responses - the viewer's own, `null` for anyone else.
+When an h-comic's region becomes JP, every account's order on it is deleted.
 
 ---
 

@@ -33,6 +33,7 @@ from app.services.domain.entry_fields import attach_entry_list_fields
 from app.services.domain.game_copies import attach_own_copies
 from app.services.domain.h_comic import attach_animation_status
 from app.services.domain.hierarchy import check_entry_franchise_family
+from app.services.domain.highlight_group_order import attach_group_orders
 from app.services.domain.plan_next import (
     attach_plan_flag,
     pop_plan_flag,
@@ -244,6 +245,9 @@ def make_media_router(spec) -> APIRouter:
         # than mapped on the class - see app/models/__init__.py. A path that
         # forgets this call shows no remark, never somebody else's.
         attach_remark(db, spec.owner_type, entry, viewer_user_id(viewer))
+        # The viewer's own highlight group order, the same way. No-op for
+        # every type but h-comic and h-game.
+        attach_group_orders(db, spec.owner_type, entry, viewer_user_id(viewer))
         return entry
 
     def _read_gates(viewer, payload):

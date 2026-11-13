@@ -109,7 +109,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `story` | 劇情 Story | `fa-book-open` — game and h-game only. Game: main plot, side stories, character arcs, endings. H-game: the four Story List strands, then endings. What happens |
 | `story_list` | 劇情列表 Story List | `fa-list-ol` — game only, 4 **hierarchical** strands (an h-game's render in 劇情) |
 | `worldbuilding` | 世界觀 Worldbuilding | `fa-earth-asia` — game only: lore, story terms, timeline, mysteries, other. The world it happens in |
-| `ng_plus` | NG 多周目 | `fa-rotate` — game and h-game only: flow, carried over, reset, before starting. What starting over keeps and takes away |
+| `ng_plus` | NG 多周目 | `fa-rotate` — game and h-game only: flow, carried over, reset, before starting, and 下周目目標 NG+ Goals. What starting over keeps and takes away, and what I mean to do next time |
 | `todo` | 待辦 Todo | `fa-list-check` — game and h-game only, 4 personal-scope buckets (a row moves between them in one step, `quick_move`) and then 存檔 Saves, all personal |
 | `music` | 音樂 Music | `fa-music` |
 | `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` — every owner but h-comic, hentai and h-game |
@@ -307,6 +307,7 @@ move sends the whole tree depth-first in the drawn order, group after group.
 | `ng_carried_over` | 繼承內容 Carried Over | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
 | `ng_reset` | 重置內容 Reset | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
 | `ng_before_starting` | 新周目前需完成 Before Starting | **structured** | ng_plus | game, h-game | — | — | — | no | no | no |
+| `ng_goals` | 下周目目標 NG+ Goals | text_links | ng_plus | game, h-game | — | — | — | no | no | no |
 | `todo_now` | 現在進行 Doing now | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `todo_next` | 接下來 To do next | text_links | todo | game, h-game | — | — | — | no | no | no |
 | `todo_later` | 未來 To do in the future | text_links | todo | game, h-game | — | — | — | no | no | no |
@@ -357,7 +358,7 @@ Per-owner overrides (`labels`, `kinds_by_owner`, `locator_placeholders`, `desc_r
 ### H-Comic highlights (`h_comic_highlights`)
 
 A KR h-comic's standout scenes, grouped by the female characters in them.
-Catalogue scope, owners `("h-comic",)`, `group_by = "female_characters"`,
+Personal scope, owners `("h-comic",)`, `group_by = "female_characters"`,
 `owner_where = {"region": ("KR",)}` - a JP entry is refused a row (422).
 
 | Field | Type | Stored in | Notes |
@@ -370,23 +371,22 @@ Catalogue scope, owners `("h-comic",)`, `group_by = "female_characters"`,
 | `usefulness` | select | `status` | `H_COMIC_USEFULNESS` |
 | `description` | textarea | `content` | |
 
-**The group order is the entry's, not the rows'.** Rows inside a group
-follow `sort_index`. The order of the groups is `h_comic.highlight_group_order`,
-a list of names written through the ordinary entry update
-(`PUT` / `PATCH /api/h-comic/{id}` with `highlight_group_order`): it is
-deduplicated with blanks dropped, a non-list is a 422, and on a JP entry it is
-cleared like every KR-only column. Groups follow the list; a name the list
-lacks renders after it in first-appearance order, and a listed name no row
-carries any more is ignored. It is a column rather than a table because it is
-only ever read and written whole.
+**The group order is the viewer's, not the rows'.** Rows inside a group
+follow `sort_index`. The order of the groups is the viewer's own row in
+`user_highlight_group_order`, served on the entry as `highlight_group_order`
+(null for nobody signed in and for no order): a list of names written whole
+through `PUT /api/me/highlight-group-order/{media_id}` under
+`self.personal_notes`, deduplicated with blanks dropped, a non-list a 422, and
+deleted for every account when the entry turns JP. Groups follow the list; a
+name the list lacks renders after it in first-appearance order, and a listed
+name no row carries any more is ignored. The entry update does not take it.
 
 ### H-Game highlights (`h_game_highlights`)
 
 An h-game's standout scenes, grouped the same way by `female_characters`.
-Catalogue scope, owners `("h-game",)`, and **no** `owner_where` - every h-game
-takes it. The group order is `h_game.highlight_group_order`, written through the
-entry update and normalised exactly as h-comic's (`normalize_group_order`),
-without any region clear.
+Personal scope, owners `("h-game",)`, and **no** `owner_where` - every h-game
+takes it. The group order is the viewer's own, kept and written exactly as
+h-comic's (`normalize_group_order`), without any region clear.
 
 | Field | Type | Stored in | Notes |
 |---|---|---|---|
@@ -409,8 +409,8 @@ h-comic's `location`, which an h-game highlight does not have.
 
 **On the h-game page** (`frontend/src/pages/detail/HGame.jsx`): the page's one
 `NotesProvider` - Game's composition, with 待辦 Todo in the Progress slip - is
-handed the entry row, `highlight_group_order` and the callback that PATCHes a
-new order, and the section renders exactly as on a KR h-comic: one group per
+handed the entry row, the viewer's `highlight_group_order` and the callback
+that saves a new order through `PUT /api/me/highlight-group-order/{media_id}`, and the section renders exactly as on a KR h-comic: one group per
 female character, groups dragged by their header's handle or stepped with the arrow keys on it, rows reordered in the flat list behind the **Group by female characters** toggle. An h-game has
 no cast, so the `names` inputs offer no suggestions and take any name typed.
 
@@ -419,10 +419,10 @@ the detail page hands the notes page the entry row, the cast's character names
 and the stored group order. A JP entry gets no Highlights card at all
 (`owner_where`, see below). The rows render one group per female character
 name; each group is dragged by the grip on its header (or moved one place with
-ArrowUp / ArrowDown on that grip), and the drop PATCHes the entry's
-`highlight_group_order` with the whole new order of the names on screen -
+ArrowUp / ArrowDown on that grip), and the drop PUTs the viewer's whole new
+order of the names on screen to `/api/me/highlight-group-order/{media_id}` -
 which is how a name no row carries any more drops out of the list. The new
-order shows at once and every group handle is disabled until the PATCH
+order shows at once and every group handle is disabled until the save
 settles; a failed save puts the stored order back. The rows inside a group have no handle: they follow
 `sort_index`. To reorder the rows, turn off **Group by female characters** in
 the card header: the rows then read as one list, each once, with a grip apiece,
@@ -534,20 +534,20 @@ Every section declares a **`scope`**, and the field has **no default** — a sec
 
 | Scope | Sections | Meaning |
 | --- | --- | --- |
-| `catalog` | 61 | One shared set of rows, read by everyone unfiltered |
-| `personal` | 13 — `remark`, `remark_list`, `advantages`, `disadvantages`, `double_edged`, `personal_reviews`, `episode_comments`, `questions`, the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe`, and `saves` | One set per user; a viewer sees their own rows and nobody else's |
+| `catalog` | 55 | One shared set of rows, read by everyone unfiltered |
+| `personal` | 20 — `remark`, `remark_list`, `advantages`, `disadvantages`, `double_edged`, `personal_reviews`, `episode_comments`, the six highlight sections `highlights`, `highlight_episodes`, `highlight_passages`, `highlight_moments`, `h_comic_highlights`, `h_game_highlights`, 下周目目標 `ng_goals`, `questions`, the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe`, and `saves` | One set per user; a viewer sees their own rows and nobody else's |
 | `None` | `quotes`, `memes` | The two `external` sections, backed by their own tables. Quotes and memes are **universal** — shared, unfiltered, no per-user copies — so scope does not apply |
 
-The distinction lives in the registry rather than in the schema, so reclassifying a section is a registry edit plus a data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves `scope` on every entry (`NoteSectionOut.scope`); the frontend does not act on it yet.
+The distinction lives in the registry rather than in the schema, so reclassifying a section is a registry edit plus a data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves `scope` on every entry (`NoteSectionOut.scope`), and the notes page decides from it who may write each section.
 
 Who may write, and whose rows a read returns, follow from it — the router reads `section.scope` rather than carrying its own list:
 
 | Scope | Write (`_authorize_write` / `_authorize_edit`) | Read |
 | --- | --- | --- |
-| `catalog` | admin only | everyone, unfiltered |
+| `catalog` | `manage.catalog` | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only (a root role may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
 
-Personal rows are private to their author. There is no way to read another account's, the admin's included: `GET /api/notes` takes no author parameter, and an `author` in the query string is ignored. The `highlights` and `highlight_episodes` sections are withheld from a viewer without `view.personal` - their rows and their entries in `/api/notes/sections` alike. The full rules live in [../authorization.md](../authorization.md#note-scope).
+Personal rows are private to their author. There is no way to read another account's, the admin's included: `GET /api/notes` takes no author parameter, and an `author` in the query string is ignored. The six highlight sections are personal like the rest, so every account reads its own highlights and a logged-out visitor none. The full rules live in [../authorization.md](../authorization.md#note-scope).
 
 **`remark` is per author, like any other personal-scope section.** It is read by `app.services.domain.remark_field.attach_remark`, filtered on `note.author_id`, and `ix_note_one_remark_per_owner` carries `author_id` — so two accounts each hold one on the same entry and each reads back their own. The index and the read path are one mechanism: a class-level `column_property` cannot know who is asking, and pairing one with a per-author index would turn a loud database refusal into an accepted-then-invisible write.
 
@@ -597,8 +597,8 @@ Singleton and one-per-kind uniqueness are **not** here — they need a query, so
 
 - If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. A franchise owner carrying a label the viewer's mode lacks, or a series in such a franchise, answers the same 404 (`tier_visible`); every write resolves the tier from the id through `require_visible_owner` and answers it too. A collection carries no labels and skips the check.
 - **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer; a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
-- Without `view.personal`, the `highlights` and `highlight_episodes` rows (`VIEW_PERSONAL_SECTIONS`) are simply **absent** from the response (an empty card would advertise that there is something to not-see). No field group names a note section.
-- `GET /api/notes/sections` drops the same two sections for a viewer without `view.personal`, so the page does not draw them at all; a gated owner type the viewer cannot see answers 400 as an unknown one. Nothing else is filtered from the registry.
+- No field group names a note section.
+- `GET /api/notes/sections` filters nothing from the registry: every section of the owner type is listed, with its `scope`. A gated owner type the viewer cannot see answers 400 as an unknown one.
 
 ## API
 

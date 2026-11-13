@@ -4034,3 +4034,50 @@ highlight note sections. That retires the "null, not absent" and
 - **A merge moves ratings to the survivor** where that account has none
   there, and drops the loser's otherwise - the survivor's own rating wins,
   as its columns do in `merge_fill`.
+
+### Highlights are each account's own, and so is their group order (2026-11-13)
+
+The six highlight sections - `highlights`, `highlight_episodes`,
+`highlight_passages`, `highlight_moments`, `h_comic_highlights`,
+`h_game_highlights` - are an opinion of the work, and became personal note
+sections. Revision `h1i2ghlights3` re-authors their rows to the installation
+owner (the frozen `OWNER` rule `u1r2atings3` uses), so the person they were
+written for still reads them. 下周目目標 (`ng_goals`) arrived as a personal
+`text_links` section in NG 多周目 at the same time - a plan for one's next run
+is one person's, like the 待辦 buckets it sits before.
+
+- **The group order is a table, not a hidden note section.** An h-comic's or
+  h-game's highlight group order was a JSONB column on the entry; once the
+  rows are per account, the order of their groups has to be too.
+  `user_highlight_group_order (user_id, media_id, group_order)` is the
+  `user_rating` shape: one row per account per entry, read and written
+  whole, deleted when cleared, cascading with either end, and attached to the
+  entry under the old field name so the page reads `highlight_group_order` as
+  before. A hidden personal note section would have reused the note router's
+  author rules for free, but it would be a section the registry has to
+  exclude from every listing, a singleton rule to enforce per author, and a
+  JSON list stored in a column (`fields`) designed for one row's named
+  fields - and its Sheets travel would be by note uuid rather than by the
+  natural key (`media_type`, `public_id`, `username`) every per-user tab
+  uses. The write is `PUT /api/me/highlight-group-order/{media_id}` under
+  `self.personal_notes`, the permission the highlight rows are written under,
+  rather than `self.list`, because the order is part of those notes. A JP
+  h-comic has no highlights section, so turning one JP deletes every
+  account's order on it, as the column used to be cleared.
+- **No per-row `mine` flag on `NoteResponse`.** The plan offered either the
+  user id on `/me` or a `mine` flag on each note so the page could tell its
+  own rows from others'. Neither is needed: `GET /api/notes` returns a
+  personal section's rows only when the viewer wrote them, so every personal
+  row a viewer is served is its own, and `NoteSectionOut.scope` already
+  tells the page who may write a section (catalogue → `manage.catalog`,
+  personal → `self.personal_notes`). A flag would restate the read rule on
+  every row and widen nothing.
+- **`view.personal` is removed, not left empty.** It existed only to withhold
+  `highlights` and `highlight_episodes` - catalogue rows that read as
+  opinion - from guests. Once those sections are personal a guest has none to
+  read, so the key gated nothing; a permission that gates nothing still
+  draws a checkbox on the role editor that appears to mean something. It
+  left `VIEW_PERMISSION_KEYS`, and with it the seeds and the lock
+  reconciliation, which derive from that tuple; the revision deletes the
+  stored grants, and its downgrade does not restore them because which roles
+  held it is recorded nowhere.

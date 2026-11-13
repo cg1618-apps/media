@@ -729,6 +729,16 @@ PERSONAL_KEYS = {
     "episode_comments",
     "questions",
     "personal_reviews",
+    # The six highlight sections: which episode or scene was the best is one
+    # person's opinion of the work.
+    "highlights",
+    "highlight_episodes",
+    "highlight_passages",
+    "highlight_moments",
+    "h_comic_highlights",
+    "h_game_highlights",
+    # 下周目目標: what I mean to do on my next run.
+    "ng_goals",
     # The 待辦 buckets. Four sections rather than one with a kind, because
     # sort_index orders rows within one (owner, section) pair.
     "todo_now",
@@ -752,12 +762,6 @@ CATALOG_KEYS = {
     "adaptation",
     "resources",
     "public_reviews",
-    "highlights",
-    "highlight_episodes",
-    "highlight_passages",
-    "highlight_moments",
-    "h_comic_highlights",
-    "h_game_highlights",
     "analysis",
     "cinematography",
     "craft",
@@ -836,7 +840,7 @@ def test_external_sections_carry_no_scope():
         assert sec.scope is None
 
 
-def test_the_personal_sections_are_exactly_these_thirteen():
+def test_the_personal_sections_are_exactly_these_twenty():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
         PERSONAL_KEYS
     )
@@ -852,7 +856,7 @@ def test_the_catalog_sections_are_exactly_these():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 74
+    assert len(stored) == 75
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
@@ -867,6 +871,14 @@ def test_sections_by_scope_returns_registry_order():
         "double_edged",
         "personal_reviews",
         "episode_comments",
+        "highlights",
+        "highlight_episodes",
+        "highlight_passages",
+        "highlight_moments",
+        "h_comic_highlights",
+        "h_game_highlights",
+        # The last of NG 多周目, right before 待辦.
+        "ng_goals",
         # The 待辦 run sits after `symmetry` and before the music group.
         "todo_now",
         "todo_next",

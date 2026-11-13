@@ -379,8 +379,9 @@ class NoteSection:
     # The key of a `names` field the read view groups rows by: one group per
     # name, and a row naming two appears under both. Display-only - rows are
     # stored and ordered exactly as in any structured section. The order of
-    # the GROUPS is the owner entry's, not this registry's (for h-comic and
-    # h-game, `highlight_group_order` on the entry). Checked at import.
+    # the GROUPS is the viewer's, not this registry's (for h-comic and
+    # h-game, the viewer's user_highlight_group_order row, served as the
+    # entry's `highlight_group_order`). Checked at import.
     group_by: str | None = None
     # The key of a `select` field the reader MAY group rows by: the card gets a
     # toggle, and turned on it draws one group per value of that field, in the
@@ -851,7 +852,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="神回/神片段 Highlights",
         owners=("anime",),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
         locator_placeholder="Episode(s), e.g. ep 6",
         # The stored data distinguishes a great episode from a great moment or
         # arc, so the section keeps a dropdown even though its siblings do not.
@@ -863,7 +864,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="神回/神片段",
         owners=("tv-show", "cartoon", "manga"),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
         labels={"manga": "神回"},
         # TV shows and cartoons draw the same distinction anime does. Manga
         # does not, so it keeps the plain field.
@@ -876,7 +877,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="神片段",
         owners=("novel",),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
     ),
     NoteSection(
         key="highlight_moments",
@@ -885,19 +886,20 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="神場景 Highlights",
         # Not h-game: its highlights are h_game_highlights.
         owners=("game",),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
         locator_placeholder="Chapter / Boss, e.g. Ch 3",
     ),
     NoteSection(
         # A KR h-comic's standout scenes, grouped by the female characters in
         # them. KR only: a JP entry is refused a row (owner_where) and renders
-        # no card. The group order is a column on the entry,
-        # h_comic.highlight_group_order, written through the entry update.
+        # no card. Personal, like every highlight section. The group order is
+        # each account's own, in user_highlight_group_order, written through
+        # PUT /api/me/highlight-group-order/{media_id}.
         key="h_comic_highlights",
         shape=SHAPE_STRUCTURED,
         label="亮點 Highlights",
         owners=("h-comic",),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
         group_by="female_characters",
         owner_where={"region": ("KR",)},
         fields=(
@@ -945,13 +947,12 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # the same thing. Single-choice where the entry's are multi-choice -
         # the entry says what the game has anywhere, a row says what one scene
         # is. Every h-game takes it, so there is no owner_where. The group
-        # order is h_game.highlight_group_order, written through the entry
-        # update.
+        # order is each account's own, as for h_comic_highlights.
         key="h_game_highlights",
         shape=SHAPE_STRUCTURED,
         label="亮點 Highlights",
         owners=("h-game",),
-        scope=SCOPE_CATALOG,
+        scope=SCOPE_PERSONAL,
         group_by="female_characters",
         fields=(
             NoteField(
@@ -1765,6 +1766,17 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         fields=_ng_plus_fields(),
         groupable_by="type",
     ),
+    # What I mean to do on my next playthrough. Personal, like the todo
+    # buckets: a plan is one person's. text_links so a goal can carry the
+    # guide link it came from.
+    NoteSection(
+        key="ng_goals",
+        shape=SHAPE_TEXT_LINKS,
+        label="下周目目標 NG+ Goals",
+        owners=GAME_OWNERS,
+        scope=SCOPE_PERSONAL,
+        group="ng_plus",
+    ),
     # --- 待辦 Todo --------------------------------------------------------
     # Four sections rather than one section with a kind, because ordering is
     # PER SECTION: sort_index orders rows within one (owner, section) pair and
@@ -2258,16 +2270,6 @@ PERSONAL_SECTIONS: frozenset[str] = frozenset(
 CATALOG_SECTIONS: frozenset[str] = frozenset(
     s.key for s in NOTE_SECTIONS if s.scope == SCOPE_CATALOG
 )
-
-# Catalogue sections that read as somebody's opinion of the work rather than
-# a fact about it, and so are withheld - from the rows AND from the section
-# listing - from a viewer without view.personal. Named here rather than
-# flagged on NoteSection because they are a policy choice about two sections,
-# not a property of the shape.
-VIEW_PERSONAL_SECTIONS: frozenset[str] = frozenset(
-    {"highlights", "highlight_episodes"}
-)
-
 
 def sections_by_scope(scope: str) -> list[NoteSection]:
     """Every section of one scope, in display order."""

@@ -1,5 +1,6 @@
 """
-The NG 多周目 card: four structured sections about starting a game over.
+The NG 多周目 card: four structured catalogue sections about starting a game
+over, and 下周目目標, a personal list of what to do on the next run.
 """
 
 import pytest
@@ -9,6 +10,7 @@ from app.utils import note_sections as ns
 
 NG_PLUS_KEYS = ["ng_flow", "ng_carried_over", "ng_reset", "ng_before_starting"]
 TYPED_KEYS = NG_PLUS_KEYS[1:]
+GROUP_KEYS = NG_PLUS_KEYS + ["ng_goals"]
 
 
 def test_the_group_sits_below_worldbuilding():
@@ -18,8 +20,17 @@ def test_the_group_sits_below_worldbuilding():
     assert group.label == "NG 多周目"
 
 
-def test_the_group_holds_four_sections_in_order():
-    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "ng_plus"] == NG_PLUS_KEYS
+def test_the_group_holds_five_sections_in_order():
+    assert [s.key for s in ns.NOTE_SECTIONS if s.group == "ng_plus"] == GROUP_KEYS
+
+
+def test_ng_goals_is_a_personal_text_links_list_for_both_game_types():
+    section = ns.section_by_key("ng_goals")
+    assert section.label == "下周目目標 NG+ Goals"
+    assert section.shape == ns.SHAPE_TEXT_LINKS
+    assert section.scope == ns.SCOPE_PERSONAL
+    assert section.owners == ns.GAME_OWNERS
+    assert "ng_goals" in {s.key for s in sections_out("h-game")}
 
 
 def test_the_labels():
@@ -36,7 +47,7 @@ def test_the_card_renders_after_worldbuilding():
     # Card order is registry position, so this pins where the card lands.
     order = [s.key for s in sections_out("game")]
     assert order.index("ng_flow") > order.index("story_other")
-    assert [k for k in order if k in NG_PLUS_KEYS] == NG_PLUS_KEYS
+    assert [k for k in order if k in GROUP_KEYS] == GROUP_KEYS
 
 
 @pytest.mark.parametrize("key", NG_PLUS_KEYS)

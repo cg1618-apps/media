@@ -47,6 +47,7 @@ from app.routers import (
     hentai,
     images,
     manga,
+    me_highlights,
     me_list,
     me_ratings,
     media_relation,
@@ -320,6 +321,7 @@ app.include_router(users.router)
 app.include_router(account.router)
 app.include_router(me_list.router)
 app.include_router(me_ratings.router)
+app.include_router(me_highlights.router)
 app.include_router(content_labels.router)
 app.include_router(requests.router)
 

@@ -25,6 +25,7 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
     Users, the three tiers, Character / Person / Studio / Publisher
                      -> User Rating
     Users, Novel Unit -> User Novel Unit Rating
+    Users, H-Comic, H-Game -> User Highlight Group Order
 
 Users is first because nothing points at it and Plan Next, Seasonal and Game
 Copy all carry a NOT NULL user_id.
@@ -333,6 +334,20 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         "User Media List",
         models.UserMediaList,
         f.parse_user_media_list_from_sheet,
+        drop_columns=("system_id", "user_id", "media_id"),
+        extra_columns=(
+            ("media_type", _list_row_media_type),
+            ("public_id", _list_row_public_id),
+            ("username", _row_username),
+        ),
+    ),
+    # One account's order of the highlight groups on an h-comic or h-game.
+    # After Users and every media tab (H-Comic and H-Game above all), keyed
+    # naturally exactly as User Media List is.
+    SheetTab(
+        "User Highlight Group Order",
+        models.UserHighlightGroupOrder,
+        f.parse_user_highlight_group_order_from_sheet,
         drop_columns=("system_id", "user_id", "media_id"),
         extra_columns=(
             ("media_type", _list_row_media_type),
