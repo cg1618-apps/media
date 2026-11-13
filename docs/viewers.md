@@ -237,10 +237,20 @@ A guest that can view more, with no data of its own.
 Beyond being shown or hidden, many pages and features differ by viewer —
 the admin, guests and shared accounts may get their own dashboard and
 layout. **Still to design**; each page gets a section here as it is
-decided. Known so far:
+decided. Still open:
 
-- **Dashboard** — may differ for the admin, guests and shared accounts.
 - **Seasonal** and **Statistics** — need a version for an account without
   personal data (guest, shared).
 - **Random Picker** — shared accounts get a version that differs from
   today's.
+
+### Dashboard (`/`)
+
+| Viewer | Shows |
+| --- | --- |
+| **super** | announcements, the broadcast schedule, its own tracker, and a **summary of pending registrations and open requests and reports**: counts and the fewest words that say what waits, linking to where it is handled. Not the admin's inbox. **Hidden entirely when nothing waits.** |
+| **user** | announcements, the broadcast schedule, its own tracker |
+| **guest** | announcements, the broadcast schedule, and **a way into each library** |
+| **shared** | the guest's dashboard, plus **recently added** entries |
+| **admin** | its own page: pending registrations, open requests and reports, recent pipeline runs, and announcements to edit; no catalogue |
+
