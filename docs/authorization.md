@@ -1450,6 +1450,25 @@ data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves it.
 | `catalog` | `manage.catalog` | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only | `WHERE author_id = viewer`, and nothing else: there is no way to read another account's personal notes, the admin included, and a logged-out viewer gets none. An `author` query parameter is ignored |
 
+**Mixed sections.** Ten catalogue sections (`NoteSection.mixed`) also hold
+personal rows, `note.personal`, beside the catalogue's. Which kind a write
+makes is fixed by `manage.catalog`, never by the payload, and nobody writes
+both in one section:
+
+| Account | Writes in a mixed section | Reads |
+|---|---|---|
+| `user`, or any account without `manage.catalog` holding `self.personal_notes` | personal rows only | the catalogue rows and its own personal rows |
+| `super`, or anyone holding `manage.catalog` | catalogue rows only | the catalogue rows, and any personal rows of its own from before it held `manage.catalog` |
+| `admin` | catalogue rows only - it keeps no personal data | the catalogue rows |
+| a logged-out visitor | nothing (**401**) | the catalogue rows |
+
+A personal row is edited, deleted, reordered, marked and nested under by its
+author alone, and is **404** to anyone else - a member, a catalogue editor,
+the `admin` account: `_authorize_edit` has no root short-circuit for it. A
+catalogue row is edited under `manage.catalog` (**401** otherwise). A reorder
+renumbers one kind: the catalogue rows for a `manage.catalog` holder, the
+caller's own personal rows for anyone else. No write changes a row's kind.
+
 **Two answers, and there is no 403 in this router.** `401` means *you may not
 do this kind of thing* — a capability failure, matching what
 `require_permission` returns and the one error shape the SPA knows. `404`
@@ -1462,6 +1481,8 @@ row gets, because a 403 confirms a row exists exactly as surely as a 200 does.
 | no `manage.catalog`, creating a catalogue note | **401** |
 | no `manage.catalog`, editing a catalogue note | **401** — the caller may not edit catalogue notes at all, which is not a fact about this note |
 | somebody else's personal note | **404**, worded identically to a missing one |
+| somebody else's personal row in a mixed section - edit, delete, mark, or as a parent (**422 "Parent note not found."**) | **404**, the `admin` account included |
+| a catalogue row nesting under a personal row | **422** |
 
 `tests/api/test_note_status_codes.py` asserts the absence of 403 directly, so
 a "clearer" 403 fails the suite rather than quietly reintroducing an oracle.

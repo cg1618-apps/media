@@ -15,6 +15,7 @@ def test_column_order_is_the_sheet_order():
         "series_id",
         "author_id",
         "section",
+        "personal",
         "parent_id",
         "locator",
         "kind",

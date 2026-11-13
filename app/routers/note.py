@@ -21,13 +21,20 @@ returns carries the asking viewer's own in their place
 (services/domain/note_marks.py), a catalogue write drops them, and they are
 written only through PUT /{id}/mark and POST /ng-reset, under
 self.personal_notes.
+
+A MIXED section (note_sections.MIXED_SECTIONS) holds personal rows too -
+`note.personal`, each one account's own - beside its catalogue rows. A
+viewer reads the catalogue plus its own personal rows, after the catalogue's;
+the kind a write makes is the server's, from manage.catalog
+(`_authorize_write`); a personal row is edited, deleted, reordered and nested
+under only by its author, and never becomes a catalogue row.
 """
 
 import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -301,10 +308,17 @@ def _reject_second_singleton(
         )
 
 
-def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> None:
+def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> bool:
     """
     Catalogue sections are admin-only; personal sections need
-    self.personal_notes.
+    self.personal_notes. Returns whether the row this viewer writes is a
+    personal row of a mixed section.
+
+    A mixed section takes both, and the kind is decided here, never by the
+    payload: a viewer holding manage.catalog writes catalogue rows - the
+    admin and `super` included - and any other viewer holding
+    self.personal_notes writes personal rows. That is the account spec's
+    table: whoever writes the catalogue keeps no personal rows beside it.
 
     Scope is read from the registry rather than from a list here, so a section
     reclassified in note_sections.py changes who may write it with no change to
@@ -318,15 +332,39 @@ def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> None:
     if section.scope == SCOPE_PERSONAL:
         if viewer.user_id is None or not viewer.has(PERM_SELF_PERSONAL_NOTES):
             raise _capability_refused("You may not write personal notes.")
-        return
+        return False
+    if section.mixed and not viewer.has(PERM_MANAGE_CATALOG):
+        if viewer.user_id is None or not viewer.has(PERM_SELF_PERSONAL_NOTES):
+            raise _capability_refused("You may not write notes in this section.")
+        return True
     if not viewer.has(PERM_MANAGE_CATALOG):
         raise _capability_refused(
             "Catalogue notes require the manage.catalog permission."
         )
+    return False
+
+
+def _readable(viewer: Viewer, db_note: models.Note) -> bool:
+    """
+    Whether this viewer may read this row at all: a personal row - of a
+    personal section or a mixed one - is its author's alone; every other row
+    is everyone's (its owner's visibility is checked apart).
+    """
+    section = section_by_key(db_note.section or "")
+    if db_note.personal or (section is not None and section.scope == SCOPE_PERSONAL):
+        return viewer.user_id is not None and db_note.author_id == viewer.user_id
+    return True
 
 
 def _authorize_edit(viewer: Viewer, db_note: models.Note) -> None:
     """A personal note is edited by its author; a catalogue note by an admin."""
+    if db_note.personal:
+        # A personal row of a mixed section: its author and nobody else. No
+        # root short-circuit - the admin keeps no personal data and reads
+        # nobody's, so it cannot reach one either.
+        if viewer.user_id is not None and db_note.author_id == viewer.user_id:
+            return
+        raise HTTPException(status_code=404, detail=NOTE_NOT_FOUND)
     section = section_by_key(db_note.section or "")
     if section is not None and section.scope == SCOPE_PERSONAL:
         if viewer.is_root or db_note.author_id == viewer.user_id:
@@ -348,6 +386,8 @@ def _validate_parent(
     db: Session,
     payload: schemas.NoteBase,
     exclude_id: Optional[str] = None,
+    viewer: Optional[Viewer] = None,
+    personal: bool = False,
 ) -> None:
     """
     A nested row's parent must exist, and must be a sibling in every sense.
@@ -360,6 +400,12 @@ def _validate_parent(
     depth, so "not your own parent" is not enough - A under B under A is the
     same corruption two rows further out, and it would make the page recurse
     forever.
+
+    In a mixed section a personal row (`personal`) may sit under a catalogue
+    row or under its author's own, but a catalogue row may not sit under a
+    personal one - the catalogue would hang off one account's private row,
+    and every other reader would see a child with no parent. Another
+    account's personal row is a parent that is not there.
     """
     if payload.parent_id is None:
         return
@@ -373,8 +419,13 @@ def _validate_parent(
     )
     # 422, not 404: the missing thing is a value in the payload, not the
     # resource this request addresses.
-    if parent is None:
+    if parent is None or (viewer is not None and not _readable(viewer, parent)):
         raise HTTPException(status_code=422, detail="Parent note not found.")
+    if parent.personal and not personal:
+        raise HTTPException(
+            status_code=422,
+            detail="A catalogue note cannot nest under a personal note.",
+        )
     if parent.section != payload.section:
         raise HTTPException(
             status_code=422, detail="A note may only nest under its own section."
@@ -426,11 +477,20 @@ def _next_sort_index(db: Session, payload: schemas.NoteBase) -> float:
 
 
 def _ordered(notes: List[models.Note]) -> List[models.Note]:
-    """Registry order first, then sort_index within a section."""
+    """
+    Registry order first, then sort_index within a section - the catalogue
+    rows first and then the viewer's personal rows, in a mixed section.
+
+    One flat order is enough for every grouping the page draws: it groups by
+    first appearance and nests by parent_id, both keeping this order within
+    a group, so a user's rows sit after the catalogue's in every group and
+    under every parent. Each kind is numbered on its own (reorder_notes).
+    """
     return sorted(
         notes,
         key=lambda n: (
             _SECTION_ORDER.get(n.section, len(_SECTION_ORDER)),
+            bool(n.personal),
             n.sort_index if n.sort_index is not None else 0.0,
         ),
     )
@@ -487,17 +547,18 @@ def list_notes(
     # sees none. This is the read half of the scope declared in
     # app/utils/note_sections.py; catalogue sections fall through untouched,
     # which is what "one shared set of rows, read by everyone" means.
+    #
+    # A personal row of a mixed section (`note.personal`) is filtered the same
+    # way: its author's alone, beside the catalogue rows everyone reads.
     author_id = viewer.user_id
     personal = list(PERSONAL_SECTIONS)
+    everyones = and_(
+        models.Note.section.notin_(personal), models.Note.personal.is_(False)
+    )
     if author_id is None:
-        query = query.filter(models.Note.section.notin_(personal))
+        query = query.filter(everyones)
     else:
-        query = query.filter(
-            or_(
-                models.Note.section.notin_(personal),
-                models.Note.author_id == author_id,
-            )
-        )
+        query = query.filter(or_(everyones, models.Note.author_id == author_id))
     return notes_out(db, viewer, _ordered(query.all()))
 
 
@@ -517,7 +578,7 @@ def create_note(
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    _authorize_write(viewer, payload.section)
+    personal = _authorize_write(viewer, payload.section)
     _validate_or_422(payload)
     _require_visible_owner(db, viewer, payload.owner_id)
     _require_owner_where(db, payload)
@@ -525,7 +586,7 @@ def create_note(
         payload.fields = _canonical_fields(payload.section, payload.fields)
     _require_choice_nodes(db, payload)
     _reject_second_singleton(db, payload, author_id=viewer.user_id)
-    _validate_parent(db, payload)
+    _validate_parent(db, payload, viewer=viewer, personal=personal)
 
     data = payload.model_dump(exclude_unset=True)
     if data.get("sort_index") is None:
@@ -538,7 +599,11 @@ def create_note(
     data.pop("owner_id", None)
     data.update(_owner_columns(payload.owner_type, payload.owner_id))
 
-    db_note = models.Note(system_id=uuid.uuid4(), author_id=viewer.user_id, **data)
+    # The kind is the server's, like the author: NoteBase has no `personal`
+    # field either, so a payload naming one is ignored.
+    db_note = models.Note(
+        system_id=uuid.uuid4(), author_id=viewer.user_id, personal=personal, **data
+    )
     db.add(db_note)
     db.commit()
     db.refresh(db_note)
@@ -556,21 +621,30 @@ def reorder_notes(
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Rewrite sort_index for one section of one owner, in the order given."""
+    """
+    Rewrite sort_index for one section of one owner, in the order given.
+
+    A mixed section is renumbered one kind at a time: a manage.catalog holder
+    sends exactly the catalogue rows, any other writer exactly its own
+    personal rows. The two kinds never share an order - a user's rows sit
+    after the catalogue's - so one list naming both means nothing.
+    """
     _validate_owner_type(payload.owner_type)
     section = section_by_key(payload.section)
     if section is None:
         raise HTTPException(
             status_code=400, detail=f"Unknown note section '{payload.section}'."
         )
-    _authorize_write(viewer, payload.section)
+    personal = _authorize_write(viewer, payload.section)
     _require_visible_owner(db, viewer, payload.owner_id)
 
     query = db.query(models.Note).filter(
         *_owner_filters(payload.owner_type, payload.owner_id),
         models.Note.section == payload.section,
     )
-    if section.scope == SCOPE_PERSONAL:
+    if section.mixed:
+        query = query.filter(models.Note.personal.is_(personal))
+    if section.scope == SCOPE_PERSONAL or personal:
         # Reordering somebody else's list is a write to their rows, so a
         # personal section reorders only the caller's own.
         query = query.filter(models.Note.author_id == viewer.user_id)
@@ -642,8 +716,22 @@ def update_note(
     if "fields" in data:
         data["fields"] = merged.fields
     # After the merge, so a PATCH cannot move a row into a section the caller
-    # may not write.
-    _authorize_write(viewer, merged.section)
+    # may not write. A personal row is its author's wherever it goes (checked
+    # above), and may go only where personal rows live: it is never turned
+    # into a catalogue row.
+    if db_note.personal:
+        target = section_by_key(merged.section or "")
+        if target is None:
+            raise HTTPException(
+                status_code=400, detail=f"Unknown note section '{merged.section}'."
+            )
+        if not target.mixed:
+            raise HTTPException(
+                status_code=422,
+                detail="A personal note may move only to a section that takes them.",
+            )
+    else:
+        _authorize_write(viewer, merged.section)
     _require_visible_owner(db, viewer, merged.owner_id)
     _require_owner_where(db, merged)
     # Only a PATCH that sends `fields` can change a link, and only a value
@@ -665,7 +753,9 @@ def update_note(
     _reject_second_singleton(
         db, merged, exclude_id=note_id, author_id=db_note.author_id
     )
-    _validate_parent(db, merged, exclude_id=note_id)
+    _validate_parent(
+        db, merged, exclude_id=note_id, viewer=viewer, personal=db_note.personal
+    )
 
     # owner_type / owner_id are read-only properties now, so a PATCH that
     # names them is translated into the four columns - clearing the other three
@@ -721,6 +811,9 @@ def write_note_mark(
         raise _capability_refused("You may not mark notes.")
     db_note = _get_or_404(db, str(note_id))
     require_visible_owner(db, viewer, db_note.owner_id, NOTE_NOT_FOUND)
+    # Another account's personal row is not there, in the same words.
+    if not _readable(viewer, db_note):
+        raise HTTPException(status_code=404, detail=NOTE_NOT_FOUND)
     section = section_by_key(db_note.section or "")
     held = features_held(db, viewer)
     try:
@@ -746,9 +839,10 @@ def reset_for_new_game(
     """
     Start a new cycle of one owner for the caller: clear the caller's own
     collected status and amount collected on every 物品 row whose NG Reset is
-    yes (a row without one reads yes), and every beaten on 敵人. Other
-    accounts' marks, rows marked no and every other value stay. Returns how
-    many of the caller's marks changed.
+    yes (a row without one reads yes), and every beaten on 敵人 - on the
+    catalogue rows and the caller's own personal rows alike. Other accounts'
+    marks, rows marked no and every other value stay. Returns how many of the
+    caller's marks changed.
     """
     if viewer.user_id is None:
         raise _capability_refused("You may not mark notes.")

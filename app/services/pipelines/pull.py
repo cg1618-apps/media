@@ -715,14 +715,19 @@ def _match_note_twin(
 
     Compared in Python rather than in SQL because a JSONB column holds either
     SQL NULL or JSON null for "empty", depending on how the row was written.
+
+    Catalogue rows only, on both sides. A personal row of a mixed section is
+    written by one account and never minted per database, so it has no twin
+    under another uuid - and matching one by content would fold it onto the
+    catalogue row it copies, or the catalogue row onto it.
     """
     owner = _note_owner_filters(payload)
     section = payload.get("section")
-    if not owner or not section:
+    if not owner or not section or payload.get("personal"):
         return None
     candidates = (
         db.query(Note)
-        .filter(*owner, Note.section == section)
+        .filter(*owner, Note.section == section, Note.personal.is_(False))
         .order_by(Note.created_at, Note.system_id)
         .all()
     )
@@ -867,8 +872,9 @@ def _note_uuid_map(db: Session, headers: list, data_rows: list) -> dict[str, obj
     {sheet note uuid: local note uuid} for the Note tab's rows whose uuid this
     database does not hold, matched exactly as restoring the tab matches them:
     a one_per_kind row (music_status) by owner, section and kind, any other by
-    _match_note_twin. A personal-scope singleton is not matched - a mark sits
-    on catalogue rows only.
+    _match_note_twin. A personal-scope singleton is not matched, and nor is a
+    personal row of a mixed section (_match_note_twin refuses it): neither is
+    minted per database.
     """
     parser = TAB_PARSERS["Note"]
     sheet_ids = _sheet_ids(headers, data_rows)

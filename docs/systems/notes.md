@@ -244,6 +244,14 @@ each value first appears with the ungrouped roots last, and draws each root's
 whole subtree under it. A row still moves only among its own siblings, and a
 move sends the whole tree depth-first in the drawn order, group after group.
 
+Geography is also [mixed](#mixed-sections): a member's personal row may sit
+under a catalogue row or under the member's own, and comes after the catalogue
+children of the same parent; a catalogue row may not sit under a personal one
+(422 "A catalogue note cannot nest under a personal note."), and another
+account's personal row is a parent that is not there (422 "Parent note not
+found."). Deleting a catalogue row takes its whole subtree, members' personal
+rows under it included (the `parent_id` CASCADE).
+
 ### Section registry
 
 `NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all fifteen owners (`ALL_OWNERS`); "Entries" = the twelve media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically. "All but H" leaves out the three gated types (`H_OWNERS`); "All but h-comic, hentai" leaves out two of them — see "The gated types' notes" below the table.
@@ -549,7 +557,7 @@ Who may write, and whose rows a read returns, follow from it — the router read
 | `catalog` | `manage.catalog` | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only (a root role may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
 
-A catalogue row may still carry **personal values** — see the next section.
+A catalogue row may still carry **personal values** — see the next section — and ten catalogue sections also hold each account's own **personal rows** beside the catalogue's — see [Mixed sections](#mixed-sections).
 
 Personal rows are private to their author. There is no way to read another account's, the admin's included: `GET /api/notes` takes no author parameter, and an `author` in the query string is ignored. The six highlight sections are personal like the rest, so every account reads its own highlights and a logged-out visitor none. The full rules live in [../authorization.md](../authorization.md#note-scope).
 
@@ -612,6 +620,53 @@ see [API](#api).
 — true for an account holding `self.personal_notes` — and is the one place
 the per-account switches will be read from.
 
+### Mixed sections
+
+Ten catalogue sections are **`mixed`** (`NoteSection.mixed`,
+`MIXED_SECTIONS`): beside the catalogue rows they hold each account's own
+**personal rows**, in the same card and the same groups. They are 武器&裝備
+`weapons_and_gear`, 道具 `items`, 收集物 `collectibles`, 敵人 `enemies`, 角色
+`characters_guide`, 地理 `geography`, 配裝&流派 `builds_and_styles`, 隊伍組成
+`team_composition`, 攻略資源 `guide_resources`, and `resources`, which is on
+every owner type and not only games. An import-time check (`_check_mixed`)
+keeps `mixed` to catalogue sections that are neither `singleton` nor
+`one_per_kind`. `/api/notes/sections` serves it as `NoteSectionOut.mixed`.
+
+A row's kind is **`note.personal`**, stored on the row because a mixed
+section holds both and its scope cannot say which a row is. It is true only on
+a personal row of a mixed section; a catalogue row, and a row of a
+personal-scope section (personal by its section), carry false. Every row a
+response returns carries it (`NoteResponse.personal`).
+
+| | Catalogue row | Personal row |
+| --- | --- | --- |
+| Read by | everyone, a logged-out visitor included | its author alone — not another member, not a catalogue editor, not the admin |
+| Written (`POST`) by | a viewer holding `manage.catalog`: `super`, the admin, any catalogue editor | any other signed-in viewer holding `self.personal_notes` |
+| Edited and deleted by | `manage.catalog` (401 otherwise) | its author (404 to anyone else) |
+| Reordered by | `manage.catalog`, the section's catalogue rows exactly | its author, its own personal rows exactly |
+| Nests under | a catalogue row | a catalogue row, or its author's own personal row |
+
+**The server picks the kind.** `_authorize_write` decides it from
+`manage.catalog`, and nothing in the payload can: `NoteCreate` has no
+`personal` field, so a `personal` key is ignored, and no write ever changes
+the kind of a stored row. A personal row is never promoted into the
+catalogue. A PATCH may move it only to another mixed section (422 "A personal
+note may move only to a section that takes them."). The admin writes
+catalogue rows and holds none of its own.
+
+**Order.** Within a section the catalogue rows come first, by `sort_index`,
+then the viewer's personal rows, by `sort_index` (`_ordered`). The page draws
+a section's groups — `groupable_by`, Resources' groups, a hierarchical
+section's parents — in first-appearance order and keeps the response order
+inside each, so a member's rows sit after the catalogue's within every group
+and under every parent. A personal row with a group the catalogue lacks makes
+a group after the catalogue's.
+
+**Personal values work on both kinds.** A personal row's collected, amount
+collected and beaten are the author's marks like a catalogue row's, written
+through `PUT /{id}/mark` and cleared by the NG reset, which reaches the
+caller's personal rows as well as the catalogue's.
+
 ## Rules
 
 Design rules baked into the registry:
@@ -660,6 +715,7 @@ Singleton and one-per-kind uniqueness are **not** here — they need a query, so
 
 - If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. A collection, franchise or series owner hidden from the viewer — by a label on it that the viewer's mode lacks, or on a group above it — answers the same 404 (`tier_visible`); every write resolves the tier from the id through `require_visible_owner` and answers it too.
 - **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer; a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
+- **Personal rows of a mixed section filter the same way** (`note.personal`): the viewer's own beside the catalogue rows, after them. See [Mixed sections](#mixed-sections).
 - No field group names a note section.
 - `GET /api/notes/sections` lists every section of the owner type, with its `scope`. What it leaves out is a personal value granted by a feature the viewer lacks (see [Personal values on catalogue rows](#personal-values-on-catalogue-rows-note-marks)). A gated owner type the viewer cannot see answers 400 as an unknown one.
 - **Personal values are the viewer's.** Every row carries the viewer's own values in place of the personal ones, or their defaults.
@@ -671,17 +727,17 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | Method | Path | Auth | Params / body | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/notes/sections` | public | `?owner_type=` | `List[NoteSectionOut]` — registry resolved for that owner and the viewer's features, display order. Each field carries `personal` and `granted`; each section `personal_status` and `status_granted` | 400 unknown owner_type |
-| GET | `/api/notes` | public (viewer-aware) | `?owner_type=&owner_id=` | `List[NoteResponse]`, sorted by registry position then `sort_index` (`_ordered`), each row carrying the viewer's personal values | 400 unknown owner_type; 404 owner not visible |
+| GET | `/api/notes` | public (viewer-aware) | `?owner_type=&owner_id=` | `List[NoteResponse]`, sorted by registry position, then catalogue rows before the viewer's personal rows, then `sort_index` (`_ordered`), each row carrying the viewer's personal values and `personal` | 400 unknown owner_type; 404 owner not visible |
 | POST | `/api/notes` | by scope | body `NoteCreate` (`owner_type`, `owner_id`, `section`, `locator`, `kind`, `status`, `title`, `content`, `links`, `sort_index`) | 201 `NoteResponse`; `sort_index` defaults to last-in-section + 1 | 400 unknown section (a key no longer in the registry, such as `reviews_and_comments`, included); 422 validation / second singleton / second `music_status` row for one list |
-| PATCH | `/api/notes/reorder` | by scope | body `NoteReorder` `{owner_type, owner_id, section, ordered_ids}` | `{"status":"success","reordered":n}`; rewrites `sort_index` as 0,1,2… | 400 unknown owner_type / unknown section / `ordered_ids` names a note twice / `ordered_ids` not exactly the section's rows |
-| PATCH | `/api/notes/{note_id}` | by scope | body `NoteUpdate` (partial; `exclude_unset`) | `NoteResponse` | 404; 422 — the merged row (current values + patch, built from `NoteUpdate.model_fields`) is validated **before** mutation so autoflush never writes a bad row. A PATCH may move a note to another owner, or to another section; a PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section, since its old index orders it among rows it is no longer with. |
+| PATCH | `/api/notes/reorder` | by scope | body `NoteReorder` `{owner_type, owner_id, section, ordered_ids}` | `{"status":"success","reordered":n}`; rewrites `sort_index` as 0,1,2… — in a mixed section over one kind | 400 unknown owner_type / unknown section / `ordered_ids` names a note twice / `ordered_ids` not exactly the section's rows |
+| PATCH | `/api/notes/{note_id}` | by scope | body `NoteUpdate` (partial; `exclude_unset`) | `NoteResponse` | 404; 422 — a personal row moved to a section that is not mixed, or the merged row (current values + patch, built from `NoteUpdate.model_fields`) failing validation, which runs **before** mutation so autoflush never writes a bad row. A PATCH may move a note to another owner, or to another section; a PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section, since its old index orders it among rows it is no longer with. |
 | DELETE | `/api/notes/{note_id}` | by scope | — | 204 | 404. Audited via `log_deleted_record(db, note, "Note")` (`app/utils/data_control_utils.py`). Every account's marks on the row go with it (CASCADE). |
 | PUT | `/api/notes/{note_id}/mark` | `self.personal_notes` | body `NoteMarkWrite` `{"values": {key: value｜null}}` — a key is one of the row's personal values; a value sets it, null or blank clears it, an unnamed key is left alone | the `NoteResponse` as the caller now reads it | 401 without the permission (the admin included) or for a value granted by a feature the caller lacks; 404 note missing or its owner not visible; 422 a key that is not personal on the row's section, a value outside its vocabulary |
 | POST | `/api/notes/ng-reset` | `self.personal_notes` | body `{owner_type, owner_id}` | `{"cleared": n}` — how many of the caller's marks changed | 400 unknown owner_type; 401 as above; 404 owner not visible |
 
 The NG reset clears, from the caller's own marks only, every value the registry marks `ng_resets`: `collected` and `amount_collected` on the 物品 rows whose `ng_reset` is yes (a row without the key reads yes), and `beaten` on every enemy. Rows marked no, every other value and other accounts' marks stay.
 
-"By scope" means the section decides: a **catalogue** section needs `manage.catalog`, a **personal** one needs an account holding `self.personal_notes` and reaches only that account's own rows. Somebody else's personal note answers **404**, worded exactly as a missing one — there is no 403 anywhere in this router, because a 403 confirms the row exists as surely as a 200 does. A reorder over a personal section renumbers the caller's rows alone. See [Scope](#scope). `?author=` answers **404** for an unknown user, a private list, or a viewer without `field_group.personal_notes` — the same reply for all three.
+"By scope" means the section decides: a **catalogue** section needs `manage.catalog`, a **personal** one needs an account holding `self.personal_notes` and reaches only that account's own rows. Somebody else's personal note answers **404**, worded exactly as a missing one — there is no 403 anywhere in this router, because a 403 confirms the row exists as surely as a 200 does. A reorder over a personal section renumbers the caller's rows alone. A **mixed** section decides by `manage.catalog`: its holders write and reorder catalogue rows, every other account holding `self.personal_notes` writes and reorders its own personal rows, and a personal row is edited or deleted by its author alone — 404 to anyone else, the admin included. See [Scope](#scope) and [Mixed sections](#mixed-sections). `?author=` answers **404** for an unknown user, a private list, or a viewer without `field_group.personal_notes` — the same reply for all three.
 
 `/reorder` is declared before `/{note_id}` on purpose (FastAPI matches in order). The notes page calls it (`reorderNotes` in `frontend/src/pages/notes/api.js`) whenever a section's rows, or a `groupable_by` section's groups, are dragged into a new order — every list section, whatever its shape. The singleton `remark` has nothing to order, `music_status` is never drawn as a list, and quotes and memes live in their own tables and are not reordered.
 
@@ -868,10 +924,11 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 
 | Aspect | Detail |
 | --- | --- |
-| Columns | `note` column declaration order: `system_id, media_id, collection_id, franchise_id, series_id, section, parent_id, locator, kind, status, title, content, links, entries, fields, sort_index, created_at, updated_at`, then `username` (`format_model_for_sheet`, `app/utils/formatter.py`). `author_id` is dropped for `username`, the author's name, because the uuid is minted per database; Pull resolves the name back, and an unknown, blank or absent one files the row under the installation owner. A sheet written before the column existed carries `author_id`, and Pull tries that uuid first. `links`, `entries` and `fields` are serialised as JSON text. `owner_type` / `owner_id` are **not** columns — they are read-only properties, which is what keeps them out of the sheet row. |
+| Columns | `note` column declaration order: `system_id, media_id, collection_id, franchise_id, series_id, section, personal, parent_id, locator, kind, status, title, content, links, entries, fields, sort_index, created_at, updated_at`, then `username` (`format_model_for_sheet`, `app/utils/formatter.py`). `author_id` is dropped for `username`, the author's name, because the uuid is minted per database; Pull resolves the name back, and an unknown, blank or absent one files the row under the installation owner. A sheet written before the column existed carries `author_id`, and Pull tries that uuid first. `links`, `entries` and `fields` are serialised as JSON text. `owner_type` / `owner_id` are **not** columns — they are read-only properties, which is what keeps them out of the sheet row. |
 | Restore order | Near the end of `SHEET_TABS`: after every owner tab, Quote and Meme, before Seasonal — owners must exist first. |
 | Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **`entries` and `fields` are each parsed exactly like `links` beside them, and `parent_id` like the owner columns** — without those keys Backup would still write the columns (the formatter walks real columns) and Pull would drop them, losing every item of every `name_entries` row, every structured field, and the nesting of every hierarchical row on a round trip. A `section` naming a key that has left the registry is filed where the migration filed the local rows (`_RETIRED_NOTE_SECTIONS`): `reviews_and_comments` becomes `public_reviews`. |
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
+| Personal rows | A row whose `personal` is true restores as a personal row under its author, by `username`, as a personal section's rows do. A blank cell reads false. A backup taken before the column existed has no `personal` header, and every row it holds restores as catalogue, the column's default. A personal row is never retargeted at a local twin by content (`_match_note_twin` matches catalogue rows only, on both sides): it is never minted per database. |
 | Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the existing remark row for the same owner **and author** and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
 | Music status rows | The same retargeting per `(owner, kind)`: a sheet `music_status` row folds onto the local row for the same anime and list, keeping the local id. Its revision minted those rows separately on every database, so the two machines' copies differ in id and nothing else. |
 | Personal values in an old backup | A Note tab written before the personal values moved to marks carries them on the row — the status column, or `fields.my_value`. Pull takes them off the row before matching it (the matches compare content, and the local row no longer carries them) and files them under the installation owner's mark for the row it lands on (`pop_legacy_note_values`, through `app/services/domain/legacy_personal.py`). Exact, not a guess: on those sections that column or key only ever held the personal value, and a current backup carries it null. |

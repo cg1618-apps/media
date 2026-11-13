@@ -2214,6 +2214,11 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # app/services/pipelines/pull.py applies.
         "author_id": _uuid_or_none(raw.get("author_id")),
         "section": _pulled_note_section(raw.get("section")),
+        # A personal row of a mixed section. NOT NULL, so a blank cell reads
+        # as catalogue; a sheet backed up before the column existed has no
+        # header, so Pull leaves the key out and the column's default - also
+        # catalogue - applies, which is all such a sheet can hold.
+        "personal": parse_from_sheet(raw.get("personal"), bool) is True,
         # The tree link for the hierarchical sections. A plain UUID column, so
         # it needs no JSON handling - but it does need to be here, or Pull
         # flattens every nested Story List entry to a root.

@@ -1111,11 +1111,11 @@ the id, never from the payload's `owner_type`.
 
 | Method   | Path           | Auth   | Description                                                                                                                                       |
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`). Each section carries its `scope` (`catalog` or `personal`), which says who may write it. |
-| `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Catalogue sections for everyone; personal sections only the viewer's own rows, and none for a logged-out viewer. There is no parameter that reads another account's personal notes, the admin's included. The six highlight sections are personal, so their rows are the viewer's own too. |
-| `POST`   | `""`           | By scope | Create (201). Body: `NoteCreate`. 422 on a payload the registry rejects, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
-| `PATCH`  | `/reorder`     | By scope | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once - in a personal section, exactly the caller's own.                |
-| `PATCH`  | `/{note_id}`   | By scope | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. |
+| `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`). Each section carries its `scope` (`catalog` or `personal`), which says who may write it, and `mixed` (`true` on the ten catalogue sections that also hold each viewer's own personal rows). |
+| `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Catalogue sections for everyone; personal sections only the viewer's own rows, and none for a logged-out viewer. There is no parameter that reads another account's personal notes, the admin's included. The six highlight sections are personal, so their rows are the viewer's own too. A mixed section returns its catalogue rows and then the viewer's own personal rows (`personal: true`), each kind by `sort_index`; nobody reads another account's. |
+| `POST`   | `""`           | By scope | Create (201). Body: `NoteCreate`. In a mixed section the server picks the row's kind, never the payload (a `personal` key is ignored): a caller holding `manage.catalog` writes a catalogue row, any other caller holding `self.personal_notes` a personal row. 422 on a payload the registry rejects, on a catalogue row nesting under a personal one or a row nesting under another account's personal row, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
+| `PATCH`  | `/reorder`     | By scope | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once - in a personal section, exactly the caller's own; in a mixed section exactly its catalogue rows for a `manage.catalog` holder and exactly the caller's own personal rows for anyone else.                |
+| `PATCH`  | `/{note_id}`   | By scope | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. A personal row of a mixed section is edited only by its author, may move only to another mixed section (422 otherwise), and never changes kind. |
 | `DELETE` | `/{note_id}`   | By scope | Delete, **204 No Content**. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have. Every account's note marks on the row go with it.        |
 | `PUT`    | `/{note_id}/mark` | `self.personal_notes` | Set or clear the caller's own personal values on one catalogue row. Body `{"values": {key: value \| null}}`: each key is one of the row's personal values (a personal field's key, or `status` for a section-level personal status); a value sets it, `null` or blank clears it, a key not named is left alone. Returns the `NoteResponse` as the caller now reads it. **401** without the permission - the `admin` account included, it keeps no personal data - and for a value granted by a feature the caller lacks; **404** for a missing note or an owner the caller may not see; **422** for a key that is not personal on the row's section, or a value outside its vocabulary. |
 | `POST`   | `/ng-reset`    | `self.personal_notes` | Start a new cycle of one owner for the caller. Body `{"owner_type", "owner_id"}`. Clears, from the caller's own marks only, `collected` and `amount_collected` on every 物品 row whose `ng_reset` is `yes` (a row without one reads `yes`) and `beaten` on every 敵人 row. Returns `{"cleared": n}`, the number of the caller's marks changed. 400 unknown `owner_type`, 401 as above, 404 owner not visible. |
@@ -1138,12 +1138,19 @@ nor checked. The detail is in [systems/notes.md](systems/notes.md).
 `admin` account does not hold - its creates, edits and reorders there are
 **401**). A personal row is edited, reordered and deleted only by its author;
 another account's row is **404** - except that the `admin` account may delete
-one (`_authorize_edit`'s root short-circuit). Personal sections include the six highlight sections and 下周目目標
+one (`_authorize_edit`'s root short-circuit). A **mixed** section is decided by
+`manage.catalog`: its holders - `super`, the `admin` account - write, edit and
+reorder its catalogue rows (**401** for anyone else), and every other account
+holding `self.personal_notes` writes its own personal rows, which only it
+edits, deletes, reorders, marks and nests under (**404** to anyone else, the
+`admin` account included - no root short-circuit here). Personal sections include the six highlight sections and 下周目目標
 (`ng_goals`) - [catalogue.md](catalogue.md) lists every section's scope.
 
-**Response models:** `NoteResponse`, `NoteSectionOut` (one resolved registry
+**Response models:** `NoteResponse` (carries `personal`, true on a personal
+row of a mixed section - always the viewer's own - and false on every other),
+`NoteSectionOut` (one resolved registry
 entry: `key`, `shape`, `scope` (`catalog`, `personal`, or `null` for quotes and
-memes), `label`, `kinds`, `locator_placeholder`,
+memes), `mixed`, `label`, `kinds`, `locator_placeholder`,
 `locator_required`, `takes_links` (an `episode_text` section whose rows also
 carry URL-string links - `op_ed_changes`), `singleton`, `desc_required`, and for a structured section
 `fields` - each field's `type` may be `names`, a list of strings stored under

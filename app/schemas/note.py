@@ -95,6 +95,10 @@ class NoteResponse(NoteBase):
     # Read-only. Set from the request's viewer, never from the payload, which
     # is why it is on the response schema and not on NoteBase.
     author_id: Optional[UUID] = None
+    # A personal row of a mixed section - the viewer's own, since nobody reads
+    # another account's. Read-only like author_id: the server decides it on
+    # create from manage.catalog, so a `personal` key in a payload is ignored.
+    personal: bool = False
     # Nullable in the database, and a blank Google Sheets cell parses to None
     # on Pull, so one timestamp-less row must not fail the whole list endpoint.
     created_at: Optional[datetime] = None
@@ -220,6 +224,10 @@ class NoteSectionOut(BaseModel):
     # `default_status` and the type-status keys above are empty, because the
     # viewer does not see the status at all.
     status_granted: Optional[str] = None
+    # The section also holds each viewer's own personal rows beside the
+    # catalogue's (rows carrying `personal`). A viewer holding manage.catalog
+    # writes catalogue rows here, any other writer personal rows.
+    mixed: bool = False
 
 
 class NoteReorder(BaseModel):
@@ -357,6 +365,7 @@ def section_out(
         move_targets=move_targets_for(section, owner_type),
         personal_status=section.personal_status,
         status_granted=section.status_granted,
+        mixed=section.mixed,
     )
 
 

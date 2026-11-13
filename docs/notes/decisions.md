@@ -4295,6 +4295,71 @@ values into the installation owner's marks and clears them from `note`.
   personal value, so Pull takes it off the row before matching and files it
   under the installation owner.
 
+### Catalogue rows and each account's own rows in one section: mixed sections (2026-11-13)
+
+The account spec makes ten catalogue sections mixed - 武器&裝備, 道具,
+收集物, 敵人, 角色, 地理, 配裝&流派, 隊伍組成, 攻略資源 and Resources: a
+viewer reads the catalogue rows plus its own personal rows, in the same
+groups. The registry marks them (`NoteSection.mixed`); revision
+`m1i2xedrows3` adds `note.personal`.
+
+- **A row-level boolean, because the section cannot say.** Everywhere else a
+  row's kind is its section's `scope`, and the read filter, the write gate
+  and Pull all key on that. A mixed section holds both kinds, so the kind
+  has to live on the row. One boolean, NOT NULL with a false default, makes
+  every row that existed before it catalogue with nothing to move, and
+  leaves `scope` meaning what it meant. A second section per mixed section
+  (`items` and `items_personal`) was the alternative: it would have split
+  one card's rows across two sections, two orders and two group lists, the
+  thing the spec's "in the same groups" rules out. `personal` stays false on
+  a personal-scope section's rows: those are personal by their section, and
+  a second source of the same answer is one that can disagree.
+- **The server picks the kind, from `manage.catalog`.** The spec fixes which
+  kind an account writes by whether it writes the catalogue, never both in
+  one section, and there is no "only me" switch. So the payload carries no
+  kind: a `personal` key is ignored like `author_id`, and `_authorize_write`
+  decides - catalogue for a `manage.catalog` holder (`super`, the admin, any
+  catalogue editor), personal for anyone else holding `self.personal_notes`.
+  Taking it from the payload would have needed refusing the wrong one per
+  account, which is the same rule written twice. The admin writes catalogue
+  rows and keeps none of its own, as everywhere: a personal row is 404 to it
+  like to anyone not its author, with no root short-circuit.
+- **Reorder is per kind.** The two kinds never share an order - a user's
+  rows sit after the catalogue's - so a reorder renumbers one: a
+  `manage.catalog` holder sends exactly the catalogue rows, anyone else
+  exactly its own. One list naming both would mean an order the read never
+  draws, and a catalogue order written by a member would be a catalogue
+  write by someone who may not make one.
+- **A user's rows sort after the catalogue's within each group.** Sharing the
+  catalogue's order would mean a per-user copy of it, which the spec rules
+  out. Sorting by kind before `sort_index` in one flat response is enough:
+  the page groups by first appearance and nests by `parent_id`, keeping the
+  response order inside every group and under every parent, so no grouping
+  has to know about kinds. Geography's tree takes the same rule one way: a
+  personal row may sit under a catalogue row, but a catalogue row may not
+  sit under a personal one, which every other reader would see as a child
+  with no parent.
+- **Never promoted.** A personal row is never turned into a catalogue row:
+  no write changes `personal`, and a PATCH may move a personal row only to
+  another mixed section. Adding one to the catalogue is a request, written
+  by whoever writes the catalogue - the spec's rule, and the reason a row
+  never changes hands between an account and everyone.
+- **Personal values work on both kinds through marks.** A personal row's
+  collected and beaten are its author's marks exactly as on a catalogue
+  row, so the page, the mark route and the NG reset have one path, and the
+  NG reset reaches the personal rows with no change.
+- **Sheets: the column travels, and twins are catalogue only.** The Note tab
+  carries `personal`; the row restores under its author by `username` like
+  every Note row. An older backup has no header and restores catalogue rows,
+  which is all it can hold. The content twin match - for rows each database
+  minted under its own uuid - reads catalogue rows only, on both sides: a
+  personal row is never minted per database, and matching one by content
+  would hand a catalogue row to one account.
+- **Downgrade deletes the personal rows.** The older code cannot tell one
+  from a catalogue row and would show it to everyone; dropping it is the only
+  safe reading. The catalogue survives, so the revision is not marked
+  irreversible.
+
 ### Account lifecycle, second half: invite links and registration (2026-11-13)
 
 Strangers reach an account only through a link the admin hands over, and

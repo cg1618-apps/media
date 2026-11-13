@@ -1685,6 +1685,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, indexed - set when the owner is a grouping tier |
 | `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed. Who wrote the row - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
+| `personal` | Boolean | **no** | false (server default) | A personal row of a mixed section (`NoteSection.mixed`): one account's own, read and written by its `author_id` alone, beside the section's catalogue rows. False on a catalogue row and on a row of a personal-scope section, which is personal by its section. Set by the server on create from `manage.catalog`; nothing changes it after. A catalogue row may not nest under a personal one (the router refuses it) |
 | `parent_id` | UUID | yes | | FK `note.system_id` ON DELETE CASCADE, indexed. The row this one nests under, for a section the registry marks `hierarchical`; unbounded depth. A child is kept in its parent's owner and section by the router, not by the database - a CHECK cannot read another row. |
 | `locator` | String | yes | | Where in the work: episode, chapter, scene, timestamp, or a question's source. The section supplies the label and whether it is required. |
 | `kind` | String | yes | | Only where the section declares `kinds`, a `kind_category` (free text - an OP or ED's Song Type) or `kind_is_group` (free text - a Resources row's group). On a `music_status` row, the song list it is about (`op`, `ed`, `insert_songs`, `ost`) |
@@ -1694,7 +1695,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | `links` | JSONB | yes | | List of URL strings; on the four song lists (`note_sections.uses_link_pairs`), a list of `{"text": str or null, "url": str}` pairs instead. Which shape is decided by the section, never per row |
 | `entries` | JSONB | yes | | The `name_entries` shape's ordered items - each `{"type": "text" or "link", "value": str, "label": str or null}`. Deliberately not folded into `links`: one column meaning two things is how subtle bugs start. |
 | `fields` | JSONB | yes | | The `structured` shape's registry-declared fields, keyed by `NoteField.key`, plus any nested list. Only what the section's spec does not map onto a column - a structured name is `title` and its description `content` - so this holds the leftovers and the nested lists. Validated against the spec; an unknown key is a 422. |
-| `sort_index` | Float | yes | | Ordering within (owner, section) |
+| `sort_index` | Float | yes | | Ordering within (owner, section) - in a mixed section within one kind: the catalogue rows, and each account's personal rows after them |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 `ck_note_one_owner` CHECKs `num_nonnulls(media_id, collection_id,
@@ -2708,8 +2709,9 @@ dangling reference stays visible and fixable in the admin pages. Consequence:
 All three carry a `NOT NULL author_id` referencing `users(id) ON DELETE
 CASCADE` (`fk_note_author`, `fk_quote_author`, `fk_meme_author`). It is always
 set — a catalogue note has an author too, and recording it is the only
-provenance the catalogue has. What a section's **scope** changes is who a row
-is *filtered* for, not whether somebody wrote it; quotes and memes are
+provenance the catalogue has. What a section's **scope** - and, in a mixed
+section, a row's `personal` - changes is who a row is *filtered* for, not
+whether somebody wrote it; quotes and memes are
 universal and nothing filters on their author at all. See
 [authorization.md](authorization.md) for the read and write rules.
 

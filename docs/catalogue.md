@@ -94,14 +94,14 @@ that type, or a group (collection, franchise, series).
 | 屬性&配點 Stats & Points | Game, H-Game | shared |
 | 職業 Classes | Game, H-Game | shared |
 | 技能 Skills | Game, H-Game | shared |
-| 配裝&流派 Builds & Styles | Game, H-Game | shared |
-| 隊伍組成 Team Composition | Game, H-Game | shared |
-| 武器&裝備 Weapons & Gear | Game, H-Game | shared |
-| 道具 Items | Game, H-Game | shared |
-| 收集物 Collectibles | Game, H-Game | shared |
-| 角色 Characters | Game, H-Game | shared |
-| 敵人 Enemies | Game, H-Game | shared |
-| 地理 Geography | Game, H-Game | shared |
+| 配裝&流派 Builds & Styles | Game, H-Game | shared, **and yours** |
+| 隊伍組成 Team Composition | Game, H-Game | shared, **and yours** |
+| 武器&裝備 Weapons & Gear | Game, H-Game | shared, **and yours** |
+| 道具 Items | Game, H-Game | shared, **and yours** |
+| 收集物 Collectibles | Game, H-Game | shared, **and yours** |
+| 角色 Characters | Game, H-Game | shared, **and yours** |
+| 敵人 Enemies | Game, H-Game | shared, **and yours** |
+| 地理 Geography | Game, H-Game | shared, **and yours** |
 | 遊戲名詞 Game Terms | Game, H-Game | shared |
 | 玩家術語 Player Terms | Game | shared |
 | 主線劇情 Main Plot | Game | shared |
@@ -135,8 +135,8 @@ that type, or a group (collection, franchise, series).
 | 加長 | Anime, TV Show, Cartoon | shared |
 | 改編 Adaptation | Anime, Anime Movie, TV Show, Cartoon, Novel; series, franchise | shared |
 | 模組&工具 Mods & Tools | Game, H-Game | shared |
-| 攻略資源 Guide Resources | Game, H-Game | shared |
-| Resources | every type; every group | shared |
+| 攻略資源 Guide Resources | Game, H-Game | shared, **and yours** |
+| Resources | every type; every group | shared, **and yours** |
 | Questions | every type but H-Comic, Hentai; every group | **yours** |
 | 名言 Quotes | every type but H-Comic, Hentai, H-Game | shared |
 | 梗/迷因 Memes | every type but H-Comic, Hentai, H-Game; every group | shared |
@@ -153,9 +153,20 @@ the status on 模組&工具 Mods & Tools, are yours too, but only for accounts
 the music status or mod status feature is turned on for; an account without
 it does not see those statuses at all. OP/ED 變動 has no such part.
 
+**Shared, and yours.** Ten sections — those marked **shared, and yours**
+above — hold your own rows beside the shared ones: a weapon, an enemy, a
+place, a build or a resource the shared list does not have yet. Yours come
+after the shared rows, in every group and under every place, and only you
+see them. Whoever edits the catalogue adds shared rows there instead, and
+the admin account keeps none of its own; there is no switch between the
+two. A row of yours stays yours — to have it in the shared list, ask for it
+to be added. Collected, the amount collected and beaten work on your own
+rows as on the shared ones.
+
 **NG reset.** Starting a game over clears your own collected status and
 amount collected on every 物品 row whose NG Reset says yes, and your beaten
-on every enemy. Nobody else's progress, and none of the rows, change.
+on every enemy — on the shared rows and on your own. Nobody else's progress,
+and none of the rows, change.
 
 Nobody else sees your **yours** sections. Quotes and memes are not notes
 underneath, but they appear in the card and are shared.

@@ -471,6 +471,12 @@ class NoteSection:
     # The granted feature that personal status is behind, as
     # NoteField.granted.
     status_granted: str | None = None
+    # A catalogue section that also holds personal rows: each account's own,
+    # beside the catalogue rows and in the same groups (`note.personal`). A
+    # viewer reads the catalogue plus its own; who writes which kind is fixed
+    # by manage.catalog (routers/note.py). Catalogue sections only, never a
+    # singleton; checked at import.
+    mixed: bool = False
 
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
@@ -1365,6 +1371,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="配裝&流派 Builds & Styles",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="builds",
         fields=(
             # Not in the request, and kept anyway: every existing row has one,
@@ -1440,6 +1447,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="隊伍組成 Team Composition",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="builds",
         fields=(
             NoteField(key="name", label="Team", column="title"),
@@ -1472,6 +1480,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="武器&裝備 Weapons & Gear",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="gear",
         fields=_named_thing_fields(variant=True, collected=True),
         groupable_by="type",
@@ -1482,6 +1491,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="道具 Items",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="gear",
         fields=_named_thing_fields(
             variant=True, collected=True, type_category=ITEM_TYPE_CATEGORY
@@ -1494,6 +1504,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="收集物 Collectibles",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="gear",
         fields=_named_thing_fields(
             variant=True, collected=True, type_category=COLLECTIBLE_TYPE_CATEGORY
@@ -1517,6 +1528,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="角色 Characters",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="compendium",
         fields=(
             # `group` is what a character belongs TO - a faction, a party, a
@@ -1547,6 +1559,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="敵人 Enemies",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="compendium",
         fields=(
             # Free text: "boss", "small boss", "elite", "trash" are one game's
@@ -1594,6 +1607,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="地理 Geography",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="compendium",
         hierarchical=True,
         groupable_by="group",
@@ -2094,6 +2108,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="攻略資源 Guide Resources",
         owners=GAME_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         group="tools",
         # An optional group - "wikis", "videos", "one person's guides" - the
         # reader may toggle a grouped view on. Free text, with no category to
@@ -2117,6 +2132,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="Resources",
         owners=ALL_OWNERS,
         scope=SCOPE_CATALOG,
+        mixed=True,
         standalone=True,
         # An optional Group per row; the card draws one heading per group.
         kind_is_group=True,
@@ -2313,8 +2329,24 @@ def _check_personal(section: NoteSection) -> None:
         refuse("personal values sit on catalogue rows only")
 
 
+def _check_mixed(section: NoteSection) -> None:
+    """
+    `mixed` sits on catalogue sections only - a personal section's rows are
+    already one account's, and an external one stores no `note` row - and
+    never on a singleton or a `one_per_kind` section, whose one row per owner
+    (per kind) has no room for a second kind of row.
+    """
+    if not section.mixed:
+        return
+    if section.scope != SCOPE_CATALOG:
+        raise ValueError(f"Section '{section.key}' is mixed but not catalogue.")
+    if section.singleton or section.one_per_kind:
+        raise ValueError(f"Section '{section.key}' is mixed and holds one row.")
+
+
 for _section in NOTE_SECTIONS:
     _check_group_by(_section)
+    _check_mixed(_section)
     _check_groupable_by(_section)
     _check_option_categories(_section)
     _check_kind_category(_section)
@@ -2411,6 +2443,8 @@ PERSONAL_SECTIONS: frozenset[str] = frozenset(
 CATALOG_SECTIONS: frozenset[str] = frozenset(
     s.key for s in NOTE_SECTIONS if s.scope == SCOPE_CATALOG
 )
+# The catalogue sections that also hold personal rows (`mixed`).
+MIXED_SECTIONS: frozenset[str] = frozenset(s.key for s in NOTE_SECTIONS if s.mixed)
 
 def sections_by_scope(scope: str) -> list[NoteSection]:
     """Every section of one scope, in display order."""

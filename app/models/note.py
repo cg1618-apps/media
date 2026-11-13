@@ -3,6 +3,7 @@
 import uuid
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -11,6 +12,7 @@ from sqlalchemy import (
     Index,
     String,
     Text,
+    false,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -97,6 +99,13 @@ class Note(Base):
 
     # --- Which section this item belongs to ---
     section = Column(String, nullable=True, index=True)
+    # A personal row of a mixed section (NoteSection.mixed): one account's
+    # own, read and written by its author alone, beside the section's
+    # catalogue rows. False on every other row - a catalogue row, and a row
+    # of a personal-scope section, which is personal by its section. A row's
+    # kind cannot be its section's scope here, because a mixed section holds
+    # both. The server sets it on create and nothing ever changes it.
+    personal = Column(Boolean, nullable=False, default=False, server_default=false())
     # The row this one nests under, for the sections whose registry entry sets
     # `hierarchical`. Self-referential and unbounded in depth - a Story List
     # entry may have children which have children - with CASCADE so deleting a

@@ -267,6 +267,15 @@ normalised as the write path does; a row naming an entry of another type, an
 unknown entry or an unknown user, or an order that is not a list of names, is
 skipped and named in `unresolved_refs`, and an empty order is skipped.
 
+**The Note tab carries `personal`**, after `section`. A personal row of a
+mixed section restores under its author by `username`, like every Note row,
+and keeps its kind; a blank cell reads false. A backup taken before the
+column existed has no `personal` header, and every row it holds restores as
+catalogue - the column's default, and all such a backup can hold. A personal
+row is never retargeted at a local row by content: the twin match reads
+catalogue rows only, on both sides, since a personal row is never minted per
+database.
+
 **`Note Mark`** carries every account's personal values on catalogue note
 rows (collected, the amount collected, beaten, completion, my value, the
 music and mod statuses - see [systems/notes.md](systems/notes.md)). Backup
