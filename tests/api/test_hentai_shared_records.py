@@ -30,6 +30,8 @@ import pytest
 from app import models
 from app.services.domain import credits as credits_service
 from app.services.domain.content_labels import label_keys_for_entry
+from app.services.rbac import cache as rbac_cache
+from app.services.rbac.permissions import PERM_VIEW_PERSON
 from app.services.security import get_password_hash
 from app.utils import constants as c
 from tests.api.conftest import role_id_for
@@ -60,6 +62,15 @@ def h_comic_only(mode_client, db_session):
     db_session.flush()
     for key in ("h-comic", "hentai"):
         assert db_session.query(models.ContentLabel).filter_by(key=key).count() == 1
+    # The person pages must be open to this account, so the 404s these tests
+    # assert come from the label hiding the record, not from view.person.
+    db_session.add(
+        models.RolePermission(
+            role_id=role_id_for(db_session, "user"), permission=PERM_VIEW_PERSON
+        )
+    )
+    db_session.flush()
+    rbac_cache.bump()
     return mode_client("unrestricted", user=user, denials=("hentai", "h-game"))
 
 

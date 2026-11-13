@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.dependencies import get_db
 from app.models.system import USER_FEATURE_COLUMNS, USER_FEATURE_NAMES
-from app.services.rbac.permissions import SUPER_ROLE_NAME, USER_ROLE_NAME
+from app.services.rbac.permissions import ROLE_NAMES, SUPER_ROLE_NAME, USER_ROLE_NAME
 from app.services.rbac.resolver import Viewer, get_viewer
 
 FEATURE_QUOTES_MEMES = "quotes_memes"
@@ -39,6 +39,10 @@ FEATURE_NAMES: tuple[str, ...] = USER_FEATURE_NAMES
 
 # The roles whose accounts may hold a feature.
 FEATURE_ROLE_NAMES: frozenset[str] = frozenset({USER_ROLE_NAME, SUPER_ROLE_NAME})
+
+# The fixed roles whose accounts never hold a feature, whatever the column
+# says: admin, guest and shared.
+NEVER_FEATURE_ROLE_NAMES: frozenset[str] = frozenset(ROLE_NAMES) - FEATURE_ROLE_NAMES
 
 # The features the root role holds without its account's switch.
 ROOT_FEATURES: frozenset[str] = frozenset({FEATURE_QUOTES_MEMES})
@@ -60,8 +64,10 @@ def held_features(user: Optional[models.User], is_root: bool) -> list[str]:
     """
     # The role is asked as well as the column: PATCH refuses a switch on any
     # other account, but a Pull restores whatever the sheet says, so a hand-
-    # edited Users tab could store one on a shared account.
-    may_hold = user is not None and user.role in FEATURE_ROLE_NAMES
+    # edited Users tab could store one on a shared account. The refusal names
+    # the fixed roles that may never hold one rather than admitting user and
+    # super, which is the same rule over the five roles that can exist.
+    may_hold = user is not None and user.role not in NEVER_FEATURE_ROLE_NAMES
     return [
         name
         for name in FEATURE_NAMES
